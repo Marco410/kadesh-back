@@ -1,6 +1,4 @@
-# Keystone Project Starter
-
-Welcome to Keystone!
+# Kadesh Keystone Project
 
 Run
 
