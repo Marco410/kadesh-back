@@ -29,9 +29,190 @@ var path = require("path");
 var dotenv = require("dotenv");
 dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
 
-// models/User/User.ts
+// models/Animal/Animal.ts
 var import_core = require("@keystone-6/core");
 var import_fields = require("@keystone-6/core/fields");
+
+// utils/generalAccess/access.ts
+var access = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+var access_default = access;
+
+// models/Animal/Animal.ts
+var Animal_default = (0, import_core.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    animal_type: (0, import_fields.relationship)({
+      ref: "AnimalType",
+      many: false
+    }),
+    user: (0, import_fields.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Animal/AnimalType/AnimalType.ts
+var import_core2 = require("@keystone-6/core");
+var import_fields2 = require("@keystone-6/core/fields");
+
+// utils/constants/constants.ts
+var animal_type_options = [
+  { label: "Perro", value: "dog" /* DOG */ },
+  { label: "Gato", value: "cat" /* CAT */ },
+  { label: "P\xE1jaro", value: "bird" /* BIRD */ },
+  { label: "Pez", value: "fish" /* FISH */ },
+  { label: "H\xE1mster", value: "hamster" /* HAMSTER */ },
+  { label: "Conejo", value: "rabbit" /* RABBIT */ },
+  { label: "Pato", value: "duck" /* DUCK */ },
+  { label: "Serpiente", value: "snake" /* SNAKE */ },
+  { label: "Otro", value: "other" /* OTHER */ }
+];
+
+// models/Animal/AnimalType/AnimalType.ts
+var AnimalType_default = (0, import_core2.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields2.select)({
+      defaultValue: "dog" /* DOG */,
+      options: animal_type_options,
+      isIndexed: "unique"
+    }),
+    order: (0, import_fields2.integer)()
+  }
+});
+
+// models/Animal/AnimalMultimedia/AnimalMultimedia.ts
+var import_core3 = require("@keystone-6/core");
+var import_fields3 = require("@keystone-6/core/fields");
+var AnimalMultimedia_default = (0, import_core3.list)({
+  access: access_default,
+  fields: {
+    image: (0, import_fields3.image)({ storage: "my_local_images" }),
+    animal: (0, import_fields3.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    createdAt: (0, import_fields3.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Animal/AnimalFavorite/AnimalFavorite.ts
+var import_core4 = require("@keystone-6/core");
+var import_fields4 = require("@keystone-6/core/fields");
+var AnimalFavorite_default = (0, import_core4.list)({
+  access: access_default,
+  fields: {
+    animal: (0, import_fields4.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    user: (0, import_fields4.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields4.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Animal/AnimalHistory/AnimalHistory.ts
+var import_core5 = require("@keystone-6/core");
+var import_fields5 = require("@keystone-6/core/fields");
+var AnimalHistory_default = (0, import_core5.list)({
+  access: access_default,
+  fields: {
+    animal: (0, import_fields5.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    status: (0, import_fields5.select)({
+      defaultValue: "Registrado",
+      options: [
+        {
+          label: "Registrado",
+          value: "Registrado"
+        },
+        {
+          label: "Adoptado",
+          value: "Adoptado"
+        },
+        {
+          label: "Abandonado",
+          value: "Abandonado"
+        },
+        {
+          label: "Rescatado",
+          value: "Rescatado"
+        },
+        {
+          label: "En familia",
+          value: "En familia"
+        }
+      ]
+    }),
+    notes: (0, import_fields5.text)(),
+    lat: (0, import_fields5.text)(),
+    lng: (0, import_fields5.text)(),
+    createdAt: (0, import_fields5.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Animal/AnimalComment/AnimalComment.ts
+var import_core6 = require("@keystone-6/core");
+var import_fields6 = require("@keystone-6/core/fields");
+var AnimalComment_default = (0, import_core6.list)({
+  access: access_default,
+  fields: {
+    comment: (0, import_fields6.text)({ validation: { isRequired: true } }),
+    animal: (0, import_fields6.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    user: (0, import_fields6.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields6.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/User/User.ts
+var import_core7 = require("@keystone-6/core");
+var import_fields7 = require("@keystone-6/core/fields");
 
 // models/User/User.hooks.ts
 var phoneHooks = {
@@ -61,36 +242,20 @@ var emailHooks = {
   }
 };
 
-// utils/generalAccess/access.ts
-var access = {
-  operation: {
-    query: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true
-  },
-  filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
-  }
-};
-var access_default = access;
-
 // models/User/User.ts
-var User_default = (0, import_core.list)({
+var User_default = (0, import_core7.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields.text)({ validation: { isRequired: true } }),
-    lastName: (0, import_fields.text)(),
-    username: (0, import_fields.text)({
+    name: (0, import_fields7.text)({ validation: { isRequired: true } }),
+    lastName: (0, import_fields7.text)(),
+    username: (0, import_fields7.text)({
       isIndexed: "unique"
     }),
-    email: (0, import_fields.text)({
+    email: (0, import_fields7.text)({
       isIndexed: "unique",
       hooks: emailHooks
     }),
-    password: (0, import_fields.password)({
+    password: (0, import_fields7.password)({
       validation: { isRequired: true },
       ui: {
         createView: {
@@ -98,10 +263,10 @@ var User_default = (0, import_core.list)({
         }
       }
     }),
-    phone: (0, import_fields.text)({
+    phone: (0, import_fields7.text)({
       hooks: phoneHooks
     }),
-    role: (0, import_fields.select)({
+    role: (0, import_fields7.select)({
       type: "enum",
       validation: {
         isRequired: true
@@ -112,11 +277,11 @@ var User_default = (0, import_core.list)({
         { label: "User", value: "user" }
       ]
     }),
-    profileImage: (0, import_fields.image)({ storage: "my_local_images" }),
-    birthday: (0, import_fields.calendarDay)(),
-    age: (0, import_fields.virtual)({
-      field: import_core.graphql.field({
-        type: import_core.graphql.String,
+    profileImage: (0, import_fields7.image)({ storage: "my_local_images" }),
+    birthday: (0, import_fields7.calendarDay)(),
+    age: (0, import_fields7.virtual)({
+      field: import_core7.graphql.field({
+        type: import_core7.graphql.String,
         async resolve(item) {
           if (item?.birthday) {
             const today = /* @__PURE__ */ new Date();
@@ -132,7 +297,7 @@ var User_default = (0, import_core.list)({
         }
       })
     }),
-    createdAt: (0, import_fields.timestamp)({
+    createdAt: (0, import_fields7.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -142,11 +307,17 @@ var User_default = (0, import_core.list)({
 
 // models/schema.ts
 var schema_default = {
-  User: User_default
+  User: User_default,
+  Animal: Animal_default,
+  AnimalType: AnimalType_default,
+  AnimalMultimedia: AnimalMultimedia_default,
+  AnimalFavorite: AnimalFavorite_default,
+  AnimalHistory: AnimalHistory_default,
+  AnimalComment: AnimalComment_default
 };
 
 // keystone.ts
-var import_core2 = require("@keystone-6/core");
+var import_core8 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -183,10 +354,10 @@ var session = (0, import_session.statelessSessions)({
 
 // keystone.ts
 var keystone_default = withAuth(
-  (0, import_core2.config)({
+  (0, import_core8.config)({
     db: {
-      provider: "mysql",
-      url: `mysql://${process.env.MYSQL_USER}:${process.env.MYSQL_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.MYSQL_DB}?connect_timeout=300`
+      provider: "postgresql",
+      url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
     },
     server: {
       cors: true,

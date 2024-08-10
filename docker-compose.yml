@@ -2,22 +2,15 @@ version: "3.8"
 services:
   # DB Service
   kadesh-db:
-    platform: linux/arm64
-    image: mysql
-    command: ["mysqld"]
-    environment:
-      - MYSQL_DATABASE=kadesh_app
-      - MYSQL_USER=kadesh_app
-      - MYSQL_PASSWORD=kadesh_app
-      - MYSQL_ROOT_PASSWORD=kadesh_app
+    image: postgres:14.3-alpine
     ports:
-      - "3306:3306"
+      - "5432:5432"
     env_file:
       - config/.env.dev
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
-      - mysqlnet
+      - postgresnet
 
 volumes:
   ignore:
@@ -26,6 +19,6 @@ volumes:
 
 networks:
   # Network for mysql, use for services that need access to the db:
-  mysqlnet: # Network for internals, use by default:
+  postgresnet: # Network for internals, use by default:
 
   webnet:

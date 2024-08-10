@@ -2,13 +2,10 @@ import { graphql, list } from "@keystone-6/core";
 import {
   text,
   password,
-  relationship,
   timestamp,
-  checkbox,
   select,
   virtual,
   calendarDay,
-  file,
   image,
 } from "@keystone-6/core/fields";
 import { emailHooks, phoneHooks } from "./User.hooks";

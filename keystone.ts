@@ -6,8 +6,8 @@ import { withAuth, session } from "./auth/auth";
 export default withAuth(
   config({
     db: {
-      provider: "mysql",
-      url: `mysql://${process.env.MYSQL_USER}:${process.env.MYSQL_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.MYSQL_DB}?connect_timeout=300`,
+      provider: "postgresql",
+      url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
     },
     server: {
       cors: true,
