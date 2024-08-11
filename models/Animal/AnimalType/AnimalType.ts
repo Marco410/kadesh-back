@@ -13,6 +13,7 @@ export default list({
       defaultValue: AnimalTypes.DOG,
       options: animal_type_options,
       isIndexed: "unique",
+      validation: { isRequired: true },
     }),
     order: integer(),
   },

@@ -1,6 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 export async function createUserAdmin(context: KeystoneContext) {
-  // Check if there are already roles
   const existingUser = await context.sudo().query.User.findMany();
   if (existingUser.length > 0) {
     console.log("♻️  Skipped User seeding.");
