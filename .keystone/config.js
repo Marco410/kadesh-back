@@ -54,13 +54,21 @@ var Animal_default = (0, import_core.list)({
   access: access_default,
   fields: {
     name: (0, import_fields.text)({ validation: { isRequired: true } }),
-    animal_type: (0, import_fields.relationship)({
-      ref: "AnimalType",
+    animal_breed: (0, import_fields.relationship)({
+      ref: "AnimalBreed",
       many: false
     }),
     user: (0, import_fields.relationship)({
       ref: "User",
       many: false
+    }),
+    multimedia: (0, import_fields.relationship)({
+      ref: "AnimalMultimedia.animal",
+      many: true
+    }),
+    history: (0, import_fields.relationship)({
+      ref: "AnimalHistory.animal",
+      many: true
     }),
     createdAt: (0, import_fields.timestamp)({
       defaultValue: {
@@ -78,13 +86,32 @@ var import_fields2 = require("@keystone-6/core/fields");
 var animal_type_options = [
   { label: "Perro", value: "dog" /* DOG */ },
   { label: "Gato", value: "cat" /* CAT */ },
-  { label: "P\xE1jaro", value: "bird" /* BIRD */ },
+  { label: "Ave", value: "bird" /* BIRD */ },
   { label: "Pez", value: "fish" /* FISH */ },
-  { label: "H\xE1mster", value: "hamster" /* HAMSTER */ },
-  { label: "Conejo", value: "rabbit" /* RABBIT */ },
-  { label: "Pato", value: "duck" /* DUCK */ },
-  { label: "Serpiente", value: "snake" /* SNAKE */ },
-  { label: "Otro", value: "other" /* OTHER */ }
+  { label: "Reptil", value: "reptil" /* REPTIL */ },
+  { label: "Mam\xEDfero", value: "mammal" /* MAMMAL */ }
+];
+var animal_history_options = [
+  {
+    label: "Registrado",
+    value: "register"
+  },
+  {
+    label: "Adoptado",
+    value: "adopted"
+  },
+  {
+    label: "Abandonado",
+    value: "abandoned"
+  },
+  {
+    label: "Rescatado",
+    value: "rescued"
+  },
+  {
+    label: "En familia",
+    value: "in_family"
+  }
 ];
 
 // models/Animal/AnimalType/AnimalType.ts
@@ -94,7 +121,12 @@ var AnimalType_default = (0, import_core2.list)({
     name: (0, import_fields2.select)({
       defaultValue: "dog" /* DOG */,
       options: animal_type_options,
-      isIndexed: "unique"
+      isIndexed: "unique",
+      validation: { isRequired: true }
+    }),
+    animal_breed: (0, import_fields2.relationship)({
+      ref: "AnimalBreed.animal_type",
+      many: true
     }),
     order: (0, import_fields2.integer)()
   }
@@ -106,10 +138,11 @@ var import_fields3 = require("@keystone-6/core/fields");
 var AnimalMultimedia_default = (0, import_core3.list)({
   access: access_default,
   fields: {
-    image: (0, import_fields3.image)({ storage: "my_local_images" }),
+    image: (0, import_fields3.image)({
+      storage: "my_local_images"
+    }),
     animal: (0, import_fields3.relationship)({
-      ref: "Animal",
-      many: false
+      ref: "Animal.multimedia"
     }),
     createdAt: (0, import_fields3.timestamp)({
       defaultValue: {
@@ -148,37 +181,18 @@ var AnimalHistory_default = (0, import_core5.list)({
   access: access_default,
   fields: {
     animal: (0, import_fields5.relationship)({
-      ref: "Animal",
-      many: false
+      ref: "Animal.history"
     }),
     status: (0, import_fields5.select)({
       defaultValue: "Registrado",
-      options: [
-        {
-          label: "Registrado",
-          value: "Registrado"
-        },
-        {
-          label: "Adoptado",
-          value: "Adoptado"
-        },
-        {
-          label: "Abandonado",
-          value: "Abandonado"
-        },
-        {
-          label: "Rescatado",
-          value: "Rescatado"
-        },
-        {
-          label: "En familia",
-          value: "En familia"
-        }
-      ]
+      options: animal_history_options
     }),
-    notes: (0, import_fields5.text)(),
+    notes: (0, import_fields5.text)({
+      ui: { displayMode: "textarea" }
+    }),
     lat: (0, import_fields5.text)(),
     lng: (0, import_fields5.text)(),
+    last_seen: (0, import_fields5.checkbox)(),
     createdAt: (0, import_fields5.timestamp)({
       defaultValue: {
         kind: "now"
@@ -193,7 +207,10 @@ var import_fields6 = require("@keystone-6/core/fields");
 var AnimalComment_default = (0, import_core6.list)({
   access: access_default,
   fields: {
-    comment: (0, import_fields6.text)({ validation: { isRequired: true } }),
+    comment: (0, import_fields6.text)({
+      validation: { isRequired: true },
+      ui: { displayMode: "textarea" }
+    }),
     animal: (0, import_fields6.relationship)({
       ref: "Animal",
       many: false
@@ -305,6 +322,85 @@ var User_default = (0, import_core7.list)({
   }
 });
 
+// models/Animal/AnimalBreed/AnimalBreed.ts
+var import_core8 = require("@keystone-6/core");
+var import_fields8 = require("@keystone-6/core/fields");
+var AnimalBreed_default = (0, import_core8.list)({
+  access: access_default,
+  fields: {
+    breed: (0, import_fields8.text)(),
+    animal_type: (0, import_fields8.relationship)({
+      ref: "AnimalType.animal_breed"
+    })
+  }
+});
+
+// models/Pet/Pet.ts
+var import_core9 = require("@keystone-6/core");
+var import_fields9 = require("@keystone-6/core/fields");
+var Pet_default = (0, import_core9.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    birthday: (0, import_fields9.calendarDay)(),
+    age: (0, import_fields9.virtual)({
+      field: import_core9.graphql.field({
+        type: import_core9.graphql.String,
+        async resolve(item) {
+          if (item?.birthday) {
+            const today = /* @__PURE__ */ new Date();
+            const birthDate = new Date(item.birthday);
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || m === 0 && today.getDate() < birthDate.getDate()) {
+              age -= 1;
+            }
+            return age.toString();
+          }
+          return "";
+        }
+      })
+    }),
+    animal_breed: (0, import_fields9.relationship)({
+      ref: "AnimalBreed",
+      many: false
+    }),
+    user: (0, import_fields9.relationship)({
+      ref: "User",
+      many: false
+    }),
+    multimedia: (0, import_fields9.relationship)({
+      ref: "PetMultimedia.pet",
+      many: true
+    }),
+    createdAt: (0, import_fields9.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Pet/PetMultimedia/PetMultimedia.ts
+var import_core10 = require("@keystone-6/core");
+var import_fields10 = require("@keystone-6/core/fields");
+var PetMultimedia_default = (0, import_core10.list)({
+  access: access_default,
+  fields: {
+    image: (0, import_fields10.image)({
+      storage: "my_local_images"
+    }),
+    pet: (0, import_fields10.relationship)({
+      ref: "Pet.multimedia"
+    }),
+    createdAt: (0, import_fields10.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   User: User_default,
@@ -313,11 +409,14 @@ var schema_default = {
   AnimalMultimedia: AnimalMultimedia_default,
   AnimalFavorite: AnimalFavorite_default,
   AnimalHistory: AnimalHistory_default,
-  AnimalComment: AnimalComment_default
+  AnimalComment: AnimalComment_default,
+  AnimalBreed: AnimalBreed_default,
+  Pet: Pet_default,
+  PetMultimedia: PetMultimedia_default
 };
 
 // keystone.ts
-var import_core8 = require("@keystone-6/core");
+var import_core11 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -354,7 +453,7 @@ var session = (0, import_session.statelessSessions)({
 
 // keystone.ts
 var keystone_default = withAuth(
-  (0, import_core8.config)({
+  (0, import_core11.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

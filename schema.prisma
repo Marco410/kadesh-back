@@ -30,30 +30,31 @@ model User {
   from_Animal_user         Animal[]         @relation("Animal_user")
   from_AnimalFavorite_user AnimalFavorite[] @relation("AnimalFavorite_user")
   from_AnimalComment_user  AnimalComment[]  @relation("AnimalComment_user")
+  from_Pet_user            Pet[]            @relation("Pet_user")
 }
 
 model Animal {
-  id                           String             @id @default(cuid())
-  name                         String             @default("")
-  animal_type                  AnimalType?        @relation("Animal_animal_type", fields: [animal_typeId], references: [id])
-  animal_typeId                String?            @map("animal_type")
-  user                         User?              @relation("Animal_user", fields: [userId], references: [id])
-  userId                       String?            @map("user")
-  createdAt                    DateTime?          @default(now())
-  from_AnimalMultimedia_animal AnimalMultimedia[] @relation("AnimalMultimedia_animal")
-  from_AnimalFavorite_animal   AnimalFavorite[]   @relation("AnimalFavorite_animal")
-  from_AnimalHistory_animal    AnimalHistory[]    @relation("AnimalHistory_animal")
-  from_AnimalComment_animal    AnimalComment[]    @relation("AnimalComment_animal")
+  id                         String             @id @default(cuid())
+  name                       String             @default("")
+  animal_breed               AnimalBreed?       @relation("Animal_animal_breed", fields: [animal_breedId], references: [id])
+  animal_breedId             String?            @map("animal_breed")
+  user                       User?              @relation("Animal_user", fields: [userId], references: [id])
+  userId                     String?            @map("user")
+  multimedia                 AnimalMultimedia[] @relation("AnimalMultimedia_animal")
+  history                    AnimalHistory[]    @relation("AnimalHistory_animal")
+  createdAt                  DateTime?          @default(now())
+  from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
+  from_AnimalComment_animal  AnimalComment[]    @relation("AnimalComment_animal")
 
-  @@index([animal_typeId])
+  @@index([animal_breedId])
   @@index([userId])
 }
 
 model AnimalType {
-  id                      String   @id @default(cuid())
-  name                    String?  @unique @default("dog")
-  order                   Int?
-  from_Animal_animal_type Animal[] @relation("Animal_animal_type")
+  id           String        @id @default(cuid())
+  name         String        @unique @default("dog")
+  animal_breed AnimalBreed[] @relation("AnimalBreed_animal_type")
+  order        Int?
 }
 
 model AnimalMultimedia {
@@ -90,6 +91,7 @@ model AnimalHistory {
   notes     String    @default("")
   lat       String    @default("")
   lng       String    @default("")
+  last_seen Boolean   @default(false)
   createdAt DateTime? @default(now())
 
   @@index([animalId])
@@ -106,6 +108,46 @@ model AnimalComment {
 
   @@index([animalId])
   @@index([userId])
+}
+
+model AnimalBreed {
+  id                       String      @id @default(cuid())
+  breed                    String      @default("")
+  animal_type              AnimalType? @relation("AnimalBreed_animal_type", fields: [animal_typeId], references: [id])
+  animal_typeId            String?     @map("animal_type")
+  from_Animal_animal_breed Animal[]    @relation("Animal_animal_breed")
+  from_Pet_animal_breed    Pet[]       @relation("Pet_animal_breed")
+
+  @@index([animal_typeId])
+}
+
+model Pet {
+  id             String          @id @default(cuid())
+  name           String          @default("")
+  birthday       DateTime?       @postgresql.Date
+  animal_breed   AnimalBreed?    @relation("Pet_animal_breed", fields: [animal_breedId], references: [id])
+  animal_breedId String?         @map("animal_breed")
+  user           User?           @relation("Pet_user", fields: [userId], references: [id])
+  userId         String?         @map("user")
+  multimedia     PetMultimedia[] @relation("PetMultimedia_pet")
+  createdAt      DateTime?       @default(now())
+
+  @@index([animal_breedId])
+  @@index([userId])
+}
+
+model PetMultimedia {
+  id              String    @id @default(cuid())
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  pet             Pet?      @relation("PetMultimedia_pet", fields: [petId], references: [id])
+  petId           String?   @map("pet")
+  createdAt       DateTime? @default(now())
+
+  @@index([petId])
 }
 
 enum UserRoleType {

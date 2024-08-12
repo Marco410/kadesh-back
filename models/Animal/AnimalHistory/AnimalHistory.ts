@@ -13,14 +13,15 @@ export default list({
   access,
   fields: {
     animal: relationship({
-      ref: "Animal",
-      many: false,
+      ref: "Animal.history",
     }),
     status: select({
       defaultValue: "Registrado",
       options: animal_history_options,
     }),
-    notes: text(),
+    notes: text({
+      ui: { displayMode: "textarea" },
+    }),
     lat: text(),
     lng: text(),
     last_seen: checkbox(),

@@ -9,8 +9,7 @@ export default list({
       storage: "my_local_images",
     }),
     pet: relationship({
-      ref: "Pet",
-      many: false,
+      ref: "Pet.multimedia",
     }),
     createdAt: timestamp({
       defaultValue: {

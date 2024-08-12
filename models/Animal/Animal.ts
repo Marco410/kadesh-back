@@ -14,6 +14,14 @@ export default list({
       ref: "User",
       many: false,
     }),
+    multimedia: relationship({
+      ref: "AnimalMultimedia.animal",
+      many: true,
+    }),
+    history: relationship({
+      ref: "AnimalHistory.animal",
+      many: true,
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

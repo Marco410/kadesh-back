@@ -39,6 +39,10 @@ export default list({
       ref: "User",
       many: false,
     }),
+    multimedia: relationship({
+      ref: "PetMultimedia.pet",
+      many: true,
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

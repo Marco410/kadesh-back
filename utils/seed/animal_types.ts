@@ -1,5 +1,13 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { AnimalTypes, dogBreeds } from "../../utils/constants/constants";
+import {
+  AnimalTypes,
+  birdBreeds,
+  catBreeds,
+  dogBreeds,
+  fishBreeds,
+  mammalBreeds,
+  reptilBreeds,
+} from "../../utils/constants/constants";
 export async function createAnimalTypes(context: KeystoneContext) {
   // Check if there are already roles
   const existingTypes = await context.sudo().query.AnimalType.findMany();
@@ -16,23 +24,23 @@ export async function createAnimalTypes(context: KeystoneContext) {
     {
       name: AnimalTypes.CAT,
       order: 2,
-      breeds: ["Persian", "Siamese", "Bengal"],
+      breeds: catBreeds,
     },
-    { name: AnimalTypes.BIRD, order: 3, breeds: ["Parrot", "Canary", "Finch"] },
+    { name: AnimalTypes.BIRD, order: 3, breeds: birdBreeds },
     {
       name: AnimalTypes.FISH,
       order: 4,
-      breeds: ["Goldfish", "Betta", "Cichlid"],
+      breeds: fishBreeds,
     },
     {
       name: AnimalTypes.REPTIL,
       order: 5,
-      breeds: ["Gecko", "Python", "Iguana"],
+      breeds: reptilBreeds,
     },
     {
       name: AnimalTypes.MAMMAL,
       order: 6,
-      breeds: ["Rabbit", "Ferret", "Hamster"],
+      breeds: mammalBreeds,
     },
   ];
 
@@ -64,9 +72,5 @@ export async function createAnimalTypes(context: KeystoneContext) {
     })
   );
 
-  /*   const data = await context.sudo().query.AnimalType.createMany({
-    data: animalTypesNames,
-    query: "id",
-  }); */
   console.log("✅ AnimalTypes seeding complete.");
 }
