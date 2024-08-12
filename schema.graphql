@@ -198,8 +198,12 @@ input UserCreateInput {
 type Animal {
   id: ID!
   name: String
-  animal_type: AnimalType
+  animal_breed: AnimalBreed
   user: User
+  multimedia(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
+  multimediaCount(where: AnimalMultimediaWhereInput! = {}): Int
+  history(where: AnimalHistoryWhereInput! = {}, orderBy: [AnimalHistoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalHistoryWhereUniqueInput): [AnimalHistory!]
+  historyCount(where: AnimalHistoryWhereInput! = {}): Int
   createdAt: DateTime
 }
 
@@ -213,9 +217,23 @@ input AnimalWhereInput {
   NOT: [AnimalWhereInput!]
   id: IDFilter
   name: StringFilter
-  animal_type: AnimalTypeWhereInput
+  animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
+  multimedia: AnimalMultimediaManyRelationFilter
+  history: AnimalHistoryManyRelationFilter
   createdAt: DateTimeNullableFilter
+}
+
+input AnimalMultimediaManyRelationFilter {
+  every: AnimalMultimediaWhereInput
+  some: AnimalMultimediaWhereInput
+  none: AnimalMultimediaWhereInput
+}
+
+input AnimalHistoryManyRelationFilter {
+  every: AnimalHistoryWhereInput
+  some: AnimalHistoryWhereInput
+  none: AnimalHistoryWhereInput
 }
 
 input AnimalOrderByInput {
@@ -226,14 +244,16 @@ input AnimalOrderByInput {
 
 input AnimalUpdateInput {
   name: String
-  animal_type: AnimalTypeRelateToOneForUpdateInput
+  animal_breed: AnimalBreedRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
+  multimedia: AnimalMultimediaRelateToManyForUpdateInput
+  history: AnimalHistoryRelateToManyForUpdateInput
   createdAt: DateTime
 }
 
-input AnimalTypeRelateToOneForUpdateInput {
-  create: AnimalTypeCreateInput
-  connect: AnimalTypeWhereUniqueInput
+input AnimalBreedRelateToOneForUpdateInput {
+  create: AnimalBreedCreateInput
+  connect: AnimalBreedWhereUniqueInput
   disconnect: Boolean
 }
 
@@ -243,6 +263,20 @@ input UserRelateToOneForUpdateInput {
   disconnect: Boolean
 }
 
+input AnimalMultimediaRelateToManyForUpdateInput {
+  disconnect: [AnimalMultimediaWhereUniqueInput!]
+  set: [AnimalMultimediaWhereUniqueInput!]
+  create: [AnimalMultimediaCreateInput!]
+  connect: [AnimalMultimediaWhereUniqueInput!]
+}
+
+input AnimalHistoryRelateToManyForUpdateInput {
+  disconnect: [AnimalHistoryWhereUniqueInput!]
+  set: [AnimalHistoryWhereUniqueInput!]
+  create: [AnimalHistoryCreateInput!]
+  connect: [AnimalHistoryWhereUniqueInput!]
+}
+
 input AnimalUpdateArgs {
   where: AnimalWhereUniqueInput!
   data: AnimalUpdateInput!
@@ -250,14 +284,16 @@ input AnimalUpdateArgs {
 
 input AnimalCreateInput {
   name: String
-  animal_type: AnimalTypeRelateToOneForCreateInput
+  animal_breed: AnimalBreedRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
+  multimedia: AnimalMultimediaRelateToManyForCreateInput
+  history: AnimalHistoryRelateToManyForCreateInput
   createdAt: DateTime
 }
 
-input AnimalTypeRelateToOneForCreateInput {
-  create: AnimalTypeCreateInput
-  connect: AnimalTypeWhereUniqueInput
+input AnimalBreedRelateToOneForCreateInput {
+  create: AnimalBreedCreateInput
+  connect: AnimalBreedWhereUniqueInput
 }
 
 input UserRelateToOneForCreateInput {
@@ -265,9 +301,21 @@ input UserRelateToOneForCreateInput {
   connect: UserWhereUniqueInput
 }
 
+input AnimalMultimediaRelateToManyForCreateInput {
+  create: [AnimalMultimediaCreateInput!]
+  connect: [AnimalMultimediaWhereUniqueInput!]
+}
+
+input AnimalHistoryRelateToManyForCreateInput {
+  create: [AnimalHistoryCreateInput!]
+  connect: [AnimalHistoryWhereUniqueInput!]
+}
+
 type AnimalType {
   id: ID!
   name: String
+  animal_breed(where: AnimalBreedWhereInput! = {}, orderBy: [AnimalBreedOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalBreedWhereUniqueInput): [AnimalBreed!]
+  animal_breedCount(where: AnimalBreedWhereInput! = {}): Int
   order: Int
 }
 
@@ -281,23 +329,15 @@ input AnimalTypeWhereInput {
   OR: [AnimalTypeWhereInput!]
   NOT: [AnimalTypeWhereInput!]
   id: IDFilter
-  name: StringNullableFilter
+  name: StringFilter
+  animal_breed: AnimalBreedManyRelationFilter
   order: IntNullableFilter
 }
 
-input StringNullableFilter {
-  equals: String
-  in: [String!]
-  notIn: [String!]
-  lt: String
-  lte: String
-  gt: String
-  gte: String
-  contains: String
-  startsWith: String
-  endsWith: String
-  mode: QueryMode
-  not: StringNullableFilter
+input AnimalBreedManyRelationFilter {
+  every: AnimalBreedWhereInput
+  some: AnimalBreedWhereInput
+  none: AnimalBreedWhereInput
 }
 
 input IntNullableFilter {
@@ -319,7 +359,15 @@ input AnimalTypeOrderByInput {
 
 input AnimalTypeUpdateInput {
   name: String
+  animal_breed: AnimalBreedRelateToManyForUpdateInput
   order: Int
+}
+
+input AnimalBreedRelateToManyForUpdateInput {
+  disconnect: [AnimalBreedWhereUniqueInput!]
+  set: [AnimalBreedWhereUniqueInput!]
+  create: [AnimalBreedCreateInput!]
+  connect: [AnimalBreedWhereUniqueInput!]
 }
 
 input AnimalTypeUpdateArgs {
@@ -329,7 +377,13 @@ input AnimalTypeUpdateArgs {
 
 input AnimalTypeCreateInput {
   name: String
+  animal_breed: AnimalBreedRelateToManyForCreateInput
   order: Int
+}
+
+input AnimalBreedRelateToManyForCreateInput {
+  create: [AnimalBreedCreateInput!]
+  connect: [AnimalBreedWhereUniqueInput!]
 }
 
 type AnimalMultimedia {
@@ -435,6 +489,7 @@ type AnimalHistory {
   notes: String
   lat: String
   lng: String
+  last_seen: Boolean
   createdAt: DateTime
 }
 
@@ -452,7 +507,28 @@ input AnimalHistoryWhereInput {
   notes: StringFilter
   lat: StringFilter
   lng: StringFilter
+  last_seen: BooleanFilter
   createdAt: DateTimeNullableFilter
+}
+
+input StringNullableFilter {
+  equals: String
+  in: [String!]
+  notIn: [String!]
+  lt: String
+  lte: String
+  gt: String
+  gte: String
+  contains: String
+  startsWith: String
+  endsWith: String
+  mode: QueryMode
+  not: StringNullableFilter
+}
+
+input BooleanFilter {
+  equals: Boolean
+  not: BooleanFilter
 }
 
 input AnimalHistoryOrderByInput {
@@ -461,6 +537,7 @@ input AnimalHistoryOrderByInput {
   notes: OrderDirection
   lat: OrderDirection
   lng: OrderDirection
+  last_seen: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -470,6 +547,7 @@ input AnimalHistoryUpdateInput {
   notes: String
   lat: String
   lng: String
+  last_seen: Boolean
   createdAt: DateTime
 }
 
@@ -484,6 +562,7 @@ input AnimalHistoryCreateInput {
   notes: String
   lat: String
   lng: String
+  last_seen: Boolean
   createdAt: DateTime
 }
 
@@ -535,6 +614,186 @@ input AnimalCommentCreateInput {
   createdAt: DateTime
 }
 
+type AnimalBreed {
+  id: ID!
+  breed: String
+  animal_type: AnimalType
+}
+
+input AnimalBreedWhereUniqueInput {
+  id: ID
+}
+
+input AnimalBreedWhereInput {
+  AND: [AnimalBreedWhereInput!]
+  OR: [AnimalBreedWhereInput!]
+  NOT: [AnimalBreedWhereInput!]
+  id: IDFilter
+  breed: StringFilter
+  animal_type: AnimalTypeWhereInput
+}
+
+input AnimalBreedOrderByInput {
+  id: OrderDirection
+  breed: OrderDirection
+}
+
+input AnimalBreedUpdateInput {
+  breed: String
+  animal_type: AnimalTypeRelateToOneForUpdateInput
+}
+
+input AnimalTypeRelateToOneForUpdateInput {
+  create: AnimalTypeCreateInput
+  connect: AnimalTypeWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AnimalBreedUpdateArgs {
+  where: AnimalBreedWhereUniqueInput!
+  data: AnimalBreedUpdateInput!
+}
+
+input AnimalBreedCreateInput {
+  breed: String
+  animal_type: AnimalTypeRelateToOneForCreateInput
+}
+
+input AnimalTypeRelateToOneForCreateInput {
+  create: AnimalTypeCreateInput
+  connect: AnimalTypeWhereUniqueInput
+}
+
+type Pet {
+  id: ID!
+  name: String
+  birthday: CalendarDay
+  age: String
+  animal_breed: AnimalBreed
+  user: User
+  multimedia(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
+  multimediaCount(where: PetMultimediaWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input PetWhereUniqueInput {
+  id: ID
+}
+
+input PetWhereInput {
+  AND: [PetWhereInput!]
+  OR: [PetWhereInput!]
+  NOT: [PetWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  birthday: CalendarDayNullableFilter
+  animal_breed: AnimalBreedWhereInput
+  user: UserWhereInput
+  multimedia: PetMultimediaManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PetMultimediaManyRelationFilter {
+  every: PetMultimediaWhereInput
+  some: PetMultimediaWhereInput
+  none: PetMultimediaWhereInput
+}
+
+input PetOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  birthday: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetUpdateInput {
+  name: String
+  birthday: CalendarDay
+  animal_breed: AnimalBreedRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  multimedia: PetMultimediaRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input PetMultimediaRelateToManyForUpdateInput {
+  disconnect: [PetMultimediaWhereUniqueInput!]
+  set: [PetMultimediaWhereUniqueInput!]
+  create: [PetMultimediaCreateInput!]
+  connect: [PetMultimediaWhereUniqueInput!]
+}
+
+input PetUpdateArgs {
+  where: PetWhereUniqueInput!
+  data: PetUpdateInput!
+}
+
+input PetCreateInput {
+  name: String
+  birthday: CalendarDay
+  animal_breed: AnimalBreedRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  multimedia: PetMultimediaRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input PetMultimediaRelateToManyForCreateInput {
+  create: [PetMultimediaCreateInput!]
+  connect: [PetMultimediaWhereUniqueInput!]
+}
+
+type PetMultimedia {
+  id: ID!
+  image: ImageFieldOutput
+  pet: Pet
+  createdAt: DateTime
+}
+
+input PetMultimediaWhereUniqueInput {
+  id: ID
+}
+
+input PetMultimediaWhereInput {
+  AND: [PetMultimediaWhereInput!]
+  OR: [PetMultimediaWhereInput!]
+  NOT: [PetMultimediaWhereInput!]
+  id: IDFilter
+  pet: PetWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PetMultimediaOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetMultimediaUpdateInput {
+  image: ImageFieldInput
+  pet: PetRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PetRelateToOneForUpdateInput {
+  create: PetCreateInput
+  connect: PetWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PetMultimediaUpdateArgs {
+  where: PetMultimediaWhereUniqueInput!
+  data: PetMultimediaUpdateInput!
+}
+
+input PetMultimediaCreateInput {
+  image: ImageFieldInput
+  pet: PetRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input PetRelateToOneForCreateInput {
+  create: PetCreateInput
+  connect: PetWhereUniqueInput
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -583,6 +842,24 @@ type Mutation {
   updateAnimalComments(data: [AnimalCommentUpdateArgs!]!): [AnimalComment]
   deleteAnimalComment(where: AnimalCommentWhereUniqueInput!): AnimalComment
   deleteAnimalComments(where: [AnimalCommentWhereUniqueInput!]!): [AnimalComment]
+  createAnimalBreed(data: AnimalBreedCreateInput!): AnimalBreed
+  createAnimalBreeds(data: [AnimalBreedCreateInput!]!): [AnimalBreed]
+  updateAnimalBreed(where: AnimalBreedWhereUniqueInput!, data: AnimalBreedUpdateInput!): AnimalBreed
+  updateAnimalBreeds(data: [AnimalBreedUpdateArgs!]!): [AnimalBreed]
+  deleteAnimalBreed(where: AnimalBreedWhereUniqueInput!): AnimalBreed
+  deleteAnimalBreeds(where: [AnimalBreedWhereUniqueInput!]!): [AnimalBreed]
+  createPet(data: PetCreateInput!): Pet
+  createPets(data: [PetCreateInput!]!): [Pet]
+  updatePet(where: PetWhereUniqueInput!, data: PetUpdateInput!): Pet
+  updatePets(data: [PetUpdateArgs!]!): [Pet]
+  deletePet(where: PetWhereUniqueInput!): Pet
+  deletePets(where: [PetWhereUniqueInput!]!): [Pet]
+  createPetMultimedia(data: PetMultimediaCreateInput!): PetMultimedia
+  createPetMultimedias(data: [PetMultimediaCreateInput!]!): [PetMultimedia]
+  updatePetMultimedia(where: PetMultimediaWhereUniqueInput!, data: PetMultimediaUpdateInput!): PetMultimedia
+  updatePetMultimedias(data: [PetMultimediaUpdateArgs!]!): [PetMultimedia]
+  deletePetMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
+  deletePetMultimedias(where: [PetMultimediaWhereUniqueInput!]!): [PetMultimedia]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -628,6 +905,15 @@ type Query {
   animalComments(where: AnimalCommentWhereInput! = {}, orderBy: [AnimalCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalCommentWhereUniqueInput): [AnimalComment!]
   animalComment(where: AnimalCommentWhereUniqueInput!): AnimalComment
   animalCommentsCount(where: AnimalCommentWhereInput! = {}): Int
+  animalBreeds(where: AnimalBreedWhereInput! = {}, orderBy: [AnimalBreedOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalBreedWhereUniqueInput): [AnimalBreed!]
+  animalBreed(where: AnimalBreedWhereUniqueInput!): AnimalBreed
+  animalBreedsCount(where: AnimalBreedWhereInput! = {}): Int
+  pets(where: PetWhereInput! = {}, orderBy: [PetOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetWhereUniqueInput): [Pet!]
+  pet(where: PetWhereUniqueInput!): Pet
+  petsCount(where: PetWhereInput! = {}): Int
+  petMultimedias(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
+  petMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
+  petMultimediasCount(where: PetMultimediaWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
 }

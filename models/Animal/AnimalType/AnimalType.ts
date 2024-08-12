@@ -1,5 +1,5 @@
 import { list } from "@keystone-6/core";
-import { integer, select } from "@keystone-6/core/fields";
+import { integer, relationship, select } from "@keystone-6/core/fields";
 import {
   animal_type_options,
   AnimalTypes,
@@ -13,6 +13,11 @@ export default list({
       defaultValue: AnimalTypes.DOG,
       options: animal_type_options,
       isIndexed: "unique",
+      validation: { isRequired: true },
+    }),
+    animal_breed: relationship({
+      ref: "AnimalBreed.animal_type",
+      many: true,
     }),
     order: integer(),
   },

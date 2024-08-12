@@ -1,5 +1,13 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { AnimalTypes } from "../../utils/constants/constants";
+import {
+  AnimalTypes,
+  birdBreeds,
+  catBreeds,
+  dogBreeds,
+  fishBreeds,
+  mammalBreeds,
+  reptilBreeds,
+} from "../../utils/constants/constants";
 export async function createAnimalTypes(context: KeystoneContext) {
   // Check if there are already roles
   const existingTypes = await context.sudo().query.AnimalType.findMany();
@@ -8,20 +16,61 @@ export async function createAnimalTypes(context: KeystoneContext) {
     return existingTypes;
   }
   const animalTypesNames = [
-    { name: AnimalTypes.DOG, order: 1 },
-    { name: AnimalTypes.CAT, order: 2 },
-    { name: AnimalTypes.BIRD, order: 3 },
-    { name: AnimalTypes.FISH, order: 4 },
-    { name: AnimalTypes.HAMSTER, order: 5 },
-    { name: AnimalTypes.RABBIT, order: 6 },
-    { name: AnimalTypes.DUCK, order: 7 },
-    { name: AnimalTypes.SNAKE, order: 8 },
-    { name: AnimalTypes.OTHER, order: 9 },
+    {
+      name: AnimalTypes.DOG,
+      order: 1,
+      breeds: dogBreeds,
+    },
+    {
+      name: AnimalTypes.CAT,
+      order: 2,
+      breeds: catBreeds,
+    },
+    { name: AnimalTypes.BIRD, order: 3, breeds: birdBreeds },
+    {
+      name: AnimalTypes.FISH,
+      order: 4,
+      breeds: fishBreeds,
+    },
+    {
+      name: AnimalTypes.REPTIL,
+      order: 5,
+      breeds: reptilBreeds,
+    },
+    {
+      name: AnimalTypes.MAMMAL,
+      order: 6,
+      breeds: mammalBreeds,
+    },
   ];
 
-  const data = await context.sudo().query.AnimalType.createMany({
-    data: animalTypesNames,
-    query: "id",
-  });
+  await Promise.all(
+    animalTypesNames.map(async (animal) => {
+      try {
+        const createdAnimal = await context.sudo().db.AnimalType.createOne({
+          data: {
+            name: animal.name,
+            order: animal.order,
+          },
+        });
+
+        const breedsData = animal.breeds.map((breed, index) => ({
+          breed,
+          animal_type: { connect: { id: createdAnimal.id } },
+        }));
+
+        await context.sudo().db.AnimalBreed.createMany({
+          data: breedsData,
+        });
+
+        console.log(
+          `AnimalType and breeds for ${animal.name} created successfully`
+        );
+      } catch (err) {
+        console.error(`Error creating AnimalType: ${animal.name}`, err);
+      }
+    })
+  );
+
   console.log("✅ AnimalTypes seeding complete.");
 }

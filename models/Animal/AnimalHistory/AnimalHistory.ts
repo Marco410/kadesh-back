@@ -1,42 +1,30 @@
 import { list } from "@keystone-6/core";
-import { relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import {
+  checkbox,
+  relationship,
+  select,
+  text,
+  timestamp,
+} from "@keystone-6/core/fields";
 import access from "../../../utils/generalAccess/access";
+import { animal_history_options } from "../../../utils/constants/constants";
 
 export default list({
   access,
   fields: {
     animal: relationship({
-      ref: "Animal",
-      many: false,
+      ref: "Animal.history",
     }),
     status: select({
       defaultValue: "Registrado",
-      options: [
-        {
-          label: "Registrado",
-          value: "Registrado",
-        },
-        {
-          label: "Adoptado",
-          value: "Adoptado",
-        },
-        {
-          label: "Abandonado",
-          value: "Abandonado",
-        },
-        {
-          label: "Rescatado",
-          value: "Rescatado",
-        },
-        {
-          label: "En familia",
-          value: "En familia",
-        },
-      ],
+      options: animal_history_options,
     }),
-    notes: text(),
+    notes: text({
+      ui: { displayMode: "textarea" },
+    }),
     lat: text(),
     lng: text(),
+    last_seen: checkbox(),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

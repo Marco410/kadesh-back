@@ -5,7 +5,10 @@ import access from "../../../utils/generalAccess/access";
 export default list({
   access,
   fields: {
-    comment: text({ validation: { isRequired: true } }),
+    comment: text({
+      validation: { isRequired: true },
+      ui: { displayMode: "textarea" },
+    }),
     animal: relationship({
       ref: "Animal",
       many: false,
