@@ -266,7 +266,8 @@ var User_default = (0, import_core7.list)({
     name: (0, import_fields7.text)({ validation: { isRequired: true } }),
     lastName: (0, import_fields7.text)(),
     username: (0, import_fields7.text)({
-      isIndexed: "unique"
+      isIndexed: "unique",
+      validation: { isRequired: true }
     }),
     email: (0, import_fields7.text)({
       isIndexed: "unique",
@@ -514,6 +515,10 @@ var Veterinary_default = (0, import_core12.list)({
       ref: "Schedule.veterinary",
       many: true
     }),
+    veterinary_reviews: (0, import_fields12.relationship)({
+      ref: "Review.veterinary",
+      many: true
+    }),
     createdAt: (0, import_fields12.timestamp)({
       defaultValue: {
         kind: "now"
@@ -585,6 +590,50 @@ var SocialMedia_default = (0, import_core15.list)({
   }
 });
 
+// models/Review/Review.ts
+var import_core16 = require("@keystone-6/core");
+var import_fields16 = require("@keystone-6/core/fields");
+var Review_default = (0, import_core16.list)({
+  access: access_default,
+  fields: {
+    day: (0, import_fields16.select)({
+      options: [
+        "Domingo" /* DOM */,
+        "Lunes" /* LUN */,
+        "Martes" /* MAR */,
+        "Mi\xE9rcoles" /* MIER */,
+        "Jueves" /* JUEV */,
+        "Viernes" /* VIE */,
+        "S\xE1bado" /* SAB */
+      ],
+      validation: { isRequired: true }
+    }),
+    timeIni: (0, import_fields16.integer)({ validation: { isRequired: true } }),
+    timeEnd: (0, import_fields16.integer)({ validation: { isRequired: true } }),
+    veterinary: (0, import_fields16.relationship)({
+      ref: "Veterinary.veterinary_reviews"
+    }),
+    user: (0, import_fields16.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields16.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+var dayNames2 = {
+  0: "Domingo" /* DOM */,
+  1: "Lunes" /* LUN */,
+  2: "Martes" /* MAR */,
+  3: "Mi\xE9rcoles" /* MIER */,
+  4: "Jueves" /* JUEV */,
+  5: "Viernes" /* VIE */,
+  6: "S\xE1bado" /* SAB */
+};
+
 // models/schema.ts
 var schema_default = {
   User: User_default,
@@ -601,11 +650,12 @@ var schema_default = {
   VeterinaryLike: VeterinaryLike_default,
   VeterinaryService: VeterinaryService_default,
   Schedule: Schedule_default,
-  SocialMedia: SocialMedia_default
+  SocialMedia: SocialMedia_default,
+  Review: Review_default
 };
 
 // keystone.ts
-var import_core16 = require("@keystone-6/core");
+var import_core17 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -642,7 +692,7 @@ var session = (0, import_session.statelessSessions)({
 
 // keystone.ts
 var keystone_default = withAuth(
-  (0, import_core16.config)({
+  (0, import_core17.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

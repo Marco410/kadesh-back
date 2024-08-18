@@ -81,6 +81,10 @@ export default list({
       ref: "Schedule.veterinary",
       many: true,
     }),
+    veterinary_reviews: relationship({
+      ref: "Review.veterinary",
+      many: true,
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

@@ -13,6 +13,7 @@ import VeterinaryLike from "./Veterinary/VeterinaryLike/VeterinaryLike";
 import VeterinaryService from "./Veterinary/VeterinaryService/VeterinaryService";
 import Schedule from "./Schedule/Schedule";
 import SocialMedia from "./SocialMedia/SocialMedia";
+import Review from "./Review/Review";
 
 export default {
   User,
@@ -30,4 +31,5 @@ export default {
   VeterinaryService,
   Schedule,
   SocialMedia,
+  Review,
 };
