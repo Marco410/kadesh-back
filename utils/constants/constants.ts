@@ -1,3 +1,13 @@
+export enum dayOfWeek {
+  DOM = "Domingo",
+  LUN = "Lunes",
+  MAR = "Martes",
+  MIER = "Miércoles",
+  JUEV = "Jueves",
+  VIE = "Viernes",
+  SAB = "Sábado",
+}
+
 export enum AnimalTypes {
   DOG = "dog",
   CAT = "cat",

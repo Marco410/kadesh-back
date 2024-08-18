@@ -26,11 +26,15 @@ model User {
   profileImage_height      Int?
   profileImage_extension   String?
   birthday                 DateTime?        @postgresql.Date
+  smsRegistrationId        String           @default("")
+  verified                 Boolean          @default(false)
   createdAt                DateTime?        @default(now())
   from_Animal_user         Animal[]         @relation("Animal_user")
   from_AnimalFavorite_user AnimalFavorite[] @relation("AnimalFavorite_user")
   from_AnimalComment_user  AnimalComment[]  @relation("AnimalComment_user")
   from_Pet_user            Pet[]            @relation("Pet_user")
+  from_Veterinary_user     Veterinary[]     @relation("Veterinary_user")
+  from_VeterinaryLike_user VeterinaryLike[] @relation("VeterinaryLike_user")
 }
 
 model Animal {
@@ -124,7 +128,7 @@ model AnimalBreed {
 model Pet {
   id             String          @id @default(cuid())
   name           String          @default("")
-  birthday       DateTime?       @postgresql.Date
+  birthday       DateTime        @postgresql.Date
   animal_breed   AnimalBreed?    @relation("Pet_animal_breed", fields: [animal_breedId], references: [id])
   animal_breedId String?         @map("animal_breed")
   user           User?           @relation("Pet_user", fields: [userId], references: [id])
@@ -148,6 +152,76 @@ model PetMultimedia {
   createdAt       DateTime? @default(now())
 
   @@index([petId])
+}
+
+model Veterinary {
+  id                      String              @id @default(cuid())
+  name                    String              @default("")
+  description             String              @default("")
+  phone                   String              @default("")
+  website                 String              @default("")
+  street                  String              @default("")
+  municipality            String              @default("")
+  state                   String              @default("")
+  country                 String              @default("")
+  cp                      String              @default("")
+  lat                     String              @default("")
+  lng                     String              @default("")
+  views                   Int?
+  services                VeterinaryService[] @relation("Veterinary_services")
+  user                    User?               @relation("Veterinary_user", fields: [userId], references: [id])
+  userId                  String?             @map("user")
+  veterinary_social_media SocialMedia[]       @relation("SocialMedia_veterinary")
+  veterinary_likes        VeterinaryLike[]    @relation("VeterinaryLike_veterinary")
+  veterinary_schedules    Schedule[]          @relation("Schedule_veterinary")
+  createdAt               DateTime?           @default(now())
+
+  @@index([userId])
+}
+
+model VeterinaryLike {
+  id           String      @id @default(cuid())
+  user         User?       @relation("VeterinaryLike_user", fields: [userId], references: [id])
+  userId       String?     @map("user")
+  veterinary   Veterinary? @relation("VeterinaryLike_veterinary", fields: [veterinaryId], references: [id])
+  veterinaryId String?     @map("veterinary")
+  createdAt    DateTime?   @default(now())
+
+  @@index([userId])
+  @@index([veterinaryId])
+}
+
+model VeterinaryService {
+  id                       String       @id @default(cuid())
+  name                     String       @default("")
+  slug                     String       @default("")
+  description              String       @default("")
+  active                   Boolean      @default(false)
+  createdAt                DateTime?    @default(now())
+  from_Veterinary_services Veterinary[] @relation("Veterinary_services")
+}
+
+model Schedule {
+  id           String      @id @default(cuid())
+  day          String
+  timeIni      Int
+  timeEnd      Int
+  veterinary   Veterinary? @relation("Schedule_veterinary", fields: [veterinaryId], references: [id])
+  veterinaryId String?     @map("veterinary")
+  createdAt    DateTime?   @default(now())
+
+  @@index([veterinaryId])
+}
+
+model SocialMedia {
+  id           String      @id @default(cuid())
+  social_media String?
+  link         String      @default("")
+  veterinary   Veterinary? @relation("SocialMedia_veterinary", fields: [veterinaryId], references: [id])
+  veterinaryId String?     @map("veterinary")
+  createdAt    DateTime?   @default(now())
+
+  @@index([veterinaryId])
 }
 
 enum UserRoleType {

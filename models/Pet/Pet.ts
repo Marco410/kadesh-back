@@ -12,7 +12,7 @@ export default list({
   access,
   fields: {
     name: text({ validation: { isRequired: true } }),
-    birthday: calendarDay(),
+    birthday: calendarDay({ validation: { isRequired: true } }),
     age: virtual({
       field: graphql.field({
         type: graphql.String,

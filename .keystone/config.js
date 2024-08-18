@@ -314,6 +314,8 @@ var User_default = (0, import_core7.list)({
         }
       })
     }),
+    smsRegistrationId: (0, import_fields7.text)(),
+    verified: (0, import_fields7.checkbox)(),
     createdAt: (0, import_fields7.timestamp)({
       defaultValue: {
         kind: "now"
@@ -342,7 +344,7 @@ var Pet_default = (0, import_core9.list)({
   access: access_default,
   fields: {
     name: (0, import_fields9.text)({ validation: { isRequired: true } }),
-    birthday: (0, import_fields9.calendarDay)(),
+    birthday: (0, import_fields9.calendarDay)({ validation: { isRequired: true } }),
     age: (0, import_fields9.virtual)({
       field: import_core9.graphql.field({
         type: import_core9.graphql.String,
@@ -401,6 +403,188 @@ var PetMultimedia_default = (0, import_core10.list)({
   }
 });
 
+// models/Veterinary/Veterinary.ts
+var import_core12 = require("@keystone-6/core");
+var import_fields12 = require("@keystone-6/core/fields");
+
+// models/Schedule/Schedule.ts
+var import_core11 = require("@keystone-6/core");
+var import_fields11 = require("@keystone-6/core/fields");
+var Schedule_default = (0, import_core11.list)({
+  access: access_default,
+  fields: {
+    day: (0, import_fields11.select)({
+      options: [
+        "Domingo" /* DOM */,
+        "Lunes" /* LUN */,
+        "Martes" /* MAR */,
+        "Mi\xE9rcoles" /* MIER */,
+        "Jueves" /* JUEV */,
+        "Viernes" /* VIE */,
+        "S\xE1bado" /* SAB */
+      ],
+      validation: { isRequired: true }
+    }),
+    timeIni: (0, import_fields11.integer)({ validation: { isRequired: true } }),
+    timeEnd: (0, import_fields11.integer)({ validation: { isRequired: true } }),
+    veterinary: (0, import_fields11.relationship)({
+      ref: "Veterinary.veterinary_schedules"
+    }),
+    createdAt: (0, import_fields11.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+var dayNames = {
+  0: "Domingo" /* DOM */,
+  1: "Lunes" /* LUN */,
+  2: "Martes" /* MAR */,
+  3: "Mi\xE9rcoles" /* MIER */,
+  4: "Jueves" /* JUEV */,
+  5: "Viernes" /* VIE */,
+  6: "S\xE1bado" /* SAB */
+};
+
+// models/Veterinary/Veterinary.ts
+var Veterinary_default = (0, import_core12.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    phone: (0, import_fields12.text)({
+      hooks: phoneHooks
+    }),
+    website: (0, import_fields12.text)(),
+    street: (0, import_fields12.text)(),
+    municipality: (0, import_fields12.text)(),
+    state: (0, import_fields12.text)(),
+    country: (0, import_fields12.text)(),
+    cp: (0, import_fields12.text)(),
+    lat: (0, import_fields12.text)(),
+    lng: (0, import_fields12.text)(),
+    views: (0, import_fields12.integer)(),
+    services: (0, import_fields12.relationship)({
+      ref: "VeterinaryService",
+      many: true
+    }),
+    user: (0, import_fields12.relationship)({
+      ref: "User",
+      many: false
+    }),
+    isOpen: (0, import_fields12.virtual)({
+      field: import_core12.graphql.field({
+        type: import_core12.graphql.Boolean,
+        async resolve(item, args, context) {
+          const today = /* @__PURE__ */ new Date();
+          const schedules = await context.query.Schedule.findMany({
+            where: {
+              veterinary: {
+                id: {
+                  equals: item.id
+                }
+              }
+            },
+            query: "day timeIni timeEnd"
+          });
+          let isInRange = schedules.some((e) => {
+            if (e.day === dayNames[today.getDay()]) {
+              if (today.getHours() >= e.timeIni && today.getHours() <= e.timeEnd) {
+                return true;
+              } else {
+                return false;
+              }
+            }
+            return false;
+          });
+          return isInRange;
+        }
+      })
+    }),
+    veterinary_social_media: (0, import_fields12.relationship)({
+      ref: "SocialMedia.veterinary",
+      many: true
+    }),
+    veterinary_likes: (0, import_fields12.relationship)({
+      ref: "VeterinaryLike.veterinary",
+      many: true
+    }),
+    veterinary_schedules: (0, import_fields12.relationship)({
+      ref: "Schedule.veterinary",
+      many: true
+    }),
+    createdAt: (0, import_fields12.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Veterinary/VeterinaryLike/VeterinaryLike.ts
+var import_core13 = require("@keystone-6/core");
+var import_fields13 = require("@keystone-6/core/fields");
+var VeterinaryLike_default = (0, import_core13.list)({
+  access: access_default,
+  fields: {
+    user: (0, import_fields13.relationship)({
+      ref: "User",
+      many: false
+    }),
+    veterinary: (0, import_fields13.relationship)({
+      ref: "Veterinary.veterinary_likes"
+    }),
+    createdAt: (0, import_fields13.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Veterinary/VeterinaryService/VeterinaryService.ts
+var import_core14 = require("@keystone-6/core");
+var import_fields14 = require("@keystone-6/core/fields");
+var VeterinaryService_default = (0, import_core14.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields14.text)(),
+    slug: (0, import_fields14.text)(),
+    description: (0, import_fields14.text)({ ui: { displayMode: "textarea" } }),
+    active: (0, import_fields14.checkbox)(),
+    createdAt: (0, import_fields14.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/SocialMedia/SocialMedia.ts
+var import_core15 = require("@keystone-6/core");
+var import_fields15 = require("@keystone-6/core/fields");
+var SocialMedia_default = (0, import_core15.list)({
+  access: access_default,
+  fields: {
+    social_media: (0, import_fields15.select)({
+      options: ["Facebook", "Instagram", "X", "LinkedIn"],
+      validation: { isRequired: true }
+    }),
+    link: (0, import_fields15.text)({
+      validation: { isRequired: true }
+    }),
+    veterinary: (0, import_fields15.relationship)({
+      ref: "Veterinary.veterinary_social_media"
+    }),
+    createdAt: (0, import_fields15.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   User: User_default,
@@ -412,11 +596,16 @@ var schema_default = {
   AnimalComment: AnimalComment_default,
   AnimalBreed: AnimalBreed_default,
   Pet: Pet_default,
-  PetMultimedia: PetMultimedia_default
+  PetMultimedia: PetMultimedia_default,
+  Veterinary: Veterinary_default,
+  VeterinaryLike: VeterinaryLike_default,
+  VeterinaryService: VeterinaryService_default,
+  Schedule: Schedule_default,
+  SocialMedia: SocialMedia_default
 };
 
 // keystone.ts
-var import_core11 = require("@keystone-6/core");
+var import_core16 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -453,7 +642,7 @@ var session = (0, import_session.statelessSessions)({
 
 // keystone.ts
 var keystone_default = withAuth(
-  (0, import_core11.config)({
+  (0, import_core16.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

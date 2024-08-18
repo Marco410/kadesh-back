@@ -13,6 +13,8 @@ type User {
   profileImage: ImageFieldOutput
   birthday: CalendarDay
   age: String
+  smsRegistrationId: String
+  verified: Boolean
   createdAt: DateTime
 }
 
@@ -63,6 +65,8 @@ input UserWhereInput {
   phone: StringFilter
   role: UserRoleTypeNullableFilter
   birthday: CalendarDayNullableFilter
+  smsRegistrationId: StringFilter
+  verified: BooleanFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -129,6 +133,11 @@ input CalendarDayNullableFilter {
   not: CalendarDayNullableFilter
 }
 
+input BooleanFilter {
+  equals: Boolean
+  not: BooleanFilter
+}
+
 input DateTimeNullableFilter {
   equals: DateTime
   in: [DateTime!]
@@ -149,6 +158,8 @@ input UserOrderByInput {
   phone: OrderDirection
   role: OrderDirection
   birthday: OrderDirection
+  smsRegistrationId: OrderDirection
+  verified: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -167,6 +178,8 @@ input UserUpdateInput {
   role: UserRoleType
   profileImage: ImageFieldInput
   birthday: CalendarDay
+  smsRegistrationId: String
+  verified: Boolean
   createdAt: DateTime
 }
 
@@ -192,6 +205,8 @@ input UserCreateInput {
   role: UserRoleType
   profileImage: ImageFieldInput
   birthday: CalendarDay
+  smsRegistrationId: String
+  verified: Boolean
   createdAt: DateTime
 }
 
@@ -526,11 +541,6 @@ input StringNullableFilter {
   not: StringNullableFilter
 }
 
-input BooleanFilter {
-  equals: Boolean
-  not: BooleanFilter
-}
-
 input AnimalHistoryOrderByInput {
   id: OrderDirection
   status: OrderDirection
@@ -686,11 +696,22 @@ input PetWhereInput {
   NOT: [PetWhereInput!]
   id: IDFilter
   name: StringFilter
-  birthday: CalendarDayNullableFilter
+  birthday: CalendarDayFilter
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
   multimedia: PetMultimediaManyRelationFilter
   createdAt: DateTimeNullableFilter
+}
+
+input CalendarDayFilter {
+  equals: CalendarDay
+  in: [CalendarDay!]
+  notIn: [CalendarDay!]
+  lt: CalendarDay
+  lte: CalendarDay
+  gt: CalendarDay
+  gte: CalendarDay
+  not: CalendarDayFilter
 }
 
 input PetMultimediaManyRelationFilter {
@@ -794,6 +815,421 @@ input PetRelateToOneForCreateInput {
   connect: PetWhereUniqueInput
 }
 
+type Veterinary {
+  id: ID!
+  name: String
+  description: String
+  phone: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  lat: String
+  lng: String
+  views: Int
+  services(where: VeterinaryServiceWhereInput! = {}, orderBy: [VeterinaryServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VeterinaryServiceWhereUniqueInput): [VeterinaryService!]
+  servicesCount(where: VeterinaryServiceWhereInput! = {}): Int
+  user: User
+  isOpen: Boolean
+  veterinary_social_media(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
+  veterinary_social_mediaCount(where: SocialMediaWhereInput! = {}): Int
+  veterinary_likes(where: VeterinaryLikeWhereInput! = {}, orderBy: [VeterinaryLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VeterinaryLikeWhereUniqueInput): [VeterinaryLike!]
+  veterinary_likesCount(where: VeterinaryLikeWhereInput! = {}): Int
+  veterinary_schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
+  veterinary_schedulesCount(where: ScheduleWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input VeterinaryWhereUniqueInput {
+  id: ID
+}
+
+input VeterinaryWhereInput {
+  AND: [VeterinaryWhereInput!]
+  OR: [VeterinaryWhereInput!]
+  NOT: [VeterinaryWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  description: StringFilter
+  phone: StringFilter
+  website: StringFilter
+  street: StringFilter
+  municipality: StringFilter
+  state: StringFilter
+  country: StringFilter
+  cp: StringFilter
+  lat: StringFilter
+  lng: StringFilter
+  views: IntNullableFilter
+  services: VeterinaryServiceManyRelationFilter
+  user: UserWhereInput
+  veterinary_social_media: SocialMediaManyRelationFilter
+  veterinary_likes: VeterinaryLikeManyRelationFilter
+  veterinary_schedules: ScheduleManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input VeterinaryServiceManyRelationFilter {
+  every: VeterinaryServiceWhereInput
+  some: VeterinaryServiceWhereInput
+  none: VeterinaryServiceWhereInput
+}
+
+input SocialMediaManyRelationFilter {
+  every: SocialMediaWhereInput
+  some: SocialMediaWhereInput
+  none: SocialMediaWhereInput
+}
+
+input VeterinaryLikeManyRelationFilter {
+  every: VeterinaryLikeWhereInput
+  some: VeterinaryLikeWhereInput
+  none: VeterinaryLikeWhereInput
+}
+
+input ScheduleManyRelationFilter {
+  every: ScheduleWhereInput
+  some: ScheduleWhereInput
+  none: ScheduleWhereInput
+}
+
+input VeterinaryOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  description: OrderDirection
+  phone: OrderDirection
+  website: OrderDirection
+  street: OrderDirection
+  municipality: OrderDirection
+  state: OrderDirection
+  country: OrderDirection
+  cp: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  views: OrderDirection
+  createdAt: OrderDirection
+}
+
+input VeterinaryUpdateInput {
+  name: String
+  description: String
+  phone: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  lat: String
+  lng: String
+  views: Int
+  services: VeterinaryServiceRelateToManyForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  veterinary_social_media: SocialMediaRelateToManyForUpdateInput
+  veterinary_likes: VeterinaryLikeRelateToManyForUpdateInput
+  veterinary_schedules: ScheduleRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input VeterinaryServiceRelateToManyForUpdateInput {
+  disconnect: [VeterinaryServiceWhereUniqueInput!]
+  set: [VeterinaryServiceWhereUniqueInput!]
+  create: [VeterinaryServiceCreateInput!]
+  connect: [VeterinaryServiceWhereUniqueInput!]
+}
+
+input SocialMediaRelateToManyForUpdateInput {
+  disconnect: [SocialMediaWhereUniqueInput!]
+  set: [SocialMediaWhereUniqueInput!]
+  create: [SocialMediaCreateInput!]
+  connect: [SocialMediaWhereUniqueInput!]
+}
+
+input VeterinaryLikeRelateToManyForUpdateInput {
+  disconnect: [VeterinaryLikeWhereUniqueInput!]
+  set: [VeterinaryLikeWhereUniqueInput!]
+  create: [VeterinaryLikeCreateInput!]
+  connect: [VeterinaryLikeWhereUniqueInput!]
+}
+
+input ScheduleRelateToManyForUpdateInput {
+  disconnect: [ScheduleWhereUniqueInput!]
+  set: [ScheduleWhereUniqueInput!]
+  create: [ScheduleCreateInput!]
+  connect: [ScheduleWhereUniqueInput!]
+}
+
+input VeterinaryUpdateArgs {
+  where: VeterinaryWhereUniqueInput!
+  data: VeterinaryUpdateInput!
+}
+
+input VeterinaryCreateInput {
+  name: String
+  description: String
+  phone: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  lat: String
+  lng: String
+  views: Int
+  services: VeterinaryServiceRelateToManyForCreateInput
+  user: UserRelateToOneForCreateInput
+  veterinary_social_media: SocialMediaRelateToManyForCreateInput
+  veterinary_likes: VeterinaryLikeRelateToManyForCreateInput
+  veterinary_schedules: ScheduleRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input VeterinaryServiceRelateToManyForCreateInput {
+  create: [VeterinaryServiceCreateInput!]
+  connect: [VeterinaryServiceWhereUniqueInput!]
+}
+
+input SocialMediaRelateToManyForCreateInput {
+  create: [SocialMediaCreateInput!]
+  connect: [SocialMediaWhereUniqueInput!]
+}
+
+input VeterinaryLikeRelateToManyForCreateInput {
+  create: [VeterinaryLikeCreateInput!]
+  connect: [VeterinaryLikeWhereUniqueInput!]
+}
+
+input ScheduleRelateToManyForCreateInput {
+  create: [ScheduleCreateInput!]
+  connect: [ScheduleWhereUniqueInput!]
+}
+
+type VeterinaryLike {
+  id: ID!
+  user: User
+  veterinary: Veterinary
+  createdAt: DateTime
+}
+
+input VeterinaryLikeWhereUniqueInput {
+  id: ID
+}
+
+input VeterinaryLikeWhereInput {
+  AND: [VeterinaryLikeWhereInput!]
+  OR: [VeterinaryLikeWhereInput!]
+  NOT: [VeterinaryLikeWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  veterinary: VeterinaryWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input VeterinaryLikeOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input VeterinaryLikeUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  veterinary: VeterinaryRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input VeterinaryRelateToOneForUpdateInput {
+  create: VeterinaryCreateInput
+  connect: VeterinaryWhereUniqueInput
+  disconnect: Boolean
+}
+
+input VeterinaryLikeUpdateArgs {
+  where: VeterinaryLikeWhereUniqueInput!
+  data: VeterinaryLikeUpdateInput!
+}
+
+input VeterinaryLikeCreateInput {
+  user: UserRelateToOneForCreateInput
+  veterinary: VeterinaryRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input VeterinaryRelateToOneForCreateInput {
+  create: VeterinaryCreateInput
+  connect: VeterinaryWhereUniqueInput
+}
+
+type VeterinaryService {
+  id: ID!
+  name: String
+  slug: String
+  description: String
+  active: Boolean
+  createdAt: DateTime
+}
+
+input VeterinaryServiceWhereUniqueInput {
+  id: ID
+}
+
+input VeterinaryServiceWhereInput {
+  AND: [VeterinaryServiceWhereInput!]
+  OR: [VeterinaryServiceWhereInput!]
+  NOT: [VeterinaryServiceWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  slug: StringFilter
+  description: StringFilter
+  active: BooleanFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input VeterinaryServiceOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  slug: OrderDirection
+  description: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+}
+
+input VeterinaryServiceUpdateInput {
+  name: String
+  slug: String
+  description: String
+  active: Boolean
+  createdAt: DateTime
+}
+
+input VeterinaryServiceUpdateArgs {
+  where: VeterinaryServiceWhereUniqueInput!
+  data: VeterinaryServiceUpdateInput!
+}
+
+input VeterinaryServiceCreateInput {
+  name: String
+  slug: String
+  description: String
+  active: Boolean
+  createdAt: DateTime
+}
+
+type Schedule {
+  id: ID!
+  day: String
+  timeIni: Int
+  timeEnd: Int
+  veterinary: Veterinary
+  createdAt: DateTime
+}
+
+input ScheduleWhereUniqueInput {
+  id: ID
+}
+
+input ScheduleWhereInput {
+  AND: [ScheduleWhereInput!]
+  OR: [ScheduleWhereInput!]
+  NOT: [ScheduleWhereInput!]
+  id: IDFilter
+  day: StringFilter
+  timeIni: IntFilter
+  timeEnd: IntFilter
+  veterinary: VeterinaryWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input IntFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntFilter
+}
+
+input ScheduleOrderByInput {
+  id: OrderDirection
+  day: OrderDirection
+  timeIni: OrderDirection
+  timeEnd: OrderDirection
+  createdAt: OrderDirection
+}
+
+input ScheduleUpdateInput {
+  day: String
+  timeIni: Int
+  timeEnd: Int
+  veterinary: VeterinaryRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input ScheduleUpdateArgs {
+  where: ScheduleWhereUniqueInput!
+  data: ScheduleUpdateInput!
+}
+
+input ScheduleCreateInput {
+  day: String
+  timeIni: Int
+  timeEnd: Int
+  veterinary: VeterinaryRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type SocialMedia {
+  id: ID!
+  social_media: String
+  link: String
+  veterinary: Veterinary
+  createdAt: DateTime
+}
+
+input SocialMediaWhereUniqueInput {
+  id: ID
+}
+
+input SocialMediaWhereInput {
+  AND: [SocialMediaWhereInput!]
+  OR: [SocialMediaWhereInput!]
+  NOT: [SocialMediaWhereInput!]
+  id: IDFilter
+  social_media: StringNullableFilter
+  link: StringFilter
+  veterinary: VeterinaryWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input SocialMediaOrderByInput {
+  id: OrderDirection
+  social_media: OrderDirection
+  link: OrderDirection
+  createdAt: OrderDirection
+}
+
+input SocialMediaUpdateInput {
+  social_media: String
+  link: String
+  veterinary: VeterinaryRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input SocialMediaUpdateArgs {
+  where: SocialMediaWhereUniqueInput!
+  data: SocialMediaUpdateInput!
+}
+
+input SocialMediaCreateInput {
+  social_media: String
+  link: String
+  veterinary: VeterinaryRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -860,6 +1296,36 @@ type Mutation {
   updatePetMultimedias(data: [PetMultimediaUpdateArgs!]!): [PetMultimedia]
   deletePetMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
   deletePetMultimedias(where: [PetMultimediaWhereUniqueInput!]!): [PetMultimedia]
+  createVeterinary(data: VeterinaryCreateInput!): Veterinary
+  createVeterinaries(data: [VeterinaryCreateInput!]!): [Veterinary]
+  updateVeterinary(where: VeterinaryWhereUniqueInput!, data: VeterinaryUpdateInput!): Veterinary
+  updateVeterinaries(data: [VeterinaryUpdateArgs!]!): [Veterinary]
+  deleteVeterinary(where: VeterinaryWhereUniqueInput!): Veterinary
+  deleteVeterinaries(where: [VeterinaryWhereUniqueInput!]!): [Veterinary]
+  createVeterinaryLike(data: VeterinaryLikeCreateInput!): VeterinaryLike
+  createVeterinaryLikes(data: [VeterinaryLikeCreateInput!]!): [VeterinaryLike]
+  updateVeterinaryLike(where: VeterinaryLikeWhereUniqueInput!, data: VeterinaryLikeUpdateInput!): VeterinaryLike
+  updateVeterinaryLikes(data: [VeterinaryLikeUpdateArgs!]!): [VeterinaryLike]
+  deleteVeterinaryLike(where: VeterinaryLikeWhereUniqueInput!): VeterinaryLike
+  deleteVeterinaryLikes(where: [VeterinaryLikeWhereUniqueInput!]!): [VeterinaryLike]
+  createVeterinaryService(data: VeterinaryServiceCreateInput!): VeterinaryService
+  createVeterinaryServices(data: [VeterinaryServiceCreateInput!]!): [VeterinaryService]
+  updateVeterinaryService(where: VeterinaryServiceWhereUniqueInput!, data: VeterinaryServiceUpdateInput!): VeterinaryService
+  updateVeterinaryServices(data: [VeterinaryServiceUpdateArgs!]!): [VeterinaryService]
+  deleteVeterinaryService(where: VeterinaryServiceWhereUniqueInput!): VeterinaryService
+  deleteVeterinaryServices(where: [VeterinaryServiceWhereUniqueInput!]!): [VeterinaryService]
+  createSchedule(data: ScheduleCreateInput!): Schedule
+  createSchedules(data: [ScheduleCreateInput!]!): [Schedule]
+  updateSchedule(where: ScheduleWhereUniqueInput!, data: ScheduleUpdateInput!): Schedule
+  updateSchedules(data: [ScheduleUpdateArgs!]!): [Schedule]
+  deleteSchedule(where: ScheduleWhereUniqueInput!): Schedule
+  deleteSchedules(where: [ScheduleWhereUniqueInput!]!): [Schedule]
+  createSocialMedia(data: SocialMediaCreateInput!): SocialMedia
+  createSocialMedias(data: [SocialMediaCreateInput!]!): [SocialMedia]
+  updateSocialMedia(where: SocialMediaWhereUniqueInput!, data: SocialMediaUpdateInput!): SocialMedia
+  updateSocialMedias(data: [SocialMediaUpdateArgs!]!): [SocialMedia]
+  deleteSocialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
+  deleteSocialMedias(where: [SocialMediaWhereUniqueInput!]!): [SocialMedia]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -914,6 +1380,21 @@ type Query {
   petMultimedias(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
   petMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
   petMultimediasCount(where: PetMultimediaWhereInput! = {}): Int
+  veterinaries(where: VeterinaryWhereInput! = {}, orderBy: [VeterinaryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VeterinaryWhereUniqueInput): [Veterinary!]
+  veterinary(where: VeterinaryWhereUniqueInput!): Veterinary
+  veterinariesCount(where: VeterinaryWhereInput! = {}): Int
+  veterinaryLikes(where: VeterinaryLikeWhereInput! = {}, orderBy: [VeterinaryLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VeterinaryLikeWhereUniqueInput): [VeterinaryLike!]
+  veterinaryLike(where: VeterinaryLikeWhereUniqueInput!): VeterinaryLike
+  veterinaryLikesCount(where: VeterinaryLikeWhereInput! = {}): Int
+  veterinaryServices(where: VeterinaryServiceWhereInput! = {}, orderBy: [VeterinaryServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VeterinaryServiceWhereUniqueInput): [VeterinaryService!]
+  veterinaryService(where: VeterinaryServiceWhereUniqueInput!): VeterinaryService
+  veterinaryServicesCount(where: VeterinaryServiceWhereInput! = {}): Int
+  schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
+  schedule(where: ScheduleWhereUniqueInput!): Schedule
+  schedulesCount(where: ScheduleWhereInput! = {}): Int
+  socialMedias(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
+  socialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
+  socialMediasCount(where: SocialMediaWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
 }
