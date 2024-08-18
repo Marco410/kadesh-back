@@ -596,20 +596,8 @@ var import_fields16 = require("@keystone-6/core/fields");
 var Review_default = (0, import_core16.list)({
   access: access_default,
   fields: {
-    day: (0, import_fields16.select)({
-      options: [
-        "Domingo" /* DOM */,
-        "Lunes" /* LUN */,
-        "Martes" /* MAR */,
-        "Mi\xE9rcoles" /* MIER */,
-        "Jueves" /* JUEV */,
-        "Viernes" /* VIE */,
-        "S\xE1bado" /* SAB */
-      ],
-      validation: { isRequired: true }
-    }),
-    timeIni: (0, import_fields16.integer)({ validation: { isRequired: true } }),
-    timeEnd: (0, import_fields16.integer)({ validation: { isRequired: true } }),
+    rating: (0, import_fields16.integer)(),
+    review: (0, import_fields16.text)(),
     veterinary: (0, import_fields16.relationship)({
       ref: "Veterinary.veterinary_reviews"
     }),
