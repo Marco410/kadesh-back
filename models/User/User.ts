@@ -19,6 +19,7 @@ export default list({
     lastName: text(),
     username: text({
       isIndexed: "unique",
+      validation: { isRequired: true },
     }),
     email: text({
       isIndexed: "unique",

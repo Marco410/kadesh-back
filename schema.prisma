@@ -128,7 +128,7 @@ model AnimalBreed {
 model Pet {
   id             String          @id @default(cuid())
   name           String          @default("")
-  birthday       DateTime?       @postgresql.Date
+  birthday       DateTime        @postgresql.Date
   animal_breed   AnimalBreed?    @relation("Pet_animal_breed", fields: [animal_breedId], references: [id])
   animal_breedId String?         @map("animal_breed")
   user           User?           @relation("Pet_user", fields: [userId], references: [id])
@@ -203,9 +203,9 @@ model VeterinaryService {
 
 model Schedule {
   id           String      @id @default(cuid())
-  day          String?
-  timeIni      Int?
-  timeEnd      Int?
+  day          String
+  timeIni      Int
+  timeEnd      Int
   veterinary   Veterinary? @relation("Schedule_veterinary", fields: [veterinaryId], references: [id])
   veterinaryId String?     @map("veterinary")
   createdAt    DateTime?   @default(now())

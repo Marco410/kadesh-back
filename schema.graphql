@@ -696,11 +696,22 @@ input PetWhereInput {
   NOT: [PetWhereInput!]
   id: IDFilter
   name: StringFilter
-  birthday: CalendarDayNullableFilter
+  birthday: CalendarDayFilter
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
   multimedia: PetMultimediaManyRelationFilter
   createdAt: DateTimeNullableFilter
+}
+
+input CalendarDayFilter {
+  equals: CalendarDay
+  in: [CalendarDay!]
+  notIn: [CalendarDay!]
+  lt: CalendarDay
+  lte: CalendarDay
+  gt: CalendarDay
+  gte: CalendarDay
+  not: CalendarDayFilter
 }
 
 input PetMultimediaManyRelationFilter {
@@ -1123,11 +1134,22 @@ input ScheduleWhereInput {
   OR: [ScheduleWhereInput!]
   NOT: [ScheduleWhereInput!]
   id: IDFilter
-  day: StringNullableFilter
-  timeIni: IntNullableFilter
-  timeEnd: IntNullableFilter
+  day: StringFilter
+  timeIni: IntFilter
+  timeEnd: IntFilter
   veterinary: VeterinaryWhereInput
   createdAt: DateTimeNullableFilter
+}
+
+input IntFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntFilter
 }
 
 input ScheduleOrderByInput {

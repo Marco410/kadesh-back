@@ -344,7 +344,7 @@ var Pet_default = (0, import_core9.list)({
   access: access_default,
   fields: {
     name: (0, import_fields9.text)({ validation: { isRequired: true } }),
-    birthday: (0, import_fields9.calendarDay)(),
+    birthday: (0, import_fields9.calendarDay)({ validation: { isRequired: true } }),
     age: (0, import_fields9.virtual)({
       field: import_core9.graphql.field({
         type: import_core9.graphql.String,
@@ -422,10 +422,11 @@ var Schedule_default = (0, import_core11.list)({
         "Jueves" /* JUEV */,
         "Viernes" /* VIE */,
         "S\xE1bado" /* SAB */
-      ]
+      ],
+      validation: { isRequired: true }
     }),
     timeIni: (0, import_fields11.integer)({ validation: { isRequired: true } }),
-    timeEnd: (0, import_fields11.integer)(),
+    timeEnd: (0, import_fields11.integer)({ validation: { isRequired: true } }),
     veterinary: (0, import_fields11.relationship)({
       ref: "Veterinary.veterinary_schedules"
     }),
@@ -567,7 +568,8 @@ var SocialMedia_default = (0, import_core15.list)({
   access: access_default,
   fields: {
     social_media: (0, import_fields15.select)({
-      options: ["Facebook", "Instagram", "X", "LinkedIn"]
+      options: ["Facebook", "Instagram", "X", "LinkedIn"],
+      validation: { isRequired: true }
     }),
     link: (0, import_fields15.text)({
       validation: { isRequired: true }

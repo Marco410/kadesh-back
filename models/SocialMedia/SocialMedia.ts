@@ -7,6 +7,7 @@ export default list({
   fields: {
     social_media: select({
       options: ["Facebook", "Instagram", "X", "LinkedIn"],
+      validation: { isRequired: true },
     }),
     link: text({
       validation: { isRequired: true },
