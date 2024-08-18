@@ -9,7 +9,6 @@ import {
   reptilBreeds,
 } from "../../utils/constants/constants";
 export async function createAnimalTypes(context: KeystoneContext) {
-  // Check if there are already roles
   const existingTypes = await context.sudo().query.AnimalType.findMany();
   if (existingTypes.length > 0) {
     console.log("♻️  Skipped Animal Type seeding.");

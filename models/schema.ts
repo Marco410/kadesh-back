@@ -8,6 +8,11 @@ import User from "./User/User";
 import AnimalBreed from "./Animal/AnimalBreed/AnimalBreed";
 import Pet from "./Pet/Pet";
 import PetMultimedia from "./Pet/PetMultimedia/PetMultimedia";
+import Veterinary from "./Veterinary/Veterinary";
+import VeterinaryLike from "./Veterinary/VeterinaryLike/VeterinaryLike";
+import VeterinaryService from "./Veterinary/VeterinaryService/VeterinaryService";
+import Schedule from "./Schedule/Schedule";
+import SocialMedia from "./SocialMedia/SocialMedia";
 
 export default {
   User,
@@ -20,4 +25,9 @@ export default {
   AnimalBreed,
   Pet,
   PetMultimedia,
+  Veterinary,
+  VeterinaryLike,
+  VeterinaryService,
+  Schedule,
+  SocialMedia,
 };

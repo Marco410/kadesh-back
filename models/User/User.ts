@@ -7,6 +7,7 @@ import {
   virtual,
   calendarDay,
   image,
+  checkbox,
 } from "@keystone-6/core/fields";
 import { emailHooks, phoneHooks } from "./User.hooks";
 import access from "../../utils/generalAccess/access";
@@ -65,6 +66,8 @@ export default list({
         },
       }),
     }),
+    smsRegistrationId: text(),
+    verified: checkbox(),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
