@@ -215,7 +215,7 @@ model Schedule {
 
 model SocialMedia {
   id           String      @id @default(cuid())
-  social_media String?
+  social_media String
   link         String      @default("")
   veterinary   Veterinary? @relation("SocialMedia_veterinary", fields: [veterinaryId], references: [id])
   veterinaryId String?     @map("veterinary")

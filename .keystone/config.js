@@ -266,7 +266,8 @@ var User_default = (0, import_core7.list)({
     name: (0, import_fields7.text)({ validation: { isRequired: true } }),
     lastName: (0, import_fields7.text)(),
     username: (0, import_fields7.text)({
-      isIndexed: "unique"
+      isIndexed: "unique",
+      validation: { isRequired: true }
     }),
     email: (0, import_fields7.text)({
       isIndexed: "unique",

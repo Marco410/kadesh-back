@@ -1198,7 +1198,7 @@ input SocialMediaWhereInput {
   OR: [SocialMediaWhereInput!]
   NOT: [SocialMediaWhereInput!]
   id: IDFilter
-  social_media: StringNullableFilter
+  social_media: StringFilter
   link: StringFilter
   veterinary: VeterinaryWhereInput
   createdAt: DateTimeNullableFilter
