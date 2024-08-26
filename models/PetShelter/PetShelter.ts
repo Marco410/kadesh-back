@@ -28,10 +28,6 @@ export default list({
     lat: text(),
     lng: text(),
     views: integer(),
-    services: relationship({
-      ref: "VeterinaryService",
-      many: true,
-    }),
     user: relationship({
       ref: "User",
       many: false,
@@ -43,7 +39,7 @@ export default list({
           const today = new Date();
           const schedules = await context.query.Schedule.findMany({
             where: {
-              veterinary: {
+              pet_shelter: {
                 id: {
                   equals: item.id,
                 },
@@ -71,20 +67,20 @@ export default list({
         },
       }),
     }),
-    veterinary_social_media: relationship({
-      ref: "SocialMedia.veterinary",
+    pet_shelter_social_media: relationship({
+      ref: "SocialMedia.pet_shelter",
       many: true,
     }),
-    veterinary_likes: relationship({
+    /*  veterinary_likes: relationship({
       ref: "VeterinaryLike.veterinary",
       many: true,
-    }),
-    veterinary_schedules: relationship({
-      ref: "Schedule.veterinary",
+    }), */
+    pet_shelter_schedules: relationship({
+      ref: "Schedule.pet_shelter",
       many: true,
     }),
-    veterinary_reviews: relationship({
-      ref: "Review.veterinary",
+    pet_shelter_reviews: relationship({
+      ref: "Review.pet_shelter",
       many: true,
     }),
     createdAt: timestamp({

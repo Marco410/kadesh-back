@@ -431,6 +431,9 @@ var Schedule_default = (0, import_core11.list)({
     veterinary: (0, import_fields11.relationship)({
       ref: "Veterinary.veterinary_schedules"
     }),
+    pet_shelter: (0, import_fields11.relationship)({
+      ref: "PetShelter.pet_shelter_schedules"
+    }),
     createdAt: (0, import_fields11.timestamp)({
       defaultValue: {
         kind: "now"
@@ -489,6 +492,8 @@ var Veterinary_default = (0, import_core12.list)({
             },
             query: "day timeIni timeEnd"
           });
+          if (schedules.length == 0)
+            return false;
           let isInRange = schedules.some((e) => {
             if (e.day === dayNames[today.getDay()]) {
               if (today.getHours() >= e.timeIni && today.getHours() <= e.timeEnd) {
@@ -582,6 +587,9 @@ var SocialMedia_default = (0, import_core15.list)({
     veterinary: (0, import_fields15.relationship)({
       ref: "Veterinary.veterinary_social_media"
     }),
+    pet_shelter: (0, import_fields15.relationship)({
+      ref: "PetShelter.pet_shelter_social_media"
+    }),
     createdAt: (0, import_fields15.timestamp)({
       defaultValue: {
         kind: "now"
@@ -596,22 +604,13 @@ var import_fields16 = require("@keystone-6/core/fields");
 var Review_default = (0, import_core16.list)({
   access: access_default,
   fields: {
-    day: (0, import_fields16.select)({
-      options: [
-        "Domingo" /* DOM */,
-        "Lunes" /* LUN */,
-        "Martes" /* MAR */,
-        "Mi\xE9rcoles" /* MIER */,
-        "Jueves" /* JUEV */,
-        "Viernes" /* VIE */,
-        "S\xE1bado" /* SAB */
-      ],
-      validation: { isRequired: true }
-    }),
-    timeIni: (0, import_fields16.integer)({ validation: { isRequired: true } }),
-    timeEnd: (0, import_fields16.integer)({ validation: { isRequired: true } }),
+    rating: (0, import_fields16.integer)(),
+    review: (0, import_fields16.text)(),
     veterinary: (0, import_fields16.relationship)({
       ref: "Veterinary.veterinary_reviews"
+    }),
+    pet_shelter: (0, import_fields16.relationship)({
+      ref: "PetShelter.pet_shelter_reviews"
     }),
     user: (0, import_fields16.relationship)({
       ref: "User",
@@ -634,6 +633,85 @@ var dayNames2 = {
   6: "S\xE1bado" /* SAB */
 };
 
+// models/PetShelter/PetShelter.ts
+var import_core17 = require("@keystone-6/core");
+var import_fields17 = require("@keystone-6/core/fields");
+var PetShelter_default = (0, import_core17.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields17.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields17.text)({ validation: { isRequired: true } }),
+    phone: (0, import_fields17.text)({
+      hooks: phoneHooks
+    }),
+    website: (0, import_fields17.text)(),
+    street: (0, import_fields17.text)(),
+    municipality: (0, import_fields17.text)(),
+    state: (0, import_fields17.text)(),
+    country: (0, import_fields17.text)(),
+    cp: (0, import_fields17.text)(),
+    lat: (0, import_fields17.text)(),
+    lng: (0, import_fields17.text)(),
+    views: (0, import_fields17.integer)(),
+    user: (0, import_fields17.relationship)({
+      ref: "User",
+      many: false
+    }),
+    isOpen: (0, import_fields17.virtual)({
+      field: import_core17.graphql.field({
+        type: import_core17.graphql.Boolean,
+        async resolve(item, args, context) {
+          const today = /* @__PURE__ */ new Date();
+          const schedules = await context.query.Schedule.findMany({
+            where: {
+              pet_shelter: {
+                id: {
+                  equals: item.id
+                }
+              }
+            },
+            query: "day timeIni timeEnd"
+          });
+          if (schedules.length == 0)
+            return false;
+          let isInRange = schedules.some((e) => {
+            if (e.day === dayNames[today.getDay()]) {
+              if (today.getHours() >= e.timeIni && today.getHours() <= e.timeEnd) {
+                return true;
+              } else {
+                return false;
+              }
+            }
+            return false;
+          });
+          return isInRange;
+        }
+      })
+    }),
+    pet_shelter_social_media: (0, import_fields17.relationship)({
+      ref: "SocialMedia.pet_shelter",
+      many: true
+    }),
+    /*  veterinary_likes: relationship({
+      ref: "VeterinaryLike.veterinary",
+      many: true,
+    }), */
+    pet_shelter_schedules: (0, import_fields17.relationship)({
+      ref: "Schedule.pet_shelter",
+      many: true
+    }),
+    pet_shelter_reviews: (0, import_fields17.relationship)({
+      ref: "Review.pet_shelter",
+      many: true
+    }),
+    createdAt: (0, import_fields17.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   User: User_default,
@@ -651,11 +729,12 @@ var schema_default = {
   VeterinaryService: VeterinaryService_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
-  Review: Review_default
+  Review: Review_default,
+  PetShelter: PetShelter_default
 };
 
 // keystone.ts
-var import_core17 = require("@keystone-6/core");
+var import_core18 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -692,7 +771,7 @@ var session = (0, import_session.statelessSessions)({
 
 // keystone.ts
 var keystone_default = withAuth(
-  (0, import_core17.config)({
+  (0, import_core18.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
