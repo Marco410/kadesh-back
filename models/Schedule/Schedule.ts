@@ -28,6 +28,9 @@ export default list({
     veterinary: relationship({
       ref: "Veterinary.veterinary_schedules",
     }),
+    pet_shelter: relationship({
+      ref: "PetShelter.pet_shelter_schedules",
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

@@ -14,6 +14,7 @@ import VeterinaryService from "./Veterinary/VeterinaryService/VeterinaryService"
 import Schedule from "./Schedule/Schedule";
 import SocialMedia from "./SocialMedia/SocialMedia";
 import Review from "./Review/Review";
+import PetShelter from "./PetShelter/PetShelter";
 
 export default {
   User,
@@ -32,4 +33,5 @@ export default {
   Schedule,
   SocialMedia,
   Review,
+  PetShelter,
 };
