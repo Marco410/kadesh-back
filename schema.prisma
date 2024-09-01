@@ -12,31 +12,36 @@ generator client {
 }
 
 model User {
-  id                       String           @id @default(cuid())
-  name                     String           @default("")
-  lastName                 String           @default("")
-  username                 String           @unique @default("")
-  email                    String           @unique @default("")
-  password                 String
-  phone                    String           @default("")
-  role                     UserRoleType     @default(admin)
-  profileImage_id          String?
-  profileImage_filesize    Int?
-  profileImage_width       Int?
-  profileImage_height      Int?
-  profileImage_extension   String?
-  birthday                 DateTime?        @postgresql.Date
-  smsRegistrationId        String           @default("")
-  verified                 Boolean          @default(false)
-  createdAt                DateTime?        @default(now())
-  from_Animal_user         Animal[]         @relation("Animal_user")
-  from_AnimalFavorite_user AnimalFavorite[] @relation("AnimalFavorite_user")
-  from_AnimalComment_user  AnimalComment[]  @relation("AnimalComment_user")
-  from_Pet_user            Pet[]            @relation("Pet_user")
-  from_Veterinary_user     Veterinary[]     @relation("Veterinary_user")
-  from_VeterinaryLike_user VeterinaryLike[] @relation("VeterinaryLike_user")
-  from_Review_user         Review[]         @relation("Review_user")
-  from_PetShelter_user     PetShelter[]     @relation("PetShelter_user")
+  id                          String              @id @default(cuid())
+  name                        String              @default("")
+  lastName                    String              @default("")
+  username                    String              @unique @default("")
+  email                       String              @unique @default("")
+  password                    String
+  phone                       String              @default("")
+  role                        UserRoleType        @default(admin)
+  profileImage_id             String?
+  profileImage_filesize       Int?
+  profileImage_width          Int?
+  profileImage_height         Int?
+  profileImage_extension      String?
+  birthday                    DateTime?           @postgresql.Date
+  smsRegistrationId           String              @default("")
+  verified                    Boolean             @default(false)
+  createdAt                   DateTime?           @default(now())
+  from_Animal_user            Animal[]            @relation("Animal_user")
+  from_AnimalFavorite_user    AnimalFavorite[]    @relation("AnimalFavorite_user")
+  from_AnimalComment_user     AnimalComment[]     @relation("AnimalComment_user")
+  from_Pet_user               Pet[]               @relation("Pet_user")
+  from_Veterinary_user        Veterinary[]        @relation("Veterinary_user")
+  from_VeterinaryLike_user    VeterinaryLike[]    @relation("VeterinaryLike_user")
+  from_Review_user            Review[]            @relation("Review_user")
+  from_PetShelter_user        PetShelter[]        @relation("PetShelter_user")
+  from_WishList_user          WishList[]          @relation("WishList_user")
+  from_Cart_user              Cart[]              @relation("Cart_user")
+  from_Order_user             Order[]             @relation("Order_user")
+  from_PaymentMethod_user     PaymentMethod[]     @relation("PaymentMethod_user")
+  from_TokenNotification_user TokenNotification[] @relation("TokenNotification_user")
 }
 
 model Animal {
@@ -241,12 +246,15 @@ model Review {
   veterinaryId  String?     @map("veterinary")
   pet_shelter   PetShelter? @relation("Review_pet_shelter", fields: [pet_shelterId], references: [id])
   pet_shelterId String?     @map("pet_shelter")
+  product       Product?    @relation("Review_product", fields: [productId], references: [id])
+  productId     String?     @map("product")
   user          User?       @relation("Review_user", fields: [userId], references: [id])
   userId        String?     @map("user")
   createdAt     DateTime?   @default(now())
 
   @@index([veterinaryId])
   @@index([pet_shelterId])
+  @@index([productId])
   @@index([userId])
 }
 
@@ -274,7 +282,116 @@ model PetShelter {
   @@index([userId])
 }
 
+model Product {
+  id                    String     @id @default(cuid())
+  name                  String     @default("")
+  price                 Int
+  description           String     @default("")
+  category              String
+  brand                 String
+  type                  String
+  product_reviews       Review[]   @relation("Review_product")
+  createdAt             DateTime?  @default(now())
+  from_WishList_product WishList[] @relation("WishList_product")
+  from_Cart_product     Cart[]     @relation("Cart_product")
+}
+
+model WishList {
+  id        String    @id @default(cuid())
+  name      String    @default("")
+  user      User?     @relation("WishList_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  product   Product[] @relation("WishList_product")
+  createdAt DateTime? @default(now())
+
+  @@index([userId])
+}
+
+model Cart {
+  id              String    @id @default(cuid())
+  name            String    @default("")
+  user            User?     @relation("Cart_user", fields: [userId], references: [id])
+  userId          String?   @map("user")
+  product         Product[] @relation("Cart_product")
+  createdAt       DateTime? @default(now())
+  from_Order_cart Order[]   @relation("Order_cart")
+
+  @@index([userId])
+}
+
+model Order {
+  id        String    @id @default(cuid())
+  total     Int?
+  status    String
+  cart      Cart?     @relation("Order_cart", fields: [cartId], references: [id])
+  cartId    String?   @map("cart")
+  user      User?     @relation("Order_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  payment   Payment?  @relation("Order_payment", fields: [paymentId], references: [id])
+  paymentId String?   @unique @map("payment")
+  createdAt DateTime? @default(now())
+
+  @@index([cartId])
+  @@index([userId])
+}
+
+model Payment {
+  id                      String            @id @default(cuid())
+  order_payment           Order?            @relation("Order_payment")
+  paymentMethod           PaymentMethod?    @relation("Payment_paymentMethod", fields: [paymentMethodId], references: [id])
+  paymentMethodId         String?           @map("paymentMethod")
+  amount                  Decimal?          @default("0.000000") @postgresql.Decimal(18, 6)
+  status                  PaymentStatusType @default(pending)
+  processorStripeChargeId String            @default("")
+  stripeErrorMessage      String            @default("")
+  processorRefundId       String            @default("")
+  createdAt               DateTime?         @default(now())
+  updatedAt               DateTime?         @default(now()) @updatedAt
+
+  @@index([paymentMethodId])
+}
+
+model PaymentMethod {
+  id                String    @id @default(cuid())
+  user              User?     @relation("PaymentMethod_user", fields: [userId], references: [id])
+  userId            String?   @map("user")
+  cardType          String    @default("")
+  isDefault         Boolean   @default(false)
+  lastFourDigits    String    @default("")
+  expMonth          String    @default("")
+  expYear           String    @default("")
+  stripeProcessorId String    @default("")
+  address           String    @default("")
+  postalCode        String    @default("")
+  ownerName         String    @default("")
+  country           String    @default("")
+  payment           Payment[] @relation("Payment_paymentMethod")
+  type              String?
+  createdAt         DateTime? @default(now())
+  updatedAt         DateTime? @default(now()) @updatedAt
+
+  @@index([userId])
+}
+
+model TokenNotification {
+  id     String  @id @default(cuid())
+  token  String  @default("")
+  user   User?   @relation("TokenNotification_user", fields: [userId], references: [id])
+  userId String? @map("user")
+
+  @@index([userId])
+}
+
 enum UserRoleType {
   admin
   user
+}
+
+enum PaymentStatusType {
+  pending
+  processing
+  succeeded
+  cancelled
+  failed
+  refunded
 }

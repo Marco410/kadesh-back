@@ -71,10 +71,6 @@ export default list({
       ref: "SocialMedia.pet_shelter",
       many: true,
     }),
-    /*  veterinary_likes: relationship({
-      ref: "VeterinaryLike.veterinary",
-      many: true,
-    }), */
     pet_shelter_schedules: relationship({
       ref: "Schedule.pet_shelter",
       many: true,

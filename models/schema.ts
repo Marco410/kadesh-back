@@ -15,6 +15,13 @@ import Schedule from "./Schedule/Schedule";
 import SocialMedia from "./SocialMedia/SocialMedia";
 import Review from "./Review/Review";
 import PetShelter from "./PetShelter/PetShelter";
+import Product from "./Store/Product/Product";
+import WishList from "./Store/WishList/WishList";
+import Cart from "./Store/Cart/Cart";
+import Order from "./Store/Order/Order";
+import Payment from "./Store/Payment/Payment";
+import PaymentMethod from "./Store/PaymentMethod/PaymentMethod";
+import TokenNotification from "./TokenNotification/TokenNotification";
 
 export default {
   User,
@@ -34,4 +41,11 @@ export default {
   SocialMedia,
   Review,
   PetShelter,
+  Product,
+  WishList,
+  Cart,
+  Order,
+  Payment,
+  PaymentMethod,
+  TokenNotification,
 };

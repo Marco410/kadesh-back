@@ -1278,6 +1278,7 @@ type Review {
   review: String
   veterinary: Veterinary
   pet_shelter: PetShelter
+  product: Product
   user: User
   createdAt: DateTime
 }
@@ -1295,6 +1296,7 @@ input ReviewWhereInput {
   review: StringFilter
   veterinary: VeterinaryWhereInput
   pet_shelter: PetShelterWhereInput
+  product: ProductWhereInput
   user: UserWhereInput
   createdAt: DateTimeNullableFilter
 }
@@ -1311,8 +1313,15 @@ input ReviewUpdateInput {
   review: String
   veterinary: VeterinaryRelateToOneForUpdateInput
   pet_shelter: PetShelterRelateToOneForUpdateInput
+  product: ProductRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
   createdAt: DateTime
+}
+
+input ProductRelateToOneForUpdateInput {
+  create: ProductCreateInput
+  connect: ProductWhereUniqueInput
+  disconnect: Boolean
 }
 
 input ReviewUpdateArgs {
@@ -1325,8 +1334,14 @@ input ReviewCreateInput {
   review: String
   veterinary: VeterinaryRelateToOneForCreateInput
   pet_shelter: PetShelterRelateToOneForCreateInput
+  product: ProductRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
   createdAt: DateTime
+}
+
+input ProductRelateToOneForCreateInput {
+  create: ProductCreateInput
+  connect: ProductWhereUniqueInput
 }
 
 type PetShelter {
@@ -1444,6 +1459,556 @@ input PetShelterCreateInput {
   createdAt: DateTime
 }
 
+type Product {
+  id: ID!
+  name: String
+  price: Int
+  description: String
+  category: String
+  brand: String
+  type: String
+  product_reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
+  product_reviewsCount(where: ReviewWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input ProductWhereUniqueInput {
+  id: ID
+}
+
+input ProductWhereInput {
+  AND: [ProductWhereInput!]
+  OR: [ProductWhereInput!]
+  NOT: [ProductWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  price: IntFilter
+  description: StringFilter
+  category: StringFilter
+  brand: StringFilter
+  type: StringFilter
+  product_reviews: ReviewManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input ProductOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  price: OrderDirection
+  description: OrderDirection
+  category: OrderDirection
+  brand: OrderDirection
+  type: OrderDirection
+  createdAt: OrderDirection
+}
+
+input ProductUpdateInput {
+  name: String
+  price: Int
+  description: String
+  category: String
+  brand: String
+  type: String
+  product_reviews: ReviewRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input ProductUpdateArgs {
+  where: ProductWhereUniqueInput!
+  data: ProductUpdateInput!
+}
+
+input ProductCreateInput {
+  name: String
+  price: Int
+  description: String
+  category: String
+  brand: String
+  type: String
+  product_reviews: ReviewRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+type WishList {
+  id: ID!
+  name: String
+  user: User
+  product(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
+  productCount(where: ProductWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input WishListWhereUniqueInput {
+  id: ID
+}
+
+input WishListWhereInput {
+  AND: [WishListWhereInput!]
+  OR: [WishListWhereInput!]
+  NOT: [WishListWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  user: UserWhereInput
+  product: ProductManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input ProductManyRelationFilter {
+  every: ProductWhereInput
+  some: ProductWhereInput
+  none: ProductWhereInput
+}
+
+input WishListOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+}
+
+input WishListUpdateInput {
+  name: String
+  user: UserRelateToOneForUpdateInput
+  product: ProductRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input ProductRelateToManyForUpdateInput {
+  disconnect: [ProductWhereUniqueInput!]
+  set: [ProductWhereUniqueInput!]
+  create: [ProductCreateInput!]
+  connect: [ProductWhereUniqueInput!]
+}
+
+input WishListUpdateArgs {
+  where: WishListWhereUniqueInput!
+  data: WishListUpdateInput!
+}
+
+input WishListCreateInput {
+  name: String
+  user: UserRelateToOneForCreateInput
+  product: ProductRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input ProductRelateToManyForCreateInput {
+  create: [ProductCreateInput!]
+  connect: [ProductWhereUniqueInput!]
+}
+
+type Cart {
+  id: ID!
+  name: String
+  user: User
+  product(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
+  productCount(where: ProductWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input CartWhereUniqueInput {
+  id: ID
+}
+
+input CartWhereInput {
+  AND: [CartWhereInput!]
+  OR: [CartWhereInput!]
+  NOT: [CartWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  user: UserWhereInput
+  product: ProductManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input CartOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+}
+
+input CartUpdateInput {
+  name: String
+  user: UserRelateToOneForUpdateInput
+  product: ProductRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input CartUpdateArgs {
+  where: CartWhereUniqueInput!
+  data: CartUpdateInput!
+}
+
+input CartCreateInput {
+  name: String
+  user: UserRelateToOneForCreateInput
+  product: ProductRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+type Order {
+  id: ID!
+  total: Int
+  status: String
+  cart: Cart
+  user: User
+  payment: Payment
+  createdAt: DateTime
+}
+
+input OrderWhereUniqueInput {
+  id: ID
+}
+
+input OrderWhereInput {
+  AND: [OrderWhereInput!]
+  OR: [OrderWhereInput!]
+  NOT: [OrderWhereInput!]
+  id: IDFilter
+  total: IntNullableFilter
+  status: StringFilter
+  cart: CartWhereInput
+  user: UserWhereInput
+  payment: PaymentWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input OrderOrderByInput {
+  id: OrderDirection
+  total: OrderDirection
+  status: OrderDirection
+  createdAt: OrderDirection
+}
+
+input OrderUpdateInput {
+  total: Int
+  status: String
+  cart: CartRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  payment: PaymentRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input CartRelateToOneForUpdateInput {
+  create: CartCreateInput
+  connect: CartWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PaymentRelateToOneForUpdateInput {
+  create: PaymentCreateInput
+  connect: PaymentWhereUniqueInput
+  disconnect: Boolean
+}
+
+input OrderUpdateArgs {
+  where: OrderWhereUniqueInput!
+  data: OrderUpdateInput!
+}
+
+input OrderCreateInput {
+  total: Int
+  status: String
+  cart: CartRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  payment: PaymentRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input CartRelateToOneForCreateInput {
+  create: CartCreateInput
+  connect: CartWhereUniqueInput
+}
+
+input PaymentRelateToOneForCreateInput {
+  create: PaymentCreateInput
+  connect: PaymentWhereUniqueInput
+}
+
+type Payment {
+  id: ID!
+  order_payment: Order
+  paymentMethod: PaymentMethod
+  amount: Decimal
+  status: PaymentStatusType
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  processorRefundId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+scalar Decimal
+
+enum PaymentStatusType {
+  pending
+  processing
+  succeeded
+  cancelled
+  failed
+  refunded
+}
+
+input PaymentWhereUniqueInput {
+  id: ID
+}
+
+input PaymentWhereInput {
+  AND: [PaymentWhereInput!]
+  OR: [PaymentWhereInput!]
+  NOT: [PaymentWhereInput!]
+  id: IDFilter
+  order_payment: OrderWhereInput
+  paymentMethod: PaymentMethodWhereInput
+  amount: DecimalNullableFilter
+  status: PaymentStatusTypeNullableFilter
+  processorStripeChargeId: StringFilter
+  stripeErrorMessage: StringFilter
+  processorRefundId: StringFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input DecimalNullableFilter {
+  equals: Decimal
+  in: [Decimal!]
+  notIn: [Decimal!]
+  lt: Decimal
+  lte: Decimal
+  gt: Decimal
+  gte: Decimal
+  not: DecimalNullableFilter
+}
+
+input PaymentStatusTypeNullableFilter {
+  equals: PaymentStatusType
+  in: [PaymentStatusType!]
+  notIn: [PaymentStatusType!]
+  not: PaymentStatusTypeNullableFilter
+}
+
+input PaymentOrderByInput {
+  id: OrderDirection
+  amount: OrderDirection
+  status: OrderDirection
+  processorStripeChargeId: OrderDirection
+  stripeErrorMessage: OrderDirection
+  processorRefundId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentUpdateInput {
+  order_payment: OrderRelateToOneForUpdateInput
+  paymentMethod: PaymentMethodRelateToOneForUpdateInput
+  amount: Decimal
+  status: PaymentStatusType
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  processorRefundId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OrderRelateToOneForUpdateInput {
+  create: OrderCreateInput
+  connect: OrderWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PaymentMethodRelateToOneForUpdateInput {
+  create: PaymentMethodCreateInput
+  connect: PaymentMethodWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PaymentUpdateArgs {
+  where: PaymentWhereUniqueInput!
+  data: PaymentUpdateInput!
+}
+
+input PaymentCreateInput {
+  order_payment: OrderRelateToOneForCreateInput
+  paymentMethod: PaymentMethodRelateToOneForCreateInput
+  amount: Decimal
+  status: PaymentStatusType
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  processorRefundId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OrderRelateToOneForCreateInput {
+  create: OrderCreateInput
+  connect: OrderWhereUniqueInput
+}
+
+input PaymentMethodRelateToOneForCreateInput {
+  create: PaymentMethodCreateInput
+  connect: PaymentMethodWhereUniqueInput
+}
+
+type PaymentMethod {
+  id: ID!
+  user: User
+  cardType: String
+  isDefault: Boolean
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  payment(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentCount(where: PaymentWhereInput! = {}): Int
+  type: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentMethodWhereUniqueInput {
+  id: ID
+}
+
+input PaymentMethodWhereInput {
+  AND: [PaymentMethodWhereInput!]
+  OR: [PaymentMethodWhereInput!]
+  NOT: [PaymentMethodWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  cardType: StringFilter
+  isDefault: BooleanFilter
+  lastFourDigits: StringFilter
+  expMonth: StringFilter
+  expYear: StringFilter
+  stripeProcessorId: StringFilter
+  address: StringFilter
+  postalCode: StringFilter
+  ownerName: StringFilter
+  country: StringFilter
+  payment: PaymentManyRelationFilter
+  type: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input PaymentManyRelationFilter {
+  every: PaymentWhereInput
+  some: PaymentWhereInput
+  none: PaymentWhereInput
+}
+
+input PaymentMethodOrderByInput {
+  id: OrderDirection
+  cardType: OrderDirection
+  isDefault: OrderDirection
+  lastFourDigits: OrderDirection
+  expMonth: OrderDirection
+  expYear: OrderDirection
+  stripeProcessorId: OrderDirection
+  address: OrderDirection
+  postalCode: OrderDirection
+  ownerName: OrderDirection
+  country: OrderDirection
+  type: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentMethodUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  cardType: String
+  isDefault: Boolean
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  payment: PaymentRelateToManyForUpdateInput
+  type: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentRelateToManyForUpdateInput {
+  disconnect: [PaymentWhereUniqueInput!]
+  set: [PaymentWhereUniqueInput!]
+  create: [PaymentCreateInput!]
+  connect: [PaymentWhereUniqueInput!]
+}
+
+input PaymentMethodUpdateArgs {
+  where: PaymentMethodWhereUniqueInput!
+  data: PaymentMethodUpdateInput!
+}
+
+input PaymentMethodCreateInput {
+  user: UserRelateToOneForCreateInput
+  cardType: String
+  isDefault: Boolean
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  payment: PaymentRelateToManyForCreateInput
+  type: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentRelateToManyForCreateInput {
+  create: [PaymentCreateInput!]
+  connect: [PaymentWhereUniqueInput!]
+}
+
+type TokenNotification {
+  id: ID!
+  token: String
+  user: User
+}
+
+input TokenNotificationWhereUniqueInput {
+  id: ID
+}
+
+input TokenNotificationWhereInput {
+  AND: [TokenNotificationWhereInput!]
+  OR: [TokenNotificationWhereInput!]
+  NOT: [TokenNotificationWhereInput!]
+  id: IDFilter
+  token: StringFilter
+  user: UserWhereInput
+}
+
+input TokenNotificationOrderByInput {
+  id: OrderDirection
+  token: OrderDirection
+}
+
+input TokenNotificationUpdateInput {
+  token: String
+  user: UserRelateToOneForUpdateInput
+}
+
+input TokenNotificationUpdateArgs {
+  where: TokenNotificationWhereUniqueInput!
+  data: TokenNotificationUpdateInput!
+}
+
+input TokenNotificationCreateInput {
+  token: String
+  user: UserRelateToOneForCreateInput
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -1552,6 +2117,48 @@ type Mutation {
   updatePetShelters(data: [PetShelterUpdateArgs!]!): [PetShelter]
   deletePetShelter(where: PetShelterWhereUniqueInput!): PetShelter
   deletePetShelters(where: [PetShelterWhereUniqueInput!]!): [PetShelter]
+  createProduct(data: ProductCreateInput!): Product
+  createProducts(data: [ProductCreateInput!]!): [Product]
+  updateProduct(where: ProductWhereUniqueInput!, data: ProductUpdateInput!): Product
+  updateProducts(data: [ProductUpdateArgs!]!): [Product]
+  deleteProduct(where: ProductWhereUniqueInput!): Product
+  deleteProducts(where: [ProductWhereUniqueInput!]!): [Product]
+  createWishList(data: WishListCreateInput!): WishList
+  createWishLists(data: [WishListCreateInput!]!): [WishList]
+  updateWishList(where: WishListWhereUniqueInput!, data: WishListUpdateInput!): WishList
+  updateWishLists(data: [WishListUpdateArgs!]!): [WishList]
+  deleteWishList(where: WishListWhereUniqueInput!): WishList
+  deleteWishLists(where: [WishListWhereUniqueInput!]!): [WishList]
+  createCart(data: CartCreateInput!): Cart
+  createCarts(data: [CartCreateInput!]!): [Cart]
+  updateCart(where: CartWhereUniqueInput!, data: CartUpdateInput!): Cart
+  updateCarts(data: [CartUpdateArgs!]!): [Cart]
+  deleteCart(where: CartWhereUniqueInput!): Cart
+  deleteCarts(where: [CartWhereUniqueInput!]!): [Cart]
+  createOrder(data: OrderCreateInput!): Order
+  createOrders(data: [OrderCreateInput!]!): [Order]
+  updateOrder(where: OrderWhereUniqueInput!, data: OrderUpdateInput!): Order
+  updateOrders(data: [OrderUpdateArgs!]!): [Order]
+  deleteOrder(where: OrderWhereUniqueInput!): Order
+  deleteOrders(where: [OrderWhereUniqueInput!]!): [Order]
+  createPayment(data: PaymentCreateInput!): Payment
+  createPayments(data: [PaymentCreateInput!]!): [Payment]
+  updatePayment(where: PaymentWhereUniqueInput!, data: PaymentUpdateInput!): Payment
+  updatePayments(data: [PaymentUpdateArgs!]!): [Payment]
+  deletePayment(where: PaymentWhereUniqueInput!): Payment
+  deletePayments(where: [PaymentWhereUniqueInput!]!): [Payment]
+  createPaymentMethod(data: PaymentMethodCreateInput!): PaymentMethod
+  createPaymentMethods(data: [PaymentMethodCreateInput!]!): [PaymentMethod]
+  updatePaymentMethod(where: PaymentMethodWhereUniqueInput!, data: PaymentMethodUpdateInput!): PaymentMethod
+  updatePaymentMethods(data: [PaymentMethodUpdateArgs!]!): [PaymentMethod]
+  deletePaymentMethod(where: PaymentMethodWhereUniqueInput!): PaymentMethod
+  deletePaymentMethods(where: [PaymentMethodWhereUniqueInput!]!): [PaymentMethod]
+  createTokenNotification(data: TokenNotificationCreateInput!): TokenNotification
+  createTokenNotifications(data: [TokenNotificationCreateInput!]!): [TokenNotification]
+  updateTokenNotification(where: TokenNotificationWhereUniqueInput!, data: TokenNotificationUpdateInput!): TokenNotification
+  updateTokenNotifications(data: [TokenNotificationUpdateArgs!]!): [TokenNotification]
+  deleteTokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
+  deleteTokenNotifications(where: [TokenNotificationWhereUniqueInput!]!): [TokenNotification]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -1627,6 +2234,27 @@ type Query {
   petShelters(where: PetShelterWhereInput! = {}, orderBy: [PetShelterOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetShelterWhereUniqueInput): [PetShelter!]
   petShelter(where: PetShelterWhereUniqueInput!): PetShelter
   petSheltersCount(where: PetShelterWhereInput! = {}): Int
+  products(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
+  product(where: ProductWhereUniqueInput!): Product
+  productsCount(where: ProductWhereInput! = {}): Int
+  wishLists(where: WishListWhereInput! = {}, orderBy: [WishListOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WishListWhereUniqueInput): [WishList!]
+  wishList(where: WishListWhereUniqueInput!): WishList
+  wishListsCount(where: WishListWhereInput! = {}): Int
+  carts(where: CartWhereInput! = {}, orderBy: [CartOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CartWhereUniqueInput): [Cart!]
+  cart(where: CartWhereUniqueInput!): Cart
+  cartsCount(where: CartWhereInput! = {}): Int
+  orders(where: OrderWhereInput! = {}, orderBy: [OrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderWhereUniqueInput): [Order!]
+  order(where: OrderWhereUniqueInput!): Order
+  ordersCount(where: OrderWhereInput! = {}): Int
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  payment(where: PaymentWhereUniqueInput!): Payment
+  paymentsCount(where: PaymentWhereInput! = {}): Int
+  paymentMethods(where: PaymentMethodWhereInput! = {}, orderBy: [PaymentMethodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentMethodWhereUniqueInput): [PaymentMethod!]
+  paymentMethod(where: PaymentMethodWhereUniqueInput!): PaymentMethod
+  paymentMethodsCount(where: PaymentMethodWhereInput! = {}): Int
+  tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
+  tokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
+  tokenNotificationsCount(where: TokenNotificationWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
 }

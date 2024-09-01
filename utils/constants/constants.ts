@@ -474,3 +474,29 @@ export const animal_history_options = [
     value: "in_family",
   },
 ];
+
+export const product_categories = [
+  { label: "Croquetas", value: "croquetas" },
+  { label: "Limpieza", value: "limpieza" },
+];
+
+export const brands = [
+  { label: "Purina", value: "purina" },
+  { label: "DogShow", value: "dogshow" },
+];
+
+export const order_status = [
+  { label: "Pendiente", value: "pending" },
+  { label: "Preparando", value: "preparing" },
+  { label: "Validando", value: "validating" },
+  { label: "Enviada", value: "sent" },
+  { label: "Cancelada", value: "cancelled" },
+  { label: "Completada", value: "completed" },
+];
+
+export const payment_types = [
+  { label: "Tarjeta débito", value: "debit" },
+  { label: "Tarjeta crédito", value: "credit" },
+  { label: "Transferencia", value: "transfer" },
+  { label: "Stripe", value: "stripe" },
+];
