@@ -113,6 +113,28 @@ var animal_history_options = [
     value: "in_family"
   }
 ];
+var product_categories = [
+  { label: "Croquetas", value: "croquetas" },
+  { label: "Limpieza", value: "limpieza" }
+];
+var brands = [
+  { label: "Purina", value: "purina" },
+  { label: "DogShow", value: "dogshow" }
+];
+var order_status = [
+  { label: "Pendiente", value: "pending" },
+  { label: "Preparando", value: "preparing" },
+  { label: "Validando", value: "validating" },
+  { label: "Enviada", value: "sent" },
+  { label: "Cancelada", value: "cancelled" },
+  { label: "Completada", value: "completed" }
+];
+var payment_types = [
+  { label: "Tarjeta d\xE9bito", value: "debit" },
+  { label: "Tarjeta cr\xE9dito", value: "credit" },
+  { label: "Transferencia", value: "transfer" },
+  { label: "Stripe", value: "stripe" }
+];
 
 // models/Animal/AnimalType/AnimalType.ts
 var AnimalType_default = (0, import_core2.list)({
@@ -612,6 +634,9 @@ var Review_default = (0, import_core16.list)({
     pet_shelter: (0, import_fields16.relationship)({
       ref: "PetShelter.pet_shelter_reviews"
     }),
+    product: (0, import_fields16.relationship)({
+      ref: "Product.product_reviews"
+    }),
     user: (0, import_fields16.relationship)({
       ref: "User",
       many: false
@@ -692,10 +717,6 @@ var PetShelter_default = (0, import_core17.list)({
       ref: "SocialMedia.pet_shelter",
       many: true
     }),
-    /*  veterinary_likes: relationship({
-      ref: "VeterinaryLike.veterinary",
-      many: true,
-    }), */
     pet_shelter_schedules: (0, import_fields17.relationship)({
       ref: "Schedule.pet_shelter",
       many: true
@@ -708,6 +729,254 @@ var PetShelter_default = (0, import_core17.list)({
       defaultValue: {
         kind: "now"
       }
+    })
+  }
+});
+
+// models/Store/Product/Product.ts
+var import_core18 = require("@keystone-6/core");
+var import_fields18 = require("@keystone-6/core/fields");
+var Product_default = (0, import_core18.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields18.text)({ validation: { isRequired: true } }),
+    price: (0, import_fields18.integer)({ validation: { isRequired: true } }),
+    description: (0, import_fields18.text)({ validation: { isRequired: true } }),
+    category: (0, import_fields18.select)({
+      validation: { isRequired: true },
+      options: product_categories
+    }),
+    brand: (0, import_fields18.select)({
+      validation: { isRequired: true },
+      options: brands
+    }),
+    type: (0, import_fields18.select)({
+      validation: { isRequired: true },
+      options: animal_type_options
+    }),
+    product_reviews: (0, import_fields18.relationship)({
+      ref: "Review.product",
+      many: true
+    }),
+    createdAt: (0, import_fields18.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Store/WishList/WishList.ts
+var import_core19 = require("@keystone-6/core");
+var import_fields19 = require("@keystone-6/core/fields");
+var WishList_default = (0, import_core19.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields19.text)({ validation: { isRequired: true } }),
+    user: (0, import_fields19.relationship)({
+      ref: "User",
+      many: false
+    }),
+    product: (0, import_fields19.relationship)({
+      ref: "Product",
+      many: true
+    }),
+    createdAt: (0, import_fields19.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Store/Cart/Cart.ts
+var import_core20 = require("@keystone-6/core");
+var import_fields20 = require("@keystone-6/core/fields");
+var Cart_default = (0, import_core20.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields20.text)({ validation: { isRequired: true } }),
+    user: (0, import_fields20.relationship)({
+      ref: "User",
+      many: false
+    }),
+    product: (0, import_fields20.relationship)({
+      ref: "Product",
+      many: true
+    }),
+    createdAt: (0, import_fields20.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Store/Order/Order.ts
+var import_core21 = require("@keystone-6/core");
+var import_fields21 = require("@keystone-6/core/fields");
+var Order_default = (0, import_core21.list)({
+  access: access_default,
+  fields: {
+    total: (0, import_fields21.integer)(),
+    status: (0, import_fields21.select)({ validation: { isRequired: true }, options: order_status }),
+    cart: (0, import_fields21.relationship)({
+      ref: "Cart",
+      many: false
+    }),
+    user: (0, import_fields21.relationship)({
+      ref: "User",
+      many: false
+    }),
+    payment: (0, import_fields21.relationship)({
+      ref: "Payment.order_payment",
+      many: false
+    }),
+    createdAt: (0, import_fields21.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Store/Payment/Payment.ts
+var import_fields22 = require("@keystone-6/core/fields");
+var import_core22 = require("@keystone-6/core");
+var Payment_default = (0, import_core22.list)({
+  access: access_default,
+  fields: {
+    order_payment: (0, import_fields22.relationship)({
+      ref: "Order.payment"
+    }),
+    paymentMethod: (0, import_fields22.relationship)({
+      ref: "PaymentMethod.payment"
+    }),
+    amount: (0, import_fields22.decimal)({
+      scale: 6,
+      defaultValue: "0.000000"
+    }),
+    status: (0, import_fields22.select)({
+      type: "enum",
+      validation: {
+        isRequired: true
+      },
+      defaultValue: "pending",
+      options: [
+        { label: "Pendiente", value: "pending" },
+        { label: "Procesando", value: "processing" },
+        { label: "Exitoso", value: "succeeded" },
+        { label: "Cancelado", value: "cancelled" },
+        { label: "Fallido", value: "failed" },
+        { label: "Devuelto", value: "refunded" }
+      ]
+    }),
+    processorStripeChargeId: (0, import_fields22.text)(),
+    stripeErrorMessage: (0, import_fields22.text)({
+      ui: {
+        displayMode: "textarea"
+      }
+    }),
+    processorRefundId: (0, import_fields22.text)(),
+    createdAt: (0, import_fields22.timestamp)({
+      defaultValue: { kind: "now" }
+    }),
+    updatedAt: (0, import_fields22.timestamp)({
+      defaultValue: { kind: "now" },
+      db: { updatedAt: true }
+    })
+  }
+});
+
+// models/Store/PaymentMethod/PaymentMethod.ts
+var import_fields23 = require("@keystone-6/core/fields");
+var import_core23 = require("@keystone-6/core");
+var PaymentMethod_default = (0, import_core23.list)({
+  access: access_default,
+  fields: {
+    user: (0, import_fields23.relationship)({
+      ref: "User"
+    }),
+    cardType: (0, import_fields23.text)(),
+    isDefault: (0, import_fields23.checkbox)(),
+    lastFourDigits: (0, import_fields23.text)(),
+    expMonth: (0, import_fields23.text)(),
+    expYear: (0, import_fields23.text)(),
+    stripeProcessorId: (0, import_fields23.text)(),
+    address: (0, import_fields23.text)(),
+    postalCode: (0, import_fields23.text)(),
+    ownerName: (0, import_fields23.text)(),
+    country: (0, import_fields23.text)(),
+    // Two-letter country code (ISO 3166-1 alpha-2).
+    payment: (0, import_fields23.relationship)({
+      ref: "Payment.paymentMethod",
+      many: true
+    }),
+    type: (0, import_fields23.select)({ options: payment_types }),
+    createdAt: (0, import_fields23.timestamp)({
+      defaultValue: { kind: "now" }
+    }),
+    updatedAt: (0, import_fields23.timestamp)({
+      defaultValue: { kind: "now" },
+      db: { updatedAt: true }
+    })
+  }
+});
+
+// models/TokenNotification/TokenNotification.ts
+var import_fields24 = require("@keystone-6/core/fields");
+var import_core24 = require("@keystone-6/core");
+
+// models/TokenNotification/TokenNotification.hooks.ts
+var hooks = {
+  validateInput: async ({
+    context,
+    operation,
+    resolvedData,
+    addValidationError
+  }) => {
+    if (operation === "create") {
+      try {
+        const userId = resolvedData?.user.connect.id;
+        const tokenOld = await context.query.TokenNotification.findMany({
+          where: {
+            token: {
+              equals: resolvedData?.token
+            },
+            user: {
+              id: {
+                equals: userId
+              }
+            }
+          },
+          query: "token"
+        });
+        if (tokenOld.length === 0) {
+          return resolvedData;
+        }
+        addValidationError("Token exists");
+      } catch (e) {
+        console.log("Token notification error:", e);
+      }
+    }
+    return resolvedData;
+  }
+};
+var TokenNotification_hooks_default = { hooks };
+
+// models/TokenNotification/TokenNotification.ts
+var TokenNotification_default = (0, import_core24.list)({
+  access: access_default,
+  hooks: TokenNotification_hooks_default.hooks,
+  fields: {
+    token: (0, import_fields24.text)({
+      ui: {
+        displayMode: "textarea"
+      }
+    }),
+    user: (0, import_fields24.relationship)({
+      ref: "User",
+      many: false
     })
   }
 });
@@ -730,11 +999,18 @@ var schema_default = {
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
   Review: Review_default,
-  PetShelter: PetShelter_default
+  PetShelter: PetShelter_default,
+  Product: Product_default,
+  WishList: WishList_default,
+  Cart: Cart_default,
+  Order: Order_default,
+  Payment: Payment_default,
+  PaymentMethod: PaymentMethod_default,
+  TokenNotification: TokenNotification_default
 };
 
 // keystone.ts
-var import_core18 = require("@keystone-6/core");
+var import_core25 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -771,7 +1047,7 @@ var session = (0, import_session.statelessSessions)({
 
 // keystone.ts
 var keystone_default = withAuth(
-  (0, import_core18.config)({
+  (0, import_core25.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

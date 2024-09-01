@@ -19,6 +19,9 @@ export default list({
     pet_shelter: relationship({
       ref: "PetShelter.pet_shelter_reviews",
     }),
+    product: relationship({
+      ref: "Product.product_reviews",
+    }),
     user: relationship({
       ref: "User",
       many: false,
