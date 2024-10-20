@@ -287,6 +287,7 @@ var User_default = (0, import_core7.list)({
   fields: {
     name: (0, import_fields7.text)({ validation: { isRequired: true } }),
     lastName: (0, import_fields7.text)(),
+    secondLastName: (0, import_fields7.text)(),
     username: (0, import_fields7.text)({
       isIndexed: "unique",
       validation: { isRequired: true }
@@ -311,7 +312,7 @@ var User_default = (0, import_core7.list)({
       validation: {
         isRequired: true
       },
-      defaultValue: "admin",
+      defaultValue: "user",
       options: [
         { label: "Admnistrador", value: "admin" },
         { label: "User", value: "user" }

@@ -15,11 +15,12 @@ model User {
   id                          String              @id @default(cuid())
   name                        String              @default("")
   lastName                    String              @default("")
+  secondLastName              String              @default("")
   username                    String              @unique @default("")
   email                       String              @unique @default("")
   password                    String
   phone                       String              @default("")
-  role                        UserRoleType        @default(admin)
+  role                        UserRoleType        @default(user)
   profileImage_id             String?
   profileImage_filesize       Int?
   profileImage_width          Int?

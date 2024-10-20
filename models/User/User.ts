@@ -17,6 +17,7 @@ export default list({
   fields: {
     name: text({ validation: { isRequired: true } }),
     lastName: text(),
+    secondLastName: text(),
     username: text({
       isIndexed: "unique",
       validation: { isRequired: true },
@@ -41,7 +42,7 @@ export default list({
       validation: {
         isRequired: true,
       },
-      defaultValue: "admin",
+      defaultValue: "user",
       options: [
         { label: "Admnistrador", value: "admin" },
         { label: "User", value: "user" },
