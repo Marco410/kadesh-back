@@ -1,3 +1,5 @@
+import { genUniqueLink } from "../../utils/helpers/unike_link";
+
 export const phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }: any) => {
     const { phone } = resolvedData;
@@ -27,5 +29,32 @@ export const emailHooks = {
       }
     }
     return email;
+  },
+};
+
+export const userNameHook = {
+  resolveInput: async ({ resolvedData, item, context }: any) => {
+    if (item) {
+      return item.username;
+    }
+
+    let baseLink = genUniqueLink(`${resolvedData.name.toLowerCase()} ${resolvedData?.lastName?.toLowerCase()}`);
+
+    let uniqueLink : string = baseLink;
+
+    let existingUser = await context.db.User.findOne({
+      where: { username: uniqueLink },
+    });
+
+    let counter = 1;
+    while (existingUser) {
+      uniqueLink = `${baseLink}.${counter}`;
+      existingUser = await context.db.User.findOne({
+        where: { username: uniqueLink },
+      });
+      counter++;
+    }
+
+    return uniqueLink;
   },
 };

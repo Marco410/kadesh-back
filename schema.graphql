@@ -2182,6 +2182,7 @@ type UserAuthenticationWithPasswordFailure {
 
 input CreateInitialUserInput {
   name: String
+  lastName: String
   email: String
   password: String
   role: UserRoleType
