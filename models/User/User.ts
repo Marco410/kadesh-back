@@ -20,7 +20,6 @@ export default list({
     secondLastName: text(),
     username: text({
       isIndexed: "unique",
-      hooks: userNameHook,
       validation: { isRequired: true },
     }),
     email: text({

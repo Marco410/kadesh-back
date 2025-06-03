@@ -253,11 +253,6 @@ var AnimalComment_default = (0, import_core6.list)({
 var import_core7 = require("@keystone-6/core");
 var import_fields7 = require("@keystone-6/core/fields");
 
-// utils/helpers/unike_link.ts
-function genUniqueLink(link) {
-  return link.toLocaleLowerCase().replaceAll(" ", ".").replace(/ñ/g, "n").replace(/[^a-z0-9-]/g, "");
-}
-
 // models/User/User.hooks.ts
 var phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }) => {
@@ -285,27 +280,6 @@ var emailHooks = {
     return email;
   }
 };
-var userNameHook = {
-  resolveInput: async ({ resolvedData, item, context }) => {
-    if (item) {
-      return item.username;
-    }
-    let baseLink = genUniqueLink(`${resolvedData.name.toLowerCase()} ${resolvedData?.lastName?.toLowerCase()}`);
-    let uniqueLink = baseLink;
-    let existingUser = await context.db.User.findOne({
-      where: { username: uniqueLink }
-    });
-    let counter = 1;
-    while (existingUser) {
-      uniqueLink = `${baseLink}.${counter}`;
-      existingUser = await context.db.User.findOne({
-        where: { username: uniqueLink }
-      });
-      counter++;
-    }
-    return uniqueLink;
-  }
-};
 
 // models/User/User.ts
 var User_default = (0, import_core7.list)({
@@ -316,7 +290,6 @@ var User_default = (0, import_core7.list)({
     secondLastName: (0, import_fields7.text)(),
     username: (0, import_fields7.text)({
       isIndexed: "unique",
-      hooks: userNameHook,
       validation: { isRequired: true }
     }),
     email: (0, import_fields7.text)({
@@ -1062,7 +1035,7 @@ var { withAuth } = (0, import_auth.createAuth)({
     // if there are no items in the database, by configuring this field
     //   you are asking the Keystone AdminUI to create a new user
     //   providing inputs for these fields
-    fields: ["name", "lastName", "email", "password", "role"]
+    fields: ["name", "lastName", "username", "email", "password", "role"]
     // it uses context.sudo() to do this, which bypasses any access control you might have
     //   you shouldn't use this in production
   }
