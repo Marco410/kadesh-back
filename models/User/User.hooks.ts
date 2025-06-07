@@ -1,3 +1,4 @@
+import { KeystoneContext } from "@keystone-6/core/types";
 import { genUniqueLink } from "../../utils/helpers/unike_link";
 
 export const phoneHooks = {
@@ -38,7 +39,13 @@ export const userNameHook = {
       return item.username;
     }
 
-    let baseLink = genUniqueLink(`${resolvedData.name.toLowerCase()} ${resolvedData?.lastName?.toLowerCase()}`);
+    return checkUserName(resolvedData.name, resolvedData?.lastName, context);
+  },
+};
+
+export async function checkUserName(name: string, lastName: string, context: KeystoneContext): Promise<string> {
+
+    let baseLink = genUniqueLink(`${name.toLowerCase()}.${lastName.toLowerCase()}`);
 
     let uniqueLink : string = baseLink;
 
@@ -48,13 +55,12 @@ export const userNameHook = {
 
     let counter = 1;
     while (existingUser) {
-      uniqueLink = `${baseLink}.${counter}`;
+      uniqueLink = `${baseLink}-${counter}`;
       existingUser = await context.db.User.findOne({
         where: { username: uniqueLink },
       });
       counter++;
     }
 
-    return uniqueLink;
-  },
+  return uniqueLink;
 };

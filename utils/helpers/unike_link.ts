@@ -1,4 +1,3 @@
 export function genUniqueLink(link: string) {
-    return link.toLocaleLowerCase().replaceAll(" ",".").replace(/ñ/g, "n")
-    .replace(/[^a-z0-9-]/g, "");
+    return link.toLowerCase().replace(/ñ/g, "n").replace(/\s+/g, ".");
 }

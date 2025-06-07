@@ -1,7 +1,9 @@
 "use strict";
+var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -15,6 +17,14 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // keystone.ts
@@ -253,6 +263,11 @@ var AnimalComment_default = (0, import_core6.list)({
 var import_core7 = require("@keystone-6/core");
 var import_fields7 = require("@keystone-6/core/fields");
 
+// utils/helpers/unike_link.ts
+function genUniqueLink(link) {
+  return link.toLowerCase().replace(/ñ/g, "n").replace(/\s+/g, ".");
+}
+
 // models/User/User.hooks.ts
 var phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }) => {
@@ -280,6 +295,22 @@ var emailHooks = {
     return email;
   }
 };
+async function checkUserName(name, lastName, context) {
+  let baseLink = genUniqueLink(`${name.toLowerCase()}.${lastName.toLowerCase()}`);
+  let uniqueLink = baseLink;
+  let existingUser = await context.db.User.findOne({
+    where: { username: uniqueLink }
+  });
+  let counter = 1;
+  while (existingUser) {
+    uniqueLink = `${baseLink}-${counter}`;
+    existingUser = await context.db.User.findOne({
+      where: { username: uniqueLink }
+    });
+    counter++;
+  }
+  return uniqueLink;
+}
 
 // models/User/User.ts
 var User_default = (0, import_core7.list)({
@@ -297,7 +328,7 @@ var User_default = (0, import_core7.list)({
       hooks: emailHooks
     }),
     password: (0, import_fields7.password)({
-      validation: { isRequired: true },
+      validation: { isRequired: false },
       ui: {
         createView: {
           fieldMode: "hidden"
@@ -1027,7 +1058,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   // this is a GraphQL query fragment for fetching what data will be attached to a context.session
   //   this can be helpful for when you are writing your access control functions
   //   you can find out more at https://keystonejs.com/docs/guides/auth-and-access-control
-  sessionData: "name createdAt",
+  sessionData: "id name lastName username email phone role createdAt",
   secretField: "password",
   // WARNING: remove initFirstItem functionality in production
   //   see https://keystonejs.com/docs/config/auth#init-first-item for more
@@ -1040,11 +1071,107 @@ var { withAuth } = (0, import_auth.createAuth)({
     //   you shouldn't use this in production
   }
 });
-var sessionMaxAge = 60 * 60 * 24 * 30;
+var sessionMaxAge = 60 * 60 * 24 * 365 * 100;
 var session = (0, import_session.statelessSessions)({
   maxAge: sessionMaxAge,
   secret: sessionSecret
 });
+
+// graphql/extendedSchema.ts
+var import_schema = require("@graphql-tools/schema");
+
+// graphql/customs/mutations/auth/customAuth.ts
+var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
+var import_crypto2 = require("crypto");
+var typeDefs = `
+  type customAuthType {
+    message: String,
+    success: Boolean,
+    data: JSON
+  }
+`;
+var definition = "customAuth(email: String!, name: String, lastName: String): customAuthType";
+var resolver = {
+  customAuth: async (root, {
+    email,
+    name,
+    lastName
+  }, context) => {
+    let userFound = await context.sudo().query.User.findOne({
+      query: "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
+      where: {
+        email
+      }
+    });
+    if (!userFound) {
+      userFound = await context.db.User.createOne({
+        data: {
+          email,
+          name,
+          lastName,
+          username: await checkUserName(name, lastName, context),
+          role: "user"
+        }
+      });
+    }
+    let sessionSecret2 = process.env.SESSION_SECRET;
+    if (!sessionSecret2) {
+      sessionSecret2 = (0, import_crypto2.randomBytes)(32).toString("hex");
+    }
+    const sessionToken = import_jsonwebtoken.default.sign(
+      {
+        data: {
+          id: userFound.id,
+          email: userFound.email
+        }
+      },
+      sessionSecret2
+    );
+    console.log("userFound");
+    console.log(userFound);
+    return {
+      success: true,
+      message: "Success",
+      data: {
+        ...userFound,
+        sessionToken
+      }
+    };
+  }
+};
+var customAuth_default = { typeDefs, definition, resolver };
+
+// graphql/customs/mutations/index.ts
+var customMutation = {
+  typeDefs: `
+    ${customAuth_default.typeDefs}
+  `,
+  definitions: `
+    ${customAuth_default.definition}
+  `,
+  resolvers: {
+    ...customAuth_default.resolver
+  }
+};
+var mutations_default = customMutation;
+
+// graphql/extendedSchema.ts
+function extendGraphqlSchema(baseSchema) {
+  return (0, import_schema.mergeSchemas)({
+    schemas: [baseSchema],
+    typeDefs: `
+      ${mutations_default.typeDefs}
+      type Mutation {
+        ${mutations_default.definitions}
+      }
+    `,
+    resolvers: {
+      Mutation: {
+        ...mutations_default.resolvers
+      }
+    }
+  });
+}
 
 // keystone.ts
 var keystone_default = withAuth(
@@ -1070,7 +1197,8 @@ var keystone_default = withAuth(
       }
     },
     lists: schema_default,
-    session
+    session,
+    extendGraphqlSchema
   })
 );
 //# sourceMappingURL=config.js.map

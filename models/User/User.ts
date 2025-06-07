@@ -27,7 +27,7 @@ export default list({
       hooks: emailHooks,
     }),
     password: password({
-      validation: { isRequired: true },
+      validation: { isRequired: false },
       ui: {
         createView: {
           fieldMode: "hidden",

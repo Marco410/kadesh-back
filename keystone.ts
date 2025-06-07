@@ -2,6 +2,7 @@ import "./env";
 import lists from "./models/schema";
 import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
+import extendGraphqlSchema from "./graphql/extendedSchema";
 
 export default withAuth(
   config({
@@ -29,5 +30,6 @@ export default withAuth(
 
     lists,
     session,
+    extendGraphqlSchema,
   })
 );

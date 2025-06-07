@@ -64,6 +64,7 @@ input UserWhereInput {
   secondLastName: StringFilter
   username: StringFilter
   email: StringFilter
+  password: PasswordFilter
   phone: StringFilter
   role: UserRoleTypeNullableFilter
   birthday: CalendarDayNullableFilter
@@ -115,6 +116,10 @@ input NestedStringFilter {
   startsWith: String
   endsWith: String
   not: NestedStringFilter
+}
+
+input PasswordFilter {
+  isSet: Boolean!
 }
 
 input UserRoleTypeNullableFilter {
@@ -2167,6 +2172,7 @@ type Mutation {
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
+  customAuth(email: String!, name: String, lastName: String): customAuthType
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -2368,4 +2374,10 @@ type KeystoneAdminUISort {
 enum KeystoneAdminUISortDirection {
   ASC
   DESC
+}
+
+type customAuthType {
+  message: String
+  success: Boolean
+  data: JSON
 }

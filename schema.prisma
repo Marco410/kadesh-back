@@ -18,7 +18,7 @@ model User {
   secondLastName              String              @default("")
   username                    String              @unique @default("")
   email                       String              @unique @default("")
-  password                    String
+  password                    String?
   phone                       String              @default("")
   role                        UserRoleType        @default(user)
   profileImage_id             String?
