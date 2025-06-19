@@ -223,6 +223,7 @@ input UserCreateInput {
 type Animal {
   id: ID!
   name: String
+  animal_type: AnimalType
   animal_breed: AnimalBreed
   user: User
   multimedia(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
@@ -242,6 +243,7 @@ input AnimalWhereInput {
   NOT: [AnimalWhereInput!]
   id: IDFilter
   name: StringFilter
+  animal_type: AnimalTypeWhereInput
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
   multimedia: AnimalMultimediaManyRelationFilter
@@ -269,11 +271,18 @@ input AnimalOrderByInput {
 
 input AnimalUpdateInput {
   name: String
+  animal_type: AnimalTypeRelateToOneForUpdateInput
   animal_breed: AnimalBreedRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
   multimedia: AnimalMultimediaRelateToManyForUpdateInput
   history: AnimalHistoryRelateToManyForUpdateInput
   createdAt: DateTime
+}
+
+input AnimalTypeRelateToOneForUpdateInput {
+  create: AnimalTypeCreateInput
+  connect: AnimalTypeWhereUniqueInput
+  disconnect: Boolean
 }
 
 input AnimalBreedRelateToOneForUpdateInput {
@@ -309,11 +318,17 @@ input AnimalUpdateArgs {
 
 input AnimalCreateInput {
   name: String
+  animal_type: AnimalTypeRelateToOneForCreateInput
   animal_breed: AnimalBreedRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
   multimedia: AnimalMultimediaRelateToManyForCreateInput
   history: AnimalHistoryRelateToManyForCreateInput
   createdAt: DateTime
+}
+
+input AnimalTypeRelateToOneForCreateInput {
+  create: AnimalTypeCreateInput
+  connect: AnimalTypeWhereUniqueInput
 }
 
 input AnimalBreedRelateToOneForCreateInput {
@@ -663,12 +678,6 @@ input AnimalBreedUpdateInput {
   animal_type: AnimalTypeRelateToOneForUpdateInput
 }
 
-input AnimalTypeRelateToOneForUpdateInput {
-  create: AnimalTypeCreateInput
-  connect: AnimalTypeWhereUniqueInput
-  disconnect: Boolean
-}
-
 input AnimalBreedUpdateArgs {
   where: AnimalBreedWhereUniqueInput!
   data: AnimalBreedUpdateInput!
@@ -679,16 +688,12 @@ input AnimalBreedCreateInput {
   animal_type: AnimalTypeRelateToOneForCreateInput
 }
 
-input AnimalTypeRelateToOneForCreateInput {
-  create: AnimalTypeCreateInput
-  connect: AnimalTypeWhereUniqueInput
-}
-
 type Pet {
   id: ID!
   name: String
   birthday: CalendarDay
   age: String
+  animal_type: AnimalType
   animal_breed: AnimalBreed
   user: User
   multimedia(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
@@ -707,6 +712,7 @@ input PetWhereInput {
   id: IDFilter
   name: StringFilter
   birthday: CalendarDayFilter
+  animal_type: AnimalTypeWhereInput
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
   multimedia: PetMultimediaManyRelationFilter
@@ -740,6 +746,7 @@ input PetOrderByInput {
 input PetUpdateInput {
   name: String
   birthday: CalendarDay
+  animal_type: AnimalTypeRelateToOneForUpdateInput
   animal_breed: AnimalBreedRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
   multimedia: PetMultimediaRelateToManyForUpdateInput
@@ -761,6 +768,7 @@ input PetUpdateArgs {
 input PetCreateInput {
   name: String
   birthday: CalendarDay
+  animal_type: AnimalTypeRelateToOneForCreateInput
   animal_breed: AnimalBreedRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
   multimedia: PetMultimediaRelateToManyForCreateInput
@@ -851,11 +859,15 @@ type Veterinary {
   veterinary_schedulesCount(where: ScheduleWhereInput! = {}): Int
   veterinary_reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
   veterinary_reviewsCount(where: ReviewWhereInput! = {}): Int
+  address: String
+  google_place_id: String
+  google_opening_hours: String
   createdAt: DateTime
 }
 
 input VeterinaryWhereUniqueInput {
   id: ID
+  google_place_id: String
 }
 
 input VeterinaryWhereInput {
@@ -881,6 +893,9 @@ input VeterinaryWhereInput {
   veterinary_likes: VeterinaryLikeManyRelationFilter
   veterinary_schedules: ScheduleManyRelationFilter
   veterinary_reviews: ReviewManyRelationFilter
+  address: StringFilter
+  google_place_id: StringFilter
+  google_opening_hours: StringFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -928,6 +943,9 @@ input VeterinaryOrderByInput {
   lat: OrderDirection
   lng: OrderDirection
   views: OrderDirection
+  address: OrderDirection
+  google_place_id: OrderDirection
+  google_opening_hours: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -950,6 +968,9 @@ input VeterinaryUpdateInput {
   veterinary_likes: VeterinaryLikeRelateToManyForUpdateInput
   veterinary_schedules: ScheduleRelateToManyForUpdateInput
   veterinary_reviews: ReviewRelateToManyForUpdateInput
+  address: String
+  google_place_id: String
+  google_opening_hours: String
   createdAt: DateTime
 }
 
@@ -1012,6 +1033,9 @@ input VeterinaryCreateInput {
   veterinary_likes: VeterinaryLikeRelateToManyForCreateInput
   veterinary_schedules: ScheduleRelateToManyForCreateInput
   veterinary_reviews: ReviewRelateToManyForCreateInput
+  address: String
+  google_place_id: String
+  google_opening_hours: String
   createdAt: DateTime
 }
 
@@ -1290,6 +1314,8 @@ type Review {
   pet_shelter: PetShelter
   product: Product
   user: User
+  google_user: String
+  google_user_photo: String
   createdAt: DateTime
 }
 
@@ -1308,6 +1334,8 @@ input ReviewWhereInput {
   pet_shelter: PetShelterWhereInput
   product: ProductWhereInput
   user: UserWhereInput
+  google_user: StringFilter
+  google_user_photo: StringFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -1315,6 +1343,8 @@ input ReviewOrderByInput {
   id: OrderDirection
   rating: OrderDirection
   review: OrderDirection
+  google_user: OrderDirection
+  google_user_photo: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -1325,6 +1355,8 @@ input ReviewUpdateInput {
   pet_shelter: PetShelterRelateToOneForUpdateInput
   product: ProductRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
+  google_user: String
+  google_user_photo: String
   createdAt: DateTime
 }
 
@@ -1346,6 +1378,8 @@ input ReviewCreateInput {
   pet_shelter: PetShelterRelateToOneForCreateInput
   product: ProductRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
+  google_user: String
+  google_user_photo: String
   createdAt: DateTime
 }
 
@@ -2172,6 +2206,7 @@ type Mutation {
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
+  executeImportVeterinary(input: ImportVeterinaryInput!): ImportVeterinaryResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
 }
 
@@ -2380,4 +2415,14 @@ type customAuthType {
   message: String
   success: Boolean
   data: JSON
+}
+
+input ImportVeterinaryInput {
+  inputValue: String!
+}
+
+type ImportVeterinaryResult {
+  success: Boolean!
+  message: String!
+  result: String
 }

@@ -48,6 +48,8 @@ model User {
 model Animal {
   id                         String             @id @default(cuid())
   name                       String             @default("")
+  animal_type                AnimalType?        @relation("Animal_animal_type", fields: [animal_typeId], references: [id])
+  animal_typeId              String?            @map("animal_type")
   animal_breed               AnimalBreed?       @relation("Animal_animal_breed", fields: [animal_breedId], references: [id])
   animal_breedId             String?            @map("animal_breed")
   user                       User?              @relation("Animal_user", fields: [userId], references: [id])
@@ -58,15 +60,18 @@ model Animal {
   from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
   from_AnimalComment_animal  AnimalComment[]    @relation("AnimalComment_animal")
 
+  @@index([animal_typeId])
   @@index([animal_breedId])
   @@index([userId])
 }
 
 model AnimalType {
-  id           String        @id @default(cuid())
-  name         String        @unique @default("dog")
-  animal_breed AnimalBreed[] @relation("AnimalBreed_animal_type")
-  order        Int?
+  id                      String        @id @default(cuid())
+  name                    String        @unique @default("dog")
+  animal_breed            AnimalBreed[] @relation("AnimalBreed_animal_type")
+  order                   Int?
+  from_Animal_animal_type Animal[]      @relation("Animal_animal_type")
+  from_Pet_animal_type    Pet[]         @relation("Pet_animal_type")
 }
 
 model AnimalMultimedia {
@@ -137,6 +142,8 @@ model Pet {
   id             String          @id @default(cuid())
   name           String          @default("")
   birthday       DateTime        @postgresql.Date
+  animal_type    AnimalType?     @relation("Pet_animal_type", fields: [animal_typeId], references: [id])
+  animal_typeId  String?         @map("animal_type")
   animal_breed   AnimalBreed?    @relation("Pet_animal_breed", fields: [animal_breedId], references: [id])
   animal_breedId String?         @map("animal_breed")
   user           User?           @relation("Pet_user", fields: [userId], references: [id])
@@ -144,6 +151,7 @@ model Pet {
   multimedia     PetMultimedia[] @relation("PetMultimedia_pet")
   createdAt      DateTime?       @default(now())
 
+  @@index([animal_typeId])
   @@index([animal_breedId])
   @@index([userId])
 }
@@ -183,6 +191,9 @@ model Veterinary {
   veterinary_likes        VeterinaryLike[]    @relation("VeterinaryLike_veterinary")
   veterinary_schedules    Schedule[]          @relation("Schedule_veterinary")
   veterinary_reviews      Review[]            @relation("Review_veterinary")
+  address                 String              @default("")
+  google_place_id         String              @unique @default("")
+  google_opening_hours    String              @default("")
   createdAt               DateTime?           @default(now())
 
   @@index([userId])
@@ -240,18 +251,20 @@ model SocialMedia {
 }
 
 model Review {
-  id            String      @id @default(cuid())
-  rating        Int?
-  review        String      @default("")
-  veterinary    Veterinary? @relation("Review_veterinary", fields: [veterinaryId], references: [id])
-  veterinaryId  String?     @map("veterinary")
-  pet_shelter   PetShelter? @relation("Review_pet_shelter", fields: [pet_shelterId], references: [id])
-  pet_shelterId String?     @map("pet_shelter")
-  product       Product?    @relation("Review_product", fields: [productId], references: [id])
-  productId     String?     @map("product")
-  user          User?       @relation("Review_user", fields: [userId], references: [id])
-  userId        String?     @map("user")
-  createdAt     DateTime?   @default(now())
+  id                String      @id @default(cuid())
+  rating            Int?
+  review            String      @default("")
+  veterinary        Veterinary? @relation("Review_veterinary", fields: [veterinaryId], references: [id])
+  veterinaryId      String?     @map("veterinary")
+  pet_shelter       PetShelter? @relation("Review_pet_shelter", fields: [pet_shelterId], references: [id])
+  pet_shelterId     String?     @map("pet_shelter")
+  product           Product?    @relation("Review_product", fields: [productId], references: [id])
+  productId         String?     @map("product")
+  user              User?       @relation("Review_user", fields: [userId], references: [id])
+  userId            String?     @map("user")
+  google_user       String      @default("")
+  google_user_photo String      @default("")
+  createdAt         DateTime?   @default(now())
 
   @@index([veterinaryId])
   @@index([pet_shelterId])

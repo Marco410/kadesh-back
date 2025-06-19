@@ -6,6 +6,10 @@ export default list({
   access,
   fields: {
     name: text({ validation: { isRequired: true } }),
+    animal_type: relationship({
+      ref: "AnimalType",
+      many: false,
+    }),
     animal_breed: relationship({
       ref: "AnimalBreed",
       many: false,

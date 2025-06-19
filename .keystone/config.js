@@ -64,6 +64,10 @@ var Animal_default = (0, import_core.list)({
   access: access_default,
   fields: {
     name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    animal_type: (0, import_fields.relationship)({
+      ref: "AnimalType",
+      many: false
+    }),
     animal_breed: (0, import_fields.relationship)({
       ref: "AnimalBreed",
       many: false
@@ -161,6 +165,9 @@ var AnimalType_default = (0, import_core2.list)({
       many: true
     }),
     order: (0, import_fields2.integer)()
+  },
+  ui: {
+    labelField: "name"
   }
 });
 
@@ -171,7 +178,7 @@ var AnimalMultimedia_default = (0, import_core3.list)({
   access: access_default,
   fields: {
     image: (0, import_fields3.image)({
-      storage: "my_local_images"
+      storage: "s3_files"
     }),
     animal: (0, import_fields3.relationship)({
       ref: "Animal.multimedia"
@@ -389,6 +396,9 @@ var AnimalBreed_default = (0, import_core8.list)({
     animal_type: (0, import_fields8.relationship)({
       ref: "AnimalType.animal_breed"
     })
+  },
+  ui: {
+    labelField: "breed"
   }
 });
 
@@ -418,6 +428,10 @@ var Pet_default = (0, import_core9.list)({
         }
       })
     }),
+    animal_type: (0, import_fields9.relationship)({
+      ref: "AnimalType",
+      many: false
+    }),
     animal_breed: (0, import_fields9.relationship)({
       ref: "AnimalBreed",
       many: false
@@ -445,7 +459,7 @@ var PetMultimedia_default = (0, import_core10.list)({
   access: access_default,
   fields: {
     image: (0, import_fields10.image)({
-      storage: "my_local_images"
+      storage: "s3_files"
     }),
     pet: (0, import_fields10.relationship)({
       ref: "Pet.multimedia"
@@ -511,9 +525,7 @@ var Veterinary_default = (0, import_core12.list)({
   fields: {
     name: (0, import_fields12.text)({ validation: { isRequired: true } }),
     description: (0, import_fields12.text)({ validation: { isRequired: true } }),
-    phone: (0, import_fields12.text)({
-      hooks: phoneHooks
-    }),
+    phone: (0, import_fields12.text)(),
     website: (0, import_fields12.text)(),
     street: (0, import_fields12.text)(),
     municipality: (0, import_fields12.text)(),
@@ -578,6 +590,12 @@ var Veterinary_default = (0, import_core12.list)({
       ref: "Review.veterinary",
       many: true
     }),
+    address: (0, import_fields12.text)(),
+    google_place_id: (0, import_fields12.text)({
+      isIndexed: "unique",
+      validation: { isRequired: false }
+    }),
+    google_opening_hours: (0, import_fields12.text)(),
     createdAt: (0, import_fields12.timestamp)({
       defaultValue: {
         kind: "now"
@@ -673,6 +691,8 @@ var Review_default = (0, import_core16.list)({
       ref: "User",
       many: false
     }),
+    google_user: (0, import_fields16.text)(),
+    google_user_photo: (0, import_fields16.text)(),
     createdAt: (0, import_fields16.timestamp)({
       defaultValue: {
         kind: "now"
@@ -1141,16 +1161,219 @@ var resolver = {
 };
 var customAuth_default = { typeDefs, definition, resolver };
 
+// graphql/customs/mutations/importVeterinary.ts
+var typeDefs2 = `
+  input ImportVeterinaryInput {
+    inputValue: String!
+  }
+  
+  type ImportVeterinaryResult {
+    success: Boolean!
+    message: String!
+    result: String
+  }
+  
+  type Mutation {
+    executeImportVeterinary(input: ImportVeterinaryInput!): ImportVeterinaryResult!
+  }
+`;
+var definition2 = `
+  executeImportVeterinary(input: ImportVeterinaryInput!): ImportVeterinaryResult!
+`;
+var resolver2 = {
+  executeImportVeterinary: async (root, { input }, context) => {
+    try {
+      console.log("Ejecutando importaci\xF3n de veterinarias con datos:", input.inputValue);
+      const result = await importVeterinaries(input.inputValue, context);
+      console.log("Resultados de la importaci\xF3n:", result);
+      return {
+        success: true,
+        message: "Veterinarias importadas exitosamente",
+        result
+      };
+    } catch (error) {
+      console.error("Error importando veterinarias:", error);
+      return {
+        success: false,
+        message: `Error: ${error instanceof Error ? error.message : "Error desconocido"}`,
+        result: null
+      };
+    }
+  }
+};
+async function importVeterinaries(city, context) {
+  try {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      throw new Error("GOOGLE_MAPS_API_KEY no est\xE1 configurada en las variables de entorno");
+    }
+    const query = encodeURIComponent(`veterinarias en ${city}`);
+    const baseUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?key=${apiKey}`;
+    let url = `${baseUrl}&query=${query}`;
+    let importedCount = 0;
+    let errors = [];
+    let page = 0;
+    let nextPageToken = void 0;
+    do {
+      if (page > 0 && nextPageToken) {
+        const waitSeconds = 5;
+        for (let i = 1; i <= waitSeconds; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 1e3));
+          console.log(`Esperando... ${i} segundo(s) de ${waitSeconds}`);
+        }
+        url = `${baseUrl}&pagetoken=${nextPageToken}`;
+      }
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Error en la respuesta de la API: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.status !== "OK") {
+          throw new Error(`Error en la API de Google Places: ${data.status} - ${data.error_message || "Error desconocido"}`);
+        }
+        console.log(`Se encontraron ${data.results?.length || 0} veterinarias en ${city} (p\xE1gina ${page + 1})`);
+        if (data.results && data.results.length > 0) {
+          for (const place of data.results) {
+            try {
+              if (!place.name) {
+                errors.push(`Lugar sin nombre: ${JSON.stringify(place)}`);
+                continue;
+              }
+              const address = place.formatted_address || "";
+              const lat = place.geometry?.location?.lat?.toString() || "";
+              const lng = place.geometry?.location?.lng?.toString() || "";
+              const rating = place.rating || 0;
+              const userRatingsTotal = place.user_ratings_total || 0;
+              const placeId = place.place_id || "";
+              const existingVeterinary = await context.sudo().query.Veterinary.findOne({
+                where: { google_place_id: placeId },
+                query: "id"
+              });
+              if (existingVeterinary) {
+                console.log(`Veterinaria con placeId ${placeId} ya registrada, se omite.`);
+                continue;
+              }
+              const result = await context.sudo().query.Veterinary.createOne({
+                data: {
+                  name: place.name,
+                  description: `Veterinaria ubicada en ${address}. ${rating > 0 ? `Calificaci\xF3n: ${rating}/5 (${userRatingsTotal} rese\xF1as)` : ""}`,
+                  phone: "",
+                  website: "",
+                  street: "",
+                  municipality: "",
+                  state: "",
+                  country: "",
+                  cp: "",
+                  lat,
+                  lng,
+                  views: 0,
+                  address,
+                  google_place_id: placeId
+                }
+              });
+              if (placeId) {
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number&key=${apiKey}&language=es`;
+                try {
+                  const detailsResponse = await fetch(detailsUrl);
+                  if (!detailsResponse.ok) {
+                    throw new Error(`Error en la respuesta de la API de detalles: ${detailsResponse.status} ${detailsResponse.statusText}`);
+                  }
+                  const detailsData = await detailsResponse.json();
+                  if (detailsData.status === "OK" && detailsData.result) {
+                    const updateData = {};
+                    if (detailsData.result.international_phone_number) {
+                      updateData.phone = detailsData.result.international_phone_number;
+                    }
+                    if (detailsData.result.opening_hours && Array.isArray(detailsData.result.opening_hours.weekday_text)) {
+                      updateData.google_opening_hours = detailsData.result.opening_hours.weekday_text.join("\n");
+                    }
+                    if (Object.keys(updateData).length > 0) {
+                      try {
+                        await context.sudo().query.Veterinary.updateOne({
+                          where: { id: result.id },
+                          data: updateData
+                        });
+                      } catch (updateError) {
+                        console.error(`Error actualizando datos de Veterinary para ${place.name}:`, updateError);
+                      }
+                    }
+                    if (Array.isArray(detailsData.result.reviews)) {
+                      for (const review of detailsData.result.reviews) {
+                        try {
+                          let createdAt = void 0;
+                          if (review.time) {
+                            createdAt = new Date(review.time * 1e3);
+                          }
+                          await context.sudo().query.Review.createOne({
+                            data: {
+                              rating: review.rating || 0,
+                              review: review.text || "",
+                              createdAt,
+                              google_user: review.author_name || "",
+                              google_user_photo: review.profile_photo_url || "",
+                              veterinary: { connect: { id: result.id } }
+                            }
+                          });
+                        } catch (reviewError) {
+                          console.error(`Error guardando review para ${place.name}:`, reviewError);
+                        }
+                      }
+                    }
+                  }
+                } catch (detailsError) {
+                  console.error(`Error obteniendo detalles de reviews para ${place.name}:`, detailsError);
+                }
+              }
+              importedCount++;
+              console.log(`Veterinaria importada: ${place.name} - ${address}`);
+            } catch (error) {
+              const errorMsg = `Error importando ${place.name || "veterinaria"}: ${error instanceof Error ? error.message : "Error desconocido"}`;
+              console.error(errorMsg);
+            }
+          }
+        }
+        nextPageToken = data.next_page_token;
+        page++;
+      } catch (apiError) {
+        console.error("Error al llamar a la API de Google Places:", apiError);
+        break;
+      }
+    } while (nextPageToken && page < 3);
+    let resultMessage = `Importaci\xF3n completada. ${importedCount} veterinarias importadas exitosamente.`;
+    if (errors.length > 0) {
+      resultMessage += `
+
+Errores encontrados:
+${errors.join("\n")}`;
+    }
+    return resultMessage;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("Formato JSON inv\xE1lido. Por favor verifica que los datos est\xE9n en formato JSON correcto.");
+    }
+    throw error;
+  }
+}
+var importVeterinary_default = {
+  typeDefs: typeDefs2,
+  definition: definition2,
+  resolver: resolver2
+};
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
     ${customAuth_default.typeDefs}
+    ${importVeterinary_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
+    ${importVeterinary_default.definition}
   `,
   resolvers: {
-    ...customAuth_default.resolver
+    ...customAuth_default.resolver,
+    ...importVeterinary_default.resolver
   }
 };
 var mutations_default = customMutation;
@@ -1174,6 +1397,15 @@ function extendGraphqlSchema(baseSchema) {
 }
 
 // keystone.ts
+if (!process.env.S3_BUCKET_NAME || !process.env.S3_REGION || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
+  throw new Error("S3 Configs are not set");
+}
+var {
+  S3_BUCKET_NAME: bucketName = "",
+  S3_REGION: region = "",
+  S3_ACCESS_KEY_ID: accessKeyId = "",
+  S3_SECRET_ACCESS_KEY: secretAccessKey = ""
+} = process.env;
 var keystone_default = withAuth(
   (0, import_core25.config)({
     db: {
@@ -1194,6 +1426,22 @@ var keystone_default = withAuth(
           path: "/images"
         },
         storagePath: "public/images"
+      },
+      s3_files: {
+        kind: "s3",
+        // this storage uses S3
+        type: "image",
+        // only for files
+        bucketName,
+        // from your S3_BUCKET_NAME environment variable
+        region,
+        // from your S3_REGION environment variable
+        accessKeyId,
+        // from your S3_ACCESS_KEY_ID environment variable
+        secretAccessKey,
+        // from your S3_SECRET_ACCESS_KEY environment variable
+        signed: { expiry: 3600 }
+        // (optional) links will be signed with an expiry of 3600 seconds (an hour)
       }
     },
     lists: schema_default,

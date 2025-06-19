@@ -21,4 +21,7 @@ export default list({
     }),
     order: integer(),
   },
+  ui: {
+    labelField: "name",
+  }
 });

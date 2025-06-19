@@ -31,6 +31,10 @@ export default list({
         },
       }),
     }),
+    animal_type: relationship({
+      ref: "AnimalType",
+      many: false,
+    }),
     animal_breed: relationship({
       ref: "AnimalBreed",
       many: false,

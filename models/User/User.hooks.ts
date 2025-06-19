@@ -5,7 +5,6 @@ export const phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }: any) => {
     const { phone } = resolvedData;
     if (phone) {
-      // Phone vaidation just numbers and more than 10 digits
       const pattern = /\+?\d{10,}(?:-?\d+)*$/;
       if (!pattern.test(phone) || (phone.length < 10 && phone.length !== 0)) {
         addValidationError(

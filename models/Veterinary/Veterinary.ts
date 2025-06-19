@@ -7,7 +7,6 @@ import {
   virtual,
 } from "@keystone-6/core/fields";
 import access from "../../utils/generalAccess/access";
-import { phoneHooks } from "../User/User.hooks";
 import { KeystoneContext } from "@keystone-6/core/types";
 import { dayNames } from "../Schedule/Schedule";
 
@@ -16,9 +15,7 @@ export default list({
   fields: {
     name: text({ validation: { isRequired: true } }),
     description: text({ validation: { isRequired: true } }),
-    phone: text({
-      hooks: phoneHooks,
-    }),
+    phone: text(),
     website: text(),
     street: text(),
     municipality: text(),
@@ -87,6 +84,12 @@ export default list({
       ref: "Review.veterinary",
       many: true,
     }),
+    address: text(),
+    google_place_id: text({
+      isIndexed: "unique",
+      validation: { isRequired: false },
+    }),
+    google_opening_hours: text(),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
