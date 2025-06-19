@@ -26,6 +26,8 @@ export default list({
       ref: "User",
       many: false,
     }),
+    google_user: text(),
+    google_user_photo: text(),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

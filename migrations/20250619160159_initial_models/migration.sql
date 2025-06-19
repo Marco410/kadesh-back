@@ -9,11 +9,12 @@ CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL DEFAULT '',
     "lastName" TEXT NOT NULL DEFAULT '',
+    "secondLastName" TEXT NOT NULL DEFAULT '',
     "username" TEXT NOT NULL DEFAULT '',
     "email" TEXT NOT NULL DEFAULT '',
-    "password" TEXT NOT NULL,
+    "password" TEXT,
     "phone" TEXT NOT NULL DEFAULT '',
-    "role" "UserRoleType" NOT NULL DEFAULT 'admin',
+    "role" "UserRoleType" NOT NULL DEFAULT 'user',
     "profileImage_id" TEXT,
     "profileImage_filesize" INTEGER,
     "profileImage_width" INTEGER,
@@ -31,6 +32,7 @@ CREATE TABLE "User" (
 CREATE TABLE "Animal" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL DEFAULT '',
+    "animal_type" TEXT,
     "animal_breed" TEXT,
     "user" TEXT,
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
@@ -110,6 +112,7 @@ CREATE TABLE "Pet" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL DEFAULT '',
     "birthday" DATE NOT NULL,
+    "animal_type" TEXT,
     "animal_breed" TEXT,
     "user" TEXT,
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
@@ -147,6 +150,9 @@ CREATE TABLE "Veterinary" (
     "lng" TEXT NOT NULL DEFAULT '',
     "views" INTEGER,
     "user" TEXT,
+    "address" TEXT NOT NULL DEFAULT '',
+    "google_place_id" TEXT NOT NULL DEFAULT '',
+    "google_opening_hours" TEXT NOT NULL DEFAULT '',
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Veterinary_pkey" PRIMARY KEY ("id")
@@ -208,6 +214,8 @@ CREATE TABLE "Review" (
     "pet_shelter" TEXT,
     "product" TEXT,
     "user" TEXT,
+    "google_user" TEXT NOT NULL DEFAULT '',
+    "google_user_photo" TEXT NOT NULL DEFAULT '',
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Review_pkey" PRIMARY KEY ("id")
@@ -351,6 +359,9 @@ CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE INDEX "Animal_animal_type_idx" ON "Animal"("animal_type");
+
+-- CreateIndex
 CREATE INDEX "Animal_animal_breed_idx" ON "Animal"("animal_breed");
 
 -- CreateIndex
@@ -381,6 +392,9 @@ CREATE INDEX "AnimalComment_user_idx" ON "AnimalComment"("user");
 CREATE INDEX "AnimalBreed_animal_type_idx" ON "AnimalBreed"("animal_type");
 
 -- CreateIndex
+CREATE INDEX "Pet_animal_type_idx" ON "Pet"("animal_type");
+
+-- CreateIndex
 CREATE INDEX "Pet_animal_breed_idx" ON "Pet"("animal_breed");
 
 -- CreateIndex
@@ -388,6 +402,9 @@ CREATE INDEX "Pet_user_idx" ON "Pet"("user");
 
 -- CreateIndex
 CREATE INDEX "PetMultimedia_pet_idx" ON "PetMultimedia"("pet");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Veterinary_google_place_id_key" ON "Veterinary"("google_place_id");
 
 -- CreateIndex
 CREATE INDEX "Veterinary_user_idx" ON "Veterinary"("user");
@@ -468,6 +485,9 @@ CREATE UNIQUE INDEX "_Cart_product_AB_unique" ON "_Cart_product"("A", "B");
 CREATE INDEX "_Cart_product_B_index" ON "_Cart_product"("B");
 
 -- AddForeignKey
+ALTER TABLE "Animal" ADD CONSTRAINT "Animal_animal_type_fkey" FOREIGN KEY ("animal_type") REFERENCES "AnimalType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Animal" ADD CONSTRAINT "Animal_animal_breed_fkey" FOREIGN KEY ("animal_breed") REFERENCES "AnimalBreed"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -493,6 +513,9 @@ ALTER TABLE "AnimalComment" ADD CONSTRAINT "AnimalComment_user_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "AnimalBreed" ADD CONSTRAINT "AnimalBreed_animal_type_fkey" FOREIGN KEY ("animal_type") REFERENCES "AnimalType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Pet" ADD CONSTRAINT "Pet_animal_type_fkey" FOREIGN KEY ("animal_type") REFERENCES "AnimalType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Pet" ADD CONSTRAINT "Pet_animal_breed_fkey" FOREIGN KEY ("animal_breed") REFERENCES "AnimalBreed"("id") ON DELETE SET NULL ON UPDATE CASCADE;

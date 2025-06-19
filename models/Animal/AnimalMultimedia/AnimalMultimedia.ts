@@ -6,7 +6,7 @@ export default list({
   access,
   fields: {
     image: image({
-      storage: "my_local_images",
+      storage: "s3_files",
     }),
     animal: relationship({
       ref: "Animal.multimedia",
