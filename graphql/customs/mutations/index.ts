@@ -1,18 +1,18 @@
 import customAuth from "./auth/customAuth";
-import importVeterinary from "./importVeterinary";
+import importPetPlace from "./importPetPlace";
 
 const customMutation = {
   typeDefs: `
     ${customAuth.typeDefs}
-    ${importVeterinary.typeDefs}
+    ${importPetPlace.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
-    ${importVeterinary.definition}
+    ${importPetPlace.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
-    ...importVeterinary.resolver,
+    ...importPetPlace.resolver,
   },
 };
 

@@ -12,16 +12,17 @@ export default list({
     link: text({
       validation: { isRequired: true },
     }),
-    veterinary: relationship({
-      ref: "Veterinary.veterinary_social_media",
-    }),
-    pet_shelter: relationship({
-      ref: "PetShelter.pet_shelter_social_media",
+    pet_place: relationship({
+      ref: "PetPlace.pet_place_social_media",
     }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
       },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
   },
 });

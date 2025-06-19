@@ -5,19 +5,20 @@ export async function createVeterinary(
   userID: string,
   services: readonly Record<string, any>[]
 ) {
-  const existingVet = await context.sudo().query.Veterinary.findMany();
+  const existingVet = await context.sudo().query.PetPlace.findMany();
   if (existingVet.length > 0) {
     console.log("♻️  Skipped veterinary seeding.");
     return existingVet;
   }
 
   try {
-    await context.sudo().query.Veterinary.createOne({
+    await context.sudo().query.PetPlace.createOne({
       data: {
         name: "Kade",
         description:
           "Esta es la primera veterinaria en el mundo para hacer las cosas cambiar.",
         phone: "4434012693",
+        type: "veterinary",
         website: "https://www.kadeveterinaria.com",
         street: "Calle 123",
         municipality: "Morelia",

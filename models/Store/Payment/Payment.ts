@@ -45,7 +45,13 @@ export default list({
     processorRefundId: text(),
 
     createdAt: timestamp({
-      defaultValue: { kind: "now" },
+      defaultValue: {
+        kind: "now",
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
     updatedAt: timestamp({
       defaultValue: { kind: "now" },

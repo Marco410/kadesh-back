@@ -1,25 +1,25 @@
 const typeDefs = `
-  input ImportVeterinaryInput {
+  input ImportPetPlaceInput {
     inputValue: String!
   }
   
-  type ImportVeterinaryResult {
+  type ImportPetPlaceResult {
     success: Boolean!
     message: String!
     result: String
   }
   
   type Mutation {
-    executeImportVeterinary(input: ImportVeterinaryInput!): ImportVeterinaryResult!
+    executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
   }
 `;
 
 const definition = `
-  executeImportVeterinary(input: ImportVeterinaryInput!): ImportVeterinaryResult!
+  executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
 `;
 
 const resolver = {
-  executeImportVeterinary: async (root: any, { input }: { input: { inputValue: string } }, context: any) => {
+  executeImportPetPlace: async (root: any, { input }: { input: { inputValue: string } }, context: any) => {
     try {
       console.log('Ejecutando importación de veterinarias con datos:', input.inputValue);
       
@@ -57,6 +57,7 @@ async function importVeterinaries(city: string, context: any) {
     let errors: string[] = [];
     let page = 0;
     let nextPageToken: string | undefined = undefined;
+    let maxPagesToSearch = 1;
 
     do {
       if (page > 0 && nextPageToken) {
@@ -96,7 +97,7 @@ async function importVeterinaries(city: string, context: any) {
               const userRatingsTotal = place.user_ratings_total || 0;
               const placeId = place.place_id || '';
 
-              const existingVeterinary = await context.sudo().query.Veterinary.findOne({
+              const existingVeterinary = await context.sudo().query.PetPlace.findOne({
                 where: { google_place_id: placeId },
                 query: 'id'
               });
@@ -106,10 +107,11 @@ async function importVeterinaries(city: string, context: any) {
                 continue;
               }
 
-              const result = await context.sudo().query.Veterinary.createOne({
+              const result = await context.sudo().query.PetPlace.createOne({
                 data: {
                   name: place.name,
                   description: `Veterinaria ubicada en ${address}. ${rating > 0 ? `Calificación: ${rating}/5 (${userRatingsTotal} reseñas)` : ''}`,
+                  type: 'veterinary',
                   phone: '',
                   website: '',
                   street: '',
@@ -147,7 +149,7 @@ async function importVeterinaries(city: string, context: any) {
                     }
                     if (Object.keys(updateData).length > 0) {
                       try {
-                        await context.sudo().query.Veterinary.updateOne({
+                        await context.sudo().query.PetPlace.updateOne({
                           where: { id: result.id },
                           data: updateData,
                         });
@@ -170,7 +172,7 @@ async function importVeterinaries(city: string, context: any) {
                               createdAt: createdAt,
                               google_user: review.author_name || '',
                               google_user_photo: review.profile_photo_url || '',
-                              veterinary: { connect: { id: result.id } },
+                              pet_place: { connect: { id: result.id } },
                             },
                           });
                         } catch (reviewError) {
@@ -201,7 +203,7 @@ async function importVeterinaries(city: string, context: any) {
         console.error('Error al llamar a la API de Google Places:', apiError);
         break; // Si hay error, no seguir paginando
       }
-    } while (nextPageToken && page < 3);
+    } while (nextPageToken && page < maxPagesToSearch);
 
     let resultMessage = `Importación completada. ${importedCount} veterinarias importadas exitosamente.`;
 

@@ -27,8 +27,8 @@ export default function ImportVeterinaryPage() {
         },
         body: JSON.stringify({
           query: `
-            mutation ExecuteImportVeterinary($input: ImportVeterinaryInput!) {
-              executeImportVeterinary(input: $input) {
+            mutation ExecuteImportPetPlace($input: ImportPetPlaceInput!) {
+              executeImportPetPlace(input: $input) {
                 success
                 message
                 result
@@ -46,10 +46,11 @@ export default function ImportVeterinaryPage() {
 
       const data = await response.json();
 
-      if (data.data?.executeImportVeterinary?.success) {
-        setResult(data.data.executeImportVeterinary.result);
+
+      if (data.data?.executeImportPetPlace?.success) {
+        setResult(data.data.executeImportPetPlace.result);
       } else {
-        setResult(`Error: ${data.data?.executeImportVeterinary?.message || 'Error desconocido'}`);
+        setResult(`Error: ${data.data?.executeImportPetPlace?.message || 'Error desconocido'}`);
       }
     } catch (error) {
       setResult(`Error de red: ${error instanceof Error ? error.message : 'Error desconocido'}`);

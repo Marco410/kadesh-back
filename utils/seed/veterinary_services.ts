@@ -1,8 +1,8 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { services } from "../../models/Veterinary/const";
+import { services } from "../../models/PetPlace/const";
 
-export async function createVeterinaryService(context: KeystoneContext) {
-  const existingSer = await context.sudo().query.VeterinaryService.findMany({
+export async function createPetPlaceService(context: KeystoneContext) {
+  const existingSer = await context.sudo().query.PetPlaceService.findMany({
     query: "id",
   });
   if (existingSer.length > 0) {
@@ -10,7 +10,7 @@ export async function createVeterinaryService(context: KeystoneContext) {
     return existingSer;
   }
 
-  const servicess = await context.sudo().query.VeterinaryService.createMany({
+  const servicess = await context.sudo().query.PetPlaceService.createMany({
     data: services,
     query: "id",
   });

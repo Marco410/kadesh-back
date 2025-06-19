@@ -34,15 +34,15 @@ model User {
   from_AnimalFavorite_user    AnimalFavorite[]    @relation("AnimalFavorite_user")
   from_AnimalComment_user     AnimalComment[]     @relation("AnimalComment_user")
   from_Pet_user               Pet[]               @relation("Pet_user")
-  from_Veterinary_user        Veterinary[]        @relation("Veterinary_user")
-  from_VeterinaryLike_user    VeterinaryLike[]    @relation("VeterinaryLike_user")
+  from_PetPlace_user          PetPlace[]          @relation("PetPlace_user")
+  from_PetPlaceLike_user      PetPlaceLike[]      @relation("PetPlaceLike_user")
   from_Review_user            Review[]            @relation("Review_user")
-  from_PetShelter_user        PetShelter[]        @relation("PetShelter_user")
   from_WishList_user          WishList[]          @relation("WishList_user")
   from_Cart_user              Cart[]              @relation("Cart_user")
   from_Order_user             Order[]             @relation("Order_user")
   from_PaymentMethod_user     PaymentMethod[]     @relation("PaymentMethod_user")
   from_TokenNotification_user TokenNotification[] @relation("TokenNotification_user")
+  from_Ad_user                Ad[]                @relation("Ad_user")
 }
 
 model Animal {
@@ -170,129 +170,98 @@ model PetMultimedia {
   @@index([petId])
 }
 
-model Veterinary {
-  id                      String              @id @default(cuid())
-  name                    String              @default("")
-  description             String              @default("")
-  phone                   String              @default("")
-  website                 String              @default("")
-  street                  String              @default("")
-  municipality            String              @default("")
-  state                   String              @default("")
-  country                 String              @default("")
-  cp                      String              @default("")
-  lat                     String              @default("")
-  lng                     String              @default("")
-  views                   Int?
-  services                VeterinaryService[] @relation("Veterinary_services")
-  user                    User?               @relation("Veterinary_user", fields: [userId], references: [id])
-  userId                  String?             @map("user")
-  veterinary_social_media SocialMedia[]       @relation("SocialMedia_veterinary")
-  veterinary_likes        VeterinaryLike[]    @relation("VeterinaryLike_veterinary")
-  veterinary_schedules    Schedule[]          @relation("Schedule_veterinary")
-  veterinary_reviews      Review[]            @relation("Review_veterinary")
-  address                 String              @default("")
-  google_place_id         String              @unique @default("")
-  google_opening_hours    String              @default("")
-  createdAt               DateTime?           @default(now())
+model PetPlace {
+  id                     String            @id @default(cuid())
+  name                   String            @default("")
+  description            String            @default("")
+  phone                  String            @default("")
+  website                String            @default("")
+  street                 String            @default("")
+  municipality           String            @default("")
+  state                  String            @default("")
+  country                String            @default("")
+  cp                     String            @default("")
+  lat                    String            @default("")
+  lng                    String            @default("")
+  views                  Int?
+  type                   String?           @default("veterinary")
+  services               PetPlaceService[] @relation("PetPlace_services")
+  user                   User?             @relation("PetPlace_user", fields: [userId], references: [id])
+  userId                 String?           @map("user")
+  pet_place_social_media SocialMedia[]     @relation("SocialMedia_pet_place")
+  pet_place_likes        PetPlaceLike[]    @relation("PetPlaceLike_pet_place")
+  pet_place_schedules    Schedule[]        @relation("Schedule_pet_place")
+  pet_place_reviews      Review[]          @relation("Review_pet_place")
+  pet_place_ads          Ad[]              @relation("Ad_pet_place")
+  address                String            @default("")
+  google_place_id        String            @unique @default("")
+  google_opening_hours   String            @default("")
+  createdAt              DateTime?         @default(now())
 
   @@index([userId])
 }
 
-model VeterinaryLike {
-  id           String      @id @default(cuid())
-  user         User?       @relation("VeterinaryLike_user", fields: [userId], references: [id])
-  userId       String?     @map("user")
-  veterinary   Veterinary? @relation("VeterinaryLike_veterinary", fields: [veterinaryId], references: [id])
-  veterinaryId String?     @map("veterinary")
-  createdAt    DateTime?   @default(now())
+model PetPlaceLike {
+  id          String    @id @default(cuid())
+  user        User?     @relation("PetPlaceLike_user", fields: [userId], references: [id])
+  userId      String?   @map("user")
+  pet_place   PetPlace? @relation("PetPlaceLike_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId String?   @map("pet_place")
+  createdAt   DateTime? @default(now())
 
   @@index([userId])
-  @@index([veterinaryId])
+  @@index([pet_placeId])
 }
 
-model VeterinaryService {
-  id                       String       @id @default(cuid())
-  name                     String       @default("")
-  slug                     String       @default("")
-  description              String       @default("")
-  active                   Boolean      @default(false)
-  createdAt                DateTime?    @default(now())
-  from_Veterinary_services Veterinary[] @relation("Veterinary_services")
+model PetPlaceService {
+  id                     String     @id @default(cuid())
+  name                   String     @default("")
+  slug                   String     @default("")
+  description            String     @default("")
+  active                 Boolean    @default(false)
+  createdAt              DateTime?  @default(now())
+  from_PetPlace_services PetPlace[] @relation("PetPlace_services")
 }
 
 model Schedule {
-  id            String      @id @default(cuid())
-  day           String
-  timeIni       Int
-  timeEnd       Int
-  veterinary    Veterinary? @relation("Schedule_veterinary", fields: [veterinaryId], references: [id])
-  veterinaryId  String?     @map("veterinary")
-  pet_shelter   PetShelter? @relation("Schedule_pet_shelter", fields: [pet_shelterId], references: [id])
-  pet_shelterId String?     @map("pet_shelter")
-  createdAt     DateTime?   @default(now())
+  id          String    @id @default(cuid())
+  day         String
+  timeIni     Int
+  timeEnd     Int
+  pet_place   PetPlace? @relation("Schedule_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId String?   @map("pet_place")
+  createdAt   DateTime? @default(now())
 
-  @@index([veterinaryId])
-  @@index([pet_shelterId])
+  @@index([pet_placeId])
 }
 
 model SocialMedia {
-  id            String      @id @default(cuid())
-  social_media  String
-  link          String      @default("")
-  veterinary    Veterinary? @relation("SocialMedia_veterinary", fields: [veterinaryId], references: [id])
-  veterinaryId  String?     @map("veterinary")
-  pet_shelter   PetShelter? @relation("SocialMedia_pet_shelter", fields: [pet_shelterId], references: [id])
-  pet_shelterId String?     @map("pet_shelter")
-  createdAt     DateTime?   @default(now())
+  id           String    @id @default(cuid())
+  social_media String
+  link         String    @default("")
+  pet_place    PetPlace? @relation("SocialMedia_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId  String?   @map("pet_place")
+  createdAt    DateTime? @default(now())
 
-  @@index([veterinaryId])
-  @@index([pet_shelterId])
+  @@index([pet_placeId])
 }
 
 model Review {
-  id                String      @id @default(cuid())
+  id                String    @id @default(cuid())
   rating            Int?
-  review            String      @default("")
-  veterinary        Veterinary? @relation("Review_veterinary", fields: [veterinaryId], references: [id])
-  veterinaryId      String?     @map("veterinary")
-  pet_shelter       PetShelter? @relation("Review_pet_shelter", fields: [pet_shelterId], references: [id])
-  pet_shelterId     String?     @map("pet_shelter")
-  product           Product?    @relation("Review_product", fields: [productId], references: [id])
-  productId         String?     @map("product")
-  user              User?       @relation("Review_user", fields: [userId], references: [id])
-  userId            String?     @map("user")
-  google_user       String      @default("")
-  google_user_photo String      @default("")
-  createdAt         DateTime?   @default(now())
+  review            String    @default("")
+  pet_place         PetPlace? @relation("Review_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId       String?   @map("pet_place")
+  product           Product?  @relation("Review_product", fields: [productId], references: [id])
+  productId         String?   @map("product")
+  user              User?     @relation("Review_user", fields: [userId], references: [id])
+  userId            String?   @map("user")
+  google_user       String    @default("")
+  google_user_photo String    @default("")
+  createdAt         DateTime? @default(now())
 
-  @@index([veterinaryId])
-  @@index([pet_shelterId])
+  @@index([pet_placeId])
   @@index([productId])
-  @@index([userId])
-}
-
-model PetShelter {
-  id                       String        @id @default(cuid())
-  name                     String        @default("")
-  description              String        @default("")
-  phone                    String        @default("")
-  website                  String        @default("")
-  street                   String        @default("")
-  municipality             String        @default("")
-  state                    String        @default("")
-  country                  String        @default("")
-  cp                       String        @default("")
-  lat                      String        @default("")
-  lng                      String        @default("")
-  views                    Int?
-  user                     User?         @relation("PetShelter_user", fields: [userId], references: [id])
-  userId                   String?       @map("user")
-  pet_shelter_social_media SocialMedia[] @relation("SocialMedia_pet_shelter")
-  pet_shelter_schedules    Schedule[]    @relation("Schedule_pet_shelter")
-  pet_shelter_reviews      Review[]      @relation("Review_pet_shelter")
-  createdAt                DateTime?     @default(now())
-
   @@index([userId])
 }
 
@@ -305,6 +274,7 @@ model Product {
   brand                 String
   type                  String
   product_reviews       Review[]   @relation("Review_product")
+  product_ads           Ad[]       @relation("Ad_product")
   createdAt             DateTime?  @default(now())
   from_WishList_product WishList[] @relation("WishList_product")
   from_Cart_product     Cart[]     @relation("Cart_product")
@@ -393,6 +363,35 @@ model TokenNotification {
   user   User?   @relation("TokenNotification_user", fields: [userId], references: [id])
   userId String? @map("user")
 
+  @@index([userId])
+}
+
+model Ad {
+  id              String    @id @default(cuid())
+  title           String    @default("")
+  description     String    @default("")
+  active          Boolean   @default(false)
+  start_date      DateTime? @postgresql.Date
+  end_date        DateTime? @postgresql.Date
+  price           Int?
+  type            String?
+  lat             String    @default("")
+  lng             String    @default("")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  pet_place       PetPlace? @relation("Ad_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId     String?   @map("pet_place")
+  product         Product?  @relation("Ad_product", fields: [productId], references: [id])
+  productId       String?   @map("product")
+  user            User?     @relation("Ad_user", fields: [userId], references: [id])
+  userId          String?   @map("user")
+  createdAt       DateTime? @default(now())
+
+  @@index([pet_placeId])
+  @@index([productId])
   @@index([userId])
 }
 

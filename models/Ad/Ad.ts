@@ -1,30 +1,49 @@
 import { list } from "@keystone-6/core";
 import {
+  calendarDay,
+  checkbox,
+  float,
+  image,
   integer,
   relationship,
+  select,
   text,
   timestamp,
 } from "@keystone-6/core/fields";
 import access from "../../utils/generalAccess/access";
-import { dayOfWeek } from "../../utils/constants/constants";
+import { types_ad } from "../../utils/constants/constants";
 
 export default list({
   access,
   fields: {
-    rating: integer(),
-    review: text(),
+    title: text(),
+    description: text({
+      ui: {
+        displayMode: "textarea",
+      },
+    }),
+    active: checkbox(),
+    start_date: calendarDay(),
+    end_date: calendarDay(),
+    price: integer(),
+    type: select({
+      options: types_ad,
+    }),
+    lat: text(),
+    lng: text(),
+    image: image({
+      storage: "s3_files",
+    }),
     pet_place: relationship({
-      ref: "PetPlace.pet_place_reviews",
+      ref: "PetPlace.pet_place_ads",
     }),
     product: relationship({
-      ref: "Product.product_reviews",
+      ref: "Product.product_ads",
     }),
     user: relationship({
       ref: "User",
       many: false,
     }),
-    google_user: text(),
-    google_user_photo: text(),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
@@ -36,13 +55,3 @@ export default list({
     }),
   },
 });
-
-export const dayNames: { [key: number]: string } = {
-  0: dayOfWeek.DOM,
-  1: dayOfWeek.LUN,
-  2: dayOfWeek.MAR,
-  3: dayOfWeek.MIER,
-  4: dayOfWeek.JUEV,
-  5: dayOfWeek.VIE,
-  6: dayOfWeek.SAB,
-};
