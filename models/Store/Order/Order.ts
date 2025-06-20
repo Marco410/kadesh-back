@@ -30,6 +30,10 @@ export default list({
       defaultValue: {
         kind: "now",
       },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
   },
 });

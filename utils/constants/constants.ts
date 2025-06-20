@@ -500,3 +500,42 @@ export const payment_types = [
   { label: "Transferencia", value: "transfer" },
   { label: "Stripe", value: "stripe" },
 ];
+
+export const types_pet_shelter = [
+  {
+    label: "Veterinaria",
+    value: "veterinary",
+  },
+  {
+    label: "Refugio",
+    value: "pet_shelter",
+  },
+  {
+    label: "Tienda",
+    value: "store",
+  },
+  {
+    label: "Hospital",
+    value: "hospital",
+  },
+  {
+    label: "Otro",
+    value: "other",
+  },
+];
+
+export const types_ad = [
+  {
+    label: "Producto",
+    value: "product",
+  },
+  {
+    label: "Lugar",
+    value: "pet_place",
+  },
+  {
+    label: "Servicio",
+    value: "service",
+  },
+  
+];

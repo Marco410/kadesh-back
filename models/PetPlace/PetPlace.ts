@@ -2,23 +2,22 @@ import { graphql, list } from "@keystone-6/core";
 import {
   integer,
   relationship,
+  select,
   text,
   timestamp,
   virtual,
 } from "@keystone-6/core/fields";
 import access from "../../utils/generalAccess/access";
-import { phoneHooks } from "../User/User.hooks";
 import { KeystoneContext } from "@keystone-6/core/types";
 import { dayNames } from "../Schedule/Schedule";
+import { types_pet_shelter } from "../../utils/constants/constants";
 
 export default list({
   access,
   fields: {
     name: text({ validation: { isRequired: true } }),
     description: text({ validation: { isRequired: true } }),
-    phone: text({
-      hooks: phoneHooks,
-    }),
+    phone: text(),
     website: text(),
     street: text(),
     municipality: text(),
@@ -28,6 +27,14 @@ export default list({
     lat: text(),
     lng: text(),
     views: integer(),
+    type: select({
+      defaultValue: "veterinary",
+      options: types_pet_shelter,
+    }),
+    services: relationship({
+      ref: "PetPlaceService",
+      many: true,
+    }),
     user: relationship({
       ref: "User",
       many: false,
@@ -39,7 +46,7 @@ export default list({
           const today = new Date();
           const schedules = await context.query.Schedule.findMany({
             where: {
-              pet_shelter: {
+              pet_place: {
                 id: {
                   equals: item.id,
                 },
@@ -67,22 +74,40 @@ export default list({
         },
       }),
     }),
-    pet_shelter_social_media: relationship({
-      ref: "SocialMedia.pet_shelter",
+    pet_place_social_media: relationship({
+      ref: "SocialMedia.pet_place",
       many: true,
     }),
-    pet_shelter_schedules: relationship({
-      ref: "Schedule.pet_shelter",
+    pet_place_likes: relationship({
+      ref: "PetPlaceLike.pet_place",
       many: true,
     }),
-    pet_shelter_reviews: relationship({
-      ref: "Review.pet_shelter",
+    pet_place_schedules: relationship({
+      ref: "Schedule.pet_place",
       many: true,
     }),
+    pet_place_reviews: relationship({
+      ref: "Review.pet_place",
+      many: true,
+    }),
+    pet_place_ads: relationship({
+      ref: "Ad.pet_place",
+      many: true,
+    }),
+    address: text(),
+    google_place_id: text({
+      isIndexed: "unique",
+      validation: { isRequired: false },
+    }),
+    google_opening_hours: text(),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
       },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
   },
 });

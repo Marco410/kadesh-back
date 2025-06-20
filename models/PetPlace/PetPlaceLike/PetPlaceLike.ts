@@ -9,8 +9,8 @@ export default list({
       ref: "User",
       many: false,
     }),
-    veterinary: relationship({
-      ref: "Veterinary.veterinary_likes",
+    pet_place: relationship({
+      ref: "PetPlace.pet_place_likes",
     }),
     createdAt: timestamp({
       defaultValue: {

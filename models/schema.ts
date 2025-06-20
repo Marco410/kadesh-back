@@ -8,13 +8,12 @@ import User from "./User/User";
 import AnimalBreed from "./Animal/AnimalBreed/AnimalBreed";
 import Pet from "./Pet/Pet";
 import PetMultimedia from "./Pet/PetMultimedia/PetMultimedia";
-import Veterinary from "./Veterinary/Veterinary";
-import VeterinaryLike from "./Veterinary/VeterinaryLike/VeterinaryLike";
-import VeterinaryService from "./Veterinary/VeterinaryService/VeterinaryService";
+import PetPlace from "./PetPlace/PetPlace";
+import PetPlaceLike from "./PetPlace/PetPlaceLike/PetPlaceLike";
+import PetPlaceService from "./PetPlace/PetPlaceService/PetPlaceService";
 import Schedule from "./Schedule/Schedule";
 import SocialMedia from "./SocialMedia/SocialMedia";
 import Review from "./Review/Review";
-import PetShelter from "./PetShelter/PetShelter";
 import Product from "./Store/Product/Product";
 import WishList from "./Store/WishList/WishList";
 import Cart from "./Store/Cart/Cart";
@@ -22,6 +21,7 @@ import Order from "./Store/Order/Order";
 import Payment from "./Store/Payment/Payment";
 import PaymentMethod from "./Store/PaymentMethod/PaymentMethod";
 import TokenNotification from "./TokenNotification/TokenNotification";
+import Ad from "./Ad/Ad";
 
 export default {
   User,
@@ -34,13 +34,12 @@ export default {
   AnimalBreed,
   Pet,
   PetMultimedia,
-  Veterinary,
-  VeterinaryLike,
-  VeterinaryService,
+  PetPlace,
+  PetPlaceLike,
+  PetPlaceService,
   Schedule,
   SocialMedia,
   Review,
-  PetShelter,
   Product,
   WishList,
   Cart,
@@ -48,4 +47,5 @@ export default {
   Payment,
   PaymentMethod,
   TokenNotification,
+  Ad
 };

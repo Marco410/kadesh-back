@@ -33,7 +33,13 @@ export default list({
     type: select({ options: payment_types }),
 
     createdAt: timestamp({
-      defaultValue: { kind: "now" },
+      defaultValue: {
+        kind: "now",
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
     updatedAt: timestamp({
       defaultValue: { kind: "now" },

@@ -87,6 +87,10 @@ var Animal_default = (0, import_core.list)({
     createdAt: (0, import_fields.timestamp)({
       defaultValue: {
         kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
@@ -148,6 +152,42 @@ var payment_types = [
   { label: "Tarjeta cr\xE9dito", value: "credit" },
   { label: "Transferencia", value: "transfer" },
   { label: "Stripe", value: "stripe" }
+];
+var types_pet_shelter = [
+  {
+    label: "Veterinaria",
+    value: "veterinary"
+  },
+  {
+    label: "Refugio",
+    value: "pet_shelter"
+  },
+  {
+    label: "Tienda",
+    value: "store"
+  },
+  {
+    label: "Hospital",
+    value: "hospital"
+  },
+  {
+    label: "Otro",
+    value: "other"
+  }
+];
+var types_ad = [
+  {
+    label: "Producto",
+    value: "product"
+  },
+  {
+    label: "Lugar",
+    value: "pet_place"
+  },
+  {
+    label: "Servicio",
+    value: "service"
+  }
 ];
 
 // models/Animal/AnimalType/AnimalType.ts
@@ -381,6 +421,10 @@ var User_default = (0, import_core7.list)({
     createdAt: (0, import_fields7.timestamp)({
       defaultValue: {
         kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
@@ -447,6 +491,10 @@ var Pet_default = (0, import_core9.list)({
     createdAt: (0, import_fields9.timestamp)({
       defaultValue: {
         kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
@@ -472,7 +520,7 @@ var PetMultimedia_default = (0, import_core10.list)({
   }
 });
 
-// models/Veterinary/Veterinary.ts
+// models/PetPlace/PetPlace.ts
 var import_core12 = require("@keystone-6/core");
 var import_fields12 = require("@keystone-6/core/fields");
 
@@ -496,15 +544,16 @@ var Schedule_default = (0, import_core11.list)({
     }),
     timeIni: (0, import_fields11.integer)({ validation: { isRequired: true } }),
     timeEnd: (0, import_fields11.integer)({ validation: { isRequired: true } }),
-    veterinary: (0, import_fields11.relationship)({
-      ref: "Veterinary.veterinary_schedules"
-    }),
-    pet_shelter: (0, import_fields11.relationship)({
-      ref: "PetShelter.pet_shelter_schedules"
+    pet_place: (0, import_fields11.relationship)({
+      ref: "PetPlace.pet_place_schedules"
     }),
     createdAt: (0, import_fields11.timestamp)({
       defaultValue: {
         kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
@@ -519,8 +568,8 @@ var dayNames = {
   6: "S\xE1bado" /* SAB */
 };
 
-// models/Veterinary/Veterinary.ts
-var Veterinary_default = (0, import_core12.list)({
+// models/PetPlace/PetPlace.ts
+var PetPlace_default = (0, import_core12.list)({
   access: access_default,
   fields: {
     name: (0, import_fields12.text)({ validation: { isRequired: true } }),
@@ -535,8 +584,12 @@ var Veterinary_default = (0, import_core12.list)({
     lat: (0, import_fields12.text)(),
     lng: (0, import_fields12.text)(),
     views: (0, import_fields12.integer)(),
+    type: (0, import_fields12.select)({
+      defaultValue: "veterinary",
+      options: types_pet_shelter
+    }),
     services: (0, import_fields12.relationship)({
-      ref: "VeterinaryService",
+      ref: "PetPlaceService",
       many: true
     }),
     user: (0, import_fields12.relationship)({
@@ -550,7 +603,7 @@ var Veterinary_default = (0, import_core12.list)({
           const today = /* @__PURE__ */ new Date();
           const schedules = await context.query.Schedule.findMany({
             where: {
-              veterinary: {
+              pet_place: {
                 id: {
                   equals: item.id
                 }
@@ -574,20 +627,24 @@ var Veterinary_default = (0, import_core12.list)({
         }
       })
     }),
-    veterinary_social_media: (0, import_fields12.relationship)({
-      ref: "SocialMedia.veterinary",
+    pet_place_social_media: (0, import_fields12.relationship)({
+      ref: "SocialMedia.pet_place",
       many: true
     }),
-    veterinary_likes: (0, import_fields12.relationship)({
-      ref: "VeterinaryLike.veterinary",
+    pet_place_likes: (0, import_fields12.relationship)({
+      ref: "PetPlaceLike.pet_place",
       many: true
     }),
-    veterinary_schedules: (0, import_fields12.relationship)({
-      ref: "Schedule.veterinary",
+    pet_place_schedules: (0, import_fields12.relationship)({
+      ref: "Schedule.pet_place",
       many: true
     }),
-    veterinary_reviews: (0, import_fields12.relationship)({
-      ref: "Review.veterinary",
+    pet_place_reviews: (0, import_fields12.relationship)({
+      ref: "Review.pet_place",
+      many: true
+    }),
+    pet_place_ads: (0, import_fields12.relationship)({
+      ref: "Ad.pet_place",
       many: true
     }),
     address: (0, import_fields12.text)(),
@@ -599,23 +656,27 @@ var Veterinary_default = (0, import_core12.list)({
     createdAt: (0, import_fields12.timestamp)({
       defaultValue: {
         kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
 });
 
-// models/Veterinary/VeterinaryLike/VeterinaryLike.ts
+// models/PetPlace/PetPlaceLike/PetPlaceLike.ts
 var import_core13 = require("@keystone-6/core");
 var import_fields13 = require("@keystone-6/core/fields");
-var VeterinaryLike_default = (0, import_core13.list)({
+var PetPlaceLike_default = (0, import_core13.list)({
   access: access_default,
   fields: {
     user: (0, import_fields13.relationship)({
       ref: "User",
       many: false
     }),
-    veterinary: (0, import_fields13.relationship)({
-      ref: "Veterinary.veterinary_likes"
+    pet_place: (0, import_fields13.relationship)({
+      ref: "PetPlace.pet_place_likes"
     }),
     createdAt: (0, import_fields13.timestamp)({
       defaultValue: {
@@ -625,10 +686,10 @@ var VeterinaryLike_default = (0, import_core13.list)({
   }
 });
 
-// models/Veterinary/VeterinaryService/VeterinaryService.ts
+// models/PetPlace/PetPlaceService/PetPlaceService.ts
 var import_core14 = require("@keystone-6/core");
 var import_fields14 = require("@keystone-6/core/fields");
-var VeterinaryService_default = (0, import_core14.list)({
+var PetPlaceService_default = (0, import_core14.list)({
   access: access_default,
   fields: {
     name: (0, import_fields14.text)(),
@@ -656,15 +717,16 @@ var SocialMedia_default = (0, import_core15.list)({
     link: (0, import_fields15.text)({
       validation: { isRequired: true }
     }),
-    veterinary: (0, import_fields15.relationship)({
-      ref: "Veterinary.veterinary_social_media"
-    }),
-    pet_shelter: (0, import_fields15.relationship)({
-      ref: "PetShelter.pet_shelter_social_media"
+    pet_place: (0, import_fields15.relationship)({
+      ref: "PetPlace.pet_place_social_media"
     }),
     createdAt: (0, import_fields15.timestamp)({
       defaultValue: {
         kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
@@ -678,11 +740,8 @@ var Review_default = (0, import_core16.list)({
   fields: {
     rating: (0, import_fields16.integer)(),
     review: (0, import_fields16.text)(),
-    veterinary: (0, import_fields16.relationship)({
-      ref: "Veterinary.veterinary_reviews"
-    }),
-    pet_shelter: (0, import_fields16.relationship)({
-      ref: "PetShelter.pet_shelter_reviews"
+    pet_place: (0, import_fields16.relationship)({
+      ref: "PetPlace.pet_place_reviews"
     }),
     product: (0, import_fields16.relationship)({
       ref: "Product.product_reviews"
@@ -696,6 +755,10 @@ var Review_default = (0, import_core16.list)({
     createdAt: (0, import_fields16.timestamp)({
       defaultValue: {
         kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
@@ -710,118 +773,78 @@ var dayNames2 = {
   6: "S\xE1bado" /* SAB */
 };
 
-// models/PetShelter/PetShelter.ts
+// models/Store/Product/Product.ts
 var import_core17 = require("@keystone-6/core");
 var import_fields17 = require("@keystone-6/core/fields");
-var PetShelter_default = (0, import_core17.list)({
+var Product_default = (0, import_core17.list)({
   access: access_default,
   fields: {
     name: (0, import_fields17.text)({ validation: { isRequired: true } }),
+    price: (0, import_fields17.integer)({ validation: { isRequired: true } }),
     description: (0, import_fields17.text)({ validation: { isRequired: true } }),
-    phone: (0, import_fields17.text)({
-      hooks: phoneHooks
+    category: (0, import_fields17.select)({
+      validation: { isRequired: true },
+      options: product_categories
     }),
-    website: (0, import_fields17.text)(),
-    street: (0, import_fields17.text)(),
-    municipality: (0, import_fields17.text)(),
-    state: (0, import_fields17.text)(),
-    country: (0, import_fields17.text)(),
-    cp: (0, import_fields17.text)(),
-    lat: (0, import_fields17.text)(),
-    lng: (0, import_fields17.text)(),
-    views: (0, import_fields17.integer)(),
-    user: (0, import_fields17.relationship)({
-      ref: "User",
-      many: false
+    brand: (0, import_fields17.select)({
+      validation: { isRequired: true },
+      options: brands
     }),
-    isOpen: (0, import_fields17.virtual)({
-      field: import_core17.graphql.field({
-        type: import_core17.graphql.Boolean,
-        async resolve(item, args, context) {
-          const today = /* @__PURE__ */ new Date();
-          const schedules = await context.query.Schedule.findMany({
-            where: {
-              pet_shelter: {
-                id: {
-                  equals: item.id
-                }
-              }
-            },
-            query: "day timeIni timeEnd"
-          });
-          if (schedules.length == 0)
-            return false;
-          let isInRange = schedules.some((e) => {
-            if (e.day === dayNames[today.getDay()]) {
-              if (today.getHours() >= e.timeIni && today.getHours() <= e.timeEnd) {
-                return true;
-              } else {
-                return false;
-              }
-            }
-            return false;
-          });
-          return isInRange;
-        }
-      })
+    type: (0, import_fields17.select)({
+      validation: { isRequired: true },
+      options: animal_type_options
     }),
-    pet_shelter_social_media: (0, import_fields17.relationship)({
-      ref: "SocialMedia.pet_shelter",
+    product_reviews: (0, import_fields17.relationship)({
+      ref: "Review.product",
       many: true
     }),
-    pet_shelter_schedules: (0, import_fields17.relationship)({
-      ref: "Schedule.pet_shelter",
-      many: true
-    }),
-    pet_shelter_reviews: (0, import_fields17.relationship)({
-      ref: "Review.pet_shelter",
+    product_ads: (0, import_fields17.relationship)({
+      ref: "Ad.product",
       many: true
     }),
     createdAt: (0, import_fields17.timestamp)({
       defaultValue: {
         kind: "now"
-      }
-    })
-  }
-});
-
-// models/Store/Product/Product.ts
-var import_core18 = require("@keystone-6/core");
-var import_fields18 = require("@keystone-6/core/fields");
-var Product_default = (0, import_core18.list)({
-  access: access_default,
-  fields: {
-    name: (0, import_fields18.text)({ validation: { isRequired: true } }),
-    price: (0, import_fields18.integer)({ validation: { isRequired: true } }),
-    description: (0, import_fields18.text)({ validation: { isRequired: true } }),
-    category: (0, import_fields18.select)({
-      validation: { isRequired: true },
-      options: product_categories
-    }),
-    brand: (0, import_fields18.select)({
-      validation: { isRequired: true },
-      options: brands
-    }),
-    type: (0, import_fields18.select)({
-      validation: { isRequired: true },
-      options: animal_type_options
-    }),
-    product_reviews: (0, import_fields18.relationship)({
-      ref: "Review.product",
-      many: true
-    }),
-    createdAt: (0, import_fields18.timestamp)({
-      defaultValue: {
-        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
 });
 
 // models/Store/WishList/WishList.ts
+var import_core18 = require("@keystone-6/core");
+var import_fields18 = require("@keystone-6/core/fields");
+var WishList_default = (0, import_core18.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields18.text)({ validation: { isRequired: true } }),
+    user: (0, import_fields18.relationship)({
+      ref: "User",
+      many: false
+    }),
+    product: (0, import_fields18.relationship)({
+      ref: "Product",
+      many: true
+    }),
+    createdAt: (0, import_fields18.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Store/Cart/Cart.ts
 var import_core19 = require("@keystone-6/core");
 var import_fields19 = require("@keystone-6/core/fields");
-var WishList_default = (0, import_core19.list)({
+var Cart_default = (0, import_core19.list)({
   access: access_default,
   fields: {
     name: (0, import_fields19.text)({ validation: { isRequired: true } }),
@@ -836,79 +859,64 @@ var WishList_default = (0, import_core19.list)({
     createdAt: (0, import_fields19.timestamp)({
       defaultValue: {
         kind: "now"
-      }
-    })
-  }
-});
-
-// models/Store/Cart/Cart.ts
-var import_core20 = require("@keystone-6/core");
-var import_fields20 = require("@keystone-6/core/fields");
-var Cart_default = (0, import_core20.list)({
-  access: access_default,
-  fields: {
-    name: (0, import_fields20.text)({ validation: { isRequired: true } }),
-    user: (0, import_fields20.relationship)({
-      ref: "User",
-      many: false
-    }),
-    product: (0, import_fields20.relationship)({
-      ref: "Product",
-      many: true
-    }),
-    createdAt: (0, import_fields20.timestamp)({
-      defaultValue: {
-        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
 });
 
 // models/Store/Order/Order.ts
-var import_core21 = require("@keystone-6/core");
-var import_fields21 = require("@keystone-6/core/fields");
-var Order_default = (0, import_core21.list)({
+var import_core20 = require("@keystone-6/core");
+var import_fields20 = require("@keystone-6/core/fields");
+var Order_default = (0, import_core20.list)({
   access: access_default,
   fields: {
-    total: (0, import_fields21.integer)(),
-    status: (0, import_fields21.select)({ validation: { isRequired: true }, options: order_status }),
-    cart: (0, import_fields21.relationship)({
+    total: (0, import_fields20.integer)(),
+    status: (0, import_fields20.select)({ validation: { isRequired: true }, options: order_status }),
+    cart: (0, import_fields20.relationship)({
       ref: "Cart",
       many: false
     }),
-    user: (0, import_fields21.relationship)({
+    user: (0, import_fields20.relationship)({
       ref: "User",
       many: false
     }),
-    payment: (0, import_fields21.relationship)({
+    payment: (0, import_fields20.relationship)({
       ref: "Payment.order_payment",
       many: false
     }),
-    createdAt: (0, import_fields21.timestamp)({
+    createdAt: (0, import_fields20.timestamp)({
       defaultValue: {
         kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
 });
 
 // models/Store/Payment/Payment.ts
-var import_fields22 = require("@keystone-6/core/fields");
-var import_core22 = require("@keystone-6/core");
-var Payment_default = (0, import_core22.list)({
+var import_fields21 = require("@keystone-6/core/fields");
+var import_core21 = require("@keystone-6/core");
+var Payment_default = (0, import_core21.list)({
   access: access_default,
   fields: {
-    order_payment: (0, import_fields22.relationship)({
+    order_payment: (0, import_fields21.relationship)({
       ref: "Order.payment"
     }),
-    paymentMethod: (0, import_fields22.relationship)({
+    paymentMethod: (0, import_fields21.relationship)({
       ref: "PaymentMethod.payment"
     }),
-    amount: (0, import_fields22.decimal)({
+    amount: (0, import_fields21.decimal)({
       scale: 6,
       defaultValue: "0.000000"
     }),
-    status: (0, import_fields22.select)({
+    status: (0, import_fields21.select)({
       type: "enum",
       validation: {
         isRequired: true
@@ -923,15 +931,62 @@ var Payment_default = (0, import_core22.list)({
         { label: "Devuelto", value: "refunded" }
       ]
     }),
-    processorStripeChargeId: (0, import_fields22.text)(),
-    stripeErrorMessage: (0, import_fields22.text)({
+    processorStripeChargeId: (0, import_fields21.text)(),
+    stripeErrorMessage: (0, import_fields21.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    processorRefundId: (0, import_fields22.text)(),
+    processorRefundId: (0, import_fields21.text)(),
+    createdAt: (0, import_fields21.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields21.timestamp)({
+      defaultValue: { kind: "now" },
+      db: { updatedAt: true }
+    })
+  }
+});
+
+// models/Store/PaymentMethod/PaymentMethod.ts
+var import_fields22 = require("@keystone-6/core/fields");
+var import_core22 = require("@keystone-6/core");
+var PaymentMethod_default = (0, import_core22.list)({
+  access: access_default,
+  fields: {
+    user: (0, import_fields22.relationship)({
+      ref: "User"
+    }),
+    cardType: (0, import_fields22.text)(),
+    isDefault: (0, import_fields22.checkbox)(),
+    lastFourDigits: (0, import_fields22.text)(),
+    expMonth: (0, import_fields22.text)(),
+    expYear: (0, import_fields22.text)(),
+    stripeProcessorId: (0, import_fields22.text)(),
+    address: (0, import_fields22.text)(),
+    postalCode: (0, import_fields22.text)(),
+    ownerName: (0, import_fields22.text)(),
+    country: (0, import_fields22.text)(),
+    // Two-letter country code (ISO 3166-1 alpha-2).
+    payment: (0, import_fields22.relationship)({
+      ref: "Payment.paymentMethod",
+      many: true
+    }),
+    type: (0, import_fields22.select)({ options: payment_types }),
     createdAt: (0, import_fields22.timestamp)({
-      defaultValue: { kind: "now" }
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
     updatedAt: (0, import_fields22.timestamp)({
       defaultValue: { kind: "now" },
@@ -940,44 +995,9 @@ var Payment_default = (0, import_core22.list)({
   }
 });
 
-// models/Store/PaymentMethod/PaymentMethod.ts
+// models/TokenNotification/TokenNotification.ts
 var import_fields23 = require("@keystone-6/core/fields");
 var import_core23 = require("@keystone-6/core");
-var PaymentMethod_default = (0, import_core23.list)({
-  access: access_default,
-  fields: {
-    user: (0, import_fields23.relationship)({
-      ref: "User"
-    }),
-    cardType: (0, import_fields23.text)(),
-    isDefault: (0, import_fields23.checkbox)(),
-    lastFourDigits: (0, import_fields23.text)(),
-    expMonth: (0, import_fields23.text)(),
-    expYear: (0, import_fields23.text)(),
-    stripeProcessorId: (0, import_fields23.text)(),
-    address: (0, import_fields23.text)(),
-    postalCode: (0, import_fields23.text)(),
-    ownerName: (0, import_fields23.text)(),
-    country: (0, import_fields23.text)(),
-    // Two-letter country code (ISO 3166-1 alpha-2).
-    payment: (0, import_fields23.relationship)({
-      ref: "Payment.paymentMethod",
-      many: true
-    }),
-    type: (0, import_fields23.select)({ options: payment_types }),
-    createdAt: (0, import_fields23.timestamp)({
-      defaultValue: { kind: "now" }
-    }),
-    updatedAt: (0, import_fields23.timestamp)({
-      defaultValue: { kind: "now" },
-      db: { updatedAt: true }
-    })
-  }
-});
-
-// models/TokenNotification/TokenNotification.ts
-var import_fields24 = require("@keystone-6/core/fields");
-var import_core24 = require("@keystone-6/core");
 
 // models/TokenNotification/TokenNotification.hooks.ts
 var hooks = {
@@ -1017,18 +1037,64 @@ var hooks = {
 var TokenNotification_hooks_default = { hooks };
 
 // models/TokenNotification/TokenNotification.ts
-var TokenNotification_default = (0, import_core24.list)({
+var TokenNotification_default = (0, import_core23.list)({
   access: access_default,
   hooks: TokenNotification_hooks_default.hooks,
   fields: {
-    token: (0, import_fields24.text)({
+    token: (0, import_fields23.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
+    user: (0, import_fields23.relationship)({
+      ref: "User",
+      many: false
+    })
+  }
+});
+
+// models/Ad/Ad.ts
+var import_core24 = require("@keystone-6/core");
+var import_fields24 = require("@keystone-6/core/fields");
+var Ad_default = (0, import_core24.list)({
+  access: access_default,
+  fields: {
+    title: (0, import_fields24.text)(),
+    description: (0, import_fields24.text)({
+      ui: {
+        displayMode: "textarea"
+      }
+    }),
+    active: (0, import_fields24.checkbox)(),
+    start_date: (0, import_fields24.calendarDay)(),
+    end_date: (0, import_fields24.calendarDay)(),
+    price: (0, import_fields24.integer)(),
+    type: (0, import_fields24.select)({
+      options: types_ad
+    }),
+    lat: (0, import_fields24.text)(),
+    lng: (0, import_fields24.text)(),
+    image: (0, import_fields24.image)({
+      storage: "s3_files"
+    }),
+    pet_place: (0, import_fields24.relationship)({
+      ref: "PetPlace.pet_place_ads"
+    }),
+    product: (0, import_fields24.relationship)({
+      ref: "Product.product_ads"
+    }),
     user: (0, import_fields24.relationship)({
       ref: "User",
       many: false
+    }),
+    createdAt: (0, import_fields24.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     })
   }
 });
@@ -1045,20 +1111,20 @@ var schema_default = {
   AnimalBreed: AnimalBreed_default,
   Pet: Pet_default,
   PetMultimedia: PetMultimedia_default,
-  Veterinary: Veterinary_default,
-  VeterinaryLike: VeterinaryLike_default,
-  VeterinaryService: VeterinaryService_default,
+  PetPlace: PetPlace_default,
+  PetPlaceLike: PetPlaceLike_default,
+  PetPlaceService: PetPlaceService_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
   Review: Review_default,
-  PetShelter: PetShelter_default,
   Product: Product_default,
   WishList: WishList_default,
   Cart: Cart_default,
   Order: Order_default,
   Payment: Payment_default,
   PaymentMethod: PaymentMethod_default,
-  TokenNotification: TokenNotification_default
+  TokenNotification: TokenNotification_default,
+  Ad: Ad_default
 };
 
 // keystone.ts
@@ -1161,27 +1227,27 @@ var resolver = {
 };
 var customAuth_default = { typeDefs, definition, resolver };
 
-// graphql/customs/mutations/importVeterinary.ts
+// graphql/customs/mutations/importPetPlace.ts
 var typeDefs2 = `
-  input ImportVeterinaryInput {
+  input ImportPetPlaceInput {
     inputValue: String!
   }
   
-  type ImportVeterinaryResult {
+  type ImportPetPlaceResult {
     success: Boolean!
     message: String!
     result: String
   }
   
   type Mutation {
-    executeImportVeterinary(input: ImportVeterinaryInput!): ImportVeterinaryResult!
+    executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
   }
 `;
 var definition2 = `
-  executeImportVeterinary(input: ImportVeterinaryInput!): ImportVeterinaryResult!
+  executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
 `;
 var resolver2 = {
-  executeImportVeterinary: async (root, { input }, context) => {
+  executeImportPetPlace: async (root, { input }, context) => {
     try {
       console.log("Ejecutando importaci\xF3n de veterinarias con datos:", input.inputValue);
       const result = await importVeterinaries(input.inputValue, context);
@@ -1214,6 +1280,7 @@ async function importVeterinaries(city, context) {
     let errors = [];
     let page = 0;
     let nextPageToken = void 0;
+    let maxPagesToSearch = 1;
     do {
       if (page > 0 && nextPageToken) {
         const waitSeconds = 5;
@@ -1246,7 +1313,7 @@ async function importVeterinaries(city, context) {
               const rating = place.rating || 0;
               const userRatingsTotal = place.user_ratings_total || 0;
               const placeId = place.place_id || "";
-              const existingVeterinary = await context.sudo().query.Veterinary.findOne({
+              const existingVeterinary = await context.sudo().query.PetPlace.findOne({
                 where: { google_place_id: placeId },
                 query: "id"
               });
@@ -1254,10 +1321,11 @@ async function importVeterinaries(city, context) {
                 console.log(`Veterinaria con placeId ${placeId} ya registrada, se omite.`);
                 continue;
               }
-              const result = await context.sudo().query.Veterinary.createOne({
+              const result = await context.sudo().query.PetPlace.createOne({
                 data: {
                   name: place.name,
                   description: `Veterinaria ubicada en ${address}. ${rating > 0 ? `Calificaci\xF3n: ${rating}/5 (${userRatingsTotal} rese\xF1as)` : ""}`,
+                  type: "veterinary",
                   phone: "",
                   website: "",
                   street: "",
@@ -1290,7 +1358,7 @@ async function importVeterinaries(city, context) {
                     }
                     if (Object.keys(updateData).length > 0) {
                       try {
-                        await context.sudo().query.Veterinary.updateOne({
+                        await context.sudo().query.PetPlace.updateOne({
                           where: { id: result.id },
                           data: updateData
                         });
@@ -1312,7 +1380,7 @@ async function importVeterinaries(city, context) {
                               createdAt,
                               google_user: review.author_name || "",
                               google_user_photo: review.profile_photo_url || "",
-                              veterinary: { connect: { id: result.id } }
+                              pet_place: { connect: { id: result.id } }
                             }
                           });
                         } catch (reviewError) {
@@ -1339,7 +1407,7 @@ async function importVeterinaries(city, context) {
         console.error("Error al llamar a la API de Google Places:", apiError);
         break;
       }
-    } while (nextPageToken && page < 3);
+    } while (nextPageToken && page < maxPagesToSearch);
     let resultMessage = `Importaci\xF3n completada. ${importedCount} veterinarias importadas exitosamente.`;
     if (errors.length > 0) {
       resultMessage += `
@@ -1355,7 +1423,7 @@ ${errors.join("\n")}`;
     throw error;
   }
 }
-var importVeterinary_default = {
+var importPetPlace_default = {
   typeDefs: typeDefs2,
   definition: definition2,
   resolver: resolver2
@@ -1365,15 +1433,15 @@ var importVeterinary_default = {
 var customMutation = {
   typeDefs: `
     ${customAuth_default.typeDefs}
-    ${importVeterinary_default.typeDefs}
+    ${importPetPlace_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
-    ${importVeterinary_default.definition}
+    ${importPetPlace_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
-    ...importVeterinary_default.resolver
+    ...importPetPlace_default.resolver
   }
 };
 var mutations_default = customMutation;

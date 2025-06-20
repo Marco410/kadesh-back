@@ -25,16 +25,17 @@ export default list({
     }),
     timeIni: integer({ validation: { isRequired: true } }),
     timeEnd: integer({ validation: { isRequired: true } }),
-    veterinary: relationship({
-      ref: "Veterinary.veterinary_schedules",
-    }),
-    pet_shelter: relationship({
-      ref: "PetShelter.pet_shelter_schedules",
+    pet_place: relationship({
+      ref: "PetPlace.pet_place_schedules",
     }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
       },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
   },
 });

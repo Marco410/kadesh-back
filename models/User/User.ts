@@ -8,6 +8,7 @@ import {
   calendarDay,
   image,
   checkbox,
+  relationship,
 } from "@keystone-6/core/fields";
 import { emailHooks, phoneHooks, userNameHook } from "./User.hooks";
 import access from "../../utils/generalAccess/access";
@@ -74,6 +75,10 @@ export default list({
       defaultValue: {
         kind: "now",
       },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
   },
 });
