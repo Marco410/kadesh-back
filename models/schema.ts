@@ -2,7 +2,7 @@ import Animal from "./Animal/Animal";
 import AnimalType from "./Animal/AnimalType/AnimalType";
 import AnimalMultimedia from "./Animal/AnimalMultimedia/AnimalMultimedia";
 import AnimalFavorite from "./Animal/AnimalFavorite/AnimalFavorite";
-import AnimalHistory from "./Animal/AnimalHistory/AnimalHistory";
+import AnimalLog from "./Animal/AnimalLog/AnimalLog";
 import AnimalComment from "./Animal/AnimalComment/AnimalComment";
 import User from "./User/User";
 import AnimalBreed from "./Animal/AnimalBreed/AnimalBreed";
@@ -29,7 +29,7 @@ export default {
   AnimalType,
   AnimalMultimedia,
   AnimalFavorite,
-  AnimalHistory,
+  AnimalLog,
   AnimalComment,
   AnimalBreed,
   Pet,

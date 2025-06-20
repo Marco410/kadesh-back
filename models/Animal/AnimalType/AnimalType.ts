@@ -1,7 +1,7 @@
 import { list } from "@keystone-6/core";
 import { integer, relationship, select } from "@keystone-6/core/fields";
 import {
-  animal_type_options,
+  ANIMAL_TYPE_OPTIONS,
   AnimalTypes,
 } from "../../../utils/constants/constants";
 import access from "../../../utils/generalAccess/access";
@@ -11,7 +11,7 @@ export default list({
   fields: {
     name: select({
       defaultValue: AnimalTypes.DOG,
-      options: animal_type_options,
+      options: ANIMAL_TYPE_OPTIONS,
       isIndexed: "unique",
       validation: { isRequired: true },
     }),

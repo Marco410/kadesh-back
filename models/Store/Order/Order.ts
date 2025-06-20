@@ -7,13 +7,13 @@ import {
   timestamp,
 } from "@keystone-6/core/fields";
 import access from "../../../utils/generalAccess/access";
-import { order_status } from "../../../utils/constants/constants";
+import { ORDER_STATUS } from "../../../utils/constants/constants";
 
 export default list({
   access,
   fields: {
     total: integer(),
-    status: select({ validation: { isRequired: true }, options: order_status }),
+    status: select({ validation: { isRequired: true }, options: ORDER_STATUS }),
     cart: relationship({
       ref: "Cart",
       many: false,

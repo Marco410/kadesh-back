@@ -7,17 +7,17 @@ import {
   timestamp,
 } from "@keystone-6/core/fields";
 import access from "../../../utils/generalAccess/access";
-import { animal_history_options } from "../../../utils/constants/constants";
+import { ANIMAL_LOGS_OPTIONS } from "../../../utils/constants/constants";
 
 export default list({
   access,
   fields: {
     animal: relationship({
-      ref: "Animal.history",
+      ref: "Animal.logs",
     }),
     status: select({
       defaultValue: "Registrado",
-      options: animal_history_options,
+      options: ANIMAL_LOGS_OPTIONS,
     }),
     notes: text({
       ui: { displayMode: "textarea" },

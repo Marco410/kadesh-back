@@ -8,9 +8,9 @@ import {
 } from "@keystone-6/core/fields";
 import access from "../../../utils/generalAccess/access";
 import {
-  animal_type_options,
-  brands,
-  product_categories,
+  ANIMAL_TYPE_OPTIONS,
+  BRANDS,
+  PRODUCT_CATEGORIES,
 } from "../../../utils/constants/constants";
 
 export default list({
@@ -21,15 +21,15 @@ export default list({
     description: text({ validation: { isRequired: true } }),
     category: select({
       validation: { isRequired: true },
-      options: product_categories,
+      options: PRODUCT_CATEGORIES,
     }),
     brand: select({
       validation: { isRequired: true },
-      options: brands,
+      options: BRANDS,
     }),
     type: select({
       validation: { isRequired: true },
-      options: animal_type_options,
+      options: ANIMAL_TYPE_OPTIONS,
     }),
     product_reviews: relationship({
       ref: "Review.product",

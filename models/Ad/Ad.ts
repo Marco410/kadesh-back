@@ -11,7 +11,7 @@ import {
   timestamp,
 } from "@keystone-6/core/fields";
 import access from "../../utils/generalAccess/access";
-import { types_ad } from "../../utils/constants/constants";
+import { STATUS_AD, TYPES_AD } from "../../utils/constants/constants";
 
 export default list({
   access,
@@ -26,8 +26,11 @@ export default list({
     start_date: calendarDay(),
     end_date: calendarDay(),
     price: integer(),
+    status: select({
+      options: STATUS_AD,
+    }),
     type: select({
-      options: types_ad,
+      options: TYPES_AD,
     }),
     lat: text(),
     lng: text(),

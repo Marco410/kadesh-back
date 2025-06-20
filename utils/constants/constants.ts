@@ -17,7 +17,7 @@ export enum AnimalTypes {
   MAMMAL = "mammal",
 }
 
-export const animal_type_options = [
+export const ANIMAL_TYPE_OPTIONS = [
   { label: "Perro", value: AnimalTypes.DOG },
   { label: "Gato", value: AnimalTypes.CAT },
   { label: "Ave", value: AnimalTypes.BIRD },
@@ -26,7 +26,7 @@ export const animal_type_options = [
   { label: "Mamífero", value: AnimalTypes.MAMMAL },
 ];
 
-export const dogBreeds: string[] = [
+export const DOG_BREEDS: string[] = [
   "Mestizo",
   "Sin Asignar",
   "Affenpinscher",
@@ -245,7 +245,7 @@ export const dogBreeds: string[] = [
   "Yorkshire Terrier",
 ];
 
-export const catBreeds: string[] = [
+export const CAT_BREEDS: string[] = [
   "Mestizo",
   "Sin Asignar",
   "Doméstico",
@@ -261,7 +261,7 @@ export const catBreeds: string[] = [
   "Siamés",
 ];
 
-export const fishBreeds: string[] = [
+export const FISH_BREEDS: string[] = [
   "Sin Asignar",
   "Albonube",
   "Anémona",
@@ -354,7 +354,7 @@ export const fishBreeds: string[] = [
   "Wrasse",
 ];
 
-export const birdBreeds: string[] = [
+export const BIRD_BREEDS: string[] = [
   "Sin Asignar",
   "Agapornis",
   "Agapornis Fisheri",
@@ -405,7 +405,7 @@ export const birdBreeds: string[] = [
   "Tucán",
 ];
 
-export const reptilBreeds: string[] = [
+export const REPTIL_BREEDS: string[] = [
   "Sin Asignar",
   "Ameiva Verde",
   "Anolis",
@@ -435,7 +435,7 @@ export const reptilBreeds: string[] = [
   "Tortuga",
 ];
 
-export const mammalBreeds: string[] = [
+export const MAMMAL_BREEDS: string[] = [
   "Ardilla",
   "Cerdo Vietnamita",
   "Chinchilla",
@@ -452,7 +452,7 @@ export const mammalBreeds: string[] = [
   "Ratón",
 ];
 
-export const animal_history_options = [
+export const ANIMAL_LOGS_OPTIONS = [
   {
     label: "Registrado",
     value: "register",
@@ -475,17 +475,17 @@ export const animal_history_options = [
   },
 ];
 
-export const product_categories = [
+export const PRODUCT_CATEGORIES = [
   { label: "Croquetas", value: "croquetas" },
   { label: "Limpieza", value: "limpieza" },
 ];
 
-export const brands = [
+export const BRANDS = [
   { label: "Purina", value: "purina" },
   { label: "DogShow", value: "dogshow" },
 ];
 
-export const order_status = [
+export const ORDER_STATUS = [
   { label: "Pendiente", value: "pending" },
   { label: "Preparando", value: "preparing" },
   { label: "Validando", value: "validating" },
@@ -494,14 +494,14 @@ export const order_status = [
   { label: "Completada", value: "completed" },
 ];
 
-export const payment_types = [
+export const PAYMENT_TYPES = [
   { label: "Tarjeta débito", value: "debit" },
   { label: "Tarjeta crédito", value: "credit" },
   { label: "Transferencia", value: "transfer" },
   { label: "Stripe", value: "stripe" },
 ];
 
-export const types_pet_shelter = [
+export const TYPES_PET_SHELTER = [
   {
     label: "Veterinaria",
     value: "veterinary",
@@ -524,7 +524,7 @@ export const types_pet_shelter = [
   },
 ];
 
-export const types_ad = [
+export const TYPES_AD = [
   {
     label: "Producto",
     value: "product",
@@ -538,4 +538,19 @@ export const types_ad = [
     value: "service",
   },
   
+];
+
+export const STATUS_AD = [
+  {
+    label: "Pendiente",
+    value: "pending",
+  },
+  {
+    label: "Aprobado",
+    value: "approved",
+  },
+  {
+    label: "Rechazado",
+    value: "rejected",
+  }
 ];

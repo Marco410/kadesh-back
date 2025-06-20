@@ -1,12 +1,12 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import {
   AnimalTypes,
-  birdBreeds,
-  catBreeds,
-  dogBreeds,
-  fishBreeds,
-  mammalBreeds,
-  reptilBreeds,
+  BIRD_BREEDS,
+  CAT_BREEDS,
+  DOG_BREEDS,
+  FISH_BREEDS,
+  MAMMAL_BREEDS,
+  REPTIL_BREEDS,
 } from "../../utils/constants/constants";
 export async function createAnimalTypes(context: KeystoneContext) {
   const existingTypes = await context.sudo().query.AnimalType.findMany();
@@ -18,28 +18,28 @@ export async function createAnimalTypes(context: KeystoneContext) {
     {
       name: AnimalTypes.DOG,
       order: 1,
-      breeds: dogBreeds,
+      breeds: DOG_BREEDS,
     },
     {
       name: AnimalTypes.CAT,
       order: 2,
-      breeds: catBreeds,
+      breeds: CAT_BREEDS,
     },
-    { name: AnimalTypes.BIRD, order: 3, breeds: birdBreeds },
+    { name: AnimalTypes.BIRD, order: 3, breeds: BIRD_BREEDS },
     {
       name: AnimalTypes.FISH,
       order: 4,
-      breeds: fishBreeds,
+      breeds: FISH_BREEDS,
     },
     {
       name: AnimalTypes.REPTIL,
       order: 5,
-      breeds: reptilBreeds,
+      breeds: REPTIL_BREEDS,
     },
     {
       name: AnimalTypes.MAMMAL,
       order: 6,
-      breeds: mammalBreeds,
+      breeds: MAMMAL_BREEDS,
     },
   ];
 

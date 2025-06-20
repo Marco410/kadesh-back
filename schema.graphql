@@ -228,8 +228,8 @@ type Animal {
   user: User
   multimedia(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
   multimediaCount(where: AnimalMultimediaWhereInput! = {}): Int
-  history(where: AnimalHistoryWhereInput! = {}, orderBy: [AnimalHistoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalHistoryWhereUniqueInput): [AnimalHistory!]
-  historyCount(where: AnimalHistoryWhereInput! = {}): Int
+  logs(where: AnimalLogWhereInput! = {}, orderBy: [AnimalLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalLogWhereUniqueInput): [AnimalLog!]
+  logsCount(where: AnimalLogWhereInput! = {}): Int
   createdAt: DateTime
 }
 
@@ -247,7 +247,7 @@ input AnimalWhereInput {
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
   multimedia: AnimalMultimediaManyRelationFilter
-  history: AnimalHistoryManyRelationFilter
+  logs: AnimalLogManyRelationFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -257,10 +257,10 @@ input AnimalMultimediaManyRelationFilter {
   none: AnimalMultimediaWhereInput
 }
 
-input AnimalHistoryManyRelationFilter {
-  every: AnimalHistoryWhereInput
-  some: AnimalHistoryWhereInput
-  none: AnimalHistoryWhereInput
+input AnimalLogManyRelationFilter {
+  every: AnimalLogWhereInput
+  some: AnimalLogWhereInput
+  none: AnimalLogWhereInput
 }
 
 input AnimalOrderByInput {
@@ -275,7 +275,7 @@ input AnimalUpdateInput {
   animal_breed: AnimalBreedRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
   multimedia: AnimalMultimediaRelateToManyForUpdateInput
-  history: AnimalHistoryRelateToManyForUpdateInput
+  logs: AnimalLogRelateToManyForUpdateInput
   createdAt: DateTime
 }
 
@@ -304,11 +304,11 @@ input AnimalMultimediaRelateToManyForUpdateInput {
   connect: [AnimalMultimediaWhereUniqueInput!]
 }
 
-input AnimalHistoryRelateToManyForUpdateInput {
-  disconnect: [AnimalHistoryWhereUniqueInput!]
-  set: [AnimalHistoryWhereUniqueInput!]
-  create: [AnimalHistoryCreateInput!]
-  connect: [AnimalHistoryWhereUniqueInput!]
+input AnimalLogRelateToManyForUpdateInput {
+  disconnect: [AnimalLogWhereUniqueInput!]
+  set: [AnimalLogWhereUniqueInput!]
+  create: [AnimalLogCreateInput!]
+  connect: [AnimalLogWhereUniqueInput!]
 }
 
 input AnimalUpdateArgs {
@@ -322,7 +322,7 @@ input AnimalCreateInput {
   animal_breed: AnimalBreedRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
   multimedia: AnimalMultimediaRelateToManyForCreateInput
-  history: AnimalHistoryRelateToManyForCreateInput
+  logs: AnimalLogRelateToManyForCreateInput
   createdAt: DateTime
 }
 
@@ -346,9 +346,9 @@ input AnimalMultimediaRelateToManyForCreateInput {
   connect: [AnimalMultimediaWhereUniqueInput!]
 }
 
-input AnimalHistoryRelateToManyForCreateInput {
-  create: [AnimalHistoryCreateInput!]
-  connect: [AnimalHistoryWhereUniqueInput!]
+input AnimalLogRelateToManyForCreateInput {
+  create: [AnimalLogCreateInput!]
+  connect: [AnimalLogWhereUniqueInput!]
 }
 
 type AnimalType {
@@ -522,7 +522,7 @@ input AnimalFavoriteCreateInput {
   createdAt: DateTime
 }
 
-type AnimalHistory {
+type AnimalLog {
   id: ID!
   animal: Animal
   status: String
@@ -533,14 +533,14 @@ type AnimalHistory {
   createdAt: DateTime
 }
 
-input AnimalHistoryWhereUniqueInput {
+input AnimalLogWhereUniqueInput {
   id: ID
 }
 
-input AnimalHistoryWhereInput {
-  AND: [AnimalHistoryWhereInput!]
-  OR: [AnimalHistoryWhereInput!]
-  NOT: [AnimalHistoryWhereInput!]
+input AnimalLogWhereInput {
+  AND: [AnimalLogWhereInput!]
+  OR: [AnimalLogWhereInput!]
+  NOT: [AnimalLogWhereInput!]
   id: IDFilter
   animal: AnimalWhereInput
   status: StringNullableFilter
@@ -566,7 +566,7 @@ input StringNullableFilter {
   not: StringNullableFilter
 }
 
-input AnimalHistoryOrderByInput {
+input AnimalLogOrderByInput {
   id: OrderDirection
   status: OrderDirection
   notes: OrderDirection
@@ -576,7 +576,7 @@ input AnimalHistoryOrderByInput {
   createdAt: OrderDirection
 }
 
-input AnimalHistoryUpdateInput {
+input AnimalLogUpdateInput {
   animal: AnimalRelateToOneForUpdateInput
   status: String
   notes: String
@@ -586,12 +586,12 @@ input AnimalHistoryUpdateInput {
   createdAt: DateTime
 }
 
-input AnimalHistoryUpdateArgs {
-  where: AnimalHistoryWhereUniqueInput!
-  data: AnimalHistoryUpdateInput!
+input AnimalLogUpdateArgs {
+  where: AnimalLogWhereUniqueInput!
+  data: AnimalLogUpdateInput!
 }
 
-input AnimalHistoryCreateInput {
+input AnimalLogCreateInput {
   animal: AnimalRelateToOneForCreateInput
   status: String
   notes: String
@@ -1956,6 +1956,7 @@ type Ad {
   start_date: CalendarDay
   end_date: CalendarDay
   price: Int
+  status: String
   type: String
   lat: String
   lng: String
@@ -1981,6 +1982,7 @@ input AdWhereInput {
   start_date: CalendarDayNullableFilter
   end_date: CalendarDayNullableFilter
   price: IntNullableFilter
+  status: StringNullableFilter
   type: StringNullableFilter
   lat: StringFilter
   lng: StringFilter
@@ -1998,6 +2000,7 @@ input AdOrderByInput {
   start_date: OrderDirection
   end_date: OrderDirection
   price: OrderDirection
+  status: OrderDirection
   type: OrderDirection
   lat: OrderDirection
   lng: OrderDirection
@@ -2011,6 +2014,7 @@ input AdUpdateInput {
   start_date: CalendarDay
   end_date: CalendarDay
   price: Int
+  status: String
   type: String
   lat: String
   lng: String
@@ -2033,6 +2037,7 @@ input AdCreateInput {
   start_date: CalendarDay
   end_date: CalendarDay
   price: Int
+  status: String
   type: String
   lat: String
   lng: String
@@ -2079,12 +2084,12 @@ type Mutation {
   updateAnimalFavorites(data: [AnimalFavoriteUpdateArgs!]!): [AnimalFavorite]
   deleteAnimalFavorite(where: AnimalFavoriteWhereUniqueInput!): AnimalFavorite
   deleteAnimalFavorites(where: [AnimalFavoriteWhereUniqueInput!]!): [AnimalFavorite]
-  createAnimalHistory(data: AnimalHistoryCreateInput!): AnimalHistory
-  createAnimalHistories(data: [AnimalHistoryCreateInput!]!): [AnimalHistory]
-  updateAnimalHistory(where: AnimalHistoryWhereUniqueInput!, data: AnimalHistoryUpdateInput!): AnimalHistory
-  updateAnimalHistories(data: [AnimalHistoryUpdateArgs!]!): [AnimalHistory]
-  deleteAnimalHistory(where: AnimalHistoryWhereUniqueInput!): AnimalHistory
-  deleteAnimalHistories(where: [AnimalHistoryWhereUniqueInput!]!): [AnimalHistory]
+  createAnimalLog(data: AnimalLogCreateInput!): AnimalLog
+  createAnimalLogs(data: [AnimalLogCreateInput!]!): [AnimalLog]
+  updateAnimalLog(where: AnimalLogWhereUniqueInput!, data: AnimalLogUpdateInput!): AnimalLog
+  updateAnimalLogs(data: [AnimalLogUpdateArgs!]!): [AnimalLog]
+  deleteAnimalLog(where: AnimalLogWhereUniqueInput!): AnimalLog
+  deleteAnimalLogs(where: [AnimalLogWhereUniqueInput!]!): [AnimalLog]
   createAnimalComment(data: AnimalCommentCreateInput!): AnimalComment
   createAnimalComments(data: [AnimalCommentCreateInput!]!): [AnimalComment]
   updateAnimalComment(where: AnimalCommentWhereUniqueInput!, data: AnimalCommentUpdateInput!): AnimalComment
@@ -2236,9 +2241,9 @@ type Query {
   animalFavorites(where: AnimalFavoriteWhereInput! = {}, orderBy: [AnimalFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalFavoriteWhereUniqueInput): [AnimalFavorite!]
   animalFavorite(where: AnimalFavoriteWhereUniqueInput!): AnimalFavorite
   animalFavoritesCount(where: AnimalFavoriteWhereInput! = {}): Int
-  animalHistories(where: AnimalHistoryWhereInput! = {}, orderBy: [AnimalHistoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalHistoryWhereUniqueInput): [AnimalHistory!]
-  animalHistory(where: AnimalHistoryWhereUniqueInput!): AnimalHistory
-  animalHistoriesCount(where: AnimalHistoryWhereInput! = {}): Int
+  animalLogs(where: AnimalLogWhereInput! = {}, orderBy: [AnimalLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalLogWhereUniqueInput): [AnimalLog!]
+  animalLog(where: AnimalLogWhereUniqueInput!): AnimalLog
+  animalLogsCount(where: AnimalLogWhereInput! = {}): Int
   animalComments(where: AnimalCommentWhereInput! = {}, orderBy: [AnimalCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalCommentWhereUniqueInput): [AnimalComment!]
   animalComment(where: AnimalCommentWhereUniqueInput!): AnimalComment
   animalCommentsCount(where: AnimalCommentWhereInput! = {}): Int

@@ -22,8 +22,8 @@ export default list({
       ref: "AnimalMultimedia.animal",
       many: true,
     }),
-    history: relationship({
-      ref: "AnimalHistory.animal",
+    logs: relationship({
+      ref: "AnimalLog.animal",
       many: true,
     }),
     createdAt: timestamp({
