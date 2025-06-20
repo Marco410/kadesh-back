@@ -7,7 +7,7 @@ import {
 } from "@keystone-6/core/fields";
 import { list } from "@keystone-6/core";
 import access from "../../../utils/generalAccess/access";
-import { payment_types } from "../../../utils/constants/constants";
+import { PAYMENT_TYPES } from "../../../utils/constants/constants";
 
 export default list({
   access,
@@ -30,7 +30,7 @@ export default list({
       ref: "Payment.paymentMethod",
       many: true,
     }),
-    type: select({ options: payment_types }),
+    type: select({ options: PAYMENT_TYPES }),
 
     createdAt: timestamp({
       defaultValue: {

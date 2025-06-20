@@ -80,8 +80,8 @@ var Animal_default = (0, import_core.list)({
       ref: "AnimalMultimedia.animal",
       many: true
     }),
-    history: (0, import_fields.relationship)({
-      ref: "AnimalHistory.animal",
+    logs: (0, import_fields.relationship)({
+      ref: "AnimalLog.animal",
       many: true
     }),
     createdAt: (0, import_fields.timestamp)({
@@ -101,7 +101,7 @@ var import_core2 = require("@keystone-6/core");
 var import_fields2 = require("@keystone-6/core/fields");
 
 // utils/constants/constants.ts
-var animal_type_options = [
+var ANIMAL_TYPE_OPTIONS = [
   { label: "Perro", value: "dog" /* DOG */ },
   { label: "Gato", value: "cat" /* CAT */ },
   { label: "Ave", value: "bird" /* BIRD */ },
@@ -109,7 +109,7 @@ var animal_type_options = [
   { label: "Reptil", value: "reptil" /* REPTIL */ },
   { label: "Mam\xEDfero", value: "mammal" /* MAMMAL */ }
 ];
-var animal_history_options = [
+var ANIMAL_LOGS_OPTIONS = [
   {
     label: "Registrado",
     value: "register"
@@ -131,15 +131,15 @@ var animal_history_options = [
     value: "in_family"
   }
 ];
-var product_categories = [
+var PRODUCT_CATEGORIES = [
   { label: "Croquetas", value: "croquetas" },
   { label: "Limpieza", value: "limpieza" }
 ];
-var brands = [
+var BRANDS = [
   { label: "Purina", value: "purina" },
   { label: "DogShow", value: "dogshow" }
 ];
-var order_status = [
+var ORDER_STATUS = [
   { label: "Pendiente", value: "pending" },
   { label: "Preparando", value: "preparing" },
   { label: "Validando", value: "validating" },
@@ -147,13 +147,13 @@ var order_status = [
   { label: "Cancelada", value: "cancelled" },
   { label: "Completada", value: "completed" }
 ];
-var payment_types = [
+var PAYMENT_TYPES = [
   { label: "Tarjeta d\xE9bito", value: "debit" },
   { label: "Tarjeta cr\xE9dito", value: "credit" },
   { label: "Transferencia", value: "transfer" },
   { label: "Stripe", value: "stripe" }
 ];
-var types_pet_shelter = [
+var TYPES_PET_SHELTER = [
   {
     label: "Veterinaria",
     value: "veterinary"
@@ -175,7 +175,7 @@ var types_pet_shelter = [
     value: "other"
   }
 ];
-var types_ad = [
+var TYPES_AD = [
   {
     label: "Producto",
     value: "product"
@@ -189,6 +189,20 @@ var types_ad = [
     value: "service"
   }
 ];
+var STATUS_AD = [
+  {
+    label: "Pendiente",
+    value: "pending"
+  },
+  {
+    label: "Aprobado",
+    value: "approved"
+  },
+  {
+    label: "Rechazado",
+    value: "rejected"
+  }
+];
 
 // models/Animal/AnimalType/AnimalType.ts
 var AnimalType_default = (0, import_core2.list)({
@@ -196,7 +210,7 @@ var AnimalType_default = (0, import_core2.list)({
   fields: {
     name: (0, import_fields2.select)({
       defaultValue: "dog" /* DOG */,
-      options: animal_type_options,
+      options: ANIMAL_TYPE_OPTIONS,
       isIndexed: "unique",
       validation: { isRequired: true }
     }),
@@ -253,18 +267,18 @@ var AnimalFavorite_default = (0, import_core4.list)({
   }
 });
 
-// models/Animal/AnimalHistory/AnimalHistory.ts
+// models/Animal/AnimalLog/AnimalLog.ts
 var import_core5 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
-var AnimalHistory_default = (0, import_core5.list)({
+var AnimalLog_default = (0, import_core5.list)({
   access: access_default,
   fields: {
     animal: (0, import_fields5.relationship)({
-      ref: "Animal.history"
+      ref: "Animal.logs"
     }),
     status: (0, import_fields5.select)({
       defaultValue: "Registrado",
-      options: animal_history_options
+      options: ANIMAL_LOGS_OPTIONS
     }),
     notes: (0, import_fields5.text)({
       ui: { displayMode: "textarea" }
@@ -586,7 +600,7 @@ var PetPlace_default = (0, import_core12.list)({
     views: (0, import_fields12.integer)(),
     type: (0, import_fields12.select)({
       defaultValue: "veterinary",
-      options: types_pet_shelter
+      options: TYPES_PET_SHELTER
     }),
     services: (0, import_fields12.relationship)({
       ref: "PetPlaceService",
@@ -784,15 +798,15 @@ var Product_default = (0, import_core17.list)({
     description: (0, import_fields17.text)({ validation: { isRequired: true } }),
     category: (0, import_fields17.select)({
       validation: { isRequired: true },
-      options: product_categories
+      options: PRODUCT_CATEGORIES
     }),
     brand: (0, import_fields17.select)({
       validation: { isRequired: true },
-      options: brands
+      options: BRANDS
     }),
     type: (0, import_fields17.select)({
       validation: { isRequired: true },
-      options: animal_type_options
+      options: ANIMAL_TYPE_OPTIONS
     }),
     product_reviews: (0, import_fields17.relationship)({
       ref: "Review.product",
@@ -875,7 +889,7 @@ var Order_default = (0, import_core20.list)({
   access: access_default,
   fields: {
     total: (0, import_fields20.integer)(),
-    status: (0, import_fields20.select)({ validation: { isRequired: true }, options: order_status }),
+    status: (0, import_fields20.select)({ validation: { isRequired: true }, options: ORDER_STATUS }),
     cart: (0, import_fields20.relationship)({
       ref: "Cart",
       many: false
@@ -978,7 +992,7 @@ var PaymentMethod_default = (0, import_core22.list)({
       ref: "Payment.paymentMethod",
       many: true
     }),
-    type: (0, import_fields22.select)({ options: payment_types }),
+    type: (0, import_fields22.select)({ options: PAYMENT_TYPES }),
     createdAt: (0, import_fields22.timestamp)({
       defaultValue: {
         kind: "now"
@@ -1069,8 +1083,11 @@ var Ad_default = (0, import_core24.list)({
     start_date: (0, import_fields24.calendarDay)(),
     end_date: (0, import_fields24.calendarDay)(),
     price: (0, import_fields24.integer)(),
+    status: (0, import_fields24.select)({
+      options: STATUS_AD
+    }),
     type: (0, import_fields24.select)({
-      options: types_ad
+      options: TYPES_AD
     }),
     lat: (0, import_fields24.text)(),
     lng: (0, import_fields24.text)(),
@@ -1106,7 +1123,7 @@ var schema_default = {
   AnimalType: AnimalType_default,
   AnimalMultimedia: AnimalMultimedia_default,
   AnimalFavorite: AnimalFavorite_default,
-  AnimalHistory: AnimalHistory_default,
+  AnimalLog: AnimalLog_default,
   AnimalComment: AnimalComment_default,
   AnimalBreed: AnimalBreed_default,
   Pet: Pet_default,

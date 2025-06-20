@@ -55,7 +55,7 @@ model Animal {
   user                       User?              @relation("Animal_user", fields: [userId], references: [id])
   userId                     String?            @map("user")
   multimedia                 AnimalMultimedia[] @relation("AnimalMultimedia_animal")
-  history                    AnimalHistory[]    @relation("AnimalHistory_animal")
+  logs                       AnimalLog[]        @relation("AnimalLog_animal")
   createdAt                  DateTime?          @default(now())
   from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
   from_AnimalComment_animal  AnimalComment[]    @relation("AnimalComment_animal")
@@ -100,9 +100,9 @@ model AnimalFavorite {
   @@index([userId])
 }
 
-model AnimalHistory {
+model AnimalLog {
   id        String    @id @default(cuid())
-  animal    Animal?   @relation("AnimalHistory_animal", fields: [animalId], references: [id])
+  animal    Animal?   @relation("AnimalLog_animal", fields: [animalId], references: [id])
   animalId  String?   @map("animal")
   status    String?   @default("Registrado")
   notes     String    @default("")
@@ -374,6 +374,7 @@ model Ad {
   start_date      DateTime? @postgresql.Date
   end_date        DateTime? @postgresql.Date
   price           Int?
+  status          String?
   type            String?
   lat             String    @default("")
   lng             String    @default("")

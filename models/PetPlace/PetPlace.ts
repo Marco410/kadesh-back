@@ -10,7 +10,7 @@ import {
 import access from "../../utils/generalAccess/access";
 import { KeystoneContext } from "@keystone-6/core/types";
 import { dayNames } from "../Schedule/Schedule";
-import { types_pet_shelter } from "../../utils/constants/constants";
+import { TYPES_PET_SHELTER } from "../../utils/constants/constants";
 
 export default list({
   access,
@@ -29,7 +29,7 @@ export default list({
     views: integer(),
     type: select({
       defaultValue: "veterinary",
-      options: types_pet_shelter,
+      options: TYPES_PET_SHELTER,
     }),
     services: relationship({
       ref: "PetPlaceService",
