@@ -63,16 +63,16 @@ const definition = `
 `;
 
 /**
- * Calcula la distancia entre dos puntos geográficos usando la fórmula de Haversine
- * @param lat1 Latitud del primer punto
- * @param lng1 Longitud del primer punto
- * @param lat2 Latitud del segundo punto
- * @param lng2 Longitud del segundo punto
- * @returns Distancia en kilómetros
+ * Calculates the distance between two geographic points using the Haversine formula
+ * @param lat1 Latitude of the first point
+ * @param lng1 Longitude of the first point
+ * @param lat2 Latitude of the second point
+ * @param lng2 Longitude of the second point
+ * @returns Distance in kilometers
  */
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
   const toRad = (value: number) => (value * Math.PI) / 180;
-  const R = 6371; // Radio de la Tierra en kilómetros
+  const R = 6371; // Earth's radius in kilometers
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
   const a =
@@ -82,12 +82,12 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  // Redondear a 2 decimales para mayor legibilidad
+  // Round to 2 decimal places for better readability
   return Math.round((R * c) * 100) / 100;
 }
 
 /**
- * Crea un PetPlace desde un resultado de Google Places API
+ * Creates a PetPlace from a Google Places API result
  */
 async function createPetPlaceFromGoogleResult(
   place: any,
@@ -106,18 +106,17 @@ async function createPetPlaceFromGoogleResult(
   const userRatingsTotal = place.user_ratings_total || 0;
   const placeId = place.place_id || '';
 
-  // Verificar si ya existe
+  // Check if it already exists
   const existingPlace = await context.sudo().query.PetPlace.findOne({
     where: { google_place_id: placeId },
     query: 'id',
   });
 
   if (existingPlace) {
-    console.log(`Lugar con placeId ${placeId} ya registrado, se omite.`);
+    console.log(`Place with placeId ${placeId} already registered, skipping.`);
     return null;
   }
 
-  // Buscar o crear el PetPlaceType
   let petPlaceType = await context.sudo().query.PetPlaceType.findOne({
     where: { value: type },
     query: 'id',
@@ -134,16 +133,15 @@ async function createPetPlaceFromGoogleResult(
         },
       });
     } else {
-      console.error(`Tipo ${type} no encontrado en TYPES_PET_SHELTER`);
+      console.error(`Type ${type} not found in TYPES_PET_SHELTER`);
       return null;
     }
   }
 
-  // Crear el PetPlace
   const result = await context.sudo().query.PetPlace.createOne({
     data: {
       name: place.name,
-      description: `Lugar ubicado en ${address}. ${rating > 0 ? `Calificación: ${rating}/5 (${userRatingsTotal} reseñas)` : ''}`,
+      description: `Place located at ${address}. ${rating > 0 ? `Rating: ${rating}/5 (${userRatingsTotal} reviews)` : ''}`,
       types: { connect: [{ id: petPlaceType.id }] },
       phone: '',
       website: '',
@@ -160,7 +158,6 @@ async function createPetPlaceFromGoogleResult(
     },
   });
 
-  // Obtener detalles adicionales si hay placeId
   if (placeId) {
     try {
       const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number&key=${apiKey}&language=es`;
@@ -187,7 +184,7 @@ async function createPetPlaceFromGoogleResult(
             });
           }
 
-          // Crear reviews si existen
+          // Create reviews if they exist
           if (Array.isArray(detailsData.result.reviews)) {
             for (const review of detailsData.result.reviews) {
               try {
@@ -206,14 +203,14 @@ async function createPetPlaceFromGoogleResult(
                   },
                 });
               } catch (reviewError) {
-                console.error(`Error guardando review para ${place.name}:`, reviewError);
+                console.error(`Error saving review for ${place.name}:`, reviewError);
               }
             }
           }
         }
       }
     } catch (detailsError) {
-      console.error(`Error obteniendo detalles para ${place.name}:`, detailsError);
+      console.error(`Error getting details for ${place.name}:`, detailsError);
     }
   }
 
@@ -221,7 +218,7 @@ async function createPetPlaceFromGoogleResult(
 }
 
 /**
- * Busca lugares en Google Places API por latitud y longitud
+ * Searches for places in Google Places API by latitude and longitude
  */
 async function searchPlacesByLocation(
   lat: number,
@@ -233,7 +230,7 @@ async function searchPlacesByLocation(
 ): Promise<any[]> {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
-    throw new Error('GOOGLE_MAPS_API_KEY no está configurada en las variables de entorno');
+    throw new Error('GOOGLE_MAPS_API_KEY is not configured in environment variables');
   }
 
   // Map type to search query
@@ -248,29 +245,29 @@ async function searchPlacesByLocation(
 
   const searchTerm = typeLabels[type] || 'lugares para mascotas';
   
-  // Convertir radio de km a metros para la API de Google
+  // Convert radius from km to meters for Google API
   const radiusInMeters = Math.round(radius * 1000);
   
-  // Usar Nearby Search API
+  // Use Nearby Search API
   const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusInMeters}&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey}&language=es`;
 
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Error en la respuesta de la API: ${response.status} ${response.statusText}`);
+      throw new Error(`API response error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
 
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      throw new Error(`Error en la API de Google Places: ${data.status} - ${data.error_message || 'Error desconocido'}`);
+      throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`);
     }
 
     if (!data.results || data.results.length === 0) {
       return [];
     }
 
-    // Crear los lugares en la base de datos
+    // Create places in the database
     const createdPlaces = [];
     for (const place of data.results.slice(0, limit)) {
       try {
@@ -279,13 +276,13 @@ async function searchPlacesByLocation(
           createdPlaces.push(createdPlace);
         }
       } catch (error) {
-        console.error(`Error creando lugar ${place.name}:`, error);
+        console.error(`Error creating place ${place.name}:`, error);
       }
     }
 
     return createdPlaces;
   } catch (error) {
-    console.error('Error buscando lugares en Google Places:', error);
+    console.error('Error searching places in Google Places:', error);
     return [];
   }
 }
@@ -300,12 +297,12 @@ const resolver = {
     if (typeof lat !== "number" || typeof lng !== "number") {
       return {
         success: false,
-        message: "Latitud y longitud inválidas",
+        message: "Invalid latitude and longitude",
         petPlaces: [],
       };
     }
 
-    // Buscar lugares en la base de datos
+    // Search for places in the database
     const petPlaces = await context.sudo().query.PetPlace.findMany({
       query: `id name description 
         lat lng 
@@ -342,11 +339,9 @@ const resolver = {
     withDistance.sort((a: any, b: any) => a.distance - b.distance);
     let result = withDistance.slice(0, limit);
 
-    console.log('result ++++++++++++++++++++++++++++++++++++++++++++++++++++++');
-
     if (result.length === 0 && type) {
       try {
-        console.log(`No se encontraron lugares en la BD, buscando en Google Places para tipo: ${type}`);
+        console.log(`No places found in database, searching in Google Places for type: ${type}`);
 
         const createdPlaces = await searchPlacesByLocation(lat, lng, type, radius, limit, context);        
         
@@ -389,13 +384,13 @@ const resolver = {
             .slice(0, limit);
         }
       } catch (error) {
-        console.error('Error buscando en Google Places:', error);
+        console.error('Error searching in Google Places:', error);
       }
     }
     
     return {
       success: true,
-      message: result.length > 0 ? "PetPlaces encontrados" : "No se encontraron PetPlaces",
+      message: result.length > 0 ? "PetPlaces found" : "No PetPlaces found",
       petPlaces: result,
     };
   },
