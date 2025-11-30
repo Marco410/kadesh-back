@@ -11,6 +11,7 @@ import PetMultimedia from "./Pet/PetMultimedia/PetMultimedia";
 import PetPlace from "./PetPlace/PetPlace";
 import PetPlaceLike from "./PetPlace/PetPlaceLike/PetPlaceLike";
 import PetPlaceService from "./PetPlace/PetPlaceService/PetPlaceService";
+import PetPlaceType from "./PetPlace/PetPlaceType/PetPlaceType";
 import Schedule from "./Schedule/Schedule";
 import SocialMedia from "./SocialMedia/SocialMedia";
 import Review from "./Review/Review";
@@ -37,6 +38,7 @@ export default {
   PetPlace,
   PetPlaceLike,
   PetPlaceService,
+  PetPlaceType,
   Schedule,
   SocialMedia,
   Review,

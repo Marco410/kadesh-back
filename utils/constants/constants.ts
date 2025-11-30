@@ -504,22 +504,32 @@ export const PAYMENT_TYPES = [
 export const TYPES_PET_SHELTER = [
   {
     label: "Veterinaria",
+    plural: "Veterinarias",
     value: "veterinary",
   },
   {
     label: "Refugio",
+    plural: "Refugios",
     value: "pet_shelter",
   },
   {
     label: "Tienda",
-    value: "store",
+    plural: "Tiendas",
+    value: "pet_store",
   },
   {
-    label: "Hospital",
-    value: "hospital",
+    label: "Hotel/Guardería",
+    plural: "Hoteles/Guarderías",
+    value: "pet_boarding",
+  },
+  {
+    label: "Parque",
+    plural: "Parques",
+    value: "pet_park",
   },
   {
     label: "Otro",
+    plural: "Otros",
     value: "other",
   },
 ];
