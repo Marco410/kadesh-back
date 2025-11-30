@@ -2,7 +2,6 @@ import { graphql, list } from "@keystone-6/core";
 import {
   integer,
   relationship,
-  select,
   text,
   timestamp,
   virtual,
@@ -10,7 +9,6 @@ import {
 import access from "../../utils/generalAccess/access";
 import { KeystoneContext } from "@keystone-6/core/types";
 import { dayNames } from "../Schedule/Schedule";
-import { TYPES_PET_SHELTER } from "../../utils/constants/constants";
 
 export default list({
   access,
@@ -27,9 +25,9 @@ export default list({
     lat: text(),
     lng: text(),
     views: integer(),
-    type: select({
-      defaultValue: "veterinary",
-      options: TYPES_PET_SHELTER,
+    types: relationship({
+      ref: "PetPlaceType",
+      many: true,
     }),
     services: relationship({
       ref: "PetPlaceService",

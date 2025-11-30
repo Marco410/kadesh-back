@@ -1,17 +1,74 @@
 /** @jsxRuntime classic */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { jsx } from '@keystone-ui/core';
 import { PageContainer } from '@keystone-6/core/admin-ui/components';
 import { Heading } from '@keystone-ui/core';
 
+interface PetPlaceType {
+  id: string;
+  label: string;
+  value: string;
+  plural: string;
+}
+
 export default function ImportVeterinaryPage() {
   const [inputValue, setInputValue] = useState('');
+  const [selectedType, setSelectedType] = useState<string>('');
+  const [petPlaceTypes, setPetPlaceTypes] = useState<PetPlaceType[]>([]);
+  const [isLoadingTypes, setIsLoadingTypes] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPetPlaceTypes = async () => {
+      try {
+        const response = await fetch('/api/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: `
+              query GetPetPlaceTypes {
+                petPlaceTypes {
+                  id
+                  label
+                  value
+                  plural
+                }
+              }
+            `,
+          }),
+          credentials: 'include'
+        });
+
+        const data = await response.json();
+        if (data.data?.petPlaceTypes) {
+          const types = data.data.petPlaceTypes;
+          setPetPlaceTypes(types);
+          // Establecer el primer tipo como seleccionado por defecto
+          if (types.length > 0 && !selectedType) {
+            setSelectedType(types[0].value);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando tipos de lugar:', error);
+      } finally {
+        setIsLoadingTypes(false);
+      }
+    };
+
+    fetchPetPlaceTypes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleExecuteFunction = async () => {
     if (!inputValue.trim()) {
       alert('Por favor ingresa un valor');
+      return;
+    }
+    if (!selectedType) {
+      alert('Por favor selecciona un tipo de lugar');
       return;
     }
 
@@ -19,7 +76,6 @@ export default function ImportVeterinaryPage() {
     setResult(null);
 
     try {
-      // Llamada a la mutación GraphQL que creamos
       const response = await fetch('/api/graphql', {
         method: 'POST',
         headers: {
@@ -37,7 +93,8 @@ export default function ImportVeterinaryPage() {
           `,
           variables: {
             input: {
-              inputValue: inputValue
+              inputValue: inputValue,
+              type: selectedType
             }
           }
         }),
@@ -104,6 +161,46 @@ export default function ImportVeterinaryPage() {
               fontWeight: '500',
               color: '#2d3748',
             }}>
+              Tipo de Lugar:
+            </label>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                backgroundColor: 'white',
+                cursor: isLoading || isLoadingTypes ? 'not-allowed' : 'pointer',
+              }}
+              disabled={isLoading || isLoadingTypes}
+            >
+              {isLoadingTypes ? (
+                <option>Cargando tipos...</option>
+              ) : petPlaceTypes.length === 0 ? (
+                <option>No hay tipos disponibles</option>
+              ) : (
+                petPlaceTypes.map((type) => (
+                  <option key={type.id} value={type.value}>
+                    {type.label}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          <div style={{
+            marginBottom: '16px',
+          }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontWeight: '500',
+              color: '#2d3748',
+            }}>
               Ciudad:
             </label>
             <input
@@ -125,7 +222,7 @@ export default function ImportVeterinaryPage() {
           
           <button
             onClick={handleExecuteFunction}
-            disabled={isLoading || !inputValue.trim()}
+            disabled={isLoading || !inputValue.trim() || !selectedType}
             style={{
               backgroundColor: isLoading ? '#6b7280' : '#3b82f6',
               color: 'white',
