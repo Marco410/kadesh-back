@@ -2018,7 +2018,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core33 = require("@keystone-6/core");
+var import_core25 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -2713,7 +2713,7 @@ var {
   S3_SECRET_ACCESS_KEY: secretAccessKey = ""
 } = process.env;
 var keystone_default = withAuth(
-  (0, import_core33.config)({
+  (0, import_core25.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
