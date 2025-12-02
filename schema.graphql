@@ -2295,14 +2295,6 @@ type Post {
     cursor: PostFavoriteWhereUniqueInput
   ): [PostFavorite!]
   post_favoritesCount(where: PostFavoriteWhereInput! = {}): Int
-  post_views(
-    where: PostViewWhereInput! = {}
-    orderBy: [PostViewOrderByInput!]! = []
-    take: Int
-    skip: Int! = 0
-    cursor: PostViewWhereUniqueInput
-  ): [PostView!]
-  post_viewsCount(where: PostViewWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2332,7 +2324,6 @@ input PostWhereInput {
   comments: PostCommentManyRelationFilter
   post_likes: PostLikeManyRelationFilter
   post_favorites: PostFavoriteManyRelationFilter
-  post_views: PostViewManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2361,12 +2352,6 @@ input PostFavoriteManyRelationFilter {
   none: PostFavoriteWhereInput
 }
 
-input PostViewManyRelationFilter {
-  every: PostViewWhereInput
-  some: PostViewWhereInput
-  none: PostViewWhereInput
-}
-
 input PostOrderByInput {
   id: OrderDirection
   title: OrderDirection
@@ -2392,7 +2377,6 @@ input PostUpdateInput {
   comments: PostCommentRelateToManyForUpdateInput
   post_likes: PostLikeRelateToManyForUpdateInput
   post_favorites: PostFavoriteRelateToManyForUpdateInput
-  post_views: PostViewRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2431,13 +2415,6 @@ input PostFavoriteRelateToManyForUpdateInput {
   connect: [PostFavoriteWhereUniqueInput!]
 }
 
-input PostViewRelateToManyForUpdateInput {
-  disconnect: [PostViewWhereUniqueInput!]
-  set: [PostViewWhereUniqueInput!]
-  create: [PostViewCreateInput!]
-  connect: [PostViewWhereUniqueInput!]
-}
-
 input PostUpdateArgs {
   where: PostWhereUniqueInput!
   data: PostUpdateInput!
@@ -2457,7 +2434,6 @@ input PostCreateInput {
   comments: PostCommentRelateToManyForCreateInput
   post_likes: PostLikeRelateToManyForCreateInput
   post_favorites: PostFavoriteRelateToManyForCreateInput
-  post_views: PostViewRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2485,11 +2461,6 @@ input PostLikeRelateToManyForCreateInput {
 input PostFavoriteRelateToManyForCreateInput {
   create: [PostFavoriteCreateInput!]
   connect: [PostFavoriteWhereUniqueInput!]
-}
-
-input PostViewRelateToManyForCreateInput {
-  create: [PostViewCreateInput!]
-  connect: [PostViewWhereUniqueInput!]
 }
 
 type PostComment {
@@ -2642,49 +2613,6 @@ input PostFavoriteCreateInput {
   createdAt: DateTime
 }
 
-type PostView {
-  id: ID!
-  user: User
-  post: Post
-  createdAt: DateTime
-}
-
-input PostViewWhereUniqueInput {
-  id: ID
-}
-
-input PostViewWhereInput {
-  AND: [PostViewWhereInput!]
-  OR: [PostViewWhereInput!]
-  NOT: [PostViewWhereInput!]
-  id: IDFilter
-  user: UserWhereInput
-  post: PostWhereInput
-  createdAt: DateTimeNullableFilter
-}
-
-input PostViewOrderByInput {
-  id: OrderDirection
-  createdAt: OrderDirection
-}
-
-input PostViewUpdateInput {
-  user: UserRelateToOneForUpdateInput
-  post: PostRelateToOneForUpdateInput
-  createdAt: DateTime
-}
-
-input PostViewUpdateArgs {
-  where: PostViewWhereUniqueInput!
-  data: PostViewUpdateInput!
-}
-
-input PostViewCreateInput {
-  user: UserRelateToOneForCreateInput
-  post: PostRelateToOneForCreateInput
-  createdAt: DateTime
-}
-
 type Tag {
   id: ID!
   name: String
@@ -2814,76 +2742,6 @@ input CategoryCreateInput {
   image: ImageFieldInput
   posts: PostRelateToManyForCreateInput
   createdAt: DateTime
-}
-
-type Role {
-  id: ID!
-  name: String
-  users(
-    where: UserWhereInput! = {}
-    orderBy: [UserOrderByInput!]! = []
-    take: Int
-    skip: Int! = 0
-    cursor: UserWhereUniqueInput
-  ): [User!]
-  usersCount(where: UserWhereInput! = {}): Int
-  createdAt: DateTime
-}
-
-input RoleWhereUniqueInput {
-  id: ID
-  name: String
-}
-
-input RoleWhereInput {
-  AND: [RoleWhereInput!]
-  OR: [RoleWhereInput!]
-  NOT: [RoleWhereInput!]
-  id: IDFilter
-  name: StringNullableFilter
-  users: UserManyRelationFilter
-  createdAt: DateTimeNullableFilter
-}
-
-input UserManyRelationFilter {
-  every: UserWhereInput
-  some: UserWhereInput
-  none: UserWhereInput
-}
-
-input RoleOrderByInput {
-  id: OrderDirection
-  name: OrderDirection
-  createdAt: OrderDirection
-}
-
-input RoleUpdateInput {
-  name: String
-  users: UserRelateToManyForUpdateInput
-  createdAt: DateTime
-}
-
-input UserRelateToManyForUpdateInput {
-  disconnect: [UserWhereUniqueInput!]
-  set: [UserWhereUniqueInput!]
-  create: [UserCreateInput!]
-  connect: [UserWhereUniqueInput!]
-}
-
-input RoleUpdateArgs {
-  where: RoleWhereUniqueInput!
-  data: RoleUpdateInput!
-}
-
-input RoleCreateInput {
-  name: String
-  users: UserRelateToManyForCreateInput
-  createdAt: DateTime
-}
-
-input UserRelateToManyForCreateInput {
-  create: [UserCreateInput!]
-  connect: [UserWhereUniqueInput!]
 }
 
 """
@@ -3164,15 +3022,6 @@ type Mutation {
   updatePostFavorites(data: [PostFavoriteUpdateArgs!]!): [PostFavorite]
   deletePostFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
   deletePostFavorites(where: [PostFavoriteWhereUniqueInput!]!): [PostFavorite]
-  createPostView(data: PostViewCreateInput!): PostView
-  createPostViews(data: [PostViewCreateInput!]!): [PostView]
-  updatePostView(
-    where: PostViewWhereUniqueInput!
-    data: PostViewUpdateInput!
-  ): PostView
-  updatePostViews(data: [PostViewUpdateArgs!]!): [PostView]
-  deletePostView(where: PostViewWhereUniqueInput!): PostView
-  deletePostViews(where: [PostViewWhereUniqueInput!]!): [PostView]
   createTag(data: TagCreateInput!): Tag
   createTags(data: [TagCreateInput!]!): [Tag]
   updateTag(where: TagWhereUniqueInput!, data: TagUpdateInput!): Tag
@@ -3188,12 +3037,6 @@ type Mutation {
   updateCategories(data: [CategoryUpdateArgs!]!): [Category]
   deleteCategory(where: CategoryWhereUniqueInput!): Category
   deleteCategories(where: [CategoryWhereUniqueInput!]!): [Category]
-  createRole(data: RoleCreateInput!): Role
-  createRoles(data: [RoleCreateInput!]!): [Role]
-  updateRole(where: RoleWhereUniqueInput!, data: RoleUpdateInput!): Role
-  updateRoles(data: [RoleUpdateArgs!]!): [Role]
-  deleteRole(where: RoleWhereUniqueInput!): Role
-  deleteRoles(where: [RoleWhereUniqueInput!]!): [Role]
   endSession: Boolean!
   authenticateUserWithPassword(
     email: String!
@@ -3464,7 +3307,6 @@ type Query {
     cursor: AdWhereUniqueInput
   ): [Ad!]
   adsCount(where: AdWhereInput! = {}): Int
-  post(where: PostWhereUniqueInput!): Post
   posts(
     where: PostWhereInput! = {}
     orderBy: [PostOrderByInput!]! = []
@@ -3472,8 +3314,8 @@ type Query {
     skip: Int! = 0
     cursor: PostWhereUniqueInput
   ): [Post!]
+  post(where: PostWhereUniqueInput!): Post
   postsCount(where: PostWhereInput! = {}): Int
-  postComment(where: PostCommentWhereUniqueInput!): PostComment
   postComments(
     where: PostCommentWhereInput! = {}
     orderBy: [PostCommentOrderByInput!]! = []
@@ -3481,8 +3323,8 @@ type Query {
     skip: Int! = 0
     cursor: PostCommentWhereUniqueInput
   ): [PostComment!]
+  postComment(where: PostCommentWhereUniqueInput!): PostComment
   postCommentsCount(where: PostCommentWhereInput! = {}): Int
-  postLike(where: PostLikeWhereUniqueInput!): PostLike
   postLikes(
     where: PostLikeWhereInput! = {}
     orderBy: [PostLikeOrderByInput!]! = []
@@ -3490,8 +3332,8 @@ type Query {
     skip: Int! = 0
     cursor: PostLikeWhereUniqueInput
   ): [PostLike!]
+  postLike(where: PostLikeWhereUniqueInput!): PostLike
   postLikesCount(where: PostLikeWhereInput! = {}): Int
-  postFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
   postFavorites(
     where: PostFavoriteWhereInput! = {}
     orderBy: [PostFavoriteOrderByInput!]! = []
@@ -3499,17 +3341,8 @@ type Query {
     skip: Int! = 0
     cursor: PostFavoriteWhereUniqueInput
   ): [PostFavorite!]
+  postFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
   postFavoritesCount(where: PostFavoriteWhereInput! = {}): Int
-  postView(where: PostViewWhereUniqueInput!): PostView
-  postViews(
-    where: PostViewWhereInput! = {}
-    orderBy: [PostViewOrderByInput!]! = []
-    take: Int
-    skip: Int! = 0
-    cursor: PostViewWhereUniqueInput
-  ): [PostView!]
-  postViewsCount(where: PostViewWhereInput! = {}): Int
-  tag(where: TagWhereUniqueInput!): Tag
   tags(
     where: TagWhereInput! = {}
     orderBy: [TagOrderByInput!]! = []
@@ -3517,8 +3350,8 @@ type Query {
     skip: Int! = 0
     cursor: TagWhereUniqueInput
   ): [Tag!]
+  tag(where: TagWhereUniqueInput!): Tag
   tagsCount(where: TagWhereInput! = {}): Int
-  category(where: CategoryWhereUniqueInput!): Category
   categories(
     where: CategoryWhereInput! = {}
     orderBy: [CategoryOrderByInput!]! = []
@@ -3526,16 +3359,8 @@ type Query {
     skip: Int! = 0
     cursor: CategoryWhereUniqueInput
   ): [Category!]
+  category(where: CategoryWhereUniqueInput!): Category
   categoriesCount(where: CategoryWhereInput! = {}): Int
-  role(where: RoleWhereUniqueInput!): Role
-  roles(
-    where: RoleWhereInput! = {}
-    orderBy: [RoleOrderByInput!]! = []
-    take: Int
-    skip: Int! = 0
-    cursor: RoleWhereUniqueInput
-  ): [Role!]
-  rolesCount(where: RoleWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
 }
