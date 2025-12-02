@@ -43,6 +43,10 @@ model User {
   from_PaymentMethod_user     PaymentMethod[]     @relation("PaymentMethod_user")
   from_TokenNotification_user TokenNotification[] @relation("TokenNotification_user")
   from_Ad_user                Ad[]                @relation("Ad_user")
+  from_Post_author            Post[]              @relation("Post_author")
+  from_PostComment_user       PostComment[]       @relation("PostComment_user")
+  from_PostLike_user          PostLike[]          @relation("PostLike_user")
+  from_PostFavorite_user      PostFavorite[]      @relation("PostFavorite_user")
 }
 
 model Animal {
@@ -394,6 +398,92 @@ model Ad {
   @@index([pet_placeId])
   @@index([productId])
   @@index([userId])
+}
+
+model Post {
+  id              String         @id @default(cuid())
+  title           String         @default("")
+  url             String         @unique @default("")
+  content         Json           @default("[{\"type\":\"paragraph\",\"children\":[{\"text\":\"\"}]}]")
+  excerpt         String         @default("")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  published       Boolean        @default(false)
+  publishedAt     DateTime?
+  category        Category?      @relation("Post_category", fields: [categoryId], references: [id])
+  categoryId      String?        @map("category")
+  tags            Tag[]          @relation("Post_tags")
+  author          User?          @relation("Post_author", fields: [authorId], references: [id])
+  authorId        String?        @map("author")
+  comments        PostComment[]  @relation("PostComment_post")
+  post_likes      PostLike[]     @relation("PostLike_post")
+  post_favorites  PostFavorite[] @relation("PostFavorite_post")
+  createdAt       DateTime?      @default(now())
+  updatedAt       DateTime?      @default(now()) @updatedAt
+
+  @@index([categoryId])
+  @@index([authorId])
+}
+
+model PostComment {
+  id        String    @id @default(cuid())
+  comment   String    @default("")
+  post      Post?     @relation("PostComment_post", fields: [postId], references: [id])
+  postId    String?   @map("post")
+  user      User?     @relation("PostComment_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @default(now()) @updatedAt
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model PostLike {
+  id        String    @id @default(cuid())
+  user      User?     @relation("PostLike_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  post      Post?     @relation("PostLike_post", fields: [postId], references: [id])
+  postId    String?   @map("post")
+  createdAt DateTime? @default(now())
+
+  @@index([userId])
+  @@index([postId])
+}
+
+model PostFavorite {
+  id        String    @id @default(cuid())
+  user      User?     @relation("PostFavorite_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  post      Post?     @relation("PostFavorite_post", fields: [postId], references: [id])
+  postId    String?   @map("post")
+  createdAt DateTime? @default(now())
+
+  @@index([userId])
+  @@index([postId])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique @default("")
+  posts     Post[]    @relation("Post_tags")
+  createdAt DateTime? @default(now())
+}
+
+model Category {
+  id              String    @id @default(cuid())
+  name            String?   @unique
+  url             String    @unique @default("")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  posts           Post[]    @relation("Post_category")
+  createdAt       DateTime? @default(now())
 }
 
 enum UserRoleType {

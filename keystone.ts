@@ -53,6 +53,26 @@ export default withAuth(
         secretAccessKey, // from your S3_SECRET_ACCESS_KEY environment variable
         signed: { expiry: 3600 }, // (optional) links will be signed with an expiry of 3600 seconds (an hour)
       },
+      s3_categories: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: "categories/", // subcarpeta para categorías
+        signed: { expiry: 3600 },
+      },
+      s3_posts: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: "posts/", // subcarpeta para posts
+        signed: { expiry: 3600 },
+      },
     },
     lists,
     session,

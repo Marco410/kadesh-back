@@ -2048,6 +2048,462 @@ input AdCreateInput {
   createdAt: DateTime
 }
 
+type Post {
+  id: ID!
+  title: String
+  url: String
+  content: Post_content_Document
+  excerpt: String
+  image: ImageFieldOutput
+  published: Boolean
+  publishedAt: DateTime
+  category: Category
+  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
+  tagsCount(where: TagWhereInput! = {}): Int
+  author: User
+  comments(where: PostCommentWhereInput! = {}, orderBy: [PostCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostCommentWhereUniqueInput): [PostComment!]
+  commentsCount(where: PostCommentWhereInput! = {}): Int
+  post_likes(where: PostLikeWhereInput! = {}, orderBy: [PostLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostLikeWhereUniqueInput): [PostLike!]
+  post_likesCount(where: PostLikeWhereInput! = {}): Int
+  post_favorites(where: PostFavoriteWhereInput! = {}, orderBy: [PostFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostFavoriteWhereUniqueInput): [PostFavorite!]
+  post_favoritesCount(where: PostFavoriteWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Post_content_Document {
+  document(hydrateRelationships: Boolean! = false): JSON!
+}
+
+input PostWhereUniqueInput {
+  id: ID
+  url: String
+}
+
+input PostWhereInput {
+  AND: [PostWhereInput!]
+  OR: [PostWhereInput!]
+  NOT: [PostWhereInput!]
+  id: IDFilter
+  title: StringFilter
+  url: StringFilter
+  excerpt: StringFilter
+  published: BooleanFilter
+  publishedAt: DateTimeNullableFilter
+  category: CategoryWhereInput
+  tags: TagManyRelationFilter
+  author: UserWhereInput
+  comments: PostCommentManyRelationFilter
+  post_likes: PostLikeManyRelationFilter
+  post_favorites: PostFavoriteManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input TagManyRelationFilter {
+  every: TagWhereInput
+  some: TagWhereInput
+  none: TagWhereInput
+}
+
+input PostCommentManyRelationFilter {
+  every: PostCommentWhereInput
+  some: PostCommentWhereInput
+  none: PostCommentWhereInput
+}
+
+input PostLikeManyRelationFilter {
+  every: PostLikeWhereInput
+  some: PostLikeWhereInput
+  none: PostLikeWhereInput
+}
+
+input PostFavoriteManyRelationFilter {
+  every: PostFavoriteWhereInput
+  some: PostFavoriteWhereInput
+  none: PostFavoriteWhereInput
+}
+
+input PostOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  url: OrderDirection
+  excerpt: OrderDirection
+  published: OrderDirection
+  publishedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PostUpdateInput {
+  title: String
+  url: String
+  content: JSON
+  excerpt: String
+  image: ImageFieldInput
+  published: Boolean
+  publishedAt: DateTime
+  category: CategoryRelateToOneForUpdateInput
+  tags: TagRelateToManyForUpdateInput
+  author: UserRelateToOneForUpdateInput
+  comments: PostCommentRelateToManyForUpdateInput
+  post_likes: PostLikeRelateToManyForUpdateInput
+  post_favorites: PostFavoriteRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CategoryRelateToOneForUpdateInput {
+  create: CategoryCreateInput
+  connect: CategoryWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TagRelateToManyForUpdateInput {
+  disconnect: [TagWhereUniqueInput!]
+  set: [TagWhereUniqueInput!]
+  create: [TagCreateInput!]
+  connect: [TagWhereUniqueInput!]
+}
+
+input PostCommentRelateToManyForUpdateInput {
+  disconnect: [PostCommentWhereUniqueInput!]
+  set: [PostCommentWhereUniqueInput!]
+  create: [PostCommentCreateInput!]
+  connect: [PostCommentWhereUniqueInput!]
+}
+
+input PostLikeRelateToManyForUpdateInput {
+  disconnect: [PostLikeWhereUniqueInput!]
+  set: [PostLikeWhereUniqueInput!]
+  create: [PostLikeCreateInput!]
+  connect: [PostLikeWhereUniqueInput!]
+}
+
+input PostFavoriteRelateToManyForUpdateInput {
+  disconnect: [PostFavoriteWhereUniqueInput!]
+  set: [PostFavoriteWhereUniqueInput!]
+  create: [PostFavoriteCreateInput!]
+  connect: [PostFavoriteWhereUniqueInput!]
+}
+
+input PostUpdateArgs {
+  where: PostWhereUniqueInput!
+  data: PostUpdateInput!
+}
+
+input PostCreateInput {
+  title: String
+  url: String
+  content: JSON
+  excerpt: String
+  image: ImageFieldInput
+  published: Boolean
+  publishedAt: DateTime
+  category: CategoryRelateToOneForCreateInput
+  tags: TagRelateToManyForCreateInput
+  author: UserRelateToOneForCreateInput
+  comments: PostCommentRelateToManyForCreateInput
+  post_likes: PostLikeRelateToManyForCreateInput
+  post_favorites: PostFavoriteRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CategoryRelateToOneForCreateInput {
+  create: CategoryCreateInput
+  connect: CategoryWhereUniqueInput
+}
+
+input TagRelateToManyForCreateInput {
+  create: [TagCreateInput!]
+  connect: [TagWhereUniqueInput!]
+}
+
+input PostCommentRelateToManyForCreateInput {
+  create: [PostCommentCreateInput!]
+  connect: [PostCommentWhereUniqueInput!]
+}
+
+input PostLikeRelateToManyForCreateInput {
+  create: [PostLikeCreateInput!]
+  connect: [PostLikeWhereUniqueInput!]
+}
+
+input PostFavoriteRelateToManyForCreateInput {
+  create: [PostFavoriteCreateInput!]
+  connect: [PostFavoriteWhereUniqueInput!]
+}
+
+type PostComment {
+  id: ID!
+  comment: String
+  post: Post
+  user: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PostCommentWhereUniqueInput {
+  id: ID
+}
+
+input PostCommentWhereInput {
+  AND: [PostCommentWhereInput!]
+  OR: [PostCommentWhereInput!]
+  NOT: [PostCommentWhereInput!]
+  id: IDFilter
+  comment: StringFilter
+  post: PostWhereInput
+  user: UserWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input PostCommentOrderByInput {
+  id: OrderDirection
+  comment: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PostCommentUpdateInput {
+  comment: String
+  post: PostRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PostRelateToOneForUpdateInput {
+  create: PostCreateInput
+  connect: PostWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PostCommentUpdateArgs {
+  where: PostCommentWhereUniqueInput!
+  data: PostCommentUpdateInput!
+}
+
+input PostCommentCreateInput {
+  comment: String
+  post: PostRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PostRelateToOneForCreateInput {
+  create: PostCreateInput
+  connect: PostWhereUniqueInput
+}
+
+type PostLike {
+  id: ID!
+  user: User
+  post: Post
+  createdAt: DateTime
+}
+
+input PostLikeWhereUniqueInput {
+  id: ID
+}
+
+input PostLikeWhereInput {
+  AND: [PostLikeWhereInput!]
+  OR: [PostLikeWhereInput!]
+  NOT: [PostLikeWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  post: PostWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PostLikeOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PostLikeUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  post: PostRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PostLikeUpdateArgs {
+  where: PostLikeWhereUniqueInput!
+  data: PostLikeUpdateInput!
+}
+
+input PostLikeCreateInput {
+  user: UserRelateToOneForCreateInput
+  post: PostRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type PostFavorite {
+  id: ID!
+  user: User
+  post: Post
+  createdAt: DateTime
+}
+
+input PostFavoriteWhereUniqueInput {
+  id: ID
+}
+
+input PostFavoriteWhereInput {
+  AND: [PostFavoriteWhereInput!]
+  OR: [PostFavoriteWhereInput!]
+  NOT: [PostFavoriteWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  post: PostWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PostFavoriteOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PostFavoriteUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  post: PostRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PostFavoriteUpdateArgs {
+  where: PostFavoriteWhereUniqueInput!
+  data: PostFavoriteUpdateInput!
+}
+
+input PostFavoriteCreateInput {
+  user: UserRelateToOneForCreateInput
+  post: PostRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type Tag {
+  id: ID!
+  name: String
+  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
+  postsCount(where: PostWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input TagWhereUniqueInput {
+  id: ID
+  name: String
+}
+
+input TagWhereInput {
+  AND: [TagWhereInput!]
+  OR: [TagWhereInput!]
+  NOT: [TagWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  posts: PostManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PostManyRelationFilter {
+  every: PostWhereInput
+  some: PostWhereInput
+  none: PostWhereInput
+}
+
+input TagOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TagUpdateInput {
+  name: String
+  posts: PostRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input PostRelateToManyForUpdateInput {
+  disconnect: [PostWhereUniqueInput!]
+  set: [PostWhereUniqueInput!]
+  create: [PostCreateInput!]
+  connect: [PostWhereUniqueInput!]
+}
+
+input TagUpdateArgs {
+  where: TagWhereUniqueInput!
+  data: TagUpdateInput!
+}
+
+input TagCreateInput {
+  name: String
+  posts: PostRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input PostRelateToManyForCreateInput {
+  create: [PostCreateInput!]
+  connect: [PostWhereUniqueInput!]
+}
+
+type Category {
+  id: ID!
+  name: String
+  url: String
+  image: ImageFieldOutput
+  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
+  postsCount(where: PostWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input CategoryWhereUniqueInput {
+  id: ID
+  name: String
+  url: String
+}
+
+input CategoryWhereInput {
+  AND: [CategoryWhereInput!]
+  OR: [CategoryWhereInput!]
+  NOT: [CategoryWhereInput!]
+  id: IDFilter
+  name: StringNullableFilter
+  url: StringFilter
+  posts: PostManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input CategoryOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  url: OrderDirection
+  createdAt: OrderDirection
+}
+
+input CategoryUpdateInput {
+  name: String
+  url: String
+  image: ImageFieldInput
+  posts: PostRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input CategoryUpdateArgs {
+  where: CategoryWhereUniqueInput!
+  data: CategoryUpdateInput!
+}
+
+input CategoryCreateInput {
+  name: String
+  url: String
+  image: ImageFieldInput
+  posts: PostRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -2198,6 +2654,42 @@ type Mutation {
   updateAds(data: [AdUpdateArgs!]!): [Ad]
   deleteAd(where: AdWhereUniqueInput!): Ad
   deleteAds(where: [AdWhereUniqueInput!]!): [Ad]
+  createPost(data: PostCreateInput!): Post
+  createPosts(data: [PostCreateInput!]!): [Post]
+  updatePost(where: PostWhereUniqueInput!, data: PostUpdateInput!): Post
+  updatePosts(data: [PostUpdateArgs!]!): [Post]
+  deletePost(where: PostWhereUniqueInput!): Post
+  deletePosts(where: [PostWhereUniqueInput!]!): [Post]
+  createPostComment(data: PostCommentCreateInput!): PostComment
+  createPostComments(data: [PostCommentCreateInput!]!): [PostComment]
+  updatePostComment(where: PostCommentWhereUniqueInput!, data: PostCommentUpdateInput!): PostComment
+  updatePostComments(data: [PostCommentUpdateArgs!]!): [PostComment]
+  deletePostComment(where: PostCommentWhereUniqueInput!): PostComment
+  deletePostComments(where: [PostCommentWhereUniqueInput!]!): [PostComment]
+  createPostLike(data: PostLikeCreateInput!): PostLike
+  createPostLikes(data: [PostLikeCreateInput!]!): [PostLike]
+  updatePostLike(where: PostLikeWhereUniqueInput!, data: PostLikeUpdateInput!): PostLike
+  updatePostLikes(data: [PostLikeUpdateArgs!]!): [PostLike]
+  deletePostLike(where: PostLikeWhereUniqueInput!): PostLike
+  deletePostLikes(where: [PostLikeWhereUniqueInput!]!): [PostLike]
+  createPostFavorite(data: PostFavoriteCreateInput!): PostFavorite
+  createPostFavorites(data: [PostFavoriteCreateInput!]!): [PostFavorite]
+  updatePostFavorite(where: PostFavoriteWhereUniqueInput!, data: PostFavoriteUpdateInput!): PostFavorite
+  updatePostFavorites(data: [PostFavoriteUpdateArgs!]!): [PostFavorite]
+  deletePostFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
+  deletePostFavorites(where: [PostFavoriteWhereUniqueInput!]!): [PostFavorite]
+  createTag(data: TagCreateInput!): Tag
+  createTags(data: [TagCreateInput!]!): [Tag]
+  updateTag(where: TagWhereUniqueInput!, data: TagUpdateInput!): Tag
+  updateTags(data: [TagUpdateArgs!]!): [Tag]
+  deleteTag(where: TagWhereUniqueInput!): Tag
+  deleteTags(where: [TagWhereUniqueInput!]!): [Tag]
+  createCategory(data: CategoryCreateInput!): Category
+  createCategories(data: [CategoryCreateInput!]!): [Category]
+  updateCategory(where: CategoryWhereUniqueInput!, data: CategoryUpdateInput!): Category
+  updateCategories(data: [CategoryUpdateArgs!]!): [Category]
+  deleteCategory(where: CategoryWhereUniqueInput!): Category
+  deleteCategories(where: [CategoryWhereUniqueInput!]!): [Category]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -2298,6 +2790,24 @@ type Query {
   ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
   ad(where: AdWhereUniqueInput!): Ad
   adsCount(where: AdWhereInput! = {}): Int
+  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
+  post(where: PostWhereUniqueInput!): Post
+  postsCount(where: PostWhereInput! = {}): Int
+  postComments(where: PostCommentWhereInput! = {}, orderBy: [PostCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostCommentWhereUniqueInput): [PostComment!]
+  postComment(where: PostCommentWhereUniqueInput!): PostComment
+  postCommentsCount(where: PostCommentWhereInput! = {}): Int
+  postLikes(where: PostLikeWhereInput! = {}, orderBy: [PostLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostLikeWhereUniqueInput): [PostLike!]
+  postLike(where: PostLikeWhereUniqueInput!): PostLike
+  postLikesCount(where: PostLikeWhereInput! = {}): Int
+  postFavorites(where: PostFavoriteWhereInput! = {}, orderBy: [PostFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostFavoriteWhereUniqueInput): [PostFavorite!]
+  postFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
+  postFavoritesCount(where: PostFavoriteWhereInput! = {}): Int
+  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
+  tag(where: TagWhereUniqueInput!): Tag
+  tagsCount(where: TagWhereInput! = {}): Int
+  categories(where: CategoryWhereInput! = {}, orderBy: [CategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CategoryWhereUniqueInput): [Category!]
+  category(where: CategoryWhereUniqueInput!): Category
+  categoriesCount(where: CategoryWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
 }

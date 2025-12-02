@@ -22,6 +22,12 @@ import Payment from "./Store/Payment/Payment";
 import PaymentMethod from "./Store/PaymentMethod/PaymentMethod";
 import TokenNotification from "./TokenNotification/TokenNotification";
 import Ad from "./Ad/Ad";
+import Post from "./Blog/Post/Post";
+import PostComment from "./Blog/Post/PostComment/PostComment";
+import PostLike from "./Blog/Post/PostLike/PostLike";
+import PostFavorite from "./Blog/Post/PostFavorite/PostFavorite";
+import Tag from "./Blog/Tag/Tag";
+import Category from "./Blog/Category/Category";
 
 export default {
   User,
@@ -47,5 +53,11 @@ export default {
   Payment,
   PaymentMethod,
   TokenNotification,
-  Ad
+  Ad,
+  Post,
+  PostComment,
+  PostLike,
+  PostFavorite,
+  Tag,
+  Category
 };

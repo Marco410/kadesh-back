@@ -203,6 +203,16 @@ var STATUS_AD = [
     value: "rejected"
   }
 ];
+var POST_CATEGORIES = [
+  { label: "Cuidado y Salud", value: "care_health" },
+  { label: "Alimentaci\xF3n", value: "nutrition" },
+  { label: "Entrenamiento", value: "training" },
+  { label: "Razas", value: "breeds" },
+  { label: "Adopci\xF3n", value: "adoption" },
+  { label: "Noticias", value: "news" },
+  { label: "Consejos", value: "tips" },
+  { label: "Otro", value: "other" }
+];
 
 // models/Animal/AnimalType/AnimalType.ts
 var AnimalType_default = (0, import_core2.list)({
@@ -1116,6 +1126,331 @@ var Ad_default = (0, import_core24.list)({
   }
 });
 
+// models/Blog/Post/Post.ts
+var import_core25 = require("@keystone-6/core");
+var import_fields25 = require("@keystone-6/core/fields");
+
+// models/Blog/Post/Post.hooks.ts
+var postUrlHook = {
+  resolveInput: async ({ resolvedData, item, context }) => {
+    if (item && !resolvedData.title) {
+      return item.url;
+    }
+    if (resolvedData.title) {
+      return checkPostUrl(resolvedData.title, item?.id, context);
+    }
+    return item?.url || null;
+  }
+};
+function sanitizeUrl(title) {
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
+  let cleaned = title.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  return cleaned;
+}
+async function checkPostUrl(title, currentPostId, context) {
+  let baseLink = sanitizeUrl(title);
+  if (!baseLink || baseLink.length === 0) {
+    baseLink = "post";
+  }
+  let uniqueLink = baseLink;
+  let existingPost = await context.db.Post.findOne({
+    where: { url: uniqueLink }
+  });
+  if (existingPost && existingPost.id !== currentPostId) {
+    let counter = 1;
+    while (existingPost && existingPost.id !== currentPostId) {
+      uniqueLink = `${baseLink}-${counter}`;
+      existingPost = await context.db.Post.findOne({
+        where: { url: uniqueLink }
+      });
+      counter++;
+    }
+  }
+  return uniqueLink;
+}
+
+// models/Blog/Post/Post.ts
+var import_fields_document = require("@keystone-6/fields-document");
+var Post_default = (0, import_core25.list)({
+  access: access_default,
+  fields: {
+    title: (0, import_fields25.text)({ validation: { isRequired: true } }),
+    url: (0, import_fields25.text)({
+      isIndexed: "unique",
+      hooks: postUrlHook,
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    content: (0, import_fields_document.document)({
+      formatting: true,
+      dividers: true,
+      links: true
+    }),
+    excerpt: (0, import_fields25.text)({
+      ui: {
+        displayMode: "textarea"
+      }
+    }),
+    image: (0, import_fields25.image)({
+      storage: "s3_posts"
+    }),
+    published: (0, import_fields25.checkbox)({
+      defaultValue: false
+    }),
+    publishedAt: (0, import_fields25.timestamp)({
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "edit" }
+      }
+    }),
+    category: (0, import_fields25.relationship)({
+      ref: "Category.posts",
+      many: false
+    }),
+    tags: (0, import_fields25.relationship)({
+      ref: "Tag.posts",
+      many: true
+    }),
+    author: (0, import_fields25.relationship)({
+      ref: "User",
+      many: false
+    }),
+    comments: (0, import_fields25.relationship)({
+      ref: "PostComment.post",
+      many: true
+    }),
+    post_likes: (0, import_fields25.relationship)({
+      ref: "PostLike.post",
+      many: true
+    }),
+    post_favorites: (0, import_fields25.relationship)({
+      ref: "PostFavorite.post",
+      many: true
+    }),
+    createdAt: (0, import_fields25.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields25.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      db: {
+        updatedAt: true
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Post/PostComment/PostComment.ts
+var import_core26 = require("@keystone-6/core");
+var import_fields26 = require("@keystone-6/core/fields");
+var PostComment_default = (0, import_core26.list)({
+  access: access_default,
+  fields: {
+    comment: (0, import_fields26.text)({
+      validation: { isRequired: true },
+      ui: { displayMode: "textarea" }
+    }),
+    post: (0, import_fields26.relationship)({
+      ref: "Post.comments",
+      many: false
+    }),
+    user: (0, import_fields26.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields26.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields26.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      db: {
+        updatedAt: true
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Post/PostLike/PostLike.ts
+var import_core27 = require("@keystone-6/core");
+var import_fields27 = require("@keystone-6/core/fields");
+var PostLike_default = (0, import_core27.list)({
+  access: access_default,
+  fields: {
+    user: (0, import_fields27.relationship)({
+      ref: "User",
+      many: false
+    }),
+    post: (0, import_fields27.relationship)({
+      ref: "Post.post_likes",
+      many: false
+    }),
+    createdAt: (0, import_fields27.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Post/PostFavorite/PostFavorite.ts
+var import_core28 = require("@keystone-6/core");
+var import_fields28 = require("@keystone-6/core/fields");
+var PostFavorite_default = (0, import_core28.list)({
+  access: access_default,
+  fields: {
+    user: (0, import_fields28.relationship)({
+      ref: "User",
+      many: false
+    }),
+    post: (0, import_fields28.relationship)({
+      ref: "Post.post_favorites",
+      many: false
+    }),
+    createdAt: (0, import_fields28.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Tag/Tag.ts
+var import_core29 = require("@keystone-6/core");
+var import_fields29 = require("@keystone-6/core/fields");
+var Tag_default = (0, import_core29.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields29.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique"
+    }),
+    posts: (0, import_fields29.relationship)({
+      ref: "Post.tags",
+      many: true
+    }),
+    createdAt: (0, import_fields29.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Category/Category.ts
+var import_core30 = require("@keystone-6/core");
+var import_fields30 = require("@keystone-6/core/fields");
+
+// models/Blog/Category/Category.hooks.ts
+function sanitizeUrl2(text23) {
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
+  let cleaned = text23.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  return cleaned;
+}
+var categoryUrlHook = {
+  resolveInput: async ({ resolvedData, item, context }) => {
+    if (item && !resolvedData.name) {
+      return item.url;
+    }
+    if (resolvedData.name) {
+      return checkCategoryUrl(resolvedData.name, item?.id, context);
+    }
+    return item?.url || null;
+  }
+};
+async function checkCategoryUrl(name, currentCategoryId, context) {
+  let baseLink = sanitizeUrl2(name);
+  if (!baseLink || baseLink.length === 0) {
+    baseLink = "category";
+  }
+  let uniqueLink = baseLink;
+  let existingCategory = await context.db.Category.findOne({
+    where: { url: uniqueLink }
+  });
+  if (existingCategory && existingCategory.id !== currentCategoryId) {
+    let counter = 1;
+    while (existingCategory && existingCategory.id !== currentCategoryId) {
+      uniqueLink = `${baseLink}-${counter}`;
+      existingCategory = await context.db.Category.findOne({
+        where: { url: uniqueLink }
+      });
+      counter++;
+    }
+  }
+  return uniqueLink;
+}
+
+// models/Blog/Category/Category.ts
+var Category_default = (0, import_core30.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields30.select)({
+      options: POST_CATEGORIES,
+      isIndexed: "unique"
+    }),
+    url: (0, import_fields30.text)({
+      isIndexed: "unique",
+      hooks: categoryUrlHook,
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    image: (0, import_fields30.image)({
+      storage: "s3_categories"
+    }),
+    posts: (0, import_fields30.relationship)({
+      ref: "Post.category",
+      many: true
+    }),
+    createdAt: (0, import_fields30.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   User: User_default,
@@ -1141,11 +1476,17 @@ var schema_default = {
   Payment: Payment_default,
   PaymentMethod: PaymentMethod_default,
   TokenNotification: TokenNotification_default,
-  Ad: Ad_default
+  Ad: Ad_default,
+  Post: Post_default,
+  PostComment: PostComment_default,
+  PostLike: PostLike_default,
+  PostFavorite: PostFavorite_default,
+  Tag: Tag_default,
+  Category: Category_default
 };
 
 // keystone.ts
-var import_core25 = require("@keystone-6/core");
+var import_core31 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -1492,7 +1833,7 @@ var {
   S3_SECRET_ACCESS_KEY: secretAccessKey = ""
 } = process.env;
 var keystone_default = withAuth(
-  (0, import_core25.config)({
+  (0, import_core31.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
@@ -1527,6 +1868,28 @@ var keystone_default = withAuth(
         // from your S3_SECRET_ACCESS_KEY environment variable
         signed: { expiry: 3600 }
         // (optional) links will be signed with an expiry of 3600 seconds (an hour)
+      },
+      s3_categories: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: "categories/",
+        // subcarpeta para categorías
+        signed: { expiry: 3600 }
+      },
+      s3_posts: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: "posts/",
+        // subcarpeta para posts
+        signed: { expiry: 3600 }
       }
     },
     lists: schema_default,
