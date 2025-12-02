@@ -564,3 +564,14 @@ export const STATUS_AD = [
     value: "rejected",
   }
 ];
+
+export const POST_CATEGORIES = [
+  { label: "Cuidado y Salud", value: "care_health" },
+  { label: "Alimentación", value: "nutrition" },
+  { label: "Entrenamiento", value: "training" },
+  { label: "Razas", value: "breeds" },
+  { label: "Adopción", value: "adoption" },
+  { label: "Noticias", value: "news" },
+  { label: "Consejos", value: "tips" },
+  { label: "Otro", value: "other" },
+];
