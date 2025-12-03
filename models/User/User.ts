@@ -3,7 +3,6 @@ import {
   text,
   password,
   timestamp,
-  select,
   virtual,
   calendarDay,
   image,
@@ -38,16 +37,9 @@ export default list({
     phone: text({
       hooks: phoneHooks,
     }),
-    role: select({
-      type: "enum",
-      validation: {
-        isRequired: true,
-      },
-      defaultValue: "user",
-      options: [
-        { label: "Admnistrador", value: "admin" },
-        { label: "User", value: "user" },
-      ],
+    roles: relationship({
+      ref: "Role.users",
+      many: true,
     }),
     profileImage: image({ storage: "my_local_images" }),
     birthday: calendarDay(),

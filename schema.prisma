@@ -20,7 +20,7 @@ model User {
   email                       String              @unique @default("")
   password                    String?
   phone                       String              @default("")
-  role                        UserRoleType        @default(user)
+  roles                       Role[]              @relation("Role_users")
   profileImage_id             String?
   profileImage_filesize       Int?
   profileImage_width          Int?
@@ -47,6 +47,7 @@ model User {
   from_PostComment_user       PostComment[]       @relation("PostComment_user")
   from_PostLike_user          PostLike[]          @relation("PostLike_user")
   from_PostFavorite_user      PostFavorite[]      @relation("PostFavorite_user")
+  from_PostView_user          PostView[]          @relation("PostView_user")
 }
 
 model Animal {
@@ -421,6 +422,7 @@ model Post {
   comments        PostComment[]  @relation("PostComment_post")
   post_likes      PostLike[]     @relation("PostLike_post")
   post_favorites  PostFavorite[] @relation("PostFavorite_post")
+  post_views      PostView[]     @relation("PostView_post")
   createdAt       DateTime?      @default(now())
   updatedAt       DateTime?      @default(now()) @updatedAt
 
@@ -466,6 +468,18 @@ model PostFavorite {
   @@index([postId])
 }
 
+model PostView {
+  id        String    @id @default(cuid())
+  user      User?     @relation("PostView_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  post      Post?     @relation("PostView_post", fields: [postId], references: [id])
+  postId    String?   @map("post")
+  createdAt DateTime? @default(now())
+
+  @@index([userId])
+  @@index([postId])
+}
+
 model Tag {
   id        String    @id @default(cuid())
   name      String    @unique @default("")
@@ -486,9 +500,11 @@ model Category {
   createdAt       DateTime? @default(now())
 }
 
-enum UserRoleType {
-  admin
-  user
+model Role {
+  id        String    @id @default(cuid())
+  name      String?   @unique
+  users     User[]    @relation("Role_users")
+  createdAt DateTime? @default(now())
 }
 
 enum PaymentStatusType {

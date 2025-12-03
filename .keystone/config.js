@@ -409,16 +409,9 @@ var User_default = (0, import_core7.list)({
     phone: (0, import_fields7.text)({
       hooks: phoneHooks
     }),
-    role: (0, import_fields7.select)({
-      type: "enum",
-      validation: {
-        isRequired: true
-      },
-      defaultValue: "user",
-      options: [
-        { label: "Admnistrador", value: "admin" },
-        { label: "User", value: "user" }
-      ]
+    roles: (0, import_fields7.relationship)({
+      ref: "Role.users",
+      many: true
     }),
     profileImage: (0, import_fields7.image)({ storage: "my_local_images" }),
     birthday: (0, import_fields7.calendarDay)(),
@@ -1229,6 +1222,10 @@ var Post_default = (0, import_core25.list)({
       ref: "PostFavorite.post",
       many: true
     }),
+    post_views: (0, import_fields25.relationship)({
+      ref: "PostView.post",
+      many: true
+    }),
     createdAt: (0, import_fields25.timestamp)({
       defaultValue: {
         kind: "now"
@@ -1347,19 +1344,19 @@ var PostFavorite_default = (0, import_core28.list)({
   }
 });
 
-// models/Blog/Tag/Tag.ts
+// models/Blog/Post/PostView/PostView.ts
 var import_core29 = require("@keystone-6/core");
 var import_fields29 = require("@keystone-6/core/fields");
-var Tag_default = (0, import_core29.list)({
+var PostView_default = (0, import_core29.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields29.text)({
-      validation: { isRequired: true },
-      isIndexed: "unique"
+    user: (0, import_fields29.relationship)({
+      ref: "User",
+      many: false
     }),
-    posts: (0, import_fields29.relationship)({
-      ref: "Post.tags",
-      many: true
+    post: (0, import_fields29.relationship)({
+      ref: "Post.post_views",
+      many: false
     }),
     createdAt: (0, import_fields29.timestamp)({
       defaultValue: {
@@ -1373,9 +1370,35 @@ var Tag_default = (0, import_core29.list)({
   }
 });
 
-// models/Blog/Category/Category.ts
+// models/Blog/Tag/Tag.ts
 var import_core30 = require("@keystone-6/core");
 var import_fields30 = require("@keystone-6/core/fields");
+var Tag_default = (0, import_core30.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields30.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique"
+    }),
+    posts: (0, import_fields30.relationship)({
+      ref: "Post.tags",
+      many: true
+    }),
+    createdAt: (0, import_fields30.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Category/Category.ts
+var import_core31 = require("@keystone-6/core");
+var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
 function sanitizeUrl2(text23) {
@@ -1417,14 +1440,14 @@ async function checkCategoryUrl(name, currentCategoryId, context) {
 }
 
 // models/Blog/Category/Category.ts
-var Category_default = (0, import_core30.list)({
+var Category_default = (0, import_core31.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields30.select)({
+    name: (0, import_fields31.select)({
       options: POST_CATEGORIES,
       isIndexed: "unique"
     }),
-    url: (0, import_fields30.text)({
+    url: (0, import_fields31.text)({
       isIndexed: "unique",
       hooks: categoryUrlHook,
       ui: {
@@ -1432,14 +1455,49 @@ var Category_default = (0, import_core30.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    image: (0, import_fields30.image)({
+    image: (0, import_fields31.image)({
       storage: "s3_categories"
     }),
-    posts: (0, import_fields30.relationship)({
+    posts: (0, import_fields31.relationship)({
       ref: "Post.category",
       many: true
     }),
-    createdAt: (0, import_fields30.timestamp)({
+    createdAt: (0, import_fields31.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Role/Role.ts
+var import_core32 = require("@keystone-6/core");
+var import_fields32 = require("@keystone-6/core/fields");
+
+// models/Role/constants.ts
+var ROLES = [
+  { label: "Admin", value: "admin" /* ADMIN */ },
+  { label: "User", value: "user" /* USER */ },
+  { label: "Author", value: "author" /* AUTHOR */ }
+];
+
+// models/Role/Role.ts
+var Role_default = (0, import_core32.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields32.select)({
+      options: ROLES,
+      isIndexed: "unique"
+    }),
+    users: (0, import_fields32.relationship)({
+      ref: "User.roles",
+      many: true
+    }),
+    createdAt: (0, import_fields32.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -1481,12 +1539,14 @@ var schema_default = {
   PostComment: PostComment_default,
   PostLike: PostLike_default,
   PostFavorite: PostFavorite_default,
+  PostView: PostView_default,
   Tag: Tag_default,
-  Category: Category_default
+  Category: Category_default,
+  Role: Role_default
 };
 
 // keystone.ts
-var import_core31 = require("@keystone-6/core");
+var import_core33 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -1502,7 +1562,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   // this is a GraphQL query fragment for fetching what data will be attached to a context.session
   //   this can be helpful for when you are writing your access control functions
   //   you can find out more at https://keystonejs.com/docs/guides/auth-and-access-control
-  sessionData: "id name lastName username email phone role createdAt",
+  sessionData: "id name lastName username email verified profileImage { url } phone roles { name } createdAt",
   secretField: "password",
   // WARNING: remove initFirstItem functionality in production
   //   see https://keystonejs.com/docs/config/auth#init-first-item for more
@@ -1510,7 +1570,7 @@ var { withAuth } = (0, import_auth.createAuth)({
     // if there are no items in the database, by configuring this field
     //   you are asking the Keystone AdminUI to create a new user
     //   providing inputs for these fields
-    fields: ["name", "lastName", "username", "email", "password", "role"]
+    fields: ["name", "lastName", "username", "email", "password", "roles"]
     // it uses context.sudo() to do this, which bypasses any access control you might have
     //   you shouldn't use this in production
   }
@@ -1833,7 +1893,7 @@ var {
   S3_SECRET_ACCESS_KEY: secretAccessKey = ""
 } = process.env;
 var keystone_default = withAuth(
-  (0, import_core31.config)({
+  (0, import_core33.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
