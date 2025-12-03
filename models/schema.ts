@@ -27,8 +27,10 @@ import Post from "./Blog/Post/Post";
 import PostComment from "./Blog/Post/PostComment/PostComment";
 import PostLike from "./Blog/Post/PostLike/PostLike";
 import PostFavorite from "./Blog/Post/PostFavorite/PostFavorite";
+import PostView from "./Blog/Post/PostView/PostView";
 import Tag from "./Blog/Tag/Tag";
 import Category from "./Blog/Category/Category";
+import Role from "./Role/Role";
 
 export default {
   User,
@@ -60,6 +62,8 @@ export default {
   PostComment,
   PostLike,
   PostFavorite,
+  PostView,
   Tag,
-  Category
+  Category,
+  Role
 };

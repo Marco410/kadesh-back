@@ -68,6 +68,10 @@ export default list({
       ref: "PostFavorite.post",
       many: true,
     }),
+    post_views: relationship({
+      ref: "PostView.post",
+      many: true,
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
