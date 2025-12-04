@@ -1,5 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { genUniqueLink } from "../../utils/helpers/unike_link";
+import { Role } from "../Role/constants";
 
 export const phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }: any) => {
@@ -34,19 +35,46 @@ export const emailHooks = {
 
 export const userNameHook = {
   resolveInput: async ({ resolvedData, item, context }: any) => {
-    if (item) {
+    if (item && resolvedData.username) {
+      return resolvedData.username;
+    }
+    
+    if (item && !resolvedData.username) {
       return item.username;
     }
 
-    return checkUserName(resolvedData.name, resolvedData?.lastName, context);
+    if (!item && resolvedData.username) {
+      return resolvedData.username;
+    }
+
+    if (!item && !resolvedData.username) {
+      const name = resolvedData.name;
+      const lastName = resolvedData.lastName || "";
+      
+      if (name) {
+        return checkUserName(name, lastName, context);
+      }
+    }
+
+    return resolvedData.username;
   },
 };
 
 export async function checkUserName(name: string, lastName: string, context: KeystoneContext): Promise<string> {
+    if (!name) {
+      throw new Error("El nombre es requerido para generar el username");
+    }
 
-    let baseLink = genUniqueLink(`${name.toLowerCase()}.${lastName.toLowerCase()}`);
+    const namePart = name.trim();
+    const lastNamePart = lastName ? lastName.trim() : "";
+    const fullName = lastNamePart ? `${namePart} ${lastNamePart}` : namePart;
+    let baseLink = genUniqueLink(fullName);
 
-    let uniqueLink : string = baseLink;
+    if (!baseLink || baseLink === "") {
+      baseLink = "user";
+    }
+
+    let uniqueLink: string = baseLink;
 
     let existingUser = await context.db.User.findOne({
       where: { username: uniqueLink },
@@ -54,12 +82,42 @@ export async function checkUserName(name: string, lastName: string, context: Key
 
     let counter = 1;
     while (existingUser) {
-      uniqueLink = `${baseLink}-${counter}`;
+      const randomNum1 = Math.floor(Math.random() * 100).toString();
+      uniqueLink = `${baseLink}${randomNum1}`;
       existingUser = await context.db.User.findOne({
         where: { username: uniqueLink },
       });
       counter++;
     }
 
-  return uniqueLink;
+    return uniqueLink;
+};
+
+export const userRoleHook = {
+  resolveInput: async ({ resolvedData, item, operation, context }: any) => {
+    if (operation === "create" && !item) {
+      const hasRoles = resolvedData.roles && (
+        (resolvedData.roles.connect && resolvedData.roles.connect.length > 0) ||
+        (resolvedData.roles.set && resolvedData.roles.set.length > 0) ||
+        (resolvedData.roles.create && resolvedData.roles.create.length > 0)
+      );
+
+      if (!hasRoles) {
+        try {
+          const userRole = await context.db.Role.findOne({
+            where: { name: Role.USER },
+          });
+
+          if (userRole) {
+            resolvedData.roles = {
+              connect: [{ id: userRole.id }],
+            };
+          }
+        } catch (error) {
+          console.error("Error al asignar el role 'user':", error);
+        }
+      }
+    }
+    return resolvedData;
+  },
 };

@@ -349,6 +349,13 @@ function genUniqueLink(link) {
   return link.toLowerCase().replace(/ñ/g, "n").replace(/\s+/g, ".");
 }
 
+// models/Role/constants.ts
+var ROLES = [
+  { label: "Admin", value: "admin" /* ADMIN */ },
+  { label: "User", value: "user" /* USER */ },
+  { label: "Author", value: "author" /* AUTHOR */ }
+];
+
 // models/User/User.hooks.ts
 var phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }) => {
@@ -376,15 +383,46 @@ var emailHooks = {
     return email;
   }
 };
+var userNameHook = {
+  resolveInput: async ({ resolvedData, item, context }) => {
+    if (item && resolvedData.username) {
+      return resolvedData.username;
+    }
+    if (item && !resolvedData.username) {
+      return item.username;
+    }
+    if (!item && resolvedData.username) {
+      return resolvedData.username;
+    }
+    if (!item && !resolvedData.username) {
+      const name = resolvedData.name;
+      const lastName = resolvedData.lastName || "";
+      if (name) {
+        return checkUserName(name, lastName, context);
+      }
+    }
+    return resolvedData.username;
+  }
+};
 async function checkUserName(name, lastName, context) {
-  let baseLink = genUniqueLink(`${name.toLowerCase()}.${lastName.toLowerCase()}`);
+  if (!name) {
+    throw new Error("El nombre es requerido para generar el username");
+  }
+  const namePart = name.trim();
+  const lastNamePart = lastName ? lastName.trim() : "";
+  const fullName = lastNamePart ? `${namePart} ${lastNamePart}` : namePart;
+  let baseLink = genUniqueLink(fullName);
+  if (!baseLink || baseLink === "") {
+    baseLink = "user";
+  }
   let uniqueLink = baseLink;
   let existingUser = await context.db.User.findOne({
     where: { username: uniqueLink }
   });
   let counter = 1;
   while (existingUser) {
-    uniqueLink = `${baseLink}-${counter}`;
+    const randomNum1 = Math.floor(Math.random() * 100).toString();
+    uniqueLink = `${baseLink}${randomNum1}`;
     existingUser = await context.db.User.findOne({
       where: { username: uniqueLink }
     });
@@ -392,17 +430,43 @@ async function checkUserName(name, lastName, context) {
   }
   return uniqueLink;
 }
+var userRoleHook = {
+  resolveInput: async ({ resolvedData, item, operation, context }) => {
+    if (operation === "create" && !item) {
+      const hasRoles = resolvedData.roles && (resolvedData.roles.connect && resolvedData.roles.connect.length > 0 || resolvedData.roles.set && resolvedData.roles.set.length > 0 || resolvedData.roles.create && resolvedData.roles.create.length > 0);
+      if (!hasRoles) {
+        try {
+          const userRole = await context.db.Role.findOne({
+            where: { name: "user" /* USER */ }
+          });
+          if (userRole) {
+            resolvedData.roles = {
+              connect: [{ id: userRole.id }]
+            };
+          }
+        } catch (error) {
+          console.error("Error al asignar el role 'user':", error);
+        }
+      }
+    }
+    return resolvedData;
+  }
+};
 
 // models/User/User.ts
 var User_default = (0, import_core7.list)({
   access: access_default,
+  hooks: {
+    resolveInput: userRoleHook.resolveInput
+  },
   fields: {
     name: (0, import_fields7.text)({ validation: { isRequired: true } }),
     lastName: (0, import_fields7.text)(),
     secondLastName: (0, import_fields7.text)(),
     username: (0, import_fields7.text)({
       isIndexed: "unique",
-      validation: { isRequired: true }
+      validation: { isRequired: true },
+      hooks: userNameHook
     }),
     email: (0, import_fields7.text)({
       isIndexed: "unique",
@@ -1539,15 +1603,6 @@ var Category_default = (0, import_core31.list)({
 // models/Role/Role.ts
 var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
-
-// models/Role/constants.ts
-var ROLES = [
-  { label: "Admin", value: "admin" /* ADMIN */ },
-  { label: "User", value: "user" /* USER */ },
-  { label: "Author", value: "author" /* AUTHOR */ }
-];
-
-// models/Role/Role.ts
 var Role_default = (0, import_core32.list)({
   access: access_default,
   fields: {
