@@ -4,6 +4,21 @@ import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
 import extendGraphqlSchema from "./graphql/extendedSchema";
 
+// Debug: Verificar variables S3
+console.log("=== S3 Environment Variables Debug ===");
+console.log("S3_BUCKET_NAME:", process.env.S3_BUCKET_NAME ? "✓ Set" : "✗ Missing");
+console.log("S3_REGION:", process.env.S3_REGION ? "✓ Set" : "✗ Missing");
+console.log("S3_ACCESS_KEY_ID:", process.env.S3_ACCESS_KEY_ID ? "✓ Set" : "✗ Missing");
+console.log("S3_SECRET_ACCESS_KEY:", process.env.S3_SECRET_ACCESS_KEY ? "✓ Set" : "✗ Missing");
+console.log("NODE_ENV:", process.env.NODE_ENV || "not set");
+console.log("======================================");
+
+// Setup environment variables
+const path = require("path");
+const dotenv = require("dotenv");
+
+dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
+
 
 if (
   !process.env.S3_BUCKET_NAME ||
@@ -11,6 +26,13 @@ if (
   !process.env.S3_ACCESS_KEY_ID ||
   !process.env.S3_SECRET_ACCESS_KEY
 ) {
+  console.error("\n❌ S3 Configuration Error:");
+  console.error("Missing S3 environment variables:");
+  if (!process.env.S3_BUCKET_NAME) console.error("  - S3_BUCKET_NAME");
+  if (!process.env.S3_REGION) console.error("  - S3_REGION");
+  if (!process.env.S3_ACCESS_KEY_ID) console.error("  - S3_ACCESS_KEY_ID");
+  if (!process.env.S3_SECRET_ACCESS_KEY) console.error("  - S3_SECRET_ACCESS_KEY");
+  console.error("\nPlease check your .env file in the config/ directory");
   throw new Error("S3 Configs are not set");
 }
 
