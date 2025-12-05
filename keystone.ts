@@ -3,9 +3,6 @@ import lists from "./models/schema";
 import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
 import extendGraphqlSchema from "./graphql/extendedSchema";
-import fs from "fs";
-import path from "path";
-import dotenv from "dotenv";
 
 // Debug: Verificar variables S3
 console.log("=== S3 Environment Variables Debug ===");
@@ -16,16 +13,6 @@ console.log("S3_SECRET_ACCESS_KEY:", process.env.S3_SECRET_ACCESS_KEY ? "✓ Set
 console.log("NODE_ENV:", process.env.NODE_ENV || "not set");
 console.log("======================================");
 
-
-const devEnvPath = path.resolve(process.cwd(), "config", ".env.dev");
-
-// Solo carga .env.dev si existe Y no es producción.
-if (process.env.NODE_ENV !== "production" && fs.existsSync(devEnvPath)) {
-  console.log("Loading .env.dev");
-  dotenv.config({ path: devEnvPath });
-} else {
-  console.log("Skipping .env.dev — using process.env (Railway)");
-}
 
 if (
   !process.env.S3_BUCKET_NAME ||

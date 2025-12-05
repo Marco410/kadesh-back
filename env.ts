@@ -1,4 +1,4 @@
-// Setup environment variables
+/* // Setup environment variables
 import path from "path";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -24,4 +24,22 @@ if (fs.existsSync(envFile)) {
     dotenv.config({ path: fallbackFile });
     console.log(`✓ Loaded environment variables from fallback: ${fallbackFile}`);
   }
+} */
+
+
+import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+
+// Cargar .env.dev solo en desarrollo
+if (process.env.NODE_ENV !== "production") {
+  const devEnv = path.resolve(process.cwd(), "config", ".env.dev");
+  if (fs.existsSync(devEnv)) {
+    dotenv.config({ path: devEnv });
+    console.log("✓ Loaded .env.dev");
+  } else {
+    console.log("⚠️ .env.dev not found, using system environment variables");
+  }
+} else {
+  console.log("✓ Production mode — NOT loading .env.dev (Railway variables stay intact)");
 }
