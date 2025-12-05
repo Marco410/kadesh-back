@@ -2346,6 +2346,9 @@ function extendGraphqlSchema(baseSchema) {
 }
 
 // keystone.ts
+var path2 = require("path");
+var dotenv2 = require("dotenv");
+dotenv2.config({ path: path2.resolve(process.cwd(), "config", ".env.dev") });
 if (!process.env.S3_BUCKET_NAME || !process.env.S3_REGION || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
   throw new Error("S3 Configs are not set");
 }
@@ -2370,7 +2373,7 @@ var keystone_default = withAuth(
       my_local_images: {
         kind: "local",
         type: "image",
-        generateUrl: (path2) => `http://${process.env.DB_HOST}:3000/images${path2}`,
+        generateUrl: (path3) => `http://${process.env.DB_HOST}:3000/images${path3}`,
         serverRoute: {
           path: "/images"
         },
