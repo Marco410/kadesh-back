@@ -477,7 +477,7 @@ var User_default = (0, import_core7.list)({
       ref: "Role.users",
       many: true
     }),
-    profileImage: (0, import_fields7.image)({ storage: "my_local_images" }),
+    profileImage: (0, import_fields7.image)({ storage: "s3_profile" }),
     birthday: (0, import_fields7.calendarDay)(),
     age: (0, import_fields7.virtual)({
       field: import_core7.graphql.field({
@@ -2003,6 +2003,17 @@ var keystone_default = withAuth(
         accessKeyId,
         secretAccessKey,
         pathPrefix: "posts/",
+        // subcarpeta para posts
+        signed: { expiry: 3600 }
+      },
+      s3_profile: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: "profiles/",
         // subcarpeta para posts
         signed: { expiry: 3600 }
       }
