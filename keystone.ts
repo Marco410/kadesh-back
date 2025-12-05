@@ -13,13 +13,6 @@ console.log("S3_SECRET_ACCESS_KEY:", process.env.S3_SECRET_ACCESS_KEY ? "✓ Set
 console.log("NODE_ENV:", process.env.NODE_ENV || "not set");
 console.log("======================================");
 
-// Setup environment variables
-const path = require("path");
-const dotenv = require("dotenv");
-
-dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
-
-
 if (
   !process.env.S3_BUCKET_NAME ||
   !process.env.S3_REGION ||
