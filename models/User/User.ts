@@ -2,32 +2,36 @@ import { graphql, list } from "@keystone-6/core";
 import {
   text,
   password,
-  relationship,
   timestamp,
-  checkbox,
-  select,
   virtual,
   calendarDay,
-  file,
   image,
+  checkbox,
+  relationship,
 } from "@keystone-6/core/fields";
-import { emailHooks, phoneHooks } from "./User.hooks";
+import { emailHooks, phoneHooks, userNameHook, userRoleHook } from "./User.hooks";
 import access from "../../utils/generalAccess/access";
 
 export default list({
   access,
+  hooks: {
+    resolveInput: userRoleHook.resolveInput,
+  },
   fields: {
     name: text({ validation: { isRequired: true } }),
     lastName: text(),
+    secondLastName: text(),
     username: text({
       isIndexed: "unique",
+      validation: { isRequired: true },
+      hooks: userNameHook,
     }),
     email: text({
       isIndexed: "unique",
       hooks: emailHooks,
     }),
     password: password({
-      validation: { isRequired: true },
+      validation: { isRequired: false },
       ui: {
         createView: {
           fieldMode: "hidden",
@@ -37,18 +41,11 @@ export default list({
     phone: text({
       hooks: phoneHooks,
     }),
-    role: select({
-      type: "enum",
-      validation: {
-        isRequired: true,
-      },
-      defaultValue: "admin",
-      options: [
-        { label: "Admnistrador", value: "admin" },
-        { label: "User", value: "user" },
-      ],
+    roles: relationship({
+      ref: "Role.users",
+      many: true,
     }),
-    profileImage: image({ storage: "my_local_images" }),
+    profileImage: image({ storage: "s3_profile" }),
     birthday: calendarDay(),
     age: virtual({
       field: graphql.field({
@@ -68,10 +65,16 @@ export default list({
         },
       }),
     }),
+    smsRegistrationId: text(),
+    verified: checkbox(),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
       },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
   },
 });

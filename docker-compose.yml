@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   # DB Service
-  pet-db:
+  db:
     image: postgres:14.3-alpine
     ports:
       - "5432:5432"
@@ -18,7 +18,7 @@ volumes:
     driver: local
 
 networks:
-  # Network for postgres, use for services that need access to the db:
+  # Network for mysql, use for services that need access to the db:
   postgresnet: # Network for internals, use by default:
 
   webnet:

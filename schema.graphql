@@ -5,24 +5,23 @@ type User {
   id: ID!
   name: String
   lastName: String
+  secondLastName: String
   username: String
   email: String
   password: PasswordState
   phone: String
-  role: UserRoleType
+  roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
+  rolesCount(where: RoleWhereInput! = {}): Int
   profileImage: ImageFieldOutput
   birthday: CalendarDay
   age: String
+  smsRegistrationId: String
+  verified: Boolean
   createdAt: DateTime
 }
 
 type PasswordState {
   isSet: Boolean!
-}
-
-enum UserRoleType {
-  admin
-  user
 }
 
 type ImageFieldOutput {
@@ -58,11 +57,15 @@ input UserWhereInput {
   id: IDFilter
   name: StringFilter
   lastName: StringFilter
+  secondLastName: StringFilter
   username: StringFilter
   email: StringFilter
+  password: PasswordFilter
   phone: StringFilter
-  role: UserRoleTypeNullableFilter
+  roles: RoleManyRelationFilter
   birthday: CalendarDayNullableFilter
+  smsRegistrationId: StringFilter
+  verified: BooleanFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -111,11 +114,14 @@ input NestedStringFilter {
   not: NestedStringFilter
 }
 
-input UserRoleTypeNullableFilter {
-  equals: UserRoleType
-  in: [UserRoleType!]
-  notIn: [UserRoleType!]
-  not: UserRoleTypeNullableFilter
+input PasswordFilter {
+  isSet: Boolean!
+}
+
+input RoleManyRelationFilter {
+  every: RoleWhereInput
+  some: RoleWhereInput
+  none: RoleWhereInput
 }
 
 input CalendarDayNullableFilter {
@@ -127,6 +133,11 @@ input CalendarDayNullableFilter {
   gt: CalendarDay
   gte: CalendarDay
   not: CalendarDayNullableFilter
+}
+
+input BooleanFilter {
+  equals: Boolean
+  not: BooleanFilter
 }
 
 input DateTimeNullableFilter {
@@ -144,11 +155,13 @@ input UserOrderByInput {
   id: OrderDirection
   name: OrderDirection
   lastName: OrderDirection
+  secondLastName: OrderDirection
   username: OrderDirection
   email: OrderDirection
   phone: OrderDirection
-  role: OrderDirection
   birthday: OrderDirection
+  smsRegistrationId: OrderDirection
+  verified: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -160,14 +173,24 @@ enum OrderDirection {
 input UserUpdateInput {
   name: String
   lastName: String
+  secondLastName: String
   username: String
   email: String
   password: String
   phone: String
-  role: UserRoleType
+  roles: RoleRelateToManyForUpdateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
+  smsRegistrationId: String
+  verified: Boolean
   createdAt: DateTime
+}
+
+input RoleRelateToManyForUpdateInput {
+  disconnect: [RoleWhereUniqueInput!]
+  set: [RoleWhereUniqueInput!]
+  create: [RoleCreateInput!]
+  connect: [RoleWhereUniqueInput!]
 }
 
 input ImageFieldInput {
@@ -185,14 +208,2436 @@ input UserUpdateArgs {
 input UserCreateInput {
   name: String
   lastName: String
+  secondLastName: String
   username: String
   email: String
   password: String
   phone: String
-  role: UserRoleType
+  roles: RoleRelateToManyForCreateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
+  smsRegistrationId: String
+  verified: Boolean
   createdAt: DateTime
+}
+
+input RoleRelateToManyForCreateInput {
+  create: [RoleCreateInput!]
+  connect: [RoleWhereUniqueInput!]
+}
+
+type Animal {
+  id: ID!
+  name: String
+  animal_type: AnimalType
+  animal_breed: AnimalBreed
+  user: User
+  multimedia(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
+  multimediaCount(where: AnimalMultimediaWhereInput! = {}): Int
+  logs(where: AnimalLogWhereInput! = {}, orderBy: [AnimalLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalLogWhereUniqueInput): [AnimalLog!]
+  logsCount(where: AnimalLogWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input AnimalWhereUniqueInput {
+  id: ID
+}
+
+input AnimalWhereInput {
+  AND: [AnimalWhereInput!]
+  OR: [AnimalWhereInput!]
+  NOT: [AnimalWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  animal_type: AnimalTypeWhereInput
+  animal_breed: AnimalBreedWhereInput
+  user: UserWhereInput
+  multimedia: AnimalMultimediaManyRelationFilter
+  logs: AnimalLogManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input AnimalMultimediaManyRelationFilter {
+  every: AnimalMultimediaWhereInput
+  some: AnimalMultimediaWhereInput
+  none: AnimalMultimediaWhereInput
+}
+
+input AnimalLogManyRelationFilter {
+  every: AnimalLogWhereInput
+  some: AnimalLogWhereInput
+  none: AnimalLogWhereInput
+}
+
+input AnimalOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AnimalUpdateInput {
+  name: String
+  animal_type: AnimalTypeRelateToOneForUpdateInput
+  animal_breed: AnimalBreedRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  multimedia: AnimalMultimediaRelateToManyForUpdateInput
+  logs: AnimalLogRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input AnimalTypeRelateToOneForUpdateInput {
+  create: AnimalTypeCreateInput
+  connect: AnimalTypeWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AnimalBreedRelateToOneForUpdateInput {
+  create: AnimalBreedCreateInput
+  connect: AnimalBreedWhereUniqueInput
+  disconnect: Boolean
+}
+
+input UserRelateToOneForUpdateInput {
+  create: UserCreateInput
+  connect: UserWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AnimalMultimediaRelateToManyForUpdateInput {
+  disconnect: [AnimalMultimediaWhereUniqueInput!]
+  set: [AnimalMultimediaWhereUniqueInput!]
+  create: [AnimalMultimediaCreateInput!]
+  connect: [AnimalMultimediaWhereUniqueInput!]
+}
+
+input AnimalLogRelateToManyForUpdateInput {
+  disconnect: [AnimalLogWhereUniqueInput!]
+  set: [AnimalLogWhereUniqueInput!]
+  create: [AnimalLogCreateInput!]
+  connect: [AnimalLogWhereUniqueInput!]
+}
+
+input AnimalUpdateArgs {
+  where: AnimalWhereUniqueInput!
+  data: AnimalUpdateInput!
+}
+
+input AnimalCreateInput {
+  name: String
+  animal_type: AnimalTypeRelateToOneForCreateInput
+  animal_breed: AnimalBreedRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  multimedia: AnimalMultimediaRelateToManyForCreateInput
+  logs: AnimalLogRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input AnimalTypeRelateToOneForCreateInput {
+  create: AnimalTypeCreateInput
+  connect: AnimalTypeWhereUniqueInput
+}
+
+input AnimalBreedRelateToOneForCreateInput {
+  create: AnimalBreedCreateInput
+  connect: AnimalBreedWhereUniqueInput
+}
+
+input UserRelateToOneForCreateInput {
+  create: UserCreateInput
+  connect: UserWhereUniqueInput
+}
+
+input AnimalMultimediaRelateToManyForCreateInput {
+  create: [AnimalMultimediaCreateInput!]
+  connect: [AnimalMultimediaWhereUniqueInput!]
+}
+
+input AnimalLogRelateToManyForCreateInput {
+  create: [AnimalLogCreateInput!]
+  connect: [AnimalLogWhereUniqueInput!]
+}
+
+type AnimalType {
+  id: ID!
+  name: String
+  animal_breed(where: AnimalBreedWhereInput! = {}, orderBy: [AnimalBreedOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalBreedWhereUniqueInput): [AnimalBreed!]
+  animal_breedCount(where: AnimalBreedWhereInput! = {}): Int
+  order: Int
+}
+
+input AnimalTypeWhereUniqueInput {
+  id: ID
+  name: String
+}
+
+input AnimalTypeWhereInput {
+  AND: [AnimalTypeWhereInput!]
+  OR: [AnimalTypeWhereInput!]
+  NOT: [AnimalTypeWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  animal_breed: AnimalBreedManyRelationFilter
+  order: IntNullableFilter
+}
+
+input AnimalBreedManyRelationFilter {
+  every: AnimalBreedWhereInput
+  some: AnimalBreedWhereInput
+  none: AnimalBreedWhereInput
+}
+
+input IntNullableFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntNullableFilter
+}
+
+input AnimalTypeOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  order: OrderDirection
+}
+
+input AnimalTypeUpdateInput {
+  name: String
+  animal_breed: AnimalBreedRelateToManyForUpdateInput
+  order: Int
+}
+
+input AnimalBreedRelateToManyForUpdateInput {
+  disconnect: [AnimalBreedWhereUniqueInput!]
+  set: [AnimalBreedWhereUniqueInput!]
+  create: [AnimalBreedCreateInput!]
+  connect: [AnimalBreedWhereUniqueInput!]
+}
+
+input AnimalTypeUpdateArgs {
+  where: AnimalTypeWhereUniqueInput!
+  data: AnimalTypeUpdateInput!
+}
+
+input AnimalTypeCreateInput {
+  name: String
+  animal_breed: AnimalBreedRelateToManyForCreateInput
+  order: Int
+}
+
+input AnimalBreedRelateToManyForCreateInput {
+  create: [AnimalBreedCreateInput!]
+  connect: [AnimalBreedWhereUniqueInput!]
+}
+
+type AnimalMultimedia {
+  id: ID!
+  image: ImageFieldOutput
+  animal: Animal
+  createdAt: DateTime
+}
+
+input AnimalMultimediaWhereUniqueInput {
+  id: ID
+}
+
+input AnimalMultimediaWhereInput {
+  AND: [AnimalMultimediaWhereInput!]
+  OR: [AnimalMultimediaWhereInput!]
+  NOT: [AnimalMultimediaWhereInput!]
+  id: IDFilter
+  animal: AnimalWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input AnimalMultimediaOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AnimalMultimediaUpdateInput {
+  image: ImageFieldInput
+  animal: AnimalRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input AnimalRelateToOneForUpdateInput {
+  create: AnimalCreateInput
+  connect: AnimalWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AnimalMultimediaUpdateArgs {
+  where: AnimalMultimediaWhereUniqueInput!
+  data: AnimalMultimediaUpdateInput!
+}
+
+input AnimalMultimediaCreateInput {
+  image: ImageFieldInput
+  animal: AnimalRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input AnimalRelateToOneForCreateInput {
+  create: AnimalCreateInput
+  connect: AnimalWhereUniqueInput
+}
+
+type AnimalFavorite {
+  id: ID!
+  animal: Animal
+  user: User
+  createdAt: DateTime
+}
+
+input AnimalFavoriteWhereUniqueInput {
+  id: ID
+}
+
+input AnimalFavoriteWhereInput {
+  AND: [AnimalFavoriteWhereInput!]
+  OR: [AnimalFavoriteWhereInput!]
+  NOT: [AnimalFavoriteWhereInput!]
+  id: IDFilter
+  animal: AnimalWhereInput
+  user: UserWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input AnimalFavoriteOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AnimalFavoriteUpdateInput {
+  animal: AnimalRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input AnimalFavoriteUpdateArgs {
+  where: AnimalFavoriteWhereUniqueInput!
+  data: AnimalFavoriteUpdateInput!
+}
+
+input AnimalFavoriteCreateInput {
+  animal: AnimalRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type AnimalLog {
+  id: ID!
+  animal: Animal
+  status: String
+  notes: String
+  lat: String
+  lng: String
+  last_seen: Boolean
+  createdAt: DateTime
+}
+
+input AnimalLogWhereUniqueInput {
+  id: ID
+}
+
+input AnimalLogWhereInput {
+  AND: [AnimalLogWhereInput!]
+  OR: [AnimalLogWhereInput!]
+  NOT: [AnimalLogWhereInput!]
+  id: IDFilter
+  animal: AnimalWhereInput
+  status: StringNullableFilter
+  notes: StringFilter
+  lat: StringFilter
+  lng: StringFilter
+  last_seen: BooleanFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input StringNullableFilter {
+  equals: String
+  in: [String!]
+  notIn: [String!]
+  lt: String
+  lte: String
+  gt: String
+  gte: String
+  contains: String
+  startsWith: String
+  endsWith: String
+  mode: QueryMode
+  not: StringNullableFilter
+}
+
+input AnimalLogOrderByInput {
+  id: OrderDirection
+  status: OrderDirection
+  notes: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  last_seen: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AnimalLogUpdateInput {
+  animal: AnimalRelateToOneForUpdateInput
+  status: String
+  notes: String
+  lat: String
+  lng: String
+  last_seen: Boolean
+  createdAt: DateTime
+}
+
+input AnimalLogUpdateArgs {
+  where: AnimalLogWhereUniqueInput!
+  data: AnimalLogUpdateInput!
+}
+
+input AnimalLogCreateInput {
+  animal: AnimalRelateToOneForCreateInput
+  status: String
+  notes: String
+  lat: String
+  lng: String
+  last_seen: Boolean
+  createdAt: DateTime
+}
+
+type AnimalComment {
+  id: ID!
+  comment: String
+  animal: Animal
+  user: User
+  createdAt: DateTime
+}
+
+input AnimalCommentWhereUniqueInput {
+  id: ID
+}
+
+input AnimalCommentWhereInput {
+  AND: [AnimalCommentWhereInput!]
+  OR: [AnimalCommentWhereInput!]
+  NOT: [AnimalCommentWhereInput!]
+  id: IDFilter
+  comment: StringFilter
+  animal: AnimalWhereInput
+  user: UserWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input AnimalCommentOrderByInput {
+  id: OrderDirection
+  comment: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AnimalCommentUpdateInput {
+  comment: String
+  animal: AnimalRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input AnimalCommentUpdateArgs {
+  where: AnimalCommentWhereUniqueInput!
+  data: AnimalCommentUpdateInput!
+}
+
+input AnimalCommentCreateInput {
+  comment: String
+  animal: AnimalRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type AnimalBreed {
+  id: ID!
+  breed: String
+  animal_type: AnimalType
+}
+
+input AnimalBreedWhereUniqueInput {
+  id: ID
+}
+
+input AnimalBreedWhereInput {
+  AND: [AnimalBreedWhereInput!]
+  OR: [AnimalBreedWhereInput!]
+  NOT: [AnimalBreedWhereInput!]
+  id: IDFilter
+  breed: StringFilter
+  animal_type: AnimalTypeWhereInput
+}
+
+input AnimalBreedOrderByInput {
+  id: OrderDirection
+  breed: OrderDirection
+}
+
+input AnimalBreedUpdateInput {
+  breed: String
+  animal_type: AnimalTypeRelateToOneForUpdateInput
+}
+
+input AnimalBreedUpdateArgs {
+  where: AnimalBreedWhereUniqueInput!
+  data: AnimalBreedUpdateInput!
+}
+
+input AnimalBreedCreateInput {
+  breed: String
+  animal_type: AnimalTypeRelateToOneForCreateInput
+}
+
+type Pet {
+  id: ID!
+  name: String
+  birthday: CalendarDay
+  age: String
+  animal_type: AnimalType
+  animal_breed: AnimalBreed
+  user: User
+  multimedia(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
+  multimediaCount(where: PetMultimediaWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input PetWhereUniqueInput {
+  id: ID
+}
+
+input PetWhereInput {
+  AND: [PetWhereInput!]
+  OR: [PetWhereInput!]
+  NOT: [PetWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  birthday: CalendarDayFilter
+  animal_type: AnimalTypeWhereInput
+  animal_breed: AnimalBreedWhereInput
+  user: UserWhereInput
+  multimedia: PetMultimediaManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input CalendarDayFilter {
+  equals: CalendarDay
+  in: [CalendarDay!]
+  notIn: [CalendarDay!]
+  lt: CalendarDay
+  lte: CalendarDay
+  gt: CalendarDay
+  gte: CalendarDay
+  not: CalendarDayFilter
+}
+
+input PetMultimediaManyRelationFilter {
+  every: PetMultimediaWhereInput
+  some: PetMultimediaWhereInput
+  none: PetMultimediaWhereInput
+}
+
+input PetOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  birthday: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetUpdateInput {
+  name: String
+  birthday: CalendarDay
+  animal_type: AnimalTypeRelateToOneForUpdateInput
+  animal_breed: AnimalBreedRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  multimedia: PetMultimediaRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input PetMultimediaRelateToManyForUpdateInput {
+  disconnect: [PetMultimediaWhereUniqueInput!]
+  set: [PetMultimediaWhereUniqueInput!]
+  create: [PetMultimediaCreateInput!]
+  connect: [PetMultimediaWhereUniqueInput!]
+}
+
+input PetUpdateArgs {
+  where: PetWhereUniqueInput!
+  data: PetUpdateInput!
+}
+
+input PetCreateInput {
+  name: String
+  birthday: CalendarDay
+  animal_type: AnimalTypeRelateToOneForCreateInput
+  animal_breed: AnimalBreedRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  multimedia: PetMultimediaRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input PetMultimediaRelateToManyForCreateInput {
+  create: [PetMultimediaCreateInput!]
+  connect: [PetMultimediaWhereUniqueInput!]
+}
+
+type PetMultimedia {
+  id: ID!
+  image: ImageFieldOutput
+  pet: Pet
+  createdAt: DateTime
+}
+
+input PetMultimediaWhereUniqueInput {
+  id: ID
+}
+
+input PetMultimediaWhereInput {
+  AND: [PetMultimediaWhereInput!]
+  OR: [PetMultimediaWhereInput!]
+  NOT: [PetMultimediaWhereInput!]
+  id: IDFilter
+  pet: PetWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PetMultimediaOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetMultimediaUpdateInput {
+  image: ImageFieldInput
+  pet: PetRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PetRelateToOneForUpdateInput {
+  create: PetCreateInput
+  connect: PetWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PetMultimediaUpdateArgs {
+  where: PetMultimediaWhereUniqueInput!
+  data: PetMultimediaUpdateInput!
+}
+
+input PetMultimediaCreateInput {
+  image: ImageFieldInput
+  pet: PetRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input PetRelateToOneForCreateInput {
+  create: PetCreateInput
+  connect: PetWhereUniqueInput
+}
+
+type PetPlace {
+  id: ID!
+  name: String
+  description: String
+  phone: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  lat: String
+  lng: String
+  views: Int
+  type: String
+  services(where: PetPlaceServiceWhereInput! = {}, orderBy: [PetPlaceServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceServiceWhereUniqueInput): [PetPlaceService!]
+  servicesCount(where: PetPlaceServiceWhereInput! = {}): Int
+  user: User
+  isOpen: Boolean
+  pet_place_social_media(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
+  pet_place_social_mediaCount(where: SocialMediaWhereInput! = {}): Int
+  pet_place_likes(where: PetPlaceLikeWhereInput! = {}, orderBy: [PetPlaceLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceLikeWhereUniqueInput): [PetPlaceLike!]
+  pet_place_likesCount(where: PetPlaceLikeWhereInput! = {}): Int
+  pet_place_schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
+  pet_place_schedulesCount(where: ScheduleWhereInput! = {}): Int
+  pet_place_reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
+  pet_place_reviewsCount(where: ReviewWhereInput! = {}): Int
+  pet_place_ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
+  pet_place_adsCount(where: AdWhereInput! = {}): Int
+  address: String
+  google_place_id: String
+  google_opening_hours: String
+  createdAt: DateTime
+}
+
+input PetPlaceWhereUniqueInput {
+  id: ID
+  google_place_id: String
+}
+
+input PetPlaceWhereInput {
+  AND: [PetPlaceWhereInput!]
+  OR: [PetPlaceWhereInput!]
+  NOT: [PetPlaceWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  description: StringFilter
+  phone: StringFilter
+  website: StringFilter
+  street: StringFilter
+  municipality: StringFilter
+  state: StringFilter
+  country: StringFilter
+  cp: StringFilter
+  lat: StringFilter
+  lng: StringFilter
+  views: IntNullableFilter
+  type: StringNullableFilter
+  services: PetPlaceServiceManyRelationFilter
+  user: UserWhereInput
+  pet_place_social_media: SocialMediaManyRelationFilter
+  pet_place_likes: PetPlaceLikeManyRelationFilter
+  pet_place_schedules: ScheduleManyRelationFilter
+  pet_place_reviews: ReviewManyRelationFilter
+  pet_place_ads: AdManyRelationFilter
+  address: StringFilter
+  google_place_id: StringFilter
+  google_opening_hours: StringFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PetPlaceServiceManyRelationFilter {
+  every: PetPlaceServiceWhereInput
+  some: PetPlaceServiceWhereInput
+  none: PetPlaceServiceWhereInput
+}
+
+input SocialMediaManyRelationFilter {
+  every: SocialMediaWhereInput
+  some: SocialMediaWhereInput
+  none: SocialMediaWhereInput
+}
+
+input PetPlaceLikeManyRelationFilter {
+  every: PetPlaceLikeWhereInput
+  some: PetPlaceLikeWhereInput
+  none: PetPlaceLikeWhereInput
+}
+
+input ScheduleManyRelationFilter {
+  every: ScheduleWhereInput
+  some: ScheduleWhereInput
+  none: ScheduleWhereInput
+}
+
+input ReviewManyRelationFilter {
+  every: ReviewWhereInput
+  some: ReviewWhereInput
+  none: ReviewWhereInput
+}
+
+input AdManyRelationFilter {
+  every: AdWhereInput
+  some: AdWhereInput
+  none: AdWhereInput
+}
+
+input PetPlaceOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  description: OrderDirection
+  phone: OrderDirection
+  website: OrderDirection
+  street: OrderDirection
+  municipality: OrderDirection
+  state: OrderDirection
+  country: OrderDirection
+  cp: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  views: OrderDirection
+  type: OrderDirection
+  address: OrderDirection
+  google_place_id: OrderDirection
+  google_opening_hours: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetPlaceUpdateInput {
+  name: String
+  description: String
+  phone: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  lat: String
+  lng: String
+  views: Int
+  type: String
+  services: PetPlaceServiceRelateToManyForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  pet_place_social_media: SocialMediaRelateToManyForUpdateInput
+  pet_place_likes: PetPlaceLikeRelateToManyForUpdateInput
+  pet_place_schedules: ScheduleRelateToManyForUpdateInput
+  pet_place_reviews: ReviewRelateToManyForUpdateInput
+  pet_place_ads: AdRelateToManyForUpdateInput
+  address: String
+  google_place_id: String
+  google_opening_hours: String
+  createdAt: DateTime
+}
+
+input PetPlaceServiceRelateToManyForUpdateInput {
+  disconnect: [PetPlaceServiceWhereUniqueInput!]
+  set: [PetPlaceServiceWhereUniqueInput!]
+  create: [PetPlaceServiceCreateInput!]
+  connect: [PetPlaceServiceWhereUniqueInput!]
+}
+
+input SocialMediaRelateToManyForUpdateInput {
+  disconnect: [SocialMediaWhereUniqueInput!]
+  set: [SocialMediaWhereUniqueInput!]
+  create: [SocialMediaCreateInput!]
+  connect: [SocialMediaWhereUniqueInput!]
+}
+
+input PetPlaceLikeRelateToManyForUpdateInput {
+  disconnect: [PetPlaceLikeWhereUniqueInput!]
+  set: [PetPlaceLikeWhereUniqueInput!]
+  create: [PetPlaceLikeCreateInput!]
+  connect: [PetPlaceLikeWhereUniqueInput!]
+}
+
+input ScheduleRelateToManyForUpdateInput {
+  disconnect: [ScheduleWhereUniqueInput!]
+  set: [ScheduleWhereUniqueInput!]
+  create: [ScheduleCreateInput!]
+  connect: [ScheduleWhereUniqueInput!]
+}
+
+input ReviewRelateToManyForUpdateInput {
+  disconnect: [ReviewWhereUniqueInput!]
+  set: [ReviewWhereUniqueInput!]
+  create: [ReviewCreateInput!]
+  connect: [ReviewWhereUniqueInput!]
+}
+
+input AdRelateToManyForUpdateInput {
+  disconnect: [AdWhereUniqueInput!]
+  set: [AdWhereUniqueInput!]
+  create: [AdCreateInput!]
+  connect: [AdWhereUniqueInput!]
+}
+
+input PetPlaceUpdateArgs {
+  where: PetPlaceWhereUniqueInput!
+  data: PetPlaceUpdateInput!
+}
+
+input PetPlaceCreateInput {
+  name: String
+  description: String
+  phone: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  lat: String
+  lng: String
+  views: Int
+  type: String
+  services: PetPlaceServiceRelateToManyForCreateInput
+  user: UserRelateToOneForCreateInput
+  pet_place_social_media: SocialMediaRelateToManyForCreateInput
+  pet_place_likes: PetPlaceLikeRelateToManyForCreateInput
+  pet_place_schedules: ScheduleRelateToManyForCreateInput
+  pet_place_reviews: ReviewRelateToManyForCreateInput
+  pet_place_ads: AdRelateToManyForCreateInput
+  address: String
+  google_place_id: String
+  google_opening_hours: String
+  createdAt: DateTime
+}
+
+input PetPlaceServiceRelateToManyForCreateInput {
+  create: [PetPlaceServiceCreateInput!]
+  connect: [PetPlaceServiceWhereUniqueInput!]
+}
+
+input SocialMediaRelateToManyForCreateInput {
+  create: [SocialMediaCreateInput!]
+  connect: [SocialMediaWhereUniqueInput!]
+}
+
+input PetPlaceLikeRelateToManyForCreateInput {
+  create: [PetPlaceLikeCreateInput!]
+  connect: [PetPlaceLikeWhereUniqueInput!]
+}
+
+input ScheduleRelateToManyForCreateInput {
+  create: [ScheduleCreateInput!]
+  connect: [ScheduleWhereUniqueInput!]
+}
+
+input ReviewRelateToManyForCreateInput {
+  create: [ReviewCreateInput!]
+  connect: [ReviewWhereUniqueInput!]
+}
+
+input AdRelateToManyForCreateInput {
+  create: [AdCreateInput!]
+  connect: [AdWhereUniqueInput!]
+}
+
+type PetPlaceLike {
+  id: ID!
+  user: User
+  pet_place: PetPlace
+  createdAt: DateTime
+}
+
+input PetPlaceLikeWhereUniqueInput {
+  id: ID
+}
+
+input PetPlaceLikeWhereInput {
+  AND: [PetPlaceLikeWhereInput!]
+  OR: [PetPlaceLikeWhereInput!]
+  NOT: [PetPlaceLikeWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  pet_place: PetPlaceWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PetPlaceLikeOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetPlaceLikeUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  pet_place: PetPlaceRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PetPlaceRelateToOneForUpdateInput {
+  create: PetPlaceCreateInput
+  connect: PetPlaceWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PetPlaceLikeUpdateArgs {
+  where: PetPlaceLikeWhereUniqueInput!
+  data: PetPlaceLikeUpdateInput!
+}
+
+input PetPlaceLikeCreateInput {
+  user: UserRelateToOneForCreateInput
+  pet_place: PetPlaceRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input PetPlaceRelateToOneForCreateInput {
+  create: PetPlaceCreateInput
+  connect: PetPlaceWhereUniqueInput
+}
+
+type PetPlaceService {
+  id: ID!
+  name: String
+  slug: String
+  description: String
+  active: Boolean
+  createdAt: DateTime
+}
+
+input PetPlaceServiceWhereUniqueInput {
+  id: ID
+}
+
+input PetPlaceServiceWhereInput {
+  AND: [PetPlaceServiceWhereInput!]
+  OR: [PetPlaceServiceWhereInput!]
+  NOT: [PetPlaceServiceWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  slug: StringFilter
+  description: StringFilter
+  active: BooleanFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PetPlaceServiceOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  slug: OrderDirection
+  description: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetPlaceServiceUpdateInput {
+  name: String
+  slug: String
+  description: String
+  active: Boolean
+  createdAt: DateTime
+}
+
+input PetPlaceServiceUpdateArgs {
+  where: PetPlaceServiceWhereUniqueInput!
+  data: PetPlaceServiceUpdateInput!
+}
+
+input PetPlaceServiceCreateInput {
+  name: String
+  slug: String
+  description: String
+  active: Boolean
+  createdAt: DateTime
+}
+
+type Schedule {
+  id: ID!
+  day: String
+  timeIni: Int
+  timeEnd: Int
+  pet_place: PetPlace
+  createdAt: DateTime
+}
+
+input ScheduleWhereUniqueInput {
+  id: ID
+}
+
+input ScheduleWhereInput {
+  AND: [ScheduleWhereInput!]
+  OR: [ScheduleWhereInput!]
+  NOT: [ScheduleWhereInput!]
+  id: IDFilter
+  day: StringFilter
+  timeIni: IntFilter
+  timeEnd: IntFilter
+  pet_place: PetPlaceWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input IntFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntFilter
+}
+
+input ScheduleOrderByInput {
+  id: OrderDirection
+  day: OrderDirection
+  timeIni: OrderDirection
+  timeEnd: OrderDirection
+  createdAt: OrderDirection
+}
+
+input ScheduleUpdateInput {
+  day: String
+  timeIni: Int
+  timeEnd: Int
+  pet_place: PetPlaceRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input ScheduleUpdateArgs {
+  where: ScheduleWhereUniqueInput!
+  data: ScheduleUpdateInput!
+}
+
+input ScheduleCreateInput {
+  day: String
+  timeIni: Int
+  timeEnd: Int
+  pet_place: PetPlaceRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type SocialMedia {
+  id: ID!
+  social_media: String
+  link: String
+  pet_place: PetPlace
+  createdAt: DateTime
+}
+
+input SocialMediaWhereUniqueInput {
+  id: ID
+}
+
+input SocialMediaWhereInput {
+  AND: [SocialMediaWhereInput!]
+  OR: [SocialMediaWhereInput!]
+  NOT: [SocialMediaWhereInput!]
+  id: IDFilter
+  social_media: StringFilter
+  link: StringFilter
+  pet_place: PetPlaceWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input SocialMediaOrderByInput {
+  id: OrderDirection
+  social_media: OrderDirection
+  link: OrderDirection
+  createdAt: OrderDirection
+}
+
+input SocialMediaUpdateInput {
+  social_media: String
+  link: String
+  pet_place: PetPlaceRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input SocialMediaUpdateArgs {
+  where: SocialMediaWhereUniqueInput!
+  data: SocialMediaUpdateInput!
+}
+
+input SocialMediaCreateInput {
+  social_media: String
+  link: String
+  pet_place: PetPlaceRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type Review {
+  id: ID!
+  rating: Int
+  review: String
+  pet_place: PetPlace
+  product: Product
+  user: User
+  google_user: String
+  google_user_photo: String
+  createdAt: DateTime
+}
+
+input ReviewWhereUniqueInput {
+  id: ID
+}
+
+input ReviewWhereInput {
+  AND: [ReviewWhereInput!]
+  OR: [ReviewWhereInput!]
+  NOT: [ReviewWhereInput!]
+  id: IDFilter
+  rating: IntNullableFilter
+  review: StringFilter
+  pet_place: PetPlaceWhereInput
+  product: ProductWhereInput
+  user: UserWhereInput
+  google_user: StringFilter
+  google_user_photo: StringFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input ReviewOrderByInput {
+  id: OrderDirection
+  rating: OrderDirection
+  review: OrderDirection
+  google_user: OrderDirection
+  google_user_photo: OrderDirection
+  createdAt: OrderDirection
+}
+
+input ReviewUpdateInput {
+  rating: Int
+  review: String
+  pet_place: PetPlaceRelateToOneForUpdateInput
+  product: ProductRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  google_user: String
+  google_user_photo: String
+  createdAt: DateTime
+}
+
+input ProductRelateToOneForUpdateInput {
+  create: ProductCreateInput
+  connect: ProductWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ReviewUpdateArgs {
+  where: ReviewWhereUniqueInput!
+  data: ReviewUpdateInput!
+}
+
+input ReviewCreateInput {
+  rating: Int
+  review: String
+  pet_place: PetPlaceRelateToOneForCreateInput
+  product: ProductRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  google_user: String
+  google_user_photo: String
+  createdAt: DateTime
+}
+
+input ProductRelateToOneForCreateInput {
+  create: ProductCreateInput
+  connect: ProductWhereUniqueInput
+}
+
+type Product {
+  id: ID!
+  name: String
+  price: Int
+  description: String
+  category: String
+  brand: String
+  type: String
+  product_reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
+  product_reviewsCount(where: ReviewWhereInput! = {}): Int
+  product_ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
+  product_adsCount(where: AdWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input ProductWhereUniqueInput {
+  id: ID
+}
+
+input ProductWhereInput {
+  AND: [ProductWhereInput!]
+  OR: [ProductWhereInput!]
+  NOT: [ProductWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  price: IntFilter
+  description: StringFilter
+  category: StringFilter
+  brand: StringFilter
+  type: StringFilter
+  product_reviews: ReviewManyRelationFilter
+  product_ads: AdManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input ProductOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  price: OrderDirection
+  description: OrderDirection
+  category: OrderDirection
+  brand: OrderDirection
+  type: OrderDirection
+  createdAt: OrderDirection
+}
+
+input ProductUpdateInput {
+  name: String
+  price: Int
+  description: String
+  category: String
+  brand: String
+  type: String
+  product_reviews: ReviewRelateToManyForUpdateInput
+  product_ads: AdRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input ProductUpdateArgs {
+  where: ProductWhereUniqueInput!
+  data: ProductUpdateInput!
+}
+
+input ProductCreateInput {
+  name: String
+  price: Int
+  description: String
+  category: String
+  brand: String
+  type: String
+  product_reviews: ReviewRelateToManyForCreateInput
+  product_ads: AdRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+type WishList {
+  id: ID!
+  name: String
+  user: User
+  product(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
+  productCount(where: ProductWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input WishListWhereUniqueInput {
+  id: ID
+}
+
+input WishListWhereInput {
+  AND: [WishListWhereInput!]
+  OR: [WishListWhereInput!]
+  NOT: [WishListWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  user: UserWhereInput
+  product: ProductManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input ProductManyRelationFilter {
+  every: ProductWhereInput
+  some: ProductWhereInput
+  none: ProductWhereInput
+}
+
+input WishListOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+}
+
+input WishListUpdateInput {
+  name: String
+  user: UserRelateToOneForUpdateInput
+  product: ProductRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input ProductRelateToManyForUpdateInput {
+  disconnect: [ProductWhereUniqueInput!]
+  set: [ProductWhereUniqueInput!]
+  create: [ProductCreateInput!]
+  connect: [ProductWhereUniqueInput!]
+}
+
+input WishListUpdateArgs {
+  where: WishListWhereUniqueInput!
+  data: WishListUpdateInput!
+}
+
+input WishListCreateInput {
+  name: String
+  user: UserRelateToOneForCreateInput
+  product: ProductRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input ProductRelateToManyForCreateInput {
+  create: [ProductCreateInput!]
+  connect: [ProductWhereUniqueInput!]
+}
+
+type Cart {
+  id: ID!
+  name: String
+  user: User
+  product(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
+  productCount(where: ProductWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input CartWhereUniqueInput {
+  id: ID
+}
+
+input CartWhereInput {
+  AND: [CartWhereInput!]
+  OR: [CartWhereInput!]
+  NOT: [CartWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  user: UserWhereInput
+  product: ProductManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input CartOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+}
+
+input CartUpdateInput {
+  name: String
+  user: UserRelateToOneForUpdateInput
+  product: ProductRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input CartUpdateArgs {
+  where: CartWhereUniqueInput!
+  data: CartUpdateInput!
+}
+
+input CartCreateInput {
+  name: String
+  user: UserRelateToOneForCreateInput
+  product: ProductRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+type Order {
+  id: ID!
+  total: Int
+  status: String
+  cart: Cart
+  user: User
+  payment: Payment
+  createdAt: DateTime
+}
+
+input OrderWhereUniqueInput {
+  id: ID
+}
+
+input OrderWhereInput {
+  AND: [OrderWhereInput!]
+  OR: [OrderWhereInput!]
+  NOT: [OrderWhereInput!]
+  id: IDFilter
+  total: IntNullableFilter
+  status: StringFilter
+  cart: CartWhereInput
+  user: UserWhereInput
+  payment: PaymentWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input OrderOrderByInput {
+  id: OrderDirection
+  total: OrderDirection
+  status: OrderDirection
+  createdAt: OrderDirection
+}
+
+input OrderUpdateInput {
+  total: Int
+  status: String
+  cart: CartRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  payment: PaymentRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input CartRelateToOneForUpdateInput {
+  create: CartCreateInput
+  connect: CartWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PaymentRelateToOneForUpdateInput {
+  create: PaymentCreateInput
+  connect: PaymentWhereUniqueInput
+  disconnect: Boolean
+}
+
+input OrderUpdateArgs {
+  where: OrderWhereUniqueInput!
+  data: OrderUpdateInput!
+}
+
+input OrderCreateInput {
+  total: Int
+  status: String
+  cart: CartRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  payment: PaymentRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input CartRelateToOneForCreateInput {
+  create: CartCreateInput
+  connect: CartWhereUniqueInput
+}
+
+input PaymentRelateToOneForCreateInput {
+  create: PaymentCreateInput
+  connect: PaymentWhereUniqueInput
+}
+
+type Payment {
+  id: ID!
+  order_payment: Order
+  paymentMethod: PaymentMethod
+  amount: Decimal
+  status: PaymentStatusType
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  processorRefundId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+scalar Decimal
+
+enum PaymentStatusType {
+  pending
+  processing
+  succeeded
+  cancelled
+  failed
+  refunded
+}
+
+input PaymentWhereUniqueInput {
+  id: ID
+}
+
+input PaymentWhereInput {
+  AND: [PaymentWhereInput!]
+  OR: [PaymentWhereInput!]
+  NOT: [PaymentWhereInput!]
+  id: IDFilter
+  order_payment: OrderWhereInput
+  paymentMethod: PaymentMethodWhereInput
+  amount: DecimalNullableFilter
+  status: PaymentStatusTypeNullableFilter
+  processorStripeChargeId: StringFilter
+  stripeErrorMessage: StringFilter
+  processorRefundId: StringFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input DecimalNullableFilter {
+  equals: Decimal
+  in: [Decimal!]
+  notIn: [Decimal!]
+  lt: Decimal
+  lte: Decimal
+  gt: Decimal
+  gte: Decimal
+  not: DecimalNullableFilter
+}
+
+input PaymentStatusTypeNullableFilter {
+  equals: PaymentStatusType
+  in: [PaymentStatusType!]
+  notIn: [PaymentStatusType!]
+  not: PaymentStatusTypeNullableFilter
+}
+
+input PaymentOrderByInput {
+  id: OrderDirection
+  amount: OrderDirection
+  status: OrderDirection
+  processorStripeChargeId: OrderDirection
+  stripeErrorMessage: OrderDirection
+  processorRefundId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentUpdateInput {
+  order_payment: OrderRelateToOneForUpdateInput
+  paymentMethod: PaymentMethodRelateToOneForUpdateInput
+  amount: Decimal
+  status: PaymentStatusType
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  processorRefundId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OrderRelateToOneForUpdateInput {
+  create: OrderCreateInput
+  connect: OrderWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PaymentMethodRelateToOneForUpdateInput {
+  create: PaymentMethodCreateInput
+  connect: PaymentMethodWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PaymentUpdateArgs {
+  where: PaymentWhereUniqueInput!
+  data: PaymentUpdateInput!
+}
+
+input PaymentCreateInput {
+  order_payment: OrderRelateToOneForCreateInput
+  paymentMethod: PaymentMethodRelateToOneForCreateInput
+  amount: Decimal
+  status: PaymentStatusType
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  processorRefundId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OrderRelateToOneForCreateInput {
+  create: OrderCreateInput
+  connect: OrderWhereUniqueInput
+}
+
+input PaymentMethodRelateToOneForCreateInput {
+  create: PaymentMethodCreateInput
+  connect: PaymentMethodWhereUniqueInput
+}
+
+type PaymentMethod {
+  id: ID!
+  user: User
+  cardType: String
+  isDefault: Boolean
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  payment(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentCount(where: PaymentWhereInput! = {}): Int
+  type: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentMethodWhereUniqueInput {
+  id: ID
+}
+
+input PaymentMethodWhereInput {
+  AND: [PaymentMethodWhereInput!]
+  OR: [PaymentMethodWhereInput!]
+  NOT: [PaymentMethodWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  cardType: StringFilter
+  isDefault: BooleanFilter
+  lastFourDigits: StringFilter
+  expMonth: StringFilter
+  expYear: StringFilter
+  stripeProcessorId: StringFilter
+  address: StringFilter
+  postalCode: StringFilter
+  ownerName: StringFilter
+  country: StringFilter
+  payment: PaymentManyRelationFilter
+  type: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input PaymentManyRelationFilter {
+  every: PaymentWhereInput
+  some: PaymentWhereInput
+  none: PaymentWhereInput
+}
+
+input PaymentMethodOrderByInput {
+  id: OrderDirection
+  cardType: OrderDirection
+  isDefault: OrderDirection
+  lastFourDigits: OrderDirection
+  expMonth: OrderDirection
+  expYear: OrderDirection
+  stripeProcessorId: OrderDirection
+  address: OrderDirection
+  postalCode: OrderDirection
+  ownerName: OrderDirection
+  country: OrderDirection
+  type: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentMethodUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  cardType: String
+  isDefault: Boolean
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  payment: PaymentRelateToManyForUpdateInput
+  type: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentRelateToManyForUpdateInput {
+  disconnect: [PaymentWhereUniqueInput!]
+  set: [PaymentWhereUniqueInput!]
+  create: [PaymentCreateInput!]
+  connect: [PaymentWhereUniqueInput!]
+}
+
+input PaymentMethodUpdateArgs {
+  where: PaymentMethodWhereUniqueInput!
+  data: PaymentMethodUpdateInput!
+}
+
+input PaymentMethodCreateInput {
+  user: UserRelateToOneForCreateInput
+  cardType: String
+  isDefault: Boolean
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  payment: PaymentRelateToManyForCreateInput
+  type: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentRelateToManyForCreateInput {
+  create: [PaymentCreateInput!]
+  connect: [PaymentWhereUniqueInput!]
+}
+
+type TokenNotification {
+  id: ID!
+  token: String
+  user: User
+}
+
+input TokenNotificationWhereUniqueInput {
+  id: ID
+}
+
+input TokenNotificationWhereInput {
+  AND: [TokenNotificationWhereInput!]
+  OR: [TokenNotificationWhereInput!]
+  NOT: [TokenNotificationWhereInput!]
+  id: IDFilter
+  token: StringFilter
+  user: UserWhereInput
+}
+
+input TokenNotificationOrderByInput {
+  id: OrderDirection
+  token: OrderDirection
+}
+
+input TokenNotificationUpdateInput {
+  token: String
+  user: UserRelateToOneForUpdateInput
+}
+
+input TokenNotificationUpdateArgs {
+  where: TokenNotificationWhereUniqueInput!
+  data: TokenNotificationUpdateInput!
+}
+
+input TokenNotificationCreateInput {
+  token: String
+  user: UserRelateToOneForCreateInput
+}
+
+type Ad {
+  id: ID!
+  title: String
+  description: String
+  active: Boolean
+  start_date: CalendarDay
+  end_date: CalendarDay
+  price: Int
+  status: String
+  type: String
+  lat: String
+  lng: String
+  image: ImageFieldOutput
+  pet_place: PetPlace
+  product: Product
+  user: User
+  createdAt: DateTime
+}
+
+input AdWhereUniqueInput {
+  id: ID
+}
+
+input AdWhereInput {
+  AND: [AdWhereInput!]
+  OR: [AdWhereInput!]
+  NOT: [AdWhereInput!]
+  id: IDFilter
+  title: StringFilter
+  description: StringFilter
+  active: BooleanFilter
+  start_date: CalendarDayNullableFilter
+  end_date: CalendarDayNullableFilter
+  price: IntNullableFilter
+  status: StringNullableFilter
+  type: StringNullableFilter
+  lat: StringFilter
+  lng: StringFilter
+  pet_place: PetPlaceWhereInput
+  product: ProductWhereInput
+  user: UserWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input AdOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  description: OrderDirection
+  active: OrderDirection
+  start_date: OrderDirection
+  end_date: OrderDirection
+  price: OrderDirection
+  status: OrderDirection
+  type: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AdUpdateInput {
+  title: String
+  description: String
+  active: Boolean
+  start_date: CalendarDay
+  end_date: CalendarDay
+  price: Int
+  status: String
+  type: String
+  lat: String
+  lng: String
+  image: ImageFieldInput
+  pet_place: PetPlaceRelateToOneForUpdateInput
+  product: ProductRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input AdUpdateArgs {
+  where: AdWhereUniqueInput!
+  data: AdUpdateInput!
+}
+
+input AdCreateInput {
+  title: String
+  description: String
+  active: Boolean
+  start_date: CalendarDay
+  end_date: CalendarDay
+  price: Int
+  status: String
+  type: String
+  lat: String
+  lng: String
+  image: ImageFieldInput
+  pet_place: PetPlaceRelateToOneForCreateInput
+  product: ProductRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type Post {
+  id: ID!
+  title: String
+  url: String
+  content: Post_content_Document
+  excerpt: String
+  image: ImageFieldOutput
+  published: Boolean
+  publishedAt: DateTime
+  category: Category
+  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
+  tagsCount(where: TagWhereInput! = {}): Int
+  author: User
+  comments(where: PostCommentWhereInput! = {}, orderBy: [PostCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostCommentWhereUniqueInput): [PostComment!]
+  commentsCount(where: PostCommentWhereInput! = {}): Int
+  post_likes(where: PostLikeWhereInput! = {}, orderBy: [PostLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostLikeWhereUniqueInput): [PostLike!]
+  post_likesCount(where: PostLikeWhereInput! = {}): Int
+  post_favorites(where: PostFavoriteWhereInput! = {}, orderBy: [PostFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostFavoriteWhereUniqueInput): [PostFavorite!]
+  post_favoritesCount(where: PostFavoriteWhereInput! = {}): Int
+  post_views(where: PostViewWhereInput! = {}, orderBy: [PostViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostViewWhereUniqueInput): [PostView!]
+  post_viewsCount(where: PostViewWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Post_content_Document {
+  document(hydrateRelationships: Boolean! = false): JSON!
+}
+
+input PostWhereUniqueInput {
+  id: ID
+  url: String
+}
+
+input PostWhereInput {
+  AND: [PostWhereInput!]
+  OR: [PostWhereInput!]
+  NOT: [PostWhereInput!]
+  id: IDFilter
+  title: StringFilter
+  url: StringFilter
+  excerpt: StringFilter
+  published: BooleanFilter
+  publishedAt: DateTimeNullableFilter
+  category: CategoryWhereInput
+  tags: TagManyRelationFilter
+  author: UserWhereInput
+  comments: PostCommentManyRelationFilter
+  post_likes: PostLikeManyRelationFilter
+  post_favorites: PostFavoriteManyRelationFilter
+  post_views: PostViewManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input TagManyRelationFilter {
+  every: TagWhereInput
+  some: TagWhereInput
+  none: TagWhereInput
+}
+
+input PostCommentManyRelationFilter {
+  every: PostCommentWhereInput
+  some: PostCommentWhereInput
+  none: PostCommentWhereInput
+}
+
+input PostLikeManyRelationFilter {
+  every: PostLikeWhereInput
+  some: PostLikeWhereInput
+  none: PostLikeWhereInput
+}
+
+input PostFavoriteManyRelationFilter {
+  every: PostFavoriteWhereInput
+  some: PostFavoriteWhereInput
+  none: PostFavoriteWhereInput
+}
+
+input PostViewManyRelationFilter {
+  every: PostViewWhereInput
+  some: PostViewWhereInput
+  none: PostViewWhereInput
+}
+
+input PostOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  url: OrderDirection
+  excerpt: OrderDirection
+  published: OrderDirection
+  publishedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PostUpdateInput {
+  title: String
+  url: String
+  content: JSON
+  excerpt: String
+  image: ImageFieldInput
+  published: Boolean
+  publishedAt: DateTime
+  category: CategoryRelateToOneForUpdateInput
+  tags: TagRelateToManyForUpdateInput
+  author: UserRelateToOneForUpdateInput
+  comments: PostCommentRelateToManyForUpdateInput
+  post_likes: PostLikeRelateToManyForUpdateInput
+  post_favorites: PostFavoriteRelateToManyForUpdateInput
+  post_views: PostViewRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CategoryRelateToOneForUpdateInput {
+  create: CategoryCreateInput
+  connect: CategoryWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TagRelateToManyForUpdateInput {
+  disconnect: [TagWhereUniqueInput!]
+  set: [TagWhereUniqueInput!]
+  create: [TagCreateInput!]
+  connect: [TagWhereUniqueInput!]
+}
+
+input PostCommentRelateToManyForUpdateInput {
+  disconnect: [PostCommentWhereUniqueInput!]
+  set: [PostCommentWhereUniqueInput!]
+  create: [PostCommentCreateInput!]
+  connect: [PostCommentWhereUniqueInput!]
+}
+
+input PostLikeRelateToManyForUpdateInput {
+  disconnect: [PostLikeWhereUniqueInput!]
+  set: [PostLikeWhereUniqueInput!]
+  create: [PostLikeCreateInput!]
+  connect: [PostLikeWhereUniqueInput!]
+}
+
+input PostFavoriteRelateToManyForUpdateInput {
+  disconnect: [PostFavoriteWhereUniqueInput!]
+  set: [PostFavoriteWhereUniqueInput!]
+  create: [PostFavoriteCreateInput!]
+  connect: [PostFavoriteWhereUniqueInput!]
+}
+
+input PostViewRelateToManyForUpdateInput {
+  disconnect: [PostViewWhereUniqueInput!]
+  set: [PostViewWhereUniqueInput!]
+  create: [PostViewCreateInput!]
+  connect: [PostViewWhereUniqueInput!]
+}
+
+input PostUpdateArgs {
+  where: PostWhereUniqueInput!
+  data: PostUpdateInput!
+}
+
+input PostCreateInput {
+  title: String
+  url: String
+  content: JSON
+  excerpt: String
+  image: ImageFieldInput
+  published: Boolean
+  publishedAt: DateTime
+  category: CategoryRelateToOneForCreateInput
+  tags: TagRelateToManyForCreateInput
+  author: UserRelateToOneForCreateInput
+  comments: PostCommentRelateToManyForCreateInput
+  post_likes: PostLikeRelateToManyForCreateInput
+  post_favorites: PostFavoriteRelateToManyForCreateInput
+  post_views: PostViewRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CategoryRelateToOneForCreateInput {
+  create: CategoryCreateInput
+  connect: CategoryWhereUniqueInput
+}
+
+input TagRelateToManyForCreateInput {
+  create: [TagCreateInput!]
+  connect: [TagWhereUniqueInput!]
+}
+
+input PostCommentRelateToManyForCreateInput {
+  create: [PostCommentCreateInput!]
+  connect: [PostCommentWhereUniqueInput!]
+}
+
+input PostLikeRelateToManyForCreateInput {
+  create: [PostLikeCreateInput!]
+  connect: [PostLikeWhereUniqueInput!]
+}
+
+input PostFavoriteRelateToManyForCreateInput {
+  create: [PostFavoriteCreateInput!]
+  connect: [PostFavoriteWhereUniqueInput!]
+}
+
+input PostViewRelateToManyForCreateInput {
+  create: [PostViewCreateInput!]
+  connect: [PostViewWhereUniqueInput!]
+}
+
+type PostComment {
+  id: ID!
+  comment: String
+  post: Post
+  user: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PostCommentWhereUniqueInput {
+  id: ID
+}
+
+input PostCommentWhereInput {
+  AND: [PostCommentWhereInput!]
+  OR: [PostCommentWhereInput!]
+  NOT: [PostCommentWhereInput!]
+  id: IDFilter
+  comment: StringFilter
+  post: PostWhereInput
+  user: UserWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input PostCommentOrderByInput {
+  id: OrderDirection
+  comment: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PostCommentUpdateInput {
+  comment: String
+  post: PostRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PostRelateToOneForUpdateInput {
+  create: PostCreateInput
+  connect: PostWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PostCommentUpdateArgs {
+  where: PostCommentWhereUniqueInput!
+  data: PostCommentUpdateInput!
+}
+
+input PostCommentCreateInput {
+  comment: String
+  post: PostRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PostRelateToOneForCreateInput {
+  create: PostCreateInput
+  connect: PostWhereUniqueInput
+}
+
+type PostLike {
+  id: ID!
+  user: User
+  post: Post
+  createdAt: DateTime
+}
+
+input PostLikeWhereUniqueInput {
+  id: ID
+}
+
+input PostLikeWhereInput {
+  AND: [PostLikeWhereInput!]
+  OR: [PostLikeWhereInput!]
+  NOT: [PostLikeWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  post: PostWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PostLikeOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PostLikeUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  post: PostRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PostLikeUpdateArgs {
+  where: PostLikeWhereUniqueInput!
+  data: PostLikeUpdateInput!
+}
+
+input PostLikeCreateInput {
+  user: UserRelateToOneForCreateInput
+  post: PostRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type PostFavorite {
+  id: ID!
+  user: User
+  post: Post
+  createdAt: DateTime
+}
+
+input PostFavoriteWhereUniqueInput {
+  id: ID
+}
+
+input PostFavoriteWhereInput {
+  AND: [PostFavoriteWhereInput!]
+  OR: [PostFavoriteWhereInput!]
+  NOT: [PostFavoriteWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  post: PostWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PostFavoriteOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PostFavoriteUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  post: PostRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PostFavoriteUpdateArgs {
+  where: PostFavoriteWhereUniqueInput!
+  data: PostFavoriteUpdateInput!
+}
+
+input PostFavoriteCreateInput {
+  user: UserRelateToOneForCreateInput
+  post: PostRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type PostView {
+  id: ID!
+  user: User
+  post: Post
+  createdAt: DateTime
+}
+
+input PostViewWhereUniqueInput {
+  id: ID
+}
+
+input PostViewWhereInput {
+  AND: [PostViewWhereInput!]
+  OR: [PostViewWhereInput!]
+  NOT: [PostViewWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  post: PostWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PostViewOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PostViewUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  post: PostRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PostViewUpdateArgs {
+  where: PostViewWhereUniqueInput!
+  data: PostViewUpdateInput!
+}
+
+input PostViewCreateInput {
+  user: UserRelateToOneForCreateInput
+  post: PostRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+type Tag {
+  id: ID!
+  name: String
+  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
+  postsCount(where: PostWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input TagWhereUniqueInput {
+  id: ID
+  name: String
+}
+
+input TagWhereInput {
+  AND: [TagWhereInput!]
+  OR: [TagWhereInput!]
+  NOT: [TagWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  posts: PostManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PostManyRelationFilter {
+  every: PostWhereInput
+  some: PostWhereInput
+  none: PostWhereInput
+}
+
+input TagOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TagUpdateInput {
+  name: String
+  posts: PostRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input PostRelateToManyForUpdateInput {
+  disconnect: [PostWhereUniqueInput!]
+  set: [PostWhereUniqueInput!]
+  create: [PostCreateInput!]
+  connect: [PostWhereUniqueInput!]
+}
+
+input TagUpdateArgs {
+  where: TagWhereUniqueInput!
+  data: TagUpdateInput!
+}
+
+input TagCreateInput {
+  name: String
+  posts: PostRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input PostRelateToManyForCreateInput {
+  create: [PostCreateInput!]
+  connect: [PostWhereUniqueInput!]
+}
+
+type Category {
+  id: ID!
+  name: String
+  url: String
+  image: ImageFieldOutput
+  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
+  postsCount(where: PostWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input CategoryWhereUniqueInput {
+  id: ID
+  name: String
+  url: String
+}
+
+input CategoryWhereInput {
+  AND: [CategoryWhereInput!]
+  OR: [CategoryWhereInput!]
+  NOT: [CategoryWhereInput!]
+  id: IDFilter
+  name: StringNullableFilter
+  url: StringFilter
+  posts: PostManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input CategoryOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  url: OrderDirection
+  createdAt: OrderDirection
+}
+
+input CategoryUpdateInput {
+  name: String
+  url: String
+  image: ImageFieldInput
+  posts: PostRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input CategoryUpdateArgs {
+  where: CategoryWhereUniqueInput!
+  data: CategoryUpdateInput!
+}
+
+input CategoryCreateInput {
+  name: String
+  url: String
+  image: ImageFieldInput
+  posts: PostRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+type Role {
+  id: ID!
+  name: String
+  users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
+  usersCount(where: UserWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input RoleWhereUniqueInput {
+  id: ID
+  name: String
+}
+
+input RoleWhereInput {
+  AND: [RoleWhereInput!]
+  OR: [RoleWhereInput!]
+  NOT: [RoleWhereInput!]
+  id: IDFilter
+  name: StringNullableFilter
+  users: UserManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input UserManyRelationFilter {
+  every: UserWhereInput
+  some: UserWhereInput
+  none: UserWhereInput
+}
+
+input RoleOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+}
+
+input RoleUpdateInput {
+  name: String
+  users: UserRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input UserRelateToManyForUpdateInput {
+  disconnect: [UserWhereUniqueInput!]
+  set: [UserWhereUniqueInput!]
+  create: [UserCreateInput!]
+  connect: [UserWhereUniqueInput!]
+}
+
+input RoleUpdateArgs {
+  where: RoleWhereUniqueInput!
+  data: RoleUpdateInput!
+}
+
+input RoleCreateInput {
+  name: String
+  users: UserRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input UserRelateToManyForCreateInput {
+  create: [UserCreateInput!]
+  connect: [UserWhereUniqueInput!]
 }
 
 """
@@ -207,9 +2652,197 @@ type Mutation {
   updateUsers(data: [UserUpdateArgs!]!): [User]
   deleteUser(where: UserWhereUniqueInput!): User
   deleteUsers(where: [UserWhereUniqueInput!]!): [User]
+  createAnimal(data: AnimalCreateInput!): Animal
+  createAnimals(data: [AnimalCreateInput!]!): [Animal]
+  updateAnimal(where: AnimalWhereUniqueInput!, data: AnimalUpdateInput!): Animal
+  updateAnimals(data: [AnimalUpdateArgs!]!): [Animal]
+  deleteAnimal(where: AnimalWhereUniqueInput!): Animal
+  deleteAnimals(where: [AnimalWhereUniqueInput!]!): [Animal]
+  createAnimalType(data: AnimalTypeCreateInput!): AnimalType
+  createAnimalTypes(data: [AnimalTypeCreateInput!]!): [AnimalType]
+  updateAnimalType(where: AnimalTypeWhereUniqueInput!, data: AnimalTypeUpdateInput!): AnimalType
+  updateAnimalTypes(data: [AnimalTypeUpdateArgs!]!): [AnimalType]
+  deleteAnimalType(where: AnimalTypeWhereUniqueInput!): AnimalType
+  deleteAnimalTypes(where: [AnimalTypeWhereUniqueInput!]!): [AnimalType]
+  createAnimalMultimedia(data: AnimalMultimediaCreateInput!): AnimalMultimedia
+  createAnimalMultimedias(data: [AnimalMultimediaCreateInput!]!): [AnimalMultimedia]
+  updateAnimalMultimedia(where: AnimalMultimediaWhereUniqueInput!, data: AnimalMultimediaUpdateInput!): AnimalMultimedia
+  updateAnimalMultimedias(data: [AnimalMultimediaUpdateArgs!]!): [AnimalMultimedia]
+  deleteAnimalMultimedia(where: AnimalMultimediaWhereUniqueInput!): AnimalMultimedia
+  deleteAnimalMultimedias(where: [AnimalMultimediaWhereUniqueInput!]!): [AnimalMultimedia]
+  createAnimalFavorite(data: AnimalFavoriteCreateInput!): AnimalFavorite
+  createAnimalFavorites(data: [AnimalFavoriteCreateInput!]!): [AnimalFavorite]
+  updateAnimalFavorite(where: AnimalFavoriteWhereUniqueInput!, data: AnimalFavoriteUpdateInput!): AnimalFavorite
+  updateAnimalFavorites(data: [AnimalFavoriteUpdateArgs!]!): [AnimalFavorite]
+  deleteAnimalFavorite(where: AnimalFavoriteWhereUniqueInput!): AnimalFavorite
+  deleteAnimalFavorites(where: [AnimalFavoriteWhereUniqueInput!]!): [AnimalFavorite]
+  createAnimalLog(data: AnimalLogCreateInput!): AnimalLog
+  createAnimalLogs(data: [AnimalLogCreateInput!]!): [AnimalLog]
+  updateAnimalLog(where: AnimalLogWhereUniqueInput!, data: AnimalLogUpdateInput!): AnimalLog
+  updateAnimalLogs(data: [AnimalLogUpdateArgs!]!): [AnimalLog]
+  deleteAnimalLog(where: AnimalLogWhereUniqueInput!): AnimalLog
+  deleteAnimalLogs(where: [AnimalLogWhereUniqueInput!]!): [AnimalLog]
+  createAnimalComment(data: AnimalCommentCreateInput!): AnimalComment
+  createAnimalComments(data: [AnimalCommentCreateInput!]!): [AnimalComment]
+  updateAnimalComment(where: AnimalCommentWhereUniqueInput!, data: AnimalCommentUpdateInput!): AnimalComment
+  updateAnimalComments(data: [AnimalCommentUpdateArgs!]!): [AnimalComment]
+  deleteAnimalComment(where: AnimalCommentWhereUniqueInput!): AnimalComment
+  deleteAnimalComments(where: [AnimalCommentWhereUniqueInput!]!): [AnimalComment]
+  createAnimalBreed(data: AnimalBreedCreateInput!): AnimalBreed
+  createAnimalBreeds(data: [AnimalBreedCreateInput!]!): [AnimalBreed]
+  updateAnimalBreed(where: AnimalBreedWhereUniqueInput!, data: AnimalBreedUpdateInput!): AnimalBreed
+  updateAnimalBreeds(data: [AnimalBreedUpdateArgs!]!): [AnimalBreed]
+  deleteAnimalBreed(where: AnimalBreedWhereUniqueInput!): AnimalBreed
+  deleteAnimalBreeds(where: [AnimalBreedWhereUniqueInput!]!): [AnimalBreed]
+  createPet(data: PetCreateInput!): Pet
+  createPets(data: [PetCreateInput!]!): [Pet]
+  updatePet(where: PetWhereUniqueInput!, data: PetUpdateInput!): Pet
+  updatePets(data: [PetUpdateArgs!]!): [Pet]
+  deletePet(where: PetWhereUniqueInput!): Pet
+  deletePets(where: [PetWhereUniqueInput!]!): [Pet]
+  createPetMultimedia(data: PetMultimediaCreateInput!): PetMultimedia
+  createPetMultimedias(data: [PetMultimediaCreateInput!]!): [PetMultimedia]
+  updatePetMultimedia(where: PetMultimediaWhereUniqueInput!, data: PetMultimediaUpdateInput!): PetMultimedia
+  updatePetMultimedias(data: [PetMultimediaUpdateArgs!]!): [PetMultimedia]
+  deletePetMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
+  deletePetMultimedias(where: [PetMultimediaWhereUniqueInput!]!): [PetMultimedia]
+  createPetPlace(data: PetPlaceCreateInput!): PetPlace
+  createPetPlaces(data: [PetPlaceCreateInput!]!): [PetPlace]
+  updatePetPlace(where: PetPlaceWhereUniqueInput!, data: PetPlaceUpdateInput!): PetPlace
+  updatePetPlaces(data: [PetPlaceUpdateArgs!]!): [PetPlace]
+  deletePetPlace(where: PetPlaceWhereUniqueInput!): PetPlace
+  deletePetPlaces(where: [PetPlaceWhereUniqueInput!]!): [PetPlace]
+  createPetPlaceLike(data: PetPlaceLikeCreateInput!): PetPlaceLike
+  createPetPlaceLikes(data: [PetPlaceLikeCreateInput!]!): [PetPlaceLike]
+  updatePetPlaceLike(where: PetPlaceLikeWhereUniqueInput!, data: PetPlaceLikeUpdateInput!): PetPlaceLike
+  updatePetPlaceLikes(data: [PetPlaceLikeUpdateArgs!]!): [PetPlaceLike]
+  deletePetPlaceLike(where: PetPlaceLikeWhereUniqueInput!): PetPlaceLike
+  deletePetPlaceLikes(where: [PetPlaceLikeWhereUniqueInput!]!): [PetPlaceLike]
+  createPetPlaceService(data: PetPlaceServiceCreateInput!): PetPlaceService
+  createPetPlaceServices(data: [PetPlaceServiceCreateInput!]!): [PetPlaceService]
+  updatePetPlaceService(where: PetPlaceServiceWhereUniqueInput!, data: PetPlaceServiceUpdateInput!): PetPlaceService
+  updatePetPlaceServices(data: [PetPlaceServiceUpdateArgs!]!): [PetPlaceService]
+  deletePetPlaceService(where: PetPlaceServiceWhereUniqueInput!): PetPlaceService
+  deletePetPlaceServices(where: [PetPlaceServiceWhereUniqueInput!]!): [PetPlaceService]
+  createSchedule(data: ScheduleCreateInput!): Schedule
+  createSchedules(data: [ScheduleCreateInput!]!): [Schedule]
+  updateSchedule(where: ScheduleWhereUniqueInput!, data: ScheduleUpdateInput!): Schedule
+  updateSchedules(data: [ScheduleUpdateArgs!]!): [Schedule]
+  deleteSchedule(where: ScheduleWhereUniqueInput!): Schedule
+  deleteSchedules(where: [ScheduleWhereUniqueInput!]!): [Schedule]
+  createSocialMedia(data: SocialMediaCreateInput!): SocialMedia
+  createSocialMedias(data: [SocialMediaCreateInput!]!): [SocialMedia]
+  updateSocialMedia(where: SocialMediaWhereUniqueInput!, data: SocialMediaUpdateInput!): SocialMedia
+  updateSocialMedias(data: [SocialMediaUpdateArgs!]!): [SocialMedia]
+  deleteSocialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
+  deleteSocialMedias(where: [SocialMediaWhereUniqueInput!]!): [SocialMedia]
+  createReview(data: ReviewCreateInput!): Review
+  createReviews(data: [ReviewCreateInput!]!): [Review]
+  updateReview(where: ReviewWhereUniqueInput!, data: ReviewUpdateInput!): Review
+  updateReviews(data: [ReviewUpdateArgs!]!): [Review]
+  deleteReview(where: ReviewWhereUniqueInput!): Review
+  deleteReviews(where: [ReviewWhereUniqueInput!]!): [Review]
+  createProduct(data: ProductCreateInput!): Product
+  createProducts(data: [ProductCreateInput!]!): [Product]
+  updateProduct(where: ProductWhereUniqueInput!, data: ProductUpdateInput!): Product
+  updateProducts(data: [ProductUpdateArgs!]!): [Product]
+  deleteProduct(where: ProductWhereUniqueInput!): Product
+  deleteProducts(where: [ProductWhereUniqueInput!]!): [Product]
+  createWishList(data: WishListCreateInput!): WishList
+  createWishLists(data: [WishListCreateInput!]!): [WishList]
+  updateWishList(where: WishListWhereUniqueInput!, data: WishListUpdateInput!): WishList
+  updateWishLists(data: [WishListUpdateArgs!]!): [WishList]
+  deleteWishList(where: WishListWhereUniqueInput!): WishList
+  deleteWishLists(where: [WishListWhereUniqueInput!]!): [WishList]
+  createCart(data: CartCreateInput!): Cart
+  createCarts(data: [CartCreateInput!]!): [Cart]
+  updateCart(where: CartWhereUniqueInput!, data: CartUpdateInput!): Cart
+  updateCarts(data: [CartUpdateArgs!]!): [Cart]
+  deleteCart(where: CartWhereUniqueInput!): Cart
+  deleteCarts(where: [CartWhereUniqueInput!]!): [Cart]
+  createOrder(data: OrderCreateInput!): Order
+  createOrders(data: [OrderCreateInput!]!): [Order]
+  updateOrder(where: OrderWhereUniqueInput!, data: OrderUpdateInput!): Order
+  updateOrders(data: [OrderUpdateArgs!]!): [Order]
+  deleteOrder(where: OrderWhereUniqueInput!): Order
+  deleteOrders(where: [OrderWhereUniqueInput!]!): [Order]
+  createPayment(data: PaymentCreateInput!): Payment
+  createPayments(data: [PaymentCreateInput!]!): [Payment]
+  updatePayment(where: PaymentWhereUniqueInput!, data: PaymentUpdateInput!): Payment
+  updatePayments(data: [PaymentUpdateArgs!]!): [Payment]
+  deletePayment(where: PaymentWhereUniqueInput!): Payment
+  deletePayments(where: [PaymentWhereUniqueInput!]!): [Payment]
+  createPaymentMethod(data: PaymentMethodCreateInput!): PaymentMethod
+  createPaymentMethods(data: [PaymentMethodCreateInput!]!): [PaymentMethod]
+  updatePaymentMethod(where: PaymentMethodWhereUniqueInput!, data: PaymentMethodUpdateInput!): PaymentMethod
+  updatePaymentMethods(data: [PaymentMethodUpdateArgs!]!): [PaymentMethod]
+  deletePaymentMethod(where: PaymentMethodWhereUniqueInput!): PaymentMethod
+  deletePaymentMethods(where: [PaymentMethodWhereUniqueInput!]!): [PaymentMethod]
+  createTokenNotification(data: TokenNotificationCreateInput!): TokenNotification
+  createTokenNotifications(data: [TokenNotificationCreateInput!]!): [TokenNotification]
+  updateTokenNotification(where: TokenNotificationWhereUniqueInput!, data: TokenNotificationUpdateInput!): TokenNotification
+  updateTokenNotifications(data: [TokenNotificationUpdateArgs!]!): [TokenNotification]
+  deleteTokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
+  deleteTokenNotifications(where: [TokenNotificationWhereUniqueInput!]!): [TokenNotification]
+  createAd(data: AdCreateInput!): Ad
+  createAds(data: [AdCreateInput!]!): [Ad]
+  updateAd(where: AdWhereUniqueInput!, data: AdUpdateInput!): Ad
+  updateAds(data: [AdUpdateArgs!]!): [Ad]
+  deleteAd(where: AdWhereUniqueInput!): Ad
+  deleteAds(where: [AdWhereUniqueInput!]!): [Ad]
+  createPost(data: PostCreateInput!): Post
+  createPosts(data: [PostCreateInput!]!): [Post]
+  updatePost(where: PostWhereUniqueInput!, data: PostUpdateInput!): Post
+  updatePosts(data: [PostUpdateArgs!]!): [Post]
+  deletePost(where: PostWhereUniqueInput!): Post
+  deletePosts(where: [PostWhereUniqueInput!]!): [Post]
+  createPostComment(data: PostCommentCreateInput!): PostComment
+  createPostComments(data: [PostCommentCreateInput!]!): [PostComment]
+  updatePostComment(where: PostCommentWhereUniqueInput!, data: PostCommentUpdateInput!): PostComment
+  updatePostComments(data: [PostCommentUpdateArgs!]!): [PostComment]
+  deletePostComment(where: PostCommentWhereUniqueInput!): PostComment
+  deletePostComments(where: [PostCommentWhereUniqueInput!]!): [PostComment]
+  createPostLike(data: PostLikeCreateInput!): PostLike
+  createPostLikes(data: [PostLikeCreateInput!]!): [PostLike]
+  updatePostLike(where: PostLikeWhereUniqueInput!, data: PostLikeUpdateInput!): PostLike
+  updatePostLikes(data: [PostLikeUpdateArgs!]!): [PostLike]
+  deletePostLike(where: PostLikeWhereUniqueInput!): PostLike
+  deletePostLikes(where: [PostLikeWhereUniqueInput!]!): [PostLike]
+  createPostFavorite(data: PostFavoriteCreateInput!): PostFavorite
+  createPostFavorites(data: [PostFavoriteCreateInput!]!): [PostFavorite]
+  updatePostFavorite(where: PostFavoriteWhereUniqueInput!, data: PostFavoriteUpdateInput!): PostFavorite
+  updatePostFavorites(data: [PostFavoriteUpdateArgs!]!): [PostFavorite]
+  deletePostFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
+  deletePostFavorites(where: [PostFavoriteWhereUniqueInput!]!): [PostFavorite]
+  createPostView(data: PostViewCreateInput!): PostView
+  createPostViews(data: [PostViewCreateInput!]!): [PostView]
+  updatePostView(where: PostViewWhereUniqueInput!, data: PostViewUpdateInput!): PostView
+  updatePostViews(data: [PostViewUpdateArgs!]!): [PostView]
+  deletePostView(where: PostViewWhereUniqueInput!): PostView
+  deletePostViews(where: [PostViewWhereUniqueInput!]!): [PostView]
+  createTag(data: TagCreateInput!): Tag
+  createTags(data: [TagCreateInput!]!): [Tag]
+  updateTag(where: TagWhereUniqueInput!, data: TagUpdateInput!): Tag
+  updateTags(data: [TagUpdateArgs!]!): [Tag]
+  deleteTag(where: TagWhereUniqueInput!): Tag
+  deleteTags(where: [TagWhereUniqueInput!]!): [Tag]
+  createCategory(data: CategoryCreateInput!): Category
+  createCategories(data: [CategoryCreateInput!]!): [Category]
+  updateCategory(where: CategoryWhereUniqueInput!, data: CategoryUpdateInput!): Category
+  updateCategories(data: [CategoryUpdateArgs!]!): [Category]
+  deleteCategory(where: CategoryWhereUniqueInput!): Category
+  deleteCategories(where: [CategoryWhereUniqueInput!]!): [Category]
+  createRole(data: RoleCreateInput!): Role
+  createRoles(data: [RoleCreateInput!]!): [Role]
+  updateRole(where: RoleWhereUniqueInput!, data: RoleUpdateInput!): Role
+  updateRoles(data: [RoleUpdateArgs!]!): [Role]
+  deleteRole(where: RoleWhereUniqueInput!): Role
+  deleteRoles(where: [RoleWhereUniqueInput!]!): [Role]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
+  executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
+  customAuth(email: String!, name: String, lastName: String): customAuthType
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -225,15 +2858,110 @@ type UserAuthenticationWithPasswordFailure {
 
 input CreateInitialUserInput {
   name: String
+  lastName: String
+  username: String
   email: String
   password: String
-  role: UserRoleType
+  roles: RoleRelateToManyForCreateInput
 }
 
 type Query {
   users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   user(where: UserWhereUniqueInput!): User
   usersCount(where: UserWhereInput! = {}): Int
+  animals(where: AnimalWhereInput! = {}, orderBy: [AnimalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalWhereUniqueInput): [Animal!]
+  animal(where: AnimalWhereUniqueInput!): Animal
+  animalsCount(where: AnimalWhereInput! = {}): Int
+  animalTypes(where: AnimalTypeWhereInput! = {}, orderBy: [AnimalTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalTypeWhereUniqueInput): [AnimalType!]
+  animalType(where: AnimalTypeWhereUniqueInput!): AnimalType
+  animalTypesCount(where: AnimalTypeWhereInput! = {}): Int
+  animalMultimedias(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
+  animalMultimedia(where: AnimalMultimediaWhereUniqueInput!): AnimalMultimedia
+  animalMultimediasCount(where: AnimalMultimediaWhereInput! = {}): Int
+  animalFavorites(where: AnimalFavoriteWhereInput! = {}, orderBy: [AnimalFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalFavoriteWhereUniqueInput): [AnimalFavorite!]
+  animalFavorite(where: AnimalFavoriteWhereUniqueInput!): AnimalFavorite
+  animalFavoritesCount(where: AnimalFavoriteWhereInput! = {}): Int
+  animalLogs(where: AnimalLogWhereInput! = {}, orderBy: [AnimalLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalLogWhereUniqueInput): [AnimalLog!]
+  animalLog(where: AnimalLogWhereUniqueInput!): AnimalLog
+  animalLogsCount(where: AnimalLogWhereInput! = {}): Int
+  animalComments(where: AnimalCommentWhereInput! = {}, orderBy: [AnimalCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalCommentWhereUniqueInput): [AnimalComment!]
+  animalComment(where: AnimalCommentWhereUniqueInput!): AnimalComment
+  animalCommentsCount(where: AnimalCommentWhereInput! = {}): Int
+  animalBreeds(where: AnimalBreedWhereInput! = {}, orderBy: [AnimalBreedOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalBreedWhereUniqueInput): [AnimalBreed!]
+  animalBreed(where: AnimalBreedWhereUniqueInput!): AnimalBreed
+  animalBreedsCount(where: AnimalBreedWhereInput! = {}): Int
+  pets(where: PetWhereInput! = {}, orderBy: [PetOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetWhereUniqueInput): [Pet!]
+  pet(where: PetWhereUniqueInput!): Pet
+  petsCount(where: PetWhereInput! = {}): Int
+  petMultimedias(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
+  petMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
+  petMultimediasCount(where: PetMultimediaWhereInput! = {}): Int
+  petPlaces(where: PetPlaceWhereInput! = {}, orderBy: [PetPlaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceWhereUniqueInput): [PetPlace!]
+  petPlace(where: PetPlaceWhereUniqueInput!): PetPlace
+  petPlacesCount(where: PetPlaceWhereInput! = {}): Int
+  petPlaceLikes(where: PetPlaceLikeWhereInput! = {}, orderBy: [PetPlaceLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceLikeWhereUniqueInput): [PetPlaceLike!]
+  petPlaceLike(where: PetPlaceLikeWhereUniqueInput!): PetPlaceLike
+  petPlaceLikesCount(where: PetPlaceLikeWhereInput! = {}): Int
+  petPlaceServices(where: PetPlaceServiceWhereInput! = {}, orderBy: [PetPlaceServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceServiceWhereUniqueInput): [PetPlaceService!]
+  petPlaceService(where: PetPlaceServiceWhereUniqueInput!): PetPlaceService
+  petPlaceServicesCount(where: PetPlaceServiceWhereInput! = {}): Int
+  schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
+  schedule(where: ScheduleWhereUniqueInput!): Schedule
+  schedulesCount(where: ScheduleWhereInput! = {}): Int
+  socialMedias(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
+  socialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
+  socialMediasCount(where: SocialMediaWhereInput! = {}): Int
+  reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
+  review(where: ReviewWhereUniqueInput!): Review
+  reviewsCount(where: ReviewWhereInput! = {}): Int
+  products(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
+  product(where: ProductWhereUniqueInput!): Product
+  productsCount(where: ProductWhereInput! = {}): Int
+  wishLists(where: WishListWhereInput! = {}, orderBy: [WishListOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WishListWhereUniqueInput): [WishList!]
+  wishList(where: WishListWhereUniqueInput!): WishList
+  wishListsCount(where: WishListWhereInput! = {}): Int
+  carts(where: CartWhereInput! = {}, orderBy: [CartOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CartWhereUniqueInput): [Cart!]
+  cart(where: CartWhereUniqueInput!): Cart
+  cartsCount(where: CartWhereInput! = {}): Int
+  orders(where: OrderWhereInput! = {}, orderBy: [OrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderWhereUniqueInput): [Order!]
+  order(where: OrderWhereUniqueInput!): Order
+  ordersCount(where: OrderWhereInput! = {}): Int
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  payment(where: PaymentWhereUniqueInput!): Payment
+  paymentsCount(where: PaymentWhereInput! = {}): Int
+  paymentMethods(where: PaymentMethodWhereInput! = {}, orderBy: [PaymentMethodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentMethodWhereUniqueInput): [PaymentMethod!]
+  paymentMethod(where: PaymentMethodWhereUniqueInput!): PaymentMethod
+  paymentMethodsCount(where: PaymentMethodWhereInput! = {}): Int
+  tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
+  tokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
+  tokenNotificationsCount(where: TokenNotificationWhereInput! = {}): Int
+  ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
+  ad(where: AdWhereUniqueInput!): Ad
+  adsCount(where: AdWhereInput! = {}): Int
+  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
+  post(where: PostWhereUniqueInput!): Post
+  postsCount(where: PostWhereInput! = {}): Int
+  postComments(where: PostCommentWhereInput! = {}, orderBy: [PostCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostCommentWhereUniqueInput): [PostComment!]
+  postComment(where: PostCommentWhereUniqueInput!): PostComment
+  postCommentsCount(where: PostCommentWhereInput! = {}): Int
+  postLikes(where: PostLikeWhereInput! = {}, orderBy: [PostLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostLikeWhereUniqueInput): [PostLike!]
+  postLike(where: PostLikeWhereUniqueInput!): PostLike
+  postLikesCount(where: PostLikeWhereInput! = {}): Int
+  postFavorites(where: PostFavoriteWhereInput! = {}, orderBy: [PostFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostFavoriteWhereUniqueInput): [PostFavorite!]
+  postFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
+  postFavoritesCount(where: PostFavoriteWhereInput! = {}): Int
+  postViews(where: PostViewWhereInput! = {}, orderBy: [PostViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostViewWhereUniqueInput): [PostView!]
+  postView(where: PostViewWhereUniqueInput!): PostView
+  postViewsCount(where: PostViewWhereInput! = {}): Int
+  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
+  tag(where: TagWhereUniqueInput!): Tag
+  tagsCount(where: TagWhereInput! = {}): Int
+  categories(where: CategoryWhereInput! = {}, orderBy: [CategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CategoryWhereUniqueInput): [Category!]
+  category(where: CategoryWhereUniqueInput!): Category
+  categoriesCount(where: CategoryWhereInput! = {}): Int
+  roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
+  role(where: RoleWhereUniqueInput!): Role
+  rolesCount(where: RoleWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
 }
@@ -340,4 +3068,20 @@ type KeystoneAdminUISort {
 enum KeystoneAdminUISortDirection {
   ASC
   DESC
+}
+
+type customAuthType {
+  message: String
+  success: Boolean
+  data: JSON
+}
+
+input ImportPetPlaceInput {
+  inputValue: String!
+}
+
+type ImportPetPlaceResult {
+  success: Boolean!
+  message: String!
+  result: String
 }
