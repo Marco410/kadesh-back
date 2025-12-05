@@ -4,6 +4,12 @@ import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
 import extendGraphqlSchema from "./graphql/extendedSchema";
 
+// Setup environment variables
+const path = require("path");
+const dotenv = require("dotenv");
+
+dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
+
 
 if (
   !process.env.S3_BUCKET_NAME ||
