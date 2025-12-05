@@ -73,6 +73,16 @@ export default withAuth(
         pathPrefix: "posts/", // subcarpeta para posts
         signed: { expiry: 3600 },
       },
+      s3_profile: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: "profiles/", // subcarpeta para posts
+        signed: { expiry: 3600 },
+      },
     },
     lists,
     session,

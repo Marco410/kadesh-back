@@ -45,7 +45,7 @@ export default list({
       ref: "Role.users",
       many: true,
     }),
-    profileImage: image({ storage: "my_local_images" }),
+    profileImage: image({ storage: "s3_profile" }),
     birthday: calendarDay(),
     age: virtual({
       field: graphql.field({
