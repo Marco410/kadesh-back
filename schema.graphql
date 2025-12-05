@@ -1667,6 +1667,7 @@ type Order {
 
 input OrderWhereUniqueInput {
   id: ID
+  payment: PaymentWhereUniqueInput
 }
 
 input OrderWhereInput {
@@ -1760,6 +1761,7 @@ enum PaymentStatusType {
 
 input PaymentWhereUniqueInput {
   id: ID
+  order_payment: OrderWhereUniqueInput
 }
 
 input PaymentWhereInput {
@@ -2938,104 +2940,105 @@ input CreateInitialUserInput {
 }
 
 type Query {
-  users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   user(where: UserWhereUniqueInput!): User
+  users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   usersCount(where: UserWhereInput! = {}): Int
-  animals(where: AnimalWhereInput! = {}, orderBy: [AnimalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalWhereUniqueInput): [Animal!]
   animal(where: AnimalWhereUniqueInput!): Animal
+  animals(where: AnimalWhereInput! = {}, orderBy: [AnimalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalWhereUniqueInput): [Animal!]
   animalsCount(where: AnimalWhereInput! = {}): Int
-  animalTypes(where: AnimalTypeWhereInput! = {}, orderBy: [AnimalTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalTypeWhereUniqueInput): [AnimalType!]
   animalType(where: AnimalTypeWhereUniqueInput!): AnimalType
+  animalTypes(where: AnimalTypeWhereInput! = {}, orderBy: [AnimalTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalTypeWhereUniqueInput): [AnimalType!]
   animalTypesCount(where: AnimalTypeWhereInput! = {}): Int
-  animalMultimedias(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
   animalMultimedia(where: AnimalMultimediaWhereUniqueInput!): AnimalMultimedia
+  animalMultimedias(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
   animalMultimediasCount(where: AnimalMultimediaWhereInput! = {}): Int
-  animalFavorites(where: AnimalFavoriteWhereInput! = {}, orderBy: [AnimalFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalFavoriteWhereUniqueInput): [AnimalFavorite!]
   animalFavorite(where: AnimalFavoriteWhereUniqueInput!): AnimalFavorite
+  animalFavorites(where: AnimalFavoriteWhereInput! = {}, orderBy: [AnimalFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalFavoriteWhereUniqueInput): [AnimalFavorite!]
   animalFavoritesCount(where: AnimalFavoriteWhereInput! = {}): Int
-  animalLogs(where: AnimalLogWhereInput! = {}, orderBy: [AnimalLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalLogWhereUniqueInput): [AnimalLog!]
   animalLog(where: AnimalLogWhereUniqueInput!): AnimalLog
+  animalLogs(where: AnimalLogWhereInput! = {}, orderBy: [AnimalLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalLogWhereUniqueInput): [AnimalLog!]
   animalLogsCount(where: AnimalLogWhereInput! = {}): Int
-  animalComments(where: AnimalCommentWhereInput! = {}, orderBy: [AnimalCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalCommentWhereUniqueInput): [AnimalComment!]
   animalComment(where: AnimalCommentWhereUniqueInput!): AnimalComment
+  animalComments(where: AnimalCommentWhereInput! = {}, orderBy: [AnimalCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalCommentWhereUniqueInput): [AnimalComment!]
   animalCommentsCount(where: AnimalCommentWhereInput! = {}): Int
-  animalBreeds(where: AnimalBreedWhereInput! = {}, orderBy: [AnimalBreedOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalBreedWhereUniqueInput): [AnimalBreed!]
   animalBreed(where: AnimalBreedWhereUniqueInput!): AnimalBreed
+  animalBreeds(where: AnimalBreedWhereInput! = {}, orderBy: [AnimalBreedOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalBreedWhereUniqueInput): [AnimalBreed!]
   animalBreedsCount(where: AnimalBreedWhereInput! = {}): Int
-  pets(where: PetWhereInput! = {}, orderBy: [PetOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetWhereUniqueInput): [Pet!]
   pet(where: PetWhereUniqueInput!): Pet
+  pets(where: PetWhereInput! = {}, orderBy: [PetOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetWhereUniqueInput): [Pet!]
   petsCount(where: PetWhereInput! = {}): Int
-  petMultimedias(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
   petMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
+  petMultimedias(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
   petMultimediasCount(where: PetMultimediaWhereInput! = {}): Int
-  petPlaces(where: PetPlaceWhereInput! = {}, orderBy: [PetPlaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceWhereUniqueInput): [PetPlace!]
   petPlace(where: PetPlaceWhereUniqueInput!): PetPlace
+  petPlaces(where: PetPlaceWhereInput! = {}, orderBy: [PetPlaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceWhereUniqueInput): [PetPlace!]
   petPlacesCount(where: PetPlaceWhereInput! = {}): Int
-  petPlaceLikes(where: PetPlaceLikeWhereInput! = {}, orderBy: [PetPlaceLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceLikeWhereUniqueInput): [PetPlaceLike!]
   petPlaceLike(where: PetPlaceLikeWhereUniqueInput!): PetPlaceLike
+  petPlaceLikes(where: PetPlaceLikeWhereInput! = {}, orderBy: [PetPlaceLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceLikeWhereUniqueInput): [PetPlaceLike!]
   petPlaceLikesCount(where: PetPlaceLikeWhereInput! = {}): Int
-  petPlaceServices(where: PetPlaceServiceWhereInput! = {}, orderBy: [PetPlaceServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceServiceWhereUniqueInput): [PetPlaceService!]
   petPlaceService(where: PetPlaceServiceWhereUniqueInput!): PetPlaceService
+  petPlaceServices(where: PetPlaceServiceWhereInput! = {}, orderBy: [PetPlaceServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceServiceWhereUniqueInput): [PetPlaceService!]
   petPlaceServicesCount(where: PetPlaceServiceWhereInput! = {}): Int
   petPlaceTypes(where: PetPlaceTypeWhereInput! = {}, orderBy: [PetPlaceTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceTypeWhereUniqueInput): [PetPlaceType!]
   petPlaceType(where: PetPlaceTypeWhereUniqueInput!): PetPlaceType
   petPlaceTypesCount(where: PetPlaceTypeWhereInput! = {}): Int
   schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
   schedule(where: ScheduleWhereUniqueInput!): Schedule
+  schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
   schedulesCount(where: ScheduleWhereInput! = {}): Int
-  socialMedias(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
   socialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
+  socialMedias(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
   socialMediasCount(where: SocialMediaWhereInput! = {}): Int
-  reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
   review(where: ReviewWhereUniqueInput!): Review
+  reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
   reviewsCount(where: ReviewWhereInput! = {}): Int
-  products(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
   product(where: ProductWhereUniqueInput!): Product
+  products(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
   productsCount(where: ProductWhereInput! = {}): Int
-  wishLists(where: WishListWhereInput! = {}, orderBy: [WishListOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WishListWhereUniqueInput): [WishList!]
   wishList(where: WishListWhereUniqueInput!): WishList
+  wishLists(where: WishListWhereInput! = {}, orderBy: [WishListOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WishListWhereUniqueInput): [WishList!]
   wishListsCount(where: WishListWhereInput! = {}): Int
-  carts(where: CartWhereInput! = {}, orderBy: [CartOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CartWhereUniqueInput): [Cart!]
   cart(where: CartWhereUniqueInput!): Cart
+  carts(where: CartWhereInput! = {}, orderBy: [CartOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CartWhereUniqueInput): [Cart!]
   cartsCount(where: CartWhereInput! = {}): Int
-  orders(where: OrderWhereInput! = {}, orderBy: [OrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderWhereUniqueInput): [Order!]
   order(where: OrderWhereUniqueInput!): Order
+  orders(where: OrderWhereInput! = {}, orderBy: [OrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderWhereUniqueInput): [Order!]
   ordersCount(where: OrderWhereInput! = {}): Int
-  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
   payment(where: PaymentWhereUniqueInput!): Payment
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
   paymentsCount(where: PaymentWhereInput! = {}): Int
-  paymentMethods(where: PaymentMethodWhereInput! = {}, orderBy: [PaymentMethodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentMethodWhereUniqueInput): [PaymentMethod!]
   paymentMethod(where: PaymentMethodWhereUniqueInput!): PaymentMethod
+  paymentMethods(where: PaymentMethodWhereInput! = {}, orderBy: [PaymentMethodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentMethodWhereUniqueInput): [PaymentMethod!]
   paymentMethodsCount(where: PaymentMethodWhereInput! = {}): Int
-  tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
   tokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
+  tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
   tokenNotificationsCount(where: TokenNotificationWhereInput! = {}): Int
-  ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
   ad(where: AdWhereUniqueInput!): Ad
+  ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
   adsCount(where: AdWhereInput! = {}): Int
-  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
   post(where: PostWhereUniqueInput!): Post
+  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
   postsCount(where: PostWhereInput! = {}): Int
-  postComments(where: PostCommentWhereInput! = {}, orderBy: [PostCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostCommentWhereUniqueInput): [PostComment!]
   postComment(where: PostCommentWhereUniqueInput!): PostComment
+  postComments(where: PostCommentWhereInput! = {}, orderBy: [PostCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostCommentWhereUniqueInput): [PostComment!]
   postCommentsCount(where: PostCommentWhereInput! = {}): Int
-  postLikes(where: PostLikeWhereInput! = {}, orderBy: [PostLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostLikeWhereUniqueInput): [PostLike!]
   postLike(where: PostLikeWhereUniqueInput!): PostLike
+  postLikes(where: PostLikeWhereInput! = {}, orderBy: [PostLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostLikeWhereUniqueInput): [PostLike!]
   postLikesCount(where: PostLikeWhereInput! = {}): Int
-  postFavorites(where: PostFavoriteWhereInput! = {}, orderBy: [PostFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostFavoriteWhereUniqueInput): [PostFavorite!]
   postFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
+  postFavorites(where: PostFavoriteWhereInput! = {}, orderBy: [PostFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostFavoriteWhereUniqueInput): [PostFavorite!]
   postFavoritesCount(where: PostFavoriteWhereInput! = {}): Int
-  postViews(where: PostViewWhereInput! = {}, orderBy: [PostViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostViewWhereUniqueInput): [PostView!]
   postView(where: PostViewWhereUniqueInput!): PostView
+  postViews(where: PostViewWhereInput! = {}, orderBy: [PostViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostViewWhereUniqueInput): [PostView!]
   postViewsCount(where: PostViewWhereInput! = {}): Int
-  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
   tag(where: TagWhereUniqueInput!): Tag
+  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
   tagsCount(where: TagWhereInput! = {}): Int
-  categories(where: CategoryWhereInput! = {}, orderBy: [CategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CategoryWhereUniqueInput): [Category!]
   category(where: CategoryWhereUniqueInput!): Category
+  categories(where: CategoryWhereInput! = {}, orderBy: [CategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CategoryWhereUniqueInput): [Category!]
   categoriesCount(where: CategoryWhereInput! = {}): Int
-  roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   role(where: RoleWhereUniqueInput!): Role
+  roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
@@ -3054,23 +3057,25 @@ type KeystoneAdminMeta {
 
 type KeystoneAdminUIListMeta {
   key: String!
-  itemQueryName: String!
-  listQueryName: String!
-  hideCreate: Boolean!
-  hideDelete: Boolean!
   path: String!
   label: String!
   singular: String!
   plural: String!
   description: String
-  initialColumns: [String!]!
   pageSize: Int!
   labelField: String!
   fields: [KeystoneAdminUIFieldMeta!]!
   groups: [KeystoneAdminUIFieldGroupMeta!]!
+  graphql: KeystoneAdminUIGraphQL!
+  initialColumns: [String!]!
+  initialSearchFields: [String!]!
   initialSort: KeystoneAdminUISort
-  isHidden: Boolean!
   isSingleton: Boolean!
+  hideCreate: Boolean!
+  hideDelete: Boolean!
+  isHidden: Boolean!
+  itemQueryName: String!
+  listQueryName: String!
 }
 
 type KeystoneAdminUIFieldMeta {
@@ -3133,6 +3138,33 @@ type KeystoneAdminUIFieldGroupMeta {
   label: String!
   description: String
   fields: [KeystoneAdminUIFieldMeta!]!
+}
+
+type KeystoneAdminUIGraphQL {
+  names: KeystoneAdminUIGraphQLNames!
+}
+
+type KeystoneAdminUIGraphQLNames {
+  outputTypeName: String!
+  whereInputName: String!
+  whereUniqueInputName: String!
+  createInputName: String!
+  createMutationName: String!
+  createManyMutationName: String!
+  relateToOneForCreateInputName: String!
+  relateToManyForCreateInputName: String!
+  itemQueryName: String!
+  listOrderName: String!
+  listQueryCountName: String!
+  listQueryName: String!
+  updateInputName: String!
+  updateMutationName: String!
+  updateManyInputName: String!
+  updateManyMutationName: String!
+  relateToOneForUpdateInputName: String!
+  relateToManyForUpdateInputName: String!
+  deleteMutationName: String!
+  deleteManyMutationName: String!
 }
 
 type KeystoneAdminUISort {
