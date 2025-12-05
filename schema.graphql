@@ -3315,6 +3315,7 @@ type Query {
     cursor: PostWhereUniqueInput
   ): [Post!]
   post(where: PostWhereUniqueInput!): Post
+  posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
   postsCount(where: PostWhereInput! = {}): Int
   postComments(
     where: PostCommentWhereInput! = {}
@@ -3324,6 +3325,7 @@ type Query {
     cursor: PostCommentWhereUniqueInput
   ): [PostComment!]
   postComment(where: PostCommentWhereUniqueInput!): PostComment
+  postComments(where: PostCommentWhereInput! = {}, orderBy: [PostCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostCommentWhereUniqueInput): [PostComment!]
   postCommentsCount(where: PostCommentWhereInput! = {}): Int
   postLikes(
     where: PostLikeWhereInput! = {}
@@ -3333,6 +3335,7 @@ type Query {
     cursor: PostLikeWhereUniqueInput
   ): [PostLike!]
   postLike(where: PostLikeWhereUniqueInput!): PostLike
+  postLikes(where: PostLikeWhereInput! = {}, orderBy: [PostLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostLikeWhereUniqueInput): [PostLike!]
   postLikesCount(where: PostLikeWhereInput! = {}): Int
   postFavorites(
     where: PostFavoriteWhereInput! = {}
@@ -3342,6 +3345,7 @@ type Query {
     cursor: PostFavoriteWhereUniqueInput
   ): [PostFavorite!]
   postFavorite(where: PostFavoriteWhereUniqueInput!): PostFavorite
+  postFavorites(where: PostFavoriteWhereInput! = {}, orderBy: [PostFavoriteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostFavoriteWhereUniqueInput): [PostFavorite!]
   postFavoritesCount(where: PostFavoriteWhereInput! = {}): Int
   tags(
     where: TagWhereInput! = {}
@@ -3351,6 +3355,7 @@ type Query {
     cursor: TagWhereUniqueInput
   ): [Tag!]
   tag(where: TagWhereUniqueInput!): Tag
+  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
   tagsCount(where: TagWhereInput! = {}): Int
   categories(
     where: CategoryWhereInput! = {}
@@ -3360,6 +3365,7 @@ type Query {
     cursor: CategoryWhereUniqueInput
   ): [Category!]
   category(where: CategoryWhereUniqueInput!): Category
+  categories(where: CategoryWhereInput! = {}, orderBy: [CategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CategoryWhereUniqueInput): [Category!]
   categoriesCount(where: CategoryWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
