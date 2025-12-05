@@ -16,7 +16,7 @@ ARG IS_BUILDING=true
 ARG SESSION_SECRET=a_secret_session_key_that_is_at_least_32_characters_long
 
 COPY ./ .
-RUN SKIP_POSTINSTALL=1 yarn install --prod
+RUN SKIP_POSTINSTALL=1 yarn install --prod --frozen-lockfile
 RUN yarn add faker
 RUN yarn build
 
