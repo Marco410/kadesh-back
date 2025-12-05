@@ -35,10 +35,24 @@ __export(keystone_exports, {
 module.exports = __toCommonJS(keystone_exports);
 
 // env.ts
-var path = require("path");
-var dotenv = require("dotenv");
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
+var path = __toESM(require("path"));
+var dotenv = __toESM(require("dotenv"));
+var fs = __toESM(require("fs"));
+var envFile = process.env.NODE_ENV === "production" ? path.resolve(process.cwd(), "config", ".env.prod") : path.resolve(process.cwd(), "config", ".env.dev");
+if (fs.existsSync(envFile)) {
+  const result = dotenv.config({ path: envFile });
+  if (result.error) {
+    console.warn(`Warning: Error loading .env file from ${envFile}:`, result.error);
+  } else {
+    console.log(`\u2713 Loaded environment variables from ${envFile}`);
+  }
+} else {
+  console.warn(`Warning: .env file not found at ${envFile}`);
+  const fallbackFile = path.resolve(process.cwd(), "config", ".env.dev");
+  if (fs.existsSync(fallbackFile)) {
+    dotenv.config({ path: fallbackFile });
+    console.log(`\u2713 Loaded environment variables from fallback: ${fallbackFile}`);
+  }
 }
 
 // models/Animal/Animal.ts
@@ -1760,7 +1774,7 @@ async function importVeterinaries(city, context) {
       if (page > 0 && nextPageToken) {
         const waitSeconds = 5;
         for (let i = 1; i <= waitSeconds; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 1e3));
+          await new Promise((resolve2) => setTimeout(resolve2, 1e3));
           console.log(`Esperando... ${i} segundo(s) de ${waitSeconds}`);
         }
         url = `${baseUrl}&pagetoken=${nextPageToken}`;
@@ -1940,7 +1954,28 @@ function extendGraphqlSchema(baseSchema) {
 }
 
 // keystone.ts
+console.log("=== S3 Environment Variables Debug ===");
+console.log("S3_BUCKET_NAME:", process.env.S3_BUCKET_NAME ? "\u2713 Set" : "\u2717 Missing");
+console.log("S3_REGION:", process.env.S3_REGION ? "\u2713 Set" : "\u2717 Missing");
+console.log("S3_ACCESS_KEY_ID:", process.env.S3_ACCESS_KEY_ID ? "\u2713 Set" : "\u2717 Missing");
+console.log("S3_SECRET_ACCESS_KEY:", process.env.S3_SECRET_ACCESS_KEY ? "\u2713 Set" : "\u2717 Missing");
+console.log("NODE_ENV:", process.env.NODE_ENV || "not set");
+console.log("======================================");
+var path2 = require("path");
+var dotenv2 = require("dotenv");
+dotenv2.config({ path: path2.resolve(process.cwd(), "config", ".env.dev") });
 if (!process.env.S3_BUCKET_NAME || !process.env.S3_REGION || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
+  console.error("\n\u274C S3 Configuration Error:");
+  console.error("Missing S3 environment variables:");
+  if (!process.env.S3_BUCKET_NAME)
+    console.error("  - S3_BUCKET_NAME");
+  if (!process.env.S3_REGION)
+    console.error("  - S3_REGION");
+  if (!process.env.S3_ACCESS_KEY_ID)
+    console.error("  - S3_ACCESS_KEY_ID");
+  if (!process.env.S3_SECRET_ACCESS_KEY)
+    console.error("  - S3_SECRET_ACCESS_KEY");
+  console.error("\nPlease check your .env file in the config/ directory");
   throw new Error("S3 Configs are not set");
 }
 var {
@@ -1964,7 +1999,7 @@ var keystone_default = withAuth(
       my_local_images: {
         kind: "local",
         type: "image",
-        generateUrl: (path2) => `http://${process.env.DB_HOST}:3000/images${path2}`,
+        generateUrl: (path3) => `http://${process.env.DB_HOST}:3000/images${path3}`,
         serverRoute: {
           path: "/images"
         },
