@@ -35,12 +35,12 @@ __export(keystone_exports, {
 module.exports = __toCommonJS(keystone_exports);
 
 // env.ts
-var path = __toESM(require("path"));
-var dotenv = __toESM(require("dotenv"));
-var fs = __toESM(require("fs"));
-var envFile = process.env.NODE_ENV === "production" ? path.resolve(process.cwd(), "config", ".env.prod") : path.resolve(process.cwd(), "config", ".env.dev");
-if (fs.existsSync(envFile)) {
-  const result = dotenv.config({ path: envFile });
+var import_path = __toESM(require("path"));
+var import_dotenv = __toESM(require("dotenv"));
+var import_fs = __toESM(require("fs"));
+var envFile = process.env.NODE_ENV === "production" ? import_path.default.resolve(process.cwd(), "config", ".env.prod") : import_path.default.resolve(process.cwd(), "config", ".env.dev");
+if (import_fs.default.existsSync(envFile)) {
+  const result = import_dotenv.default.config({ path: envFile });
   if (result.error) {
     console.warn(`Warning: Error loading .env file from ${envFile}:`, result.error);
   } else {
@@ -48,9 +48,9 @@ if (fs.existsSync(envFile)) {
   }
 } else {
   console.warn(`Warning: .env file not found at ${envFile}`);
-  const fallbackFile = path.resolve(process.cwd(), "config", ".env.dev");
-  if (fs.existsSync(fallbackFile)) {
-    dotenv.config({ path: fallbackFile });
+  const fallbackFile = import_path.default.resolve(process.cwd(), "config", ".env.dev");
+  if (import_fs.default.existsSync(fallbackFile)) {
+    import_dotenv.default.config({ path: fallbackFile });
     console.log(`\u2713 Loaded environment variables from fallback: ${fallbackFile}`);
   }
 }
@@ -1847,7 +1847,7 @@ async function importVeterinaries(city, type, context) {
       if (page > 0 && nextPageToken) {
         const waitSeconds = 5;
         for (let i = 1; i <= waitSeconds; i++) {
-          await new Promise((resolve2) => setTimeout(resolve2, 1e3));
+          await new Promise((resolve) => setTimeout(resolve, 1e3));
           console.log(`Esperando... ${i} segundo(s) de ${waitSeconds}`);
         }
         url = `${baseUrl}&pagetoken=${nextPageToken}`;

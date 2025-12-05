@@ -1,7 +1,7 @@
 // Setup environment variables
-import * as path from "path";
-import * as dotenv from "dotenv";
-import * as fs from "fs";
+import path from "path";
+import dotenv from "dotenv";
+import fs from "fs";
 
 // Determinar qué archivo .env cargar
 const envFile = process.env.NODE_ENV === "production" 
