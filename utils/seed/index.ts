@@ -4,8 +4,6 @@ import { createUserAdmin } from "./user";
 import { createVeterinary } from "./veterinary";
 import { createPetPlaceTypes } from "./pet_place_types";
 import { createPetPlaceService } from "./veterinary_services";
-import { createPetPlaceTypes } from "./pet_place_types";
-import { createPetPlaceService } from "./veterinary_services";
 
 export default async function seed(context: KeystoneContext) {
   await createAnimalTypes(context);
