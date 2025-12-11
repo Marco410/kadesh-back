@@ -26,8 +26,6 @@ const {
   S3_SECRET_ACCESS_KEY: secretAccessKey = "",
 } = process.env;
 
-
-
 export default withAuth(
   config({
     db: {
@@ -37,7 +35,6 @@ export default withAuth(
     server: {
       cors: true,
       maxFileSize: 200 * 1024 * 1024,
-      healthCheck: true,
     },
     storage: {
       my_local_images: {
@@ -66,7 +63,10 @@ export default withAuth(
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix: "categories/", // subcarpeta para categorías
+        pathPrefix:
+          process.env.ENVIROMENT === "DEV"
+            ? "dev/categories/"
+            : "categories/", // subcarpeta para categorías, usa 'dev/categories' en entorno dev
         signed: { expiry: 3600 },
       },
       s3_posts: {
@@ -76,7 +76,10 @@ export default withAuth(
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix: "posts/", // subcarpeta para posts
+        pathPrefix:
+          process.env.ENVIROMENT === "DEV"
+            ? "dev/posts/"
+            : "posts/", // subcarpeta para posts, usa 'dev/posts' en entorno dev
         signed: { expiry: 3600 },
       },
       s3_profile: {
@@ -86,12 +89,56 @@ export default withAuth(
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix: "profiles/", // subcarpeta para posts
+        pathPrefix:
+          process.env.ENVIROMENT === "DEV"
+            ? "dev/profiles/"
+            : "profiles/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+        signed: { expiry: 3600 },
+      },
+      s3_animals: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix:
+          process.env.ENVIROMENT === "DEV"
+            ? "dev/animals/"
+            : "animals/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+        signed: { expiry: 3600 },
+      },
+       s3_pets: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix:
+          process.env.ENVIROMENT === "DEV"
+            ? "dev/pets/"
+            : "pets/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+        signed: { expiry: 3600 },
+      },
+      s3_ads: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix:
+          process.env.ENVIROMENT === "DEV"
+            ? "dev/ads/"
+            : "ads/", // subcarpeta para ads, usa 'dev/ads' en entorno dev
         signed: { expiry: 3600 },
       },
     },
+    graphql:{
+      extendGraphqlSchema
+    },
     lists,
     session,
-    extendGraphqlSchema,
   })
 );

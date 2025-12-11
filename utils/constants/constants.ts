@@ -26,6 +26,12 @@ export const ANIMAL_TYPE_OPTIONS = [
   { label: "Mamífero", value: AnimalTypes.MAMMAL },
 ];
 
+export const ANIMAL_SEX_OPTIONS = [
+  { label: "Macho", value: "male" },
+  { label: "Hembra", value: "female" },
+  { label: "Desconocido", value: "unknown" },
+];
+
 export const DOG_BREEDS: string[] = [
   "Mestizo",
   "Sin Asignar",
@@ -472,6 +478,14 @@ export const ANIMAL_LOGS_OPTIONS = [
   {
     label: "En familia",
     value: "in_family",
+  },
+  {
+    label: "Perdido",
+    value: "lost",
+  },
+  {
+    label: "Encontrado",
+    value: "found",
   },
 ];
 

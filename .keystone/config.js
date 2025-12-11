@@ -59,47 +59,6 @@ var access = {
 };
 var access_default = access;
 
-// models/Animal/Animal.ts
-var Animal_default = (0, import_core.list)({
-  access: access_default,
-  fields: {
-    name: (0, import_fields.text)({ validation: { isRequired: true } }),
-    animal_type: (0, import_fields.relationship)({
-      ref: "AnimalType",
-      many: false
-    }),
-    animal_breed: (0, import_fields.relationship)({
-      ref: "AnimalBreed",
-      many: false
-    }),
-    user: (0, import_fields.relationship)({
-      ref: "User",
-      many: false
-    }),
-    multimedia: (0, import_fields.relationship)({
-      ref: "AnimalMultimedia.animal",
-      many: true
-    }),
-    logs: (0, import_fields.relationship)({
-      ref: "AnimalLog.animal",
-      many: true
-    }),
-    createdAt: (0, import_fields.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Animal/AnimalType/AnimalType.ts
-var import_core2 = require("@keystone-6/core");
-var import_fields2 = require("@keystone-6/core/fields");
-
 // utils/constants/constants.ts
 var ANIMAL_TYPE_OPTIONS = [
   { label: "Perro", value: "dog" /* DOG */ },
@@ -108,6 +67,11 @@ var ANIMAL_TYPE_OPTIONS = [
   { label: "Pez", value: "fish" /* FISH */ },
   { label: "Reptil", value: "reptil" /* REPTIL */ },
   { label: "Mam\xEDfero", value: "mammal" /* MAMMAL */ }
+];
+var ANIMAL_SEX_OPTIONS = [
+  { label: "Macho", value: "male" },
+  { label: "Hembra", value: "female" },
+  { label: "Desconocido", value: "unknown" }
 ];
 var ANIMAL_LOGS_OPTIONS = [
   {
@@ -129,6 +93,14 @@ var ANIMAL_LOGS_OPTIONS = [
   {
     label: "En familia",
     value: "in_family"
+  },
+  {
+    label: "Perdido",
+    value: "lost"
+  },
+  {
+    label: "Encontrado",
+    value: "found"
   }
 ];
 var PRODUCT_CATEGORIES = [
@@ -224,7 +196,50 @@ var POST_CATEGORIES = [
   { label: "Otro", value: "other" }
 ];
 
+// models/Animal/Animal.ts
+var Animal_default = (0, import_core.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    sex: (0, import_fields.select)({
+      options: ANIMAL_SEX_OPTIONS,
+      defaultValue: "male"
+    }),
+    animal_type: (0, import_fields.relationship)({
+      ref: "AnimalType",
+      many: false
+    }),
+    animal_breed: (0, import_fields.relationship)({
+      ref: "AnimalBreed",
+      many: false
+    }),
+    user: (0, import_fields.relationship)({
+      ref: "User",
+      many: false
+    }),
+    multimedia: (0, import_fields.relationship)({
+      ref: "AnimalMultimedia.animal",
+      many: true
+    }),
+    logs: (0, import_fields.relationship)({
+      ref: "AnimalLog.animal",
+      many: true
+    }),
+    createdAt: (0, import_fields.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
 // models/Animal/AnimalType/AnimalType.ts
+var import_core2 = require("@keystone-6/core");
+var import_fields2 = require("@keystone-6/core/fields");
 var AnimalType_default = (0, import_core2.list)({
   access: access_default,
   fields: {
@@ -252,7 +267,7 @@ var AnimalMultimedia_default = (0, import_core3.list)({
   access: access_default,
   fields: {
     image: (0, import_fields3.image)({
-      storage: "s3_files"
+      storage: "s3_animals"
     }),
     animal: (0, import_fields3.relationship)({
       ref: "Animal.multimedia"
@@ -305,6 +320,10 @@ var AnimalLog_default = (0, import_core5.list)({
     }),
     lat: (0, import_fields5.text)(),
     lng: (0, import_fields5.text)(),
+    address: (0, import_fields5.text)(),
+    city: (0, import_fields5.text)(),
+    state: (0, import_fields5.text)(),
+    country: (0, import_fields5.text)(),
     last_seen: (0, import_fields5.checkbox)(),
     createdAt: (0, import_fields5.timestamp)({
       defaultValue: {
@@ -598,7 +617,7 @@ var PetMultimedia_default = (0, import_core10.list)({
   access: access_default,
   fields: {
     image: (0, import_fields10.image)({
-      storage: "s3_files"
+      storage: "s3_pets"
     }),
     pet: (0, import_fields10.relationship)({
       ref: "Pet.multimedia"
@@ -1286,11 +1305,22 @@ async function checkPostUrl(title, currentPostId, context) {
   }
   return uniqueLink;
 }
+var publishedAtHook = {
+  resolveInput: async ({ resolvedData, item, operation }) => {
+    if (resolvedData.published === true) {
+      resolvedData.publishedAt = (/* @__PURE__ */ new Date()).toISOString();
+    }
+    return resolvedData;
+  }
+};
 
 // models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
 var Post_default = (0, import_core25.list)({
   access: access_default,
+  hooks: {
+    resolveInput: publishedAtHook.resolveInput
+  },
   fields: {
     title: (0, import_fields25.text)({ validation: { isRequired: true } }),
     url: (0, import_fields25.text)({
@@ -2365,8 +2395,7 @@ var keystone_default = withAuth(
     },
     server: {
       cors: true,
-      maxFileSize: 200 * 1024 * 1024,
-      healthCheck: true
+      maxFileSize: 200 * 1024 * 1024
     },
     storage: {
       my_local_images: {
@@ -2401,8 +2430,8 @@ var keystone_default = withAuth(
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix: "categories/",
-        // subcarpeta para categorías
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/",
+        // subcarpeta para categorías, usa 'dev/categories' en entorno dev
         signed: { expiry: 3600 }
       },
       s3_posts: {
@@ -2412,8 +2441,8 @@ var keystone_default = withAuth(
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix: "posts/",
-        // subcarpeta para posts
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/",
+        // subcarpeta para posts, usa 'dev/posts' en entorno dev
         signed: { expiry: 3600 }
       },
       s3_profile: {
@@ -2423,14 +2452,49 @@ var keystone_default = withAuth(
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix: "profiles/",
-        // subcarpeta para posts
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/",
+        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+        signed: { expiry: 3600 }
+      },
+      s3_animals: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/",
+        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+        signed: { expiry: 3600 }
+      },
+      s3_pets: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/",
+        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+        signed: { expiry: 3600 }
+      },
+      s3_ads: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/",
+        // subcarpeta para ads, usa 'dev/ads' en entorno dev
         signed: { expiry: 3600 }
       }
     },
+    graphql: {
+      extendGraphqlSchema
+    },
     lists: schema_default,
-    session,
-    extendGraphqlSchema
+    session
   })
 );
 //# sourceMappingURL=config.js.map
