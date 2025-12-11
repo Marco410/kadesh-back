@@ -912,9 +912,21 @@ type PetPlace {
   lat: String
   lng: String
   views: Int
-  types(where: PetPlaceTypeWhereInput! = {}, orderBy: [PetPlaceTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceTypeWhereUniqueInput): [PetPlaceType!]
+  types(
+    where: PetPlaceTypeWhereInput! = {}
+    orderBy: [PetPlaceTypeOrderByInput!]! = []
+    take: Int
+    skip: Int! = 0
+    cursor: PetPlaceTypeWhereUniqueInput
+  ): [PetPlaceType!]
   typesCount(where: PetPlaceTypeWhereInput! = {}): Int
-  services(where: PetPlaceServiceWhereInput! = {}, orderBy: [PetPlaceServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceServiceWhereUniqueInput): [PetPlaceService!]
+  services(
+    where: PetPlaceServiceWhereInput! = {}
+    orderBy: [PetPlaceServiceOrderByInput!]! = []
+    take: Int
+    skip: Int! = 0
+    cursor: PetPlaceServiceWhereUniqueInput
+  ): [PetPlaceService!]
   servicesCount(where: PetPlaceServiceWhereInput! = {}): Int
   user: User
   isOpen: Boolean
@@ -3005,11 +3017,18 @@ type Mutation {
     data: PetPlaceServiceUpdateInput!
   ): PetPlaceService
   updatePetPlaceServices(data: [PetPlaceServiceUpdateArgs!]!): [PetPlaceService]
-  deletePetPlaceService(where: PetPlaceServiceWhereUniqueInput!): PetPlaceService
-  deletePetPlaceServices(where: [PetPlaceServiceWhereUniqueInput!]!): [PetPlaceService]
+  deletePetPlaceService(
+    where: PetPlaceServiceWhereUniqueInput!
+  ): PetPlaceService
+  deletePetPlaceServices(
+    where: [PetPlaceServiceWhereUniqueInput!]!
+  ): [PetPlaceService]
   createPetPlaceType(data: PetPlaceTypeCreateInput!): PetPlaceType
   createPetPlaceTypes(data: [PetPlaceTypeCreateInput!]!): [PetPlaceType]
-  updatePetPlaceType(where: PetPlaceTypeWhereUniqueInput!, data: PetPlaceTypeUpdateInput!): PetPlaceType
+  updatePetPlaceType(
+    where: PetPlaceTypeWhereUniqueInput!
+    data: PetPlaceTypeUpdateInput!
+  ): PetPlaceType
   updatePetPlaceTypes(data: [PetPlaceTypeUpdateArgs!]!): [PetPlaceType]
   deletePetPlaceType(where: PetPlaceTypeWhereUniqueInput!): PetPlaceType
   deletePetPlaceTypes(where: [PetPlaceTypeWhereUniqueInput!]!): [PetPlaceType]
@@ -3328,10 +3347,22 @@ type Query {
     cursor: PetPlaceServiceWhereUniqueInput
   ): [PetPlaceService!]
   petPlaceServicesCount(where: PetPlaceServiceWhereInput! = {}): Int
-  petPlaceTypes(where: PetPlaceTypeWhereInput! = {}, orderBy: [PetPlaceTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceTypeWhereUniqueInput): [PetPlaceType!]
+  petPlaceTypes(
+    where: PetPlaceTypeWhereInput! = {}
+    orderBy: [PetPlaceTypeOrderByInput!]! = []
+    take: Int
+    skip: Int! = 0
+    cursor: PetPlaceTypeWhereUniqueInput
+  ): [PetPlaceType!]
   petPlaceType(where: PetPlaceTypeWhereUniqueInput!): PetPlaceType
   petPlaceTypesCount(where: PetPlaceTypeWhereInput! = {}): Int
-  schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
+  schedules(
+    where: ScheduleWhereInput! = {}
+    orderBy: [ScheduleOrderByInput!]! = []
+    take: Int
+    skip: Int! = 0
+    cursor: ScheduleWhereUniqueInput
+  ): [Schedule!]
   schedule(where: ScheduleWhereUniqueInput!): Schedule
   schedules(
     where: ScheduleWhereInput! = {}
