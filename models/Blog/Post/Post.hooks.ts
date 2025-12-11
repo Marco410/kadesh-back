@@ -66,3 +66,12 @@ export async function checkPostUrl(
   return uniqueLink;
 }
 
+export const publishedAtHook = {
+  resolveInput: async ({ resolvedData, item, operation }: any) => {
+    if (resolvedData.published === true) {
+      resolvedData.publishedAt = new Date().toISOString();
+    }
+    return resolvedData;
+  },
+};
+

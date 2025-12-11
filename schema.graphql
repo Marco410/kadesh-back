@@ -229,6 +229,7 @@ input RoleRelateToManyForCreateInput {
 type Animal {
   id: ID!
   name: String
+  sex: String
   animal_type: AnimalType
   animal_breed: AnimalBreed
   user: User
@@ -249,12 +250,28 @@ input AnimalWhereInput {
   NOT: [AnimalWhereInput!]
   id: IDFilter
   name: StringFilter
+  sex: StringNullableFilter
   animal_type: AnimalTypeWhereInput
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
   multimedia: AnimalMultimediaManyRelationFilter
   logs: AnimalLogManyRelationFilter
   createdAt: DateTimeNullableFilter
+}
+
+input StringNullableFilter {
+  equals: String
+  in: [String!]
+  notIn: [String!]
+  lt: String
+  lte: String
+  gt: String
+  gte: String
+  contains: String
+  startsWith: String
+  endsWith: String
+  mode: QueryMode
+  not: StringNullableFilter
 }
 
 input AnimalMultimediaManyRelationFilter {
@@ -272,11 +289,13 @@ input AnimalLogManyRelationFilter {
 input AnimalOrderByInput {
   id: OrderDirection
   name: OrderDirection
+  sex: OrderDirection
   createdAt: OrderDirection
 }
 
 input AnimalUpdateInput {
   name: String
+  sex: String
   animal_type: AnimalTypeRelateToOneForUpdateInput
   animal_breed: AnimalBreedRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
@@ -324,6 +343,7 @@ input AnimalUpdateArgs {
 
 input AnimalCreateInput {
   name: String
+  sex: String
   animal_type: AnimalTypeRelateToOneForCreateInput
   animal_breed: AnimalBreedRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
@@ -535,6 +555,10 @@ type AnimalLog {
   notes: String
   lat: String
   lng: String
+  address: String
+  city: String
+  state: String
+  country: String
   last_seen: Boolean
   createdAt: DateTime
 }
@@ -553,23 +577,12 @@ input AnimalLogWhereInput {
   notes: StringFilter
   lat: StringFilter
   lng: StringFilter
+  address: StringFilter
+  city: StringFilter
+  state: StringFilter
+  country: StringFilter
   last_seen: BooleanFilter
   createdAt: DateTimeNullableFilter
-}
-
-input StringNullableFilter {
-  equals: String
-  in: [String!]
-  notIn: [String!]
-  lt: String
-  lte: String
-  gt: String
-  gte: String
-  contains: String
-  startsWith: String
-  endsWith: String
-  mode: QueryMode
-  not: StringNullableFilter
 }
 
 input AnimalLogOrderByInput {
@@ -578,6 +591,10 @@ input AnimalLogOrderByInput {
   notes: OrderDirection
   lat: OrderDirection
   lng: OrderDirection
+  address: OrderDirection
+  city: OrderDirection
+  state: OrderDirection
+  country: OrderDirection
   last_seen: OrderDirection
   createdAt: OrderDirection
 }
@@ -588,6 +605,10 @@ input AnimalLogUpdateInput {
   notes: String
   lat: String
   lng: String
+  address: String
+  city: String
+  state: String
+  country: String
   last_seen: Boolean
   createdAt: DateTime
 }
@@ -603,6 +624,10 @@ input AnimalLogCreateInput {
   notes: String
   lat: String
   lng: String
+  address: String
+  city: String
+  state: String
+  country: String
   last_seen: Boolean
   createdAt: DateTime
 }
@@ -2843,6 +2868,8 @@ type Mutation {
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
+  executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
+  customAuth(email: String!, name: String, lastName: String): customAuthType
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -3097,4 +3124,20 @@ type KeystoneAdminUISort {
 enum KeystoneAdminUISortDirection {
   ASC
   DESC
+}
+
+type customAuthType {
+  message: String
+  success: Boolean
+  data: JSON
+}
+
+input ImportPetPlaceInput {
+  inputValue: String!
+}
+
+type ImportPetPlaceResult {
+  success: Boolean!
+  message: String!
+  result: String
 }
