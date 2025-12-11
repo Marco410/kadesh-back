@@ -53,6 +53,7 @@ model User {
 model Animal {
   id                         String             @id @default(cuid())
   name                       String             @default("")
+  sex                        String?            @default("male")
   animal_type                AnimalType?        @relation("Animal_animal_type", fields: [animal_typeId], references: [id])
   animal_typeId              String?            @map("animal_type")
   animal_breed               AnimalBreed?       @relation("Animal_animal_breed", fields: [animal_breedId], references: [id])
@@ -113,6 +114,10 @@ model AnimalLog {
   notes     String    @default("")
   lat       String    @default("")
   lng       String    @default("")
+  address   String    @default("")
+  city      String    @default("")
+  state     String    @default("")
+  country   String    @default("")
   last_seen Boolean   @default(false)
   createdAt DateTime? @default(now())
 

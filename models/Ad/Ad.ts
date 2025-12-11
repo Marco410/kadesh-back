@@ -35,7 +35,7 @@ export default list({
     lat: text(),
     lng: text(),
     image: image({
-      storage: "s3_files",
+      storage: "s3_ads",
     }),
     pet_place: relationship({
       ref: "PetPlace.pet_place_ads",

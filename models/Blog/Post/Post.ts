@@ -7,11 +7,14 @@ import {
   timestamp,
 } from "@keystone-6/core/fields";
 import access from "../../../utils/generalAccess/access";
-import { postUrlHook } from "./Post.hooks";
+import { postUrlHook, publishedAtHook } from "./Post.hooks";
 import { document } from '@keystone-6/fields-document';
 
 export default list({
   access,
+  hooks: {
+    resolveInput: publishedAtHook.resolveInput,
+  },
   fields: {
     title: text({ validation: { isRequired: true } }),
     url: text({

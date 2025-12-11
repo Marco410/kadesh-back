@@ -24,6 +24,10 @@ export default list({
     }),
     lat: text(),
     lng: text(),
+    address: text(),
+    city: text(),
+    state: text(),
+    country: text(),
     last_seen: checkbox(),
     createdAt: timestamp({
       defaultValue: {
