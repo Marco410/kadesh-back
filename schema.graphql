@@ -3066,6 +3066,7 @@ type Query {
   rolesCount(where: RoleWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
+  getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 }
 
 union AuthenticatedItem = User
@@ -3260,4 +3261,58 @@ input NearbyPetPlacesInput {
   limit: Int = 10
   radius: Float = 10
   type: String
+}
+
+type AnimalMultimediaImage {
+  id: ID!
+  url: String
+}
+
+type NearbyAnimalUser {
+  name: String
+  profileImage: NearbyAnimalUserProfileImage
+}
+
+type NearbyAnimalUserProfileImage {
+  url: String
+}
+
+type NearbyAnimal {
+  id: ID!
+  name: String
+  sex: String
+  distance: Float
+  status: String
+  lat: String
+  lng: String
+  address: String
+  city: String
+  state: String
+  country: String
+  animal_type: AnimalType
+  animal_breed: AnimalBreed
+  user: NearbyAnimalUser
+  multimedia: [AnimalMultimediaImage]
+  createdAt: String
+}
+
+type NearbyAnimalsResult {
+  success: Boolean!
+  message: String!
+  animals: [NearbyAnimal!]
+  total: Int!
+}
+
+input NearbyAnimalsInput {
+  lat: Float
+  lng: Float
+  limit: Int = 10
+  skip: Int = 0
+  radius: Float = 10
+  animalType: ID
+  status: String
+  breed: ID
+  city: String
+  state: String
+  country: String
 }

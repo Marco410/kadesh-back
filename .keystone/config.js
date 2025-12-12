@@ -2023,6 +2023,17 @@ var importPetPlace_default = {
   resolver: resolver2
 };
 
+// utils/helpers/calculate_distances.ts
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const toRad = (value) => value * Math.PI / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 100) / 100;
+}
+
 // graphql/customs/mutations/nearbyPetPlaces.ts
 var typeDefs3 = `
   type PetPlaceType {
@@ -2083,15 +2094,6 @@ var typeDefs3 = `
 var definition3 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-function haversineDistance(lat1, lng1, lat2, lng2) {
-  const toRad = (value) => value * Math.PI / 180;
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 100) / 100;
-}
 async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   if (!place.name) {
     return null;
@@ -2354,19 +2356,292 @@ var customMutation = {
 };
 var mutations_default = customMutation;
 
+// graphql/customs/queries/nearbyAnimals.ts
+var typeDefs4 = `
+  type AnimalMultimediaImage {
+    id: ID!
+    url: String
+  }
+
+  type NearbyAnimalUser {
+    name: String
+    profileImage: NearbyAnimalUserProfileImage
+  }
+
+  type NearbyAnimalUserProfileImage {
+    url: String
+  }
+
+  type NearbyAnimal {
+    id: ID!
+    name: String
+    sex: String
+    distance: Float
+    status: String
+    lat: String
+    lng: String
+    address: String
+    city: String
+    state: String
+    country: String
+    animal_type: AnimalType
+    animal_breed: AnimalBreed
+    user: NearbyAnimalUser
+    multimedia: [AnimalMultimediaImage]
+    createdAt: String
+  }
+
+  type NearbyAnimalsResult {
+    success: Boolean!
+    message: String!
+    animals: [NearbyAnimal!]
+    total: Int!
+  }
+
+  input NearbyAnimalsInput {
+    lat: Float
+    lng: Float
+    limit: Int = 10
+    skip: Int = 0
+    radius: Float = 10
+    animalType: ID
+    status: String
+    breed: ID
+    city: String
+    state: String
+    country: String
+  }
+
+  type Query {
+    getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
+  }
+`;
+var definition4 = `
+  getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
+`;
+async function getLatestAnimalLogs(animalIds, context) {
+  if (animalIds.length === 0) {
+    return /* @__PURE__ */ new Map();
+  }
+  const logs = await context.sudo().query.AnimalLog.findMany({
+    where: { animal: { id: { in: animalIds } } },
+    orderBy: { createdAt: "desc" },
+    query: `
+      id
+      status
+      lat
+      lng
+      address
+      city
+      state
+      country
+      createdAt
+      animal {
+        id
+      }
+    `
+  });
+  const latestLogsMap = /* @__PURE__ */ new Map();
+  const seenAnimals = /* @__PURE__ */ new Set();
+  for (const log of logs) {
+    const animalId = log.animal?.id;
+    if (animalId && !seenAnimals.has(animalId)) {
+      latestLogsMap.set(animalId, log);
+      seenAnimals.add(animalId);
+    }
+  }
+  return latestLogsMap;
+}
+var resolver4 = {
+  getNearbyAnimals: async (root, {
+    input
+  }, context) => {
+    const {
+      lat,
+      lng,
+      limit = 10,
+      skip = 0,
+      radius = 10,
+      animalType,
+      status,
+      breed,
+      city,
+      state,
+      country
+    } = input;
+    const animalWhere = {};
+    if (animalType) {
+      animalWhere.animal_type = { id: { equals: animalType } };
+    }
+    if (breed) {
+      animalWhere.animal_breed = { id: { equals: breed } };
+    }
+    const animals = await context.sudo().query.Animal.findMany({
+      where: animalWhere,
+      query: `
+        id
+        name
+        sex
+        animal_type {
+          id
+          name
+        }
+        animal_breed {
+          id
+          breed
+        }
+        user {
+          name
+          profileImage {
+            url
+          }
+        }
+        createdAt
+      `
+    });
+    const animalIds = animals.map((a) => a.id);
+    const latestLogsMap = await getLatestAnimalLogs(animalIds, context);
+    const processedAnimals = [];
+    for (const animal of animals) {
+      const latestLog = latestLogsMap.get(animal.id);
+      if (!latestLog) {
+        continue;
+      }
+      if (status && latestLog.status !== status) {
+        continue;
+      }
+      if (city && !latestLog.city?.toLowerCase().includes(city.toLowerCase())) {
+        continue;
+      }
+      if (state && !latestLog.state?.toLowerCase().includes(state.toLowerCase())) {
+        continue;
+      }
+      if (country && !latestLog.country?.toLowerCase().includes(country.toLowerCase())) {
+        continue;
+      }
+      let distance = null;
+      if (lat !== void 0 && lng !== void 0 && latestLog.lat && latestLog.lng) {
+        const logLat = parseFloat(latestLog.lat);
+        const logLng = parseFloat(latestLog.lng);
+        if (!isNaN(logLat) && !isNaN(logLng)) {
+          distance = haversineDistance(lat, lng, logLat, logLng);
+        }
+      }
+      if (lat !== void 0 && lng !== void 0) {
+        if (distance === null || distance > radius) {
+          continue;
+        }
+      }
+      const userObj = animal.user ? {
+        name: animal.user.name,
+        profileImage: animal.user.profileImage ? {
+          url: animal.user.profileImage.url
+        } : null
+      } : null;
+      processedAnimals.push({
+        ...animal,
+        user: userObj,
+        distance,
+        status: latestLog.status,
+        lat: latestLog.lat,
+        lng: latestLog.lng,
+        address: latestLog.address,
+        city: latestLog.city,
+        state: latestLog.state,
+        country: latestLog.country
+      });
+    }
+    if (lat !== void 0 && lng !== void 0) {
+      processedAnimals.sort((a, b) => {
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      });
+    } else {
+      processedAnimals.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
+    }
+    const total = processedAnimals.length;
+    const paginatedAnimals = processedAnimals.slice(skip, skip + limit);
+    const paginatedAnimalIds = paginatedAnimals.map((a) => a.id);
+    const multimediaData = await context.sudo().query.AnimalMultimedia.findMany({
+      where: { animal: { id: { in: paginatedAnimalIds } } },
+      query: `
+        id
+        image {
+          id
+          url
+        }
+        animal {
+          id
+        }
+      `
+    });
+    const multimediaByAnimal = /* @__PURE__ */ new Map();
+    for (const media of multimediaData) {
+      const animalId = media.animal?.id;
+      if (animalId) {
+        if (!multimediaByAnimal.has(animalId)) {
+          multimediaByAnimal.set(animalId, []);
+        }
+        const imageObj = media.image ? {
+          id: media.image.id,
+          url: media.image.url
+        } : null;
+        multimediaByAnimal.get(animalId).push(imageObj);
+      }
+    }
+    const animalsWithMultimedia = paginatedAnimals.map((animal) => ({
+      ...animal,
+      multimedia: multimediaByAnimal.get(animal.id) || []
+    }));
+    return {
+      success: true,
+      message: animalsWithMultimedia.length > 0 ? "Animals found" : "No animals found",
+      animals: animalsWithMultimedia,
+      total
+    };
+  }
+};
+var nearbyAnimals_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
+
+// graphql/customs/queries/index.ts
+var customQuery = {
+  typeDefs: `
+    ${nearbyAnimals_default.typeDefs}
+  `,
+  definitions: `
+    ${nearbyAnimals_default.definition}
+  `,
+  resolvers: {
+    ...nearbyAnimals_default.resolver
+  }
+};
+var queries_default = customQuery;
+
 // graphql/extendedSchema.ts
 function extendGraphqlSchema(baseSchema) {
   return (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
     typeDefs: `
       ${mutations_default.typeDefs}
+      ${queries_default.typeDefs}
       type Mutation {
         ${mutations_default.definitions}
+      }
+      type Query {
+        ${queries_default.definitions}
       }
     `,
     resolvers: {
       Mutation: {
         ...mutations_default.resolvers
+      },
+      Query: {
+        ...queries_default.resolvers
       }
     }
   });
