@@ -3259,4 +3259,5 @@ input NearbyPetPlacesInput {
   lng: Float!
   limit: Int = 10
   radius: Float = 10
+  type: String
 }
