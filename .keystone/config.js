@@ -2419,6 +2419,20 @@ var typeDefs4 = `
 var definition4 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const hoursStr = String(hours).padStart(2, "0");
+  return `${month}/${day}/${year}, ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+}
 async function getLatestAnimalLogs(animalIds, context) {
   if (animalIds.length === 0) {
     return /* @__PURE__ */ new Map();
@@ -2541,6 +2555,7 @@ var resolver4 = {
       processedAnimals.push({
         ...animal,
         user: userObj,
+        createdAt: formatDate(animal.createdAt),
         distance,
         status: latestLog.status,
         lat: latestLog.lat,
