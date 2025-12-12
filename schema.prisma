@@ -194,7 +194,7 @@ model PetPlace {
   lat                    String            @default("")
   lng                    String            @default("")
   views                  Int?
-  type                   String?           @default("veterinary")
+  types                  PetPlaceType[]    @relation("PetPlace_types")
   services               PetPlaceService[] @relation("PetPlace_services")
   user                   User?             @relation("PetPlace_user", fields: [userId], references: [id])
   userId                 String?           @map("user")
@@ -209,6 +209,14 @@ model PetPlace {
   createdAt              DateTime?         @default(now())
 
   @@index([userId])
+}
+
+model PetPlaceType {
+  id                  String     @id @default(cuid())
+  value               String     @unique
+  label               String     @unique @default("")
+  plural              String     @default("")
+  from_PetPlace_types PetPlace[] @relation("PetPlace_types")
 }
 
 model PetPlaceLike {

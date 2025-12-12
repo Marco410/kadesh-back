@@ -30,6 +30,7 @@ import PostView from "./Blog/Post/PostView/PostView";
 import Tag from "./Blog/Tag/Tag";
 import Category from "./Blog/Category/Category";
 import Role from "./Role/Role";
+import PetPlaceType from "./PetPlace/PetPlaceType/PetPlaceType";
 
 export default {
   User,
@@ -43,6 +44,7 @@ export default {
   Pet,
   PetMultimedia,
   PetPlace,
+  PetPlaceType,
   PetPlaceLike,
   PetPlaceService,
   Schedule,
