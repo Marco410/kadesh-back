@@ -128,22 +128,32 @@ var PAYMENT_TYPES = [
 var TYPES_PET_SHELTER = [
   {
     label: "Veterinaria",
+    plural: "Veterinarias",
     value: "veterinary"
   },
   {
     label: "Refugio",
+    plural: "Refugios",
     value: "pet_shelter"
   },
   {
     label: "Tienda",
-    value: "store"
+    plural: "Tiendas",
+    value: "pet_store"
   },
   {
-    label: "Hospital",
-    value: "hospital"
+    label: "Hotel/Guarder\xEDa",
+    plural: "Hoteles/Guarder\xEDas",
+    value: "pet_boarding"
+  },
+  {
+    label: "Parque",
+    plural: "Parques",
+    value: "pet_park"
   },
   {
     label: "Otro",
+    plural: "Otros",
     value: "other"
   }
 ];
@@ -684,9 +694,9 @@ var PetPlace_default = (0, import_core12.list)({
     lat: (0, import_fields12.text)(),
     lng: (0, import_fields12.text)(),
     views: (0, import_fields12.integer)(),
-    type: (0, import_fields12.select)({
-      defaultValue: "veterinary",
-      options: TYPES_PET_SHELTER
+    types: (0, import_fields12.relationship)({
+      ref: "PetPlaceType",
+      many: true
     }),
     services: (0, import_fields12.relationship)({
       ref: "PetPlaceService",
@@ -1494,9 +1504,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text23) {
+function sanitizeUrl2(text24) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text23.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text24.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -1593,6 +1603,58 @@ var Role_default = (0, import_core32.list)({
   }
 });
 
+// models/PetPlace/PetPlaceType/PetPlaceType.ts
+var import_core33 = require("@keystone-6/core");
+var import_fields33 = require("@keystone-6/core/fields");
+var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
+  label: type.label,
+  value: type.value
+}));
+var labelHook = {
+  resolveInput: async ({ resolvedData, item }) => {
+    if (resolvedData.value) {
+      const typeData = TYPES_PET_SHELTER.find((t) => t.value === resolvedData.value);
+      return typeData ? typeData.label : resolvedData.label || item?.label;
+    }
+    return resolvedData.label || item?.label;
+  }
+};
+var pluralHook = {
+  resolveInput: async ({ resolvedData, item }) => {
+    if (resolvedData.value) {
+      const typeData = TYPES_PET_SHELTER.find((t) => t.value === resolvedData.value);
+      return typeData ? typeData.plural : resolvedData.plural || item?.plural;
+    }
+    return resolvedData.plural || item?.plural;
+  }
+};
+var PetPlaceType_default = (0, import_core33.list)({
+  access: access_default,
+  fields: {
+    value: (0, import_fields33.select)({
+      validation: { isRequired: true },
+      isIndexed: "unique",
+      options: PET_PLACE_TYPE_OPTIONS
+    }),
+    label: (0, import_fields33.text)({
+      isIndexed: "unique",
+      hooks: labelHook,
+      ui: {
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    plural: (0, import_fields33.text)({
+      hooks: pluralHook,
+      ui: {
+        itemView: { fieldMode: "read" }
+      }
+    })
+  },
+  ui: {
+    labelField: "label"
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   User: User_default,
@@ -1606,6 +1668,7 @@ var schema_default = {
   Pet: Pet_default,
   PetMultimedia: PetMultimedia_default,
   PetPlace: PetPlace_default,
+  PetPlaceType: PetPlaceType_default,
   PetPlaceLike: PetPlaceLike_default,
   PetPlaceService: PetPlaceService_default,
   Schedule: Schedule_default,
@@ -1630,7 +1693,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core33 = require("@keystone-6/core");
+var import_core34 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -1733,6 +1796,7 @@ var customAuth_default = { typeDefs, definition, resolver };
 var typeDefs2 = `
   input ImportPetPlaceInput {
     inputValue: String!
+    type: String!
   }
   
   type ImportPetPlaceResult {
@@ -1751,8 +1815,8 @@ var definition2 = `
 var resolver2 = {
   executeImportPetPlace: async (root, { input }, context) => {
     try {
-      console.log("Ejecutando importaci\xF3n de veterinarias con datos:", input.inputValue);
-      const result = await importVeterinaries(input.inputValue, context);
+      console.log("Ejecutando importaci\xF3n de lugares con datos:", input.inputValue, "tipo:", input.type);
+      const result = await importVeterinaries(input.inputValue, input.type, context);
       console.log("Resultados de la importaci\xF3n:", result);
       return {
         success: true,
@@ -1769,13 +1833,22 @@ var resolver2 = {
     }
   }
 };
-async function importVeterinaries(city, context) {
+async function importVeterinaries(city, type, context) {
   try {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       throw new Error("GOOGLE_MAPS_API_KEY no est\xE1 configurada en las variables de entorno");
     }
-    const query = encodeURIComponent(`veterinarias en ${city}`);
+    const typeLabels = {
+      "veterinary": "veterinarias",
+      "pet_shelter": "refugios de animales",
+      "pet_store": "tiendas de mascotas",
+      "pet_boarding": "hoteles para mascotas guarder\xEDas",
+      "pet_park": "parques para perros",
+      "other": "lugares para mascotas"
+    };
+    const searchTerm = typeLabels[type] || "lugares para mascotas";
+    const query = encodeURIComponent(`${searchTerm} en ${city}`);
     const baseUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?key=${apiKey}`;
     let url = `${baseUrl}&query=${query}`;
     let importedCount = 0;
@@ -1801,7 +1874,7 @@ async function importVeterinaries(city, context) {
         if (data.status !== "OK") {
           throw new Error(`Error en la API de Google Places: ${data.status} - ${data.error_message || "Error desconocido"}`);
         }
-        console.log(`Se encontraron ${data.results?.length || 0} veterinarias en ${city} (p\xE1gina ${page + 1})`);
+        console.log(`Se encontraron ${data.results?.length || 0} lugares en ${city} (p\xE1gina ${page + 1})`);
         if (data.results && data.results.length > 0) {
           for (const place of data.results) {
             try {
@@ -1820,14 +1893,33 @@ async function importVeterinaries(city, context) {
                 query: "id"
               });
               if (existingVeterinary) {
-                console.log(`Veterinaria con placeId ${placeId} ya registrada, se omite.`);
+                console.log(`Lugar con placeId ${placeId} ya registrado, se omite.`);
                 continue;
+              }
+              let petPlaceType = await context.sudo().query.PetPlaceType.findOne({
+                where: { value: type },
+                query: "id"
+              });
+              if (!petPlaceType) {
+                const typeData = TYPES_PET_SHELTER.find((t) => t.value === type);
+                if (typeData) {
+                  petPlaceType = await context.sudo().query.PetPlaceType.createOne({
+                    data: {
+                      label: typeData.label,
+                      value: typeData.value,
+                      plural: typeData.plural
+                    }
+                  });
+                } else {
+                  console.error(`Tipo ${type} no encontrado en TYPES_PET_SHELTER`);
+                  continue;
+                }
               }
               const result = await context.sudo().query.PetPlace.createOne({
                 data: {
                   name: place.name,
-                  description: `Veterinaria ubicada en ${address}. ${rating > 0 ? `Calificaci\xF3n: ${rating}/5 (${userRatingsTotal} rese\xF1as)` : ""}`,
-                  type: "veterinary",
+                  description: `Lugar ubicado en ${address}. ${rating > 0 ? `Calificaci\xF3n: ${rating}/5 (${userRatingsTotal} rese\xF1as)` : ""}`,
+                  types: { connect: [{ id: petPlaceType.id }] },
                   phone: "",
                   website: "",
                   street: "",
@@ -1896,7 +1988,7 @@ async function importVeterinaries(city, context) {
                 }
               }
               importedCount++;
-              console.log(`Veterinaria importada: ${place.name} - ${address}`);
+              console.log(`Lugar importado: ${place.name} - ${address}`);
             } catch (error) {
               const errorMsg = `Error importando ${place.name || "veterinaria"}: ${error instanceof Error ? error.message : "Error desconocido"}`;
               console.error(errorMsg);
@@ -1910,7 +2002,7 @@ async function importVeterinaries(city, context) {
         break;
       }
     } while (nextPageToken && page < maxPagesToSearch);
-    let resultMessage = `Importaci\xF3n completada. ${importedCount} veterinarias importadas exitosamente.`;
+    let resultMessage = `Importaci\xF3n completada. ${importedCount} lugares importados exitosamente.`;
     if (errors.length > 0) {
       resultMessage += `
 
@@ -1931,19 +2023,140 @@ var importPetPlace_default = {
   resolver: resolver2
 };
 
+// graphql/customs/mutations/nearbyPetPlaces.ts
+var typeDefs3 = `
+  type PetPlaceType {
+    id: ID!
+    label: String
+    value: String
+    plural: String
+  }
+
+  type NearbyPetPlace {
+    id: ID!
+    name: String
+    description: String
+    lat: String
+    lng: String
+    distance: Float
+    address: String
+    phone: String
+    website: String
+    street: String
+    municipality: String
+    state: String
+    country: String
+    cp: String
+    views: String
+    types: [PetPlaceType]
+    services: [PetPlaceService]
+    user: User
+    isOpen: Boolean
+    pet_place_social_media: [SocialMedia]
+    pet_place_likes: [PetPlaceLike]
+    pet_place_schedules: [Schedule]
+    pet_place_reviews: [Review]
+    pet_place_ads: [Ad]
+    google_place_id: String
+    google_opening_hours: String
+    createdAt: String
+  }
+
+  type NearbyPetPlacesResult {
+    success: Boolean!
+    message: String!
+    petPlaces: [NearbyPetPlace!]
+  }
+
+  input NearbyPetPlacesInput {
+    lat: Float!
+    lng: Float!
+    limit: Int = 10
+    radius: Float = 10
+  }
+
+  type Mutation {
+    getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
+  }
+`;
+var definition3 = `
+  getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
+`;
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const toRad = (value) => value * Math.PI / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 100) / 100;
+}
+var resolver3 = {
+  getNearbyPetPlaces: async (root, { input }, context) => {
+    const { lat, lng, limit = 10, radius = 10 } = input;
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      return {
+        success: false,
+        message: "Latitud y longitud inv\xE1lidas",
+        petPlaces: []
+      };
+    }
+    const petPlaces = await context.sudo().query.PetPlace.findMany({
+      query: `id name description 
+        lat lng 
+        address phone 
+        website street 
+        municipality state 
+        country cp 
+        views 
+        types { id label value plural }
+        services { id name }
+        user { id name }
+        isOpen
+        pet_place_social_media { id }
+        pet_place_likes { id }
+        pet_place_schedules { id }
+        pet_place_reviews { id }
+        pet_place_ads { id }
+        google_place_id
+        google_opening_hours
+        createdAt
+      `
+    });
+    const withDistance = petPlaces.map((place) => {
+      const placeLat = parseFloat(place.lat);
+      const placeLng = parseFloat(place.lng);
+      if (isNaN(placeLat) || isNaN(placeLng)) return null;
+      const distance = haversineDistance(lat, lng, placeLat, placeLng);
+      return { ...place, distance };
+    }).filter((place) => place && place.distance <= radius);
+    withDistance.sort((a, b) => a.distance - b.distance);
+    const result = withDistance.slice(0, limit);
+    return {
+      success: true,
+      message: "PetPlaces encontrados",
+      petPlaces: result
+    };
+  }
+};
+var nearbyPetPlaces_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
     ${customAuth_default.typeDefs}
     ${importPetPlace_default.typeDefs}
+    ${nearbyPetPlaces_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
     ${importPetPlace_default.definition}
+    ${nearbyPetPlaces_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
-    ...importPetPlace_default.resolver
+    ...importPetPlace_default.resolver,
+    ...nearbyPetPlaces_default.resolver
   }
 };
 var mutations_default = customMutation;
@@ -1980,7 +2193,7 @@ var {
   S3_SECRET_ACCESS_KEY: secretAccessKey = ""
 } = process.env;
 var keystone_default = withAuth(
-  (0, import_core33.config)({
+  (0, import_core34.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

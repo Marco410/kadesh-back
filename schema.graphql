@@ -878,7 +878,8 @@ type PetPlace {
   lat: String
   lng: String
   views: Int
-  type: String
+  types(where: PetPlaceTypeWhereInput! = {}, orderBy: [PetPlaceTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceTypeWhereUniqueInput): [PetPlaceType!]
+  typesCount(where: PetPlaceTypeWhereInput! = {}): Int
   services(where: PetPlaceServiceWhereInput! = {}, orderBy: [PetPlaceServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceServiceWhereUniqueInput): [PetPlaceService!]
   servicesCount(where: PetPlaceServiceWhereInput! = {}): Int
   user: User
@@ -921,7 +922,7 @@ input PetPlaceWhereInput {
   lat: StringFilter
   lng: StringFilter
   views: IntNullableFilter
-  type: StringNullableFilter
+  types: PetPlaceTypeManyRelationFilter
   services: PetPlaceServiceManyRelationFilter
   user: UserWhereInput
   pet_place_social_media: SocialMediaManyRelationFilter
@@ -933,6 +934,12 @@ input PetPlaceWhereInput {
   google_place_id: StringFilter
   google_opening_hours: StringFilter
   createdAt: DateTimeNullableFilter
+}
+
+input PetPlaceTypeManyRelationFilter {
+  every: PetPlaceTypeWhereInput
+  some: PetPlaceTypeWhereInput
+  none: PetPlaceTypeWhereInput
 }
 
 input PetPlaceServiceManyRelationFilter {
@@ -985,7 +992,6 @@ input PetPlaceOrderByInput {
   lat: OrderDirection
   lng: OrderDirection
   views: OrderDirection
-  type: OrderDirection
   address: OrderDirection
   google_place_id: OrderDirection
   google_opening_hours: OrderDirection
@@ -1005,7 +1011,7 @@ input PetPlaceUpdateInput {
   lat: String
   lng: String
   views: Int
-  type: String
+  types: PetPlaceTypeRelateToManyForUpdateInput
   services: PetPlaceServiceRelateToManyForUpdateInput
   user: UserRelateToOneForUpdateInput
   pet_place_social_media: SocialMediaRelateToManyForUpdateInput
@@ -1017,6 +1023,13 @@ input PetPlaceUpdateInput {
   google_place_id: String
   google_opening_hours: String
   createdAt: DateTime
+}
+
+input PetPlaceTypeRelateToManyForUpdateInput {
+  disconnect: [PetPlaceTypeWhereUniqueInput!]
+  set: [PetPlaceTypeWhereUniqueInput!]
+  create: [PetPlaceTypeCreateInput!]
+  connect: [PetPlaceTypeWhereUniqueInput!]
 }
 
 input PetPlaceServiceRelateToManyForUpdateInput {
@@ -1079,7 +1092,7 @@ input PetPlaceCreateInput {
   lat: String
   lng: String
   views: Int
-  type: String
+  types: PetPlaceTypeRelateToManyForCreateInput
   services: PetPlaceServiceRelateToManyForCreateInput
   user: UserRelateToOneForCreateInput
   pet_place_social_media: SocialMediaRelateToManyForCreateInput
@@ -1091,6 +1104,11 @@ input PetPlaceCreateInput {
   google_place_id: String
   google_opening_hours: String
   createdAt: DateTime
+}
+
+input PetPlaceTypeRelateToManyForCreateInput {
+  create: [PetPlaceTypeCreateInput!]
+  connect: [PetPlaceTypeWhereUniqueInput!]
 }
 
 input PetPlaceServiceRelateToManyForCreateInput {
@@ -1121,6 +1139,53 @@ input ReviewRelateToManyForCreateInput {
 input AdRelateToManyForCreateInput {
   create: [AdCreateInput!]
   connect: [AdWhereUniqueInput!]
+}
+
+type PetPlaceType {
+  id: ID!
+  value: String
+  label: String
+  plural: String
+}
+
+input PetPlaceTypeWhereUniqueInput {
+  id: ID
+  value: String
+  label: String
+}
+
+input PetPlaceTypeWhereInput {
+  AND: [PetPlaceTypeWhereInput!]
+  OR: [PetPlaceTypeWhereInput!]
+  NOT: [PetPlaceTypeWhereInput!]
+  id: IDFilter
+  value: StringFilter
+  label: StringFilter
+  plural: StringFilter
+}
+
+input PetPlaceTypeOrderByInput {
+  id: OrderDirection
+  value: OrderDirection
+  label: OrderDirection
+  plural: OrderDirection
+}
+
+input PetPlaceTypeUpdateInput {
+  value: String
+  label: String
+  plural: String
+}
+
+input PetPlaceTypeUpdateArgs {
+  where: PetPlaceTypeWhereUniqueInput!
+  data: PetPlaceTypeUpdateInput!
+}
+
+input PetPlaceTypeCreateInput {
+  value: String
+  label: String
+  plural: String
 }
 
 type PetPlaceLike {
@@ -2739,6 +2804,12 @@ type Mutation {
   updatePetPlaces(data: [PetPlaceUpdateArgs!]!): [PetPlace]
   deletePetPlace(where: PetPlaceWhereUniqueInput!): PetPlace
   deletePetPlaces(where: [PetPlaceWhereUniqueInput!]!): [PetPlace]
+  createPetPlaceType(data: PetPlaceTypeCreateInput!): PetPlaceType
+  createPetPlaceTypes(data: [PetPlaceTypeCreateInput!]!): [PetPlaceType]
+  updatePetPlaceType(where: PetPlaceTypeWhereUniqueInput!, data: PetPlaceTypeUpdateInput!): PetPlaceType
+  updatePetPlaceTypes(data: [PetPlaceTypeUpdateArgs!]!): [PetPlaceType]
+  deletePetPlaceType(where: PetPlaceTypeWhereUniqueInput!): PetPlaceType
+  deletePetPlaceTypes(where: [PetPlaceTypeWhereUniqueInput!]!): [PetPlaceType]
   createPetPlaceLike(data: PetPlaceLikeCreateInput!): PetPlaceLike
   createPetPlaceLikes(data: [PetPlaceLikeCreateInput!]!): [PetPlaceLike]
   updatePetPlaceLike(where: PetPlaceLikeWhereUniqueInput!, data: PetPlaceLikeUpdateInput!): PetPlaceLike
@@ -2869,6 +2940,7 @@ type Mutation {
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
+  getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
 }
 
@@ -2926,6 +2998,9 @@ type Query {
   petPlace(where: PetPlaceWhereUniqueInput!): PetPlace
   petPlaces(where: PetPlaceWhereInput! = {}, orderBy: [PetPlaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceWhereUniqueInput): [PetPlace!]
   petPlacesCount(where: PetPlaceWhereInput! = {}): Int
+  petPlaceType(where: PetPlaceTypeWhereUniqueInput!): PetPlaceType
+  petPlaceTypes(where: PetPlaceTypeWhereInput! = {}, orderBy: [PetPlaceTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceTypeWhereUniqueInput): [PetPlaceType!]
+  petPlaceTypesCount(where: PetPlaceTypeWhereInput! = {}): Int
   petPlaceLike(where: PetPlaceLikeWhereUniqueInput!): PetPlaceLike
   petPlaceLikes(where: PetPlaceLikeWhereInput! = {}, orderBy: [PetPlaceLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceLikeWhereUniqueInput): [PetPlaceLike!]
   petPlaceLikesCount(where: PetPlaceLikeWhereInput! = {}): Int
@@ -3134,10 +3209,54 @@ type customAuthType {
 
 input ImportPetPlaceInput {
   inputValue: String!
+  type: String!
 }
 
 type ImportPetPlaceResult {
   success: Boolean!
   message: String!
   result: String
+}
+
+type NearbyPetPlace {
+  id: ID!
+  name: String
+  description: String
+  lat: String
+  lng: String
+  distance: Float
+  address: String
+  phone: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  views: String
+  types: [PetPlaceType]
+  services: [PetPlaceService]
+  user: User
+  isOpen: Boolean
+  pet_place_social_media: [SocialMedia]
+  pet_place_likes: [PetPlaceLike]
+  pet_place_schedules: [Schedule]
+  pet_place_reviews: [Review]
+  pet_place_ads: [Ad]
+  google_place_id: String
+  google_opening_hours: String
+  createdAt: String
+}
+
+type NearbyPetPlacesResult {
+  success: Boolean!
+  message: String!
+  petPlaces: [NearbyPetPlace!]
+}
+
+input NearbyPetPlacesInput {
+  lat: Float!
+  lng: Float!
+  limit: Int = 10
+  radius: Float = 10
 }
