@@ -506,6 +506,10 @@ var User_default = (0, import_core7.list)({
       ref: "Role.users",
       many: true
     }),
+    blog_subscriptions: (0, import_fields7.relationship)({
+      ref: "BlogSubscription.user",
+      many: true
+    }),
     profileImage: (0, import_fields7.image)({ storage: "s3_profile" }),
     birthday: (0, import_fields7.calendarDay)(),
     age: (0, import_fields7.virtual)({
@@ -1504,9 +1508,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text24) {
+function sanitizeUrl2(text26) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text24.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text26.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -1577,21 +1581,64 @@ var Category_default = (0, import_core31.list)({
   }
 });
 
-// models/Role/Role.ts
+// models/Blog/BlogSubscription/BlogSubscription.ts
 var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
-var Role_default = (0, import_core32.list)({
+var BlogSubscription_default = (0, import_core32.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields32.select)({
+    email: (0, import_fields32.text)({
+      isIndexed: "unique",
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    user: (0, import_fields32.relationship)({
+      ref: "User.blog_subscriptions",
+      many: false,
+      ui: {
+        displayMode: "select"
+      }
+    }),
+    active: (0, import_fields32.checkbox)({
+      defaultValue: true,
+      ui: {
+        description: "Si est\xE1 activo, recibir\xE1 notificaciones de nuevos posts"
+      }
+    }),
+    createdAt: (0, import_fields32.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  },
+  ui: {
+    labelField: "email",
+    listView: {
+      initialColumns: ["email", "user", "active", "createdAt"]
+    }
+  }
+});
+
+// models/Role/Role.ts
+var import_core33 = require("@keystone-6/core");
+var import_fields33 = require("@keystone-6/core/fields");
+var Role_default = (0, import_core33.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields33.select)({
       options: ROLES,
       isIndexed: "unique"
     }),
-    users: (0, import_fields32.relationship)({
+    users: (0, import_fields33.relationship)({
       ref: "User.roles",
       many: true
     }),
-    createdAt: (0, import_fields32.timestamp)({
+    createdAt: (0, import_fields33.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -1604,8 +1651,8 @@ var Role_default = (0, import_core32.list)({
 });
 
 // models/PetPlace/PetPlaceType/PetPlaceType.ts
-var import_core33 = require("@keystone-6/core");
-var import_fields33 = require("@keystone-6/core/fields");
+var import_core34 = require("@keystone-6/core");
+var import_fields34 = require("@keystone-6/core/fields");
 var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
   label: type.label,
   value: type.value
@@ -1628,22 +1675,22 @@ var pluralHook = {
     return resolvedData.plural || item?.plural;
   }
 };
-var PetPlaceType_default = (0, import_core33.list)({
+var PetPlaceType_default = (0, import_core34.list)({
   access: access_default,
   fields: {
-    value: (0, import_fields33.select)({
+    value: (0, import_fields34.select)({
       validation: { isRequired: true },
       isIndexed: "unique",
       options: PET_PLACE_TYPE_OPTIONS
     }),
-    label: (0, import_fields33.text)({
+    label: (0, import_fields34.text)({
       isIndexed: "unique",
       hooks: labelHook,
       ui: {
         itemView: { fieldMode: "read" }
       }
     }),
-    plural: (0, import_fields33.text)({
+    plural: (0, import_fields34.text)({
       hooks: pluralHook,
       ui: {
         itemView: { fieldMode: "read" }
@@ -1652,6 +1699,73 @@ var PetPlaceType_default = (0, import_core33.list)({
   },
   ui: {
     labelField: "label"
+  }
+});
+
+// models/ContactForm/ContactForm.ts
+var import_core35 = require("@keystone-6/core");
+var import_fields35 = require("@keystone-6/core/fields");
+var CONTACT_FORM_STATUS_OPTIONS = [
+  { label: "Nuevo", value: "new" },
+  { label: "Le\xEDdo", value: "read" },
+  { label: "En proceso", value: "in_progress" },
+  { label: "Resuelto", value: "resolved" }
+];
+var ContactForm_default = (0, import_core35.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    email: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    phone: (0, import_fields35.text)({
+      validation: { isRequired: false },
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    subject: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    message: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "textarea"
+      }
+    }),
+    status: (0, import_fields35.select)({
+      options: CONTACT_FORM_STATUS_OPTIONS,
+      defaultValue: "new",
+      ui: {
+        displayMode: "select"
+      }
+    }),
+    createdAt: (0, import_fields35.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  },
+  ui: {
+    labelField: "subject",
+    listView: {
+      initialColumns: ["name", "email", "subject", "status", "createdAt"]
+    }
   }
 });
 
@@ -1689,11 +1803,13 @@ var schema_default = {
   PostView: PostView_default,
   Tag: Tag_default,
   Category: Category_default,
-  Role: Role_default
+  BlogSubscription: BlogSubscription_default,
+  Role: Role_default,
+  ContactForm: ContactForm_default
 };
 
 // keystone.ts
-var import_core34 = require("@keystone-6/core");
+var import_core36 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -2676,7 +2792,7 @@ var {
   S3_SECRET_ACCESS_KEY: secretAccessKey = ""
 } = process.env;
 var keystone_default = withAuth(
-  (0, import_core34.config)({
+  (0, import_core36.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

@@ -45,6 +45,10 @@ export default list({
       ref: "Role.users",
       many: true,
     }),
+    blog_subscriptions: relationship({
+      ref: "BlogSubscription.user",
+      many: true,
+    }),
     profileImage: image({ storage: "s3_profile" }),
     birthday: calendarDay(),
     age: virtual({

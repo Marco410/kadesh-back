@@ -12,6 +12,8 @@ type User {
   phone: String
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
+  blog_subscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
+  blog_subscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
   profileImage: ImageFieldOutput
   birthday: CalendarDay
   age: String
@@ -63,6 +65,7 @@ input UserWhereInput {
   password: PasswordFilter
   phone: StringFilter
   roles: RoleManyRelationFilter
+  blog_subscriptions: BlogSubscriptionManyRelationFilter
   birthday: CalendarDayNullableFilter
   smsRegistrationId: StringFilter
   verified: BooleanFilter
@@ -124,6 +127,12 @@ input RoleManyRelationFilter {
   none: RoleWhereInput
 }
 
+input BlogSubscriptionManyRelationFilter {
+  every: BlogSubscriptionWhereInput
+  some: BlogSubscriptionWhereInput
+  none: BlogSubscriptionWhereInput
+}
+
 input CalendarDayNullableFilter {
   equals: CalendarDay
   in: [CalendarDay!]
@@ -179,6 +188,7 @@ input UserUpdateInput {
   password: String
   phone: String
   roles: RoleRelateToManyForUpdateInput
+  blog_subscriptions: BlogSubscriptionRelateToManyForUpdateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -191,6 +201,13 @@ input RoleRelateToManyForUpdateInput {
   set: [RoleWhereUniqueInput!]
   create: [RoleCreateInput!]
   connect: [RoleWhereUniqueInput!]
+}
+
+input BlogSubscriptionRelateToManyForUpdateInput {
+  disconnect: [BlogSubscriptionWhereUniqueInput!]
+  set: [BlogSubscriptionWhereUniqueInput!]
+  create: [BlogSubscriptionCreateInput!]
+  connect: [BlogSubscriptionWhereUniqueInput!]
 }
 
 input ImageFieldInput {
@@ -214,6 +231,7 @@ input UserCreateInput {
   password: String
   phone: String
   roles: RoleRelateToManyForCreateInput
+  blog_subscriptions: BlogSubscriptionRelateToManyForCreateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -224,6 +242,11 @@ input UserCreateInput {
 input RoleRelateToManyForCreateInput {
   create: [RoleCreateInput!]
   connect: [RoleWhereUniqueInput!]
+}
+
+input BlogSubscriptionRelateToManyForCreateInput {
+  create: [BlogSubscriptionCreateInput!]
+  connect: [BlogSubscriptionWhereUniqueInput!]
 }
 
 type Animal {
@@ -2668,6 +2691,56 @@ input CategoryCreateInput {
   createdAt: DateTime
 }
 
+type BlogSubscription {
+  id: ID!
+  email: String
+  user: User
+  active: Boolean
+  createdAt: DateTime
+}
+
+input BlogSubscriptionWhereUniqueInput {
+  id: ID
+  email: String
+}
+
+input BlogSubscriptionWhereInput {
+  AND: [BlogSubscriptionWhereInput!]
+  OR: [BlogSubscriptionWhereInput!]
+  NOT: [BlogSubscriptionWhereInput!]
+  id: IDFilter
+  email: StringFilter
+  user: UserWhereInput
+  active: BooleanFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input BlogSubscriptionOrderByInput {
+  id: OrderDirection
+  email: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+}
+
+input BlogSubscriptionUpdateInput {
+  email: String
+  user: UserRelateToOneForUpdateInput
+  active: Boolean
+  createdAt: DateTime
+}
+
+input BlogSubscriptionUpdateArgs {
+  where: BlogSubscriptionWhereUniqueInput!
+  data: BlogSubscriptionUpdateInput!
+}
+
+input BlogSubscriptionCreateInput {
+  email: String
+  user: UserRelateToOneForCreateInput
+  active: Boolean
+  createdAt: DateTime
+}
+
 type Role {
   id: ID!
   name: String
@@ -2730,6 +2803,71 @@ input RoleCreateInput {
 input UserRelateToManyForCreateInput {
   create: [UserCreateInput!]
   connect: [UserWhereUniqueInput!]
+}
+
+type ContactForm {
+  id: ID!
+  name: String
+  email: String
+  phone: String
+  subject: String
+  message: String
+  status: String
+  createdAt: DateTime
+}
+
+input ContactFormWhereUniqueInput {
+  id: ID
+}
+
+input ContactFormWhereInput {
+  AND: [ContactFormWhereInput!]
+  OR: [ContactFormWhereInput!]
+  NOT: [ContactFormWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  email: StringFilter
+  phone: StringFilter
+  subject: StringFilter
+  message: StringFilter
+  status: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input ContactFormOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  email: OrderDirection
+  phone: OrderDirection
+  subject: OrderDirection
+  message: OrderDirection
+  status: OrderDirection
+  createdAt: OrderDirection
+}
+
+input ContactFormUpdateInput {
+  name: String
+  email: String
+  phone: String
+  subject: String
+  message: String
+  status: String
+  createdAt: DateTime
+}
+
+input ContactFormUpdateArgs {
+  where: ContactFormWhereUniqueInput!
+  data: ContactFormUpdateInput!
+}
+
+input ContactFormCreateInput {
+  name: String
+  email: String
+  phone: String
+  subject: String
+  message: String
+  status: String
+  createdAt: DateTime
 }
 
 """
@@ -2930,12 +3068,24 @@ type Mutation {
   updateCategories(data: [CategoryUpdateArgs!]!): [Category]
   deleteCategory(where: CategoryWhereUniqueInput!): Category
   deleteCategories(where: [CategoryWhereUniqueInput!]!): [Category]
+  createBlogSubscription(data: BlogSubscriptionCreateInput!): BlogSubscription
+  createBlogSubscriptions(data: [BlogSubscriptionCreateInput!]!): [BlogSubscription]
+  updateBlogSubscription(where: BlogSubscriptionWhereUniqueInput!, data: BlogSubscriptionUpdateInput!): BlogSubscription
+  updateBlogSubscriptions(data: [BlogSubscriptionUpdateArgs!]!): [BlogSubscription]
+  deleteBlogSubscription(where: BlogSubscriptionWhereUniqueInput!): BlogSubscription
+  deleteBlogSubscriptions(where: [BlogSubscriptionWhereUniqueInput!]!): [BlogSubscription]
   createRole(data: RoleCreateInput!): Role
   createRoles(data: [RoleCreateInput!]!): [Role]
   updateRole(where: RoleWhereUniqueInput!, data: RoleUpdateInput!): Role
   updateRoles(data: [RoleUpdateArgs!]!): [Role]
   deleteRole(where: RoleWhereUniqueInput!): Role
   deleteRoles(where: [RoleWhereUniqueInput!]!): [Role]
+  createContactForm(data: ContactFormCreateInput!): ContactForm
+  createContactForms(data: [ContactFormCreateInput!]!): [ContactForm]
+  updateContactForm(where: ContactFormWhereUniqueInput!, data: ContactFormUpdateInput!): ContactForm
+  updateContactForms(data: [ContactFormUpdateArgs!]!): [ContactForm]
+  deleteContactForm(where: ContactFormWhereUniqueInput!): ContactForm
+  deleteContactForms(where: [ContactFormWhereUniqueInput!]!): [ContactForm]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -3061,9 +3211,15 @@ type Query {
   category(where: CategoryWhereUniqueInput!): Category
   categories(where: CategoryWhereInput! = {}, orderBy: [CategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CategoryWhereUniqueInput): [Category!]
   categoriesCount(where: CategoryWhereInput! = {}): Int
+  blogSubscription(where: BlogSubscriptionWhereUniqueInput!): BlogSubscription
+  blogSubscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
+  blogSubscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
   role(where: RoleWhereUniqueInput!): Role
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
+  contactForm(where: ContactFormWhereUniqueInput!): ContactForm
+  contactForms(where: ContactFormWhereInput! = {}, orderBy: [ContactFormOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ContactFormWhereUniqueInput): [ContactForm!]
+  contactFormsCount(where: ContactFormWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
