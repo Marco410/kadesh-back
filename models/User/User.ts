@@ -9,13 +9,14 @@ import {
   checkbox,
   relationship,
 } from "@keystone-6/core/fields";
-import { emailHooks, phoneHooks, userNameHook, userRoleHook } from "./User.hooks";
+import { emailHooks, phoneHooks, userNameHook, userRoleHook, userBlogSubscriptionHook } from "./User.hooks";
 import access from "../../utils/generalAccess/access";
 
 export default list({
   access,
   hooks: {
     resolveInput: userRoleHook.resolveInput,
+    afterOperation: userBlogSubscriptionHook.afterOperation,
   },
   fields: {
     name: text({ validation: { isRequired: true } }),

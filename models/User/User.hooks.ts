@@ -121,3 +121,34 @@ export const userRoleHook = {
     return resolvedData;
   },
 };
+
+export const userBlogSubscriptionHook = {
+  afterOperation: async ({ operation, item, context }: any) => {
+    if (operation === "create" && item && item.email) {
+      try {
+        const existingSubscription = await context.db.BlogSubscription.findOne({
+          where: { email: item.email },
+        });
+
+        if (!existingSubscription) {
+          await context.db.BlogSubscription.createOne({
+            data: {
+              email: item.email,
+              user: { connect: { id: item.id } },
+              active: true,
+            },
+          });
+        } else if (existingSubscription && !existingSubscription.userId) {
+          await context.db.BlogSubscription.updateOne({
+            where: { id: existingSubscription.id },
+            data: {
+              user: { connect: { id: item.id } },
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Error al crear suscripción de blog para el usuario:", error);
+      }
+    }
+  },
+};

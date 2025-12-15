@@ -471,12 +471,42 @@ var userRoleHook = {
     return resolvedData;
   }
 };
+var userBlogSubscriptionHook = {
+  afterOperation: async ({ operation, item, context }) => {
+    if (operation === "create" && item && item.email) {
+      try {
+        const existingSubscription = await context.db.BlogSubscription.findOne({
+          where: { email: item.email }
+        });
+        if (!existingSubscription) {
+          await context.db.BlogSubscription.createOne({
+            data: {
+              email: item.email,
+              user: { connect: { id: item.id } },
+              active: true
+            }
+          });
+        } else if (existingSubscription && !existingSubscription.userId) {
+          await context.db.BlogSubscription.updateOne({
+            where: { id: existingSubscription.id },
+            data: {
+              user: { connect: { id: item.id } }
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error al crear suscripci\xF3n de blog para el usuario:", error);
+      }
+    }
+  }
+};
 
 // models/User/User.ts
 var User_default = (0, import_core7.list)({
   access: access_default,
   hooks: {
-    resolveInput: userRoleHook.resolveInput
+    resolveInput: userRoleHook.resolveInput,
+    afterOperation: userBlogSubscriptionHook.afterOperation
   },
   fields: {
     name: (0, import_fields7.text)({ validation: { isRequired: true } }),
