@@ -11,44 +11,34 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id                          String              @id @default(cuid())
-  name                        String              @default("")
-  lastName                    String              @default("")
-  secondLastName              String              @default("")
-  username                    String              @unique @default("")
-  email                       String              @unique @default("")
-  password                    String?
-  phone                       String              @default("")
-  roles                       Role[]              @relation("Role_users")
-  blog_subscriptions          BlogSubscription[]  @relation("BlogSubscription_user")
-  profileImage_id             String?
-  profileImage_filesize       Int?
-  profileImage_width          Int?
-  profileImage_height         Int?
-  profileImage_extension      String?
-  birthday                    DateTime?           @postgresql.Date
-  smsRegistrationId           String              @default("")
-  verified                    Boolean             @default(false)
-  createdAt                   DateTime?           @default(now())
-  from_Animal_user            Animal[]            @relation("Animal_user")
-  from_AnimalFavorite_user    AnimalFavorite[]    @relation("AnimalFavorite_user")
-  from_AnimalComment_user     AnimalComment[]     @relation("AnimalComment_user")
-  from_Pet_user               Pet[]               @relation("Pet_user")
-  from_PetPlace_user          PetPlace[]          @relation("PetPlace_user")
-  from_PetPlaceLike_user      PetPlaceLike[]      @relation("PetPlaceLike_user")
-  from_Review_user            Review[]            @relation("Review_user")
-  from_WishList_user          WishList[]          @relation("WishList_user")
-  from_Cart_user              Cart[]              @relation("Cart_user")
-  from_Order_user             Order[]             @relation("Order_user")
-  from_PaymentMethod_user     PaymentMethod[]     @relation("PaymentMethod_user")
-  from_TokenNotification_user TokenNotification[] @relation("TokenNotification_user")
-  from_Ad_user                Ad[]                @relation("Ad_user")
-  from_Post_author            Post[]              @relation("Post_author")
-  from_PostComment_user       PostComment[]       @relation("PostComment_user")
-  from_PostLike_user          PostLike[]          @relation("PostLike_user")
-  from_PostFavorite_user      PostFavorite[]      @relation("PostFavorite_user")
-  from_PostView_user          PostView[]          @relation("PostView_user")
+model Ad {
+  id              String    @id @default(cuid())
+  title           String    @default("")
+  description     String    @default("")
+  active          Boolean   @default(false)
+  start_date      DateTime? @postgresql.Date
+  end_date        DateTime? @postgresql.Date
+  price           Int?
+  status          String?
+  type            String?
+  lat             String    @default("")
+  lng             String    @default("")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  pet_place       PetPlace? @relation("Ad_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId     String?   @map("pet_place")
+  product         Product?  @relation("Ad_product", fields: [productId], references: [id])
+  productId       String?   @map("product")
+  user            User?     @relation("Ad_user", fields: [userId], references: [id])
+  userId          String?   @map("user")
+  createdAt       DateTime? @default(now())
+
+  @@index([pet_placeId])
+  @@index([productId])
+  @@index([userId])
 }
 
 model Animal {
@@ -64,35 +54,36 @@ model Animal {
   multimedia                 AnimalMultimedia[] @relation("AnimalMultimedia_animal")
   logs                       AnimalLog[]        @relation("AnimalLog_animal")
   createdAt                  DateTime?          @default(now())
-  from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
   from_AnimalComment_animal  AnimalComment[]    @relation("AnimalComment_animal")
+  from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
 
   @@index([animal_typeId])
   @@index([animal_breedId])
   @@index([userId])
 }
 
-model AnimalType {
-  id                      String        @id @default(cuid())
-  name                    String        @unique @default("dog")
-  animal_breed            AnimalBreed[] @relation("AnimalBreed_animal_type")
-  order                   Int?
-  from_Animal_animal_type Animal[]      @relation("Animal_animal_type")
-  from_Pet_animal_type    Pet[]         @relation("Pet_animal_type")
+model AnimalBreed {
+  id                       String      @id @default(cuid())
+  breed                    String      @default("")
+  animal_type              AnimalType? @relation("AnimalBreed_animal_type", fields: [animal_typeId], references: [id])
+  animal_typeId            String?     @map("animal_type")
+  from_Animal_animal_breed Animal[]    @relation("Animal_animal_breed")
+  from_Pet_animal_breed    Pet[]       @relation("Pet_animal_breed")
+
+  @@index([animal_typeId])
 }
 
-model AnimalMultimedia {
-  id              String    @id @default(cuid())
-  image_id        String?
-  image_filesize  Int?
-  image_width     Int?
-  image_height    Int?
-  image_extension String?
-  animal          Animal?   @relation("AnimalMultimedia_animal", fields: [animalId], references: [id])
-  animalId        String?   @map("animal")
-  createdAt       DateTime? @default(now())
+model AnimalComment {
+  id        String    @id @default(cuid())
+  comment   String    @default("")
+  animal    Animal?   @relation("AnimalComment_animal", fields: [animalId], references: [id])
+  animalId  String?   @map("animal")
+  user      User?     @relation("AnimalComment_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  createdAt DateTime? @default(now())
 
   @@index([animalId])
+  @@index([userId])
 }
 
 model AnimalFavorite {
@@ -125,28 +116,128 @@ model AnimalLog {
   @@index([animalId])
 }
 
-model AnimalComment {
-  id        String    @id @default(cuid())
-  comment   String    @default("")
-  animal    Animal?   @relation("AnimalComment_animal", fields: [animalId], references: [id])
-  animalId  String?   @map("animal")
-  user      User?     @relation("AnimalComment_user", fields: [userId], references: [id])
-  userId    String?   @map("user")
-  createdAt DateTime? @default(now())
+model AnimalMultimedia {
+  id              String    @id @default(cuid())
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  animal          Animal?   @relation("AnimalMultimedia_animal", fields: [animalId], references: [id])
+  animalId        String?   @map("animal")
+  createdAt       DateTime? @default(now())
 
   @@index([animalId])
+}
+
+model AnimalType {
+  id                      String        @id @default(cuid())
+  name                    String        @unique @default("dog")
+  animal_breed            AnimalBreed[] @relation("AnimalBreed_animal_type")
+  order                   Int?
+  from_Animal_animal_type Animal[]      @relation("Animal_animal_type")
+  from_Pet_animal_type    Pet[]         @relation("Pet_animal_type")
+}
+
+model BlogSubscription {
+  id        String    @id @default(cuid())
+  email     String    @unique @default("")
+  user      User?     @relation("BlogSubscription_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  active    Boolean   @default(true)
+  createdAt DateTime? @default(now())
+
   @@index([userId])
 }
 
-model AnimalBreed {
-  id                       String      @id @default(cuid())
-  breed                    String      @default("")
-  animal_type              AnimalType? @relation("AnimalBreed_animal_type", fields: [animal_typeId], references: [id])
-  animal_typeId            String?     @map("animal_type")
-  from_Animal_animal_breed Animal[]    @relation("Animal_animal_breed")
-  from_Pet_animal_breed    Pet[]       @relation("Pet_animal_breed")
+model Cart {
+  id              String    @id @default(cuid())
+  name            String    @default("")
+  user            User?     @relation("Cart_user", fields: [userId], references: [id])
+  userId          String?   @map("user")
+  product         Product[] @relation("Cart_product")
+  createdAt       DateTime? @default(now())
+  from_Order_cart Order[]   @relation("Order_cart")
 
-  @@index([animal_typeId])
+  @@index([userId])
+}
+
+model Category {
+  id              String    @id @default(cuid())
+  name            String?   @unique
+  url             String    @unique @default("")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  posts           Post[]    @relation("Post_category")
+  createdAt       DateTime? @default(now())
+}
+
+model ContactForm {
+  id        String    @id @default(cuid())
+  name      String    @default("")
+  email     String    @default("")
+  phone     String    @default("")
+  subject   String    @default("")
+  message   String    @default("")
+  status    String?   @default("new")
+  createdAt DateTime? @default(now())
+}
+
+model Order {
+  id        String    @id @default(cuid())
+  total     Int?
+  status    String
+  cart      Cart?     @relation("Order_cart", fields: [cartId], references: [id])
+  cartId    String?   @map("cart")
+  user      User?     @relation("Order_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  payment   Payment?  @relation("Order_payment", fields: [paymentId], references: [id])
+  paymentId String?   @unique @map("payment")
+  createdAt DateTime? @default(now())
+
+  @@index([cartId])
+  @@index([userId])
+}
+
+model Payment {
+  id                      String            @id @default(cuid())
+  order_payment           Order?            @relation("Order_payment")
+  paymentMethod           PaymentMethod?    @relation("Payment_paymentMethod", fields: [paymentMethodId], references: [id])
+  paymentMethodId         String?           @map("paymentMethod")
+  amount                  Decimal?          @default("0.000000") @postgresql.Decimal(18, 6)
+  status                  PaymentStatusType @default(pending)
+  processorStripeChargeId String            @default("")
+  stripeErrorMessage      String            @default("")
+  processorRefundId       String            @default("")
+  createdAt               DateTime?         @default(now())
+  updatedAt               DateTime?         @default(now()) @updatedAt
+
+  @@index([paymentMethodId])
+}
+
+model PaymentMethod {
+  id                String    @id @default(cuid())
+  user              User?     @relation("PaymentMethod_user", fields: [userId], references: [id])
+  userId            String?   @map("user")
+  cardType          String    @default("")
+  isDefault         Boolean   @default(false)
+  lastFourDigits    String    @default("")
+  expMonth          String    @default("")
+  expYear           String    @default("")
+  stripeProcessorId String    @default("")
+  address           String    @default("")
+  postalCode        String    @default("")
+  ownerName         String    @default("")
+  country           String    @default("")
+  payment           Payment[] @relation("Payment_paymentMethod")
+  type              String?
+  createdAt         DateTime? @default(now())
+  updatedAt         DateTime? @default(now()) @updatedAt
+
+  @@index([userId])
 }
 
 model Pet {
@@ -212,14 +303,6 @@ model PetPlace {
   @@index([userId])
 }
 
-model PetPlaceType {
-  id                  String     @id @default(cuid())
-  value               String     @unique
-  label               String     @unique @default("")
-  plural              String     @default("")
-  from_PetPlace_types PetPlace[] @relation("PetPlace_types")
-}
-
 model PetPlaceLike {
   id          String    @id @default(cuid())
   user        User?     @relation("PetPlaceLike_user", fields: [userId], references: [id])
@@ -242,177 +325,12 @@ model PetPlaceService {
   from_PetPlace_services PetPlace[] @relation("PetPlace_services")
 }
 
-model Schedule {
-  id          String    @id @default(cuid())
-  day         String
-  timeIni     Int
-  timeEnd     Int
-  pet_place   PetPlace? @relation("Schedule_pet_place", fields: [pet_placeId], references: [id])
-  pet_placeId String?   @map("pet_place")
-  createdAt   DateTime? @default(now())
-
-  @@index([pet_placeId])
-}
-
-model SocialMedia {
-  id           String    @id @default(cuid())
-  social_media String
-  link         String    @default("")
-  pet_place    PetPlace? @relation("SocialMedia_pet_place", fields: [pet_placeId], references: [id])
-  pet_placeId  String?   @map("pet_place")
-  createdAt    DateTime? @default(now())
-
-  @@index([pet_placeId])
-}
-
-model Review {
-  id                String    @id @default(cuid())
-  rating            Int?
-  review            String    @default("")
-  pet_place         PetPlace? @relation("Review_pet_place", fields: [pet_placeId], references: [id])
-  pet_placeId       String?   @map("pet_place")
-  product           Product?  @relation("Review_product", fields: [productId], references: [id])
-  productId         String?   @map("product")
-  user              User?     @relation("Review_user", fields: [userId], references: [id])
-  userId            String?   @map("user")
-  google_user       String    @default("")
-  google_user_photo String    @default("")
-  createdAt         DateTime? @default(now())
-
-  @@index([pet_placeId])
-  @@index([productId])
-  @@index([userId])
-}
-
-model Product {
-  id                    String     @id @default(cuid())
-  name                  String     @default("")
-  price                 Int
-  description           String     @default("")
-  category              String
-  brand                 String
-  type                  String
-  product_reviews       Review[]   @relation("Review_product")
-  product_ads           Ad[]       @relation("Ad_product")
-  createdAt             DateTime?  @default(now())
-  from_WishList_product WishList[] @relation("WishList_product")
-  from_Cart_product     Cart[]     @relation("Cart_product")
-}
-
-model WishList {
-  id        String    @id @default(cuid())
-  name      String    @default("")
-  user      User?     @relation("WishList_user", fields: [userId], references: [id])
-  userId    String?   @map("user")
-  product   Product[] @relation("WishList_product")
-  createdAt DateTime? @default(now())
-
-  @@index([userId])
-}
-
-model Cart {
-  id              String    @id @default(cuid())
-  name            String    @default("")
-  user            User?     @relation("Cart_user", fields: [userId], references: [id])
-  userId          String?   @map("user")
-  product         Product[] @relation("Cart_product")
-  createdAt       DateTime? @default(now())
-  from_Order_cart Order[]   @relation("Order_cart")
-
-  @@index([userId])
-}
-
-model Order {
-  id        String    @id @default(cuid())
-  total     Int?
-  status    String
-  cart      Cart?     @relation("Order_cart", fields: [cartId], references: [id])
-  cartId    String?   @map("cart")
-  user      User?     @relation("Order_user", fields: [userId], references: [id])
-  userId    String?   @map("user")
-  payment   Payment?  @relation("Order_payment", fields: [paymentId], references: [id])
-  paymentId String?   @unique @map("payment")
-  createdAt DateTime? @default(now())
-
-  @@index([cartId])
-  @@index([userId])
-}
-
-model Payment {
-  id                      String            @id @default(cuid())
-  order_payment           Order?            @relation("Order_payment")
-  paymentMethod           PaymentMethod?    @relation("Payment_paymentMethod", fields: [paymentMethodId], references: [id])
-  paymentMethodId         String?           @map("paymentMethod")
-  amount                  Decimal?          @default("0.000000") @postgresql.Decimal(18, 6)
-  status                  PaymentStatusType @default(pending)
-  processorStripeChargeId String            @default("")
-  stripeErrorMessage      String            @default("")
-  processorRefundId       String            @default("")
-  createdAt               DateTime?         @default(now())
-  updatedAt               DateTime?         @default(now()) @updatedAt
-
-  @@index([paymentMethodId])
-}
-
-model PaymentMethod {
-  id                String    @id @default(cuid())
-  user              User?     @relation("PaymentMethod_user", fields: [userId], references: [id])
-  userId            String?   @map("user")
-  cardType          String    @default("")
-  isDefault         Boolean   @default(false)
-  lastFourDigits    String    @default("")
-  expMonth          String    @default("")
-  expYear           String    @default("")
-  stripeProcessorId String    @default("")
-  address           String    @default("")
-  postalCode        String    @default("")
-  ownerName         String    @default("")
-  country           String    @default("")
-  payment           Payment[] @relation("Payment_paymentMethod")
-  type              String?
-  createdAt         DateTime? @default(now())
-  updatedAt         DateTime? @default(now()) @updatedAt
-
-  @@index([userId])
-}
-
-model TokenNotification {
-  id     String  @id @default(cuid())
-  token  String  @default("")
-  user   User?   @relation("TokenNotification_user", fields: [userId], references: [id])
-  userId String? @map("user")
-
-  @@index([userId])
-}
-
-model Ad {
-  id              String    @id @default(cuid())
-  title           String    @default("")
-  description     String    @default("")
-  active          Boolean   @default(false)
-  start_date      DateTime? @postgresql.Date
-  end_date        DateTime? @postgresql.Date
-  price           Int?
-  status          String?
-  type            String?
-  lat             String    @default("")
-  lng             String    @default("")
-  image_id        String?
-  image_filesize  Int?
-  image_width     Int?
-  image_height    Int?
-  image_extension String?
-  pet_place       PetPlace? @relation("Ad_pet_place", fields: [pet_placeId], references: [id])
-  pet_placeId     String?   @map("pet_place")
-  product         Product?  @relation("Ad_product", fields: [productId], references: [id])
-  productId       String?   @map("product")
-  user            User?     @relation("Ad_user", fields: [userId], references: [id])
-  userId          String?   @map("user")
-  createdAt       DateTime? @default(now())
-
-  @@index([pet_placeId])
-  @@index([productId])
-  @@index([userId])
+model PetPlaceType {
+  id                  String     @id @default(cuid())
+  value               String     @unique
+  label               String     @unique @default("")
+  plural              String     @default("")
+  from_PetPlace_types PetPlace[] @relation("PetPlace_types")
 }
 
 model Post {
@@ -458,11 +376,11 @@ model PostComment {
   @@index([userId])
 }
 
-model PostLike {
+model PostFavorite {
   id        String    @id @default(cuid())
-  user      User?     @relation("PostLike_user", fields: [userId], references: [id])
+  user      User?     @relation("PostFavorite_user", fields: [userId], references: [id])
   userId    String?   @map("user")
-  post      Post?     @relation("PostLike_post", fields: [postId], references: [id])
+  post      Post?     @relation("PostFavorite_post", fields: [postId], references: [id])
   postId    String?   @map("post")
   createdAt DateTime? @default(now())
 
@@ -470,11 +388,11 @@ model PostLike {
   @@index([postId])
 }
 
-model PostFavorite {
+model PostLike {
   id        String    @id @default(cuid())
-  user      User?     @relation("PostFavorite_user", fields: [userId], references: [id])
+  user      User?     @relation("PostLike_user", fields: [userId], references: [id])
   userId    String?   @map("user")
-  post      Post?     @relation("PostFavorite_post", fields: [postId], references: [id])
+  post      Post?     @relation("PostLike_post", fields: [postId], references: [id])
   postId    String?   @map("post")
   createdAt DateTime? @default(now())
 
@@ -494,34 +412,37 @@ model PostView {
   @@index([postId])
 }
 
-model Tag {
-  id        String    @id @default(cuid())
-  name      String    @unique @default("")
-  posts     Post[]    @relation("Post_tags")
-  createdAt DateTime? @default(now())
+model Product {
+  id                    String     @id @default(cuid())
+  name                  String     @default("")
+  price                 Int
+  description           String     @default("")
+  category              String
+  brand                 String
+  type                  String
+  product_reviews       Review[]   @relation("Review_product")
+  product_ads           Ad[]       @relation("Ad_product")
+  createdAt             DateTime?  @default(now())
+  from_Cart_product     Cart[]     @relation("Cart_product")
+  from_WishList_product WishList[] @relation("WishList_product")
 }
 
-model Category {
-  id              String    @id @default(cuid())
-  name            String?   @unique
-  url             String    @unique @default("")
-  image_id        String?
-  image_filesize  Int?
-  image_width     Int?
-  image_height    Int?
-  image_extension String?
-  posts           Post[]    @relation("Post_category")
-  createdAt       DateTime? @default(now())
-}
+model Review {
+  id                String    @id @default(cuid())
+  rating            Int?
+  review            String    @default("")
+  pet_place         PetPlace? @relation("Review_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId       String?   @map("pet_place")
+  product           Product?  @relation("Review_product", fields: [productId], references: [id])
+  productId         String?   @map("product")
+  user              User?     @relation("Review_user", fields: [userId], references: [id])
+  userId            String?   @map("user")
+  google_user       String    @default("")
+  google_user_photo String    @default("")
+  createdAt         DateTime? @default(now())
 
-model BlogSubscription {
-  id        String    @id @default(cuid())
-  email     String    @unique @default("")
-  user      User?     @relation("BlogSubscription_user", fields: [userId], references: [id])
-  userId    String?   @map("user")
-  active    Boolean   @default(true)
-  createdAt DateTime? @default(now())
-
+  @@index([pet_placeId])
+  @@index([productId])
   @@index([userId])
 }
 
@@ -532,15 +453,94 @@ model Role {
   createdAt DateTime? @default(now())
 }
 
-model ContactForm {
+model Schedule {
+  id          String    @id @default(cuid())
+  day         String
+  timeIni     Int
+  timeEnd     Int
+  pet_place   PetPlace? @relation("Schedule_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId String?   @map("pet_place")
+  createdAt   DateTime? @default(now())
+
+  @@index([pet_placeId])
+}
+
+model SocialMedia {
+  id           String    @id @default(cuid())
+  social_media String
+  link         String    @default("")
+  pet_place    PetPlace? @relation("SocialMedia_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId  String?   @map("pet_place")
+  createdAt    DateTime? @default(now())
+
+  @@index([pet_placeId])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique @default("")
+  posts     Post[]    @relation("Post_tags")
+  createdAt DateTime? @default(now())
+}
+
+model TokenNotification {
+  id     String  @id @default(cuid())
+  token  String  @default("")
+  user   User?   @relation("TokenNotification_user", fields: [userId], references: [id])
+  userId String? @map("user")
+
+  @@index([userId])
+}
+
+model User {
+  id                          String              @id @default(cuid())
+  name                        String              @default("")
+  lastName                    String              @default("")
+  secondLastName              String              @default("")
+  username                    String              @unique @default("")
+  email                       String              @unique @default("")
+  password                    String?
+  phone                       String              @default("")
+  roles                       Role[]              @relation("Role_users")
+  blog_subscriptions          BlogSubscription[]  @relation("BlogSubscription_user")
+  profileImage_id             String?
+  profileImage_filesize       Int?
+  profileImage_width          Int?
+  profileImage_height         Int?
+  profileImage_extension      String?
+  birthday                    DateTime?           @postgresql.Date
+  smsRegistrationId           String              @default("")
+  verified                    Boolean             @default(false)
+  createdAt                   DateTime?           @default(now())
+  from_Ad_user                Ad[]                @relation("Ad_user")
+  from_Animal_user            Animal[]            @relation("Animal_user")
+  from_AnimalComment_user     AnimalComment[]     @relation("AnimalComment_user")
+  from_AnimalFavorite_user    AnimalFavorite[]    @relation("AnimalFavorite_user")
+  from_Cart_user              Cart[]              @relation("Cart_user")
+  from_Order_user             Order[]             @relation("Order_user")
+  from_PaymentMethod_user     PaymentMethod[]     @relation("PaymentMethod_user")
+  from_Pet_user               Pet[]               @relation("Pet_user")
+  from_PetPlace_user          PetPlace[]          @relation("PetPlace_user")
+  from_PetPlaceLike_user      PetPlaceLike[]      @relation("PetPlaceLike_user")
+  from_Post_author            Post[]              @relation("Post_author")
+  from_PostComment_user       PostComment[]       @relation("PostComment_user")
+  from_PostFavorite_user      PostFavorite[]      @relation("PostFavorite_user")
+  from_PostLike_user          PostLike[]          @relation("PostLike_user")
+  from_PostView_user          PostView[]          @relation("PostView_user")
+  from_Review_user            Review[]            @relation("Review_user")
+  from_TokenNotification_user TokenNotification[] @relation("TokenNotification_user")
+  from_WishList_user          WishList[]          @relation("WishList_user")
+}
+
+model WishList {
   id        String    @id @default(cuid())
   name      String    @default("")
-  email     String    @default("")
-  phone     String    @default("")
-  subject   String    @default("")
-  message   String    @default("")
-  status    String?   @default("new")
+  user      User?     @relation("WishList_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  product   Product[] @relation("WishList_product")
   createdAt DateTime? @default(now())
+
+  @@index([userId])
 }
 
 enum PaymentStatusType {
