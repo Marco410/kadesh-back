@@ -29,8 +29,10 @@ import PostFavorite from "./Blog/Post/PostFavorite/PostFavorite";
 import PostView from "./Blog/Post/PostView/PostView";
 import Tag from "./Blog/Tag/Tag";
 import Category from "./Blog/Category/Category";
+import BlogSubscription from "./Blog/BlogSubscription/BlogSubscription";
 import Role from "./Role/Role";
 import PetPlaceType from "./PetPlace/PetPlaceType/PetPlaceType";
+import ContactForm from "./ContactForm/ContactForm";
 
 export default {
   User,
@@ -65,5 +67,7 @@ export default {
   PostView,
   Tag,
   Category,
-  Role
+  BlogSubscription,
+  Role,
+  ContactForm
 };

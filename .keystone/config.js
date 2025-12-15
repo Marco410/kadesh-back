@@ -471,12 +471,42 @@ var userRoleHook = {
     return resolvedData;
   }
 };
+var userBlogSubscriptionHook = {
+  afterOperation: async ({ operation, item, context }) => {
+    if (operation === "create" && item && item.email) {
+      try {
+        const existingSubscription = await context.db.BlogSubscription.findOne({
+          where: { email: item.email }
+        });
+        if (!existingSubscription) {
+          await context.db.BlogSubscription.createOne({
+            data: {
+              email: item.email,
+              user: { connect: { id: item.id } },
+              active: true
+            }
+          });
+        } else if (existingSubscription && !existingSubscription.userId) {
+          await context.db.BlogSubscription.updateOne({
+            where: { id: existingSubscription.id },
+            data: {
+              user: { connect: { id: item.id } }
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error al crear suscripci\xF3n de blog para el usuario:", error);
+      }
+    }
+  }
+};
 
 // models/User/User.ts
 var User_default = (0, import_core7.list)({
   access: access_default,
   hooks: {
-    resolveInput: userRoleHook.resolveInput
+    resolveInput: userRoleHook.resolveInput,
+    afterOperation: userBlogSubscriptionHook.afterOperation
   },
   fields: {
     name: (0, import_fields7.text)({ validation: { isRequired: true } }),
@@ -504,6 +534,10 @@ var User_default = (0, import_core7.list)({
     }),
     roles: (0, import_fields7.relationship)({
       ref: "Role.users",
+      many: true
+    }),
+    blog_subscriptions: (0, import_fields7.relationship)({
+      ref: "BlogSubscription.user",
       many: true
     }),
     profileImage: (0, import_fields7.image)({ storage: "s3_profile" }),
@@ -1504,9 +1538,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text24) {
+function sanitizeUrl2(text26) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text24.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text26.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -1577,21 +1611,64 @@ var Category_default = (0, import_core31.list)({
   }
 });
 
-// models/Role/Role.ts
+// models/Blog/BlogSubscription/BlogSubscription.ts
 var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
-var Role_default = (0, import_core32.list)({
+var BlogSubscription_default = (0, import_core32.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields32.select)({
+    email: (0, import_fields32.text)({
+      isIndexed: "unique",
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    user: (0, import_fields32.relationship)({
+      ref: "User.blog_subscriptions",
+      many: false,
+      ui: {
+        displayMode: "select"
+      }
+    }),
+    active: (0, import_fields32.checkbox)({
+      defaultValue: true,
+      ui: {
+        description: "Si est\xE1 activo, recibir\xE1 notificaciones de nuevos posts"
+      }
+    }),
+    createdAt: (0, import_fields32.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  },
+  ui: {
+    labelField: "email",
+    listView: {
+      initialColumns: ["email", "user", "active", "createdAt"]
+    }
+  }
+});
+
+// models/Role/Role.ts
+var import_core33 = require("@keystone-6/core");
+var import_fields33 = require("@keystone-6/core/fields");
+var Role_default = (0, import_core33.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields33.select)({
       options: ROLES,
       isIndexed: "unique"
     }),
-    users: (0, import_fields32.relationship)({
+    users: (0, import_fields33.relationship)({
       ref: "User.roles",
       many: true
     }),
-    createdAt: (0, import_fields32.timestamp)({
+    createdAt: (0, import_fields33.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -1604,8 +1681,8 @@ var Role_default = (0, import_core32.list)({
 });
 
 // models/PetPlace/PetPlaceType/PetPlaceType.ts
-var import_core33 = require("@keystone-6/core");
-var import_fields33 = require("@keystone-6/core/fields");
+var import_core34 = require("@keystone-6/core");
+var import_fields34 = require("@keystone-6/core/fields");
 var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
   label: type.label,
   value: type.value
@@ -1628,22 +1705,22 @@ var pluralHook = {
     return resolvedData.plural || item?.plural;
   }
 };
-var PetPlaceType_default = (0, import_core33.list)({
+var PetPlaceType_default = (0, import_core34.list)({
   access: access_default,
   fields: {
-    value: (0, import_fields33.select)({
+    value: (0, import_fields34.select)({
       validation: { isRequired: true },
       isIndexed: "unique",
       options: PET_PLACE_TYPE_OPTIONS
     }),
-    label: (0, import_fields33.text)({
+    label: (0, import_fields34.text)({
       isIndexed: "unique",
       hooks: labelHook,
       ui: {
         itemView: { fieldMode: "read" }
       }
     }),
-    plural: (0, import_fields33.text)({
+    plural: (0, import_fields34.text)({
       hooks: pluralHook,
       ui: {
         itemView: { fieldMode: "read" }
@@ -1652,6 +1729,73 @@ var PetPlaceType_default = (0, import_core33.list)({
   },
   ui: {
     labelField: "label"
+  }
+});
+
+// models/ContactForm/ContactForm.ts
+var import_core35 = require("@keystone-6/core");
+var import_fields35 = require("@keystone-6/core/fields");
+var CONTACT_FORM_STATUS_OPTIONS = [
+  { label: "Nuevo", value: "new" },
+  { label: "Le\xEDdo", value: "read" },
+  { label: "En proceso", value: "in_progress" },
+  { label: "Resuelto", value: "resolved" }
+];
+var ContactForm_default = (0, import_core35.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    email: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    phone: (0, import_fields35.text)({
+      validation: { isRequired: false },
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    subject: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "input"
+      }
+    }),
+    message: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "textarea"
+      }
+    }),
+    status: (0, import_fields35.select)({
+      options: CONTACT_FORM_STATUS_OPTIONS,
+      defaultValue: "new",
+      ui: {
+        displayMode: "select"
+      }
+    }),
+    createdAt: (0, import_fields35.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  },
+  ui: {
+    labelField: "subject",
+    listView: {
+      initialColumns: ["name", "email", "subject", "status", "createdAt"]
+    }
   }
 });
 
@@ -1689,11 +1833,13 @@ var schema_default = {
   PostView: PostView_default,
   Tag: Tag_default,
   Category: Category_default,
-  Role: Role_default
+  BlogSubscription: BlogSubscription_default,
+  Role: Role_default,
+  ContactForm: ContactForm_default
 };
 
 // keystone.ts
-var import_core34 = require("@keystone-6/core");
+var import_core36 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -2023,6 +2169,17 @@ var importPetPlace_default = {
   resolver: resolver2
 };
 
+// utils/helpers/calculate_distances.ts
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const toRad = (value) => value * Math.PI / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 100) / 100;
+}
+
 // graphql/customs/mutations/nearbyPetPlaces.ts
 var typeDefs3 = `
   type PetPlaceType {
@@ -2083,15 +2240,6 @@ var typeDefs3 = `
 var definition3 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-function haversineDistance(lat1, lng1, lat2, lng2) {
-  const toRad = (value) => value * Math.PI / 180;
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 100) / 100;
-}
 async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   if (!place.name) {
     return null;
@@ -2354,19 +2502,307 @@ var customMutation = {
 };
 var mutations_default = customMutation;
 
+// graphql/customs/queries/nearbyAnimals.ts
+var typeDefs4 = `
+  type AnimalMultimediaImage {
+    id: ID!
+    url: String
+  }
+
+  type NearbyAnimalUser {
+    name: String
+    profileImage: NearbyAnimalUserProfileImage
+  }
+
+  type NearbyAnimalUserProfileImage {
+    url: String
+  }
+
+  type NearbyAnimal {
+    id: ID!
+    name: String
+    sex: String
+    distance: Float
+    status: String
+    lat: String
+    lng: String
+    address: String
+    city: String
+    state: String
+    country: String
+    animal_type: AnimalType
+    animal_breed: AnimalBreed
+    user: NearbyAnimalUser
+    multimedia: [AnimalMultimediaImage]
+    createdAt: String
+  }
+
+  type NearbyAnimalsResult {
+    success: Boolean!
+    message: String!
+    animals: [NearbyAnimal!]
+    total: Int!
+  }
+
+  input NearbyAnimalsInput {
+    lat: Float
+    lng: Float
+    limit: Int = 10
+    skip: Int = 0
+    radius: Float = 10
+    animalType: ID
+    status: String
+    breed: ID
+    city: String
+    state: String
+    country: String
+  }
+
+  type Query {
+    getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
+  }
+`;
+var definition4 = `
+  getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
+`;
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const hoursStr = String(hours).padStart(2, "0");
+  return `${month}/${day}/${year}, ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+}
+async function getLatestAnimalLogs(animalIds, context) {
+  if (animalIds.length === 0) {
+    return /* @__PURE__ */ new Map();
+  }
+  const logs = await context.sudo().query.AnimalLog.findMany({
+    where: { animal: { id: { in: animalIds } } },
+    orderBy: { createdAt: "desc" },
+    query: `
+      id
+      status
+      lat
+      lng
+      address
+      city
+      state
+      country
+      createdAt
+      animal {
+        id
+      }
+    `
+  });
+  const latestLogsMap = /* @__PURE__ */ new Map();
+  const seenAnimals = /* @__PURE__ */ new Set();
+  for (const log of logs) {
+    const animalId = log.animal?.id;
+    if (animalId && !seenAnimals.has(animalId)) {
+      latestLogsMap.set(animalId, log);
+      seenAnimals.add(animalId);
+    }
+  }
+  return latestLogsMap;
+}
+var resolver4 = {
+  getNearbyAnimals: async (root, {
+    input
+  }, context) => {
+    const {
+      lat,
+      lng,
+      limit = 10,
+      skip = 0,
+      radius = 10,
+      animalType,
+      status,
+      breed,
+      city,
+      state,
+      country
+    } = input;
+    const animalWhere = {};
+    if (animalType) {
+      animalWhere.animal_type = { id: { equals: animalType } };
+    }
+    if (breed) {
+      animalWhere.animal_breed = { id: { equals: breed } };
+    }
+    const animals = await context.sudo().query.Animal.findMany({
+      where: animalWhere,
+      query: `
+        id
+        name
+        sex
+        animal_type {
+          id
+          name
+        }
+        animal_breed {
+          id
+          breed
+        }
+        user {
+          name
+          profileImage {
+            url
+          }
+        }
+        createdAt
+      `
+    });
+    const animalIds = animals.map((a) => a.id);
+    const latestLogsMap = await getLatestAnimalLogs(animalIds, context);
+    const processedAnimals = [];
+    for (const animal of animals) {
+      const latestLog = latestLogsMap.get(animal.id);
+      if (!latestLog) {
+        continue;
+      }
+      if (status && latestLog.status !== status) {
+        continue;
+      }
+      if (city && !latestLog.city?.toLowerCase().includes(city.toLowerCase())) {
+        continue;
+      }
+      if (state && !latestLog.state?.toLowerCase().includes(state.toLowerCase())) {
+        continue;
+      }
+      if (country && !latestLog.country?.toLowerCase().includes(country.toLowerCase())) {
+        continue;
+      }
+      let distance = null;
+      if (lat !== void 0 && lng !== void 0 && latestLog.lat && latestLog.lng) {
+        const logLat = parseFloat(latestLog.lat);
+        const logLng = parseFloat(latestLog.lng);
+        if (!isNaN(logLat) && !isNaN(logLng)) {
+          distance = haversineDistance(lat, lng, logLat, logLng);
+        }
+      }
+      if (lat !== void 0 && lng !== void 0) {
+        if (distance === null || distance > radius) {
+          continue;
+        }
+      }
+      const userObj = animal.user ? {
+        name: animal.user.name,
+        profileImage: animal.user.profileImage ? {
+          url: animal.user.profileImage.url
+        } : null
+      } : null;
+      processedAnimals.push({
+        ...animal,
+        user: userObj,
+        createdAt: formatDate(animal.createdAt),
+        distance,
+        status: latestLog.status,
+        lat: latestLog.lat,
+        lng: latestLog.lng,
+        address: latestLog.address,
+        city: latestLog.city,
+        state: latestLog.state,
+        country: latestLog.country
+      });
+    }
+    if (lat !== void 0 && lng !== void 0) {
+      processedAnimals.sort((a, b) => {
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      });
+    } else {
+      processedAnimals.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
+    }
+    const total = processedAnimals.length;
+    const paginatedAnimals = processedAnimals.slice(skip, skip + limit);
+    const paginatedAnimalIds = paginatedAnimals.map((a) => a.id);
+    const multimediaData = await context.sudo().query.AnimalMultimedia.findMany({
+      where: { animal: { id: { in: paginatedAnimalIds } } },
+      query: `
+        id
+        image {
+          id
+          url
+        }
+        animal {
+          id
+        }
+      `
+    });
+    const multimediaByAnimal = /* @__PURE__ */ new Map();
+    for (const media of multimediaData) {
+      const animalId = media.animal?.id;
+      if (animalId) {
+        if (!multimediaByAnimal.has(animalId)) {
+          multimediaByAnimal.set(animalId, []);
+        }
+        const imageObj = media.image ? {
+          id: media.image.id,
+          url: media.image.url
+        } : null;
+        multimediaByAnimal.get(animalId).push(imageObj);
+      }
+    }
+    const animalsWithMultimedia = paginatedAnimals.map((animal) => ({
+      ...animal,
+      multimedia: multimediaByAnimal.get(animal.id) || []
+    }));
+    return {
+      success: true,
+      message: animalsWithMultimedia.length > 0 ? "Animals found" : "No animals found",
+      animals: animalsWithMultimedia,
+      total
+    };
+  }
+};
+var nearbyAnimals_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
+
+// graphql/customs/queries/index.ts
+var customQuery = {
+  typeDefs: `
+    ${nearbyAnimals_default.typeDefs}
+  `,
+  definitions: `
+    ${nearbyAnimals_default.definition}
+  `,
+  resolvers: {
+    ...nearbyAnimals_default.resolver
+  }
+};
+var queries_default = customQuery;
+
 // graphql/extendedSchema.ts
 function extendGraphqlSchema(baseSchema) {
   return (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
     typeDefs: `
       ${mutations_default.typeDefs}
+      ${queries_default.typeDefs}
       type Mutation {
         ${mutations_default.definitions}
+      }
+      type Query {
+        ${queries_default.definitions}
       }
     `,
     resolvers: {
       Mutation: {
         ...mutations_default.resolvers
+      },
+      Query: {
+        ...queries_default.resolvers
       }
     }
   });
@@ -2386,7 +2822,7 @@ var {
   S3_SECRET_ACCESS_KEY: secretAccessKey = ""
 } = process.env;
 var keystone_default = withAuth(
-  (0, import_core34.config)({
+  (0, import_core36.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

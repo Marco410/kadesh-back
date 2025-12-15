@@ -21,6 +21,7 @@ model User {
   password                    String?
   phone                       String              @default("")
   roles                       Role[]              @relation("Role_users")
+  blog_subscriptions          BlogSubscription[]  @relation("BlogSubscription_user")
   profileImage_id             String?
   profileImage_filesize       Int?
   profileImage_width          Int?
@@ -513,10 +514,32 @@ model Category {
   createdAt       DateTime? @default(now())
 }
 
+model BlogSubscription {
+  id        String    @id @default(cuid())
+  email     String    @unique @default("")
+  user      User?     @relation("BlogSubscription_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  active    Boolean   @default(true)
+  createdAt DateTime? @default(now())
+
+  @@index([userId])
+}
+
 model Role {
   id        String    @id @default(cuid())
   name      String?   @unique
   users     User[]    @relation("Role_users")
+  createdAt DateTime? @default(now())
+}
+
+model ContactForm {
+  id        String    @id @default(cuid())
+  name      String    @default("")
+  email     String    @default("")
+  phone     String    @default("")
+  subject   String    @default("")
+  message   String    @default("")
+  status    String?   @default("new")
   createdAt DateTime? @default(now())
 }
 
