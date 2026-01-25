@@ -19,6 +19,7 @@
     "@types/jsonwebtoken": "^9.0.9",
     "dotenv": "^16.4.7",
     "jsonwebtoken": "^9.0.2",
+    "next": "^14.2.35",
     "slate-dom": "^0.111.0",
     "tsx": "^4.19.2",
     "typescript": "^5.5.0"
