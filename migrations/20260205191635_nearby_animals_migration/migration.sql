@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "Animal" ADD COLUMN     "age" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "color" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "physical_description" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "size" TEXT NOT NULL DEFAULT '';
+
+-- AlterTable
+ALTER TABLE "AnimalLog" ADD COLUMN     "date_status" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;

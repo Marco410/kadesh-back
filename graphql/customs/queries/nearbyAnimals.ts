@@ -51,9 +51,7 @@ const typeDefs = `
     animalType: ID
     status: String
     breed: ID
-    city: String
-    state: String
-    country: String
+    location: String
   }
 
   type Query {
@@ -146,9 +144,7 @@ const resolver = {
         animalType?: string;
         status?: string;
         breed?: string;
-        city?: string;
-        state?: string;
-        country?: string;
+        location?: string;
       };
     },
     context: KeystoneContext
@@ -162,9 +158,7 @@ const resolver = {
       animalType,
       status,
       breed,
-      city,
-      state,
-      country,
+      location,
     } = input;
 
     // Build where clause for Animal query
@@ -223,15 +217,18 @@ const resolver = {
         continue;
       }
 
-      // Apply location filters (case-insensitive contains)
-      if (city && !latestLog.city?.toLowerCase().includes(city.toLowerCase())) {
-        continue;
-      }
-      if (state && !latestLog.state?.toLowerCase().includes(state.toLowerCase())) {
-        continue;
-      }
-      if (country && !latestLog.country?.toLowerCase().includes(country.toLowerCase())) {
-        continue;
+      // Apply location filter - search in city, state, country, and address
+      if (location) {
+        const searchTerm = location.toLowerCase();
+        const cityMatch = latestLog.city?.toLowerCase().includes(searchTerm) || false;
+        const stateMatch = latestLog.state?.toLowerCase().includes(searchTerm) || false;
+        const countryMatch = latestLog.country?.toLowerCase().includes(searchTerm) || false;
+        const addressMatch = latestLog.address?.toLowerCase().includes(searchTerm) || false;
+        
+        // If no field matches, skip this animal
+        if (!cityMatch && !stateMatch && !countryMatch && !addressMatch) {
+          continue;
+        }
       }
 
       // Calculate distance if lat/lng are provided
