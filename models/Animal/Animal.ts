@@ -7,10 +7,14 @@ export default list({
   access,
   fields: {
     name: text({ validation: { isRequired: true } }),
+    physical_description: text(),
+    age: text(),
     sex: select({
       options: ANIMAL_SEX_OPTIONS,
       defaultValue: "male",
     }),
+    color: text(),
+    size: text(),
     animal_type: relationship({
       ref: "AnimalType",
       many: false,

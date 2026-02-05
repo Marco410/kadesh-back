@@ -267,7 +267,11 @@ input UserRelateToOneForCreateInput {
 type Animal {
   id: ID!
   name: String
+  physical_description: String
+  age: String
   sex: String
+  color: String
+  size: String
   animal_type: AnimalType
   animal_breed: AnimalBreed
   user: User
@@ -288,7 +292,11 @@ input AnimalWhereInput {
   NOT: [AnimalWhereInput!]
   id: IDFilter
   name: StringFilter
+  physical_description: StringFilter
+  age: StringFilter
   sex: StringNullableFilter
+  color: StringFilter
+  size: StringFilter
   animal_type: AnimalTypeWhereInput
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
@@ -312,13 +320,21 @@ input AnimalLogManyRelationFilter {
 input AnimalOrderByInput {
   id: OrderDirection
   name: OrderDirection
+  physical_description: OrderDirection
+  age: OrderDirection
   sex: OrderDirection
+  color: OrderDirection
+  size: OrderDirection
   createdAt: OrderDirection
 }
 
 input AnimalUpdateInput {
   name: String
+  physical_description: String
+  age: String
   sex: String
+  color: String
+  size: String
   animal_type: AnimalTypeRelateToOneForUpdateInput
   animal_breed: AnimalBreedRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
@@ -360,7 +376,11 @@ input AnimalUpdateArgs {
 
 input AnimalCreateInput {
   name: String
+  physical_description: String
+  age: String
   sex: String
+  color: String
+  size: String
   animal_type: AnimalTypeRelateToOneForCreateInput
   animal_breed: AnimalBreedRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
@@ -534,6 +554,7 @@ type AnimalLog {
   id: ID!
   animal: Animal
   status: String
+  date_status: DateTime
   notes: String
   lat: String
   lng: String
@@ -556,6 +577,7 @@ input AnimalLogWhereInput {
   id: IDFilter
   animal: AnimalWhereInput
   status: StringNullableFilter
+  date_status: DateTimeNullableFilter
   notes: StringFilter
   lat: StringFilter
   lng: StringFilter
@@ -570,6 +592,7 @@ input AnimalLogWhereInput {
 input AnimalLogOrderByInput {
   id: OrderDirection
   status: OrderDirection
+  date_status: OrderDirection
   notes: OrderDirection
   lat: OrderDirection
   lng: OrderDirection
@@ -584,6 +607,7 @@ input AnimalLogOrderByInput {
 input AnimalLogUpdateInput {
   animal: AnimalRelateToOneForUpdateInput
   status: String
+  date_status: DateTime
   notes: String
   lat: String
   lng: String
@@ -603,6 +627,7 @@ input AnimalLogUpdateArgs {
 input AnimalLogCreateInput {
   animal: AnimalRelateToOneForCreateInput
   status: String
+  date_status: DateTime
   notes: String
   lat: String
   lng: String
@@ -3468,7 +3493,5 @@ input NearbyAnimalsInput {
   animalType: ID
   status: String
   breed: ID
-  city: String
-  state: String
-  country: String
+  location: String
 }

@@ -201,10 +201,14 @@ var Animal_default = (0, import_core.list)({
   access: access_default,
   fields: {
     name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    physical_description: (0, import_fields.text)(),
+    age: (0, import_fields.text)(),
     sex: (0, import_fields.select)({
       options: ANIMAL_SEX_OPTIONS,
       defaultValue: "male"
     }),
+    color: (0, import_fields.text)(),
+    size: (0, import_fields.text)(),
     animal_type: (0, import_fields.relationship)({
       ref: "AnimalType",
       many: false
@@ -314,6 +318,12 @@ var AnimalLog_default = (0, import_core5.list)({
     status: (0, import_fields5.select)({
       defaultValue: "Registrado",
       options: ANIMAL_LOGS_OPTIONS
+    }),
+    // Could be a different date when lost
+    date_status: (0, import_fields5.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
     }),
     notes: (0, import_fields5.text)({
       ui: { displayMode: "textarea" }
@@ -2553,9 +2563,7 @@ var typeDefs4 = `
     animalType: ID
     status: String
     breed: ID
-    city: String
-    state: String
-    country: String
+    location: String
   }
 
   type Query {
@@ -2625,9 +2633,7 @@ var resolver4 = {
       animalType,
       status,
       breed,
-      city,
-      state,
-      country
+      location
     } = input;
     const animalWhere = {};
     if (animalType) {
@@ -2670,14 +2676,15 @@ var resolver4 = {
       if (status && latestLog.status !== status) {
         continue;
       }
-      if (city && !latestLog.city?.toLowerCase().includes(city.toLowerCase())) {
-        continue;
-      }
-      if (state && !latestLog.state?.toLowerCase().includes(state.toLowerCase())) {
-        continue;
-      }
-      if (country && !latestLog.country?.toLowerCase().includes(country.toLowerCase())) {
-        continue;
+      if (location) {
+        const searchTerm = location.toLowerCase();
+        const cityMatch = latestLog.city?.toLowerCase().includes(searchTerm) || false;
+        const stateMatch = latestLog.state?.toLowerCase().includes(searchTerm) || false;
+        const countryMatch = latestLog.country?.toLowerCase().includes(searchTerm) || false;
+        const addressMatch = latestLog.address?.toLowerCase().includes(searchTerm) || false;
+        if (!cityMatch && !stateMatch && !countryMatch && !addressMatch) {
+          continue;
+        }
       }
       let distance = null;
       if (lat !== void 0 && lng !== void 0 && latestLog.lat && latestLog.lng) {

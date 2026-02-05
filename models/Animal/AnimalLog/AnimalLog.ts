@@ -1,5 +1,6 @@
 import { list } from "@keystone-6/core";
 import {
+  calendarDay,
   checkbox,
   relationship,
   select,
@@ -18,6 +19,12 @@ export default list({
     status: select({
       defaultValue: "Registrado",
       options: ANIMAL_LOGS_OPTIONS,
+    }),
+    // Could be a different date when lost
+    date_status: timestamp({
+      defaultValue: {
+        kind: "now",
+      },
     }),
     notes: text({
       ui: { displayMode: "textarea" },
