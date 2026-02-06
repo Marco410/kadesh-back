@@ -36,13 +36,3 @@ export default list({
     }),
   },
 });
-
-export const dayNames: { [key: number]: string } = {
-  0: dayOfWeek.DOM,
-  1: dayOfWeek.LUN,
-  2: dayOfWeek.MAR,
-  3: dayOfWeek.MIER,
-  4: dayOfWeek.JUEV,
-  5: dayOfWeek.VIE,
-  6: dayOfWeek.SAB,
-};

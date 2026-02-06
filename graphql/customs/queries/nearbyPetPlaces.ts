@@ -1,6 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { TYPES_PET_SHELTER } from '../../../utils/constants/constants';
 import { haversineDistance } from "../../../utils/helpers/calculate_distances";
+import { dayNames } from "../../../models/Schedule/Schedule";
 
 const typeDefs = `
   type PetPlaceType {
@@ -38,6 +39,8 @@ const typeDefs = `
     google_place_id: String
     google_opening_hours: String
     createdAt: String
+    reviewsCount: Int
+    averageRating: Float
   }
 
   type NearbyPetPlacesResult {
@@ -54,7 +57,7 @@ const typeDefs = `
     type: String
   }
 
-  type Mutation {
+  type Query {
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
@@ -62,6 +65,78 @@ const typeDefs = `
 const definition = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
+
+/**
+ * Parses address_components from Google Places API and extracts location fields
+ */
+function parseAddressComponents(addressComponents: any[]): {
+  street: string;
+  municipality: string;
+  state: string;
+  country: string;
+  cp: string;
+} {
+  const result = {
+    street: '',
+    municipality: '',
+    state: '',
+    country: '',
+    cp: '',
+  };
+
+  if (!Array.isArray(addressComponents)) {
+    return result;
+  }
+
+  let streetNumber = '';
+  let route = '';
+
+  for (const component of addressComponents) {
+    const types = component.types || [];
+    const longName = component.long_name || '';
+
+    if (types.includes('street_number')) {
+      streetNumber = longName;
+    }
+    if (types.includes('route')) {
+      route = longName;
+    }
+    if (types.includes('locality')) {
+      result.municipality = longName;
+    }
+    if (types.includes('administrative_area_level_1')) {
+      result.state = longName;
+    }
+    if (types.includes('country')) {
+      result.country = longName;
+    }
+    if (types.includes('postal_code')) {
+      result.cp = longName;
+    }
+  }
+
+  // Combine street_number and route
+  if (streetNumber && route) {
+    result.street = `${streetNumber} ${route}`.trim();
+  } else if (streetNumber) {
+    result.street = streetNumber;
+  } else if (route) {
+    result.street = route;
+  }
+
+  return result;
+}
+
+/**
+ * Converts Google Places time format (HHMM string) to hours (0-23)
+ */
+function convertGoogleTimeToHours(timeString: string): number {
+  if (!timeString || timeString.length !== 4) {
+    return 0;
+  }
+  const hours = parseInt(timeString.substring(0, 2), 10);
+  return isNaN(hours) ? 0 : hours;
+}
 
 /**
  * Creates a PetPlace from a Google Places API result
@@ -82,6 +157,11 @@ async function createPetPlaceFromGoogleResult(
   const rating = place.rating || 0;
   const userRatingsTotal = place.user_ratings_total || 0;
   const placeId = place.place_id || '';
+  
+  // Parse address_components if available
+  const addressData = place.address_components
+    ? parseAddressComponents(place.address_components)
+    : { street: '', municipality: '', state: '', country: '', cp: '' };
 
   // Check if it already exists
   const existingPlace = await context.sudo().query.PetPlace.findOne({
@@ -122,11 +202,11 @@ async function createPetPlaceFromGoogleResult(
       types: { connect: [{ id: petPlaceType.id }] },
       phone: '',
       website: '',
-      street: '',
-      municipality: '',
-      state: '',
-      country: '',
-      cp: '',
+      street: addressData.street,
+      municipality: addressData.municipality,
+      state: addressData.state,
+      country: addressData.country,
+      cp: addressData.cp,
       lat: lat,
       lng: lng,
       views: 0,
@@ -137,7 +217,7 @@ async function createPetPlaceFromGoogleResult(
 
   if (placeId) {
     try {
-      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number&key=${apiKey}&language=es`;
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number,address_components&key=${apiKey}&language=es`;
       const detailsResponse = await fetch(detailsUrl);
       
       if (detailsResponse.ok) {
@@ -145,20 +225,68 @@ async function createPetPlaceFromGoogleResult(
 
         if (detailsData.status === 'OK' && detailsData.result) {
           const updateData: any = {};
+          
+          // Update phone
           if (detailsData.result.international_phone_number) {
             updateData.phone = detailsData.result.international_phone_number;
           }
+          
+          // Update address components if available
+          if (detailsData.result.address_components) {
+            const addressData = parseAddressComponents(detailsData.result.address_components);
+            if (addressData.street) updateData.street = addressData.street;
+            if (addressData.municipality) updateData.municipality = addressData.municipality;
+            if (addressData.state) updateData.state = addressData.state;
+            if (addressData.country) updateData.country = addressData.country;
+            if (addressData.cp) updateData.cp = addressData.cp;
+          }
+          
+          // Update opening hours text
           if (
             detailsData.result.opening_hours &&
             Array.isArray(detailsData.result.opening_hours.weekday_text)
           ) {
             updateData.google_opening_hours = detailsData.result.opening_hours.weekday_text.join('\n');
           }
+          
+          // Update PetPlace with address and phone data
           if (Object.keys(updateData).length > 0) {
             await context.sudo().query.PetPlace.updateOne({
               where: { id: result.id },
               data: updateData,
             });
+          }
+
+          // Create schedules from opening_hours periods
+          if (
+            detailsData.result.opening_hours &&
+            Array.isArray(detailsData.result.opening_hours.periods)
+          ) {
+            for (const period of detailsData.result.opening_hours.periods) {
+              try {
+                if (period.open && period.close) {
+                  const day = period.open.day; // 0-6 (Sunday to Saturday)
+                  const openTime = convertGoogleTimeToHours(period.open.time);
+                  const closeTime = convertGoogleTimeToHours(period.close.time);
+                  
+                  // Map Google day (0-6) to our dayOfWeek enum values
+                  const dayName = dayNames[day];
+                  
+                  if (dayName) {
+                    await context.sudo().query.Schedule.createOne({
+                      data: {
+                        day: dayName,
+                        timeIni: openTime,
+                        timeEnd: closeTime,
+                        pet_place: { connect: { id: result.id } },
+                      },
+                    });
+                  }
+                }
+              } catch (scheduleError) {
+                console.error(`Error saving schedule for ${place.name}:`, scheduleError);
+              }
+            }
           }
 
           // Create reviews if they exist
@@ -295,10 +423,11 @@ const resolver = {
         pet_place_social_media { id }
         pet_place_likes { id }
         pet_place_schedules { id }
-        pet_place_reviews { id }
         pet_place_ads { id }
         google_place_id
         google_opening_hours
+        reviewsCount
+        averageRating
         createdAt
       `,
     });
@@ -314,16 +443,33 @@ const resolver = {
       .filter((place: any) => place && place.distance <= radius);
 
     withDistance.sort((a: any, b: any) => a.distance - b.distance);
-    let result = withDistance.slice(0, limit);
+    let result = withDistance.slice(0, limit).map((place: any) => ({
+      ...place,
+      pet_place_reviews: place.pet_place_reviews ?? [],
+    }));
 
-    if (result.length === 0 && type) {
+    // Si hay menos resultados que el límite, buscar más en Google (p. ej. veterinarias)
+    const searchType = type || 'veterinary';
+    if (result.length < limit) {
       try {
-        console.log(`No places found in database, searching in Google Places for type: ${type}`);
+        const needed = limit - result.length;
+        console.log(
+          result.length === 0
+            ? `No places found in database, searching in Google Places for type: ${searchType}`
+            : `Only ${result.length} places found, searching Google for ${needed} more (type: ${searchType})`
+        );
 
-        const createdPlaces = await searchPlacesByLocation(lat, lng, type, radius, limit, context);        
-        
+        const createdPlaces = await searchPlacesByLocation(
+          lat,
+          lng,
+          searchType,
+          radius,
+          needed,
+          context
+        );
+
         if (createdPlaces.length > 0) {
-          const createdPlaceIds = createdPlaces.map(p => p.id);
+          const createdPlaceIds = createdPlaces.map((p: any) => p.id);
           const fullCreatedPlaces = await context.sudo().query.PetPlace.findMany({
             where: { id: { in: createdPlaceIds } },
             query: `id name description 
@@ -340,25 +486,35 @@ const resolver = {
               pet_place_social_media { id }
               pet_place_likes { id }
               pet_place_schedules { id }
-              pet_place_reviews { id }
               pet_place_ads { id }
               google_place_id
               google_opening_hours
+              reviewsCount
+              averageRating
               createdAt
             `,
           });
 
-          result = fullCreatedPlaces
+          const newWithDistance = fullCreatedPlaces
             .map((place: any) => {
               const placeLat = parseFloat(place.lat);
               const placeLng = parseFloat(place.lng);
               if (isNaN(placeLat) || isNaN(placeLng)) return null;
               const distance = haversineDistance(lat, lng, placeLat, placeLng);
-              return { ...place, distance };
+              return {
+                ...place,
+                distance,
+                pet_place_reviews: place.pet_place_reviews ?? [],
+              };
             })
-            .filter((place: any) => place && place.distance <= radius)
+            .filter((place: any) => place && place.distance <= radius);
+
+          const existingIds = new Set(result.map((p: any) => p.id));
+          const onlyNew = newWithDistance.filter((p: any) => !existingIds.has(p.id));
+          const merged = [...result, ...onlyNew]
             .sort((a: any, b: any) => a.distance - b.distance)
             .slice(0, limit);
+          result = merged;
         }
       } catch (error) {
         console.error('Error searching in Google Places:', error);
