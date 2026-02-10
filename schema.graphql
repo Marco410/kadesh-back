@@ -1500,6 +1500,8 @@ type PetPlace {
   pet_place_schedulesCount(where: ScheduleWhereInput! = {}): Int
   pet_place_reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
   pet_place_reviewsCount(where: ReviewWhereInput! = {}): Int
+  reviewsCount: Int
+  averageRating: Float
   pet_place_ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
   pet_place_adsCount(where: AdWhereInput! = {}): Int
   address: String
@@ -3115,7 +3117,6 @@ type Mutation {
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
-  getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
 }
 
@@ -3248,6 +3249,7 @@ type Query {
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
+  getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 }
 
 union AuthenticatedItem = User
@@ -3400,50 +3402,6 @@ type ImportPetPlaceResult {
   result: String
 }
 
-type NearbyPetPlace {
-  id: ID!
-  name: String
-  description: String
-  lat: String
-  lng: String
-  distance: Float
-  address: String
-  phone: String
-  website: String
-  street: String
-  municipality: String
-  state: String
-  country: String
-  cp: String
-  views: String
-  types: [PetPlaceType]
-  services: [PetPlaceService]
-  user: User
-  isOpen: Boolean
-  pet_place_social_media: [SocialMedia]
-  pet_place_likes: [PetPlaceLike]
-  pet_place_schedules: [Schedule]
-  pet_place_reviews: [Review]
-  pet_place_ads: [Ad]
-  google_place_id: String
-  google_opening_hours: String
-  createdAt: String
-}
-
-type NearbyPetPlacesResult {
-  success: Boolean!
-  message: String!
-  petPlaces: [NearbyPetPlace!]
-}
-
-input NearbyPetPlacesInput {
-  lat: Float!
-  lng: Float!
-  limit: Int = 10
-  radius: Float = 10
-  type: String
-}
-
 type AnimalMultimediaImage {
   id: ID!
   url: String
@@ -3494,4 +3452,50 @@ input NearbyAnimalsInput {
   status: String
   breed: ID
   location: String
+}
+
+type NearbyPetPlace {
+  id: ID!
+  name: String
+  description: String
+  lat: String
+  lng: String
+  distance: Float
+  address: String
+  phone: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  views: String
+  types: [PetPlaceType]
+  services: [PetPlaceService]
+  user: User
+  isOpen: Boolean
+  pet_place_social_media: [SocialMedia]
+  pet_place_likes: [PetPlaceLike]
+  pet_place_schedules: [Schedule]
+  pet_place_reviews: [Review]
+  pet_place_ads: [Ad]
+  google_place_id: String
+  google_opening_hours: String
+  createdAt: String
+  reviewsCount: Int
+  averageRating: Float
+}
+
+type NearbyPetPlacesResult {
+  success: Boolean!
+  message: String!
+  petPlaces: [NearbyPetPlace!]
+}
+
+input NearbyPetPlacesInput {
+  lat: Float
+  lng: Float
+  limit: Int = 10
+  radius: Float = 10
+  type: String
 }

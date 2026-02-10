@@ -796,6 +796,49 @@ var PetPlace_default = (0, import_core12.list)({
       ref: "Review.pet_place",
       many: true
     }),
+    reviewsCount: (0, import_fields12.virtual)({
+      field: import_core12.graphql.field({
+        type: import_core12.graphql.Int,
+        async resolve(item, args, context) {
+          const reviews = await context.query.Review.findMany({
+            where: {
+              pet_place: {
+                id: {
+                  equals: item.id
+                }
+              }
+            },
+            query: "id"
+          });
+          return reviews.length;
+        }
+      })
+    }),
+    averageRating: (0, import_fields12.virtual)({
+      field: import_core12.graphql.field({
+        type: import_core12.graphql.Float,
+        async resolve(item, args, context) {
+          const reviews = await context.query.Review.findMany({
+            where: {
+              pet_place: {
+                id: {
+                  equals: item.id
+                }
+              }
+            },
+            query: "rating"
+          });
+          if (reviews.length === 0) {
+            return 0;
+          }
+          const totalRating = reviews.reduce((sum, review) => {
+            return sum + (review.rating || 0);
+          }, 0);
+          const average = totalRating / reviews.length;
+          return Math.round(average * 10) / 10;
+        }
+      })
+    }),
     pet_place_ads: (0, import_fields12.relationship)({
       ref: "Ad.pet_place",
       many: true
@@ -916,15 +959,6 @@ var Review_default = (0, import_core16.list)({
     })
   }
 });
-var dayNames2 = {
-  0: "Domingo" /* DOM */,
-  1: "Lunes" /* LUN */,
-  2: "Martes" /* MAR */,
-  3: "Mi\xE9rcoles" /* MIER */,
-  4: "Jueves" /* JUEV */,
-  5: "Viernes" /* VIE */,
-  6: "S\xE1bado" /* SAB */
-};
 
 // models/Store/Product/Product.ts
 var import_core17 = require("@keystone-6/core");
@@ -1259,6 +1293,143 @@ var Ad_default = (0, import_core24.list)({
 var import_core25 = require("@keystone-6/core");
 var import_fields25 = require("@keystone-6/core/fields");
 
+// utils/helpers/sendgrid.ts
+var import_mail = __toESM(require("@sendgrid/mail"));
+if (process.env.SENDGRID_API_KEY) {
+  import_mail.default.setApiKey(process.env.SENDGRID_API_KEY);
+}
+async function sendEmail({
+  to,
+  subject,
+  html,
+  from = process.env.SENDGRID_FROM_EMAIL || "noreply@kadesh.com"
+}) {
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn("SENDGRID_API_KEY is not configured. Email not sent.");
+    return;
+  }
+  try {
+    const msg = {
+      to: Array.isArray(to) ? to : [to],
+      from,
+      subject,
+      html
+    };
+    await import_mail.default.send(msg);
+    console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`);
+  } catch (error) {
+    console.error("Error sending email:", error);
+    if (error.response) {
+      console.error("SendGrid error response:", error.response.body);
+    }
+    throw error;
+  }
+}
+async function sendNewPostEmail({
+  postTitle,
+  postUrl,
+  postExcerpt,
+  authorName,
+  categoryName,
+  recipientEmails
+}) {
+  if (recipientEmails.length === 0) {
+    return;
+  }
+  const subject = `Nuevo post publicado: ${postTitle}`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background-color: #4CAF50;
+          color: white;
+          padding: 20px;
+          text-align: center;
+          border-radius: 5px 5px 0 0;
+        }
+        .content {
+          background-color: #f9f9f9;
+          padding: 20px;
+          border-radius: 0 0 5px 5px;
+        }
+        .post-title {
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 15px;
+          color: #2c3e50;
+        }
+        .post-excerpt {
+          font-size: 16px;
+          color: #666;
+          margin-bottom: 20px;
+          line-height: 1.8;
+        }
+        .post-meta {
+          font-size: 14px;
+          color: #888;
+          margin-bottom: 20px;
+        }
+        .button {
+          display: inline-block;
+          padding: 12px 30px;
+          background-color: #4CAF50;
+          color: white;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: bold;
+          margin-top: 20px;
+        }
+        .button:hover {
+          background-color: #45a049;
+        }
+        .footer {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #ddd;
+          font-size: 12px;
+          color: #999;
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>\xA1Nuevo Post Publicado!</h1>
+      </div>
+      <div class="content">
+        <div class="post-title">${postTitle}</div>
+        ${postExcerpt ? `<div class="post-excerpt">${postExcerpt}</div>` : ""}
+        <div class="post-meta">
+          ${authorName ? `<strong>Autor:</strong> ${authorName}<br>` : ""}
+          ${categoryName ? `<strong>Categor\xEDa:</strong> ${categoryName}` : ""}
+        </div>
+        <a href="${postUrl}" class="button">Leer Post Completo</a>
+      </div>
+      <div class="footer">
+        <p>Gracias por suscribirte a nuestro blog.</p>
+        <p>Si no deseas recibir m\xE1s notificaciones, puedes cancelar tu suscripci\xF3n en cualquier momento.</p>
+      </div>
+    </body>
+    </html>
+  `;
+  await sendEmail({
+    to: recipientEmails,
+    subject,
+    html
+  });
+}
+
 // models/Blog/Post/Post.hooks.ts
 var postUrlHook = {
   resolveInput: async ({ resolvedData, item, context }) => {
@@ -1305,13 +1476,76 @@ var publishedAtHook = {
     return resolvedData;
   }
 };
+var newPostEmailHook = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation === "create" && item?.published === true) {
+      try {
+        const post = await context.sudo().query.Post.findOne({
+          where: { id: item.id },
+          query: `
+            id
+            title
+            url
+            excerpt
+            author {
+              name
+              lastName
+            }
+            category {
+              name
+            }
+          `
+        });
+        if (!post) {
+          return;
+        }
+        const subscriptions = await context.sudo().query.BlogSubscription.findMany({
+          where: {
+            active: {
+              equals: true
+            }
+          },
+          query: "email"
+        });
+        if (subscriptions.length === 0) {
+          console.log("No active subscriptions found. Email not sent.");
+          return;
+        }
+        const recipientEmails = subscriptions.map((sub) => sub.email).filter((email) => email && email.trim() !== "");
+        if (recipientEmails.length === 0) {
+          console.log("No valid email addresses found. Email not sent.");
+          return;
+        }
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        const postUrl = `${frontendUrl}/blog/${post.url || post.id}`;
+        const authorName = post.author ? `${post.author.name} ${post.author.lastName || ""}`.trim() : null;
+        await sendNewPostEmail({
+          postTitle: post.title,
+          postUrl,
+          postExcerpt: post.excerpt,
+          authorName,
+          categoryName: post.category?.name || null,
+          recipientEmails
+        });
+        console.log(`New post email sent to ${recipientEmails.length} subscribers`);
+      } catch (error) {
+        console.error("Error sending new post email:", error);
+      }
+    }
+  }
+};
 
 // models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
 var Post_default = (0, import_core25.list)({
   access: access_default,
   hooks: {
-    resolveInput: publishedAtHook.resolveInput
+    resolveInput: publishedAtHook.resolveInput,
+    afterOperation: newPostEmailHook.afterOperation
   },
   fields: {
     title: (0, import_fields25.text)({ validation: { isRequired: true } }),
@@ -2179,6 +2413,23 @@ var importPetPlace_default = {
   resolver: resolver2
 };
 
+// graphql/customs/mutations/index.ts
+var customMutation = {
+  typeDefs: `
+    ${customAuth_default.typeDefs}
+    ${importPetPlace_default.typeDefs}
+  `,
+  definitions: `
+    ${customAuth_default.definition}
+    ${importPetPlace_default.definition}
+  `,
+  resolvers: {
+    ...customAuth_default.resolver,
+    ...importPetPlace_default.resolver
+  }
+};
+var mutations_default = customMutation;
+
 // utils/helpers/calculate_distances.ts
 function haversineDistance(lat1, lng1, lat2, lng2) {
   const toRad = (value) => value * Math.PI / 180;
@@ -2190,330 +2441,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   return Math.round(R * c * 100) / 100;
 }
 
-// graphql/customs/mutations/nearbyPetPlaces.ts
-var typeDefs3 = `
-  type PetPlaceType {
-    id: ID!
-    label: String
-    value: String
-    plural: String
-  }
-
-  type NearbyPetPlace {
-    id: ID!
-    name: String
-    description: String
-    lat: String
-    lng: String
-    distance: Float
-    address: String
-    phone: String
-    website: String
-    street: String
-    municipality: String
-    state: String
-    country: String
-    cp: String
-    views: String
-    types: [PetPlaceType]
-    services: [PetPlaceService]
-    user: User
-    isOpen: Boolean
-    pet_place_social_media: [SocialMedia]
-    pet_place_likes: [PetPlaceLike]
-    pet_place_schedules: [Schedule]
-    pet_place_reviews: [Review]
-    pet_place_ads: [Ad]
-    google_place_id: String
-    google_opening_hours: String
-    createdAt: String
-  }
-
-  type NearbyPetPlacesResult {
-    success: Boolean!
-    message: String!
-    petPlaces: [NearbyPetPlace!]
-  }
-
-  input NearbyPetPlacesInput {
-    lat: Float!
-    lng: Float!
-    limit: Int = 10
-    radius: Float = 10
-    type: String
-  }
-
-  type Mutation {
-    getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
-  }
-`;
-var definition3 = `
-  getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
-`;
-async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
-  if (!place.name) {
-    return null;
-  }
-  const address = place.formatted_address || "";
-  const lat = place.geometry?.location?.lat?.toString() || "";
-  const lng = place.geometry?.location?.lng?.toString() || "";
-  const rating = place.rating || 0;
-  const userRatingsTotal = place.user_ratings_total || 0;
-  const placeId = place.place_id || "";
-  const existingPlace = await context.sudo().query.PetPlace.findOne({
-    where: { google_place_id: placeId },
-    query: "id"
-  });
-  if (existingPlace) {
-    console.log(`Place with placeId ${placeId} already registered, skipping.`);
-    return null;
-  }
-  let petPlaceType = await context.sudo().query.PetPlaceType.findOne({
-    where: { value: type },
-    query: "id"
-  });
-  if (!petPlaceType) {
-    const typeData = TYPES_PET_SHELTER.find((t) => t.value === type);
-    if (typeData) {
-      petPlaceType = await context.sudo().query.PetPlaceType.createOne({
-        data: {
-          label: typeData.label,
-          value: typeData.value,
-          plural: typeData.plural
-        }
-      });
-    } else {
-      console.error(`Type ${type} not found in TYPES_PET_SHELTER`);
-      return null;
-    }
-  }
-  const result = await context.sudo().query.PetPlace.createOne({
-    data: {
-      name: place.name,
-      description: `Place located at ${address}. ${rating > 0 ? `Rating: ${rating}/5 (${userRatingsTotal} reviews)` : ""}`,
-      types: { connect: [{ id: petPlaceType.id }] },
-      phone: "",
-      website: "",
-      street: "",
-      municipality: "",
-      state: "",
-      country: "",
-      cp: "",
-      lat,
-      lng,
-      views: 0,
-      address,
-      google_place_id: placeId
-    }
-  });
-  if (placeId) {
-    try {
-      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number&key=${apiKey}&language=es`;
-      const detailsResponse = await fetch(detailsUrl);
-      if (detailsResponse.ok) {
-        const detailsData = await detailsResponse.json();
-        if (detailsData.status === "OK" && detailsData.result) {
-          const updateData = {};
-          if (detailsData.result.international_phone_number) {
-            updateData.phone = detailsData.result.international_phone_number;
-          }
-          if (detailsData.result.opening_hours && Array.isArray(detailsData.result.opening_hours.weekday_text)) {
-            updateData.google_opening_hours = detailsData.result.opening_hours.weekday_text.join("\n");
-          }
-          if (Object.keys(updateData).length > 0) {
-            await context.sudo().query.PetPlace.updateOne({
-              where: { id: result.id },
-              data: updateData
-            });
-          }
-          if (Array.isArray(detailsData.result.reviews)) {
-            for (const review of detailsData.result.reviews) {
-              try {
-                let createdAt = void 0;
-                if (review.time) {
-                  createdAt = new Date(review.time * 1e3);
-                }
-                await context.sudo().query.Review.createOne({
-                  data: {
-                    rating: review.rating || 0,
-                    review: review.text || "",
-                    createdAt,
-                    google_user: review.author_name || "",
-                    google_user_photo: review.profile_photo_url || "",
-                    pet_place: { connect: { id: result.id } }
-                  }
-                });
-              } catch (reviewError) {
-                console.error(`Error saving review for ${place.name}:`, reviewError);
-              }
-            }
-          }
-        }
-      }
-    } catch (detailsError) {
-      console.error(`Error getting details for ${place.name}:`, detailsError);
-    }
-  }
-  return result;
-}
-async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    throw new Error("GOOGLE_MAPS_API_KEY is not configured in environment variables");
-  }
-  const typeLabels = {
-    "veterinary": "veterinarias",
-    "pet_shelter": "refugios de animales",
-    "pet_store": "tiendas de mascotas",
-    "pet_boarding": "hoteles para mascotas guarder\xEDas",
-    "pet_park": "parques para perros",
-    "other": "lugares para mascotas"
-  };
-  const searchTerm = typeLabels[type] || "lugares para mascotas";
-  const radiusInMeters = Math.round(radius * 1e3);
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusInMeters}&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey}&language=es`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`API response error: ${response.status} ${response.statusText}`);
-    }
-    const data = await response.json();
-    if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      throw new Error(`Google Places API error: ${data.status} - ${data.error_message || "Unknown error"}`);
-    }
-    if (!data.results || data.results.length === 0) {
-      return [];
-    }
-    const createdPlaces = [];
-    for (const place of data.results.slice(0, limit)) {
-      try {
-        const createdPlace = await createPetPlaceFromGoogleResult(place, type, apiKey, context);
-        if (createdPlace) {
-          createdPlaces.push(createdPlace);
-        }
-      } catch (error) {
-        console.error(`Error creating place ${place.name}:`, error);
-      }
-    }
-    return createdPlaces;
-  } catch (error) {
-    console.error("Error searching places in Google Places:", error);
-    return [];
-  }
-}
-var resolver3 = {
-  getNearbyPetPlaces: async (root, { input }, context) => {
-    const { lat, lng, limit = 10, radius = 10, type } = input;
-    if (typeof lat !== "number" || typeof lng !== "number") {
-      return {
-        success: false,
-        message: "Invalid latitude and longitude",
-        petPlaces: []
-      };
-    }
-    const petPlaces = await context.sudo().query.PetPlace.findMany({
-      query: `id name description 
-        lat lng 
-        address phone 
-        website street 
-        municipality state 
-        country cp 
-        views 
-        types { id label value plural }
-        services { id name }
-        user { id name }
-        isOpen
-        pet_place_social_media { id }
-        pet_place_likes { id }
-        pet_place_schedules { id }
-        pet_place_reviews { id }
-        pet_place_ads { id }
-        google_place_id
-        google_opening_hours
-        createdAt
-      `
-    });
-    const withDistance = petPlaces.map((place) => {
-      const placeLat = parseFloat(place.lat);
-      const placeLng = parseFloat(place.lng);
-      if (isNaN(placeLat) || isNaN(placeLng)) return null;
-      const distance = haversineDistance(lat, lng, placeLat, placeLng);
-      return { ...place, distance };
-    }).filter((place) => place && place.distance <= radius);
-    withDistance.sort((a, b) => a.distance - b.distance);
-    let result = withDistance.slice(0, limit);
-    if (result.length === 0 && type) {
-      try {
-        console.log(`No places found in database, searching in Google Places for type: ${type}`);
-        const createdPlaces = await searchPlacesByLocation(lat, lng, type, radius, limit, context);
-        if (createdPlaces.length > 0) {
-          const createdPlaceIds = createdPlaces.map((p) => p.id);
-          const fullCreatedPlaces = await context.sudo().query.PetPlace.findMany({
-            where: { id: { in: createdPlaceIds } },
-            query: `id name description 
-              lat lng 
-              address phone 
-              website street 
-              municipality state 
-              country cp 
-              views 
-              types { id label value plural }
-              services { id name }
-              user { id name }
-              isOpen
-              pet_place_social_media { id }
-              pet_place_likes { id }
-              pet_place_schedules { id }
-              pet_place_reviews { id }
-              pet_place_ads { id }
-              google_place_id
-              google_opening_hours
-              createdAt
-            `
-          });
-          result = fullCreatedPlaces.map((place) => {
-            const placeLat = parseFloat(place.lat);
-            const placeLng = parseFloat(place.lng);
-            if (isNaN(placeLat) || isNaN(placeLng)) return null;
-            const distance = haversineDistance(lat, lng, placeLat, placeLng);
-            return { ...place, distance };
-          }).filter((place) => place && place.distance <= radius).sort((a, b) => a.distance - b.distance).slice(0, limit);
-        }
-      } catch (error) {
-        console.error("Error searching in Google Places:", error);
-      }
-    }
-    return {
-      success: true,
-      message: result.length > 0 ? "PetPlaces found" : "No PetPlaces found",
-      petPlaces: result
-    };
-  }
-};
-var nearbyPetPlaces_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
-
-// graphql/customs/mutations/index.ts
-var customMutation = {
-  typeDefs: `
-    ${customAuth_default.typeDefs}
-    ${importPetPlace_default.typeDefs}
-    ${nearbyPetPlaces_default.typeDefs}
-  `,
-  definitions: `
-    ${customAuth_default.definition}
-    ${importPetPlace_default.definition}
-    ${nearbyPetPlaces_default.definition}
-  `,
-  resolvers: {
-    ...customAuth_default.resolver,
-    ...importPetPlace_default.resolver,
-    ...nearbyPetPlaces_default.resolver
-  }
-};
-var mutations_default = customMutation;
-
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs4 = `
+var typeDefs3 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -2570,7 +2499,7 @@ var typeDefs4 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition4 = `
+var definition3 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -2620,7 +2549,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver4 = {
+var resolver3 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -2774,18 +2703,451 @@ var resolver4 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
+var nearbyAnimals_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
+
+// utils/helpers/nearby_petplaces.ts
+function convertGoogleTimeToHours(timeString) {
+  if (!timeString || timeString.length !== 4) {
+    return 0;
+  }
+  const hours = parseInt(timeString.substring(0, 2), 10);
+  return isNaN(hours) ? 0 : hours;
+}
+function parseAddressComponents(addressComponents) {
+  const result = {
+    street: "",
+    municipality: "",
+    state: "",
+    country: "",
+    cp: ""
+  };
+  if (!Array.isArray(addressComponents)) {
+    return result;
+  }
+  let streetNumber = "";
+  let route = "";
+  for (const component of addressComponents) {
+    const types = component.types || [];
+    const longName = component.long_name || "";
+    if (types.includes("street_number")) {
+      streetNumber = longName;
+    }
+    if (types.includes("route")) {
+      route = longName;
+    }
+    if (types.includes("locality")) {
+      result.municipality = longName;
+    }
+    if (types.includes("administrative_area_level_1")) {
+      result.state = longName;
+    }
+    if (types.includes("country")) {
+      result.country = longName;
+    }
+    if (types.includes("postal_code")) {
+      result.cp = longName;
+    }
+  }
+  if (streetNumber && route) {
+    result.street = `${streetNumber} ${route}`.trim();
+  } else if (streetNumber) {
+    result.street = streetNumber;
+  } else if (route) {
+    result.street = route;
+  }
+  return result;
+}
+async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
+  if (!place.name) {
+    return null;
+  }
+  const address = place.formatted_address || "";
+  const lat = place.geometry?.location?.lat?.toString() || "";
+  const lng = place.geometry?.location?.lng?.toString() || "";
+  const rating = place.rating || 0;
+  const userRatingsTotal = place.user_ratings_total || 0;
+  const placeId = place.place_id || "";
+  const addressData = place.address_components ? parseAddressComponents(place.address_components) : { street: "", municipality: "", state: "", country: "", cp: "" };
+  const existingPlace = await context.sudo().query.PetPlace.findOne({
+    where: { google_place_id: placeId },
+    query: "id"
+  });
+  if (existingPlace) {
+    console.log(`Place with placeId ${placeId} already registered, skipping.`);
+    return null;
+  }
+  let petPlaceType = await context.sudo().query.PetPlaceType.findOne({
+    where: { value: type },
+    query: "id"
+  });
+  if (!petPlaceType) {
+    const typeData = TYPES_PET_SHELTER.find((t) => t.value === type);
+    if (typeData) {
+      petPlaceType = await context.sudo().query.PetPlaceType.createOne({
+        data: {
+          label: typeData.label,
+          value: typeData.value,
+          plural: typeData.plural
+        }
+      });
+    } else {
+      console.error(`Type ${type} not found in TYPES_PET_SHELTER`);
+      return null;
+    }
+  }
+  const result = await context.sudo().query.PetPlace.createOne({
+    data: {
+      name: place.name,
+      description: `Place located at ${address}. ${rating > 0 ? `Rating: ${rating}/5 (${userRatingsTotal} reviews)` : ""}`,
+      types: { connect: [{ id: petPlaceType.id }] },
+      phone: "",
+      website: "",
+      street: addressData.street,
+      municipality: addressData.municipality,
+      state: addressData.state,
+      country: addressData.country,
+      cp: addressData.cp,
+      lat,
+      lng,
+      views: 0,
+      address,
+      google_place_id: placeId
+    }
+  });
+  if (placeId) {
+    try {
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number,address_components&key=${apiKey}&language=es`;
+      const detailsResponse = await fetch(detailsUrl);
+      if (detailsResponse.ok) {
+        const detailsData = await detailsResponse.json();
+        if (detailsData.status === "OK" && detailsData.result) {
+          const updateData = {};
+          if (detailsData.result.international_phone_number) {
+            updateData.phone = detailsData.result.international_phone_number;
+          }
+          if (detailsData.result.address_components) {
+            const addressData2 = parseAddressComponents(detailsData.result.address_components);
+            if (addressData2.street) updateData.street = addressData2.street;
+            if (addressData2.municipality) updateData.municipality = addressData2.municipality;
+            if (addressData2.state) updateData.state = addressData2.state;
+            if (addressData2.country) updateData.country = addressData2.country;
+            if (addressData2.cp) updateData.cp = addressData2.cp;
+          }
+          if (detailsData.result.opening_hours && Array.isArray(detailsData.result.opening_hours.weekday_text)) {
+            updateData.google_opening_hours = detailsData.result.opening_hours.weekday_text.join("\n");
+          }
+          if (Object.keys(updateData).length > 0) {
+            await context.sudo().query.PetPlace.updateOne({
+              where: { id: result.id },
+              data: updateData
+            });
+          }
+          if (detailsData.result.opening_hours && Array.isArray(detailsData.result.opening_hours.periods)) {
+            for (const period of detailsData.result.opening_hours.periods) {
+              try {
+                if (period.open && period.close) {
+                  const day = period.open.day;
+                  const openTime = convertGoogleTimeToHours(period.open.time);
+                  const closeTime = convertGoogleTimeToHours(period.close.time);
+                  const dayName = dayNames[day];
+                  if (dayName) {
+                    await context.sudo().query.Schedule.createOne({
+                      data: {
+                        day: dayName,
+                        timeIni: openTime,
+                        timeEnd: closeTime,
+                        pet_place: { connect: { id: result.id } }
+                      }
+                    });
+                  }
+                }
+              } catch (scheduleError) {
+                console.error(`Error saving schedule for ${place.name}:`, scheduleError);
+              }
+            }
+          }
+          if (Array.isArray(detailsData.result.reviews)) {
+            for (const review of detailsData.result.reviews) {
+              try {
+                let createdAt = void 0;
+                if (review.time) {
+                  createdAt = new Date(review.time * 1e3);
+                }
+                await context.sudo().query.Review.createOne({
+                  data: {
+                    rating: review.rating || 0,
+                    review: review.text || "",
+                    createdAt,
+                    google_user: review.author_name || "",
+                    google_user_photo: review.profile_photo_url || "",
+                    pet_place: { connect: { id: result.id } }
+                  }
+                });
+              } catch (reviewError) {
+                console.error(`Error saving review for ${place.name}:`, reviewError);
+              }
+            }
+          }
+        }
+      }
+    } catch (detailsError) {
+      console.error(`Error getting details for ${place.name}:`, detailsError);
+    }
+  }
+  return result;
+}
+async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    throw new Error("GOOGLE_MAPS_API_KEY is not configured in environment variables");
+  }
+  const typeLabels = {
+    "veterinary": "veterinarias",
+    "pet_shelter": "refugios de animales",
+    "pet_store": "tiendas de mascotas",
+    "pet_boarding": "hoteles para mascotas guarder\xEDas",
+    "pet_park": "parques para perros",
+    "other": "lugares para mascotas"
+  };
+  const searchTerm = typeLabels[type] || "lugares para mascotas";
+  const radiusInMeters = Math.round(radius * 1e3);
+  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusInMeters}&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey}&language=es`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`API response error: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+      throw new Error(`Google Places API error: ${data.status} - ${data.error_message || "Unknown error"}`);
+    }
+    if (!data.results || data.results.length === 0) {
+      return [];
+    }
+    const createdPlaces = [];
+    for (const place of data.results.slice(0, limit)) {
+      try {
+        const createdPlace = await createPetPlaceFromGoogleResult(place, type, apiKey, context);
+        if (createdPlace) {
+          createdPlaces.push(createdPlace);
+        }
+      } catch (error) {
+        console.error(`Error creating place ${place.name}:`, error);
+      }
+    }
+    return createdPlaces;
+  } catch (error) {
+    console.error("Error searching places in Google Places:", error);
+    return [];
+  }
+}
+async function getPetPlacesHelper(context, whereClause) {
+  return await context.sudo().query.PetPlace.findMany({
+    where: whereClause,
+    query: `id name description 
+          lat lng 
+          address phone 
+          website street 
+          municipality state 
+          country cp 
+          views 
+          types { id label value plural }
+          services { id name }
+          user { id name }
+          isOpen
+          pet_place_social_media { id }
+          pet_place_likes { id }
+          pet_place_schedules { id }
+          pet_place_ads { id }
+          google_place_id
+          google_opening_hours
+          reviewsCount
+          averageRating
+          createdAt
+        `
+  });
+}
+
+// graphql/customs/queries/nearbyPetPlaces.ts
+var typeDefs4 = `
+  type PetPlaceType {
+    id: ID!
+    label: String
+    value: String
+    plural: String
+  }
+
+  type NearbyPetPlace {
+    id: ID!
+    name: String
+    description: String
+    lat: String
+    lng: String
+    distance: Float
+    address: String
+    phone: String
+    website: String
+    street: String
+    municipality: String
+    state: String
+    country: String
+    cp: String
+    views: String
+    types: [PetPlaceType]
+    services: [PetPlaceService]
+    user: User
+    isOpen: Boolean
+    pet_place_social_media: [SocialMedia]
+    pet_place_likes: [PetPlaceLike]
+    pet_place_schedules: [Schedule]
+    pet_place_reviews: [Review]
+    pet_place_ads: [Ad]
+    google_place_id: String
+    google_opening_hours: String
+    createdAt: String
+    reviewsCount: Int
+    averageRating: Float
+  }
+
+  type NearbyPetPlacesResult {
+    success: Boolean!
+    message: String!
+    petPlaces: [NearbyPetPlace!]
+  }
+
+  input NearbyPetPlacesInput {
+    lat: Float
+    lng: Float
+    limit: Int = 10
+    radius: Float = 10
+    type: String
+  }
+
+  type Query {
+    getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
+  }
+`;
+var definition4 = `
+  getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
+`;
+var resolver4 = {
+  getNearbyPetPlaces: async (root, { input }, context) => {
+    const { lat, lng, limit = 10, radius = 10, type } = input;
+    if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
+      const whereClause = {};
+      if (type) {
+        const petPlaceType = await context.sudo().query.PetPlaceType.findOne({
+          where: { value: type },
+          query: "id"
+        });
+        if (petPlaceType) {
+          whereClause.types = {
+            some: {
+              id: {
+                equals: petPlaceType.id
+              }
+            }
+          };
+        }
+      }
+      const petPlaces2 = await getPetPlacesHelper(context, whereClause);
+      const sortedPlaces = [...petPlaces2].sort((a, b) => {
+        const ratingA = a.averageRating || 0;
+        const ratingB = b.averageRating || 0;
+        return ratingB - ratingA;
+      });
+      const result2 = sortedPlaces.slice(0, limit).map((place) => ({
+        ...place,
+        pet_place_reviews: place.pet_place_reviews ?? [],
+        distance: null
+        // No distance when lat/lng not provided
+      }));
+      return {
+        success: true,
+        message: result2.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+        petPlaces: result2
+      };
+    }
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      return {
+        success: false,
+        message: "Invalid latitude and longitude",
+        petPlaces: []
+      };
+    }
+    const petPlaces = await getPetPlacesHelper(context, {});
+    const withDistance = petPlaces.map((place) => {
+      const placeLat = parseFloat(place.lat);
+      const placeLng = parseFloat(place.lng);
+      if (isNaN(placeLat) || isNaN(placeLng)) return null;
+      const distance = haversineDistance(lat, lng, placeLat, placeLng);
+      return { ...place, distance };
+    }).filter((place) => place && place.distance <= radius);
+    withDistance.sort((a, b) => a.distance - b.distance);
+    let result = withDistance.slice(0, limit).map((place) => ({
+      ...place,
+      pet_place_reviews: place.pet_place_reviews ?? []
+    }));
+    const searchType = type || "veterinary";
+    if (result.length < limit) {
+      try {
+        const needed = limit - result.length;
+        console.log(
+          result.length === 0 ? `No places found in database, searching in Google Places for type: ${searchType}` : `Only ${result.length} places found, searching Google for ${needed} more (type: ${searchType})`
+        );
+        const createdPlaces = await searchPlacesByLocation(
+          lat,
+          lng,
+          searchType,
+          radius,
+          needed,
+          context
+        );
+        if (createdPlaces.length > 0) {
+          const createdPlaceIds = createdPlaces.map((p) => p.id);
+          const fullCreatedPlaces = await getPetPlacesHelper(context, { id: { in: createdPlaceIds } });
+          const newWithDistance = fullCreatedPlaces.map((place) => {
+            const placeLat = parseFloat(place.lat);
+            const placeLng = parseFloat(place.lng);
+            if (isNaN(placeLat) || isNaN(placeLng)) return null;
+            const distance = haversineDistance(lat, lng, placeLat, placeLng);
+            return {
+              ...place,
+              distance,
+              pet_place_reviews: place.pet_place_reviews ?? []
+            };
+          }).filter((place) => place && place.distance <= radius);
+          const existingIds = new Set(result.map((p) => p.id));
+          const onlyNew = newWithDistance.filter((p) => !existingIds.has(p.id));
+          const merged = [...result, ...onlyNew].sort((a, b) => a.distance - b.distance).slice(0, limit);
+          result = merged;
+        }
+      } catch (error) {
+        console.error("Error searching in Google Places:", error);
+      }
+    }
+    return {
+      success: true,
+      message: result.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+      petPlaces: result
+    };
+  }
+};
+var nearbyPetPlaces_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
   typeDefs: `
     ${nearbyAnimals_default.typeDefs}
+    ${nearbyPetPlaces_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
+    ${nearbyPetPlaces_default.definition}
   `,
   resolvers: {
-    ...nearbyAnimals_default.resolver
+    ...nearbyAnimals_default.resolver,
+    ...nearbyPetPlaces_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -2836,6 +3198,7 @@ var keystone_default = withAuth(
     },
     server: {
       cors: true,
+      port: parseInt(process.env.LOCAL_PORT || "3001"),
       maxFileSize: 200 * 1024 * 1024
     },
     storage: {

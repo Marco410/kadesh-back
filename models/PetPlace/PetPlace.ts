@@ -88,6 +88,53 @@ export default list({
       ref: "Review.pet_place",
       many: true,
     }),
+    reviewsCount: virtual({
+      field: graphql.field({
+        type: graphql.Int,
+        async resolve(item: any, args: any, context: KeystoneContext) {
+          const reviews = await context.query.Review.findMany({
+            where: {
+              pet_place: {
+                id: {
+                  equals: item.id,
+                },
+              },
+            },
+            query: "id",
+          });
+          return reviews.length;
+        },
+      }),
+    }),
+    averageRating: virtual({
+      field: graphql.field({
+        type: graphql.Float,
+        async resolve(item: any, args: any, context: KeystoneContext) {
+          const reviews = await context.query.Review.findMany({
+            where: {
+              pet_place: {
+                id: {
+                  equals: item.id,
+                },
+              },
+            },
+            query: "rating",
+          });
+
+          if (reviews.length === 0) {
+            return 0;
+          }
+
+          const totalRating = reviews.reduce((sum: number, review: any) => {
+            return sum + (review.rating || 0);
+          }, 0);
+
+          const average = totalRating / reviews.length;
+          // Round to 1 decimal place
+          return Math.round(average * 10) / 10;
+        },
+      }),
+    }),
     pet_place_ads: relationship({
       ref: "Ad.pet_place",
       many: true,

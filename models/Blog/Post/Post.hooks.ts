@@ -1,4 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { sendNewPostEmail } from "../../../utils/helpers/sendgrid";
 
 export const postUrlHook = {
   resolveInput: async ({ resolvedData, item, context }: any) => {
@@ -72,6 +73,95 @@ export const publishedAtHook = {
       resolvedData.publishedAt = new Date().toISOString();
     }
     return resolvedData;
+  },
+};
+
+/**
+ * Hook to send email notification when a new post is created
+ */
+export const newPostEmailHook = {
+  afterOperation: async ({
+    operation,
+    item,
+    context,
+  }: {
+    operation: string;
+    item: any;
+    context: KeystoneContext;
+  }) => {
+    // Only send email when a new post is created and published
+    if (operation === 'create' && item?.published === true) {
+      try {
+        // Get full post data with relationships
+        const post = await context.sudo().query.Post.findOne({
+          where: { id: item.id },
+          query: `
+            id
+            title
+            url
+            excerpt
+            author {
+              name
+              lastName
+            }
+            category {
+              name
+            }
+          `,
+        });
+
+        if (!post) {
+          return;
+        }
+
+        // Get all active blog subscriptions
+        const subscriptions = await context.sudo().query.BlogSubscription.findMany({
+          where: {
+            active: {
+              equals: true,
+            },
+          },
+          query: 'email',
+        });
+
+        if (subscriptions.length === 0) {
+          console.log('No active subscriptions found. Email not sent.');
+          return;
+        }
+
+        const recipientEmails = subscriptions
+          .map((sub: any) => sub.email)
+          .filter((email: string) => email && email.trim() !== '');
+
+        if (recipientEmails.length === 0) {
+          console.log('No valid email addresses found. Email not sent.');
+          return;
+        }
+
+        // Build post URL (adjust this based on your frontend URL structure)
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const postUrl = `${frontendUrl}/blog/${post.url || post.id}`;
+
+        const authorName = post.author
+          ? `${post.author.name} ${post.author.lastName || ''}`.trim()
+          : null;
+
+        // Send email to all subscribers
+        await sendNewPostEmail({
+          postTitle: post.title,
+          postUrl,
+          postExcerpt: post.excerpt,
+          authorName,
+          categoryName: post.category?.name || null,
+          recipientEmails,
+        });
+
+        console.log(`New post email sent to ${recipientEmails.length} subscribers`);
+      } catch (error) {
+        console.error('Error sending new post email:', error);
+        // Don't throw error to prevent post creation from failing
+      }
+    }
   },
 };
 

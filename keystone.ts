@@ -34,6 +34,7 @@ export default withAuth(
     },
     server: {
       cors: true,
+      port: parseInt(process.env.LOCAL_PORT || "3001"),
       maxFileSize: 200 * 1024 * 1024,
     },
     storage: {
