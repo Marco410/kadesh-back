@@ -1293,6 +1293,143 @@ var Ad_default = (0, import_core24.list)({
 var import_core25 = require("@keystone-6/core");
 var import_fields25 = require("@keystone-6/core/fields");
 
+// utils/helpers/sendgrid.ts
+var import_mail = __toESM(require("@sendgrid/mail"));
+if (process.env.SENDGRID_API_KEY) {
+  import_mail.default.setApiKey(process.env.SENDGRID_API_KEY);
+}
+async function sendEmail({
+  to,
+  subject,
+  html,
+  from = process.env.SENDGRID_FROM_EMAIL || "noreply@kadesh.com"
+}) {
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn("SENDGRID_API_KEY is not configured. Email not sent.");
+    return;
+  }
+  try {
+    const msg = {
+      to: Array.isArray(to) ? to : [to],
+      from,
+      subject,
+      html
+    };
+    await import_mail.default.send(msg);
+    console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`);
+  } catch (error) {
+    console.error("Error sending email:", error);
+    if (error.response) {
+      console.error("SendGrid error response:", error.response.body);
+    }
+    throw error;
+  }
+}
+async function sendNewPostEmail({
+  postTitle,
+  postUrl,
+  postExcerpt,
+  authorName,
+  categoryName,
+  recipientEmails
+}) {
+  if (recipientEmails.length === 0) {
+    return;
+  }
+  const subject = `Nuevo post publicado: ${postTitle}`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background-color: #4CAF50;
+          color: white;
+          padding: 20px;
+          text-align: center;
+          border-radius: 5px 5px 0 0;
+        }
+        .content {
+          background-color: #f9f9f9;
+          padding: 20px;
+          border-radius: 0 0 5px 5px;
+        }
+        .post-title {
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 15px;
+          color: #2c3e50;
+        }
+        .post-excerpt {
+          font-size: 16px;
+          color: #666;
+          margin-bottom: 20px;
+          line-height: 1.8;
+        }
+        .post-meta {
+          font-size: 14px;
+          color: #888;
+          margin-bottom: 20px;
+        }
+        .button {
+          display: inline-block;
+          padding: 12px 30px;
+          background-color: #4CAF50;
+          color: white;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: bold;
+          margin-top: 20px;
+        }
+        .button:hover {
+          background-color: #45a049;
+        }
+        .footer {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #ddd;
+          font-size: 12px;
+          color: #999;
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>\xA1Nuevo Post Publicado!</h1>
+      </div>
+      <div class="content">
+        <div class="post-title">${postTitle}</div>
+        ${postExcerpt ? `<div class="post-excerpt">${postExcerpt}</div>` : ""}
+        <div class="post-meta">
+          ${authorName ? `<strong>Autor:</strong> ${authorName}<br>` : ""}
+          ${categoryName ? `<strong>Categor\xEDa:</strong> ${categoryName}` : ""}
+        </div>
+        <a href="${postUrl}" class="button">Leer Post Completo</a>
+      </div>
+      <div class="footer">
+        <p>Gracias por suscribirte a nuestro blog.</p>
+        <p>Si no deseas recibir m\xE1s notificaciones, puedes cancelar tu suscripci\xF3n en cualquier momento.</p>
+      </div>
+    </body>
+    </html>
+  `;
+  await sendEmail({
+    to: recipientEmails,
+    subject,
+    html
+  });
+}
+
 // models/Blog/Post/Post.hooks.ts
 var postUrlHook = {
   resolveInput: async ({ resolvedData, item, context }) => {
@@ -1339,13 +1476,76 @@ var publishedAtHook = {
     return resolvedData;
   }
 };
+var newPostEmailHook = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation === "create" && item?.published === true) {
+      try {
+        const post = await context.sudo().query.Post.findOne({
+          where: { id: item.id },
+          query: `
+            id
+            title
+            url
+            excerpt
+            author {
+              name
+              lastName
+            }
+            category {
+              name
+            }
+          `
+        });
+        if (!post) {
+          return;
+        }
+        const subscriptions = await context.sudo().query.BlogSubscription.findMany({
+          where: {
+            active: {
+              equals: true
+            }
+          },
+          query: "email"
+        });
+        if (subscriptions.length === 0) {
+          console.log("No active subscriptions found. Email not sent.");
+          return;
+        }
+        const recipientEmails = subscriptions.map((sub) => sub.email).filter((email) => email && email.trim() !== "");
+        if (recipientEmails.length === 0) {
+          console.log("No valid email addresses found. Email not sent.");
+          return;
+        }
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        const postUrl = `${frontendUrl}/blog/${post.url || post.id}`;
+        const authorName = post.author ? `${post.author.name} ${post.author.lastName || ""}`.trim() : null;
+        await sendNewPostEmail({
+          postTitle: post.title,
+          postUrl,
+          postExcerpt: post.excerpt,
+          authorName,
+          categoryName: post.category?.name || null,
+          recipientEmails
+        });
+        console.log(`New post email sent to ${recipientEmails.length} subscribers`);
+      } catch (error) {
+        console.error("Error sending new post email:", error);
+      }
+    }
+  }
+};
 
 // models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
 var Post_default = (0, import_core25.list)({
   access: access_default,
   hooks: {
-    resolveInput: publishedAtHook.resolveInput
+    resolveInput: publishedAtHook.resolveInput,
+    afterOperation: newPostEmailHook.afterOperation
   },
   fields: {
     title: (0, import_fields25.text)({ validation: { isRequired: true } }),
@@ -2505,68 +2705,14 @@ var resolver3 = {
 };
 var nearbyAnimals_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
 
-// graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs4 = `
-  type PetPlaceType {
-    id: ID!
-    label: String
-    value: String
-    plural: String
+// utils/helpers/nearby_petplaces.ts
+function convertGoogleTimeToHours(timeString) {
+  if (!timeString || timeString.length !== 4) {
+    return 0;
   }
-
-  type NearbyPetPlace {
-    id: ID!
-    name: String
-    description: String
-    lat: String
-    lng: String
-    distance: Float
-    address: String
-    phone: String
-    website: String
-    street: String
-    municipality: String
-    state: String
-    country: String
-    cp: String
-    views: String
-    types: [PetPlaceType]
-    services: [PetPlaceService]
-    user: User
-    isOpen: Boolean
-    pet_place_social_media: [SocialMedia]
-    pet_place_likes: [PetPlaceLike]
-    pet_place_schedules: [Schedule]
-    pet_place_reviews: [Review]
-    pet_place_ads: [Ad]
-    google_place_id: String
-    google_opening_hours: String
-    createdAt: String
-    reviewsCount: Int
-    averageRating: Float
-  }
-
-  type NearbyPetPlacesResult {
-    success: Boolean!
-    message: String!
-    petPlaces: [NearbyPetPlace!]
-  }
-
-  input NearbyPetPlacesInput {
-    lat: Float!
-    lng: Float!
-    limit: Int = 10
-    radius: Float = 10
-    type: String
-  }
-
-  type Query {
-    getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
-  }
-`;
-var definition4 = `
-  getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
-`;
+  const hours = parseInt(timeString.substring(0, 2), 10);
+  return isNaN(hours) ? 0 : hours;
+}
 function parseAddressComponents(addressComponents) {
   const result = {
     street: "",
@@ -2610,13 +2756,6 @@ function parseAddressComponents(addressComponents) {
     result.street = route;
   }
   return result;
-}
-function convertGoogleTimeToHours(timeString) {
-  if (!timeString || timeString.length !== 4) {
-    return 0;
-  }
-  const hours = parseInt(timeString.substring(0, 2), 10);
-  return isNaN(hours) ? 0 : hours;
 }
 async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   if (!place.name) {
@@ -2802,9 +2941,133 @@ async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
     return [];
   }
 }
+async function getPetPlacesHelper(context, whereClause) {
+  return await context.sudo().query.PetPlace.findMany({
+    where: whereClause,
+    query: `id name description 
+          lat lng 
+          address phone 
+          website street 
+          municipality state 
+          country cp 
+          views 
+          types { id label value plural }
+          services { id name }
+          user { id name }
+          isOpen
+          pet_place_social_media { id }
+          pet_place_likes { id }
+          pet_place_schedules { id }
+          pet_place_ads { id }
+          google_place_id
+          google_opening_hours
+          reviewsCount
+          averageRating
+          createdAt
+        `
+  });
+}
+
+// graphql/customs/queries/nearbyPetPlaces.ts
+var typeDefs4 = `
+  type PetPlaceType {
+    id: ID!
+    label: String
+    value: String
+    plural: String
+  }
+
+  type NearbyPetPlace {
+    id: ID!
+    name: String
+    description: String
+    lat: String
+    lng: String
+    distance: Float
+    address: String
+    phone: String
+    website: String
+    street: String
+    municipality: String
+    state: String
+    country: String
+    cp: String
+    views: String
+    types: [PetPlaceType]
+    services: [PetPlaceService]
+    user: User
+    isOpen: Boolean
+    pet_place_social_media: [SocialMedia]
+    pet_place_likes: [PetPlaceLike]
+    pet_place_schedules: [Schedule]
+    pet_place_reviews: [Review]
+    pet_place_ads: [Ad]
+    google_place_id: String
+    google_opening_hours: String
+    createdAt: String
+    reviewsCount: Int
+    averageRating: Float
+  }
+
+  type NearbyPetPlacesResult {
+    success: Boolean!
+    message: String!
+    petPlaces: [NearbyPetPlace!]
+  }
+
+  input NearbyPetPlacesInput {
+    lat: Float
+    lng: Float
+    limit: Int = 10
+    radius: Float = 10
+    type: String
+  }
+
+  type Query {
+    getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
+  }
+`;
+var definition4 = `
+  getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
+`;
 var resolver4 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
+    if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
+      const whereClause = {};
+      if (type) {
+        const petPlaceType = await context.sudo().query.PetPlaceType.findOne({
+          where: { value: type },
+          query: "id"
+        });
+        if (petPlaceType) {
+          whereClause.types = {
+            some: {
+              id: {
+                equals: petPlaceType.id
+              }
+            }
+          };
+        }
+      }
+      const petPlaces2 = await getPetPlacesHelper(context, whereClause);
+      const sortedPlaces = [...petPlaces2].sort((a, b) => {
+        const ratingA = a.averageRating || 0;
+        const ratingB = b.averageRating || 0;
+        return ratingB - ratingA;
+      });
+      const result2 = sortedPlaces.slice(0, limit).map((place) => ({
+        ...place,
+        pet_place_reviews: place.pet_place_reviews ?? [],
+        distance: null
+        // No distance when lat/lng not provided
+      }));
+      return {
+        success: true,
+        message: result2.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+        petPlaces: result2
+      };
+    }
     if (typeof lat !== "number" || typeof lng !== "number") {
       return {
         success: false,
@@ -2812,29 +3075,7 @@ var resolver4 = {
         petPlaces: []
       };
     }
-    const petPlaces = await context.sudo().query.PetPlace.findMany({
-      query: `id name description 
-        lat lng 
-        address phone 
-        website street 
-        municipality state 
-        country cp 
-        views 
-        types { id label value plural }
-        services { id name }
-        user { id name }
-        isOpen
-        pet_place_social_media { id }
-        pet_place_likes { id }
-        pet_place_schedules { id }
-        pet_place_ads { id }
-        google_place_id
-        google_opening_hours
-        reviewsCount
-        averageRating
-        createdAt
-      `
-    });
+    const petPlaces = await getPetPlacesHelper(context, {});
     const withDistance = petPlaces.map((place) => {
       const placeLat = parseFloat(place.lat);
       const placeLng = parseFloat(place.lng);
@@ -2864,30 +3105,7 @@ var resolver4 = {
         );
         if (createdPlaces.length > 0) {
           const createdPlaceIds = createdPlaces.map((p) => p.id);
-          const fullCreatedPlaces = await context.sudo().query.PetPlace.findMany({
-            where: { id: { in: createdPlaceIds } },
-            query: `id name description 
-              lat lng 
-              address phone 
-              website street 
-              municipality state 
-              country cp 
-              views 
-              types { id label value plural }
-              services { id name }
-              user { id name }
-              isOpen
-              pet_place_social_media { id }
-              pet_place_likes { id }
-              pet_place_schedules { id }
-              pet_place_ads { id }
-              google_place_id
-              google_opening_hours
-              reviewsCount
-              averageRating
-              createdAt
-            `
-          });
+          const fullCreatedPlaces = await getPetPlacesHelper(context, { id: { in: createdPlaceIds } });
           const newWithDistance = fullCreatedPlaces.map((place) => {
             const placeLat = parseFloat(place.lat);
             const placeLng = parseFloat(place.lng);
@@ -2980,6 +3198,7 @@ var keystone_default = withAuth(
     },
     server: {
       cors: true,
+      port: parseInt(process.env.LOCAL_PORT || "3001"),
       maxFileSize: 200 * 1024 * 1024
     },
     storage: {

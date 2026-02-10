@@ -3493,8 +3493,8 @@ type NearbyPetPlacesResult {
 }
 
 input NearbyPetPlacesInput {
-  lat: Float!
-  lng: Float!
+  lat: Float
+  lng: Float
   limit: Int = 10
   radius: Float = 10
   type: String

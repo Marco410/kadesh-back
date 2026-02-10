@@ -6,7 +6,6 @@ import {
   timestamp,
 } from "@keystone-6/core/fields";
 import access from "../../utils/generalAccess/access";
-import { dayOfWeek } from "../../utils/constants/constants";
 
 export default list({
   access,
