@@ -487,6 +487,11 @@ export const ANIMAL_LOGS_OPTIONS = [
     label: "Encontrado",
     value: "found",
   },
+  {
+    label: "En adopción",
+    value: "in_adoption",
+  },
+
 ];
 
 export const PRODUCT_CATEGORIES = [
