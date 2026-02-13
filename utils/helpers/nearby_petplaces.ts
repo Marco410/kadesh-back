@@ -95,20 +95,23 @@ async function createPetPlaceFromGoogleResult(
     const rating = place.rating || 0;
     const userRatingsTotal = place.user_ratings_total || 0;
     const placeId = place.place_id || '';
-    
+
+    // No crear sin google_place_id para evitar duplicados y respetar unique en BD
+    if (!placeId) {
+      return null;
+    }
+
     // Parse address_components if available
     const addressData = place.address_components
       ? parseAddressComponents(place.address_components)
       : { street: '', municipality: '', state: '', country: '', cp: '' };
   
-    // Check if it already exists
+    // Evitar duplicados: si ya existe un PetPlace con este google_place_id, no crear otro
     const existingPlace = await context.sudo().query.PetPlace.findOne({
       where: { google_place_id: placeId },
       query: 'id',
     });
-  
     if (existingPlace) {
-      console.log(`Place with placeId ${placeId} already registered, skipping.`);
       return null;
     }
   

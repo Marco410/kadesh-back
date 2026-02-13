@@ -1,4 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { PET_PLACES_SEED_LOCATION } from "../../../utils/constants/constants";
 import { haversineDistance } from "../../../utils/helpers/calculate_distances";
 import { getPetPlacesHelper, searchPlacesByLocation } from "../../../utils/helpers/nearby_petplaces";
 
@@ -74,29 +75,38 @@ const resolver = {
   ) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
 
-    // If lat and lng are not provided, return all PetPlaces of the specified type ordered by averageRating
+    // Caso A: sin lat/lng — priorizar Google para alimentar BD, luego devolver por rating
     if (lat === undefined || lat === null || lng === undefined || lng === null) {
+      const searchType = type || "veterinary";
+      const seedRadius = 15;
+      const feedLimit = 20;
+      try {
+        await searchPlacesByLocation(
+          PET_PLACES_SEED_LOCATION.lat,
+          PET_PLACES_SEED_LOCATION.lng,
+          searchType,
+          seedRadius,
+          feedLimit,
+          context
+        );
+      } catch (err) {
+        console.error("Error alimentando BD desde Google (Caso A):", err);
+      }
+
       const whereClause: any = {};
-      
-      // Filter by type if provided
       if (type) {
         const petPlaceType = await context.sudo().query.PetPlaceType.findOne({
           where: { value: type },
-          query: 'id',
+          query: "id",
         });
-        
         if (petPlaceType) {
           whereClause.types = {
-            some: {
-              id: {
-                equals: petPlaceType.id,
-              },
-            },
+            some: { id: { equals: petPlaceType.id } },
           };
         }
       }
 
-      const petPlaces = await getPetPlacesHelper( context, whereClause);
+      const petPlaces = await getPetPlacesHelper(context, whereClause);
 
       // Sort by averageRating descending (highest first)
       const sortedPlaces = [...petPlaces].sort((a: any, b: any) => {
@@ -118,7 +128,6 @@ const resolver = {
       };
     }
 
-    // Original logic: search by location when lat and lng are provided
     if (typeof lat !== "number" || typeof lng !== "number") {
       return {
         success: false,
@@ -127,8 +136,15 @@ const resolver = {
       };
     }
 
-    const petPlaces = await getPetPlacesHelper( context, {});
-    
+    // Caso C: priorizar Google para alimentar BD (sin duplicados por google_place_id), luego responder desde BD
+    const searchType = type || "veterinary";
+    try {
+      await searchPlacesByLocation(lat, lng, searchType, radius, limit, context);
+    } catch (err) {
+      console.error("Error alimentando BD desde Google (Caso C):", err);
+    }
+
+    const petPlaces = await getPetPlacesHelper(context, {});
     const withDistance = petPlaces
       .map((place: any) => {
         const placeLat = parseFloat(place.lat);
@@ -140,63 +156,11 @@ const resolver = {
       .filter((place: any) => place && place.distance <= radius);
 
     withDistance.sort((a: any, b: any) => a.distance - b.distance);
-    let result = withDistance.slice(0, limit).map((place: any) => ({
+    const result = withDistance.slice(0, limit).map((place: any) => ({
       ...place,
       pet_place_reviews: place.pet_place_reviews ?? [],
     }));
 
-    // Si hay menos resultados que el límite, buscar más en Google (p. ej. veterinarias)
-    const searchType = type || 'veterinary';
-    if (result.length < limit) {
-      try {
-        const needed = limit - result.length;
-        console.log(
-          result.length === 0
-            ? `No places found in database, searching in Google Places for type: ${searchType}`
-            : `Only ${result.length} places found, searching Google for ${needed} more (type: ${searchType})`
-        );
-
-        const createdPlaces = await searchPlacesByLocation(
-          lat,
-          lng,
-          searchType,
-          radius,
-          needed,
-          context
-        );
-
-        if (createdPlaces.length > 0) {
-          const createdPlaceIds = createdPlaces.map((p: any) => p.id);
-
-          const fullCreatedPlaces =  await getPetPlacesHelper( context, { id: { in: createdPlaceIds } });
-
-
-          const newWithDistance = fullCreatedPlaces
-            .map((place: any) => {
-              const placeLat = parseFloat(place.lat);
-              const placeLng = parseFloat(place.lng);
-              if (isNaN(placeLat) || isNaN(placeLng)) return null;
-              const distance = haversineDistance(lat, lng, placeLat, placeLng);
-              return {
-                ...place,
-                distance,
-                pet_place_reviews: place.pet_place_reviews ?? [],
-              };
-            })
-            .filter((place: any) => place && place.distance <= radius);
-
-          const existingIds = new Set(result.map((p: any) => p.id));
-          const onlyNew = newWithDistance.filter((p: any) => !existingIds.has(p.id));
-          const merged = [...result, ...onlyNew]
-            .sort((a: any, b: any) => a.distance - b.distance)
-            .slice(0, limit);
-          result = merged;
-        }
-      } catch (error) {
-        console.error('Error searching in Google Places:', error);
-      }
-    }
-    
     return {
       success: true,
       message: result.length > 0 ? "PetPlaces found" : "No PetPlaces found",
