@@ -553,6 +553,12 @@ export const TYPES_PET_SHELTER = [
   },
 ];
 
+/** Ubicación semilla para alimentar la BD desde Google cuando no se envían lat/lng (Caso A). Por defecto CDMX. */
+export const PET_PLACES_SEED_LOCATION = {
+  lat: Number(process.env.PET_PLACES_SEED_LAT) || 19.4326,
+  lng: Number(process.env.PET_PLACES_SEED_LNG) || -99.1332,
+};
+
 export const TYPES_AD = [
   {
     label: "Producto",
