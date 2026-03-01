@@ -188,7 +188,7 @@ const resolver = {
           const placeRating = place.rating ?? 0;
           const userRatingsTotal = place.user_ratings_total ?? 0;
 
-          const existing = await context.sudo().query.BusinessLead.findOne({
+          const existing = await context.sudo().query.TechBusinessLead.findOne({
             where: { googlePlaceId: placeId },
             query: "id",
           });
@@ -243,7 +243,7 @@ const resolver = {
           }
 
           try {
-            await context.sudo().query.BusinessLead.createOne({
+            await context.sudo().query.TechBusinessLead.createOne({
               data: leadData as any,
             });
             created++;

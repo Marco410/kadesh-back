@@ -1,4 +1,7 @@
-import { PIPELINE_STATUS, DEFAULT_FOLLOW_UP_DAYS_AFTER_PROPOSAL } from "../crm/constants";
+import {
+  PIPELINE_STATUS,
+  DEFAULT_FOLLOW_UP_DAYS_AFTER_PROPOSAL,
+} from "../crm/constants";
 
 /**
  * Al cambiar estado a "Propuesta Enviada", crear automáticamente una tarea de seguimiento.
@@ -10,33 +13,47 @@ function getNextFollowUpDate(): string {
 }
 
 export const businessLeadHooks = {
-  afterOperation: async ({ operation, item, resolvedData, context, listKey }: any) => {
-    if (listKey !== "BusinessLead" || !item?.id) return;
+  afterOperation: async ({
+    operation,
+    item,
+    resolvedData,
+    context,
+    listKey,
+  }: any) => {
+    if (listKey !== "TechBusinessLead" || !item?.id) return;
 
-    if (operation === "update" && resolvedData?.pipelineStatus === PIPELINE_STATUS.PROPUESTA_ENVIADA) {
-      const lead = await context.query.BusinessLead.findOne({
+    if (
+      operation === "update" &&
+      resolvedData?.pipelineStatus === PIPELINE_STATUS.PROPUESTA_ENVIADA
+    ) {
+      const lead = await context.query.TechBusinessLead.findOne({
         where: { id: item.id },
         query: "id assignedSeller { id }",
       });
-      const assignedSellerId = lead?.assignedSeller?.id ?? resolvedData.assignedSeller?.connect?.[0]?.id;
+      const assignedSellerId =
+        lead?.assignedSeller?.id ??
+        resolvedData.assignedSeller?.connect?.[0]?.id;
 
-      const existingTask = await context.query.FollowUpTask.findFirst({
+      const [existingTask] = await context.query.TechFollowUpTask.findMany({
         where: {
           businessLead: { id: { equals: item.id } },
           status: { equals: "Pendiente" },
         },
+        take: 1,
         query: "id",
       });
       if (existingTask) return;
 
       try {
-        await context.db.FollowUpTask.createOne({
+        await context.db.TechFollowUpTask.createOne({
           data: {
             scheduledDate: getNextFollowUpDate(),
             status: "Pendiente",
             priority: "Alta",
             businessLead: { connect: { id: item.id } },
-            ...(assignedSellerId && { assignedSeller: { connect: { id: assignedSellerId } } }),
+            ...(assignedSellerId && {
+              assignedSeller: { connect: { id: assignedSellerId } },
+            }),
           },
         });
       } catch (e) {

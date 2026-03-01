@@ -64,7 +64,7 @@ const resolver = {
       };
     }
 
-    const existing = await context.sudo().query.BusinessLead.findOne({
+    const existing = await context.sudo().query.TechBusinessLead.findOne({
       where: { googlePlaceId: input.placeId },
       query: "id",
     });
@@ -114,7 +114,7 @@ const resolver = {
     }
 
     try {
-      const lead = await context.sudo().query.BusinessLead.createOne({
+      const lead = await context.sudo().query.TechBusinessLead.createOne({
         data: data as any,
       });
       return {

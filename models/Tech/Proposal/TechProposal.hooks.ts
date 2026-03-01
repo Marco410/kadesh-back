@@ -12,13 +12,13 @@ export const proposalHooks = {
     context,
     listKey,
   }: any) => {
-    if (listKey !== "Proposal" || !item?.id) return;
+    if (listKey !== "TechProposal" || !item?.id) return;
 
     if (
       operation === "update" &&
       resolvedData?.status === PROPOSAL_STATUS.ACEPTADA
     ) {
-      const proposal = await context.query.Proposal.findOne({
+      const proposal = await context.query.TechProposal.findOne({
         where: { id: item.id },
         query: "id status businessLead { id }",
       });
@@ -29,7 +29,7 @@ export const proposalHooks = {
         return;
 
       try {
-        await context.db.BusinessLead.updateOne({
+        await context.db.TechBusinessLead.updateOne({
           where: { id: proposal.businessLead.id },
           data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO },
         });

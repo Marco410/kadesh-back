@@ -26,6 +26,38 @@ const {
   S3_SECRET_ACCESS_KEY: secretAccessKey = "",
 } = process.env;
 
+const hasS3 = !!(region && bucketName);
+
+const storage: Record<string, any> = {
+  my_local_images: {
+    kind: "local",
+    type: "image",
+    generateUrl: (path: string) =>
+      `http://${process.env.DB_HOST}:3000/images${path}`,
+    serverRoute: { path: "/images" },
+    storagePath: "public/images",
+  },
+  ...(hasS3
+    ? {
+        s3_files: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, signed: { expiry: 3600 } },
+        s3_categories: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/", signed: { expiry: 3600 } },
+        s3_posts: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/", signed: { expiry: 3600 } },
+        s3_profile: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/", signed: { expiry: 3600 } },
+        s3_animals: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", signed: { expiry: 3600 } },
+        s3_pets: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", signed: { expiry: 3600 } },
+        s3_ads: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", signed: { expiry: 3600 } },
+      }
+    : {
+        s3_files: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+        s3_categories: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+        s3_posts: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+        s3_profile: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+        s3_animals: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+        s3_pets: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+        s3_ads: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+      }),
+};
+
 export default withAuth(
   config({
     db: {
@@ -34,93 +66,10 @@ export default withAuth(
     },
     server: {
       cors: true,
-      port: parseInt(process.env.LOCAL_PORT || "3001"),
       maxFileSize: 200 * 1024 * 1024,
+      port: 3001,
     },
-    storage: {
-      my_local_images: {
-        kind: "local",
-        type: "image",
-        generateUrl: (path) =>
-          `http://${process.env.DB_HOST}:3000/images${path}`,
-        serverRoute: {
-          path: "/images",
-        },
-        storagePath: "public/images",
-      },
-      s3_files: {
-        kind: "s3", // this storage uses S3
-        type: "image", // only for files
-        bucketName, // from your S3_BUCKET_NAME environment variable
-        region, // from your S3_REGION environment variable
-        accessKeyId, // from your S3_ACCESS_KEY_ID environment variable
-        secretAccessKey, // from your S3_SECRET_ACCESS_KEY environment variable
-        signed: { expiry: 3600 }, // (optional) links will be signed with an expiry of 3600 seconds (an hour)
-      },
-      s3_categories: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix:
-          process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/", // subcarpeta para categorías, usa 'dev/categories' en entorno dev
-        signed: { expiry: 3600 },
-      },
-      s3_posts: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/", // subcarpeta para posts, usa 'dev/posts' en entorno dev
-        signed: { expiry: 3600 },
-      },
-      s3_profile: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix:
-          process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 },
-      },
-      s3_animals: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix:
-          process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 },
-      },
-      s3_pets: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 },
-      },
-      s3_ads: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", // subcarpeta para ads, usa 'dev/ads' en entorno dev
-        signed: { expiry: 3600 },
-      },
-    },
+    storage,
     graphql: {
       extendGraphqlSchema,
     },
