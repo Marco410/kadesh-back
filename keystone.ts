@@ -10,14 +10,14 @@ const dotenv = require("dotenv");
 
 dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
 
-if (
+/* if (
   !process.env.S3_BUCKET_NAME ||
   !process.env.S3_REGION ||
   !process.env.S3_ACCESS_KEY_ID ||
   !process.env.S3_SECRET_ACCESS_KEY
 ) {
   throw new Error("S3 Configs are not set");
-}
+} */
 
 const {
   S3_BUCKET_NAME: bucketName = "",
@@ -65,9 +65,7 @@ export default withAuth(
         accessKeyId,
         secretAccessKey,
         pathPrefix:
-          process.env.ENVIROMENT === "DEV"
-            ? "dev/categories/"
-            : "categories/", // subcarpeta para categorías, usa 'dev/categories' en entorno dev
+          process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/", // subcarpeta para categorías, usa 'dev/categories' en entorno dev
         signed: { expiry: 3600 },
       },
       s3_posts: {
@@ -77,10 +75,7 @@ export default withAuth(
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix:
-          process.env.ENVIROMENT === "DEV"
-            ? "dev/posts/"
-            : "posts/", // subcarpeta para posts, usa 'dev/posts' en entorno dev
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/", // subcarpeta para posts, usa 'dev/posts' en entorno dev
         signed: { expiry: 3600 },
       },
       s3_profile: {
@@ -91,9 +86,7 @@ export default withAuth(
         accessKeyId,
         secretAccessKey,
         pathPrefix:
-          process.env.ENVIROMENT === "DEV"
-            ? "dev/profiles/"
-            : "profiles/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+          process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
         signed: { expiry: 3600 },
       },
       s3_animals: {
@@ -104,22 +97,17 @@ export default withAuth(
         accessKeyId,
         secretAccessKey,
         pathPrefix:
-          process.env.ENVIROMENT === "DEV"
-            ? "dev/animals/"
-            : "animals/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+          process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
         signed: { expiry: 3600 },
       },
-       s3_pets: {
+      s3_pets: {
         kind: "s3",
         type: "image",
         bucketName,
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix:
-          process.env.ENVIROMENT === "DEV"
-            ? "dev/pets/"
-            : "pets/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
         signed: { expiry: 3600 },
       },
       s3_ads: {
@@ -129,17 +117,14 @@ export default withAuth(
         region,
         accessKeyId,
         secretAccessKey,
-        pathPrefix:
-          process.env.ENVIROMENT === "DEV"
-            ? "dev/ads/"
-            : "ads/", // subcarpeta para ads, usa 'dev/ads' en entorno dev
+        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", // subcarpeta para ads, usa 'dev/ads' en entorno dev
         signed: { expiry: 3600 },
       },
     },
-    graphql:{
-      extendGraphqlSchema
+    graphql: {
+      extendGraphqlSchema,
     },
     lists,
     session,
-  })
+  }),
 );
