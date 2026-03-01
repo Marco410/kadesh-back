@@ -1,4 +1,4 @@
-import sgMail from '@sendgrid/mail';
+import sgMail from "@sendgrid/mail";
 
 /**
  * Initialize SendGrid with API key from environment variables
@@ -14,7 +14,7 @@ export async function sendEmail({
   to,
   subject,
   html,
-  from = process.env.SENDGRID_FROM_EMAIL || 'noreply@kadesh.com',
+  from = process.env.SENDGRID_FROM_EMAIL || "noreply@kadesh.com",
 }: {
   to: string | string[];
   subject: string;
@@ -22,7 +22,7 @@ export async function sendEmail({
   from?: string;
 }): Promise<void> {
   if (!process.env.SENDGRID_API_KEY) {
-    console.warn('SENDGRID_API_KEY is not configured. Email not sent.');
+    console.warn("SENDGRID_API_KEY is not configured. Email not sent.");
     return;
   }
 
@@ -35,11 +35,13 @@ export async function sendEmail({
     };
 
     await sgMail.send(msg);
-    console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(', ') : to}`);
+    console.log(
+      `Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`,
+    );
   } catch (error: any) {
-    console.error('Error sending email:', error);
+    console.error("Error sending email:", error);
     if (error.response) {
-      console.error('SendGrid error response:', error.response.body);
+      console.error("SendGrid error response:", error.response.body);
     }
     throw error;
   }
@@ -68,7 +70,7 @@ export async function sendNewPostEmail({
   }
 
   const subject = `Nuevo post publicado: ${postTitle}`;
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -149,10 +151,10 @@ export async function sendNewPostEmail({
       </div>
       <div class="content">
         <div class="post-title">${postTitle}</div>
-        ${postExcerpt ? `<div class="post-excerpt">${postExcerpt}</div>` : ''}
+        ${postExcerpt ? `<div class="post-excerpt">${postExcerpt}</div>` : ""}
         <div class="post-meta">
-          ${authorName ? `<strong>Autor:</strong> ${authorName}<br>` : ''}
-          ${categoryName ? `<strong>Categoría:</strong> ${categoryName}` : ''}
+          ${authorName ? `<strong>Autor:</strong> ${authorName}<br>` : ""}
+          ${categoryName ? `<strong>Categoría:</strong> ${categoryName}` : ""}
         </div>
         <a href="${postUrl}" class="button">Leer Post Completo</a>
       </div>
@@ -164,9 +166,11 @@ export async function sendNewPostEmail({
     </html>
   `;
 
-  await sendEmail({
-    to: recipientEmails,
-    subject,
-    html,
-  });
+  for (const email of recipientEmails) {
+    await sendEmail({
+      to: email,
+      subject,
+      html,
+    });
+  }
 }
