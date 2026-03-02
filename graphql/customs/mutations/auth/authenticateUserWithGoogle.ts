@@ -67,8 +67,6 @@ const resolver = {
       query: USER_QUERY,
     });
 
-    console.log("user");
-    console.log(user);
 
     if (!user) {
       try {
@@ -77,8 +75,6 @@ const resolver = {
           take: 1,
           query: "id",
         });
-        console.log("userRole");
-        console.log(userRole);
         const username = await checkUserName(
           payload.name?.trim() || payload.email.split("@")[0],
           "",
@@ -96,11 +92,7 @@ const resolver = {
           query: USER_QUERY,
         });
 
-        console.log("user created");
-        console.log(user);
       } catch (err) {
-        console.log("error creating user");
-        console.log(err);
         return {
           __typename: "UserAuthenticationWithGoogleFailure",
           message:
