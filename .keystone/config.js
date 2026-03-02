@@ -2083,35 +2083,18 @@ var ContactForm_default = (0, import_core35.list)({
 var import_core36 = require("@keystone-6/core");
 var import_fields36 = require("@keystone-6/core/fields");
 
-// auth/permissions.ts
-var hasRole = (session2, allowedRoles) => !!session2 && [...allowedRoles, "admin" /* ADMIN */].includes(session2.data.role || "");
-
 // models/Tech/BusinessLead/TechBusinessLead.access.ts
 var businessLeadAccess = {
   operation: {
-    query: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    create: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    update: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return { assignedSeller: { id: { equals: session2.data.id } } };
-      }
-      return false;
-    },
-    update: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return { assignedSeller: { id: { equals: session2.data.id } } };
-      }
-      return false;
-    },
-    delete: ({ session: session2 }) => session2?.data?.role === "admin" /* ADMIN */
+    query: () => true,
+    update: () => true,
+    delete: () => true
   }
 };
 
@@ -2172,30 +2155,39 @@ function getNextFollowUpDate() {
   return d.toISOString().slice(0, 10);
 }
 var businessLeadHooks = {
-  afterOperation: async ({ operation, item, resolvedData, context, listKey }) => {
-    if (listKey !== "BusinessLead" || !item?.id) return;
+  afterOperation: async ({
+    operation,
+    item,
+    resolvedData,
+    context,
+    listKey
+  }) => {
+    if (listKey !== "TechBusinessLead" || !item?.id) return;
     if (operation === "update" && resolvedData?.pipelineStatus === PIPELINE_STATUS.PROPUESTA_ENVIADA) {
-      const lead = await context.query.BusinessLead.findOne({
+      const lead = await context.query.TechBusinessLead.findOne({
         where: { id: item.id },
         query: "id assignedSeller { id }"
       });
       const assignedSellerId = lead?.assignedSeller?.id ?? resolvedData.assignedSeller?.connect?.[0]?.id;
-      const existingTask = await context.query.FollowUpTask.findFirst({
+      const [existingTask] = await context.query.TechFollowUpTask.findMany({
         where: {
           businessLead: { id: { equals: item.id } },
           status: { equals: "Pendiente" }
         },
+        take: 1,
         query: "id"
       });
       if (existingTask) return;
       try {
-        await context.db.FollowUpTask.createOne({
+        await context.db.TechFollowUpTask.createOne({
           data: {
             scheduledDate: getNextFollowUpDate(),
             status: "Pendiente",
             priority: "Alta",
             businessLead: { connect: { id: item.id } },
-            ...assignedSellerId && { assignedSeller: { connect: { id: assignedSellerId } } }
+            ...assignedSellerId && {
+              assignedSeller: { connect: { id: assignedSellerId } }
+            }
           }
         });
       } catch (e) {
@@ -2367,42 +2359,15 @@ var import_fields37 = require("@keystone-6/core/fields");
 // models/Tech/FollowUpTask/TechFollowUpTask.access.ts
 var followUpTaskAccess = {
   operation: {
-    query: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    create: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    update: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    delete: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */])
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return {
-          businessLead: { assignedSeller: { id: { equals: session2.data.id } } }
-        };
-      }
-      return false;
-    },
-    update: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return {
-          businessLead: { assignedSeller: { id: { equals: session2.data.id } } }
-        };
-      }
-      return false;
-    },
-    delete: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return {
-          businessLead: { assignedSeller: { id: { equals: session2.data.id } } }
-        };
-      }
-      return false;
-    }
+    query: () => true,
+    update: () => true,
+    delete: () => true
   }
 };
 
@@ -2478,33 +2443,15 @@ var import_fields38 = require("@keystone-6/core/fields");
 // models/Tech/Proposal/TechProposal.access.ts
 var proposalAccess = {
   operation: {
-    query: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    create: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    update: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return {
-          businessLead: { assignedSeller: { id: { equals: session2.data.id } } }
-        };
-      }
-      return false;
-    },
-    update: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return {
-          businessLead: { assignedSeller: { id: { equals: session2.data.id } } }
-        };
-      }
-      return false;
-    },
-    delete: ({ session: session2 }) => session2?.data?.role === "admin" /* ADMIN */
+    query: () => true,
+    update: () => true,
+    delete: () => true
   }
 };
 
@@ -2517,16 +2464,16 @@ var proposalHooks = {
     context,
     listKey
   }) => {
-    if (listKey !== "Proposal" || !item?.id) return;
+    if (listKey !== "TechProposal" || !item?.id) return;
     if (operation === "update" && resolvedData?.status === PROPOSAL_STATUS.ACEPTADA) {
-      const proposal = await context.query.Proposal.findOne({
+      const proposal = await context.query.TechProposal.findOne({
         where: { id: item.id },
         query: "id status businessLead { id }"
       });
       if (!proposal?.businessLead?.id || proposal.status !== PROPOSAL_STATUS.ACEPTADA)
         return;
       try {
-        await context.db.BusinessLead.updateOne({
+        await context.db.TechBusinessLead.updateOne({
           where: { id: proposal.businessLead.id },
           data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO }
         });
@@ -2593,42 +2540,15 @@ var import_fields39 = require("@keystone-6/core/fields");
 // models/Tech/SalesActivity/TechSalesActivity.access.ts
 var salesActivityAccess = {
   operation: {
-    query: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    create: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    update: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */]),
-    delete: ({ session: session2 }) => hasRole(session2, ["vendedor" /* VENDEDOR */])
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return {
-          businessLead: { assignedSeller: { id: { equals: session2.data.id } } }
-        };
-      }
-      return false;
-    },
-    update: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return {
-          businessLead: { assignedSeller: { id: { equals: session2.data.id } } }
-        };
-      }
-      return false;
-    },
-    delete: ({ session: session2 }) => {
-      if (!session2?.data?.id) return false;
-      if (session2.data.role === "admin" /* ADMIN */) return true;
-      if (session2.data.role === "vendedor" /* VENDEDOR */) {
-        return {
-          businessLead: { assignedSeller: { id: { equals: session2.data.id } } }
-        };
-      }
-      return false;
-    }
+    query: () => true,
+    update: () => true,
+    delete: () => true
   }
 };
 
@@ -2826,8 +2746,128 @@ var resolver = {
 };
 var customAuth_default = { typeDefs, definition, resolver };
 
-// graphql/customs/mutations/importBusinessLeadFromGoogle.ts
+// graphql/customs/mutations/auth/authenticateUserWithGoogle.ts
+var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
+var import_crypto3 = require("crypto");
 var typeDefs2 = `
+  type UserAuthenticationWithGoogleSuccess {
+    sessionToken: String!
+    item: User!
+  }
+
+  type UserAuthenticationWithGoogleFailure {
+    message: String!
+  }
+
+  union AuthenticateUserWithGoogleResult =
+    UserAuthenticationWithGoogleSuccess
+    | UserAuthenticationWithGoogleFailure
+`;
+var definition2 = `
+  authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
+`;
+async function verifyGoogleIdToken(idToken) {
+  try {
+    const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error || !data.email) return null;
+    return {
+      email: data.email,
+      name: data.name ?? void 0,
+      picture: data.picture ?? void 0,
+      sub: data.sub
+    };
+  } catch {
+    return null;
+  }
+}
+var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified";
+var resolver2 = {
+  authenticateUserWithGoogle: async (_root, { idToken }, context) => {
+    const payload = await verifyGoogleIdToken(idToken);
+    if (!payload) {
+      return {
+        __typename: "UserAuthenticationWithGoogleFailure",
+        message: "Token de Google inv\xE1lido o expirado"
+      };
+    }
+    let user = await context.sudo().query.User.findOne({
+      where: { email: payload.email },
+      query: USER_QUERY
+    });
+    console.log("user");
+    console.log(user);
+    if (!user) {
+      try {
+        const [userRole] = await context.sudo().query.Role.findMany({
+          where: { name: { equals: "user" /* USER */ } },
+          take: 1,
+          query: "id"
+        });
+        console.log("userRole");
+        console.log(userRole);
+        const username = await checkUserName(
+          payload.name?.trim() || payload.email.split("@")[0],
+          "",
+          context
+        );
+        user = await context.sudo().query.User.createOne({
+          data: {
+            email: payload.email,
+            name: payload.name?.trim() || payload.email.split("@")[0],
+            lastName: "",
+            username,
+            verified: true,
+            roles: userRole ? { connect: [{ id: userRole.id }] } : void 0
+          },
+          query: USER_QUERY
+        });
+        console.log("user created");
+        console.log(user);
+      } catch (err) {
+        console.log("error creating user");
+        console.log(err);
+        return {
+          __typename: "UserAuthenticationWithGoogleFailure",
+          message: err instanceof Error ? err.message : "Error al crear usuario"
+        };
+      }
+    }
+    let sessionSecret2 = process.env.SESSION_SECRET;
+    if (!sessionSecret2 && process.env.NODE_ENV !== "production") {
+      sessionSecret2 = (0, import_crypto3.randomBytes)(32).toString("hex");
+    }
+    const sessionToken = import_jsonwebtoken2.default.sign(
+      {
+        data: {
+          id: user.id,
+          email: user.email
+        }
+      },
+      sessionSecret2
+    );
+    const sessionStrategy = context.sessionStrategy;
+    if (sessionStrategy?.start && context.res) {
+      try {
+        await sessionStrategy.start({
+          context,
+          data: { listKey: "User", itemId: user.id }
+        });
+      } catch (_) {
+      }
+    }
+    return {
+      __typename: "UserAuthenticationWithGoogleSuccess",
+      sessionToken,
+      item: user
+    };
+  }
+};
+var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
+
+// graphql/customs/mutations/importBusinessLeadFromGoogle.ts
+var typeDefs3 = `
   input ImportBusinessLeadFromGoogleInput {
     placeId: String!
     category: String
@@ -2844,7 +2884,7 @@ var typeDefs2 = `
     importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
   }
 `;
-var definition2 = `
+var definition3 = `
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
 `;
 async function getPlaceDetails(placeId, apiKey) {
@@ -2864,7 +2904,7 @@ function parseAddressComponents(components) {
   }
   return { city, state };
 }
-var resolver2 = {
+var resolver3 = {
   importBusinessLeadFromGoogle: async (_root, {
     input
   }, context) => {
@@ -2876,7 +2916,7 @@ var resolver2 = {
         businessLeadId: null
       };
     }
-    const existing = await context.sudo().query.BusinessLead.findOne({
+    const existing = await context.sudo().query.TechBusinessLead.findOne({
       where: { googlePlaceId: input.placeId },
       query: "id"
     });
@@ -2920,7 +2960,7 @@ var resolver2 = {
       data.assignedSeller = { connect: { id: input.assignedSellerId } };
     }
     try {
-      const lead = await context.sudo().query.BusinessLead.createOne({
+      const lead = await context.sudo().query.TechBusinessLead.createOne({
         data
       });
       return {
@@ -2937,10 +2977,10 @@ var resolver2 = {
     }
   }
 };
-var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
+var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
 
 // graphql/customs/mutations/importPetPlace.ts
-var typeDefs3 = `
+var typeDefs4 = `
   input ImportPetPlaceInput {
     inputValue: String!
     type: String!
@@ -2956,10 +2996,10 @@ var typeDefs3 = `
     executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
   }
 `;
-var definition3 = `
+var definition4 = `
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
 `;
-var resolver3 = {
+var resolver4 = {
   executeImportPetPlace: async (root, { input }, context) => {
     try {
       console.log("Ejecutando importaci\xF3n de lugares con datos:", input.inputValue, "tipo:", input.type);
@@ -3165,16 +3205,16 @@ ${errors.join("\n")}`;
   }
 }
 var importPetPlace_default = {
-  typeDefs: typeDefs3,
-  definition: definition3,
-  resolver: resolver3
+  typeDefs: typeDefs4,
+  definition: definition4,
+  resolver: resolver4
 };
 
 // graphql/customs/mutations/syncBusinessLeadsFromGoogle.ts
 var MIN_RATING = 4;
 var MIN_REVIEWS = 20;
 var DEFAULT_MAX_RESULTS = 60;
-var typeDefs4 = `
+var typeDefs5 = `
   input SyncBusinessLeadsFromGoogleInput {
     lat: Float!
     lng: Float!
@@ -3196,7 +3236,7 @@ var typeDefs4 = `
     syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   }
 `;
-var definition4 = `
+var definition5 = `
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
 `;
 var PROMPT_PREFIX = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
@@ -3250,7 +3290,7 @@ function parseAddressComponents2(components) {
   }
   return { city, state };
 }
-var resolver4 = {
+var resolver5 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
@@ -3302,7 +3342,7 @@ var resolver4 = {
           const placeId = place.place_id;
           const placeRating = place.rating ?? 0;
           const userRatingsTotal = place.user_ratings_total ?? 0;
-          const existing = await context.sudo().query.BusinessLead.findOne({
+          const existing = await context.sudo().query.TechBusinessLead.findOne({
             where: { googlePlaceId: placeId },
             query: "id"
           });
@@ -3349,7 +3389,7 @@ var resolver4 = {
             leadData.assignedSeller = { connect: { id: assignedSellerId } };
           }
           try {
-            await context.sudo().query.BusinessLead.createOne({
+            await context.sudo().query.TechBusinessLead.createOne({
               data: leadData
             });
             created++;
@@ -3376,27 +3416,35 @@ var resolver4 = {
     }
   }
 };
-var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
+var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs5, definition: definition5, resolver: resolver5 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
     ${customAuth_default.typeDefs}
+    ${authenticateUserWithGoogle_default.typeDefs}
     ${importPetPlace_default.typeDefs}
     ${importBusinessLeadFromGoogle_default.typeDefs}
     ${syncBusinessLeadsFromGoogle_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
+    ${authenticateUserWithGoogle_default.definition}
     ${importPetPlace_default.definition}
     ${importBusinessLeadFromGoogle_default.definition}
     ${syncBusinessLeadsFromGoogle_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
+    ...authenticateUserWithGoogle_default.resolver,
     ...importPetPlace_default.resolver,
     ...importBusinessLeadFromGoogle_default.resolver,
     ...syncBusinessLeadsFromGoogle_default.resolver
+  },
+  extraResolvers: {
+    AuthenticateUserWithGoogleResult: {
+      __resolveType: (obj) => obj.__typename ?? null
+    }
   }
 };
 var mutations_default = customMutation;
@@ -3413,7 +3461,7 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 }
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs5 = `
+var typeDefs6 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -3470,7 +3518,7 @@ var typeDefs5 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition5 = `
+var definition6 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -3520,7 +3568,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver5 = {
+var resolver6 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -3674,7 +3722,7 @@ var resolver5 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs5, definition: definition5, resolver: resolver5 };
+var nearbyAnimals_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -3942,7 +3990,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs6 = `
+var typeDefs7 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -4000,10 +4048,10 @@ var typeDefs6 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition6 = `
+var definition7 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver6 = {
+var resolver7 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -4085,7 +4133,7 @@ var resolver6 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -4124,7 +4172,8 @@ function extendGraphqlSchema(baseSchema) {
       },
       Query: {
         ...queries_default.resolvers
-      }
+      },
+      ...mutations_default.extraResolvers ?? {}
     }
   });
 }
@@ -4139,6 +4188,33 @@ var {
   S3_ACCESS_KEY_ID: accessKeyId = "",
   S3_SECRET_ACCESS_KEY: secretAccessKey = ""
 } = process.env;
+var hasS3 = !!(region && bucketName);
+var storage = {
+  my_local_images: {
+    kind: "local",
+    type: "image",
+    generateUrl: (path3) => `http://${process.env.DB_HOST}:3000/images${path3}`,
+    serverRoute: { path: "/images" },
+    storagePath: "public/images"
+  },
+  ...hasS3 ? {
+    s3_files: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, signed: { expiry: 3600 } },
+    s3_categories: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/", signed: { expiry: 3600 } },
+    s3_posts: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/", signed: { expiry: 3600 } },
+    s3_profile: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/", signed: { expiry: 3600 } },
+    s3_animals: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", signed: { expiry: 3600 } },
+    s3_pets: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", signed: { expiry: 3600 } },
+    s3_ads: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", signed: { expiry: 3600 } }
+  } : {
+    s3_files: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_categories: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_posts: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_profile: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_animals: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_pets: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_ads: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" }
+  }
+};
 var keystone_default = withAuth(
   (0, import_core40.config)({
     db: {
@@ -4147,102 +4223,10 @@ var keystone_default = withAuth(
     },
     server: {
       cors: true,
-      port: parseInt(process.env.LOCAL_PORT || "3001"),
-      maxFileSize: 200 * 1024 * 1024
+      maxFileSize: 200 * 1024 * 1024,
+      port: 3001
     },
-    storage: {
-      my_local_images: {
-        kind: "local",
-        type: "image",
-        generateUrl: (path3) => `http://${process.env.DB_HOST}:3000/images${path3}`,
-        serverRoute: {
-          path: "/images"
-        },
-        storagePath: "public/images"
-      },
-      s3_files: {
-        kind: "s3",
-        // this storage uses S3
-        type: "image",
-        // only for files
-        bucketName,
-        // from your S3_BUCKET_NAME environment variable
-        region,
-        // from your S3_REGION environment variable
-        accessKeyId,
-        // from your S3_ACCESS_KEY_ID environment variable
-        secretAccessKey,
-        // from your S3_SECRET_ACCESS_KEY environment variable
-        signed: { expiry: 3600 }
-        // (optional) links will be signed with an expiry of 3600 seconds (an hour)
-      },
-      s3_categories: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/",
-        // subcarpeta para categorías, usa 'dev/categories' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_posts: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/",
-        // subcarpeta para posts, usa 'dev/posts' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_profile: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/",
-        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_animals: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/",
-        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_pets: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/",
-        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_ads: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/",
-        // subcarpeta para ads, usa 'dev/ads' en entorno dev
-        signed: { expiry: 3600 }
-      }
-    },
+    storage,
     graphql: {
       extendGraphqlSchema
     },

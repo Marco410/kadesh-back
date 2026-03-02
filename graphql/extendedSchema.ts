@@ -23,6 +23,7 @@ export default function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       Query: {
         ...customQuery.resolvers,
       },
+      ...(customMutation.extraResolvers ?? {}),
     },
   });
 }

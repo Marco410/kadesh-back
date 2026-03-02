@@ -3664,6 +3664,7 @@ type Mutation {
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
+  authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -3948,6 +3949,17 @@ type customAuthType {
   success: Boolean
   data: JSON
 }
+
+type UserAuthenticationWithGoogleSuccess {
+  sessionToken: String!
+  item: User!
+}
+
+type UserAuthenticationWithGoogleFailure {
+  message: String!
+}
+
+union AuthenticateUserWithGoogleResult = UserAuthenticationWithGoogleSuccess | UserAuthenticationWithGoogleFailure
 
 input ImportPetPlaceInput {
   inputValue: String!
