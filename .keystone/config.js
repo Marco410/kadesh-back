@@ -390,7 +390,8 @@ function genUniqueLink(link) {
 var ROLES = [
   { label: "Admin", value: "admin" /* ADMIN */ },
   { label: "User", value: "user" /* USER */ },
-  { label: "Author", value: "author" /* AUTHOR */ }
+  { label: "Author", value: "author" /* AUTHOR */ },
+  { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
 ];
 
 // models/User/User.hooks.ts
@@ -557,6 +558,21 @@ var User_default = (0, import_core7.list)({
     blog_subscriptions: (0, import_fields7.relationship)({
       ref: "BlogSubscription.user",
       many: true
+    }),
+    businessLeadsAssigned: (0, import_fields7.relationship)({
+      ref: "TechBusinessLead.assignedSeller",
+      many: true,
+      ui: { description: "Leads asignados (CRM)" }
+    }),
+    salesActivities: (0, import_fields7.relationship)({
+      ref: "TechSalesActivity.assignedSeller",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    followUpTasks: (0, import_fields7.relationship)({
+      ref: "TechFollowUpTask.assignedSeller",
+      many: true,
+      ui: { hideCreate: true }
     }),
     profileImage: (0, import_fields7.image)({ storage: "s3_profile" }),
     birthday: (0, import_fields7.calendarDay)(),
@@ -1324,7 +1340,9 @@ async function sendEmail({
       html
     };
     await import_mail.default.send(msg);
-    console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`);
+    console.log(
+      `Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`
+    );
   } catch (error) {
     console.error("Error sending email:", error);
     if (error.response) {
@@ -1350,63 +1368,71 @@ async function sendNewPostEmail({
     <html>
     <head>
       <meta charset="utf-8">
+      <meta name="color-scheme" content="dark">
       <style>
         body {
           font-family: Arial, sans-serif;
           line-height: 1.6;
-          color: #333;
+          color: #BBBBBB;
+          background-color: #1A1A1A;
           max-width: 600px;
           margin: 0 auto;
           padding: 20px;
         }
         .header {
-          background-color: #4CAF50;
-          color: white;
+          background-color: #FF8C42;
+          color: #FFFFFF;
           padding: 20px;
           text-align: center;
           border-radius: 5px 5px 0 0;
         }
+        .header h1 {
+          margin: 0;
+          font-size: 22px;
+        }
         .content {
-          background-color: #f9f9f9;
+          background-color: #2C2C2C;
           padding: 20px;
           border-radius: 0 0 5px 5px;
+          border: 1px solid #404040;
+          border-top: none;
         }
         .post-title {
           font-size: 24px;
           font-weight: bold;
           margin-bottom: 15px;
-          color: #2c3e50;
+          color: #FFFFFF;
         }
         .post-excerpt {
           font-size: 16px;
-          color: #666;
+          color: #BBBBBB;
           margin-bottom: 20px;
           line-height: 1.8;
         }
         .post-meta {
           font-size: 14px;
-          color: #888;
+          color: #87CEEB;
           margin-bottom: 20px;
         }
         .button {
           display: inline-block;
           padding: 12px 30px;
-          background-color: #4CAF50;
-          color: white;
+          background-color: #FF8C42;
+          color: #FFFFFF;
           text-decoration: none;
           border-radius: 5px;
           font-weight: bold;
           margin-top: 20px;
         }
         .button:hover {
-          background-color: #45a049;
+          background-color: #E67A35;
         }
         .footer {
           margin-top: 30px;
           padding-top: 20px;
-          border-top: 1px solid #ddd;
+          border-top: 1px solid #404040;
           font-size: 12px;
-          color: #999;
+          color: #BBBBBB;
           text-align: center;
         }
       </style>
@@ -1431,11 +1457,13 @@ async function sendNewPostEmail({
     </body>
     </html>
   `;
-  await sendEmail({
-    to: recipientEmails,
-    subject,
-    html
-  });
+  for (const email of recipientEmails) {
+    await sendEmail({
+      to: email,
+      subject,
+      html
+    });
+  }
 }
 
 // models/Blog/Post/Post.hooks.ts
@@ -1790,9 +1818,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text26) {
+function sanitizeUrl2(text30) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text26.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text30.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -2051,6 +2079,530 @@ var ContactForm_default = (0, import_core35.list)({
   }
 });
 
+// models/Tech/BusinessLead/TechBusinessLead.ts
+var import_core36 = require("@keystone-6/core");
+var import_fields36 = require("@keystone-6/core/fields");
+
+// models/Tech/BusinessLead/TechBusinessLead.access.ts
+var businessLeadAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Tech/crm/constants.ts
+var PIPELINE_STATUS = {
+  DETECTADO: "01 - Detectado",
+  SELECCIONADO: "02 - Seleccionado",
+  CONTACTADO: "03 - Contactado",
+  SIN_RESPUESTA: "04 - Sin Respuesta",
+  INTERESADO: "05 - Interesado",
+  CREANDO_PROYECTO_PROPUESTA: "06 - Creando proyecto propuesta",
+  PROPUESTA_ENVIADA: "07 - Propuesta Enviada",
+  SEGUIMIENTO: "08 - Seguimiento",
+  EN_NEGOCIACION: "09 - En Negociaci\xF3n",
+  PROPUESTA_ACEPTADA: "10 - Propuesta Aceptada",
+  PROPUESTA_RECHAZADA: "11 - Propuesta Rechazada",
+  CERRADO_GANADO: "12 - Cerrado Ganado",
+  CERRADO_PERDIDO: "13 - Cerrado Perdido",
+  DESCARTADO: "14 - Descartado"
+};
+var OPPORTUNITY_LEVEL = {
+  ALTA: "Alta",
+  MEDIA: "Media",
+  BAJA: "Baja"
+};
+var SALES_ACTIVITY_TYPE = {
+  LLAMADA: "Llamada",
+  WHATSAPP: "WhatsApp",
+  EMAIL: "Email",
+  REUNION: "Reuni\xF3n"
+};
+var PROPOSAL_STATUS = {
+  ENVIADA: "Enviada",
+  ACEPTADA: "Aceptada",
+  RECHAZADA: "Rechazada"
+};
+var FOLLOW_UP_TASK_STATUS = {
+  PENDIENTE: "Pendiente",
+  COMPLETADO: "Completado"
+};
+var TASK_PRIORITY = {
+  ALTA: "Alta",
+  MEDIA: "Media",
+  BAJA: "Baja"
+};
+var LEAD_SOURCE = {
+  GOOGLE_MAPS: "Google Maps",
+  REFERIDO: "Referido",
+  WEB: "Web",
+  OTRO: "Otro"
+};
+var DEFAULT_FOLLOW_UP_DAYS_AFTER_PROPOSAL = 3;
+
+// models/Tech/BusinessLead/TechBusinessLead.hooks.ts
+function getNextFollowUpDate() {
+  const d = /* @__PURE__ */ new Date();
+  d.setDate(d.getDate() + DEFAULT_FOLLOW_UP_DAYS_AFTER_PROPOSAL);
+  return d.toISOString().slice(0, 10);
+}
+var businessLeadHooks = {
+  afterOperation: async ({
+    operation,
+    item,
+    resolvedData,
+    context,
+    listKey
+  }) => {
+    if (listKey !== "TechBusinessLead" || !item?.id) return;
+    if (operation === "update" && resolvedData?.pipelineStatus === PIPELINE_STATUS.PROPUESTA_ENVIADA) {
+      const lead = await context.query.TechBusinessLead.findOne({
+        where: { id: item.id },
+        query: "id assignedSeller { id }"
+      });
+      const assignedSellerId = lead?.assignedSeller?.id ?? resolvedData.assignedSeller?.connect?.[0]?.id;
+      const [existingTask] = await context.query.TechFollowUpTask.findMany({
+        where: {
+          businessLead: { id: { equals: item.id } },
+          status: { equals: "Pendiente" }
+        },
+        take: 1,
+        query: "id"
+      });
+      if (existingTask) return;
+      try {
+        await context.db.TechFollowUpTask.createOne({
+          data: {
+            scheduledDate: getNextFollowUpDate(),
+            status: "Pendiente",
+            priority: "Alta",
+            businessLead: { connect: { id: item.id } },
+            ...assignedSellerId && {
+              assignedSeller: { connect: { id: assignedSellerId } }
+            }
+          }
+        });
+      } catch (e) {
+        console.error("Error creating follow-up task for BusinessLead:", e);
+      }
+    }
+  }
+};
+
+// models/Tech/BusinessLead/TechBusinessLead.ts
+var pipelineOptions = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var TechBusinessLead_default = (0, import_core36.list)({
+  access: businessLeadAccess,
+  hooks: businessLeadHooks,
+  ui: {
+    listView: {
+      initialColumns: [
+        "businessName",
+        "category",
+        "pipelineStatus",
+        "opportunityLevel",
+        "assignedSeller",
+        "estimatedValue"
+      ]
+    }
+  },
+  fields: {
+    businessName: (0, import_fields36.text)({
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    category: (0, import_fields36.text)({ isIndexed: true }),
+    phone: (0, import_fields36.text)(),
+    address: (0, import_fields36.text)(),
+    city: (0, import_fields36.text)({ isIndexed: true }),
+    state: (0, import_fields36.text)({ isIndexed: true }),
+    rating: (0, import_fields36.float)(),
+    reviewCount: (0, import_fields36.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
+    hasWebsite: (0, import_fields36.checkbox)({
+      defaultValue: false,
+      ui: { description: "Tiene sitio web" }
+    }),
+    source: (0, import_fields36.select)({
+      type: "string",
+      options: sourceOptions,
+      defaultValue: "Google Maps",
+      ui: { description: "Fuente del lead" }
+    }),
+    opportunityLevel: (0, import_fields36.select)({
+      type: "string",
+      options: opportunityOptions,
+      defaultValue: "Media",
+      isIndexed: true,
+      ui: { description: "Nivel de oportunidad" }
+    }),
+    pipelineStatus: (0, import_fields36.select)({
+      type: "string",
+      options: pipelineOptions,
+      defaultValue: PIPELINE_STATUS.DETECTADO,
+      isIndexed: true,
+      ui: { description: "Estado en el pipeline" }
+    }),
+    estimatedValue: (0, import_fields36.float)({
+      ui: { description: "Valor estimado del proyecto" }
+    }),
+    productOffered: (0, import_fields36.text)({
+      ui: { description: "Producto ofrecido (web, e-commerce, etc.)" }
+    }),
+    assignedSeller: (0, import_fields36.relationship)({
+      ref: "User.businessLeadsAssigned",
+      ui: { description: "Vendedor asignado" }
+    }),
+    firstContactDate: (0, import_fields36.calendarDay)({
+      ui: { description: "Fecha primer contacto" }
+    }),
+    nextFollowUpDate: (0, import_fields36.calendarDay)({
+      ui: { description: "Pr\xF3xima fecha de seguimiento" }
+    }),
+    notes: (0, import_fields36.text)({
+      ui: { displayMode: "textarea", description: "Notas generales" }
+    }),
+    instagram: (0, import_fields36.text)({ ui: { description: "Usuario o URL de Instagram" } }),
+    facebook: (0, import_fields36.text)({ ui: { description: "URL de Facebook" } }),
+    xTwitter: (0, import_fields36.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
+    tiktok: (0, import_fields36.text)({ ui: { description: "Usuario o URL de TikTok" } }),
+    // Reseñas de Google (máx. 5 positivas) para uso en prompt de IA
+    topReview1: (0, import_fields36.text)({
+      ui: { displayMode: "textarea", description: "Mejor rese\xF1a 1 (Google)" }
+    }),
+    topReview2: (0, import_fields36.text)({
+      ui: { displayMode: "textarea", description: "Mejor rese\xF1a 2 (Google)" }
+    }),
+    topReview3: (0, import_fields36.text)({
+      ui: { displayMode: "textarea", description: "Mejor rese\xF1a 3 (Google)" }
+    }),
+    topReview4: (0, import_fields36.text)({
+      ui: { displayMode: "textarea", description: "Mejor rese\xF1a 4 (Google)" }
+    }),
+    topReview5: (0, import_fields36.text)({
+      ui: { displayMode: "textarea", description: "Mejor rese\xF1a 5 (Google)" }
+    }),
+    // Prompt listo para copiar y usar en vibe coding / IA (info del negocio + reseñas)
+    websitePromptContent: (0, import_fields36.text)({
+      ui: {
+        displayMode: "textarea",
+        description: "Prompt listo para IA: crear sitio web con la info del negocio y las 5 rese\xF1as positivas de Google. Copiar y pegar en tu herramienta de vibe coding."
+      }
+    }),
+    // Relaciones inversas
+    activities: (0, import_fields36.relationship)({
+      ref: "TechSalesActivity.businessLead",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    proposals: (0, import_fields36.relationship)({
+      ref: "TechProposal.businessLead",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    followUpTasks: (0, import_fields36.relationship)({
+      ref: "TechFollowUpTask.businessLead",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    googleMapsUrl: (0, import_fields36.text)({
+      ui: { description: "URL de Google Maps del negocio" }
+    }),
+    // Para importación desde Google (opcional)
+    googlePlaceId: (0, import_fields36.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" }
+      }
+    }),
+    createdAt: (0, import_fields36.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields36.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Tech/FollowUpTask/TechFollowUpTask.ts
+var import_core37 = require("@keystone-6/core");
+var import_fields37 = require("@keystone-6/core/fields");
+
+// models/Tech/FollowUpTask/TechFollowUpTask.access.ts
+var followUpTaskAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Tech/FollowUpTask/TechFollowUpTask.ts
+var statusOptions = Object.entries(FOLLOW_UP_TASK_STATUS).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var TechFollowUpTask_default = (0, import_core37.list)({
+  access: followUpTaskAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "scheduledDate",
+        "status",
+        "priority",
+        "businessLead",
+        "assignedSeller"
+      ]
+    }
+  },
+  fields: {
+    scheduledDate: (0, import_fields37.calendarDay)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Fecha programada" }
+    }),
+    status: (0, import_fields37.select)({
+      type: "string",
+      options: statusOptions,
+      defaultValue: FOLLOW_UP_TASK_STATUS.PENDIENTE,
+      isIndexed: true
+    }),
+    priority: (0, import_fields37.select)({
+      type: "string",
+      options: priorityOptions,
+      defaultValue: TASK_PRIORITY.MEDIA
+    }),
+    businessLead: (0, import_fields37.relationship)({
+      ref: "TechBusinessLead.followUpTasks",
+      many: false
+    }),
+    assignedSeller: (0, import_fields37.relationship)({
+      ref: "User.followUpTasks",
+      many: false
+    }),
+    notes: (0, import_fields37.text)({ ui: { displayMode: "textarea" } }),
+    createdAt: (0, import_fields37.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields37.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Tech/Proposal/TechProposal.ts
+var import_core38 = require("@keystone-6/core");
+var import_fields38 = require("@keystone-6/core/fields");
+
+// models/Tech/Proposal/TechProposal.access.ts
+var proposalAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Tech/Proposal/TechProposal.hooks.ts
+var proposalHooks = {
+  afterOperation: async ({
+    operation,
+    item,
+    resolvedData,
+    context,
+    listKey
+  }) => {
+    if (listKey !== "TechProposal" || !item?.id) return;
+    if (operation === "update" && resolvedData?.status === PROPOSAL_STATUS.ACEPTADA) {
+      const proposal = await context.query.TechProposal.findOne({
+        where: { id: item.id },
+        query: "id status businessLead { id }"
+      });
+      if (!proposal?.businessLead?.id || proposal.status !== PROPOSAL_STATUS.ACEPTADA)
+        return;
+      try {
+        await context.db.TechBusinessLead.updateOne({
+          where: { id: proposal.businessLead.id },
+          data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO }
+        });
+      } catch (e) {
+        console.error("Error updating BusinessLead to Cerrado Ganado:", e);
+      }
+    }
+  }
+};
+
+// models/Tech/Proposal/TechProposal.ts
+var statusOptions2 = Object.entries(PROPOSAL_STATUS).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var TechProposal_default = (0, import_core38.list)({
+  access: proposalAccess,
+  hooks: proposalHooks,
+  ui: {
+    listView: {
+      initialColumns: ["sentDate", "amount", "status", "businessLead"]
+    }
+  },
+  fields: {
+    sentDate: (0, import_fields38.calendarDay)({
+      validation: { isRequired: true },
+      ui: { description: "Fecha env\xEDo" }
+    }),
+    amount: (0, import_fields38.float)({ ui: { description: "Monto" } }),
+    status: (0, import_fields38.select)({
+      type: "string",
+      options: statusOptions2,
+      defaultValue: PROPOSAL_STATUS.ENVIADA,
+      isIndexed: true
+    }),
+    fileOrUrl: (0, import_fields38.text)({
+      ui: { description: "URL o referencia al archivo de la propuesta" }
+    }),
+    businessLead: (0, import_fields38.relationship)({
+      ref: "TechBusinessLead.proposals",
+      many: false
+    }),
+    createdAt: (0, import_fields38.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields38.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Tech/SalesActivity/TechSalesActivity.ts
+var import_core39 = require("@keystone-6/core");
+var import_fields39 = require("@keystone-6/core/fields");
+
+// models/Tech/SalesActivity/TechSalesActivity.access.ts
+var salesActivityAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Tech/SalesActivity/TechSalesActivity.ts
+var activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
+  ([k, v]) => ({
+    label: v,
+    value: v
+  })
+);
+var TechSalesActivity_default = (0, import_core39.list)({
+  access: salesActivityAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "type",
+        "activityDate",
+        "result",
+        "businessLead",
+        "assignedSeller"
+      ]
+    }
+  },
+  fields: {
+    type: (0, import_fields39.select)({
+      type: "string",
+      options: activityTypeOptions,
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    activityDate: (0, import_fields39.timestamp)({
+      defaultValue: { kind: "now" },
+      validation: { isRequired: true }
+    }),
+    result: (0, import_fields39.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
+    comments: (0, import_fields39.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields39.relationship)({
+      ref: "TechBusinessLead.activities",
+      many: false
+    }),
+    assignedSeller: (0, import_fields39.relationship)({
+      ref: "User.salesActivities",
+      many: false
+    }),
+    createdAt: (0, import_fields39.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   Ad: Ad_default,
@@ -2085,13 +2637,17 @@ var schema_default = {
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
   Tag: Tag_default,
+  TechBusinessLead: TechBusinessLead_default,
+  TechSalesActivity: TechSalesActivity_default,
+  TechFollowUpTask: TechFollowUpTask_default,
+  TechProposal: TechProposal_default,
   TokenNotification: TokenNotification_default,
   User: User_default,
   WishList: WishList_default
 };
 
 // keystone.ts
-var import_core36 = require("@keystone-6/core");
+var import_core40 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -2190,8 +2746,241 @@ var resolver = {
 };
 var customAuth_default = { typeDefs, definition, resolver };
 
-// graphql/customs/mutations/importPetPlace.ts
+// graphql/customs/mutations/auth/authenticateUserWithGoogle.ts
+var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
+var import_crypto3 = require("crypto");
 var typeDefs2 = `
+  type UserAuthenticationWithGoogleSuccess {
+    sessionToken: String!
+    item: User!
+  }
+
+  type UserAuthenticationWithGoogleFailure {
+    message: String!
+  }
+
+  union AuthenticateUserWithGoogleResult =
+    UserAuthenticationWithGoogleSuccess
+    | UserAuthenticationWithGoogleFailure
+`;
+var definition2 = `
+  authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
+`;
+async function verifyGoogleIdToken(idToken) {
+  try {
+    const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error || !data.email) return null;
+    return {
+      email: data.email,
+      name: data.name ?? void 0,
+      picture: data.picture ?? void 0,
+      sub: data.sub
+    };
+  } catch {
+    return null;
+  }
+}
+var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified";
+var resolver2 = {
+  authenticateUserWithGoogle: async (_root, { idToken }, context) => {
+    const payload = await verifyGoogleIdToken(idToken);
+    if (!payload) {
+      return {
+        __typename: "UserAuthenticationWithGoogleFailure",
+        message: "Token de Google inv\xE1lido o expirado"
+      };
+    }
+    let user = await context.sudo().query.User.findOne({
+      where: { email: payload.email },
+      query: USER_QUERY
+    });
+    console.log("user");
+    console.log(user);
+    if (!user) {
+      try {
+        const [userRole] = await context.sudo().query.Role.findMany({
+          where: { name: { equals: "user" /* USER */ } },
+          take: 1,
+          query: "id"
+        });
+        console.log("userRole");
+        console.log(userRole);
+        const username = await checkUserName(
+          payload.name?.trim() || payload.email.split("@")[0],
+          "",
+          context
+        );
+        user = await context.sudo().query.User.createOne({
+          data: {
+            email: payload.email,
+            name: payload.name?.trim() || payload.email.split("@")[0],
+            lastName: "",
+            username,
+            verified: true,
+            roles: userRole ? { connect: [{ id: userRole.id }] } : void 0
+          },
+          query: USER_QUERY
+        });
+        console.log("user created");
+        console.log(user);
+      } catch (err) {
+        console.log("error creating user");
+        console.log(err);
+        return {
+          __typename: "UserAuthenticationWithGoogleFailure",
+          message: err instanceof Error ? err.message : "Error al crear usuario"
+        };
+      }
+    }
+    let sessionSecret2 = process.env.SESSION_SECRET;
+    if (!sessionSecret2 && process.env.NODE_ENV !== "production") {
+      sessionSecret2 = (0, import_crypto3.randomBytes)(32).toString("hex");
+    }
+    const sessionToken = import_jsonwebtoken2.default.sign(
+      {
+        data: {
+          id: user.id,
+          email: user.email
+        }
+      },
+      sessionSecret2
+    );
+    const sessionStrategy = context.sessionStrategy;
+    if (sessionStrategy?.start && context.res) {
+      try {
+        await sessionStrategy.start({
+          context,
+          data: { listKey: "User", itemId: user.id }
+        });
+      } catch (_) {
+      }
+    }
+    return {
+      __typename: "UserAuthenticationWithGoogleSuccess",
+      sessionToken,
+      item: user
+    };
+  }
+};
+var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
+
+// graphql/customs/mutations/importBusinessLeadFromGoogle.ts
+var typeDefs3 = `
+  input ImportBusinessLeadFromGoogleInput {
+    placeId: String!
+    category: String
+    assignedSellerId: ID
+  }
+
+  type ImportBusinessLeadFromGoogleResult {
+    success: Boolean!
+    message: String!
+    businessLeadId: ID
+  }
+
+  type Mutation {
+    importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
+  }
+`;
+var definition3 = `
+  importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
+`;
+async function getPlaceDetails(placeId, apiKey) {
+  const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry";
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.status !== "OK" || !data.result) return null;
+  return data.result;
+}
+function parseAddressComponents(components) {
+  let city = "";
+  let state = "";
+  for (const c of components || []) {
+    if (c.types.includes("locality")) city = c.long_name;
+    if (c.types.includes("administrative_area_level_1")) state = c.short_name;
+  }
+  return { city, state };
+}
+var resolver3 = {
+  importBusinessLeadFromGoogle: async (_root, {
+    input
+  }, context) => {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      return {
+        success: false,
+        message: "GOOGLE_MAPS_API_KEY no configurada",
+        businessLeadId: null
+      };
+    }
+    const existing = await context.sudo().query.TechBusinessLead.findOne({
+      where: { googlePlaceId: input.placeId },
+      query: "id"
+    });
+    if (existing) {
+      return {
+        success: false,
+        message: "Este negocio ya fue importado como lead",
+        businessLeadId: existing.id
+      };
+    }
+    const place = await getPlaceDetails(input.placeId, apiKey);
+    if (!place) {
+      return {
+        success: false,
+        message: "No se pudo obtener datos del lugar",
+        businessLeadId: null
+      };
+    }
+    const { city, state } = parseAddressComponents(
+      place.address_components || []
+    );
+    const address = place.formatted_address || "";
+    const hasWebsite = !!place.website;
+    const data = {
+      businessName: place.name,
+      category: input.category || place.types?.[0] || "Negocio",
+      phone: place.formatted_phone_number || place.international_phone_number || "",
+      address,
+      city: city || "",
+      state: state || "",
+      rating: place.rating ?? null,
+      reviewCount: place.user_ratings_total ?? null,
+      hasWebsite,
+      source: "Google Maps",
+      pipelineStatus: PIPELINE_STATUS.DETECTADO,
+      opportunityLevel: "Media",
+      googlePlaceId: input.placeId,
+      googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`
+    };
+    if (input.assignedSellerId) {
+      data.assignedSeller = { connect: { id: input.assignedSellerId } };
+    }
+    try {
+      const lead = await context.sudo().query.TechBusinessLead.createOne({
+        data
+      });
+      return {
+        success: true,
+        message: "Lead importado correctamente",
+        businessLeadId: lead.id
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Error creando lead",
+        businessLeadId: null
+      };
+    }
+  }
+};
+var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
+
+// graphql/customs/mutations/importPetPlace.ts
+var typeDefs4 = `
   input ImportPetPlaceInput {
     inputValue: String!
     type: String!
@@ -2207,10 +2996,10 @@ var typeDefs2 = `
     executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
   }
 `;
-var definition2 = `
+var definition4 = `
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
 `;
-var resolver2 = {
+var resolver4 = {
   executeImportPetPlace: async (root, { input }, context) => {
     try {
       console.log("Ejecutando importaci\xF3n de lugares con datos:", input.inputValue, "tipo:", input.type);
@@ -2416,24 +3205,246 @@ ${errors.join("\n")}`;
   }
 }
 var importPetPlace_default = {
-  typeDefs: typeDefs2,
-  definition: definition2,
-  resolver: resolver2
+  typeDefs: typeDefs4,
+  definition: definition4,
+  resolver: resolver4
 };
+
+// graphql/customs/mutations/syncBusinessLeadsFromGoogle.ts
+var MIN_RATING = 4;
+var MIN_REVIEWS = 20;
+var DEFAULT_MAX_RESULTS = 60;
+var typeDefs5 = `
+  input SyncBusinessLeadsFromGoogleInput {
+    lat: Float!
+    lng: Float!
+    radius: Float!
+    category: String!
+    assignedSellerId: ID
+    maxResults: Int
+  }
+
+  type SyncBusinessLeadsFromGoogleResult {
+    success: Boolean!
+    message: String!
+    created: Int!
+    alreadyInDb: Int!
+    skippedLowRating: Int!
+  }
+
+  type Mutation {
+    syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
+  }
+`;
+var definition5 = `
+  syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
+`;
+var PROMPT_PREFIX = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
+var MIN_POSITIVE_REVIEW_RATING = 4;
+async function getPlaceDetails2(placeId, apiKey) {
+  const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry,reviews";
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.status !== "OK" || !data.result) return null;
+  return data.result;
+}
+function formatReview(review) {
+  const author = review.author_name || "An\xF3nimo";
+  const rating = review.rating ?? 0;
+  const text30 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text30}`;
+}
+function buildReviewsAndPrompt(details, category) {
+  const positiveReviews = (details.reviews || []).filter(
+    (r) => (r.rating ?? 0) >= MIN_POSITIVE_REVIEW_RATING && (r.text || "").trim()
+  ).slice(0, 5).map(formatReview);
+  const topReviews = [
+    positiveReviews[0] || "",
+    positiveReviews[1] || "",
+    positiveReviews[2] || "",
+    positiveReviews[3] || "",
+    positiveReviews[4] || ""
+  ];
+  const lines = [
+    `Negocio: ${details.name || ""}`,
+    `Categor\xEDa: ${category}`,
+    `Direcci\xF3n: ${details.formatted_address || ""}`,
+    `Tel\xE9fono: ${details.formatted_phone_number || ""}`,
+    `Sitio web actual: ${details.website ? "S\xED" : "No tiene"}`,
+    `Valoraci\xF3n: ${details.rating ?? "-"} (${details.user_ratings_total ?? 0} rese\xF1as)`,
+    "",
+    "Rese\xF1as positivas de Google:",
+    ...positiveReviews.map((r) => `- ${r}`)
+  ];
+  const businessInfo = lines.join("\n");
+  const websitePromptContent = PROMPT_PREFIX + businessInfo;
+  return { topReviews, websitePromptContent };
+}
+function parseAddressComponents2(components) {
+  let city = "";
+  let state = "";
+  for (const c of components || []) {
+    if (c.types.includes("locality")) city = c.long_name;
+    if (c.types.includes("administrative_area_level_1")) state = c.short_name;
+  }
+  return { city, state };
+}
+var resolver5 = {
+  syncBusinessLeadsFromGoogle: async (_root, {
+    input
+  }, context) => {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      return {
+        success: false,
+        message: "GOOGLE_MAPS_API_KEY no configurada",
+        created: 0,
+        alreadyInDb: 0,
+        skippedLowRating: 0
+      };
+    }
+    const {
+      lat,
+      lng,
+      radius,
+      category,
+      assignedSellerId,
+      maxResults = DEFAULT_MAX_RESULTS
+    } = input;
+    const radiusMeters = Math.round(radius * 1e3);
+    const keyword = encodeURIComponent(category);
+    let created = 0;
+    let alreadyInDb = 0;
+    let skippedLowRating = 0;
+    let nextPageToken;
+    try {
+      do {
+        let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
+        if (nextPageToken) {
+          url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${encodeURIComponent(nextPageToken)}&key=${apiKey}`;
+          await new Promise((r) => setTimeout(r, 2e3));
+        }
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+          return {
+            success: false,
+            message: data.error_message || data.status,
+            created,
+            alreadyInDb,
+            skippedLowRating
+          };
+        }
+        const results = data.results || [];
+        for (const place of results) {
+          if (created + alreadyInDb + skippedLowRating >= maxResults) break;
+          const placeId = place.place_id;
+          const placeRating = place.rating ?? 0;
+          const userRatingsTotal = place.user_ratings_total ?? 0;
+          const existing = await context.sudo().query.TechBusinessLead.findOne({
+            where: { googlePlaceId: placeId },
+            query: "id"
+          });
+          if (existing) {
+            alreadyInDb++;
+            continue;
+          }
+          if (placeRating < MIN_RATING || userRatingsTotal < MIN_REVIEWS) {
+            skippedLowRating++;
+            continue;
+          }
+          const details = await getPlaceDetails2(placeId, apiKey);
+          if (!details) continue;
+          const { city: parsedCity, state } = parseAddressComponents2(
+            details.address_components || []
+          );
+          const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
+            details,
+            category
+          );
+          const leadData = {
+            businessName: details.name,
+            category,
+            phone: details.formatted_phone_number || details.international_phone_number || "",
+            address: details.formatted_address || "",
+            city: parsedCity || "",
+            state: state || "",
+            rating: details.rating ?? null,
+            reviewCount: details.user_ratings_total ?? null,
+            hasWebsite: !!details.website,
+            source: "Google Maps",
+            pipelineStatus: PIPELINE_STATUS.DETECTADO,
+            opportunityLevel: "Media",
+            googlePlaceId: placeId,
+            googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
+            topReview1: topReviews[0] || null,
+            topReview2: topReviews[1] || null,
+            topReview3: topReviews[2] || null,
+            topReview4: topReviews[3] || null,
+            topReview5: topReviews[4] || null,
+            websitePromptContent
+          };
+          if (assignedSellerId) {
+            leadData.assignedSeller = { connect: { id: assignedSellerId } };
+          }
+          try {
+            await context.sudo().query.TechBusinessLead.createOne({
+              data: leadData
+            });
+            created++;
+          } catch (_) {
+          }
+        }
+        nextPageToken = data.next_page_token;
+      } while (nextPageToken && created + alreadyInDb + skippedLowRating < maxResults);
+      return {
+        success: true,
+        message: `Sincronizaci\xF3n completada. Creados: ${created}. Ya en BD: ${alreadyInDb}. Descartados (rating < ${MIN_RATING} o rese\xF1as < ${MIN_REVIEWS}): ${skippedLowRating}.`,
+        created,
+        alreadyInDb,
+        skippedLowRating
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Error en sincronizaci\xF3n",
+        created,
+        alreadyInDb,
+        skippedLowRating
+      };
+    }
+  }
+};
+var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs5, definition: definition5, resolver: resolver5 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
     ${customAuth_default.typeDefs}
+    ${authenticateUserWithGoogle_default.typeDefs}
     ${importPetPlace_default.typeDefs}
+    ${importBusinessLeadFromGoogle_default.typeDefs}
+    ${syncBusinessLeadsFromGoogle_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
+    ${authenticateUserWithGoogle_default.definition}
     ${importPetPlace_default.definition}
+    ${importBusinessLeadFromGoogle_default.definition}
+    ${syncBusinessLeadsFromGoogle_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
-    ...importPetPlace_default.resolver
+    ...authenticateUserWithGoogle_default.resolver,
+    ...importPetPlace_default.resolver,
+    ...importBusinessLeadFromGoogle_default.resolver,
+    ...syncBusinessLeadsFromGoogle_default.resolver
+  },
+  extraResolvers: {
+    AuthenticateUserWithGoogleResult: {
+      __resolveType: (obj) => obj.__typename ?? null
+    }
   }
 };
 var mutations_default = customMutation;
@@ -2450,7 +3461,7 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 }
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs3 = `
+var typeDefs6 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -2507,7 +3518,7 @@ var typeDefs3 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition3 = `
+var definition6 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -2557,7 +3568,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver3 = {
+var resolver6 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -2711,7 +3722,7 @@ var resolver3 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
+var nearbyAnimals_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -2721,7 +3732,7 @@ function convertGoogleTimeToHours(timeString) {
   const hours = parseInt(timeString.substring(0, 2), 10);
   return isNaN(hours) ? 0 : hours;
 }
-function parseAddressComponents(addressComponents) {
+function parseAddressComponents3(addressComponents) {
   const result = {
     street: "",
     municipality: "",
@@ -2778,7 +3789,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   if (!placeId) {
     return null;
   }
-  const addressData = place.address_components ? parseAddressComponents(place.address_components) : { street: "", municipality: "", state: "", country: "", cp: "" };
+  const addressData = place.address_components ? parseAddressComponents3(place.address_components) : { street: "", municipality: "", state: "", country: "", cp: "" };
   const existingPlace = await context.sudo().query.PetPlace.findOne({
     where: { google_place_id: placeId },
     query: "id"
@@ -2836,7 +3847,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
             updateData.phone = detailsData.result.international_phone_number;
           }
           if (detailsData.result.address_components) {
-            const addressData2 = parseAddressComponents(detailsData.result.address_components);
+            const addressData2 = parseAddressComponents3(detailsData.result.address_components);
             if (addressData2.street) updateData.street = addressData2.street;
             if (addressData2.municipality) updateData.municipality = addressData2.municipality;
             if (addressData2.state) updateData.state = addressData2.state;
@@ -2979,7 +3990,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs4 = `
+var typeDefs7 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -3037,10 +4048,10 @@ var typeDefs4 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition4 = `
+var definition7 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver4 = {
+var resolver7 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -3122,7 +4133,7 @@ var resolver4 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -3161,7 +4172,8 @@ function extendGraphqlSchema(baseSchema) {
       },
       Query: {
         ...queries_default.resolvers
-      }
+      },
+      ...mutations_default.extraResolvers ?? {}
     }
   });
 }
@@ -3170,119 +4182,51 @@ function extendGraphqlSchema(baseSchema) {
 var path2 = require("path");
 var dotenv2 = require("dotenv");
 dotenv2.config({ path: path2.resolve(process.cwd(), "config", ".env.dev") });
-if (!process.env.S3_BUCKET_NAME || !process.env.S3_REGION || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
-  throw new Error("S3 Configs are not set");
-}
 var {
   S3_BUCKET_NAME: bucketName = "",
   S3_REGION: region = "",
   S3_ACCESS_KEY_ID: accessKeyId = "",
   S3_SECRET_ACCESS_KEY: secretAccessKey = ""
 } = process.env;
+var hasS3 = !!(region && bucketName);
+var storage = {
+  my_local_images: {
+    kind: "local",
+    type: "image",
+    generateUrl: (path3) => `http://${process.env.DB_HOST}:3000/images${path3}`,
+    serverRoute: { path: "/images" },
+    storagePath: "public/images"
+  },
+  ...hasS3 ? {
+    s3_files: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, signed: { expiry: 3600 } },
+    s3_categories: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/", signed: { expiry: 3600 } },
+    s3_posts: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/", signed: { expiry: 3600 } },
+    s3_profile: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/", signed: { expiry: 3600 } },
+    s3_animals: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", signed: { expiry: 3600 } },
+    s3_pets: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", signed: { expiry: 3600 } },
+    s3_ads: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", signed: { expiry: 3600 } }
+  } : {
+    s3_files: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_categories: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_posts: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_profile: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_animals: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_pets: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+    s3_ads: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" }
+  }
+};
 var keystone_default = withAuth(
-  (0, import_core36.config)({
+  (0, import_core40.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
     },
     server: {
       cors: true,
-      port: parseInt(process.env.LOCAL_PORT || "3001"),
-      maxFileSize: 200 * 1024 * 1024
+      maxFileSize: 200 * 1024 * 1024,
+      port: 3001
     },
-    storage: {
-      my_local_images: {
-        kind: "local",
-        type: "image",
-        generateUrl: (path3) => `http://${process.env.DB_HOST}:3000/images${path3}`,
-        serverRoute: {
-          path: "/images"
-        },
-        storagePath: "public/images"
-      },
-      s3_files: {
-        kind: "s3",
-        // this storage uses S3
-        type: "image",
-        // only for files
-        bucketName,
-        // from your S3_BUCKET_NAME environment variable
-        region,
-        // from your S3_REGION environment variable
-        accessKeyId,
-        // from your S3_ACCESS_KEY_ID environment variable
-        secretAccessKey,
-        // from your S3_SECRET_ACCESS_KEY environment variable
-        signed: { expiry: 3600 }
-        // (optional) links will be signed with an expiry of 3600 seconds (an hour)
-      },
-      s3_categories: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/",
-        // subcarpeta para categorías, usa 'dev/categories' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_posts: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/",
-        // subcarpeta para posts, usa 'dev/posts' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_profile: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/",
-        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_animals: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/",
-        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_pets: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/",
-        // subcarpeta para profiles, usa 'dev/profiles' en entorno dev
-        signed: { expiry: 3600 }
-      },
-      s3_ads: {
-        kind: "s3",
-        type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/",
-        // subcarpeta para ads, usa 'dev/ads' en entorno dev
-        signed: { expiry: 3600 }
-      }
-    },
+    storage,
     graphql: {
       extendGraphqlSchema
     },

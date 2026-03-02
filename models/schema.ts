@@ -33,6 +33,10 @@ import BlogSubscription from "./Blog/BlogSubscription/BlogSubscription";
 import Role from "./Role/Role";
 import PetPlaceType from "./PetPlace/PetPlaceType/PetPlaceType";
 import ContactForm from "./ContactForm/ContactForm";
+import TechBusinessLead from "./Tech/BusinessLead/TechBusinessLead";
+import TechFollowUpTask from "./Tech/FollowUpTask/TechFollowUpTask";
+import TechProposal from "./Tech/Proposal/TechProposal";
+import TechSalesActivity from "./Tech/SalesActivity/TechSalesActivity";
 
 export default {
   Ad,
@@ -67,7 +71,11 @@ export default {
   Schedule,
   SocialMedia,
   Tag,
+  TechBusinessLead,
+  TechSalesActivity,
+  TechFollowUpTask,
+  TechProposal,
   TokenNotification,
   User,
-  WishList
+  WishList,
 };

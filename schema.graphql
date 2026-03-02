@@ -2665,6 +2665,493 @@ input TagCreateInput {
   createdAt: DateTime
 }
 
+type TechBusinessLead {
+  id: ID!
+  businessName: String
+  category: String
+  phone: String
+  address: String
+  city: String
+  state: String
+  rating: Float
+  reviewCount: Int
+  hasWebsite: Boolean
+  source: String
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  assignedSeller: User
+  firstContactDate: CalendarDay
+  nextFollowUpDate: CalendarDay
+  notes: String
+  instagram: String
+  facebook: String
+  xTwitter: String
+  tiktok: String
+  topReview1: String
+  topReview2: String
+  topReview3: String
+  topReview4: String
+  topReview5: String
+  websitePromptContent: String
+  activities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
+  activitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
+  proposalsCount(where: TechProposalWhereInput! = {}): Int
+  followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
+  followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
+  googleMapsUrl: String
+  googlePlaceId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechBusinessLeadWhereUniqueInput {
+  id: ID
+  googlePlaceId: String
+}
+
+input TechBusinessLeadWhereInput {
+  AND: [TechBusinessLeadWhereInput!]
+  OR: [TechBusinessLeadWhereInput!]
+  NOT: [TechBusinessLeadWhereInput!]
+  id: IDFilter
+  businessName: StringFilter
+  category: StringFilter
+  phone: StringFilter
+  address: StringFilter
+  city: StringFilter
+  state: StringFilter
+  rating: FloatNullableFilter
+  reviewCount: IntNullableFilter
+  hasWebsite: BooleanFilter
+  source: StringNullableFilter
+  opportunityLevel: StringNullableFilter
+  pipelineStatus: StringNullableFilter
+  estimatedValue: FloatNullableFilter
+  productOffered: StringFilter
+  assignedSeller: UserWhereInput
+  firstContactDate: CalendarDayNullableFilter
+  nextFollowUpDate: CalendarDayNullableFilter
+  notes: StringFilter
+  instagram: StringFilter
+  facebook: StringFilter
+  xTwitter: StringFilter
+  tiktok: StringFilter
+  topReview1: StringFilter
+  topReview2: StringFilter
+  topReview3: StringFilter
+  topReview4: StringFilter
+  topReview5: StringFilter
+  websitePromptContent: StringFilter
+  activities: TechSalesActivityManyRelationFilter
+  proposals: TechProposalManyRelationFilter
+  followUpTasks: TechFollowUpTaskManyRelationFilter
+  googleMapsUrl: StringFilter
+  googlePlaceId: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input FloatNullableFilter {
+  equals: Float
+  in: [Float!]
+  notIn: [Float!]
+  lt: Float
+  lte: Float
+  gt: Float
+  gte: Float
+  not: FloatNullableFilter
+}
+
+input TechSalesActivityManyRelationFilter {
+  every: TechSalesActivityWhereInput
+  some: TechSalesActivityWhereInput
+  none: TechSalesActivityWhereInput
+}
+
+input TechProposalManyRelationFilter {
+  every: TechProposalWhereInput
+  some: TechProposalWhereInput
+  none: TechProposalWhereInput
+}
+
+input TechFollowUpTaskManyRelationFilter {
+  every: TechFollowUpTaskWhereInput
+  some: TechFollowUpTaskWhereInput
+  none: TechFollowUpTaskWhereInput
+}
+
+input TechBusinessLeadOrderByInput {
+  id: OrderDirection
+  businessName: OrderDirection
+  category: OrderDirection
+  phone: OrderDirection
+  address: OrderDirection
+  city: OrderDirection
+  state: OrderDirection
+  rating: OrderDirection
+  reviewCount: OrderDirection
+  hasWebsite: OrderDirection
+  source: OrderDirection
+  opportunityLevel: OrderDirection
+  pipelineStatus: OrderDirection
+  estimatedValue: OrderDirection
+  productOffered: OrderDirection
+  firstContactDate: OrderDirection
+  nextFollowUpDate: OrderDirection
+  notes: OrderDirection
+  instagram: OrderDirection
+  facebook: OrderDirection
+  xTwitter: OrderDirection
+  tiktok: OrderDirection
+  topReview1: OrderDirection
+  topReview2: OrderDirection
+  topReview3: OrderDirection
+  topReview4: OrderDirection
+  topReview5: OrderDirection
+  websitePromptContent: OrderDirection
+  googleMapsUrl: OrderDirection
+  googlePlaceId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TechBusinessLeadUpdateInput {
+  businessName: String
+  category: String
+  phone: String
+  address: String
+  city: String
+  state: String
+  rating: Float
+  reviewCount: Int
+  hasWebsite: Boolean
+  source: String
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  assignedSeller: UserRelateToOneForUpdateInput
+  firstContactDate: CalendarDay
+  nextFollowUpDate: CalendarDay
+  notes: String
+  instagram: String
+  facebook: String
+  xTwitter: String
+  tiktok: String
+  topReview1: String
+  topReview2: String
+  topReview3: String
+  topReview4: String
+  topReview5: String
+  websitePromptContent: String
+  activities: TechSalesActivityRelateToManyForUpdateInput
+  proposals: TechProposalRelateToManyForUpdateInput
+  followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
+  googleMapsUrl: String
+  googlePlaceId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechSalesActivityRelateToManyForUpdateInput {
+  disconnect: [TechSalesActivityWhereUniqueInput!]
+  set: [TechSalesActivityWhereUniqueInput!]
+  create: [TechSalesActivityCreateInput!]
+  connect: [TechSalesActivityWhereUniqueInput!]
+}
+
+input TechProposalRelateToManyForUpdateInput {
+  disconnect: [TechProposalWhereUniqueInput!]
+  set: [TechProposalWhereUniqueInput!]
+  create: [TechProposalCreateInput!]
+  connect: [TechProposalWhereUniqueInput!]
+}
+
+input TechFollowUpTaskRelateToManyForUpdateInput {
+  disconnect: [TechFollowUpTaskWhereUniqueInput!]
+  set: [TechFollowUpTaskWhereUniqueInput!]
+  create: [TechFollowUpTaskCreateInput!]
+  connect: [TechFollowUpTaskWhereUniqueInput!]
+}
+
+input TechBusinessLeadUpdateArgs {
+  where: TechBusinessLeadWhereUniqueInput!
+  data: TechBusinessLeadUpdateInput!
+}
+
+input TechBusinessLeadCreateInput {
+  businessName: String
+  category: String
+  phone: String
+  address: String
+  city: String
+  state: String
+  rating: Float
+  reviewCount: Int
+  hasWebsite: Boolean
+  source: String
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  assignedSeller: UserRelateToOneForCreateInput
+  firstContactDate: CalendarDay
+  nextFollowUpDate: CalendarDay
+  notes: String
+  instagram: String
+  facebook: String
+  xTwitter: String
+  tiktok: String
+  topReview1: String
+  topReview2: String
+  topReview3: String
+  topReview4: String
+  topReview5: String
+  websitePromptContent: String
+  activities: TechSalesActivityRelateToManyForCreateInput
+  proposals: TechProposalRelateToManyForCreateInput
+  followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
+  googleMapsUrl: String
+  googlePlaceId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechSalesActivityRelateToManyForCreateInput {
+  create: [TechSalesActivityCreateInput!]
+  connect: [TechSalesActivityWhereUniqueInput!]
+}
+
+input TechProposalRelateToManyForCreateInput {
+  create: [TechProposalCreateInput!]
+  connect: [TechProposalWhereUniqueInput!]
+}
+
+input TechFollowUpTaskRelateToManyForCreateInput {
+  create: [TechFollowUpTaskCreateInput!]
+  connect: [TechFollowUpTaskWhereUniqueInput!]
+}
+
+type TechSalesActivity {
+  id: ID!
+  type: String
+  activityDate: DateTime
+  result: String
+  comments: String
+  businessLead: TechBusinessLead
+  assignedSeller: User
+  createdAt: DateTime
+}
+
+input TechSalesActivityWhereUniqueInput {
+  id: ID
+}
+
+input TechSalesActivityWhereInput {
+  AND: [TechSalesActivityWhereInput!]
+  OR: [TechSalesActivityWhereInput!]
+  NOT: [TechSalesActivityWhereInput!]
+  id: IDFilter
+  type: StringFilter
+  activityDate: DateTimeFilter
+  result: StringFilter
+  comments: StringFilter
+  businessLead: TechBusinessLeadWhereInput
+  assignedSeller: UserWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input DateTimeFilter {
+  equals: DateTime
+  in: [DateTime!]
+  notIn: [DateTime!]
+  lt: DateTime
+  lte: DateTime
+  gt: DateTime
+  gte: DateTime
+  not: DateTimeFilter
+}
+
+input TechSalesActivityOrderByInput {
+  id: OrderDirection
+  type: OrderDirection
+  activityDate: OrderDirection
+  result: OrderDirection
+  comments: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TechSalesActivityUpdateInput {
+  type: String
+  activityDate: DateTime
+  result: String
+  comments: String
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  assignedSeller: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input TechBusinessLeadRelateToOneForUpdateInput {
+  create: TechBusinessLeadCreateInput
+  connect: TechBusinessLeadWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechSalesActivityUpdateArgs {
+  where: TechSalesActivityWhereUniqueInput!
+  data: TechSalesActivityUpdateInput!
+}
+
+input TechSalesActivityCreateInput {
+  type: String
+  activityDate: DateTime
+  result: String
+  comments: String
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  assignedSeller: UserRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input TechBusinessLeadRelateToOneForCreateInput {
+  create: TechBusinessLeadCreateInput
+  connect: TechBusinessLeadWhereUniqueInput
+}
+
+type TechFollowUpTask {
+  id: ID!
+  scheduledDate: CalendarDay
+  status: String
+  priority: String
+  businessLead: TechBusinessLead
+  assignedSeller: User
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechFollowUpTaskWhereUniqueInput {
+  id: ID
+}
+
+input TechFollowUpTaskWhereInput {
+  AND: [TechFollowUpTaskWhereInput!]
+  OR: [TechFollowUpTaskWhereInput!]
+  NOT: [TechFollowUpTaskWhereInput!]
+  id: IDFilter
+  scheduledDate: CalendarDayFilter
+  status: StringNullableFilter
+  priority: StringNullableFilter
+  businessLead: TechBusinessLeadWhereInput
+  assignedSeller: UserWhereInput
+  notes: StringFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input TechFollowUpTaskOrderByInput {
+  id: OrderDirection
+  scheduledDate: OrderDirection
+  status: OrderDirection
+  priority: OrderDirection
+  notes: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TechFollowUpTaskUpdateInput {
+  scheduledDate: CalendarDay
+  status: String
+  priority: String
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  assignedSeller: UserRelateToOneForUpdateInput
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechFollowUpTaskUpdateArgs {
+  where: TechFollowUpTaskWhereUniqueInput!
+  data: TechFollowUpTaskUpdateInput!
+}
+
+input TechFollowUpTaskCreateInput {
+  scheduledDate: CalendarDay
+  status: String
+  priority: String
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  assignedSeller: UserRelateToOneForCreateInput
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type TechProposal {
+  id: ID!
+  sentDate: CalendarDay
+  amount: Float
+  status: String
+  fileOrUrl: String
+  businessLead: TechBusinessLead
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechProposalWhereUniqueInput {
+  id: ID
+}
+
+input TechProposalWhereInput {
+  AND: [TechProposalWhereInput!]
+  OR: [TechProposalWhereInput!]
+  NOT: [TechProposalWhereInput!]
+  id: IDFilter
+  sentDate: CalendarDayFilter
+  amount: FloatNullableFilter
+  status: StringNullableFilter
+  fileOrUrl: StringFilter
+  businessLead: TechBusinessLeadWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input TechProposalOrderByInput {
+  id: OrderDirection
+  sentDate: OrderDirection
+  amount: OrderDirection
+  status: OrderDirection
+  fileOrUrl: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TechProposalUpdateInput {
+  sentDate: CalendarDay
+  amount: Float
+  status: String
+  fileOrUrl: String
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechProposalUpdateArgs {
+  where: TechProposalWhereUniqueInput!
+  data: TechProposalUpdateInput!
+}
+
+input TechProposalCreateInput {
+  sentDate: CalendarDay
+  amount: Float
+  status: String
+  fileOrUrl: String
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
 type TokenNotification {
   id: ID!
   token: String
@@ -2717,6 +3204,12 @@ type User {
   rolesCount(where: RoleWhereInput! = {}): Int
   blog_subscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
   blog_subscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
+  businessLeadsAssigned(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
+  businessLeadsAssignedCount(where: TechBusinessLeadWhereInput! = {}): Int
+  salesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
+  salesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
+  followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   profileImage: ImageFieldOutput
   birthday: CalendarDay
   age: String
@@ -2749,6 +3242,9 @@ input UserWhereInput {
   phone: StringFilter
   roles: RoleManyRelationFilter
   blog_subscriptions: BlogSubscriptionManyRelationFilter
+  businessLeadsAssigned: TechBusinessLeadManyRelationFilter
+  salesActivities: TechSalesActivityManyRelationFilter
+  followUpTasks: TechFollowUpTaskManyRelationFilter
   birthday: CalendarDayNullableFilter
   smsRegistrationId: StringFilter
   verified: BooleanFilter
@@ -2769,6 +3265,12 @@ input BlogSubscriptionManyRelationFilter {
   every: BlogSubscriptionWhereInput
   some: BlogSubscriptionWhereInput
   none: BlogSubscriptionWhereInput
+}
+
+input TechBusinessLeadManyRelationFilter {
+  every: TechBusinessLeadWhereInput
+  some: TechBusinessLeadWhereInput
+  none: TechBusinessLeadWhereInput
 }
 
 input UserOrderByInput {
@@ -2795,6 +3297,9 @@ input UserUpdateInput {
   phone: String
   roles: RoleRelateToManyForUpdateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForUpdateInput
+  businessLeadsAssigned: TechBusinessLeadRelateToManyForUpdateInput
+  salesActivities: TechSalesActivityRelateToManyForUpdateInput
+  followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -2816,6 +3321,13 @@ input BlogSubscriptionRelateToManyForUpdateInput {
   connect: [BlogSubscriptionWhereUniqueInput!]
 }
 
+input TechBusinessLeadRelateToManyForUpdateInput {
+  disconnect: [TechBusinessLeadWhereUniqueInput!]
+  set: [TechBusinessLeadWhereUniqueInput!]
+  create: [TechBusinessLeadCreateInput!]
+  connect: [TechBusinessLeadWhereUniqueInput!]
+}
+
 input UserUpdateArgs {
   where: UserWhereUniqueInput!
   data: UserUpdateInput!
@@ -2831,6 +3343,9 @@ input UserCreateInput {
   phone: String
   roles: RoleRelateToManyForCreateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForCreateInput
+  businessLeadsAssigned: TechBusinessLeadRelateToManyForCreateInput
+  salesActivities: TechSalesActivityRelateToManyForCreateInput
+  followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -2846,6 +3361,11 @@ input RoleRelateToManyForCreateInput {
 input BlogSubscriptionRelateToManyForCreateInput {
   create: [BlogSubscriptionCreateInput!]
   connect: [BlogSubscriptionWhereUniqueInput!]
+}
+
+input TechBusinessLeadRelateToManyForCreateInput {
+  create: [TechBusinessLeadCreateInput!]
+  connect: [TechBusinessLeadWhereUniqueInput!]
 }
 
 type WishList {
@@ -3095,6 +3615,30 @@ type Mutation {
   updateTags(data: [TagUpdateArgs!]!): [Tag]
   deleteTag(where: TagWhereUniqueInput!): Tag
   deleteTags(where: [TagWhereUniqueInput!]!): [Tag]
+  createTechBusinessLead(data: TechBusinessLeadCreateInput!): TechBusinessLead
+  createTechBusinessLeads(data: [TechBusinessLeadCreateInput!]!): [TechBusinessLead]
+  updateTechBusinessLead(where: TechBusinessLeadWhereUniqueInput!, data: TechBusinessLeadUpdateInput!): TechBusinessLead
+  updateTechBusinessLeads(data: [TechBusinessLeadUpdateArgs!]!): [TechBusinessLead]
+  deleteTechBusinessLead(where: TechBusinessLeadWhereUniqueInput!): TechBusinessLead
+  deleteTechBusinessLeads(where: [TechBusinessLeadWhereUniqueInput!]!): [TechBusinessLead]
+  createTechSalesActivity(data: TechSalesActivityCreateInput!): TechSalesActivity
+  createTechSalesActivities(data: [TechSalesActivityCreateInput!]!): [TechSalesActivity]
+  updateTechSalesActivity(where: TechSalesActivityWhereUniqueInput!, data: TechSalesActivityUpdateInput!): TechSalesActivity
+  updateTechSalesActivities(data: [TechSalesActivityUpdateArgs!]!): [TechSalesActivity]
+  deleteTechSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
+  deleteTechSalesActivities(where: [TechSalesActivityWhereUniqueInput!]!): [TechSalesActivity]
+  createTechFollowUpTask(data: TechFollowUpTaskCreateInput!): TechFollowUpTask
+  createTechFollowUpTasks(data: [TechFollowUpTaskCreateInput!]!): [TechFollowUpTask]
+  updateTechFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!, data: TechFollowUpTaskUpdateInput!): TechFollowUpTask
+  updateTechFollowUpTasks(data: [TechFollowUpTaskUpdateArgs!]!): [TechFollowUpTask]
+  deleteTechFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!): TechFollowUpTask
+  deleteTechFollowUpTasks(where: [TechFollowUpTaskWhereUniqueInput!]!): [TechFollowUpTask]
+  createTechProposal(data: TechProposalCreateInput!): TechProposal
+  createTechProposals(data: [TechProposalCreateInput!]!): [TechProposal]
+  updateTechProposal(where: TechProposalWhereUniqueInput!, data: TechProposalUpdateInput!): TechProposal
+  updateTechProposals(data: [TechProposalUpdateArgs!]!): [TechProposal]
+  deleteTechProposal(where: TechProposalWhereUniqueInput!): TechProposal
+  deleteTechProposals(where: [TechProposalWhereUniqueInput!]!): [TechProposal]
   createTokenNotification(data: TokenNotificationCreateInput!): TokenNotification
   createTokenNotifications(data: [TokenNotificationCreateInput!]!): [TokenNotification]
   updateTokenNotification(where: TokenNotificationWhereUniqueInput!, data: TokenNotificationUpdateInput!): TokenNotification
@@ -3117,7 +3661,10 @@ type Mutation {
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
+  importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
+  syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
+  authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -3237,6 +3784,18 @@ type Query {
   tag(where: TagWhereUniqueInput!): Tag
   tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
   tagsCount(where: TagWhereInput! = {}): Int
+  techBusinessLead(where: TechBusinessLeadWhereUniqueInput!): TechBusinessLead
+  techBusinessLeads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
+  techBusinessLeadsCount(where: TechBusinessLeadWhereInput! = {}): Int
+  techSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
+  techSalesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
+  techSalesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  techFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!): TechFollowUpTask
+  techFollowUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
+  techFollowUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
+  techProposal(where: TechProposalWhereUniqueInput!): TechProposal
+  techProposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
+  techProposalsCount(where: TechProposalWhereInput! = {}): Int
   tokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
   tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
   tokenNotificationsCount(where: TokenNotificationWhereInput! = {}): Int
@@ -3391,6 +3950,17 @@ type customAuthType {
   data: JSON
 }
 
+type UserAuthenticationWithGoogleSuccess {
+  sessionToken: String!
+  item: User!
+}
+
+type UserAuthenticationWithGoogleFailure {
+  message: String!
+}
+
+union AuthenticateUserWithGoogleResult = UserAuthenticationWithGoogleSuccess | UserAuthenticationWithGoogleFailure
+
 input ImportPetPlaceInput {
   inputValue: String!
   type: String!
@@ -3400,6 +3970,35 @@ type ImportPetPlaceResult {
   success: Boolean!
   message: String!
   result: String
+}
+
+input ImportBusinessLeadFromGoogleInput {
+  placeId: String!
+  category: String
+  assignedSellerId: ID
+}
+
+type ImportBusinessLeadFromGoogleResult {
+  success: Boolean!
+  message: String!
+  businessLeadId: ID
+}
+
+input SyncBusinessLeadsFromGoogleInput {
+  lat: Float!
+  lng: Float!
+  radius: Float!
+  category: String!
+  assignedSellerId: ID
+  maxResults: Int
+}
+
+type SyncBusinessLeadsFromGoogleResult {
+  success: Boolean!
+  message: String!
+  created: Int!
+  alreadyInDb: Int!
+  skippedLowRating: Int!
 }
 
 type AnimalMultimediaImage {

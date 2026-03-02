@@ -9,7 +9,13 @@ import {
   checkbox,
   relationship,
 } from "@keystone-6/core/fields";
-import { emailHooks, phoneHooks, userNameHook, userRoleHook, userBlogSubscriptionHook } from "./User.hooks";
+import {
+  emailHooks,
+  phoneHooks,
+  userNameHook,
+  userRoleHook,
+  userBlogSubscriptionHook,
+} from "./User.hooks";
 import access from "../../utils/generalAccess/access";
 
 export default list({
@@ -50,6 +56,21 @@ export default list({
       ref: "BlogSubscription.user",
       many: true,
     }),
+    businessLeadsAssigned: relationship({
+      ref: "TechBusinessLead.assignedSeller",
+      many: true,
+      ui: { description: "Leads asignados (CRM)" },
+    }),
+    salesActivities: relationship({
+      ref: "TechSalesActivity.assignedSeller",
+      many: true,
+      ui: { hideCreate: true },
+    }),
+    followUpTasks: relationship({
+      ref: "TechFollowUpTask.assignedSeller",
+      many: true,
+      ui: { hideCreate: true },
+    }),
     profileImage: image({ storage: "s3_profile" }),
     birthday: calendarDay(),
     age: virtual({
@@ -78,8 +99,8 @@ export default list({
       },
       ui: {
         createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
+        itemView: { fieldMode: "read" },
+      },
     }),
   },
 });

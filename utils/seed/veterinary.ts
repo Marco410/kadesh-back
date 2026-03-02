@@ -3,12 +3,24 @@ import { KeystoneContext } from "@keystone-6/core/types";
 export async function createVeterinary(
   context: KeystoneContext,
   userID: string,
-  services: readonly Record<string, any>[]
+  services: readonly Record<string, any>[],
 ) {
   const existingVet = await context.sudo().query.PetPlace.findMany();
   if (existingVet.length > 0) {
     console.log("♻️  Skipped veterinary seeding.");
     return existingVet;
+  }
+
+  const [veterinaryType] = await context.sudo().query.PetPlaceType.findMany({
+    where: { value: { equals: "veterinary" } },
+    take: 1,
+    query: "id",
+  });
+  if (!veterinaryType) {
+    console.log(
+      "⚠️  Skipped veterinary seeding: PetPlaceType 'veterinary' not found.",
+    );
+    return [];
   }
 
   try {
@@ -18,7 +30,7 @@ export async function createVeterinary(
         description:
           "Esta es la primera veterinaria en el mundo para hacer las cosas cambiar.",
         phone: "4434012693",
-        type: "veterinary",
+        types: { connect: [{ id: veterinaryType.id }] },
         website: "https://www.kadeveterinaria.com",
         street: "Calle 123",
         municipality: "Morelia",

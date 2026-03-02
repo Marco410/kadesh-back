@@ -1,12 +1,20 @@
-import { NavigationContainer, ListNavItems, NavItem } from '@keystone-6/core/admin-ui/components';
-import type { NavigationProps } from '@keystone-6/core/admin-ui/components';
+import {
+  NavigationContainer,
+  ListNavItems,
+  NavItem,
+} from "@keystone-6/core/admin-ui/components";
+import type { NavigationProps } from "@keystone-6/core/admin-ui/components";
 
-export function CustomNavigation({ lists, authenticatedItem }: NavigationProps) {
+export function CustomNavigation({
+  lists,
+  authenticatedItem,
+}: NavigationProps) {
   return (
     <NavigationContainer authenticatedItem={authenticatedItem}>
       <NavItem href="/">Dashboard</NavItem>
       <ListNavItems lists={lists} />
       <NavItem href="/import-veterinary">Importar Veterinarias</NavItem>
+      <NavItem href="/import-business-leads">Importar Negocios</NavItem>
     </NavigationContainer>
   );
-} 
+}
