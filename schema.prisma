@@ -504,8 +504,6 @@ model TechBusinessLead {
   pipelineStatus       String?             @default("01 - Detectado")
   estimatedValue       Float?
   productOffered       String              @default("")
-  assignedSeller       User?               @relation("TechBusinessLead_assignedSeller", fields: [assignedSellerId], references: [id])
-  assignedSellerId     String?             @map("assignedSeller")
   firstContactDate     DateTime?           @postgresql.Date
   nextFollowUpDate     DateTime?           @postgresql.Date
   notes                String              @default("")
@@ -524,6 +522,8 @@ model TechBusinessLead {
   followUpTasks        TechFollowUpTask[]  @relation("TechFollowUpTask_businessLead")
   googleMapsUrl        String              @default("")
   googlePlaceId        String?             @unique
+  salesPerson          User?               @relation("TechBusinessLead_salesPerson", fields: [salesPersonId], references: [id])
+  salesPersonId        String?             @map("salesPerson")
   createdAt            DateTime?           @default(now())
   updatedAt            DateTime?           @updatedAt
 
@@ -533,7 +533,7 @@ model TechBusinessLead {
   @@index([state])
   @@index([opportunityLevel])
   @@index([pipelineStatus])
-  @@index([assignedSellerId])
+  @@index([salesPersonId])
 }
 
 model TechSalesActivity {
@@ -607,7 +607,7 @@ model User {
   phone                       String              @default("")
   roles                       Role[]              @relation("Role_users")
   blog_subscriptions          BlogSubscription[]  @relation("BlogSubscription_user")
-  businessLeadsAssigned       TechBusinessLead[]  @relation("TechBusinessLead_assignedSeller")
+  businessLeadsAssigned       TechBusinessLead[]  @relation("TechBusinessLead_salesPerson")
   salesActivities             TechSalesActivity[] @relation("TechSalesActivity_assignedSeller")
   followUpTasks               TechFollowUpTask[]  @relation("TechFollowUpTask_assignedSeller")
   profileImage_id             String?

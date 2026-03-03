@@ -36,7 +36,7 @@ const { withAuth } = createAuth({
   // this is a GraphQL query fragment for fetching what data will be attached to a context.session
   //   this can be helpful for when you are writing your access control functions
   //   you can find out more at https://keystonejs.com/docs/guides/auth-and-access-control
-  sessionData: "id name lastName username email verified profileImage { url } phone roles { name } createdAt",
+  sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } createdAt",
   secretField: "password",
 
   // WARNING: remove initFirstItem functionality in production

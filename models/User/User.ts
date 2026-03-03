@@ -57,9 +57,8 @@ export default list({
       many: true,
     }),
     businessLeadsAssigned: relationship({
-      ref: "TechBusinessLead.assignedSeller",
+      ref: "TechBusinessLead.salesPerson",
       many: true,
-      ui: { description: "Leads asignados (CRM)" },
     }),
     salesActivities: relationship({
       ref: "TechSalesActivity.assignedSeller",

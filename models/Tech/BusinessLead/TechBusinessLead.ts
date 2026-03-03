@@ -34,6 +34,7 @@ export default list({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
+    labelField: "businessName",
     listView: {
       initialColumns: [
         "businessName",
@@ -86,10 +87,6 @@ export default list({
     }),
     productOffered: text({
       ui: { description: "Producto ofrecido (web, e-commerce, etc.)" },
-    }),
-    assignedSeller: relationship({
-      ref: "User.businessLeadsAssigned",
-      ui: { description: "Vendedor asignado" },
     }),
     firstContactDate: calendarDay({
       ui: { description: "Fecha primer contacto" },
@@ -155,6 +152,11 @@ export default list({
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "hidden" },
       },
+    }),
+    salesPerson: relationship({
+      ref: "User.businessLeadsAssigned",
+      many: false,
+      ui: { description: "Vendedor asignado" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

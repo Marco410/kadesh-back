@@ -2681,7 +2681,6 @@ type TechBusinessLead {
   pipelineStatus: String
   estimatedValue: Float
   productOffered: String
-  assignedSeller: User
   firstContactDate: CalendarDay
   nextFollowUpDate: CalendarDay
   notes: String
@@ -2703,6 +2702,7 @@ type TechBusinessLead {
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   googleMapsUrl: String
   googlePlaceId: String
+  salesPerson: User
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2731,7 +2731,6 @@ input TechBusinessLeadWhereInput {
   pipelineStatus: StringNullableFilter
   estimatedValue: FloatNullableFilter
   productOffered: StringFilter
-  assignedSeller: UserWhereInput
   firstContactDate: CalendarDayNullableFilter
   nextFollowUpDate: CalendarDayNullableFilter
   notes: StringFilter
@@ -2750,6 +2749,7 @@ input TechBusinessLeadWhereInput {
   followUpTasks: TechFollowUpTaskManyRelationFilter
   googleMapsUrl: StringFilter
   googlePlaceId: StringNullableFilter
+  salesPerson: UserWhereInput
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2833,7 +2833,6 @@ input TechBusinessLeadUpdateInput {
   pipelineStatus: String
   estimatedValue: Float
   productOffered: String
-  assignedSeller: UserRelateToOneForUpdateInput
   firstContactDate: CalendarDay
   nextFollowUpDate: CalendarDay
   notes: String
@@ -2852,6 +2851,7 @@ input TechBusinessLeadUpdateInput {
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   googleMapsUrl: String
   googlePlaceId: String
+  salesPerson: UserRelateToOneForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2897,7 +2897,6 @@ input TechBusinessLeadCreateInput {
   pipelineStatus: String
   estimatedValue: Float
   productOffered: String
-  assignedSeller: UserRelateToOneForCreateInput
   firstContactDate: CalendarDay
   nextFollowUpDate: CalendarDay
   notes: String
@@ -2916,6 +2915,7 @@ input TechBusinessLeadCreateInput {
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   googleMapsUrl: String
   googlePlaceId: String
+  salesPerson: UserRelateToOneForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
