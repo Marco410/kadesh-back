@@ -16,7 +16,7 @@ export const proposalHooks = {
 
     if (
       operation === "update" &&
-      resolvedData?.status === PROPOSAL_STATUS.ACEPTADA
+      resolvedData?.status === PROPOSAL_STATUS.COMPRADA
     ) {
       const proposal = await context.query.TechProposal.findOne({
         where: { id: item.id },
@@ -24,7 +24,7 @@ export const proposalHooks = {
       });
       if (
         !proposal?.businessLead?.id ||
-        proposal.status !== PROPOSAL_STATUS.ACEPTADA
+        proposal.status !== PROPOSAL_STATUS.COMPRADA
       )
         return;
 

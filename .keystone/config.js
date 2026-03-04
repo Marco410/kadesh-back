@@ -555,6 +555,12 @@ var User_default = (0, import_core7.list)({
       ref: "Role.users",
       many: true
     }),
+    /** Company (SaaS tenant) this user belongs to; 1 company : N users */
+    company: (0, import_fields7.relationship)({
+      ref: "SaasCompany.users",
+      many: false,
+      ui: { description: "Company/organization this user belongs to" }
+    }),
     blog_subscriptions: (0, import_fields7.relationship)({
       ref: "BlogSubscription.user",
       many: true
@@ -601,6 +607,9 @@ var User_default = (0, import_core7.list)({
     smsRegistrationId: (0, import_fields7.text)(),
     verified: (0, import_fields7.checkbox)(),
     salesPersonVerified: (0, import_fields7.checkbox)(),
+    salesComission: (0, import_fields7.integer)({
+      ui: { description: "Comisi\xF3n de ventas (en porcentaje)" }
+    }),
     createdAt: (0, import_fields7.timestamp)({
       defaultValue: {
         kind: "now"
@@ -1823,9 +1832,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text31) {
+function sanitizeUrl2(text33) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text31.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text33.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -2148,7 +2157,7 @@ var PROPOSAL_STATUS = {
   ACEPTADA: "Aceptada",
   RECHAZADA: "Rechazada",
   PENDIENTE: "Pendiente",
-  COMPRADO: "Comprada"
+  COMPRADA: "Comprada"
 };
 var FOLLOW_UP_TASK_STATUS = {
   PENDIENTE: "Pendiente",
@@ -2362,8 +2371,36 @@ var TechStatusBusinessLead_default = (0, import_core37.list)({
     firstContactDate: (0, import_fields37.calendarDay)({
       ui: { description: "Fecha primer contacto" }
     }),
-    nextFollowUpDate: (0, import_fields37.calendarDay)({
-      ui: { description: "Pr\xF3xima fecha de seguimiento" }
+    /** Virtual: next follow-up date from the latest FollowUpTask with status Pendiente or Pospuesto */
+    nextFollowUpDate: (0, import_fields37.virtual)({
+      field: import_core37.graphql.field({
+        type: import_core37.graphql.String,
+        async resolve(item, _args, context) {
+          let businessLeadId = item.businessLeadId;
+          if (businessLeadId == null) {
+            const s = await context.sudo().query.TechStatusBusinessLead.findOne({
+              where: { id: item.id },
+              query: "businessLead { id }"
+            });
+            businessLeadId = s?.businessLead?.id ?? null;
+          }
+          if (!businessLeadId) return null;
+          const tasks = await context.sudo().query.TechFollowUpTask.findMany({
+            where: {
+              businessLead: { id: { equals: businessLeadId } },
+              status: {
+                in: [FOLLOW_UP_TASK_STATUS.PENDIENTE, FOLLOW_UP_TASK_STATUS.POSPUESTO]
+              }
+            },
+            orderBy: [{ scheduledDate: "desc" }],
+            take: 1,
+            query: "scheduledDate"
+          });
+          const date = tasks[0]?.scheduledDate;
+          return date ?? null;
+        }
+      }),
+      ui: { description: "Pr\xF3xima fecha de seguimiento (del \xFAltimo FollowUpTask Pendiente o Pospuesto)" }
     }),
     notes: (0, import_fields37.text)({
       ui: { displayMode: "textarea", description: "Notas generales" }
@@ -2484,12 +2521,12 @@ var proposalHooks = {
     listKey
   }) => {
     if (listKey !== "TechProposal" || !item?.id) return;
-    if (operation === "update" && resolvedData?.status === PROPOSAL_STATUS.ACEPTADA) {
+    if (operation === "update" && resolvedData?.status === PROPOSAL_STATUS.COMPRADA) {
       const proposal = await context.query.TechProposal.findOne({
         where: { id: item.id },
         query: "id status businessLead { id }"
       });
-      if (!proposal?.businessLead?.id || proposal.status !== PROPOSAL_STATUS.ACEPTADA)
+      if (!proposal?.businessLead?.id || proposal.status !== PROPOSAL_STATUS.COMPRADA)
         return;
       try {
         const lead = await context.query.TechBusinessLead.findOne({
@@ -2632,6 +2669,217 @@ var TechSalesActivity_default = (0, import_core40.list)({
   }
 });
 
+// models/Saas/SaasCompany/SaasCompany.ts
+var import_core41 = require("@keystone-6/core");
+var import_fields41 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompany/SaasCompany.access.ts
+var saasCompanyAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Saas/SaasCompany/SaasCompany.ts
+var SaasCompany_default = (0, import_core41.list)({
+  access: saasCompanyAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "name",
+        "plan",
+        "allowedGooglePlaceCategories",
+        "subscriptionStartedAt",
+        "users"
+      ]
+    }
+  },
+  fields: {
+    /** Company / organization name */
+    name: (0, import_fields41.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Company or organization name" }
+    }),
+    /** Users belonging to this company (1 company : N users) */
+    users: (0, import_fields41.relationship)({
+      ref: "User.company",
+      many: true,
+      ui: { description: "Users belonging to this company" }
+    }),
+    /** Subscription plan for this company */
+    plan: (0, import_fields41.relationship)({
+      ref: "SaasPlan.companies",
+      many: false,
+      ui: { description: "Subscription plan (defines cost, frequency, lead limit)" }
+    }),
+    /** Date when the company started its subscription */
+    subscriptionStartedAt: (0, import_fields41.calendarDay)({
+      ui: { description: "Date when the subscription started" }
+    }),
+    /** Monthly lead sync usage records (count of leads synced per month) */
+    monthlyLeadSyncRecords: (0, import_fields41.relationship)({
+      ref: "SaasCompanyMonthlyLeadSync.company",
+      many: true,
+      ui: { description: "Per-month lead sync usage (for quota enforcement)" }
+    }),
+    allowedGooglePlaceCategories: (0, import_fields41.json)({
+      ui: {
+        description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
+      }
+    }),
+    createdAt: (0, import_fields41.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    }),
+    updatedAt: (0, import_fields41.timestamp)({
+      db: { updatedAt: true },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    })
+  }
+});
+
+// models/Saas/SaasPlan/SaasPlan.ts
+var import_core42 = require("@keystone-6/core");
+var import_fields42 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasPlan/SaasPlan.access.ts
+var saasPlanAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Saas/SaasPlan/constants.ts
+var PLAN_FREQUENCY = {
+  WEEKLY: "weekly",
+  MONTHLY: "monthly",
+  ANNUAL: "annual"
+};
+var PLAN_FREQUENCY_OPTIONS = [
+  { label: "Weekly", value: PLAN_FREQUENCY.WEEKLY },
+  { label: "Monthly", value: PLAN_FREQUENCY.MONTHLY },
+  { label: "Annual", value: PLAN_FREQUENCY.ANNUAL }
+];
+
+// models/Saas/SaasPlan/SaasPlan.ts
+var SaasPlan_default = (0, import_core42.list)({
+  access: saasPlanAccess,
+  ui: {
+    listView: {
+      initialColumns: ["name", "cost", "frequency", "leadLimit", "companies"]
+    }
+  },
+  fields: {
+    /** Plan display name */
+    name: (0, import_fields42.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
+    }),
+    /** Price amount (in plan currency) */
+    cost: (0, import_fields42.float)({
+      ui: { description: "Plan cost per billing period" }
+    }),
+    /** Billing frequency: weekly, monthly, or annual */
+    frequency: (0, import_fields42.select)({
+      type: "string",
+      options: [...PLAN_FREQUENCY_OPTIONS],
+      ui: { description: "Billing frequency (weekly, monthly, annual)" }
+    }),
+    leadLimit: (0, import_fields42.integer)({
+      ui: { description: "Max leads that can be synced per month for this plan" }
+    }),
+    companies: (0, import_fields42.relationship)({
+      ref: "SaasCompany.plan",
+      many: true,
+      ui: { description: "Companies using this plan" }
+    }),
+    createdAt: (0, import_fields42.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    }),
+    updatedAt: (0, import_fields42.timestamp)({
+      db: { updatedAt: true },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    })
+  }
+});
+
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
+var import_core43 = require("@keystone-6/core");
+var import_fields43 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
+var saasCompanyMonthlyLeadSyncAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
+var SaasCompanyMonthlyLeadSync_default = (0, import_core43.list)({
+  access: saasCompanyMonthlyLeadSyncAccess,
+  ui: {
+    listView: {
+      initialColumns: ["company", "year", "month", "syncedCount"]
+    }
+  },
+  fields: {
+    company: (0, import_fields43.relationship)({
+      ref: "SaasCompany.monthlyLeadSyncRecords",
+      many: false
+    }),
+    year: (0, import_fields43.integer)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Year of the sync period" }
+    }),
+    month: (0, import_fields43.integer)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Month of the sync period (1-12)" }
+    }),
+    /** Number of leads synced in this month for this company (used vs plan leadLimit) */
+    syncedCount: (0, import_fields43.integer)({
+      defaultValue: 0,
+      ui: { description: "Number of leads synced this month (for quota tracking)" }
+    }),
+    createdAt: (0, import_fields43.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    }),
+    updatedAt: (0, import_fields43.timestamp)({
+      db: { updatedAt: true },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   Ad: Ad_default,
@@ -2673,11 +2921,14 @@ var schema_default = {
   TechProposal: TechProposal_default,
   TokenNotification: TokenNotification_default,
   User: User_default,
-  WishList: WishList_default
+  WishList: WishList_default,
+  SaasCompany: SaasCompany_default,
+  SaasPlan: SaasPlan_default,
+  SaasCompanyMonthlyLeadSync: SaasCompanyMonthlyLeadSync_default
 };
 
 // keystone.ts
-var import_core41 = require("@keystone-6/core");
+var import_core44 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -2951,6 +3202,7 @@ var resolver3 = {
         businessLeadId: existing.id
       };
     }
+    const verifiedSellerIds = await getVerifiedSalesPersonIds(context);
     const place = await getPlaceDetails(input.placeId, apiKey);
     if (!place) {
       return {
@@ -2980,6 +3232,10 @@ var resolver3 = {
       googlePlaceId: input.placeId,
       googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`
     };
+    const sellerId = input.assignedSellerId ? input.assignedSellerId : verifiedSellerIds.length > 0 ? verifiedSellerIds[Math.floor(0 % verifiedSellerIds.length)] : null;
+    if (sellerId) {
+      data.salesPerson = { connect: { id: sellerId } };
+    }
     if (input.assignedSellerId) {
       data.salesPerson = { connect: { id: input.assignedSellerId } };
     }
@@ -3008,6 +3264,16 @@ var resolver3 = {
     }
   }
 };
+async function getVerifiedSalesPersonIds(context) {
+  const users = await context.sudo().query.User.findMany({
+    where: {
+      salesPersonVerified: { equals: true },
+      roles: { some: { name: { equals: "vendedor" /* VENDEDOR */ } } }
+    },
+    query: "id"
+  });
+  return users.map((u) => u.id);
+}
 var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
 
 // graphql/customs/mutations/importPetPlace.ts
@@ -3241,8 +3507,229 @@ var importPetPlace_default = {
   resolver: resolver4
 };
 
+// graphql/customs/mutations/syncLeadsFront.ts
+var typeDefs5 = `
+  input SyncLeadsFrontInput {
+    placeId: String!
+    category: String
+    assignedSellerId: ID
+  }
+
+  type SyncLeadsFrontResult {
+    success: Boolean!
+    message: String!
+    businessLeadId: ID
+    syncedCount: Int
+    leadLimit: Int
+  }
+
+  type Mutation {
+    syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
+  }
+`;
+var definition5 = `
+  syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
+`;
+async function getPlaceDetails2(placeId, apiKey) {
+  const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry";
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.status !== "OK" || !data.result) return null;
+  return data.result;
+}
+function parseAddressComponents2(components) {
+  let city = "";
+  let state = "";
+  let country = "";
+  for (const c of components || []) {
+    if (c.types.includes("locality")) city = c.long_name;
+    if (c.types.includes("administrative_area_level_1")) state = c.short_name;
+    if (c.types.includes("country")) country = c.long_name;
+  }
+  return { city, state, country };
+}
+async function getOrCreateMonthlyRecord(context, companyId, year, month) {
+  const existing = await context.sudo().query.SaasCompanyMonthlyLeadSync.findOne({
+    where: {
+      company: { id: { equals: companyId } },
+      year: { equals: year },
+      month: { equals: month }
+    },
+    query: "id syncedCount"
+  });
+  if (existing) {
+    return {
+      id: existing.id,
+      syncedCount: existing.syncedCount ?? 0
+    };
+  }
+  const created = await context.sudo().query.SaasCompanyMonthlyLeadSync.createOne({
+    data: {
+      company: { connect: { id: companyId } },
+      year,
+      month,
+      syncedCount: 0
+    },
+    query: "id syncedCount"
+  });
+  return {
+    id: created.id,
+    syncedCount: created.syncedCount ?? 0
+  };
+}
+var resolver5 = {
+  syncLeadsFront: async (_root, {
+    input
+  }, context) => {
+    const session2 = context.session;
+    const userId = session2?.data?.id;
+    if (!userId) {
+      return {
+        success: false,
+        message: "Debes iniciar sesi\xF3n para sincronizar leads",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit: null
+      };
+    }
+    const user = await context.sudo().query.User.findOne({
+      where: { id: userId },
+      query: "id company { id plan { leadLimit } }"
+    });
+    const company = user?.company;
+    if (!company?.id) {
+      return {
+        success: false,
+        message: "Tu usuario no tiene una empresa asignada",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit: null
+      };
+    }
+    const leadLimit = company.plan?.leadLimit ?? null;
+    if (leadLimit !== null && leadLimit < 1) {
+      return {
+        success: false,
+        message: "El plan de tu empresa no permite sincronizar leads",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit
+      };
+    }
+    const now = /* @__PURE__ */ new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const { id: recordId, syncedCount } = await getOrCreateMonthlyRecord(
+      context,
+      company.id,
+      year,
+      month
+    );
+    if (leadLimit !== null && syncedCount >= leadLimit) {
+      return {
+        success: false,
+        message: `Cuota mensual alcanzada (${syncedCount}/${leadLimit} leads). Pr\xF3ximo reinicio el mes siguiente.`,
+        businessLeadId: null,
+        syncedCount,
+        leadLimit
+      };
+    }
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      return {
+        success: false,
+        message: "GOOGLE_MAPS_API_KEY no configurada",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit
+      };
+    }
+    const existing = await context.sudo().query.TechBusinessLead.findOne({
+      where: { googlePlaceId: input.placeId },
+      query: "id"
+    });
+    if (existing) {
+      return {
+        success: false,
+        message: "Este negocio ya fue importado como lead",
+        businessLeadId: existing.id,
+        syncedCount,
+        leadLimit
+      };
+    }
+    const place = await getPlaceDetails2(input.placeId, apiKey);
+    if (!place) {
+      return {
+        success: false,
+        message: "No se pudo obtener datos del lugar",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit
+      };
+    }
+    const { city, state, country } = parseAddressComponents2(
+      place.address_components || []
+    );
+    const address = place.formatted_address || "";
+    const hasWebsite = !!place.website;
+    const data = {
+      businessName: place.name,
+      category: input.category || place.types?.[0] || "Negocio",
+      phone: place.formatted_phone_number || place.international_phone_number || "",
+      address,
+      city: city || "",
+      state: state || "",
+      country: country || "",
+      rating: place.rating ?? null,
+      reviewCount: place.user_ratings_total ?? null,
+      hasWebsite,
+      websiteUrl: place.website || "",
+      source: "Google Maps",
+      googlePlaceId: input.placeId,
+      googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`
+    };
+    if (input.assignedSellerId) {
+      data.salesPerson = { connect: { id: input.assignedSellerId } };
+    }
+    try {
+      const lead = await context.sudo().query.TechBusinessLead.createOne({
+        data
+      });
+      await context.sudo().query.TechStatusBusinessLead.createOne({
+        data: {
+          businessLead: { connect: { id: lead.id } },
+          pipelineStatus: PIPELINE_STATUS.DETECTADO,
+          opportunityLevel: "Media"
+        }
+      });
+      const newCount = syncedCount + 1;
+      await context.sudo().query.SaasCompanyMonthlyLeadSync.updateOne({
+        where: { id: recordId },
+        data: { syncedCount: newCount }
+      });
+      return {
+        success: true,
+        message: "Lead importado correctamente",
+        businessLeadId: lead.id,
+        syncedCount: newCount,
+        leadLimit
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Error creando lead",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit
+      };
+    }
+  }
+};
+var syncLeadsFront_default = { typeDefs: typeDefs5, definition: definition5, resolver: resolver5 };
+
 // graphql/customs/mutations/syncBusinessLeadsFromGoogle.ts
-async function getVerifiedSalesPersonIds(context) {
+async function getVerifiedSalesPersonIds2(context) {
   const users = await context.sudo().query.User.findMany({
     where: {
       salesPersonVerified: { equals: true },
@@ -3255,7 +3742,7 @@ async function getVerifiedSalesPersonIds(context) {
 var MIN_RATING = 4;
 var MIN_REVIEWS = 20;
 var DEFAULT_MAX_RESULTS = 60;
-var typeDefs5 = `
+var typeDefs6 = `
   input SyncBusinessLeadsFromGoogleInput {
     lat: Float!
     lng: Float!
@@ -3277,12 +3764,12 @@ var typeDefs5 = `
     syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   }
 `;
-var definition5 = `
+var definition6 = `
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
 `;
 var PROMPT_PREFIX = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
 var MIN_POSITIVE_REVIEW_RATING = 4;
-async function getPlaceDetails2(placeId, apiKey) {
+async function getPlaceDetails3(placeId, apiKey) {
   const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry,reviews";
   const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
   const res = await fetch(url);
@@ -3293,8 +3780,8 @@ async function getPlaceDetails2(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text31 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text31}`;
+  const text33 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text33}`;
 }
 function buildReviewsAndPrompt(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -3322,7 +3809,7 @@ function buildReviewsAndPrompt(details, category) {
   const websitePromptContent = PROMPT_PREFIX + businessInfo;
   return { topReviews, websitePromptContent };
 }
-function parseAddressComponents2(components) {
+function parseAddressComponents3(components) {
   let city = "";
   let state = "";
   let country = "";
@@ -3333,7 +3820,7 @@ function parseAddressComponents2(components) {
   }
   return { city, state, country };
 }
-var resolver5 = {
+var resolver6 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
@@ -3361,7 +3848,7 @@ var resolver5 = {
     let alreadyInDb = 0;
     let skippedLowRating = 0;
     let nextPageToken;
-    const verifiedSellerIds = await getVerifiedSalesPersonIds(context);
+    const verifiedSellerIds = await getVerifiedSalesPersonIds2(context);
     try {
       do {
         let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
@@ -3398,9 +3885,9 @@ var resolver5 = {
             skippedLowRating++;
             continue;
           }
-          const details = await getPlaceDetails2(placeId, apiKey);
+          const details = await getPlaceDetails3(placeId, apiKey);
           if (!details) continue;
-          const { city: parsedCity, state, country } = parseAddressComponents2(
+          const { city: parsedCity, state, country } = parseAddressComponents3(
             details.address_components || []
           );
           const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
@@ -3467,7 +3954,7 @@ var resolver5 = {
     }
   }
 };
-var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs5, definition: definition5, resolver: resolver5 };
+var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -3477,6 +3964,7 @@ var customMutation = {
     ${importPetPlace_default.typeDefs}
     ${importBusinessLeadFromGoogle_default.typeDefs}
     ${syncBusinessLeadsFromGoogle_default.typeDefs}
+    ${syncLeadsFront_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -3484,13 +3972,15 @@ var customMutation = {
     ${importPetPlace_default.definition}
     ${importBusinessLeadFromGoogle_default.definition}
     ${syncBusinessLeadsFromGoogle_default.definition}
+    ${syncLeadsFront_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
     ...authenticateUserWithGoogle_default.resolver,
     ...importPetPlace_default.resolver,
     ...importBusinessLeadFromGoogle_default.resolver,
-    ...syncBusinessLeadsFromGoogle_default.resolver
+    ...syncBusinessLeadsFromGoogle_default.resolver,
+    ...syncLeadsFront_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -3512,7 +4002,7 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 }
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs6 = `
+var typeDefs7 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -3569,7 +4059,7 @@ var typeDefs6 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition6 = `
+var definition7 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -3619,7 +4109,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver6 = {
+var resolver7 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -3773,7 +4263,7 @@ var resolver6 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
+var nearbyAnimals_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -3783,7 +4273,7 @@ function convertGoogleTimeToHours(timeString) {
   const hours = parseInt(timeString.substring(0, 2), 10);
   return isNaN(hours) ? 0 : hours;
 }
-function parseAddressComponents3(addressComponents) {
+function parseAddressComponents4(addressComponents) {
   const result = {
     street: "",
     municipality: "",
@@ -3840,7 +4330,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   if (!placeId) {
     return null;
   }
-  const addressData = place.address_components ? parseAddressComponents3(place.address_components) : { street: "", municipality: "", state: "", country: "", cp: "" };
+  const addressData = place.address_components ? parseAddressComponents4(place.address_components) : { street: "", municipality: "", state: "", country: "", cp: "" };
   const existingPlace = await context.sudo().query.PetPlace.findOne({
     where: { google_place_id: placeId },
     query: "id"
@@ -3898,7 +4388,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
             updateData.phone = detailsData.result.international_phone_number;
           }
           if (detailsData.result.address_components) {
-            const addressData2 = parseAddressComponents3(detailsData.result.address_components);
+            const addressData2 = parseAddressComponents4(detailsData.result.address_components);
             if (addressData2.street) updateData.street = addressData2.street;
             if (addressData2.municipality) updateData.municipality = addressData2.municipality;
             if (addressData2.state) updateData.state = addressData2.state;
@@ -4041,7 +4531,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs7 = `
+var typeDefs8 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -4099,10 +4589,10 @@ var typeDefs7 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition7 = `
+var definition8 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver7 = {
+var resolver8 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -4184,7 +4674,7 @@ var resolver7 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -4267,7 +4757,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core41.config)({
+  (0, import_core44.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

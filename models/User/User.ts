@@ -8,6 +8,7 @@ import {
   image,
   checkbox,
   relationship,
+  integer,
 } from "@keystone-6/core/fields";
 import {
   emailHooks,
@@ -51,6 +52,12 @@ export default list({
     roles: relationship({
       ref: "Role.users",
       many: true,
+    }),
+    /** Company (SaaS tenant) this user belongs to; 1 company : N users */
+    company: relationship({
+      ref: "SaasCompany.users",
+      many: false,
+      ui: { description: "Company/organization this user belongs to" },
     }),
     blog_subscriptions: relationship({
       ref: "BlogSubscription.user",
@@ -98,6 +105,9 @@ export default list({
     smsRegistrationId: text(),
     verified: checkbox(),
     salesPersonVerified: checkbox(),
+    salesComission: integer({
+      ui: { description: "Comisión de ventas (en porcentaje)" },
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

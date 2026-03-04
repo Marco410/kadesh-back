@@ -1,27 +1,28 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
-import { Role } from "../../../models/Role/constants";
 
 const typeDefs = `
-  input ImportBusinessLeadFromGoogleInput {
+  input SyncLeadsFrontInput {
     placeId: String!
     category: String
     assignedSellerId: ID
   }
 
-  type ImportBusinessLeadFromGoogleResult {
+  type SyncLeadsFrontResult {
     success: Boolean!
     message: String!
     businessLeadId: ID
+    syncedCount: Int
+    leadLimit: Int
   }
 
   type Mutation {
-    importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
+    syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
   }
 `;
 
 const definition = `
-  importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
+  syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
 `;
 
 async function getPlaceDetails(placeId: string, apiKey: string) {
@@ -48,8 +49,44 @@ function parseAddressComponents(
   return { city, state, country };
 }
 
+/** Get or create SaasCompanyMonthlyLeadSync for company + year + month; return record id and current syncedCount */
+async function getOrCreateMonthlyRecord(
+  context: KeystoneContext,
+  companyId: string,
+  year: number,
+  month: number,
+): Promise<{ id: string; syncedCount: number }> {
+  const existing = await context.sudo().query.SaasCompanyMonthlyLeadSync.findOne({
+    where: {
+      company: { id: { equals: companyId } },
+      year: { equals: year },
+      month: { equals: month },
+    },
+    query: "id syncedCount",
+  });
+  if (existing) {
+    return {
+      id: existing.id,
+      syncedCount: (existing as { syncedCount: number | null }).syncedCount ?? 0,
+    };
+  }
+  const created = await context.sudo().query.SaasCompanyMonthlyLeadSync.createOne({
+    data: {
+      company: { connect: { id: companyId } },
+      year,
+      month,
+      syncedCount: 0,
+    },
+    query: "id syncedCount",
+  });
+  return {
+    id: created.id,
+    syncedCount: (created as { syncedCount: number | null }).syncedCount ?? 0,
+  };
+}
+
 const resolver = {
-  importBusinessLeadFromGoogle: async (
+  syncLeadsFront: async (
     _root: unknown,
     {
       input,
@@ -58,12 +95,74 @@ const resolver = {
     },
     context: KeystoneContext,
   ) => {
+    const session = context.session as { data?: { id: string } } | undefined;
+    const userId = session?.data?.id;
+    if (!userId) {
+      return {
+        success: false,
+        message: "Debes iniciar sesión para sincronizar leads",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit: null,
+      };
+    }
+
+    const user = await context.sudo().query.User.findOne({
+      where: { id: userId },
+      query: "id company { id plan { leadLimit } }",
+    });
+    const company = (user as { company?: { id: string; plan?: { leadLimit: number | null } } | null })
+      ?.company;
+    if (!company?.id) {
+      return {
+        success: false,
+        message: "Tu usuario no tiene una empresa asignada",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit: null,
+      };
+    }
+
+    const leadLimit = company.plan?.leadLimit ?? null;
+    if (leadLimit !== null && leadLimit < 1) {
+      return {
+        success: false,
+        message: "El plan de tu empresa no permite sincronizar leads",
+        businessLeadId: null,
+        syncedCount: null,
+        leadLimit,
+      };
+    }
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    const { id: recordId, syncedCount } = await getOrCreateMonthlyRecord(
+      context,
+      company.id,
+      year,
+      month,
+    );
+
+    if (leadLimit !== null && syncedCount >= leadLimit) {
+      return {
+        success: false,
+        message: `Cuota mensual alcanzada (${syncedCount}/${leadLimit} leads). Próximo reinicio el mes siguiente.`,
+        businessLeadId: null,
+        syncedCount,
+        leadLimit,
+      };
+    }
+
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       return {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
         businessLeadId: null,
+        syncedCount: null,
+        leadLimit,
       };
     }
 
@@ -76,11 +175,10 @@ const resolver = {
         success: false,
         message: "Este negocio ya fue importado como lead",
         businessLeadId: existing.id,
+        syncedCount,
+        leadLimit,
       };
     }
-
-    const verifiedSellerIds = await getVerifiedSalesPersonIds(context);
-
 
     const place = await getPlaceDetails(input.placeId, apiKey);
     if (!place) {
@@ -88,6 +186,8 @@ const resolver = {
         success: false,
         message: "No se pudo obtener datos del lugar",
         businessLeadId: null,
+        syncedCount: null,
+        leadLimit,
       };
     }
 
@@ -115,15 +215,6 @@ const resolver = {
       googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`,
     };
 
-    const sellerId = input.assignedSellerId
-      ? input.assignedSellerId
-      : verifiedSellerIds.length > 0
-        ? verifiedSellerIds[Math.floor(0 % verifiedSellerIds.length)]
-        : null;
-    if (sellerId) {
-      data.salesPerson = { connect: { id: sellerId } };
-    }
-
     if (input.assignedSellerId) {
       data.salesPerson = { connect: { id: input.assignedSellerId } };
     }
@@ -139,32 +230,30 @@ const resolver = {
           opportunityLevel: "Media",
         },
       });
+
+      const newCount = syncedCount + 1;
+      await context.sudo().query.SaasCompanyMonthlyLeadSync.updateOne({
+        where: { id: recordId },
+        data: { syncedCount: newCount },
+      });
+
       return {
         success: true,
         message: "Lead importado correctamente",
         businessLeadId: lead.id,
+        syncedCount: newCount,
+        leadLimit,
       };
     } catch (err) {
       return {
         success: false,
         message: err instanceof Error ? err.message : "Error creando lead",
         businessLeadId: null,
+        syncedCount: null,
+        leadLimit,
       };
     }
   },
 };
-
-async function getVerifiedSalesPersonIds(
-  context: KeystoneContext,
-): Promise<string[]> {
-  const users = await context.sudo().query.User.findMany({
-    where: {
-      salesPersonVerified: { equals: true },
-      roles: { some: { name: { equals: Role.VENDEDOR } } },
-    },
-    query: "id",
-  });
-  return users.map((u) => u.id);
-}
 
 export default { typeDefs, definition, resolver };

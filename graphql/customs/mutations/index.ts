@@ -2,6 +2,7 @@ import customAuth from "./auth/customAuth";
 import authenticateUserWithGoogle from "./auth/authenticateUserWithGoogle";
 import importBusinessLeadFromGoogle from "./importBusinessLeadFromGoogle";
 import importPetPlace from "./importPetPlace";
+import syncLeadsFront from "./syncLeadsFront";
 import syncBusinessLeadsFromGoogle from "./syncBusinessLeadsFromGoogle";
 
 const customMutation = {
@@ -11,6 +12,7 @@ const customMutation = {
     ${importPetPlace.typeDefs}
     ${importBusinessLeadFromGoogle.typeDefs}
     ${syncBusinessLeadsFromGoogle.typeDefs}
+    ${syncLeadsFront.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -18,6 +20,7 @@ const customMutation = {
     ${importPetPlace.definition}
     ${importBusinessLeadFromGoogle.definition}
     ${syncBusinessLeadsFromGoogle.definition}
+    ${syncLeadsFront.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -25,6 +28,7 @@ const customMutation = {
     ...importPetPlace.resolver,
     ...importBusinessLeadFromGoogle.resolver,
     ...syncBusinessLeadsFromGoogle.resolver,
+    ...syncLeadsFront.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {

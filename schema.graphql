@@ -2934,7 +2934,7 @@ type TechStatusBusinessLead {
   estimatedValue: Float
   productOffered: String
   firstContactDate: CalendarDay
-  nextFollowUpDate: CalendarDay
+  nextFollowUpDate: String
   notes: String
 }
 
@@ -2954,7 +2954,6 @@ input TechStatusBusinessLeadWhereInput {
   estimatedValue: FloatNullableFilter
   productOffered: StringFilter
   firstContactDate: CalendarDayNullableFilter
-  nextFollowUpDate: CalendarDayNullableFilter
   notes: StringFilter
 }
 
@@ -2965,7 +2964,6 @@ input TechStatusBusinessLeadOrderByInput {
   estimatedValue: OrderDirection
   productOffered: OrderDirection
   firstContactDate: OrderDirection
-  nextFollowUpDate: OrderDirection
   notes: OrderDirection
 }
 
@@ -2976,7 +2974,6 @@ input TechStatusBusinessLeadUpdateInput {
   estimatedValue: Float
   productOffered: String
   firstContactDate: CalendarDay
-  nextFollowUpDate: CalendarDay
   notes: String
 }
 
@@ -2998,7 +2995,6 @@ input TechStatusBusinessLeadCreateInput {
   estimatedValue: Float
   productOffered: String
   firstContactDate: CalendarDay
-  nextFollowUpDate: CalendarDay
   notes: String
 }
 
@@ -3267,6 +3263,7 @@ type User {
   phone: String
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
+  company: SaasCompany
   blog_subscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
   blog_subscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
   businessLeadsAssigned(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
@@ -3283,6 +3280,7 @@ type User {
   smsRegistrationId: String
   verified: Boolean
   salesPersonVerified: Boolean
+  salesComission: Int
   createdAt: DateTime
 }
 
@@ -3309,6 +3307,7 @@ input UserWhereInput {
   password: PasswordFilter
   phone: StringFilter
   roles: RoleManyRelationFilter
+  company: SaasCompanyWhereInput
   blog_subscriptions: BlogSubscriptionManyRelationFilter
   businessLeadsAssigned: TechBusinessLeadManyRelationFilter
   salesActivities: TechSalesActivityManyRelationFilter
@@ -3318,6 +3317,7 @@ input UserWhereInput {
   smsRegistrationId: StringFilter
   verified: BooleanFilter
   salesPersonVerified: BooleanFilter
+  salesComission: IntNullableFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -3355,6 +3355,7 @@ input UserOrderByInput {
   smsRegistrationId: OrderDirection
   verified: OrderDirection
   salesPersonVerified: OrderDirection
+  salesComission: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -3367,6 +3368,7 @@ input UserUpdateInput {
   password: String
   phone: String
   roles: RoleRelateToManyForUpdateInput
+  company: SaasCompanyRelateToOneForUpdateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForUpdateInput
   businessLeadsAssigned: TechBusinessLeadRelateToManyForUpdateInput
   salesActivities: TechSalesActivityRelateToManyForUpdateInput
@@ -3377,6 +3379,7 @@ input UserUpdateInput {
   smsRegistrationId: String
   verified: Boolean
   salesPersonVerified: Boolean
+  salesComission: Int
   createdAt: DateTime
 }
 
@@ -3385,6 +3388,12 @@ input RoleRelateToManyForUpdateInput {
   set: [RoleWhereUniqueInput!]
   create: [RoleCreateInput!]
   connect: [RoleWhereUniqueInput!]
+}
+
+input SaasCompanyRelateToOneForUpdateInput {
+  create: SaasCompanyCreateInput
+  connect: SaasCompanyWhereUniqueInput
+  disconnect: Boolean
 }
 
 input BlogSubscriptionRelateToManyForUpdateInput {
@@ -3415,6 +3424,7 @@ input UserCreateInput {
   password: String
   phone: String
   roles: RoleRelateToManyForCreateInput
+  company: SaasCompanyRelateToOneForCreateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForCreateInput
   businessLeadsAssigned: TechBusinessLeadRelateToManyForCreateInput
   salesActivities: TechSalesActivityRelateToManyForCreateInput
@@ -3425,12 +3435,18 @@ input UserCreateInput {
   smsRegistrationId: String
   verified: Boolean
   salesPersonVerified: Boolean
+  salesComission: Int
   createdAt: DateTime
 }
 
 input RoleRelateToManyForCreateInput {
   create: [RoleCreateInput!]
   connect: [RoleWhereUniqueInput!]
+}
+
+input SaasCompanyRelateToOneForCreateInput {
+  create: SaasCompanyCreateInput
+  connect: SaasCompanyWhereUniqueInput
 }
 
 input BlogSubscriptionRelateToManyForCreateInput {
@@ -3490,6 +3506,244 @@ input WishListCreateInput {
   user: UserRelateToOneForCreateInput
   product: ProductRelateToManyForCreateInput
   createdAt: DateTime
+}
+
+type SaasCompany {
+  id: ID!
+  name: String
+  users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
+  usersCount(where: UserWhereInput! = {}): Int
+  plan: SaasPlan
+  subscriptionStartedAt: CalendarDay
+  monthlyLeadSyncRecords(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
+  monthlyLeadSyncRecordsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
+  allowedGooglePlaceCategories: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyWhereUniqueInput {
+  id: ID
+}
+
+input SaasCompanyWhereInput {
+  AND: [SaasCompanyWhereInput!]
+  OR: [SaasCompanyWhereInput!]
+  NOT: [SaasCompanyWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  users: UserManyRelationFilter
+  plan: SaasPlanWhereInput
+  subscriptionStartedAt: CalendarDayNullableFilter
+  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyMonthlyLeadSyncManyRelationFilter {
+  every: SaasCompanyMonthlyLeadSyncWhereInput
+  some: SaasCompanyMonthlyLeadSyncWhereInput
+  none: SaasCompanyMonthlyLeadSyncWhereInput
+}
+
+input SaasCompanyOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  subscriptionStartedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCompanyUpdateInput {
+  name: String
+  users: UserRelateToManyForUpdateInput
+  plan: SaasPlanRelateToOneForUpdateInput
+  subscriptionStartedAt: CalendarDay
+  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
+  allowedGooglePlaceCategories: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPlanRelateToOneForUpdateInput {
+  create: SaasPlanCreateInput
+  connect: SaasPlanWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput {
+  disconnect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+  set: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+  create: [SaasCompanyMonthlyLeadSyncCreateInput!]
+  connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+}
+
+input SaasCompanyUpdateArgs {
+  where: SaasCompanyWhereUniqueInput!
+  data: SaasCompanyUpdateInput!
+}
+
+input SaasCompanyCreateInput {
+  name: String
+  users: UserRelateToManyForCreateInput
+  plan: SaasPlanRelateToOneForCreateInput
+  subscriptionStartedAt: CalendarDay
+  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
+  allowedGooglePlaceCategories: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPlanRelateToOneForCreateInput {
+  create: SaasPlanCreateInput
+  connect: SaasPlanWhereUniqueInput
+}
+
+input SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput {
+  create: [SaasCompanyMonthlyLeadSyncCreateInput!]
+  connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+}
+
+type SaasPlan {
+  id: ID!
+  name: String
+  cost: Float
+  frequency: String
+  leadLimit: Int
+  companies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
+  companiesCount(where: SaasCompanyWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPlanWhereUniqueInput {
+  id: ID
+}
+
+input SaasPlanWhereInput {
+  AND: [SaasPlanWhereInput!]
+  OR: [SaasPlanWhereInput!]
+  NOT: [SaasPlanWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  cost: FloatNullableFilter
+  frequency: StringNullableFilter
+  leadLimit: IntNullableFilter
+  companies: SaasCompanyManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyManyRelationFilter {
+  every: SaasCompanyWhereInput
+  some: SaasCompanyWhereInput
+  none: SaasCompanyWhereInput
+}
+
+input SaasPlanOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  cost: OrderDirection
+  frequency: OrderDirection
+  leadLimit: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasPlanUpdateInput {
+  name: String
+  cost: Float
+  frequency: String
+  leadLimit: Int
+  companies: SaasCompanyRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyRelateToManyForUpdateInput {
+  disconnect: [SaasCompanyWhereUniqueInput!]
+  set: [SaasCompanyWhereUniqueInput!]
+  create: [SaasCompanyCreateInput!]
+  connect: [SaasCompanyWhereUniqueInput!]
+}
+
+input SaasPlanUpdateArgs {
+  where: SaasPlanWhereUniqueInput!
+  data: SaasPlanUpdateInput!
+}
+
+input SaasPlanCreateInput {
+  name: String
+  cost: Float
+  frequency: String
+  leadLimit: Int
+  companies: SaasCompanyRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyRelateToManyForCreateInput {
+  create: [SaasCompanyCreateInput!]
+  connect: [SaasCompanyWhereUniqueInput!]
+}
+
+type SaasCompanyMonthlyLeadSync {
+  id: ID!
+  company: SaasCompany
+  year: Int
+  month: Int
+  syncedCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyMonthlyLeadSyncWhereUniqueInput {
+  id: ID
+}
+
+input SaasCompanyMonthlyLeadSyncWhereInput {
+  AND: [SaasCompanyMonthlyLeadSyncWhereInput!]
+  OR: [SaasCompanyMonthlyLeadSyncWhereInput!]
+  NOT: [SaasCompanyMonthlyLeadSyncWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  year: IntFilter
+  month: IntFilter
+  syncedCount: IntNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyMonthlyLeadSyncOrderByInput {
+  id: OrderDirection
+  year: OrderDirection
+  month: OrderDirection
+  syncedCount: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCompanyMonthlyLeadSyncUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  year: Int
+  month: Int
+  syncedCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyMonthlyLeadSyncUpdateArgs {
+  where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!
+  data: SaasCompanyMonthlyLeadSyncUpdateInput!
+}
+
+input SaasCompanyMonthlyLeadSyncCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  year: Int
+  month: Int
+  syncedCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 """
@@ -3738,12 +3992,31 @@ type Mutation {
   updateWishLists(data: [WishListUpdateArgs!]!): [WishList]
   deleteWishList(where: WishListWhereUniqueInput!): WishList
   deleteWishLists(where: [WishListWhereUniqueInput!]!): [WishList]
+  createSaasCompany(data: SaasCompanyCreateInput!): SaasCompany
+  createSaasCompanies(data: [SaasCompanyCreateInput!]!): [SaasCompany]
+  updateSaasCompany(where: SaasCompanyWhereUniqueInput!, data: SaasCompanyUpdateInput!): SaasCompany
+  updateSaasCompanies(data: [SaasCompanyUpdateArgs!]!): [SaasCompany]
+  deleteSaasCompany(where: SaasCompanyWhereUniqueInput!): SaasCompany
+  deleteSaasCompanies(where: [SaasCompanyWhereUniqueInput!]!): [SaasCompany]
+  createSaasPlan(data: SaasPlanCreateInput!): SaasPlan
+  createSaasPlans(data: [SaasPlanCreateInput!]!): [SaasPlan]
+  updateSaasPlan(where: SaasPlanWhereUniqueInput!, data: SaasPlanUpdateInput!): SaasPlan
+  updateSaasPlans(data: [SaasPlanUpdateArgs!]!): [SaasPlan]
+  deleteSaasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
+  deleteSaasPlans(where: [SaasPlanWhereUniqueInput!]!): [SaasPlan]
+  createSaasCompanyMonthlyLeadSync(data: SaasCompanyMonthlyLeadSyncCreateInput!): SaasCompanyMonthlyLeadSync
+  createSaasCompanyMonthlyLeadSyncs(data: [SaasCompanyMonthlyLeadSyncCreateInput!]!): [SaasCompanyMonthlyLeadSync]
+  updateSaasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!, data: SaasCompanyMonthlyLeadSyncUpdateInput!): SaasCompanyMonthlyLeadSync
+  updateSaasCompanyMonthlyLeadSyncs(data: [SaasCompanyMonthlyLeadSyncUpdateArgs!]!): [SaasCompanyMonthlyLeadSync]
+  deleteSaasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
+  deleteSaasCompanyMonthlyLeadSyncs(where: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]!): [SaasCompanyMonthlyLeadSync]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
+  syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
 }
@@ -3889,6 +4162,15 @@ type Query {
   wishList(where: WishListWhereUniqueInput!): WishList
   wishLists(where: WishListWhereInput! = {}, orderBy: [WishListOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WishListWhereUniqueInput): [WishList!]
   wishListsCount(where: WishListWhereInput! = {}): Int
+  saasCompany(where: SaasCompanyWhereUniqueInput!): SaasCompany
+  saasCompanies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
+  saasCompaniesCount(where: SaasCompanyWhereInput! = {}): Int
+  saasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
+  saasPlans(where: SaasPlanWhereInput! = {}, orderBy: [SaasPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPlanWhereUniqueInput): [SaasPlan!]
+  saasPlansCount(where: SaasPlanWhereInput! = {}): Int
+  saasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
+  saasCompanyMonthlyLeadSyncs(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
+  saasCompanyMonthlyLeadSyncsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
@@ -4083,6 +4365,20 @@ type SyncBusinessLeadsFromGoogleResult {
   created: Int!
   alreadyInDb: Int!
   skippedLowRating: Int!
+}
+
+input SyncLeadsFrontInput {
+  placeId: String!
+  category: String
+  assignedSellerId: ID
+}
+
+type SyncLeadsFrontResult {
+  success: Boolean!
+  message: String!
+  businessLeadId: ID
+  syncedCount: Int
+  leadLimit: Int
 }
 
 type AnimalMultimediaImage {

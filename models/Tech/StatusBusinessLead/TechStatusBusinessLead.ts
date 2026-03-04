@@ -1,15 +1,17 @@
-import { list } from "@keystone-6/core";
+import { graphql, list } from "@keystone-6/core";
 import {
   text,
   float,
   calendarDay,
   select,
   relationship,
+  virtual,
 } from "@keystone-6/core/fields";
 import { statusBusinessLeadAccess } from "./TechStatusBusinessLead.access";
 import {
   PIPELINE_STATUS,
   OPPORTUNITY_LEVEL,
+  FOLLOW_UP_TASK_STATUS,
 } from "../crm/constants";
 
 const pipelineOptions = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
@@ -62,8 +64,36 @@ export default list({
     firstContactDate: calendarDay({
       ui: { description: "Fecha primer contacto" },
     }),
-    nextFollowUpDate: calendarDay({
-      ui: { description: "Próxima fecha de seguimiento" },
+    /** Virtual: next follow-up date from the latest FollowUpTask with status Pendiente or Pospuesto */
+    nextFollowUpDate: virtual({
+      field: graphql.field({
+        type: graphql.String,
+        async resolve(item: { id: string; businessLeadId?: string | null }, _args, context) {
+          let businessLeadId = item.businessLeadId;
+          if (businessLeadId == null) {
+            const s = await context.sudo().query.TechStatusBusinessLead.findOne({
+              where: { id: item.id },
+              query: "businessLead { id }",
+            });
+            businessLeadId = (s as { businessLead?: { id: string } } | null)?.businessLead?.id ?? null;
+          }
+          if (!businessLeadId) return null;
+          const tasks = await context.sudo().query.TechFollowUpTask.findMany({
+            where: {
+              businessLead: { id: { equals: businessLeadId } },
+              status: {
+                in: [FOLLOW_UP_TASK_STATUS.PENDIENTE, FOLLOW_UP_TASK_STATUS.POSPUESTO],
+              },
+            },
+            orderBy: [{ scheduledDate: "desc" }],
+            take: 1,
+            query: "scheduledDate",
+          });
+          const date = (tasks as { scheduledDate: string | null }[])[0]?.scheduledDate;
+          return date ?? null;
+        },
+      }),
+      ui: { description: "Próxima fecha de seguimiento (del último FollowUpTask Pendiente o Pospuesto)" },
     }),
     notes: text({
       ui: { displayMode: "textarea", description: "Notas generales" },

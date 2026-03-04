@@ -540,7 +540,6 @@ model TechStatusBusinessLead {
   estimatedValue   Float?
   productOffered   String            @default("")
   firstContactDate DateTime?         @postgresql.Date
-  nextFollowUpDate DateTime?         @postgresql.Date
   notes            String            @default("")
 
   @@index([opportunityLevel])
@@ -620,6 +619,8 @@ model User {
   password                    String?
   phone                       String              @default("")
   roles                       Role[]              @relation("Role_users")
+  company                     SaasCompany?        @relation("User_company", fields: [companyId], references: [id])
+  companyId                   String?             @map("company")
   blog_subscriptions          BlogSubscription[]  @relation("BlogSubscription_user")
   businessLeadsAssigned       TechBusinessLead[]  @relation("TechBusinessLead_salesPerson")
   salesActivities             TechSalesActivity[] @relation("TechSalesActivity_assignedSeller")
@@ -634,6 +635,7 @@ model User {
   smsRegistrationId           String              @default("")
   verified                    Boolean             @default(false)
   salesPersonVerified         Boolean             @default(false)
+  salesComission              Int?
   createdAt                   DateTime?           @default(now())
   from_Ad_user                Ad[]                @relation("Ad_user")
   from_Animal_user            Animal[]            @relation("Animal_user")
@@ -653,6 +655,8 @@ model User {
   from_Review_user            Review[]            @relation("Review_user")
   from_TokenNotification_user TokenNotification[] @relation("TokenNotification_user")
   from_WishList_user          WishList[]          @relation("WishList_user")
+
+  @@index([companyId])
 }
 
 model WishList {
@@ -664,6 +668,50 @@ model WishList {
   createdAt DateTime? @default(now())
 
   @@index([userId])
+}
+
+model SaasCompany {
+  id                           String                       @id @default(cuid())
+  name                         String                       @default("")
+  users                        User[]                       @relation("User_company")
+  plan                         SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
+  planId                       String?                      @map("plan")
+  subscriptionStartedAt        DateTime?                    @postgresql.Date
+  monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
+  allowedGooglePlaceCategories Json?
+  createdAt                    DateTime?                    @default(now())
+  updatedAt                    DateTime?                    @updatedAt
+
+  @@index([name])
+  @@index([planId])
+}
+
+model SaasPlan {
+  id        String        @id @default(cuid())
+  name      String        @default("")
+  cost      Float?
+  frequency String?
+  leadLimit Int?
+  companies SaasCompany[] @relation("SaasCompany_plan")
+  createdAt DateTime?     @default(now())
+  updatedAt DateTime?     @updatedAt
+
+  @@index([name])
+}
+
+model SaasCompanyMonthlyLeadSync {
+  id          String       @id @default(cuid())
+  company     SaasCompany? @relation("SaasCompanyMonthlyLeadSync_company", fields: [companyId], references: [id])
+  companyId   String?      @map("company")
+  year        Int
+  month       Int
+  syncedCount Int?         @default(0)
+  createdAt   DateTime?    @default(now())
+  updatedAt   DateTime?    @updatedAt
+
+  @@index([companyId])
+  @@index([year])
+  @@index([month])
 }
 
 enum PaymentStatusType {

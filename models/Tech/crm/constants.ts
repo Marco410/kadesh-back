@@ -41,7 +41,7 @@ export const PROPOSAL_STATUS = {
   ACEPTADA: "Aceptada",
   RECHAZADA: "Rechazada",
   PENDIENTE: "Pendiente",
-  COMPRADO: "Comprada",
+  COMPRADA: "Comprada",
 } as const;
 
 export const FOLLOW_UP_TASK_STATUS = {
