@@ -489,51 +489,62 @@ model Tag {
 }
 
 model TechBusinessLead {
-  id                   String              @id @default(cuid())
-  businessName         String              @default("")
-  category             String              @default("")
-  phone                String              @default("")
-  address              String              @default("")
-  city                 String              @default("")
-  state                String              @default("")
+  id                   String                  @id @default(cuid())
+  businessName         String                  @default("")
+  category             String                  @default("")
+  phone                String                  @default("")
+  address              String                  @default("")
+  city                 String                  @default("")
+  state                String                  @default("")
+  country              String                  @default("")
   rating               Float?
   reviewCount          Int?
-  hasWebsite           Boolean             @default(false)
-  source               String?             @default("Google Maps")
-  opportunityLevel     String?             @default("Media")
-  pipelineStatus       String?             @default("01 - Detectado")
-  estimatedValue       Float?
-  productOffered       String              @default("")
-  firstContactDate     DateTime?           @postgresql.Date
-  nextFollowUpDate     DateTime?           @postgresql.Date
-  notes                String              @default("")
-  instagram            String              @default("")
-  facebook             String              @default("")
-  xTwitter             String              @default("")
-  tiktok               String              @default("")
-  topReview1           String              @default("")
-  topReview2           String              @default("")
-  topReview3           String              @default("")
-  topReview4           String              @default("")
-  topReview5           String              @default("")
-  websitePromptContent String              @default("")
-  activities           TechSalesActivity[] @relation("TechSalesActivity_businessLead")
-  proposals            TechProposal[]      @relation("TechProposal_businessLead")
-  followUpTasks        TechFollowUpTask[]  @relation("TechFollowUpTask_businessLead")
-  googleMapsUrl        String              @default("")
-  googlePlaceId        String?             @unique
-  salesPerson          User?               @relation("TechBusinessLead_salesPerson", fields: [salesPersonId], references: [id])
-  salesPersonId        String?             @map("salesPerson")
-  createdAt            DateTime?           @default(now())
-  updatedAt            DateTime?           @updatedAt
+  hasWebsite           Boolean                 @default(false)
+  websiteUrl           String                  @default("")
+  source               String?                 @default("Google Maps")
+  status               TechStatusBusinessLead? @relation("TechBusinessLead_status", fields: [statusId], references: [id])
+  statusId             String?                 @unique @map("status")
+  instagram            String                  @default("")
+  facebook             String                  @default("")
+  xTwitter             String                  @default("")
+  tiktok               String                  @default("")
+  topReview1           String                  @default("")
+  topReview2           String                  @default("")
+  topReview3           String                  @default("")
+  topReview4           String                  @default("")
+  topReview5           String                  @default("")
+  websitePromptContent String                  @default("")
+  activities           TechSalesActivity[]     @relation("TechSalesActivity_businessLead")
+  proposals            TechProposal[]          @relation("TechProposal_businessLead")
+  followUpTasks        TechFollowUpTask[]      @relation("TechFollowUpTask_businessLead")
+  googleMapsUrl        String                  @default("")
+  googlePlaceId        String?                 @unique
+  salesPerson          User?                   @relation("TechBusinessLead_salesPerson", fields: [salesPersonId], references: [id])
+  salesPersonId        String?                 @map("salesPerson")
+  createdAt            DateTime?               @default(now())
+  updatedAt            DateTime?               @updatedAt
 
   @@index([businessName])
   @@index([category])
   @@index([city])
   @@index([state])
+  @@index([country])
+  @@index([salesPersonId])
+}
+
+model TechStatusBusinessLead {
+  id               String            @id @default(cuid())
+  businessLead     TechBusinessLead? @relation("TechBusinessLead_status")
+  opportunityLevel String?           @default("Media")
+  pipelineStatus   String?           @default("01 - Detectado")
+  estimatedValue   Float?
+  productOffered   String            @default("")
+  firstContactDate DateTime?         @postgresql.Date
+  nextFollowUpDate DateTime?         @postgresql.Date
+  notes            String            @default("")
+
   @@index([opportunityLevel])
   @@index([pipelineStatus])
-  @@index([salesPersonId])
 }
 
 model TechSalesActivity {
@@ -573,18 +584,21 @@ model TechFollowUpTask {
 }
 
 model TechProposal {
-  id             String            @id @default(cuid())
-  sentDate       DateTime          @postgresql.Date
-  amount         Float?
-  status         String?           @default("Enviada")
-  fileOrUrl      String            @default("")
-  businessLead   TechBusinessLead? @relation("TechProposal_businessLead", fields: [businessLeadId], references: [id])
-  businessLeadId String?           @map("businessLead")
-  createdAt      DateTime?         @default(now())
-  updatedAt      DateTime?         @updatedAt
+  id               String            @id @default(cuid())
+  sentDate         DateTime          @postgresql.Date
+  amount           Float?
+  status           String?           @default("Enviada")
+  fileOrUrl        String            @default("")
+  businessLead     TechBusinessLead? @relation("TechProposal_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId   String?           @map("businessLead")
+  assignedSeller   User?             @relation("TechProposal_assignedSeller", fields: [assignedSellerId], references: [id])
+  assignedSellerId String?           @map("assignedSeller")
+  createdAt        DateTime?         @default(now())
+  updatedAt        DateTime?         @updatedAt
 
   @@index([status])
   @@index([businessLeadId])
+  @@index([assignedSellerId])
 }
 
 model TokenNotification {
@@ -610,6 +624,7 @@ model User {
   businessLeadsAssigned       TechBusinessLead[]  @relation("TechBusinessLead_salesPerson")
   salesActivities             TechSalesActivity[] @relation("TechSalesActivity_assignedSeller")
   followUpTasks               TechFollowUpTask[]  @relation("TechFollowUpTask_assignedSeller")
+  proposals                   TechProposal[]      @relation("TechProposal_assignedSeller")
   profileImage_id             String?
   profileImage_filesize       Int?
   profileImage_width          Int?
@@ -618,6 +633,7 @@ model User {
   birthday                    DateTime?           @postgresql.Date
   smsRegistrationId           String              @default("")
   verified                    Boolean             @default(false)
+  salesPersonVerified         Boolean             @default(false)
   createdAt                   DateTime?           @default(now())
   from_Ad_user                Ad[]                @relation("Ad_user")
   from_Animal_user            Animal[]            @relation("Animal_user")

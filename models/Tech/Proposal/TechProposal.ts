@@ -43,6 +43,10 @@ export default list({
       ref: "TechBusinessLead.proposals",
       many: false,
     }),
+    assignedSeller: relationship({
+      ref: "User.proposals",
+      many: false,
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

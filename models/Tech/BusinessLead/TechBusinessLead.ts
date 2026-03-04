@@ -5,26 +5,13 @@ import {
   integer,
   checkbox,
   timestamp,
-  calendarDay,
   select,
   relationship,
 } from "@keystone-6/core/fields";
 import { businessLeadAccess } from "./TechBusinessLead.access";
 import { businessLeadHooks } from "./TechBusinessLead.hooks";
-import {
-  PIPELINE_STATUS,
-  OPPORTUNITY_LEVEL,
-  LEAD_SOURCE,
-} from "../crm/constants";
+import { LEAD_SOURCE } from "../crm/constants";
 
-const pipelineOptions = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
-  label: v,
-  value: v,
-}));
-const opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
-  label: v,
-  value: v,
-}));
 const sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
   value: v,
@@ -39,10 +26,8 @@ export default list({
       initialColumns: [
         "businessName",
         "category",
-        "pipelineStatus",
-        "opportunityLevel",
-        "assignedSeller",
-        "estimatedValue",
+        "status",
+        "salesPerson",
       ],
     },
   },
@@ -56,46 +41,24 @@ export default list({
     address: text(),
     city: text({ isIndexed: true }),
     state: text({ isIndexed: true }),
+    country: text({ isIndexed: true }),
     rating: float(),
     reviewCount: integer({ ui: { description: "Número de reseñas" } }),
     hasWebsite: checkbox({
       defaultValue: false,
       ui: { description: "Tiene sitio web" },
     }),
+    websiteUrl: text(),
     source: select({
       type: "string",
       options: sourceOptions,
       defaultValue: "Google Maps",
       ui: { description: "Fuente del lead" },
     }),
-    opportunityLevel: select({
-      type: "string",
-      options: opportunityOptions,
-      defaultValue: "Media",
-      isIndexed: true,
-      ui: { description: "Nivel de oportunidad" },
-    }),
-    pipelineStatus: select({
-      type: "string",
-      options: pipelineOptions,
-      defaultValue: PIPELINE_STATUS.DETECTADO,
-      isIndexed: true,
-      ui: { description: "Estado en el pipeline" },
-    }),
-    estimatedValue: float({
-      ui: { description: "Valor estimado del proyecto" },
-    }),
-    productOffered: text({
-      ui: { description: "Producto ofrecido (web, e-commerce, etc.)" },
-    }),
-    firstContactDate: calendarDay({
-      ui: { description: "Fecha primer contacto" },
-    }),
-    nextFollowUpDate: calendarDay({
-      ui: { description: "Próxima fecha de seguimiento" },
-    }),
-    notes: text({
-      ui: { displayMode: "textarea", description: "Notas generales" },
+    status: relationship({
+      ref: "TechStatusBusinessLead.businessLead",
+      many: false,
+      ui: { description: "Estado y datos variables del lead" },
     }),
     instagram: text({ ui: { description: "Usuario o URL de Instagram" } }),
     facebook: text({ ui: { description: "URL de Facebook" } }),

@@ -38,11 +38,13 @@ function parseAddressComponents(
 ) {
   let city = "";
   let state = "";
+  let country = "";
   for (const c of components || []) {
     if (c.types.includes("locality")) city = c.long_name;
     if (c.types.includes("administrative_area_level_1")) state = c.short_name;
+    if (c.types.includes("country")) country = c.long_name;
   }
-  return { city, state };
+  return { city, state, country };
 }
 
 const resolver = {
@@ -85,7 +87,7 @@ const resolver = {
       };
     }
 
-    const { city, state } = parseAddressComponents(
+    const { city, state, country } = parseAddressComponents(
       place.address_components || [],
     );
     const address = place.formatted_address || "";
@@ -99,23 +101,30 @@ const resolver = {
       address,
       city: city || "",
       state: state || "",
+      country: country || "",
       rating: place.rating ?? null,
       reviewCount: place.user_ratings_total ?? null,
       hasWebsite,
+      websiteUrl: place.website || "",
       source: "Google Maps",
-      pipelineStatus: PIPELINE_STATUS.DETECTADO,
-      opportunityLevel: "Media",
       googlePlaceId: input.placeId,
       googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`,
     };
 
     if (input.assignedSellerId) {
-      data.assignedSeller = { connect: { id: input.assignedSellerId } };
+      data.salesPerson = { connect: { id: input.assignedSellerId } };
     }
 
     try {
       const lead = await context.sudo().query.TechBusinessLead.createOne({
         data: data as any,
+      });
+      await context.sudo().query.TechStatusBusinessLead.createOne({
+        data: {
+          businessLead: { connect: { id: lead.id } },
+          pipelineStatus: PIPELINE_STATUS.DETECTADO,
+          opportunityLevel: "Media",
+        },
       });
       return {
         success: true,

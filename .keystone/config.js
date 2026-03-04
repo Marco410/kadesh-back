@@ -560,9 +560,8 @@ var User_default = (0, import_core7.list)({
       many: true
     }),
     businessLeadsAssigned: (0, import_fields7.relationship)({
-      ref: "TechBusinessLead.assignedSeller",
-      many: true,
-      ui: { description: "Leads asignados (CRM)" }
+      ref: "TechBusinessLead.salesPerson",
+      many: true
     }),
     salesActivities: (0, import_fields7.relationship)({
       ref: "TechSalesActivity.assignedSeller",
@@ -571,6 +570,11 @@ var User_default = (0, import_core7.list)({
     }),
     followUpTasks: (0, import_fields7.relationship)({
       ref: "TechFollowUpTask.assignedSeller",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    proposals: (0, import_fields7.relationship)({
+      ref: "TechProposal.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
@@ -596,6 +600,7 @@ var User_default = (0, import_core7.list)({
     }),
     smsRegistrationId: (0, import_fields7.text)(),
     verified: (0, import_fields7.checkbox)(),
+    salesPersonVerified: (0, import_fields7.checkbox)(),
     createdAt: (0, import_fields7.timestamp)({
       defaultValue: {
         kind: "now"
@@ -1818,9 +1823,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text30) {
+function sanitizeUrl2(text31) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text30.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text31.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -2098,6 +2103,18 @@ var businessLeadAccess = {
   }
 };
 
+// models/Tech/BusinessLead/TechBusinessLead.hooks.ts
+var businessLeadHooks = {
+  afterOperation: async ({
+    operation,
+    item,
+    resolvedData,
+    context,
+    listKey
+  }) => {
+  }
+};
+
 // models/Tech/crm/constants.ts
 var PIPELINE_STATUS = {
   DETECTADO: "01 - Detectado",
@@ -2129,11 +2146,15 @@ var SALES_ACTIVITY_TYPE = {
 var PROPOSAL_STATUS = {
   ENVIADA: "Enviada",
   ACEPTADA: "Aceptada",
-  RECHAZADA: "Rechazada"
+  RECHAZADA: "Rechazada",
+  PENDIENTE: "Pendiente",
+  COMPRADO: "Comprada"
 };
 var FOLLOW_UP_TASK_STATUS = {
   PENDIENTE: "Pendiente",
-  COMPLETADO: "Completado"
+  COMPLETADO: "Completado",
+  CANCELADO: "Cancelado",
+  POSPUESTO: "Pospuesto"
 };
 var TASK_PRIORITY = {
   ALTA: "Alta",
@@ -2146,66 +2167,8 @@ var LEAD_SOURCE = {
   WEB: "Web",
   OTRO: "Otro"
 };
-var DEFAULT_FOLLOW_UP_DAYS_AFTER_PROPOSAL = 3;
-
-// models/Tech/BusinessLead/TechBusinessLead.hooks.ts
-function getNextFollowUpDate() {
-  const d = /* @__PURE__ */ new Date();
-  d.setDate(d.getDate() + DEFAULT_FOLLOW_UP_DAYS_AFTER_PROPOSAL);
-  return d.toISOString().slice(0, 10);
-}
-var businessLeadHooks = {
-  afterOperation: async ({
-    operation,
-    item,
-    resolvedData,
-    context,
-    listKey
-  }) => {
-    if (listKey !== "TechBusinessLead" || !item?.id) return;
-    if (operation === "update" && resolvedData?.pipelineStatus === PIPELINE_STATUS.PROPUESTA_ENVIADA) {
-      const lead = await context.query.TechBusinessLead.findOne({
-        where: { id: item.id },
-        query: "id assignedSeller { id }"
-      });
-      const assignedSellerId = lead?.assignedSeller?.id ?? resolvedData.assignedSeller?.connect?.[0]?.id;
-      const [existingTask] = await context.query.TechFollowUpTask.findMany({
-        where: {
-          businessLead: { id: { equals: item.id } },
-          status: { equals: "Pendiente" }
-        },
-        take: 1,
-        query: "id"
-      });
-      if (existingTask) return;
-      try {
-        await context.db.TechFollowUpTask.createOne({
-          data: {
-            scheduledDate: getNextFollowUpDate(),
-            status: "Pendiente",
-            priority: "Alta",
-            businessLead: { connect: { id: item.id } },
-            ...assignedSellerId && {
-              assignedSeller: { connect: { id: assignedSellerId } }
-            }
-          }
-        });
-      } catch (e) {
-        console.error("Error creating follow-up task for BusinessLead:", e);
-      }
-    }
-  }
-};
 
 // models/Tech/BusinessLead/TechBusinessLead.ts
-var pipelineOptions = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
-  label: v,
-  value: v
-}));
-var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
-  label: v,
-  value: v
-}));
 var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
   value: v
@@ -2214,14 +2177,13 @@ var TechBusinessLead_default = (0, import_core36.list)({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
+    labelField: "businessName",
     listView: {
       initialColumns: [
         "businessName",
         "category",
-        "pipelineStatus",
-        "opportunityLevel",
-        "assignedSeller",
-        "estimatedValue"
+        "status",
+        "salesPerson"
       ]
     }
   },
@@ -2235,50 +2197,24 @@ var TechBusinessLead_default = (0, import_core36.list)({
     address: (0, import_fields36.text)(),
     city: (0, import_fields36.text)({ isIndexed: true }),
     state: (0, import_fields36.text)({ isIndexed: true }),
+    country: (0, import_fields36.text)({ isIndexed: true }),
     rating: (0, import_fields36.float)(),
     reviewCount: (0, import_fields36.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
     hasWebsite: (0, import_fields36.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene sitio web" }
     }),
+    websiteUrl: (0, import_fields36.text)(),
     source: (0, import_fields36.select)({
       type: "string",
       options: sourceOptions,
       defaultValue: "Google Maps",
       ui: { description: "Fuente del lead" }
     }),
-    opportunityLevel: (0, import_fields36.select)({
-      type: "string",
-      options: opportunityOptions,
-      defaultValue: "Media",
-      isIndexed: true,
-      ui: { description: "Nivel de oportunidad" }
-    }),
-    pipelineStatus: (0, import_fields36.select)({
-      type: "string",
-      options: pipelineOptions,
-      defaultValue: PIPELINE_STATUS.DETECTADO,
-      isIndexed: true,
-      ui: { description: "Estado en el pipeline" }
-    }),
-    estimatedValue: (0, import_fields36.float)({
-      ui: { description: "Valor estimado del proyecto" }
-    }),
-    productOffered: (0, import_fields36.text)({
-      ui: { description: "Producto ofrecido (web, e-commerce, etc.)" }
-    }),
-    assignedSeller: (0, import_fields36.relationship)({
-      ref: "User.businessLeadsAssigned",
-      ui: { description: "Vendedor asignado" }
-    }),
-    firstContactDate: (0, import_fields36.calendarDay)({
-      ui: { description: "Fecha primer contacto" }
-    }),
-    nextFollowUpDate: (0, import_fields36.calendarDay)({
-      ui: { description: "Pr\xF3xima fecha de seguimiento" }
-    }),
-    notes: (0, import_fields36.text)({
-      ui: { displayMode: "textarea", description: "Notas generales" }
+    status: (0, import_fields36.relationship)({
+      ref: "TechStatusBusinessLead.businessLead",
+      many: false,
+      ui: { description: "Estado y datos variables del lead" }
     }),
     instagram: (0, import_fields36.text)({ ui: { description: "Usuario o URL de Instagram" } }),
     facebook: (0, import_fields36.text)({ ui: { description: "URL de Facebook" } }),
@@ -2335,6 +2271,11 @@ var TechBusinessLead_default = (0, import_core36.list)({
         listView: { fieldMode: "hidden" }
       }
     }),
+    salesPerson: (0, import_fields36.relationship)({
+      ref: "User.businessLeadsAssigned",
+      many: false,
+      ui: { description: "Vendedor asignado" }
+    }),
     createdAt: (0, import_fields36.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -2352,9 +2293,87 @@ var TechBusinessLead_default = (0, import_core36.list)({
   }
 });
 
-// models/Tech/FollowUpTask/TechFollowUpTask.ts
+// models/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
 var import_core37 = require("@keystone-6/core");
 var import_fields37 = require("@keystone-6/core/fields");
+
+// models/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
+var statusBusinessLeadAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
+var pipelineOptions = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var TechStatusBusinessLead_default = (0, import_core37.list)({
+  access: statusBusinessLeadAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "businessLead",
+        "pipelineStatus",
+        "opportunityLevel",
+        "estimatedValue"
+      ]
+    }
+  },
+  fields: {
+    businessLead: (0, import_fields37.relationship)({
+      ref: "TechBusinessLead.status",
+      many: false,
+      ui: { description: "Lead de negocio asociado" }
+    }),
+    opportunityLevel: (0, import_fields37.select)({
+      type: "string",
+      options: opportunityOptions,
+      defaultValue: "Media",
+      isIndexed: true,
+      ui: { description: "Nivel de oportunidad" }
+    }),
+    pipelineStatus: (0, import_fields37.select)({
+      type: "string",
+      options: pipelineOptions,
+      defaultValue: PIPELINE_STATUS.DETECTADO,
+      isIndexed: true,
+      ui: { description: "Estado en el pipeline" }
+    }),
+    estimatedValue: (0, import_fields37.float)({
+      ui: { description: "Valor estimado del proyecto" }
+    }),
+    productOffered: (0, import_fields37.text)({
+      ui: { description: "Producto ofrecido (web, e-commerce, etc.)" }
+    }),
+    firstContactDate: (0, import_fields37.calendarDay)({
+      ui: { description: "Fecha primer contacto" }
+    }),
+    nextFollowUpDate: (0, import_fields37.calendarDay)({
+      ui: { description: "Pr\xF3xima fecha de seguimiento" }
+    }),
+    notes: (0, import_fields37.text)({
+      ui: { displayMode: "textarea", description: "Notas generales" }
+    })
+  }
+});
+
+// models/Tech/FollowUpTask/TechFollowUpTask.ts
+var import_core38 = require("@keystone-6/core");
+var import_fields38 = require("@keystone-6/core/fields");
 
 // models/Tech/FollowUpTask/TechFollowUpTask.access.ts
 var followUpTaskAccess = {
@@ -2380,7 +2399,7 @@ var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechFollowUpTask_default = (0, import_core37.list)({
+var TechFollowUpTask_default = (0, import_core38.list)({
   access: followUpTaskAccess,
   ui: {
     listView: {
@@ -2394,39 +2413,39 @@ var TechFollowUpTask_default = (0, import_core37.list)({
     }
   },
   fields: {
-    scheduledDate: (0, import_fields37.calendarDay)({
+    scheduledDate: (0, import_fields38.calendarDay)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Fecha programada" }
     }),
-    status: (0, import_fields37.select)({
+    status: (0, import_fields38.select)({
       type: "string",
       options: statusOptions,
       defaultValue: FOLLOW_UP_TASK_STATUS.PENDIENTE,
       isIndexed: true
     }),
-    priority: (0, import_fields37.select)({
+    priority: (0, import_fields38.select)({
       type: "string",
       options: priorityOptions,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    businessLead: (0, import_fields37.relationship)({
+    businessLead: (0, import_fields38.relationship)({
       ref: "TechBusinessLead.followUpTasks",
       many: false
     }),
-    assignedSeller: (0, import_fields37.relationship)({
+    assignedSeller: (0, import_fields38.relationship)({
       ref: "User.followUpTasks",
       many: false
     }),
-    notes: (0, import_fields37.text)({ ui: { displayMode: "textarea" } }),
-    createdAt: (0, import_fields37.timestamp)({
+    notes: (0, import_fields38.text)({ ui: { displayMode: "textarea" } }),
+    createdAt: (0, import_fields38.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields37.timestamp)({
+    updatedAt: (0, import_fields38.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -2437,8 +2456,8 @@ var TechFollowUpTask_default = (0, import_core37.list)({
 });
 
 // models/Tech/Proposal/TechProposal.ts
-var import_core38 = require("@keystone-6/core");
-var import_fields38 = require("@keystone-6/core/fields");
+var import_core39 = require("@keystone-6/core");
+var import_fields39 = require("@keystone-6/core/fields");
 
 // models/Tech/Proposal/TechProposal.access.ts
 var proposalAccess = {
@@ -2473,12 +2492,18 @@ var proposalHooks = {
       if (!proposal?.businessLead?.id || proposal.status !== PROPOSAL_STATUS.ACEPTADA)
         return;
       try {
-        await context.db.TechBusinessLead.updateOne({
+        const lead = await context.query.TechBusinessLead.findOne({
           where: { id: proposal.businessLead.id },
-          data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO }
+          query: "id status { id }"
         });
+        if (lead?.status?.id) {
+          await context.db.TechStatusBusinessLead.updateOne({
+            where: { id: lead.status.id },
+            data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO }
+          });
+        }
       } catch (e) {
-        console.error("Error updating BusinessLead to Cerrado Ganado:", e);
+        console.error("Error updating BusinessLead status to Cerrado Ganado:", e);
       }
     }
   }
@@ -2489,7 +2514,7 @@ var statusOptions2 = Object.entries(PROPOSAL_STATUS).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechProposal_default = (0, import_core38.list)({
+var TechProposal_default = (0, import_core39.list)({
   access: proposalAccess,
   hooks: proposalHooks,
   ui: {
@@ -2498,32 +2523,36 @@ var TechProposal_default = (0, import_core38.list)({
     }
   },
   fields: {
-    sentDate: (0, import_fields38.calendarDay)({
+    sentDate: (0, import_fields39.calendarDay)({
       validation: { isRequired: true },
       ui: { description: "Fecha env\xEDo" }
     }),
-    amount: (0, import_fields38.float)({ ui: { description: "Monto" } }),
-    status: (0, import_fields38.select)({
+    amount: (0, import_fields39.float)({ ui: { description: "Monto" } }),
+    status: (0, import_fields39.select)({
       type: "string",
       options: statusOptions2,
       defaultValue: PROPOSAL_STATUS.ENVIADA,
       isIndexed: true
     }),
-    fileOrUrl: (0, import_fields38.text)({
+    fileOrUrl: (0, import_fields39.text)({
       ui: { description: "URL o referencia al archivo de la propuesta" }
     }),
-    businessLead: (0, import_fields38.relationship)({
+    businessLead: (0, import_fields39.relationship)({
       ref: "TechBusinessLead.proposals",
       many: false
     }),
-    createdAt: (0, import_fields38.timestamp)({
+    assignedSeller: (0, import_fields39.relationship)({
+      ref: "User.proposals",
+      many: false
+    }),
+    createdAt: (0, import_fields39.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields38.timestamp)({
+    updatedAt: (0, import_fields39.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -2534,8 +2563,8 @@ var TechProposal_default = (0, import_core38.list)({
 });
 
 // models/Tech/SalesActivity/TechSalesActivity.ts
-var import_core39 = require("@keystone-6/core");
-var import_fields39 = require("@keystone-6/core/fields");
+var import_core40 = require("@keystone-6/core");
+var import_fields40 = require("@keystone-6/core/fields");
 
 // models/Tech/SalesActivity/TechSalesActivity.access.ts
 var salesActivityAccess = {
@@ -2559,7 +2588,7 @@ var activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
     value: v
   })
 );
-var TechSalesActivity_default = (0, import_core39.list)({
+var TechSalesActivity_default = (0, import_core40.list)({
   access: salesActivityAccess,
   ui: {
     listView: {
@@ -2573,27 +2602,27 @@ var TechSalesActivity_default = (0, import_core39.list)({
     }
   },
   fields: {
-    type: (0, import_fields39.select)({
+    type: (0, import_fields40.select)({
       type: "string",
       options: activityTypeOptions,
       validation: { isRequired: true },
       isIndexed: true
     }),
-    activityDate: (0, import_fields39.timestamp)({
+    activityDate: (0, import_fields40.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    result: (0, import_fields39.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
-    comments: (0, import_fields39.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields39.relationship)({
+    result: (0, import_fields40.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
+    comments: (0, import_fields40.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields40.relationship)({
       ref: "TechBusinessLead.activities",
       many: false
     }),
-    assignedSeller: (0, import_fields39.relationship)({
+    assignedSeller: (0, import_fields40.relationship)({
       ref: "User.salesActivities",
       many: false
     }),
-    createdAt: (0, import_fields39.timestamp)({
+    createdAt: (0, import_fields40.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -2638,6 +2667,7 @@ var schema_default = {
   SocialMedia: SocialMedia_default,
   Tag: Tag_default,
   TechBusinessLead: TechBusinessLead_default,
+  TechStatusBusinessLead: TechStatusBusinessLead_default,
   TechSalesActivity: TechSalesActivity_default,
   TechFollowUpTask: TechFollowUpTask_default,
   TechProposal: TechProposal_default,
@@ -2647,7 +2677,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core40 = require("@keystone-6/core");
+var import_core41 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -2663,7 +2693,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   // this is a GraphQL query fragment for fetching what data will be attached to a context.session
   //   this can be helpful for when you are writing your access control functions
   //   you can find out more at https://keystonejs.com/docs/guides/auth-and-access-control
-  sessionData: "id name lastName username email verified profileImage { url } phone roles { name } createdAt",
+  sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } createdAt",
   secretField: "password",
   // WARNING: remove initFirstItem functionality in production
   //   see https://keystonejs.com/docs/config/auth#init-first-item for more
@@ -2796,8 +2826,6 @@ var resolver2 = {
       where: { email: payload.email },
       query: USER_QUERY
     });
-    console.log("user");
-    console.log(user);
     if (!user) {
       try {
         const [userRole] = await context.sudo().query.Role.findMany({
@@ -2805,8 +2833,6 @@ var resolver2 = {
           take: 1,
           query: "id"
         });
-        console.log("userRole");
-        console.log(userRole);
         const username = await checkUserName(
           payload.name?.trim() || payload.email.split("@")[0],
           "",
@@ -2823,11 +2849,7 @@ var resolver2 = {
           },
           query: USER_QUERY
         });
-        console.log("user created");
-        console.log(user);
       } catch (err) {
-        console.log("error creating user");
-        console.log(err);
         return {
           __typename: "UserAuthenticationWithGoogleFailure",
           message: err instanceof Error ? err.message : "Error al crear usuario"
@@ -2898,11 +2920,13 @@ async function getPlaceDetails(placeId, apiKey) {
 function parseAddressComponents(components) {
   let city = "";
   let state = "";
+  let country = "";
   for (const c of components || []) {
     if (c.types.includes("locality")) city = c.long_name;
     if (c.types.includes("administrative_area_level_1")) state = c.short_name;
+    if (c.types.includes("country")) country = c.long_name;
   }
-  return { city, state };
+  return { city, state, country };
 }
 var resolver3 = {
   importBusinessLeadFromGoogle: async (_root, {
@@ -2935,7 +2959,7 @@ var resolver3 = {
         businessLeadId: null
       };
     }
-    const { city, state } = parseAddressComponents(
+    const { city, state, country } = parseAddressComponents(
       place.address_components || []
     );
     const address = place.formatted_address || "";
@@ -2947,21 +2971,28 @@ var resolver3 = {
       address,
       city: city || "",
       state: state || "",
+      country: country || "",
       rating: place.rating ?? null,
       reviewCount: place.user_ratings_total ?? null,
       hasWebsite,
+      websiteUrl: place.website || "",
       source: "Google Maps",
-      pipelineStatus: PIPELINE_STATUS.DETECTADO,
-      opportunityLevel: "Media",
       googlePlaceId: input.placeId,
       googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`
     };
     if (input.assignedSellerId) {
-      data.assignedSeller = { connect: { id: input.assignedSellerId } };
+      data.salesPerson = { connect: { id: input.assignedSellerId } };
     }
     try {
       const lead = await context.sudo().query.TechBusinessLead.createOne({
         data
+      });
+      await context.sudo().query.TechStatusBusinessLead.createOne({
+        data: {
+          businessLead: { connect: { id: lead.id } },
+          pipelineStatus: PIPELINE_STATUS.DETECTADO,
+          opportunityLevel: "Media"
+        }
       });
       return {
         success: true,
@@ -3211,6 +3242,16 @@ var importPetPlace_default = {
 };
 
 // graphql/customs/mutations/syncBusinessLeadsFromGoogle.ts
+async function getVerifiedSalesPersonIds(context) {
+  const users = await context.sudo().query.User.findMany({
+    where: {
+      salesPersonVerified: { equals: true },
+      roles: { some: { name: { equals: "vendedor" /* VENDEDOR */ } } }
+    },
+    query: "id"
+  });
+  return users.map((u) => u.id);
+}
 var MIN_RATING = 4;
 var MIN_REVIEWS = 20;
 var DEFAULT_MAX_RESULTS = 60;
@@ -3252,8 +3293,8 @@ async function getPlaceDetails2(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text30 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text30}`;
+  const text31 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text31}`;
 }
 function buildReviewsAndPrompt(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -3284,11 +3325,13 @@ function buildReviewsAndPrompt(details, category) {
 function parseAddressComponents2(components) {
   let city = "";
   let state = "";
+  let country = "";
   for (const c of components || []) {
     if (c.types.includes("locality")) city = c.long_name;
     if (c.types.includes("administrative_area_level_1")) state = c.short_name;
+    if (c.types.includes("country")) country = c.long_name;
   }
-  return { city, state };
+  return { city, state, country };
 }
 var resolver5 = {
   syncBusinessLeadsFromGoogle: async (_root, {
@@ -3318,6 +3361,7 @@ var resolver5 = {
     let alreadyInDb = 0;
     let skippedLowRating = 0;
     let nextPageToken;
+    const verifiedSellerIds = await getVerifiedSalesPersonIds(context);
     try {
       do {
         let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
@@ -3356,7 +3400,7 @@ var resolver5 = {
           }
           const details = await getPlaceDetails2(placeId, apiKey);
           if (!details) continue;
-          const { city: parsedCity, state } = parseAddressComponents2(
+          const { city: parsedCity, state, country } = parseAddressComponents2(
             details.address_components || []
           );
           const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
@@ -3370,12 +3414,11 @@ var resolver5 = {
             address: details.formatted_address || "",
             city: parsedCity || "",
             state: state || "",
+            country: country || "",
             rating: details.rating ?? null,
             reviewCount: details.user_ratings_total ?? null,
             hasWebsite: !!details.website,
             source: "Google Maps",
-            pipelineStatus: PIPELINE_STATUS.DETECTADO,
-            opportunityLevel: "Media",
             googlePlaceId: placeId,
             googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
             topReview1: topReviews[0] || null,
@@ -3385,12 +3428,20 @@ var resolver5 = {
             topReview5: topReviews[4] || null,
             websitePromptContent
           };
-          if (assignedSellerId) {
-            leadData.assignedSeller = { connect: { id: assignedSellerId } };
+          const sellerId = assignedSellerId ? assignedSellerId : verifiedSellerIds.length > 0 ? verifiedSellerIds[created % verifiedSellerIds.length] : null;
+          if (sellerId) {
+            leadData.salesPerson = { connect: { id: sellerId } };
           }
           try {
-            await context.sudo().query.TechBusinessLead.createOne({
+            const lead = await context.sudo().query.TechBusinessLead.createOne({
               data: leadData
+            });
+            await context.sudo().query.TechStatusBusinessLead.createOne({
+              data: {
+                businessLead: { connect: { id: lead.id } },
+                pipelineStatus: PIPELINE_STATUS.DETECTADO,
+                opportunityLevel: "Media"
+              }
             });
             created++;
           } catch (_) {
@@ -4216,7 +4267,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core40.config)({
+  (0, import_core41.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

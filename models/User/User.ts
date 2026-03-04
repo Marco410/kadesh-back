@@ -70,6 +70,11 @@ export default list({
       many: true,
       ui: { hideCreate: true },
     }),
+    proposals: relationship({
+      ref: "TechProposal.assignedSeller",
+      many: true,
+      ui: { hideCreate: true },
+    }),
     profileImage: image({ storage: "s3_profile" }),
     birthday: calendarDay(),
     age: virtual({
@@ -92,6 +97,7 @@ export default list({
     }),
     smsRegistrationId: text(),
     verified: checkbox(),
+    salesPersonVerified: checkbox(),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

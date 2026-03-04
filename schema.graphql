@@ -2673,17 +2673,13 @@ type TechBusinessLead {
   address: String
   city: String
   state: String
+  country: String
   rating: Float
   reviewCount: Int
   hasWebsite: Boolean
+  websiteUrl: String
   source: String
-  opportunityLevel: String
-  pipelineStatus: String
-  estimatedValue: Float
-  productOffered: String
-  firstContactDate: CalendarDay
-  nextFollowUpDate: CalendarDay
-  notes: String
+  status: TechStatusBusinessLead
   instagram: String
   facebook: String
   xTwitter: String
@@ -2709,6 +2705,7 @@ type TechBusinessLead {
 
 input TechBusinessLeadWhereUniqueInput {
   id: ID
+  status: TechStatusBusinessLeadWhereUniqueInput
   googlePlaceId: String
 }
 
@@ -2723,17 +2720,13 @@ input TechBusinessLeadWhereInput {
   address: StringFilter
   city: StringFilter
   state: StringFilter
+  country: StringFilter
   rating: FloatNullableFilter
   reviewCount: IntNullableFilter
   hasWebsite: BooleanFilter
+  websiteUrl: StringFilter
   source: StringNullableFilter
-  opportunityLevel: StringNullableFilter
-  pipelineStatus: StringNullableFilter
-  estimatedValue: FloatNullableFilter
-  productOffered: StringFilter
-  firstContactDate: CalendarDayNullableFilter
-  nextFollowUpDate: CalendarDayNullableFilter
-  notes: StringFilter
+  status: TechStatusBusinessLeadWhereInput
   instagram: StringFilter
   facebook: StringFilter
   xTwitter: StringFilter
@@ -2791,17 +2784,12 @@ input TechBusinessLeadOrderByInput {
   address: OrderDirection
   city: OrderDirection
   state: OrderDirection
+  country: OrderDirection
   rating: OrderDirection
   reviewCount: OrderDirection
   hasWebsite: OrderDirection
+  websiteUrl: OrderDirection
   source: OrderDirection
-  opportunityLevel: OrderDirection
-  pipelineStatus: OrderDirection
-  estimatedValue: OrderDirection
-  productOffered: OrderDirection
-  firstContactDate: OrderDirection
-  nextFollowUpDate: OrderDirection
-  notes: OrderDirection
   instagram: OrderDirection
   facebook: OrderDirection
   xTwitter: OrderDirection
@@ -2825,17 +2813,13 @@ input TechBusinessLeadUpdateInput {
   address: String
   city: String
   state: String
+  country: String
   rating: Float
   reviewCount: Int
   hasWebsite: Boolean
+  websiteUrl: String
   source: String
-  opportunityLevel: String
-  pipelineStatus: String
-  estimatedValue: Float
-  productOffered: String
-  firstContactDate: CalendarDay
-  nextFollowUpDate: CalendarDay
-  notes: String
+  status: TechStatusBusinessLeadRelateToOneForUpdateInput
   instagram: String
   facebook: String
   xTwitter: String
@@ -2854,6 +2838,12 @@ input TechBusinessLeadUpdateInput {
   salesPerson: UserRelateToOneForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input TechStatusBusinessLeadRelateToOneForUpdateInput {
+  create: TechStatusBusinessLeadCreateInput
+  connect: TechStatusBusinessLeadWhereUniqueInput
+  disconnect: Boolean
 }
 
 input TechSalesActivityRelateToManyForUpdateInput {
@@ -2889,17 +2879,13 @@ input TechBusinessLeadCreateInput {
   address: String
   city: String
   state: String
+  country: String
   rating: Float
   reviewCount: Int
   hasWebsite: Boolean
+  websiteUrl: String
   source: String
-  opportunityLevel: String
-  pipelineStatus: String
-  estimatedValue: Float
-  productOffered: String
-  firstContactDate: CalendarDay
-  nextFollowUpDate: CalendarDay
-  notes: String
+  status: TechStatusBusinessLeadRelateToOneForCreateInput
   instagram: String
   facebook: String
   xTwitter: String
@@ -2920,6 +2906,11 @@ input TechBusinessLeadCreateInput {
   updatedAt: DateTime
 }
 
+input TechStatusBusinessLeadRelateToOneForCreateInput {
+  create: TechStatusBusinessLeadCreateInput
+  connect: TechStatusBusinessLeadWhereUniqueInput
+}
+
 input TechSalesActivityRelateToManyForCreateInput {
   create: [TechSalesActivityCreateInput!]
   connect: [TechSalesActivityWhereUniqueInput!]
@@ -2933,6 +2924,87 @@ input TechProposalRelateToManyForCreateInput {
 input TechFollowUpTaskRelateToManyForCreateInput {
   create: [TechFollowUpTaskCreateInput!]
   connect: [TechFollowUpTaskWhereUniqueInput!]
+}
+
+type TechStatusBusinessLead {
+  id: ID!
+  businessLead: TechBusinessLead
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  firstContactDate: CalendarDay
+  nextFollowUpDate: CalendarDay
+  notes: String
+}
+
+input TechStatusBusinessLeadWhereUniqueInput {
+  id: ID
+  businessLead: TechBusinessLeadWhereUniqueInput
+}
+
+input TechStatusBusinessLeadWhereInput {
+  AND: [TechStatusBusinessLeadWhereInput!]
+  OR: [TechStatusBusinessLeadWhereInput!]
+  NOT: [TechStatusBusinessLeadWhereInput!]
+  id: IDFilter
+  businessLead: TechBusinessLeadWhereInput
+  opportunityLevel: StringNullableFilter
+  pipelineStatus: StringNullableFilter
+  estimatedValue: FloatNullableFilter
+  productOffered: StringFilter
+  firstContactDate: CalendarDayNullableFilter
+  nextFollowUpDate: CalendarDayNullableFilter
+  notes: StringFilter
+}
+
+input TechStatusBusinessLeadOrderByInput {
+  id: OrderDirection
+  opportunityLevel: OrderDirection
+  pipelineStatus: OrderDirection
+  estimatedValue: OrderDirection
+  productOffered: OrderDirection
+  firstContactDate: OrderDirection
+  nextFollowUpDate: OrderDirection
+  notes: OrderDirection
+}
+
+input TechStatusBusinessLeadUpdateInput {
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  firstContactDate: CalendarDay
+  nextFollowUpDate: CalendarDay
+  notes: String
+}
+
+input TechBusinessLeadRelateToOneForUpdateInput {
+  create: TechBusinessLeadCreateInput
+  connect: TechBusinessLeadWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechStatusBusinessLeadUpdateArgs {
+  where: TechStatusBusinessLeadWhereUniqueInput!
+  data: TechStatusBusinessLeadUpdateInput!
+}
+
+input TechStatusBusinessLeadCreateInput {
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  firstContactDate: CalendarDay
+  nextFollowUpDate: CalendarDay
+  notes: String
+}
+
+input TechBusinessLeadRelateToOneForCreateInput {
+  create: TechBusinessLeadCreateInput
+  connect: TechBusinessLeadWhereUniqueInput
 }
 
 type TechSalesActivity {
@@ -2994,12 +3066,6 @@ input TechSalesActivityUpdateInput {
   createdAt: DateTime
 }
 
-input TechBusinessLeadRelateToOneForUpdateInput {
-  create: TechBusinessLeadCreateInput
-  connect: TechBusinessLeadWhereUniqueInput
-  disconnect: Boolean
-}
-
 input TechSalesActivityUpdateArgs {
   where: TechSalesActivityWhereUniqueInput!
   data: TechSalesActivityUpdateInput!
@@ -3013,11 +3079,6 @@ input TechSalesActivityCreateInput {
   businessLead: TechBusinessLeadRelateToOneForCreateInput
   assignedSeller: UserRelateToOneForCreateInput
   createdAt: DateTime
-}
-
-input TechBusinessLeadRelateToOneForCreateInput {
-  create: TechBusinessLeadCreateInput
-  connect: TechBusinessLeadWhereUniqueInput
 }
 
 type TechFollowUpTask {
@@ -3095,6 +3156,7 @@ type TechProposal {
   status: String
   fileOrUrl: String
   businessLead: TechBusinessLead
+  assignedSeller: User
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3113,6 +3175,7 @@ input TechProposalWhereInput {
   status: StringNullableFilter
   fileOrUrl: StringFilter
   businessLead: TechBusinessLeadWhereInput
+  assignedSeller: UserWhereInput
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3133,6 +3196,7 @@ input TechProposalUpdateInput {
   status: String
   fileOrUrl: String
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  assignedSeller: UserRelateToOneForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3148,6 +3212,7 @@ input TechProposalCreateInput {
   status: String
   fileOrUrl: String
   businessLead: TechBusinessLeadRelateToOneForCreateInput
+  assignedSeller: UserRelateToOneForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3210,11 +3275,14 @@ type User {
   salesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
   followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
+  proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
+  proposalsCount(where: TechProposalWhereInput! = {}): Int
   profileImage: ImageFieldOutput
   birthday: CalendarDay
   age: String
   smsRegistrationId: String
   verified: Boolean
+  salesPersonVerified: Boolean
   createdAt: DateTime
 }
 
@@ -3245,9 +3313,11 @@ input UserWhereInput {
   businessLeadsAssigned: TechBusinessLeadManyRelationFilter
   salesActivities: TechSalesActivityManyRelationFilter
   followUpTasks: TechFollowUpTaskManyRelationFilter
+  proposals: TechProposalManyRelationFilter
   birthday: CalendarDayNullableFilter
   smsRegistrationId: StringFilter
   verified: BooleanFilter
+  salesPersonVerified: BooleanFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -3284,6 +3354,7 @@ input UserOrderByInput {
   birthday: OrderDirection
   smsRegistrationId: OrderDirection
   verified: OrderDirection
+  salesPersonVerified: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -3300,10 +3371,12 @@ input UserUpdateInput {
   businessLeadsAssigned: TechBusinessLeadRelateToManyForUpdateInput
   salesActivities: TechSalesActivityRelateToManyForUpdateInput
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
+  proposals: TechProposalRelateToManyForUpdateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
   verified: Boolean
+  salesPersonVerified: Boolean
   createdAt: DateTime
 }
 
@@ -3346,10 +3419,12 @@ input UserCreateInput {
   businessLeadsAssigned: TechBusinessLeadRelateToManyForCreateInput
   salesActivities: TechSalesActivityRelateToManyForCreateInput
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
+  proposals: TechProposalRelateToManyForCreateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
   verified: Boolean
+  salesPersonVerified: Boolean
   createdAt: DateTime
 }
 
@@ -3621,6 +3696,12 @@ type Mutation {
   updateTechBusinessLeads(data: [TechBusinessLeadUpdateArgs!]!): [TechBusinessLead]
   deleteTechBusinessLead(where: TechBusinessLeadWhereUniqueInput!): TechBusinessLead
   deleteTechBusinessLeads(where: [TechBusinessLeadWhereUniqueInput!]!): [TechBusinessLead]
+  createTechStatusBusinessLead(data: TechStatusBusinessLeadCreateInput!): TechStatusBusinessLead
+  createTechStatusBusinessLeads(data: [TechStatusBusinessLeadCreateInput!]!): [TechStatusBusinessLead]
+  updateTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!, data: TechStatusBusinessLeadUpdateInput!): TechStatusBusinessLead
+  updateTechStatusBusinessLeads(data: [TechStatusBusinessLeadUpdateArgs!]!): [TechStatusBusinessLead]
+  deleteTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
+  deleteTechStatusBusinessLeads(where: [TechStatusBusinessLeadWhereUniqueInput!]!): [TechStatusBusinessLead]
   createTechSalesActivity(data: TechSalesActivityCreateInput!): TechSalesActivity
   createTechSalesActivities(data: [TechSalesActivityCreateInput!]!): [TechSalesActivity]
   updateTechSalesActivity(where: TechSalesActivityWhereUniqueInput!, data: TechSalesActivityUpdateInput!): TechSalesActivity
@@ -3787,6 +3868,9 @@ type Query {
   techBusinessLead(where: TechBusinessLeadWhereUniqueInput!): TechBusinessLead
   techBusinessLeads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
   techBusinessLeadsCount(where: TechBusinessLeadWhereInput! = {}): Int
+  techStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
+  techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
+  techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   techSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
   techSalesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
   techSalesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int

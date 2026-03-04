@@ -34,6 +34,7 @@ import Role from "./Role/Role";
 import PetPlaceType from "./PetPlace/PetPlaceType/PetPlaceType";
 import ContactForm from "./ContactForm/ContactForm";
 import TechBusinessLead from "./Tech/BusinessLead/TechBusinessLead";
+import TechStatusBusinessLead from "./Tech/StatusBusinessLead/TechStatusBusinessLead";
 import TechFollowUpTask from "./Tech/FollowUpTask/TechFollowUpTask";
 import TechProposal from "./Tech/Proposal/TechProposal";
 import TechSalesActivity from "./Tech/SalesActivity/TechSalesActivity";
@@ -72,6 +73,7 @@ export default {
   SocialMedia,
   Tag,
   TechBusinessLead,
+  TechStatusBusinessLead,
   TechSalesActivity,
   TechFollowUpTask,
   TechProposal,

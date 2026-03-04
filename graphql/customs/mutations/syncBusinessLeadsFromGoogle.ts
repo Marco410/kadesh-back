@@ -1,5 +1,20 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { Role } from "../../../models/Role/constants";
 import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
+
+/** Obtiene los IDs de usuarios con salesPersonVerified = true, para asignación round-robin de leads. */
+async function getVerifiedSalesPersonIds(
+  context: KeystoneContext,
+): Promise<string[]> {
+  const users = await context.sudo().query.User.findMany({
+    where: {
+      salesPersonVerified: { equals: true },
+      roles: { some: { name: { equals: Role.VENDEDOR } } },
+    },
+    query: "id",
+  });
+  return users.map((u) => u.id);
+}
 
 const MIN_RATING = 4;
 const MIN_REVIEWS = 20;
@@ -108,11 +123,13 @@ function parseAddressComponents(
 ) {
   let city = "";
   let state = "";
+  let country = "";
   for (const c of components || []) {
     if (c.types.includes("locality")) city = c.long_name;
     if (c.types.includes("administrative_area_level_1")) state = c.short_name;
+    if (c.types.includes("country")) country = c.long_name;
   }
-  return { city, state };
+  return { city, state, country };
 }
 
 const resolver = {
@@ -158,6 +175,8 @@ const resolver = {
     let alreadyInDb = 0;
     let skippedLowRating = 0;
     let nextPageToken: string | undefined;
+
+    const verifiedSellerIds = await getVerifiedSalesPersonIds(context);
 
     try {
       do {
@@ -205,7 +224,7 @@ const resolver = {
           const details = await getPlaceDetails(placeId, apiKey);
           if (!details) continue;
 
-          const { city: parsedCity, state } = parseAddressComponents(
+          const { city: parsedCity, state, country } = parseAddressComponents(
             details.address_components || [],
           );
           const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
@@ -223,12 +242,11 @@ const resolver = {
             address: details.formatted_address || "",
             city: parsedCity || "",
             state: state || "",
+            country: country || "",
             rating: details.rating ?? null,
             reviewCount: details.user_ratings_total ?? null,
             hasWebsite: !!details.website,
             source: "Google Maps",
-            pipelineStatus: PIPELINE_STATUS.DETECTADO,
-            opportunityLevel: "Media",
             googlePlaceId: placeId,
             googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
             topReview1: topReviews[0] || null,
@@ -238,13 +256,25 @@ const resolver = {
             topReview5: topReviews[4] || null,
             websitePromptContent,
           };
-          if (assignedSellerId) {
-            leadData.assignedSeller = { connect: { id: assignedSellerId } };
+          const sellerId = assignedSellerId
+            ? assignedSellerId
+            : verifiedSellerIds.length > 0
+              ? verifiedSellerIds[created % verifiedSellerIds.length]
+              : null;
+          if (sellerId) {
+            leadData.salesPerson = { connect: { id: sellerId } };
           }
 
           try {
-            await context.sudo().query.TechBusinessLead.createOne({
+            const lead = await context.sudo().query.TechBusinessLead.createOne({
               data: leadData as any,
+            });
+            await context.sudo().query.TechStatusBusinessLead.createOne({
+              data: {
+                businessLead: { connect: { id: lead.id } },
+                pipelineStatus: PIPELINE_STATUS.DETECTADO,
+                opportunityLevel: "Media",
+              },
             });
             created++;
           } catch (_) {

@@ -29,12 +29,18 @@ export const proposalHooks = {
         return;
 
       try {
-        await context.db.TechBusinessLead.updateOne({
+        const lead = await context.query.TechBusinessLead.findOne({
           where: { id: proposal.businessLead.id },
-          data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO },
+          query: "id status { id }",
         });
+        if (lead?.status?.id) {
+          await context.db.TechStatusBusinessLead.updateOne({
+            where: { id: lead.status.id },
+            data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO },
+          });
+        }
       } catch (e) {
-        console.error("Error updating BusinessLead to Cerrado Ganado:", e);
+        console.error("Error updating BusinessLead status to Cerrado Ganado:", e);
       }
     }
   },
