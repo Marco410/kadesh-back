@@ -95,6 +95,16 @@ export default list({
       }),
       ui: { description: "Próxima fecha de seguimiento (del último FollowUpTask Pendiente o Pospuesto)" },
     }),
+    saasCompany: relationship({
+      ref: "SaasCompany.techStatusBusinessLeads",
+      many: false,
+      ui: { description: "Empresa a la que pertenece el lead" },
+    }),
+    salesPerson: relationship({
+      ref: "User.techStatusBusinessLeads",
+      many: false,
+      ui: { description: "Vendedor asignado" },
+    }),
     notes: text({
       ui: { displayMode: "textarea", description: "Notas generales" },
     }),

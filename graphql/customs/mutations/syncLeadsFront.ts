@@ -1,17 +1,76 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
+import { haversineDistance } from "../../../utils/helpers/calculate_distances";
+import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscription/constants";
+import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_text";
+import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";
+import { getOrCreateMonthlyRecord } from "../../../utils/helpers/tech/monthly_record";
+import { getPlaceDetails } from "../../../utils/helpers/tech/place_details";
+
+/**
+ * syncLeadsFront: asigna TechBusinessLead a la SaasCompany del usuario.
+ * Relación N:M: un mismo lead puede estar en varias companies; solo usamos connect (nunca set/disconnect).
+ * Mismo punto (lat/lng/radius/category) debe dar el mismo pool de leads para cualquier company.
+ */
+/** Asegura que exista TechStatusBusinessLead para este lead + company con salesPerson; crea o actualiza. */
+async function ensureStatusForLeadAssignment(
+  context: KeystoneContext,
+  leadId: string,
+  companyId: string,
+  userId: string,
+  opportunityLevel: "Alta" | "Media" | "Baja" = "Media",
+): Promise<void> {
+  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
+    where: {
+      businessLead: { id: { equals: leadId } },
+      saasCompany: { id: { equals: companyId } },
+    },
+    take: 1,
+    query: "id",
+  });
+  if (existing) {
+    await context.sudo().query.TechStatusBusinessLead.updateOne({
+      where: { id: (existing as { id: string }).id },
+      data: {
+        salesPerson: { connect: { id: userId } },
+        pipelineStatus: PIPELINE_STATUS.DETECTADO,
+        opportunityLevel,
+      },
+    });
+  } else {
+    await context.sudo().query.TechStatusBusinessLead.createOne({
+      data: {
+        businessLead: { connect: { id: leadId } },
+        saasCompany: { connect: { id: companyId } },
+        salesPerson: { connect: { id: userId } },
+        pipelineStatus: PIPELINE_STATUS.DETECTADO,
+        opportunityLevel,
+      },
+    });
+  }
+}
+
+const MIN_RATING = 3.7;
+const MIN_REVIEWS = 15;
+const DEFAULT_MAX_RESULTS = 60;
+
 
 const typeDefs = `
   input SyncLeadsFrontInput {
-    placeId: String!
-    category: String
-    assignedSellerId: ID
+    lat: Float!
+    lng: Float!
+    radius: Float!
+    category: String!
+    maxResults: Int
   }
 
   type SyncLeadsFrontResult {
     success: Boolean!
     message: String!
-    businessLeadId: ID
+    created: Int!
+    alreadyInDb: Int!
+    skippedLowRating: Int!
+    syncedLeadsCount: Int!
     syncedCount: Int
     leadLimit: Int
   }
@@ -25,111 +84,92 @@ const definition = `
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
 `;
 
-async function getPlaceDetails(placeId: string, apiKey: string) {
-  const fields =
-    "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry";
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.status !== "OK" || !data.result) return null;
-  return data.result;
-}
-
-function parseAddressComponents(
-  components: Array<{ long_name: string; short_name: string; types: string[] }>,
-) {
-  let city = "";
-  let state = "";
-  let country = "";
-  for (const c of components || []) {
-    if (c.types.includes("locality")) city = c.long_name;
-    if (c.types.includes("administrative_area_level_1")) state = c.short_name;
-    if (c.types.includes("country")) country = c.long_name;
-  }
-  return { city, state, country };
-}
-
-/** Get or create SaasCompanyMonthlyLeadSync for company + year + month; return record id and current syncedCount */
-async function getOrCreateMonthlyRecord(
-  context: KeystoneContext,
-  companyId: string,
-  year: number,
-  month: number,
-): Promise<{ id: string; syncedCount: number }> {
-  const existing = await context.sudo().query.SaasCompanyMonthlyLeadSync.findOne({
-    where: {
-      company: { id: { equals: companyId } },
-      year: { equals: year },
-      month: { equals: month },
-    },
-    query: "id syncedCount",
-  });
-  if (existing) {
-    return {
-      id: existing.id,
-      syncedCount: (existing as { syncedCount: number | null }).syncedCount ?? 0,
-    };
-  }
-  const created = await context.sudo().query.SaasCompanyMonthlyLeadSync.createOne({
-    data: {
-      company: { connect: { id: companyId } },
-      year,
-      month,
-      syncedCount: 0,
-    },
-    query: "id syncedCount",
-  });
-  return {
-    id: created.id,
-    syncedCount: (created as { syncedCount: number | null }).syncedCount ?? 0,
-  };
-}
-
 const resolver = {
   syncLeadsFront: async (
     _root: unknown,
     {
       input,
     }: {
-      input: { placeId: string; category?: string; assignedSellerId?: string };
+      input: {
+        lat: number;
+        lng: number;
+        radius: number;
+        category: string;
+        maxResults?: number;
+      };
     },
     context: KeystoneContext,
   ) => {
+    const emptyResult = {
+      created: 0,
+      alreadyInDb: 0,
+      skippedLowRating: 0,
+      syncedLeadsCount: 0,
+      syncedCount: null as number | null,
+      leadLimit: null as number | null,
+    };
+
     const session = context.session as { data?: { id: string } } | undefined;
     const userId = session?.data?.id;
     if (!userId) {
       return {
         success: false,
         message: "Debes iniciar sesión para sincronizar leads",
-        businessLeadId: null,
-        syncedCount: null,
-        leadLimit: null,
+        ...emptyResult,
       };
     }
 
     const user = await context.sudo().query.User.findOne({
       where: { id: userId },
-      query: "id company { id plan { leadLimit } }",
+      query: "id company { id name }",
     });
-    const company = (user as { company?: { id: string; plan?: { leadLimit: number | null } } | null })
-      ?.company;
+
+    const company = (user as { company?: { id: string; name?: string } | null })?.company;
+
     if (!company?.id) {
       return {
         success: false,
         message: "Tu usuario no tiene una empresa asignada",
-        businessLeadId: null,
-        syncedCount: null,
-        leadLimit: null,
+        ...emptyResult,
       };
     }
 
-    const leadLimit = company.plan?.leadLimit ?? null;
-    if (leadLimit !== null && leadLimit < 1) {
+    // Resolver límite desde la suscripción activa (snapshot del plan contratado), no del plan actual
+    const [activeSubscription] = await context.sudo().query.SaasCompanySubscription.findMany({
+      where: {
+        company: { id: { equals: company.id } },
+        status: { equals: SUBSCRIPTION_STATUS.ACTIVE },
+      },
+      orderBy: [{ activatedAt: "desc" }],
+      take: 1,
+      query: "id planLeadLimit",
+    });
+
+    if (!activeSubscription) {
       return {
         success: false,
-        message: "El plan de tu empresa no permite sincronizar leads",
-        businessLeadId: null,
-        syncedCount: null,
+        message: `"${company?.name ?? "La empresa"}" no tiene una suscripción activa. Contrata o activa una suscripción para sincronizar leads.`,
+        ...emptyResult,
+      };
+    }
+
+    const leadLimit =
+      (activeSubscription as { planLeadLimit: number | null }).planLeadLimit ?? null;
+
+    if (leadLimit === null) {
+      return {
+        success: false,
+        message: `La suscripción activa de "${company?.name ?? "la empresa"}" no tiene límite de leads configurado.`,
+        ...emptyResult,
+        leadLimit,
+      };
+    }
+
+    if (leadLimit < 1) {
+      return {
+        success: false,
+        message: `La suscripción activa de "${company?.name ?? "la empresa"}" no permite sincronizar leads.`,
+        ...emptyResult,
         leadLimit,
       };
     }
@@ -145,111 +185,273 @@ const resolver = {
       month,
     );
 
-    if (leadLimit !== null && syncedCount >= leadLimit) {
+    // leadLimit viene de la suscripción activa (ya validado arriba)
+    const remainingQuota = Math.max(0, leadLimit - syncedCount);
+    if (remainingQuota === 0) {
       return {
         success: false,
-        message: `Cuota mensual alcanzada (${syncedCount}/${leadLimit} leads). Próximo reinicio el mes siguiente.`,
-        businessLeadId: null,
+        message: `Cuota mensual de tu suscripción alcanzada (${syncedCount}/${leadLimit} leads). Próximo reinicio el mes siguiente.`,
+        ...emptyResult,
         syncedCount,
         leadLimit,
       };
     }
 
+    const maxResults = Math.min(input.maxResults ?? DEFAULT_MAX_RESULTS, remainingQuota);
+    const { lat: centerLat, lng: centerLng, radius: radiusKm, category: inputCategory } = input;
+
+    // 1) Buscar TechBusinessLead en BD por categoría, dentro del radio; excluir los que ya están asignados a esta company
+    const candidates = await context.sudo().query.TechBusinessLead.findMany({
+      where: {
+        category: { equals: inputCategory },
+      },
+      take: 1000,
+      query: "id lat lng saasCompany { id }",
+    });
+
+    type LeadCandidate = { id: string; lat: number | null; lng: number | null; saasCompany?: { id: string }[] };
+    const existingIds: string[] = [];
+    for (const lead of candidates as LeadCandidate[]) {
+      if (existingIds.length >= maxResults) break;
+      const leadLat = lead.lat;
+      const leadLng = lead.lng;
+      if (leadLat == null || leadLng == null) continue;
+      const distanceKm = haversineDistance(centerLat, centerLng, leadLat, leadLng);
+      if (distanceKm > radiusKm) continue;
+      // No asignar si ya está asignado a esta company
+      const alreadyAssignedToThisCompany = (lead.saasCompany ?? []).some(
+        (c) => c.id === company.id
+      );
+      if (alreadyAssignedToThisCompany) continue;
+      existingIds.push(lead.id);
+    }
+    
+    // Asignar siempre los leads existentes en el área a esta company (solo connect: un mismo lead puede estar en varias companies).
+    let assignedFromDb = 0;
+    for (const leadId of existingIds) {
+      try {
+        await context.sudo().query.TechBusinessLead.updateOne({
+          where: { id: leadId },
+          data: { saasCompany: { connect: { id: company.id } } }, // ADD only; never replace
+        });
+        await ensureStatusForLeadAssignment(context, leadId, company.id, userId);
+        assignedFromDb++;
+      } catch (_) {}
+    }
+    let currentSyncedCount = syncedCount + assignedFromDb;
+    let syncedThisRequest = assignedFromDb;
+    if (assignedFromDb > 0) {
+      await context.sudo().query.SaasCompanyMonthlyLeadSync.updateOne({
+        where: { id: recordId },
+        data: { syncedCount: currentSyncedCount },
+      });
+    }
+
+    // Si ya alcanzamos maxResults o la cuota, devolver (mismo pool de leads para cualquier company)
+    if (syncedThisRequest >= maxResults || (leadLimit !== null && currentSyncedCount >= leadLimit)) {
+      return {
+        success: true,
+        message: `${assignedFromDb} leads asignados. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
+        created: 0,
+        alreadyInDb: assignedFromDb,
+        skippedLowRating: 0,
+        syncedLeadsCount: assignedFromDb,
+        syncedCount: currentSyncedCount,
+        leadLimit,
+      };
+    }
+
+    // Buscar más en Google Maps si hace falta (crear si no existe, asignar a la company; connect solo, nunca quitar otras companies).
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
+      if (syncedThisRequest > 0) {
+        return {
+          success: true,
+          message: `${syncedThisRequest} leads asignados desde BD. GOOGLE_MAPS_API_KEY no configurada para buscar más. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
+          created: 0,
+          alreadyInDb: assignedFromDb,
+          skippedLowRating: 0,
+          syncedLeadsCount: syncedThisRequest,
+          syncedCount: currentSyncedCount,
+          leadLimit,
+        };
+      }
       return {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
-        businessLeadId: null,
-        syncedCount: null,
-        leadLimit,
+        ...emptyResult,
       };
     }
 
-    const existing = await context.sudo().query.TechBusinessLead.findOne({
-      where: { googlePlaceId: input.placeId },
-      query: "id",
-    });
-    if (existing) {
-      return {
-        success: false,
-        message: "Este negocio ya fue importado como lead",
-        businessLeadId: existing.id,
-        syncedCount,
-        leadLimit,
-      };
-    }
-
-    const place = await getPlaceDetails(input.placeId, apiKey);
-    if (!place) {
-      return {
-        success: false,
-        message: "No se pudo obtener datos del lugar",
-        businessLeadId: null,
-        syncedCount: null,
-        leadLimit,
-      };
-    }
-
-    const { city, state, country } = parseAddressComponents(
-      place.address_components || [],
-    );
-    const address = place.formatted_address || "";
-    const hasWebsite = !!place.website;
-
-    const data: Record<string, unknown> = {
-      businessName: place.name,
-      category: input.category || place.types?.[0] || "Negocio",
-      phone:
-        place.formatted_phone_number || place.international_phone_number || "",
-      address,
-      city: city || "",
-      state: state || "",
-      country: country || "",
-      rating: place.rating ?? null,
-      reviewCount: place.user_ratings_total ?? null,
-      hasWebsite,
-      websiteUrl: place.website || "",
-      source: "Google Maps",
-      googlePlaceId: input.placeId,
-      googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`,
-    };
-
-    if (input.assignedSellerId) {
-      data.salesPerson = { connect: { id: input.assignedSellerId } };
-    }
+    const { lat, lng, radius, category } = input;
+    const radiusMeters = Math.round(radius * 1000);
+    const keyword = encodeURIComponent(category);
+    let created = 0;
+    let alreadyInDb = assignedFromDb;
+    let skippedLowRating = 0;
+    let nextPageToken: string | undefined;
+    // currentSyncedCount y syncedThisRequest ya vienen de la asignación de existingIds
 
     try {
-      const lead = await context.sudo().query.TechBusinessLead.createOne({
-        data: data as any,
-      });
-      await context.sudo().query.TechStatusBusinessLead.createOne({
-        data: {
-          businessLead: { connect: { id: lead.id } },
-          pipelineStatus: PIPELINE_STATUS.DETECTADO,
-          opportunityLevel: "Media",
-        },
-      });
+      do {
+        let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
+        if (nextPageToken) {
+          url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${encodeURIComponent(nextPageToken)}&key=${apiKey}`;
+          await new Promise((r) => setTimeout(r, 2000));
+        }
 
-      const newCount = syncedCount + 1;
-      await context.sudo().query.SaasCompanyMonthlyLeadSync.updateOne({
-        where: { id: recordId },
-        data: { syncedCount: newCount },
-      });
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+          return {
+            success: false,
+            message: data.error_message || data.status,
+            created,
+            alreadyInDb,
+            skippedLowRating,
+            syncedLeadsCount: syncedThisRequest,
+            syncedCount: currentSyncedCount,
+            leadLimit,
+          };
+        }
+
+        const results = data.results || [];
+        for (const place of results) {
+          if (syncedThisRequest >= maxResults) break;
+          if (leadLimit !== null && currentSyncedCount >= leadLimit) break;
+
+          const placeId = place.place_id;
+          const placeRating = place.rating ?? 0;
+          const userRatingsTotal = place.user_ratings_total ?? 0;
+
+          let lead = await context.sudo().query.TechBusinessLead.findOne({
+            where: { googlePlaceId: placeId },
+            query: "id saasCompany { id }",
+          });
+
+          if (lead) {
+            const leadCompanies = (lead as { id: string; saasCompany?: { id: string }[] }).saasCompany ?? [];
+            const alreadyAssignedToThisCompany = leadCompanies.some((c) => c.id === company.id);
+            if (alreadyAssignedToThisCompany) {
+              // Ya asignado a esta company: no volver a asignar ni sumar a la cuota
+              continue;
+            }
+            alreadyInDb++;
+            // Asignar a la company solo si aún no está asignado a esta; actualizar/crear TechStatusBusinessLead
+            try {
+              const leadId = (lead as { id: string }).id;
+              await context.sudo().query.TechBusinessLead.updateOne({
+                where: { id: leadId },
+                data: { saasCompany: { connect: { id: company.id } } },
+              });
+              const level: "Alta" | "Media" | "Baja" =
+                placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
+              await ensureStatusForLeadAssignment(context, leadId, company.id, userId, level);
+              syncedThisRequest++;
+              currentSyncedCount++;
+            } catch (_) {}
+            continue;
+          }
+
+          if (placeRating < MIN_RATING || userRatingsTotal < MIN_REVIEWS) {
+            skippedLowRating++;
+            continue;
+          }
+
+          const details = await getPlaceDetails(placeId, apiKey);
+          if (!details) continue;
+
+          const { city: parsedCity, state, country } = parseAddressComponents(
+            details.address_components || [],
+          );
+          const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
+            details,
+            category,
+          );
+
+            const leadData: Record<string, unknown> = {
+              businessName: details.name,
+              category,
+              phone:
+                details.formatted_phone_number ||
+                details.international_phone_number ||
+                "",
+              address: details.formatted_address || "",
+              city: parsedCity || "",
+              state: state || "",
+              country: country || "",
+              rating: details.rating ?? null,
+              reviewCount: details.user_ratings_total ?? null,
+              hasWebsite: !!details.website,
+              source: "Google Maps",
+              googlePlaceId: placeId,
+              googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
+              topReview1: topReviews[0] || null,
+              topReview2: topReviews[1] || null,
+              topReview3: topReviews[2] || null,
+              topReview4: topReviews[3] || null,
+              topReview5: topReviews[4] || null,
+              websitePromptContent,
+              saasCompany: { connect: { id: company.id } },
+              lat: details.geometry?.location?.lat ?? null,
+              lng: details.geometry?.location?.lng ?? null,
+            };
+
+          try {
+            const newLead = await context.sudo().query.TechBusinessLead.createOne({
+              data: leadData as any,
+            });
+            await context.sudo().query.TechStatusBusinessLead.createOne({
+              data: {
+                businessLead: { connect: { id: newLead.id } },
+                saasCompany: { connect: { id: company.id } },
+                salesPerson: { connect: { id: userId } },
+                pipelineStatus: PIPELINE_STATUS.DETECTADO,
+                opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja",
+              },
+            });
+            created++;
+            syncedThisRequest++;
+            currentSyncedCount++;
+          } catch (_) {
+            // skip on duplicate or validation error
+          }
+        }
+
+        nextPageToken = data.next_page_token;
+      } while (
+        nextPageToken &&
+        syncedThisRequest < maxResults &&
+        (leadLimit === null || currentSyncedCount < leadLimit)
+      );
+
+      if (syncedThisRequest > 0) {
+        await context.sudo().query.SaasCompanyMonthlyLeadSync.updateOne({
+          where: { id: recordId },
+          data: { syncedCount: currentSyncedCount },
+        });
+      }
 
       return {
         success: true,
-        message: "Lead importado correctamente",
-        businessLeadId: lead.id,
-        syncedCount: newCount,
+        message: `Sincronización completada. Leads asignados a tu empresa: ${syncedThisRequest} ${leadLimit !== null ? ` Cuota: ${currentSyncedCount}/${leadLimit} este mes.` : ""}`,
+        created,
+        alreadyInDb,
+        skippedLowRating,
+        syncedLeadsCount: syncedThisRequest,
+        syncedCount: currentSyncedCount,
         leadLimit,
       };
     } catch (err) {
       return {
         success: false,
-        message: err instanceof Error ? err.message : "Error creando lead",
-        businessLeadId: null,
-        syncedCount: null,
+        message: err instanceof Error ? err.message : "Error en sincronización",
+        created,
+        alreadyInDb,
+        skippedLowRating,
+        syncedLeadsCount: syncedThisRequest,
+        syncedCount: currentSyncedCount,
         leadLimit,
       };
     }

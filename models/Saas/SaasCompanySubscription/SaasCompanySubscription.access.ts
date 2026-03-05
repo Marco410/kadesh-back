@@ -1,7 +1,6 @@
 import { ListAccessControl } from "@keystone-6/core/types";
 
-/** Solo se ven/editan/borran los TechBusinessLead que pertenecen a la SaasCompany del usuario. */
-export const businessLeadAccess: ListAccessControl<any> = {
+export const saasCompanySubscriptionAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
     create: () => true,

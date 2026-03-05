@@ -15,6 +15,7 @@ export default list({
       initialColumns: [
         "name",
         "plan",
+        "subscriptions",
         "allowedGooglePlaceCategories",
         "subscriptionStartedAt",
         "users",
@@ -55,6 +56,22 @@ export default list({
         description:
           "Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. [\"restaurantes\", \"cafeterías\"]). Empty or null = all allowed.",
       },
+    }),
+    leads: relationship({
+      ref: "TechBusinessLead.saasCompany",
+      many: true,
+      ui: { description: "Leads belonging to this company" },
+    }),
+    /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
+    subscriptions: relationship({
+      ref: "SaasCompanySubscription.company",
+      many: true,
+      ui: { description: "Subscription history; plan data is stored as snapshot per record" },
+    }),
+    techStatusBusinessLeads: relationship({
+      ref: "TechStatusBusinessLead.saasCompany",
+      many: true,
+      ui: { description: "Estados de los leads pertenecientes a esta company" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

@@ -113,6 +113,8 @@ const resolver = {
       source: "Google Maps",
       googlePlaceId: input.placeId,
       googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`,
+      lat: place.geometry?.location?.lat ?? null,
+      lng: place.geometry?.location?.lng ?? null,
     };
 
     const sellerId = input.assignedSellerId

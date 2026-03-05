@@ -255,6 +255,8 @@ const resolver = {
             topReview4: topReviews[3] || null,
             topReview5: topReviews[4] || null,
             websitePromptContent,
+            lat: details.geometry?.location?.lat ?? null,
+            lng: details.geometry?.location?.lng ?? null,
           };
           const sellerId = assignedSellerId
             ? assignedSellerId
@@ -273,7 +275,7 @@ const resolver = {
               data: {
                 businessLead: { connect: { id: lead.id } },
                 pipelineStatus: PIPELINE_STATUS.DETECTADO,
-                opportunityLevel: "Media",
+                opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja",
               },
             });
             created++;

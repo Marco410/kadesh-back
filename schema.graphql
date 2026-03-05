@@ -2675,11 +2675,14 @@ type TechBusinessLead {
   state: String
   country: String
   rating: Float
+  lat: Float
+  lng: Float
   reviewCount: Int
   hasWebsite: Boolean
   websiteUrl: String
   source: String
-  status: TechStatusBusinessLead
+  status(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
+  statusCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   instagram: String
   facebook: String
   xTwitter: String
@@ -2698,14 +2701,16 @@ type TechBusinessLead {
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   googleMapsUrl: String
   googlePlaceId: String
-  salesPerson: User
+  salesPerson(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
+  salesPersonCount(where: UserWhereInput! = {}): Int
+  saasCompany(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
+  saasCompanyCount(where: SaasCompanyWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
 
 input TechBusinessLeadWhereUniqueInput {
   id: ID
-  status: TechStatusBusinessLeadWhereUniqueInput
   googlePlaceId: String
 }
 
@@ -2722,11 +2727,13 @@ input TechBusinessLeadWhereInput {
   state: StringFilter
   country: StringFilter
   rating: FloatNullableFilter
+  lat: FloatNullableFilter
+  lng: FloatNullableFilter
   reviewCount: IntNullableFilter
   hasWebsite: BooleanFilter
   websiteUrl: StringFilter
   source: StringNullableFilter
-  status: TechStatusBusinessLeadWhereInput
+  status: TechStatusBusinessLeadManyRelationFilter
   instagram: StringFilter
   facebook: StringFilter
   xTwitter: StringFilter
@@ -2742,7 +2749,8 @@ input TechBusinessLeadWhereInput {
   followUpTasks: TechFollowUpTaskManyRelationFilter
   googleMapsUrl: StringFilter
   googlePlaceId: StringNullableFilter
-  salesPerson: UserWhereInput
+  salesPerson: UserManyRelationFilter
+  saasCompany: SaasCompanyManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2756,6 +2764,12 @@ input FloatNullableFilter {
   gt: Float
   gte: Float
   not: FloatNullableFilter
+}
+
+input TechStatusBusinessLeadManyRelationFilter {
+  every: TechStatusBusinessLeadWhereInput
+  some: TechStatusBusinessLeadWhereInput
+  none: TechStatusBusinessLeadWhereInput
 }
 
 input TechSalesActivityManyRelationFilter {
@@ -2776,6 +2790,12 @@ input TechFollowUpTaskManyRelationFilter {
   none: TechFollowUpTaskWhereInput
 }
 
+input SaasCompanyManyRelationFilter {
+  every: SaasCompanyWhereInput
+  some: SaasCompanyWhereInput
+  none: SaasCompanyWhereInput
+}
+
 input TechBusinessLeadOrderByInput {
   id: OrderDirection
   businessName: OrderDirection
@@ -2786,6 +2806,8 @@ input TechBusinessLeadOrderByInput {
   state: OrderDirection
   country: OrderDirection
   rating: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
   reviewCount: OrderDirection
   hasWebsite: OrderDirection
   websiteUrl: OrderDirection
@@ -2815,11 +2837,13 @@ input TechBusinessLeadUpdateInput {
   state: String
   country: String
   rating: Float
+  lat: Float
+  lng: Float
   reviewCount: Int
   hasWebsite: Boolean
   websiteUrl: String
   source: String
-  status: TechStatusBusinessLeadRelateToOneForUpdateInput
+  status: TechStatusBusinessLeadRelateToManyForUpdateInput
   instagram: String
   facebook: String
   xTwitter: String
@@ -2835,15 +2859,17 @@ input TechBusinessLeadUpdateInput {
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   googleMapsUrl: String
   googlePlaceId: String
-  salesPerson: UserRelateToOneForUpdateInput
+  salesPerson: UserRelateToManyForUpdateInput
+  saasCompany: SaasCompanyRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
 
-input TechStatusBusinessLeadRelateToOneForUpdateInput {
-  create: TechStatusBusinessLeadCreateInput
-  connect: TechStatusBusinessLeadWhereUniqueInput
-  disconnect: Boolean
+input TechStatusBusinessLeadRelateToManyForUpdateInput {
+  disconnect: [TechStatusBusinessLeadWhereUniqueInput!]
+  set: [TechStatusBusinessLeadWhereUniqueInput!]
+  create: [TechStatusBusinessLeadCreateInput!]
+  connect: [TechStatusBusinessLeadWhereUniqueInput!]
 }
 
 input TechSalesActivityRelateToManyForUpdateInput {
@@ -2867,6 +2893,13 @@ input TechFollowUpTaskRelateToManyForUpdateInput {
   connect: [TechFollowUpTaskWhereUniqueInput!]
 }
 
+input SaasCompanyRelateToManyForUpdateInput {
+  disconnect: [SaasCompanyWhereUniqueInput!]
+  set: [SaasCompanyWhereUniqueInput!]
+  create: [SaasCompanyCreateInput!]
+  connect: [SaasCompanyWhereUniqueInput!]
+}
+
 input TechBusinessLeadUpdateArgs {
   where: TechBusinessLeadWhereUniqueInput!
   data: TechBusinessLeadUpdateInput!
@@ -2881,11 +2914,13 @@ input TechBusinessLeadCreateInput {
   state: String
   country: String
   rating: Float
+  lat: Float
+  lng: Float
   reviewCount: Int
   hasWebsite: Boolean
   websiteUrl: String
   source: String
-  status: TechStatusBusinessLeadRelateToOneForCreateInput
+  status: TechStatusBusinessLeadRelateToManyForCreateInput
   instagram: String
   facebook: String
   xTwitter: String
@@ -2901,14 +2936,15 @@ input TechBusinessLeadCreateInput {
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   googleMapsUrl: String
   googlePlaceId: String
-  salesPerson: UserRelateToOneForCreateInput
+  salesPerson: UserRelateToManyForCreateInput
+  saasCompany: SaasCompanyRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
 
-input TechStatusBusinessLeadRelateToOneForCreateInput {
-  create: TechStatusBusinessLeadCreateInput
-  connect: TechStatusBusinessLeadWhereUniqueInput
+input TechStatusBusinessLeadRelateToManyForCreateInput {
+  create: [TechStatusBusinessLeadCreateInput!]
+  connect: [TechStatusBusinessLeadWhereUniqueInput!]
 }
 
 input TechSalesActivityRelateToManyForCreateInput {
@@ -2926,6 +2962,11 @@ input TechFollowUpTaskRelateToManyForCreateInput {
   connect: [TechFollowUpTaskWhereUniqueInput!]
 }
 
+input SaasCompanyRelateToManyForCreateInput {
+  create: [SaasCompanyCreateInput!]
+  connect: [SaasCompanyWhereUniqueInput!]
+}
+
 type TechStatusBusinessLead {
   id: ID!
   businessLead: TechBusinessLead
@@ -2935,12 +2976,13 @@ type TechStatusBusinessLead {
   productOffered: String
   firstContactDate: CalendarDay
   nextFollowUpDate: String
+  saasCompany: SaasCompany
+  salesPerson: User
   notes: String
 }
 
 input TechStatusBusinessLeadWhereUniqueInput {
   id: ID
-  businessLead: TechBusinessLeadWhereUniqueInput
 }
 
 input TechStatusBusinessLeadWhereInput {
@@ -2954,6 +2996,8 @@ input TechStatusBusinessLeadWhereInput {
   estimatedValue: FloatNullableFilter
   productOffered: StringFilter
   firstContactDate: CalendarDayNullableFilter
+  saasCompany: SaasCompanyWhereInput
+  salesPerson: UserWhereInput
   notes: StringFilter
 }
 
@@ -2974,12 +3018,20 @@ input TechStatusBusinessLeadUpdateInput {
   estimatedValue: Float
   productOffered: String
   firstContactDate: CalendarDay
+  saasCompany: SaasCompanyRelateToOneForUpdateInput
+  salesPerson: UserRelateToOneForUpdateInput
   notes: String
 }
 
 input TechBusinessLeadRelateToOneForUpdateInput {
   create: TechBusinessLeadCreateInput
   connect: TechBusinessLeadWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasCompanyRelateToOneForUpdateInput {
+  create: SaasCompanyCreateInput
+  connect: SaasCompanyWhereUniqueInput
   disconnect: Boolean
 }
 
@@ -2995,12 +3047,19 @@ input TechStatusBusinessLeadCreateInput {
   estimatedValue: Float
   productOffered: String
   firstContactDate: CalendarDay
+  saasCompany: SaasCompanyRelateToOneForCreateInput
+  salesPerson: UserRelateToOneForCreateInput
   notes: String
 }
 
 input TechBusinessLeadRelateToOneForCreateInput {
   create: TechBusinessLeadCreateInput
   connect: TechBusinessLeadWhereUniqueInput
+}
+
+input SaasCompanyRelateToOneForCreateInput {
+  create: SaasCompanyCreateInput
+  connect: SaasCompanyWhereUniqueInput
 }
 
 type TechSalesActivity {
@@ -3281,6 +3340,8 @@ type User {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
+  techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   createdAt: DateTime
 }
 
@@ -3318,6 +3379,7 @@ input UserWhereInput {
   verified: BooleanFilter
   salesPersonVerified: BooleanFilter
   salesComission: IntNullableFilter
+  techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -3380,6 +3442,7 @@ input UserUpdateInput {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   createdAt: DateTime
 }
 
@@ -3388,12 +3451,6 @@ input RoleRelateToManyForUpdateInput {
   set: [RoleWhereUniqueInput!]
   create: [RoleCreateInput!]
   connect: [RoleWhereUniqueInput!]
-}
-
-input SaasCompanyRelateToOneForUpdateInput {
-  create: SaasCompanyCreateInput
-  connect: SaasCompanyWhereUniqueInput
-  disconnect: Boolean
 }
 
 input BlogSubscriptionRelateToManyForUpdateInput {
@@ -3436,17 +3493,13 @@ input UserCreateInput {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   createdAt: DateTime
 }
 
 input RoleRelateToManyForCreateInput {
   create: [RoleCreateInput!]
   connect: [RoleWhereUniqueInput!]
-}
-
-input SaasCompanyRelateToOneForCreateInput {
-  create: SaasCompanyCreateInput
-  connect: SaasCompanyWhereUniqueInput
 }
 
 input BlogSubscriptionRelateToManyForCreateInput {
@@ -3518,6 +3571,12 @@ type SaasCompany {
   monthlyLeadSyncRecords(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
   monthlyLeadSyncRecordsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
   allowedGooglePlaceCategories: JSON
+  leads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
+  leadsCount(where: TechBusinessLeadWhereInput! = {}): Int
+  subscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
+  subscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
+  techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
+  techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3536,6 +3595,9 @@ input SaasCompanyWhereInput {
   plan: SaasPlanWhereInput
   subscriptionStartedAt: CalendarDayNullableFilter
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
+  leads: TechBusinessLeadManyRelationFilter
+  subscriptions: SaasCompanySubscriptionManyRelationFilter
+  techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3544,6 +3606,12 @@ input SaasCompanyMonthlyLeadSyncManyRelationFilter {
   every: SaasCompanyMonthlyLeadSyncWhereInput
   some: SaasCompanyMonthlyLeadSyncWhereInput
   none: SaasCompanyMonthlyLeadSyncWhereInput
+}
+
+input SaasCompanySubscriptionManyRelationFilter {
+  every: SaasCompanySubscriptionWhereInput
+  some: SaasCompanySubscriptionWhereInput
+  none: SaasCompanySubscriptionWhereInput
 }
 
 input SaasCompanyOrderByInput {
@@ -3561,6 +3629,9 @@ input SaasCompanyUpdateInput {
   subscriptionStartedAt: CalendarDay
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
   allowedGooglePlaceCategories: JSON
+  leads: TechBusinessLeadRelateToManyForUpdateInput
+  subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
+  techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3578,6 +3649,13 @@ input SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput {
   connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
 }
 
+input SaasCompanySubscriptionRelateToManyForUpdateInput {
+  disconnect: [SaasCompanySubscriptionWhereUniqueInput!]
+  set: [SaasCompanySubscriptionWhereUniqueInput!]
+  create: [SaasCompanySubscriptionCreateInput!]
+  connect: [SaasCompanySubscriptionWhereUniqueInput!]
+}
+
 input SaasCompanyUpdateArgs {
   where: SaasCompanyWhereUniqueInput!
   data: SaasCompanyUpdateInput!
@@ -3590,6 +3668,9 @@ input SaasCompanyCreateInput {
   subscriptionStartedAt: CalendarDay
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
   allowedGooglePlaceCategories: JSON
+  leads: TechBusinessLeadRelateToManyForCreateInput
+  subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
+  techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3604,20 +3685,30 @@ input SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput {
   connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
 }
 
+input SaasCompanySubscriptionRelateToManyForCreateInput {
+  create: [SaasCompanySubscriptionCreateInput!]
+  connect: [SaasCompanySubscriptionWhereUniqueInput!]
+}
+
 type SaasPlan {
   id: ID!
   name: String
   cost: Float
   frequency: String
+  currency: String
   leadLimit: Int
   companies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
   companiesCount(where: SaasCompanyWhereInput! = {}): Int
+  active: Boolean
+  stripePriceId: String
+  stripeProductId: String
   createdAt: DateTime
   updatedAt: DateTime
 }
 
 input SaasPlanWhereUniqueInput {
   id: ID
+  stripePriceId: String
 }
 
 input SaasPlanWhereInput {
@@ -3628,16 +3719,14 @@ input SaasPlanWhereInput {
   name: StringFilter
   cost: FloatNullableFilter
   frequency: StringNullableFilter
+  currency: StringFilter
   leadLimit: IntNullableFilter
   companies: SaasCompanyManyRelationFilter
+  active: BooleanFilter
+  stripePriceId: StringNullableFilter
+  stripeProductId: StringNullableFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
-}
-
-input SaasCompanyManyRelationFilter {
-  every: SaasCompanyWhereInput
-  some: SaasCompanyWhereInput
-  none: SaasCompanyWhereInput
 }
 
 input SaasPlanOrderByInput {
@@ -3645,7 +3734,11 @@ input SaasPlanOrderByInput {
   name: OrderDirection
   cost: OrderDirection
   frequency: OrderDirection
+  currency: OrderDirection
   leadLimit: OrderDirection
+  active: OrderDirection
+  stripePriceId: OrderDirection
+  stripeProductId: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -3654,17 +3747,14 @@ input SaasPlanUpdateInput {
   name: String
   cost: Float
   frequency: String
+  currency: String
   leadLimit: Int
   companies: SaasCompanyRelateToManyForUpdateInput
+  active: Boolean
+  stripePriceId: String
+  stripeProductId: String
   createdAt: DateTime
   updatedAt: DateTime
-}
-
-input SaasCompanyRelateToManyForUpdateInput {
-  disconnect: [SaasCompanyWhereUniqueInput!]
-  set: [SaasCompanyWhereUniqueInput!]
-  create: [SaasCompanyCreateInput!]
-  connect: [SaasCompanyWhereUniqueInput!]
 }
 
 input SaasPlanUpdateArgs {
@@ -3676,15 +3766,14 @@ input SaasPlanCreateInput {
   name: String
   cost: Float
   frequency: String
+  currency: String
   leadLimit: Int
   companies: SaasCompanyRelateToManyForCreateInput
+  active: Boolean
+  stripePriceId: String
+  stripeProductId: String
   createdAt: DateTime
   updatedAt: DateTime
-}
-
-input SaasCompanyRelateToManyForCreateInput {
-  create: [SaasCompanyCreateInput!]
-  connect: [SaasCompanyWhereUniqueInput!]
 }
 
 type SaasCompanyMonthlyLeadSync {
@@ -3742,6 +3831,106 @@ input SaasCompanyMonthlyLeadSyncCreateInput {
   year: Int
   month: Int
   syncedCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type SaasCompanySubscription {
+  id: ID!
+  company: SaasCompany
+  planName: String
+  planCost: Float
+  planFrequency: String
+  planLeadLimit: Int
+  planStripePriceId: String
+  planCurrency: String
+  activeInStripe: Boolean
+  status: String
+  activatedAt: CalendarDay
+  currentPeriodEnd: CalendarDay
+  stripeSubscriptionId: String
+  stripeCustomerId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanySubscriptionWhereUniqueInput {
+  id: ID
+}
+
+input SaasCompanySubscriptionWhereInput {
+  AND: [SaasCompanySubscriptionWhereInput!]
+  OR: [SaasCompanySubscriptionWhereInput!]
+  NOT: [SaasCompanySubscriptionWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  planName: StringFilter
+  planCost: FloatNullableFilter
+  planFrequency: StringFilter
+  planLeadLimit: IntNullableFilter
+  planStripePriceId: StringFilter
+  planCurrency: StringFilter
+  status: StringNullableFilter
+  activatedAt: CalendarDayNullableFilter
+  currentPeriodEnd: CalendarDayNullableFilter
+  stripeSubscriptionId: StringNullableFilter
+  stripeCustomerId: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanySubscriptionOrderByInput {
+  id: OrderDirection
+  planName: OrderDirection
+  planCost: OrderDirection
+  planFrequency: OrderDirection
+  planLeadLimit: OrderDirection
+  planStripePriceId: OrderDirection
+  planCurrency: OrderDirection
+  status: OrderDirection
+  activatedAt: OrderDirection
+  currentPeriodEnd: OrderDirection
+  stripeSubscriptionId: OrderDirection
+  stripeCustomerId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCompanySubscriptionUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  planName: String
+  planCost: Float
+  planFrequency: String
+  planLeadLimit: Int
+  planStripePriceId: String
+  planCurrency: String
+  status: String
+  activatedAt: CalendarDay
+  currentPeriodEnd: CalendarDay
+  stripeSubscriptionId: String
+  stripeCustomerId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanySubscriptionUpdateArgs {
+  where: SaasCompanySubscriptionWhereUniqueInput!
+  data: SaasCompanySubscriptionUpdateInput!
+}
+
+input SaasCompanySubscriptionCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  planName: String
+  planCost: Float
+  planFrequency: String
+  planLeadLimit: Int
+  planStripePriceId: String
+  planCurrency: String
+  status: String
+  activatedAt: CalendarDay
+  currentPeriodEnd: CalendarDay
+  stripeSubscriptionId: String
+  stripeCustomerId: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -4010,6 +4199,12 @@ type Mutation {
   updateSaasCompanyMonthlyLeadSyncs(data: [SaasCompanyMonthlyLeadSyncUpdateArgs!]!): [SaasCompanyMonthlyLeadSync]
   deleteSaasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
   deleteSaasCompanyMonthlyLeadSyncs(where: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]!): [SaasCompanyMonthlyLeadSync]
+  createSaasCompanySubscription(data: SaasCompanySubscriptionCreateInput!): SaasCompanySubscription
+  createSaasCompanySubscriptions(data: [SaasCompanySubscriptionCreateInput!]!): [SaasCompanySubscription]
+  updateSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!, data: SaasCompanySubscriptionUpdateInput!): SaasCompanySubscription
+  updateSaasCompanySubscriptions(data: [SaasCompanySubscriptionUpdateArgs!]!): [SaasCompanySubscription]
+  deleteSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
+  deleteSaasCompanySubscriptions(where: [SaasCompanySubscriptionWhereUniqueInput!]!): [SaasCompanySubscription]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -4171,6 +4366,9 @@ type Query {
   saasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
   saasCompanyMonthlyLeadSyncs(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
   saasCompanyMonthlyLeadSyncsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
+  saasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
+  saasCompanySubscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
+  saasCompanySubscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
@@ -4368,15 +4566,20 @@ type SyncBusinessLeadsFromGoogleResult {
 }
 
 input SyncLeadsFrontInput {
-  placeId: String!
-  category: String
-  assignedSellerId: ID
+  lat: Float!
+  lng: Float!
+  radius: Float!
+  category: String!
+  maxResults: Int
 }
 
 type SyncLeadsFrontResult {
   success: Boolean!
   message: String!
-  businessLeadId: ID
+  created: Int!
+  alreadyInDb: Int!
+  skippedLowRating: Int!
+  syncedLeadsCount: Int!
   syncedCount: Int
   leadLimit: Int
 }

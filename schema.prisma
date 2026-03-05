@@ -489,61 +489,69 @@ model Tag {
 }
 
 model TechBusinessLead {
-  id                   String                  @id @default(cuid())
-  businessName         String                  @default("")
-  category             String                  @default("")
-  phone                String                  @default("")
-  address              String                  @default("")
-  city                 String                  @default("")
-  state                String                  @default("")
-  country              String                  @default("")
+  id                   String                   @id @default(cuid())
+  businessName         String                   @default("")
+  category             String                   @default("")
+  phone                String                   @default("")
+  address              String                   @default("")
+  city                 String                   @default("")
+  state                String                   @default("")
+  country              String                   @default("")
   rating               Float?
+  lat                  Float?
+  lng                  Float?
   reviewCount          Int?
-  hasWebsite           Boolean                 @default(false)
-  websiteUrl           String                  @default("")
-  source               String?                 @default("Google Maps")
-  status               TechStatusBusinessLead? @relation("TechBusinessLead_status", fields: [statusId], references: [id])
-  statusId             String?                 @unique @map("status")
-  instagram            String                  @default("")
-  facebook             String                  @default("")
-  xTwitter             String                  @default("")
-  tiktok               String                  @default("")
-  topReview1           String                  @default("")
-  topReview2           String                  @default("")
-  topReview3           String                  @default("")
-  topReview4           String                  @default("")
-  topReview5           String                  @default("")
-  websitePromptContent String                  @default("")
-  activities           TechSalesActivity[]     @relation("TechSalesActivity_businessLead")
-  proposals            TechProposal[]          @relation("TechProposal_businessLead")
-  followUpTasks        TechFollowUpTask[]      @relation("TechFollowUpTask_businessLead")
-  googleMapsUrl        String                  @default("")
-  googlePlaceId        String?                 @unique
-  salesPerson          User?                   @relation("TechBusinessLead_salesPerson", fields: [salesPersonId], references: [id])
-  salesPersonId        String?                 @map("salesPerson")
-  createdAt            DateTime?               @default(now())
-  updatedAt            DateTime?               @updatedAt
+  hasWebsite           Boolean                  @default(false)
+  websiteUrl           String                   @default("")
+  source               String?                  @default("Google Maps")
+  status               TechStatusBusinessLead[] @relation("TechStatusBusinessLead_businessLead")
+  instagram            String                   @default("")
+  facebook             String                   @default("")
+  xTwitter             String                   @default("")
+  tiktok               String                   @default("")
+  topReview1           String                   @default("")
+  topReview2           String                   @default("")
+  topReview3           String                   @default("")
+  topReview4           String                   @default("")
+  topReview5           String                   @default("")
+  websitePromptContent String                   @default("")
+  activities           TechSalesActivity[]      @relation("TechSalesActivity_businessLead")
+  proposals            TechProposal[]           @relation("TechProposal_businessLead")
+  followUpTasks        TechFollowUpTask[]       @relation("TechFollowUpTask_businessLead")
+  googleMapsUrl        String                   @default("")
+  googlePlaceId        String?                  @unique
+  salesPerson          User[]                   @relation("TechBusinessLead_salesPerson")
+  saasCompany          SaasCompany[]            @relation("SaasCompany_leads")
+  createdAt            DateTime?                @default(now())
+  updatedAt            DateTime?                @updatedAt
 
   @@index([businessName])
   @@index([category])
   @@index([city])
   @@index([state])
   @@index([country])
-  @@index([salesPersonId])
 }
 
 model TechStatusBusinessLead {
   id               String            @id @default(cuid())
-  businessLead     TechBusinessLead? @relation("TechBusinessLead_status")
+  businessLead     TechBusinessLead? @relation("TechStatusBusinessLead_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId   String?           @map("businessLead")
   opportunityLevel String?           @default("Media")
   pipelineStatus   String?           @default("01 - Detectado")
   estimatedValue   Float?
   productOffered   String            @default("")
   firstContactDate DateTime?         @postgresql.Date
+  saasCompany      SaasCompany?      @relation("TechStatusBusinessLead_saasCompany", fields: [saasCompanyId], references: [id])
+  saasCompanyId    String?           @map("saasCompany")
+  salesPerson      User?             @relation("TechStatusBusinessLead_salesPerson", fields: [salesPersonId], references: [id])
+  salesPersonId    String?           @map("salesPerson")
   notes            String            @default("")
 
+  @@index([businessLeadId])
   @@index([opportunityLevel])
   @@index([pipelineStatus])
+  @@index([saasCompanyId])
+  @@index([salesPersonId])
 }
 
 model TechSalesActivity {
@@ -610,51 +618,52 @@ model TokenNotification {
 }
 
 model User {
-  id                          String              @id @default(cuid())
-  name                        String              @default("")
-  lastName                    String              @default("")
-  secondLastName              String              @default("")
-  username                    String              @unique @default("")
-  email                       String              @unique @default("")
+  id                          String                   @id @default(cuid())
+  name                        String                   @default("")
+  lastName                    String                   @default("")
+  secondLastName              String                   @default("")
+  username                    String                   @unique @default("")
+  email                       String                   @unique @default("")
   password                    String?
-  phone                       String              @default("")
-  roles                       Role[]              @relation("Role_users")
-  company                     SaasCompany?        @relation("User_company", fields: [companyId], references: [id])
-  companyId                   String?             @map("company")
-  blog_subscriptions          BlogSubscription[]  @relation("BlogSubscription_user")
-  businessLeadsAssigned       TechBusinessLead[]  @relation("TechBusinessLead_salesPerson")
-  salesActivities             TechSalesActivity[] @relation("TechSalesActivity_assignedSeller")
-  followUpTasks               TechFollowUpTask[]  @relation("TechFollowUpTask_assignedSeller")
-  proposals                   TechProposal[]      @relation("TechProposal_assignedSeller")
+  phone                       String                   @default("")
+  roles                       Role[]                   @relation("Role_users")
+  company                     SaasCompany?             @relation("User_company", fields: [companyId], references: [id])
+  companyId                   String?                  @map("company")
+  blog_subscriptions          BlogSubscription[]       @relation("BlogSubscription_user")
+  businessLeadsAssigned       TechBusinessLead[]       @relation("TechBusinessLead_salesPerson")
+  salesActivities             TechSalesActivity[]      @relation("TechSalesActivity_assignedSeller")
+  followUpTasks               TechFollowUpTask[]       @relation("TechFollowUpTask_assignedSeller")
+  proposals                   TechProposal[]           @relation("TechProposal_assignedSeller")
   profileImage_id             String?
   profileImage_filesize       Int?
   profileImage_width          Int?
   profileImage_height         Int?
   profileImage_extension      String?
-  birthday                    DateTime?           @postgresql.Date
-  smsRegistrationId           String              @default("")
-  verified                    Boolean             @default(false)
-  salesPersonVerified         Boolean             @default(false)
-  salesComission              Int?
-  createdAt                   DateTime?           @default(now())
-  from_Ad_user                Ad[]                @relation("Ad_user")
-  from_Animal_user            Animal[]            @relation("Animal_user")
-  from_AnimalComment_user     AnimalComment[]     @relation("AnimalComment_user")
-  from_AnimalFavorite_user    AnimalFavorite[]    @relation("AnimalFavorite_user")
-  from_Cart_user              Cart[]              @relation("Cart_user")
-  from_Order_user             Order[]             @relation("Order_user")
-  from_PaymentMethod_user     PaymentMethod[]     @relation("PaymentMethod_user")
-  from_Pet_user               Pet[]               @relation("Pet_user")
-  from_PetPlace_user          PetPlace[]          @relation("PetPlace_user")
-  from_PetPlaceLike_user      PetPlaceLike[]      @relation("PetPlaceLike_user")
-  from_Post_author            Post[]              @relation("Post_author")
-  from_PostComment_user       PostComment[]       @relation("PostComment_user")
-  from_PostFavorite_user      PostFavorite[]      @relation("PostFavorite_user")
-  from_PostLike_user          PostLike[]          @relation("PostLike_user")
-  from_PostView_user          PostView[]          @relation("PostView_user")
-  from_Review_user            Review[]            @relation("Review_user")
-  from_TokenNotification_user TokenNotification[] @relation("TokenNotification_user")
-  from_WishList_user          WishList[]          @relation("WishList_user")
+  birthday                    DateTime?                @postgresql.Date
+  smsRegistrationId           String                   @default("")
+  verified                    Boolean                  @default(false)
+  salesPersonVerified         Boolean                  @default(false)
+  salesComission              Int?                     @default(10)
+  techStatusBusinessLeads     TechStatusBusinessLead[] @relation("TechStatusBusinessLead_salesPerson")
+  createdAt                   DateTime?                @default(now())
+  from_Ad_user                Ad[]                     @relation("Ad_user")
+  from_Animal_user            Animal[]                 @relation("Animal_user")
+  from_AnimalComment_user     AnimalComment[]          @relation("AnimalComment_user")
+  from_AnimalFavorite_user    AnimalFavorite[]         @relation("AnimalFavorite_user")
+  from_Cart_user              Cart[]                   @relation("Cart_user")
+  from_Order_user             Order[]                  @relation("Order_user")
+  from_PaymentMethod_user     PaymentMethod[]          @relation("PaymentMethod_user")
+  from_Pet_user               Pet[]                    @relation("Pet_user")
+  from_PetPlace_user          PetPlace[]               @relation("PetPlace_user")
+  from_PetPlaceLike_user      PetPlaceLike[]           @relation("PetPlaceLike_user")
+  from_Post_author            Post[]                   @relation("Post_author")
+  from_PostComment_user       PostComment[]            @relation("PostComment_user")
+  from_PostFavorite_user      PostFavorite[]           @relation("PostFavorite_user")
+  from_PostLike_user          PostLike[]               @relation("PostLike_user")
+  from_PostView_user          PostView[]               @relation("PostView_user")
+  from_Review_user            Review[]                 @relation("Review_user")
+  from_TokenNotification_user TokenNotification[]      @relation("TokenNotification_user")
+  from_WishList_user          WishList[]               @relation("WishList_user")
 
   @@index([companyId])
 }
@@ -679,6 +688,9 @@ model SaasCompany {
   subscriptionStartedAt        DateTime?                    @postgresql.Date
   monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
   allowedGooglePlaceCategories Json?
+  leads                        TechBusinessLead[]           @relation("SaasCompany_leads")
+  subscriptions                SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
+  techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
   createdAt                    DateTime?                    @default(now())
   updatedAt                    DateTime?                    @updatedAt
 
@@ -687,14 +699,18 @@ model SaasCompany {
 }
 
 model SaasPlan {
-  id        String        @id @default(cuid())
-  name      String        @default("")
-  cost      Float?
-  frequency String?
-  leadLimit Int?
-  companies SaasCompany[] @relation("SaasCompany_plan")
-  createdAt DateTime?     @default(now())
-  updatedAt DateTime?     @updatedAt
+  id              String        @id @default(cuid())
+  name            String        @default("")
+  cost            Float?
+  frequency       String?
+  currency        String        @default("mxn")
+  leadLimit       Int?
+  companies       SaasCompany[] @relation("SaasCompany_plan")
+  active          Boolean       @default(true)
+  stripePriceId   String?       @unique
+  stripeProductId String?
+  createdAt       DateTime?     @default(now())
+  updatedAt       DateTime?     @updatedAt
 
   @@index([name])
 }
@@ -712,6 +728,27 @@ model SaasCompanyMonthlyLeadSync {
   @@index([companyId])
   @@index([year])
   @@index([month])
+}
+
+model SaasCompanySubscription {
+  id                   String       @id @default(cuid())
+  company              SaasCompany? @relation("SaasCompanySubscription_company", fields: [companyId], references: [id])
+  companyId            String?      @map("company")
+  planName             String       @default("")
+  planCost             Float?
+  planFrequency        String       @default("")
+  planLeadLimit        Int?
+  planStripePriceId    String       @default("")
+  planCurrency         String       @default("")
+  status               String?      @default("active")
+  activatedAt          DateTime?    @postgresql.Date
+  currentPeriodEnd     DateTime?    @postgresql.Date
+  stripeSubscriptionId String?
+  stripeCustomerId     String?
+  createdAt            DateTime?    @default(now())
+  updatedAt            DateTime?    @updatedAt
+
+  @@index([companyId])
 }
 
 enum PaymentStatusType {

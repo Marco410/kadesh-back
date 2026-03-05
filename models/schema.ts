@@ -41,6 +41,7 @@ import TechSalesActivity from "./Tech/SalesActivity/TechSalesActivity";
 import SaasCompany from "./Saas/SaasCompany/SaasCompany";
 import SaasPlan from "./Saas/SaasPlan/SaasPlan";
 import SaasCompanyMonthlyLeadSync from "./Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync";
+import SaasCompanySubscription from "./Saas/SaasCompanySubscription/SaasCompanySubscription";
 
 export default {
   Ad,
@@ -72,18 +73,19 @@ export default {
   Product,
   Review,
   Role,
+  SaasCompany,
+  SaasCompanyMonthlyLeadSync,
+  SaasCompanySubscription,
+  SaasPlan,
   Schedule,
   SocialMedia,
   Tag,
   TechBusinessLead,
-  TechStatusBusinessLead,
-  TechSalesActivity,
   TechFollowUpTask,
   TechProposal,
+  TechSalesActivity,
+  TechStatusBusinessLead,
   TokenNotification,
   User,
   WishList,
-  SaasCompany,
-  SaasPlan,
-  SaasCompanyMonthlyLeadSync,
 };

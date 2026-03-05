@@ -43,6 +43,8 @@ export default list({
     state: text({ isIndexed: true }),
     country: text({ isIndexed: true }),
     rating: float(),
+    lat: float(),
+    lng: float(),
     reviewCount: integer({ ui: { description: "Número de reseñas" } }),
     hasWebsite: checkbox({
       defaultValue: false,
@@ -57,7 +59,7 @@ export default list({
     }),
     status: relationship({
       ref: "TechStatusBusinessLead.businessLead",
-      many: false,
+      many: true,
       ui: { description: "Estado y datos variables del lead" },
     }),
     instagram: text({ ui: { description: "Usuario o URL de Instagram" } }),
@@ -118,8 +120,13 @@ export default list({
     }),
     salesPerson: relationship({
       ref: "User.businessLeadsAssigned",
-      many: false,
+      many: true,
       ui: { description: "Vendedor asignado" },
+    }),
+    saasCompany: relationship({
+      ref: "SaasCompany.leads",
+      many: true,
+      ui: { description: "Empresa a la que pertenece el lead" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

@@ -107,6 +107,11 @@ export default list({
     salesPersonVerified: checkbox(),
     salesComission: integer({
       ui: { description: "Comisión de ventas (en porcentaje)" },
+      defaultValue: 10,
+    }),
+    techStatusBusinessLeads: relationship({
+      ref: "TechStatusBusinessLead.salesPerson",
+      many: true,
     }),
     createdAt: timestamp({
       defaultValue: {
