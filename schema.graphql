@@ -2767,6 +2767,8 @@ type SaasCompanySubscription {
   currentPeriodEnd: CalendarDay
   stripeSubscriptionId: String
   stripeCustomerId: String
+  saasPayments(where: SaasPaymentWhereInput! = {}, orderBy: [SaasPaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentWhereUniqueInput): [SaasPayment!]
+  saasPaymentsCount(where: SaasPaymentWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2792,6 +2794,7 @@ input SaasCompanySubscriptionWhereInput {
   currentPeriodEnd: CalendarDayNullableFilter
   stripeSubscriptionId: StringNullableFilter
   stripeCustomerId: StringNullableFilter
+  saasPayments: SaasPaymentManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2805,6 +2808,12 @@ input FloatNullableFilter {
   gt: Float
   gte: Float
   not: FloatNullableFilter
+}
+
+input SaasPaymentManyRelationFilter {
+  every: SaasPaymentWhereInput
+  some: SaasPaymentWhereInput
+  none: SaasPaymentWhereInput
 }
 
 input SaasCompanySubscriptionOrderByInput {
@@ -2838,8 +2847,16 @@ input SaasCompanySubscriptionUpdateInput {
   currentPeriodEnd: CalendarDay
   stripeSubscriptionId: String
   stripeCustomerId: String
+  saasPayments: SaasPaymentRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasPaymentRelateToManyForUpdateInput {
+  disconnect: [SaasPaymentWhereUniqueInput!]
+  set: [SaasPaymentWhereUniqueInput!]
+  create: [SaasPaymentCreateInput!]
+  connect: [SaasPaymentWhereUniqueInput!]
 }
 
 input SaasCompanySubscriptionUpdateArgs {
@@ -2861,6 +2878,220 @@ input SaasCompanySubscriptionCreateInput {
   currentPeriodEnd: CalendarDay
   stripeSubscriptionId: String
   stripeCustomerId: String
+  saasPayments: SaasPaymentRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPaymentRelateToManyForCreateInput {
+  create: [SaasPaymentCreateInput!]
+  connect: [SaasPaymentWhereUniqueInput!]
+}
+
+type SaasPayment {
+  id: ID!
+  user: User
+  paymentMethodType: String
+  paymentMethod: SaasPaymentMethod
+  amount: Decimal
+  status: String
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  notes: String
+  plan: SaasPlan
+  subscription: SaasCompanySubscription
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPaymentWhereUniqueInput {
+  id: ID
+}
+
+input SaasPaymentWhereInput {
+  AND: [SaasPaymentWhereInput!]
+  OR: [SaasPaymentWhereInput!]
+  NOT: [SaasPaymentWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  paymentMethodType: StringNullableFilter
+  paymentMethod: SaasPaymentMethodWhereInput
+  amount: DecimalNullableFilter
+  status: StringNullableFilter
+  processorStripeChargeId: StringFilter
+  stripeErrorMessage: StringNullableFilter
+  notes: StringNullableFilter
+  plan: SaasPlanWhereInput
+  subscription: SaasCompanySubscriptionWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasPaymentOrderByInput {
+  id: OrderDirection
+  paymentMethodType: OrderDirection
+  amount: OrderDirection
+  status: OrderDirection
+  processorStripeChargeId: OrderDirection
+  stripeErrorMessage: OrderDirection
+  notes: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasPaymentUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  paymentMethodType: String
+  paymentMethod: SaasPaymentMethodRelateToOneForUpdateInput
+  amount: Decimal
+  status: String
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  notes: String
+  plan: SaasPlanRelateToOneForUpdateInput
+  subscription: SaasCompanySubscriptionRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPaymentMethodRelateToOneForUpdateInput {
+  create: SaasPaymentMethodCreateInput
+  connect: SaasPaymentMethodWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasCompanySubscriptionRelateToOneForUpdateInput {
+  create: SaasCompanySubscriptionCreateInput
+  connect: SaasCompanySubscriptionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasPaymentUpdateArgs {
+  where: SaasPaymentWhereUniqueInput!
+  data: SaasPaymentUpdateInput!
+}
+
+input SaasPaymentCreateInput {
+  user: UserRelateToOneForCreateInput
+  paymentMethodType: String
+  paymentMethod: SaasPaymentMethodRelateToOneForCreateInput
+  amount: Decimal
+  status: String
+  processorStripeChargeId: String
+  stripeErrorMessage: String
+  notes: String
+  plan: SaasPlanRelateToOneForCreateInput
+  subscription: SaasCompanySubscriptionRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPaymentMethodRelateToOneForCreateInput {
+  create: SaasPaymentMethodCreateInput
+  connect: SaasPaymentMethodWhereUniqueInput
+}
+
+input SaasCompanySubscriptionRelateToOneForCreateInput {
+  create: SaasCompanySubscriptionCreateInput
+  connect: SaasCompanySubscriptionWhereUniqueInput
+}
+
+type SaasPaymentMethod {
+  id: ID!
+  user: User
+  cardType: String
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  stripePaymentMethodId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  saasPayments(where: SaasPaymentWhereInput! = {}, orderBy: [SaasPaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentWhereUniqueInput): [SaasPayment!]
+  saasPaymentsCount(where: SaasPaymentWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPaymentMethodWhereUniqueInput {
+  id: ID
+  stripePaymentMethodId: String
+}
+
+input SaasPaymentMethodWhereInput {
+  AND: [SaasPaymentMethodWhereInput!]
+  OR: [SaasPaymentMethodWhereInput!]
+  NOT: [SaasPaymentMethodWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  cardType: StringFilter
+  lastFourDigits: StringFilter
+  expMonth: StringFilter
+  expYear: StringFilter
+  stripeProcessorId: StringFilter
+  stripePaymentMethodId: StringFilter
+  address: StringNullableFilter
+  postalCode: StringNullableFilter
+  ownerName: StringFilter
+  country: StringNullableFilter
+  saasPayments: SaasPaymentManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasPaymentMethodOrderByInput {
+  id: OrderDirection
+  cardType: OrderDirection
+  lastFourDigits: OrderDirection
+  expMonth: OrderDirection
+  expYear: OrderDirection
+  stripeProcessorId: OrderDirection
+  stripePaymentMethodId: OrderDirection
+  address: OrderDirection
+  postalCode: OrderDirection
+  ownerName: OrderDirection
+  country: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasPaymentMethodUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  cardType: String
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  stripePaymentMethodId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  saasPayments: SaasPaymentRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPaymentMethodUpdateArgs {
+  where: SaasPaymentMethodWhereUniqueInput!
+  data: SaasPaymentMethodUpdateInput!
+}
+
+input SaasPaymentMethodCreateInput {
+  user: UserRelateToOneForCreateInput
+  cardType: String
+  lastFourDigits: String
+  expMonth: String
+  expYear: String
+  stripeProcessorId: String
+  stripePaymentMethodId: String
+  address: String
+  postalCode: String
+  ownerName: String
+  country: String
+  saasPayments: SaasPaymentRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2875,6 +3106,8 @@ type SaasPlan {
   planFeatures: JSON
   companies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
   companiesCount(where: SaasCompanyWhereInput! = {}): Int
+  saasPayments(where: SaasPaymentWhereInput! = {}, orderBy: [SaasPaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentWhereUniqueInput): [SaasPayment!]
+  saasPaymentsCount(where: SaasPaymentWhereInput! = {}): Int
   active: Boolean
   bestSeller: Boolean
   stripePriceId: String
@@ -2899,6 +3132,7 @@ input SaasPlanWhereInput {
   currency: StringFilter
   leadLimit: IntNullableFilter
   companies: SaasCompanyManyRelationFilter
+  saasPayments: SaasPaymentManyRelationFilter
   active: BooleanFilter
   bestSeller: BooleanFilter
   stripePriceId: StringNullableFilter
@@ -2936,6 +3170,7 @@ input SaasPlanUpdateInput {
   leadLimit: Int
   planFeatures: JSON
   companies: SaasCompanyRelateToManyForUpdateInput
+  saasPayments: SaasPaymentRelateToManyForUpdateInput
   active: Boolean
   bestSeller: Boolean
   stripePriceId: String
@@ -2964,6 +3199,7 @@ input SaasPlanCreateInput {
   leadLimit: Int
   planFeatures: JSON
   companies: SaasCompanyRelateToManyForCreateInput
+  saasPayments: SaasPaymentRelateToManyForCreateInput
   active: Boolean
   bestSeller: Boolean
   stripePriceId: String
@@ -3743,6 +3979,11 @@ type User {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  stripeCustomerId: String
+  saasPaymentMethods(where: SaasPaymentMethodWhereInput! = {}, orderBy: [SaasPaymentMethodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentMethodWhereUniqueInput): [SaasPaymentMethod!]
+  saasPaymentMethodsCount(where: SaasPaymentMethodWhereInput! = {}): Int
+  saasPayments(where: SaasPaymentWhereInput! = {}, orderBy: [SaasPaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentWhereUniqueInput): [SaasPayment!]
+  saasPaymentsCount(where: SaasPaymentWhereInput! = {}): Int
   techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
   techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   createdAt: DateTime
@@ -3782,6 +4023,9 @@ input UserWhereInput {
   verified: BooleanFilter
   salesPersonVerified: BooleanFilter
   salesComission: IntNullableFilter
+  stripeCustomerId: StringNullableFilter
+  saasPaymentMethods: SaasPaymentMethodManyRelationFilter
+  saasPayments: SaasPaymentManyRelationFilter
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   createdAt: DateTimeNullableFilter
 }
@@ -3802,6 +4046,12 @@ input BlogSubscriptionManyRelationFilter {
   none: BlogSubscriptionWhereInput
 }
 
+input SaasPaymentMethodManyRelationFilter {
+  every: SaasPaymentMethodWhereInput
+  some: SaasPaymentMethodWhereInput
+  none: SaasPaymentMethodWhereInput
+}
+
 input UserOrderByInput {
   id: OrderDirection
   name: OrderDirection
@@ -3815,6 +4065,7 @@ input UserOrderByInput {
   verified: OrderDirection
   salesPersonVerified: OrderDirection
   salesComission: OrderDirection
+  stripeCustomerId: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -3839,6 +4090,9 @@ input UserUpdateInput {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  stripeCustomerId: String
+  saasPaymentMethods: SaasPaymentMethodRelateToManyForUpdateInput
+  saasPayments: SaasPaymentRelateToManyForUpdateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   createdAt: DateTime
 }
@@ -3855,6 +4109,13 @@ input BlogSubscriptionRelateToManyForUpdateInput {
   set: [BlogSubscriptionWhereUniqueInput!]
   create: [BlogSubscriptionCreateInput!]
   connect: [BlogSubscriptionWhereUniqueInput!]
+}
+
+input SaasPaymentMethodRelateToManyForUpdateInput {
+  disconnect: [SaasPaymentMethodWhereUniqueInput!]
+  set: [SaasPaymentMethodWhereUniqueInput!]
+  create: [SaasPaymentMethodCreateInput!]
+  connect: [SaasPaymentMethodWhereUniqueInput!]
 }
 
 input UserUpdateArgs {
@@ -3883,6 +4144,9 @@ input UserCreateInput {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  stripeCustomerId: String
+  saasPaymentMethods: SaasPaymentMethodRelateToManyForCreateInput
+  saasPayments: SaasPaymentRelateToManyForCreateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   createdAt: DateTime
 }
@@ -3895,6 +4159,11 @@ input RoleRelateToManyForCreateInput {
 input BlogSubscriptionRelateToManyForCreateInput {
   create: [BlogSubscriptionCreateInput!]
   connect: [BlogSubscriptionWhereUniqueInput!]
+}
+
+input SaasPaymentMethodRelateToManyForCreateInput {
+  create: [SaasPaymentMethodCreateInput!]
+  connect: [SaasPaymentMethodWhereUniqueInput!]
 }
 
 type WishList {
@@ -4144,6 +4413,18 @@ type Mutation {
   updateSaasCompanySubscriptions(data: [SaasCompanySubscriptionUpdateArgs!]!): [SaasCompanySubscription]
   deleteSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
   deleteSaasCompanySubscriptions(where: [SaasCompanySubscriptionWhereUniqueInput!]!): [SaasCompanySubscription]
+  createSaasPayment(data: SaasPaymentCreateInput!): SaasPayment
+  createSaasPayments(data: [SaasPaymentCreateInput!]!): [SaasPayment]
+  updateSaasPayment(where: SaasPaymentWhereUniqueInput!, data: SaasPaymentUpdateInput!): SaasPayment
+  updateSaasPayments(data: [SaasPaymentUpdateArgs!]!): [SaasPayment]
+  deleteSaasPayment(where: SaasPaymentWhereUniqueInput!): SaasPayment
+  deleteSaasPayments(where: [SaasPaymentWhereUniqueInput!]!): [SaasPayment]
+  createSaasPaymentMethod(data: SaasPaymentMethodCreateInput!): SaasPaymentMethod
+  createSaasPaymentMethods(data: [SaasPaymentMethodCreateInput!]!): [SaasPaymentMethod]
+  updateSaasPaymentMethod(where: SaasPaymentMethodWhereUniqueInput!, data: SaasPaymentMethodUpdateInput!): SaasPaymentMethod
+  updateSaasPaymentMethods(data: [SaasPaymentMethodUpdateArgs!]!): [SaasPaymentMethod]
+  deleteSaasPaymentMethod(where: SaasPaymentMethodWhereUniqueInput!): SaasPaymentMethod
+  deleteSaasPaymentMethods(where: [SaasPaymentMethodWhereUniqueInput!]!): [SaasPaymentMethod]
   createSaasPlan(data: SaasPlanCreateInput!): SaasPlan
   createSaasPlans(data: [SaasPlanCreateInput!]!): [SaasPlan]
   updateSaasPlan(where: SaasPlanWhereUniqueInput!, data: SaasPlanUpdateInput!): SaasPlan
@@ -4223,6 +4504,7 @@ type Mutation {
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
+  createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
 }
@@ -4344,6 +4626,12 @@ type Query {
   saasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
   saasCompanySubscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
   saasCompanySubscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
+  saasPayment(where: SaasPaymentWhereUniqueInput!): SaasPayment
+  saasPayments(where: SaasPaymentWhereInput! = {}, orderBy: [SaasPaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentWhereUniqueInput): [SaasPayment!]
+  saasPaymentsCount(where: SaasPaymentWhereInput! = {}): Int
+  saasPaymentMethod(where: SaasPaymentMethodWhereUniqueInput!): SaasPaymentMethod
+  saasPaymentMethods(where: SaasPaymentMethodWhereInput! = {}, orderBy: [SaasPaymentMethodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentMethodWhereUniqueInput): [SaasPaymentMethod!]
+  saasPaymentMethodsCount(where: SaasPaymentMethodWhereInput! = {}): Int
   saasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
   saasPlans(where: SaasPlanWhereInput! = {}, orderBy: [SaasPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPlanWhereUniqueInput): [SaasPlan!]
   saasPlansCount(where: SaasPlanWhereInput! = {}): Int
@@ -4384,6 +4672,7 @@ type Query {
   authenticatedItem: AuthenticatedItem
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
+  StripePaymentMethods(email: String!): StripePaymentMethodsType
 }
 
 union AuthenticatedItem = User
@@ -4595,6 +4884,24 @@ type SyncLeadsFrontResult {
   leadLimit: Int
 }
 
+input CreateCompanySubscriptionInput {
+  planId: ID!
+  notes: String
+  nameCard: String!
+  email: String!
+  paymentMethodId: String!
+  total: String!
+  paymentType: String!
+  noDuplicatePaymentMethod: Boolean
+}
+
+type CreateCompanySubscriptionResult {
+  success: Boolean!
+  message: String!
+  subscriptionId: String
+  paymentId: String
+}
+
 type AnimalMultimediaImage {
   id: ID!
   url: String
@@ -4691,4 +4998,33 @@ input NearbyPetPlacesInput {
   limit: Int = 10
   radius: Float = 10
   type: String
+}
+
+type StripeCard {
+  brand: String
+  country: String
+  exp_month: Int
+  exp_year: Int
+  last4: String
+}
+
+type StripePaymentMethod {
+  id: String
+  object: String
+  customer: String
+  type: String
+  card: StripeCard
+  created: Int
+  livemode: Boolean
+  metadata: JSON
+}
+
+type StripePaymentMethodsData {
+  data: [StripePaymentMethod]
+}
+
+type StripePaymentMethodsType {
+  message: String
+  success: Boolean
+  data: StripePaymentMethodsData
 }

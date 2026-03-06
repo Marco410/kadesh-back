@@ -16,13 +16,21 @@ import {
   userNameHook,
   userRoleHook,
   userBlogSubscriptionHook,
+  stripeCustomerHook,
 } from "./User.hooks";
 import access from "../../utils/generalAccess/access";
+
+async function resolveInput(
+  args: Parameters<typeof userRoleHook.resolveInput>[0]
+) {
+  const afterRole = await userRoleHook.resolveInput(args);
+  return stripeCustomerHook.resolveInput({ ...args, resolvedData: afterRole });
+}
 
 export default list({
   access,
   hooks: {
-    resolveInput: userRoleHook.resolveInput,
+    resolveInput,
     afterOperation: userBlogSubscriptionHook.afterOperation,
   },
   fields: {
@@ -108,6 +116,27 @@ export default list({
     salesComission: integer({
       ui: { description: "Comisión de ventas (en porcentaje)" },
       defaultValue: 10,
+    }),
+    stripeCustomerId: text({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" },
+        itemView: { fieldMode: "read" },
+        description: "Stripe Customer ID, created automatically on user signup",
+      },
+    }),
+    /** SaaS payment methods (Stripe cards) saved by this user */
+    saasPaymentMethods: relationship({
+      ref: "SaasPaymentMethod.user",
+      many: true,
+      ui: { description: "Saved payment methods (Stripe)" },
+    }),
+    /** SaaS payments (subscriptions, one-time) made by this user */
+    saasPayments: relationship({
+      ref: "SaasPayment.user",
+      many: true,
+      ui: { description: "Payments made by this user (SaaS)" },
     }),
     techStatusBusinessLeads: relationship({
       ref: "TechStatusBusinessLead.salesPerson",

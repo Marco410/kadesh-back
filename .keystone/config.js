@@ -395,6 +395,10 @@ var ROLES = [
   { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
 ];
 
+// utils/intregrations/stripe.ts
+var Stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+var stripe_default = Stripe;
+
 // models/User/User.hooks.ts
 var phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }) => {
@@ -491,6 +495,36 @@ var userRoleHook = {
     return resolvedData;
   }
 };
+var stripeCustomerHook = {
+  resolveInput: async ({
+    resolvedData,
+    operation
+  }) => {
+    if (operation !== "create") return resolvedData;
+    const email = resolvedData.email;
+    if (!email || typeof email !== "string") return resolvedData;
+    if (!process.env.STRIPE_SECRET_KEY) return resolvedData;
+    try {
+      const existingCustomers = await stripe_default.customers.list({
+        email,
+        limit: 1
+      });
+      let stripeResp;
+      if (existingCustomers.data.length > 0) {
+        stripeResp = existingCustomers.data[0];
+      } else {
+        stripeResp = await stripe_default.customers.create({
+          name: `${resolvedData.name ?? ""} ${resolvedData.lastName ?? ""}`.trim(),
+          email,
+          phone: resolvedData.phone ?? void 0
+        });
+      }
+      resolvedData.stripeCustomerId = stripeResp.id;
+    } catch (_) {
+    }
+    return resolvedData;
+  }
+};
 var userBlogSubscriptionHook = {
   afterOperation: async ({ operation, item, context }) => {
     if (operation === "create" && item && item.email) {
@@ -522,10 +556,14 @@ var userBlogSubscriptionHook = {
 };
 
 // models/User/User.ts
+async function resolveInput(args) {
+  const afterRole = await userRoleHook.resolveInput(args);
+  return stripeCustomerHook.resolveInput({ ...args, resolvedData: afterRole });
+}
 var User_default = (0, import_core7.list)({
   access: access_default,
   hooks: {
-    resolveInput: userRoleHook.resolveInput,
+    resolveInput,
     afterOperation: userBlogSubscriptionHook.afterOperation
   },
   fields: {
@@ -611,6 +649,27 @@ var User_default = (0, import_core7.list)({
     salesComission: (0, import_fields7.integer)({
       ui: { description: "Comisi\xF3n de ventas (en porcentaje)" },
       defaultValue: 10
+    }),
+    stripeCustomerId: (0, import_fields7.text)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" },
+        itemView: { fieldMode: "read" },
+        description: "Stripe Customer ID, created automatically on user signup"
+      }
+    }),
+    /** SaaS payment methods (Stripe cards) saved by this user */
+    saasPaymentMethods: (0, import_fields7.relationship)({
+      ref: "SaasPaymentMethod.user",
+      many: true,
+      ui: { description: "Saved payment methods (Stripe)" }
+    }),
+    /** SaaS payments (subscriptions, one-time) made by this user */
+    saasPayments: (0, import_fields7.relationship)({
+      ref: "SaasPayment.user",
+      many: true,
+      ui: { description: "Payments made by this user (SaaS)" }
     }),
     techStatusBusinessLeads: (0, import_fields7.relationship)({
       ref: "TechStatusBusinessLead.salesPerson",
@@ -1838,9 +1897,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text34) {
+function sanitizeUrl2(text36) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text34.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text36.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -2876,6 +2935,12 @@ var SaasPlan_default = (0, import_core42.list)({
       many: true,
       ui: { description: "Companies using this plan" }
     }),
+    /** Payments associated with this plan */
+    saasPayments: (0, import_fields42.relationship)({
+      ref: "SaasPayment.plan",
+      many: true,
+      ui: { description: "Payments for this plan" }
+    }),
     /** Shown in app and available for new signups */
     active: (0, import_fields42.checkbox)({
       defaultValue: true,
@@ -3005,13 +3070,29 @@ var SUBSCRIPTION_STATUS_OPTIONS = [
 ];
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
+var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
+async function checkStripeSubscriptionActive(subscriptionId) {
+  if (!STRIPE_SECRET) return false;
+  try {
+    const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET}`,
+        Accept: "application/json"
+      }
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.status === "active" || data.status === "trialing";
+  } catch {
+    return false;
+  }
+}
 async function checkStripePriceActive(priceId) {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return false;
+  if (!STRIPE_SECRET) return false;
   try {
     const res = await fetch(`https://api.stripe.com/v1/prices/${priceId}`, {
       headers: {
-        Authorization: `Bearer ${secret}`,
+        Authorization: `Bearer ${STRIPE_SECRET}`,
         Accept: "application/json"
       }
     });
@@ -3079,20 +3160,27 @@ var SaasCompanySubscription_default = (0, import_core44.list)({
       field: import_core44.graphql.field({
         type: import_core44.graphql.Boolean,
         async resolve(item, _args, context) {
+          let subId = item.stripeSubscriptionId;
           let priceId = item.planStripePriceId;
-          if ((!priceId || typeof priceId !== "string") && item.id) {
+          if (item.id && (subId == null || priceId == null)) {
             const sub = await context.sudo().query.SaasCompanySubscription.findOne({
               where: { id: item.id },
-              query: "planStripePriceId"
+              query: "stripeSubscriptionId planStripePriceId"
             });
+            subId = sub?.stripeSubscriptionId ?? null;
             priceId = sub?.planStripePriceId ?? null;
           }
-          if (!priceId || typeof priceId !== "string") return false;
-          return checkStripePriceActive(priceId);
+          if (subId && typeof subId === "string") {
+            return checkStripeSubscriptionActive(subId);
+          }
+          if (priceId && typeof priceId === "string") {
+            return checkStripePriceActive(priceId);
+          }
+          return false;
         }
       }),
       ui: {
-        description: "Whether the contracted price is still active in Stripe (fetched from Stripe API)"
+        description: "Whether the Stripe subscription is still active (or the Price is active if no subscription ID)"
       }
     }),
     /** Subscription status (e.g. active, cancelled) */
@@ -3120,11 +3208,225 @@ var SaasCompanySubscription_default = (0, import_core44.list)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
+    /** Payments associated with this subscription */
+    saasPayments: (0, import_fields44.relationship)({
+      ref: "SaasPayment.subscription",
+      many: true,
+      ui: { description: "Payments for this subscription" }
+    }),
     createdAt: (0, import_fields44.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
     updatedAt: (0, import_fields44.timestamp)({
+      db: { updatedAt: true },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    })
+  }
+});
+
+// models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
+var import_core45 = require("@keystone-6/core");
+var import_fields45 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
+var saasPaymentMethodAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
+var SaasPaymentMethod_default = (0, import_core45.list)({
+  access: saasPaymentMethodAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "ownerName",
+        "cardType",
+        "lastFourDigits",
+        "stripePaymentMethodId",
+        "country"
+      ]
+    }
+  },
+  fields: {
+    /** User that owns this payment method */
+    user: (0, import_fields45.relationship)({
+      ref: "User.saasPaymentMethods",
+      many: false,
+      ui: { description: "User who owns this card" }
+    }),
+    /** Card type (e.g. card) */
+    cardType: (0, import_fields45.text)({
+      ui: { description: "Payment method type from Stripe (e.g. card)" }
+    }),
+    /** Last 4 digits of the card */
+    lastFourDigits: (0, import_fields45.text)({
+      ui: { description: "Last 4 digits of the card" }
+    }),
+    expMonth: (0, import_fields45.text)({
+      ui: { description: "Expiration month (1-12)" }
+    }),
+    expYear: (0, import_fields45.text)({
+      ui: { description: "Expiration year" }
+    }),
+    /** Processor identifier (e.g. stripe), placeholder allowed */
+    stripeProcessorId: (0, import_fields45.text)({
+      ui: { description: "Payment processor ID (e.g. stripe)" }
+    }),
+    /** Stripe PaymentMethod ID (pm_xxx) */
+    stripePaymentMethodId: (0, import_fields45.text)({
+      isIndexed: "unique",
+      ui: { description: "Stripe PaymentMethod ID" }
+    }),
+    address: (0, import_fields45.text)({
+      db: { isNullable: true },
+      ui: { description: "Billing address" }
+    }),
+    postalCode: (0, import_fields45.text)({
+      db: { isNullable: true },
+      ui: { description: "Postal / ZIP code" }
+    }),
+    ownerName: (0, import_fields45.text)({
+      ui: { description: "Cardholder name" }
+    }),
+    /** Two-letter country code (e.g. US, MX) */
+    country: (0, import_fields45.text)({
+      db: { isNullable: true },
+      ui: { description: "Country code from card" }
+    }),
+    /** Payments made with this payment method */
+    saasPayments: (0, import_fields45.relationship)({
+      ref: "SaasPayment.paymentMethod",
+      many: true,
+      ui: { description: "Payments that used this card" }
+    }),
+    createdAt: (0, import_fields45.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    }),
+    updatedAt: (0, import_fields45.timestamp)({
+      db: { updatedAt: true },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    })
+  }
+});
+
+// models/Saas/SaasPayment/SaasPayment.ts
+var import_core46 = require("@keystone-6/core");
+var import_fields46 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasPayment/SaasPayment.access.ts
+var saasPaymentAccess = {
+  operation: {
+    query: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: () => true,
+    update: () => true,
+    delete: () => true
+  }
+};
+
+// models/Saas/SaasPayment/SaasPayment.ts
+var SaasPayment_default = (0, import_core46.list)({
+  access: saasPaymentAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "user",
+        "amount",
+        "status",
+        "paymentMethodType",
+        "processorStripeChargeId",
+        "plan",
+        "subscription",
+        "createdAt"
+      ]
+    }
+  },
+  fields: {
+    /** User who made the payment */
+    user: (0, import_fields46.relationship)({
+      ref: "User.saasPayments",
+      many: false,
+      ui: { description: "User who made this payment" }
+    }),
+    /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
+    paymentMethodType: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
+      }
+    }),
+    /** Saved payment method used (when payment succeeded and we have a method id) */
+    paymentMethod: (0, import_fields46.relationship)({
+      ref: "SaasPaymentMethod.saasPayments",
+      many: false,
+      ui: { description: "Saved payment method used for this payment" }
+    }),
+    amount: (0, import_fields46.decimal)({
+      scale: 6,
+      defaultValue: "0",
+      ui: { description: "Amount charged (e.g. in cents or unit currency)" }
+    }),
+    status: (0, import_fields46.select)({
+      type: "string",
+      options: [
+        { label: "Pendiente", value: "pending" },
+        { label: "Procesando", value: "processing" },
+        { label: "Exitoso", value: "succeeded" },
+        { label: "Cancelado", value: "cancelled" },
+        { label: "Fallido", value: "failed" },
+        { label: "Devuelto", value: "refunded" }
+      ],
+      defaultValue: "pending",
+      ui: { description: "Payment status" }
+    }),
+    processorStripeChargeId: (0, import_fields46.text)({
+      defaultValue: "",
+      ui: { description: "Stripe PaymentIntent or Charge ID" }
+    }),
+    stripeErrorMessage: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Stripe error message (e.g. when status is failed)"
+      }
+    }),
+    notes: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea", description: "Optional notes" }
+    }),
+    /** Plan this payment is for (optional) */
+    plan: (0, import_fields46.relationship)({
+      ref: "SaasPlan.saasPayments",
+      many: false,
+      ui: { description: "Plan this payment is associated with" }
+    }),
+    /** Subscription this payment is for (optional) */
+    subscription: (0, import_fields46.relationship)({
+      ref: "SaasCompanySubscription.saasPayments",
+      many: false,
+      ui: { description: "Subscription this payment is associated with" }
+    }),
+    createdAt: (0, import_fields46.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    }),
+    updatedAt: (0, import_fields46.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -3165,6 +3467,8 @@ var schema_default = {
   SaasCompany: SaasCompany_default,
   SaasCompanyMonthlyLeadSync: SaasCompanyMonthlyLeadSync_default,
   SaasCompanySubscription: SaasCompanySubscription_default,
+  SaasPayment: SaasPayment_default,
+  SaasPaymentMethod: SaasPaymentMethod_default,
   SaasPlan: SaasPlan_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
@@ -3180,7 +3484,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core45 = require("@keystone-6/core");
+var import_core47 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -3776,8 +4080,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text34 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text34}`;
+  const text36 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text36}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -4289,8 +4593,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text34 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text34}`;
+  const text36 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text36}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -4467,6 +4771,231 @@ var resolver6 = {
 };
 var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
 
+// graphql/customs/mutations/createCompanySubscription.ts
+var typeDefs7 = `
+  input CreateCompanySubscriptionInput {
+    planId: ID!
+    notes: String
+    nameCard: String!
+    email: String!
+    paymentMethodId: String!
+    total: String!
+    paymentType: String!
+    noDuplicatePaymentMethod: Boolean
+  }
+
+  type CreateCompanySubscriptionResult {
+    success: Boolean!
+    message: String!
+    subscriptionId: String
+    paymentId: String
+  }
+
+  type Mutation {
+    createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
+  }
+`;
+var definition7 = `
+  createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
+`;
+async function createStripeSubscription(params) {
+  const subscription = await stripe_default.subscriptions.create({
+    customer: params.customerId,
+    items: [{ price: params.priceId }],
+    default_payment_method: params.defaultPaymentMethodId,
+    payment_behavior: "error_if_incomplete",
+    metadata: params.metadata,
+    expand: ["latest_invoice"]
+  });
+  return subscription;
+}
+var resolver7 = {
+  createCompanySubscription: async (_root, {
+    input
+  }, context) => {
+    let stripeSubscriptionId;
+    try {
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return {
+          success: false,
+          message: "STRIPE_SECRET_KEY no configurada",
+          subscriptionId: null,
+          paymentId: null
+        };
+      }
+      const user = await context.sudo().query.User.findOne({
+        where: { email: input.email.trim() },
+        query: "id name email stripeCustomerId company { id plan { id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId } }"
+      });
+      if (!user) {
+        return {
+          success: false,
+          message: "Usuario no encontrado con ese email",
+          subscriptionId: null,
+          paymentId: null
+        };
+      }
+      if (!user.stripeCustomerId) {
+        const stripeCustomer = await stripe_default.customers.create({
+          email: user.email ?? input.email,
+          name: user.name ?? input.nameCard,
+          metadata: { userId: user.id }
+        });
+        await context.sudo().query.User.updateOne({
+          where: { id: user.id },
+          data: { stripeCustomerId: stripeCustomer.id }
+        });
+        user.stripeCustomerId = stripeCustomer.id;
+      }
+      const company = user.company;
+      if (!company?.id) {
+        return {
+          success: false,
+          message: "Tu usuario no tiene una empresa asignada",
+          subscriptionId: null,
+          paymentId: null
+        };
+      }
+      let plan = company.plan ?? null;
+      if (input.planId) {
+        const planRecord = await context.sudo().query.SaasPlan.findOne({
+          where: { id: input.planId },
+          query: "id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId"
+        });
+        plan = planRecord;
+      }
+      if (!plan?.id) {
+        return {
+          success: false,
+          message: "Indica un plan (planId) o asigna un plan a la empresa",
+          subscriptionId: null,
+          paymentId: null
+        };
+      }
+      const stripePriceId = plan.stripePriceId ?? null;
+      if (!stripePriceId || typeof stripePriceId !== "string") {
+        return {
+          success: false,
+          message: "El plan no tiene un Stripe Price ID configurado. Crea un Price recurrente en Stripe y asigna stripePriceId al plan.",
+          subscriptionId: null,
+          paymentId: null
+        };
+      }
+      const planCost = plan.cost ?? 0;
+      const roundedTotalBack = parseFloat(Number(planCost).toFixed(2));
+      const roundedTotalFront = parseFloat(Number(input.total).toFixed(2));
+      const difference = Math.abs(roundedTotalFront - roundedTotalBack);
+      if (difference > 0.01) {
+        return {
+          success: false,
+          message: `El total no coincide con el plan. Esperado: ${roundedTotalBack}, recibido: ${roundedTotalFront}. Recarga la p\xE1gina e intenta de nuevo.`,
+          subscriptionId: null,
+          paymentId: null
+        };
+      }
+      const paymentMethod = await context.sudo().query.SaasPaymentMethod.findOne({
+        where: { id: input.paymentMethodId },
+        query: "id stripePaymentMethodId"
+      });
+      if (!paymentMethod?.stripePaymentMethodId) {
+        return {
+          success: false,
+          message: "M\xE9todo de pago no encontrado",
+          subscriptionId: null,
+          paymentId: null
+        };
+      }
+      try {
+        await stripe_default.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
+          customer: user.stripeCustomerId
+        });
+      } catch (attachErr) {
+        const msg = attachErr instanceof Error ? attachErr.message : String(attachErr);
+        if (!msg.toLowerCase().includes("already been attached")) throw attachErr;
+      }
+      await stripe_default.customers.update(user.stripeCustomerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethod.stripePaymentMethodId
+        }
+      });
+      const existingSubs = await context.sudo().query.SaasCompanySubscription.findMany({
+        where: {
+          company: { id: company.id },
+          status: "active",
+          stripeSubscriptionId: { not: null }
+        },
+        query: "id stripeSubscriptionId"
+      });
+      for (const prev of existingSubs) {
+        if (prev.stripeSubscriptionId) {
+          try {
+            await stripe_default.subscriptions.cancel(prev.stripeSubscriptionId);
+          } catch (_) {
+          }
+          await context.sudo().query.SaasCompanySubscription.updateOne({
+            where: { id: prev.id },
+            data: { status: SUBSCRIPTION_STATUS.CANCELLED }
+          });
+        }
+      }
+      const stripeSubscription = await createStripeSubscription({
+        customerId: user.stripeCustomerId,
+        priceId: stripePriceId,
+        defaultPaymentMethodId: paymentMethod.stripePaymentMethodId,
+        metadata: { companyId: company.id, planId: plan.id }
+      });
+      stripeSubscriptionId = stripeSubscription.id;
+      const subStatus = stripeSubscription.status ?? "active";
+      const periodEnd = stripeSubscription.current_period_end ? new Date(stripeSubscription.current_period_end * 1e3).toISOString().slice(0, 10) : (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+      const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+      const subscription = await context.sudo().query.SaasCompanySubscription.createOne({
+        data: {
+          company: { connect: { id: company.id } },
+          planName: plan.name ?? "",
+          planCost,
+          planFrequency: plan.frequency ?? "",
+          planLeadLimit: plan.leadLimit ?? 0,
+          planCurrency: plan.currency ?? "",
+          planStripePriceId: stripePriceId,
+          planFeatures: plan.planFeatures ?? void 0,
+          status: subStatus === "active" || subStatus === "trialing" ? SUBSCRIPTION_STATUS.ACTIVE : subStatus,
+          activatedAt: today,
+          currentPeriodEnd: periodEnd,
+          stripeCustomerId: user.stripeCustomerId ?? null,
+          stripeSubscriptionId: stripeSubscription.id
+        },
+        query: "id"
+      });
+      const subscriptionId = subscription?.id;
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: company.id },
+        data: { plan: { connect: { id: plan.id } } }
+      });
+      return {
+        success: true,
+        message: "Suscripci\xF3n creada correctamente. El cobro recurrente usar\xE1 el m\xE9todo de pago guardado.",
+        subscriptionId: subscriptionId ?? null,
+        paymentId: null
+      };
+    } catch (e) {
+      if (stripeSubscriptionId) {
+        try {
+          await stripe_default.subscriptions.cancel(stripeSubscriptionId);
+        } catch (_) {
+        }
+      }
+      const message = e instanceof Error ? e.message : "Error de comunicaci\xF3n con el servidor. Intenta de nuevo.";
+      return {
+        success: false,
+        message,
+        subscriptionId: null,
+        paymentId: null
+      };
+    }
+  }
+};
+var createCompanySubscription_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -4476,6 +5005,7 @@ var customMutation = {
     ${importBusinessLeadFromGoogle_default.typeDefs}
     ${syncBusinessLeadsFromGoogle_default.typeDefs}
     ${syncLeadsFront_default.typeDefs}
+    ${createCompanySubscription_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -4484,6 +5014,7 @@ var customMutation = {
     ${importBusinessLeadFromGoogle_default.definition}
     ${syncBusinessLeadsFromGoogle_default.definition}
     ${syncLeadsFront_default.definition}
+    ${createCompanySubscription_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -4491,7 +5022,8 @@ var customMutation = {
     ...importPetPlace_default.resolver,
     ...importBusinessLeadFromGoogle_default.resolver,
     ...syncBusinessLeadsFromGoogle_default.resolver,
-    ...syncLeadsFront_default.resolver
+    ...syncLeadsFront_default.resolver,
+    ...createCompanySubscription_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -4502,7 +5034,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs7 = `
+var typeDefs8 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -4559,7 +5091,7 @@ var typeDefs7 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition7 = `
+var definition8 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -4609,7 +5141,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver7 = {
+var resolver8 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -4763,7 +5295,7 @@ var resolver7 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
+var nearbyAnimals_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -5031,7 +5563,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs8 = `
+var typeDefs9 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -5089,10 +5621,10 @@ var typeDefs8 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition8 = `
+var definition9 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver8 = {
+var resolver9 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -5174,21 +5706,100 @@ var resolver8 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
+
+// graphql/customs/queries/saas/stripePaymentMethods.ts
+var typeDefs10 = `
+  type StripeCard {
+    brand: String
+    country: String
+    exp_month: Int
+    exp_year: Int
+    last4: String
+  }
+
+  type StripePaymentMethod {
+    id: String
+    object: String
+    customer: String
+    type: String
+    card: StripeCard
+    created: Int
+    livemode: Boolean
+    metadata: JSON
+  }
+
+  type StripePaymentMethodsData {
+    data: [StripePaymentMethod]
+  }
+
+  type StripePaymentMethodsType {
+    message: String,
+    success: Boolean,
+    data: StripePaymentMethodsData
+  }
+
+  type Query {
+    StripePaymentMethods(email: String!): StripePaymentMethodsType
+  }
+`;
+var definition10 = `
+  StripePaymentMethods(email: String!): StripePaymentMethodsType
+`;
+var resolver10 = {
+  StripePaymentMethods: async (_root, { email }, context) => {
+    const user = await context.query.User.findOne({
+      where: { email },
+      query: "id name stripeCustomerId"
+    });
+    const stripeCustomerId = user?.stripeCustomerId;
+    if (!stripeCustomerId) {
+      return {
+        message: "Missing stripe customer id",
+        success: false,
+        data: { data: [] }
+      };
+    }
+    try {
+      const paymentMethods = await stripe_default.paymentMethods.list({
+        customer: stripeCustomerId,
+        type: "card"
+      });
+      return {
+        message: "",
+        success: true,
+        data: {
+          data: paymentMethods.data
+        }
+      };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return {
+        message,
+        success: false,
+        data: { data: [] }
+      };
+    }
+  }
+};
+var stripePaymentMethods_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
   typeDefs: `
     ${nearbyAnimals_default.typeDefs}
     ${nearbyPetPlaces_default.typeDefs}
+    ${stripePaymentMethods_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
     ${nearbyPetPlaces_default.definition}
+    ${stripePaymentMethods_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
-    ...nearbyPetPlaces_default.resolver
+    ...nearbyPetPlaces_default.resolver,
+    ...stripePaymentMethods_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -5257,7 +5868,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core45.config)({
+  (0, import_core47.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

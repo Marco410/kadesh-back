@@ -42,6 +42,8 @@ import SaasCompany from "./Saas/SaasCompany/SaasCompany";
 import SaasPlan from "./Saas/SaasPlan/SaasPlan";
 import SaasCompanyMonthlyLeadSync from "./Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync";
 import SaasCompanySubscription from "./Saas/SaasCompanySubscription/SaasCompanySubscription";
+import SaasPaymentMethod from "./Saas/SaasPaymentMethod/SaasPaymentMethod";
+import SaasPayment from "./Saas/SaasPayment/SaasPayment";
 
 export default {
   Ad,
@@ -76,6 +78,8 @@ export default {
   SaasCompany,
   SaasCompanyMonthlyLeadSync,
   SaasCompanySubscription,
+  SaasPayment,
+  SaasPaymentMethod,
   SaasPlan,
   Schedule,
   SocialMedia,

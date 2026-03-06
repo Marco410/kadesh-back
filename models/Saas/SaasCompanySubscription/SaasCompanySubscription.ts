@@ -13,14 +13,33 @@ import {
 import { saasCompanySubscriptionAccess } from "./SaasCompanySubscription.access";
 import { SUBSCRIPTION_STATUS_OPTIONS } from "./constants";
 
+const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
+
+/** Fetches Stripe Subscription and returns whether it is active/trialing. Uses STRIPE_SECRET_KEY. */
+async function checkStripeSubscriptionActive(subscriptionId: string): Promise<boolean> {
+  if (!STRIPE_SECRET) return false;
+  try {
+    const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { status?: string };
+    return data.status === "active" || data.status === "trialing";
+  } catch {
+    return false;
+  }
+}
+
 /** Fetches Stripe Price and returns whether it is active. Uses STRIPE_SECRET_KEY. */
 async function checkStripePriceActive(priceId: string): Promise<boolean> {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret) return false;
+  if (!STRIPE_SECRET) return false;
   try {
     const res = await fetch(`https://api.stripe.com/v1/prices/${priceId}`, {
       headers: {
-        Authorization: `Bearer ${secret}`,
+        Authorization: `Bearer ${STRIPE_SECRET}`,
         Accept: "application/json",
       },
     });
@@ -90,26 +109,36 @@ export default list({
       field: graphql.field({
         type: graphql.Boolean,
         async resolve(
-          item: { id: string; planStripePriceId?: string | null },
+          item: {
+            id: string;
+            planStripePriceId?: string | null;
+            stripeSubscriptionId?: string | null;
+          },
           _args,
           context
         ) {
+          let subId = item.stripeSubscriptionId;
           let priceId = item.planStripePriceId;
-          if ((!priceId || typeof priceId !== "string") && item.id) {
+          if (item.id && (subId == null || priceId == null)) {
             const sub = await context.sudo().query.SaasCompanySubscription.findOne({
               where: { id: item.id },
-              query: "planStripePriceId",
-            });
-            priceId =
-              (sub as { planStripePriceId?: string | null } | null)?.planStripePriceId ?? null;
+              query: "stripeSubscriptionId planStripePriceId",
+            }) as { stripeSubscriptionId?: string | null; planStripePriceId?: string | null } | null;
+            subId = sub?.stripeSubscriptionId ?? null;
+            priceId = sub?.planStripePriceId ?? null;
           }
-          if (!priceId || typeof priceId !== "string") return false;
-          return checkStripePriceActive(priceId);
+          if (subId && typeof subId === "string") {
+            return checkStripeSubscriptionActive(subId);
+          }
+          if (priceId && typeof priceId === "string") {
+            return checkStripePriceActive(priceId);
+          }
+          return false;
         },
       }),
       ui: {
         description:
-          "Whether the contracted price is still active in Stripe (fetched from Stripe API)",
+          "Whether the Stripe subscription is still active (or the Price is active if no subscription ID)",
       },
     }),
     /** Subscription status (e.g. active, cancelled) */
@@ -136,6 +165,12 @@ export default list({
     stripeCustomerId: text({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" },
+    }),
+    /** Payments associated with this subscription */
+    saasPayments: relationship({
+      ref: "SaasPayment.subscription",
+      many: true,
+      ui: { description: "Payments for this subscription" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

@@ -70,6 +70,12 @@ export default list({
       many: true,
       ui: { description: "Companies using this plan" },
     }),
+    /** Payments associated with this plan */
+    saasPayments: relationship({
+      ref: "SaasPayment.plan",
+      many: true,
+      ui: { description: "Payments for this plan" },
+    }),
     /** Shown in app and available for new signups */
     active: checkbox({
       defaultValue: true,

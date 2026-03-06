@@ -1,6 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { genUniqueLink } from "../../utils/helpers/unike_link";
 import { Role } from "../Role/constants";
+import Stripe from "../../utils/intregrations/stripe";
 
 export const phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }: any) => {
@@ -117,6 +118,45 @@ export const userRoleHook = {
           console.error("Error al asignar el role 'user':", error);
         }
       }
+    }
+    return resolvedData;
+  },
+};
+
+/** On user create, finds or creates a Stripe customer and sets stripeCustomerId. */
+export const stripeCustomerHook = {
+  resolveInput: async ({
+    resolvedData,
+    operation,
+  }: {
+    resolvedData: Record<string, unknown>;
+    operation: string;
+  }) => {
+    if (operation !== "create") return resolvedData;
+    const email = resolvedData.email as string | undefined;
+    if (!email || typeof email !== "string") return resolvedData;
+    if (!process.env.STRIPE_SECRET_KEY) return resolvedData;
+
+    try {
+      const existingCustomers = await Stripe.customers.list({
+        email: email,
+        limit: 1,
+      });
+
+      let stripeResp;
+      if (existingCustomers.data.length > 0) {
+        stripeResp = existingCustomers.data[0];
+      } else {
+        stripeResp = await Stripe.customers.create({
+          name: `${resolvedData.name ?? ""} ${resolvedData.lastName ?? ""}`.trim(),
+          email: email,
+          phone: (resolvedData.phone as string) ?? undefined,
+        });
+      }
+
+      resolvedData.stripeCustomerId = stripeResp.id;
+    } catch (_) {
+      // leave stripeCustomerId unset on error
     }
     return resolvedData;
   },

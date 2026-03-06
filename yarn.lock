@@ -4923,6 +4923,11 @@ strip-indent@^3.0.0:
   dependencies:
     min-indent "^1.0.0"
 
+stripe@^20.4.0:
+  version "20.4.0"
+  resolved "https://registry.yarnpkg.com/stripe/-/stripe-20.4.0.tgz#2bc0b2eee24f72243e85c73c8c2cc7ee0a6df108"
+  integrity sha512-F/aN1IQ9vHmlyLNi3DkiIbyzQb6gyBG0uYFd/VrEVQSc9BLtlgknPUx0EvzZdBMRLFuRaPFIFd7Mxwtg7Pbwzw==
+
 strnum@^2.1.0:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/strnum/-/strnum-2.1.2.tgz#a5e00ba66ab25f9cafa3726b567ce7a49170937a"
