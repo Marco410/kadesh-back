@@ -2516,6 +2516,467 @@ input UserRelateToManyForCreateInput {
   connect: [UserWhereUniqueInput!]
 }
 
+type SaasCompany {
+  id: ID!
+  name: String
+  users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
+  usersCount(where: UserWhereInput! = {}): Int
+  plan: SaasPlan
+  subscriptionStartedAt: CalendarDay
+  monthlyLeadSyncRecords(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
+  monthlyLeadSyncRecordsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
+  allowedGooglePlaceCategories: JSON
+  leads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
+  leadsCount(where: TechBusinessLeadWhereInput! = {}): Int
+  subscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
+  subscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
+  techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
+  techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyWhereUniqueInput {
+  id: ID
+}
+
+input SaasCompanyWhereInput {
+  AND: [SaasCompanyWhereInput!]
+  OR: [SaasCompanyWhereInput!]
+  NOT: [SaasCompanyWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  users: UserManyRelationFilter
+  plan: SaasPlanWhereInput
+  subscriptionStartedAt: CalendarDayNullableFilter
+  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
+  leads: TechBusinessLeadManyRelationFilter
+  subscriptions: SaasCompanySubscriptionManyRelationFilter
+  techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyMonthlyLeadSyncManyRelationFilter {
+  every: SaasCompanyMonthlyLeadSyncWhereInput
+  some: SaasCompanyMonthlyLeadSyncWhereInput
+  none: SaasCompanyMonthlyLeadSyncWhereInput
+}
+
+input TechBusinessLeadManyRelationFilter {
+  every: TechBusinessLeadWhereInput
+  some: TechBusinessLeadWhereInput
+  none: TechBusinessLeadWhereInput
+}
+
+input SaasCompanySubscriptionManyRelationFilter {
+  every: SaasCompanySubscriptionWhereInput
+  some: SaasCompanySubscriptionWhereInput
+  none: SaasCompanySubscriptionWhereInput
+}
+
+input TechStatusBusinessLeadManyRelationFilter {
+  every: TechStatusBusinessLeadWhereInput
+  some: TechStatusBusinessLeadWhereInput
+  none: TechStatusBusinessLeadWhereInput
+}
+
+input SaasCompanyOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  subscriptionStartedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCompanyUpdateInput {
+  name: String
+  users: UserRelateToManyForUpdateInput
+  plan: SaasPlanRelateToOneForUpdateInput
+  subscriptionStartedAt: CalendarDay
+  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
+  allowedGooglePlaceCategories: JSON
+  leads: TechBusinessLeadRelateToManyForUpdateInput
+  subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
+  techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPlanRelateToOneForUpdateInput {
+  create: SaasPlanCreateInput
+  connect: SaasPlanWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput {
+  disconnect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+  set: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+  create: [SaasCompanyMonthlyLeadSyncCreateInput!]
+  connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+}
+
+input TechBusinessLeadRelateToManyForUpdateInput {
+  disconnect: [TechBusinessLeadWhereUniqueInput!]
+  set: [TechBusinessLeadWhereUniqueInput!]
+  create: [TechBusinessLeadCreateInput!]
+  connect: [TechBusinessLeadWhereUniqueInput!]
+}
+
+input SaasCompanySubscriptionRelateToManyForUpdateInput {
+  disconnect: [SaasCompanySubscriptionWhereUniqueInput!]
+  set: [SaasCompanySubscriptionWhereUniqueInput!]
+  create: [SaasCompanySubscriptionCreateInput!]
+  connect: [SaasCompanySubscriptionWhereUniqueInput!]
+}
+
+input TechStatusBusinessLeadRelateToManyForUpdateInput {
+  disconnect: [TechStatusBusinessLeadWhereUniqueInput!]
+  set: [TechStatusBusinessLeadWhereUniqueInput!]
+  create: [TechStatusBusinessLeadCreateInput!]
+  connect: [TechStatusBusinessLeadWhereUniqueInput!]
+}
+
+input SaasCompanyUpdateArgs {
+  where: SaasCompanyWhereUniqueInput!
+  data: SaasCompanyUpdateInput!
+}
+
+input SaasCompanyCreateInput {
+  name: String
+  users: UserRelateToManyForCreateInput
+  plan: SaasPlanRelateToOneForCreateInput
+  subscriptionStartedAt: CalendarDay
+  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
+  allowedGooglePlaceCategories: JSON
+  leads: TechBusinessLeadRelateToManyForCreateInput
+  subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
+  techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPlanRelateToOneForCreateInput {
+  create: SaasPlanCreateInput
+  connect: SaasPlanWhereUniqueInput
+}
+
+input SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput {
+  create: [SaasCompanyMonthlyLeadSyncCreateInput!]
+  connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+}
+
+input TechBusinessLeadRelateToManyForCreateInput {
+  create: [TechBusinessLeadCreateInput!]
+  connect: [TechBusinessLeadWhereUniqueInput!]
+}
+
+input SaasCompanySubscriptionRelateToManyForCreateInput {
+  create: [SaasCompanySubscriptionCreateInput!]
+  connect: [SaasCompanySubscriptionWhereUniqueInput!]
+}
+
+input TechStatusBusinessLeadRelateToManyForCreateInput {
+  create: [TechStatusBusinessLeadCreateInput!]
+  connect: [TechStatusBusinessLeadWhereUniqueInput!]
+}
+
+type SaasCompanyMonthlyLeadSync {
+  id: ID!
+  company: SaasCompany
+  year: Int
+  month: Int
+  syncedCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyMonthlyLeadSyncWhereUniqueInput {
+  id: ID
+}
+
+input SaasCompanyMonthlyLeadSyncWhereInput {
+  AND: [SaasCompanyMonthlyLeadSyncWhereInput!]
+  OR: [SaasCompanyMonthlyLeadSyncWhereInput!]
+  NOT: [SaasCompanyMonthlyLeadSyncWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  year: IntFilter
+  month: IntFilter
+  syncedCount: IntNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyMonthlyLeadSyncOrderByInput {
+  id: OrderDirection
+  year: OrderDirection
+  month: OrderDirection
+  syncedCount: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCompanyMonthlyLeadSyncUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  year: Int
+  month: Int
+  syncedCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyRelateToOneForUpdateInput {
+  create: SaasCompanyCreateInput
+  connect: SaasCompanyWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasCompanyMonthlyLeadSyncUpdateArgs {
+  where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!
+  data: SaasCompanyMonthlyLeadSyncUpdateInput!
+}
+
+input SaasCompanyMonthlyLeadSyncCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  year: Int
+  month: Int
+  syncedCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyRelateToOneForCreateInput {
+  create: SaasCompanyCreateInput
+  connect: SaasCompanyWhereUniqueInput
+}
+
+type SaasCompanySubscription {
+  id: ID!
+  company: SaasCompany
+  planName: String
+  planCost: Float
+  planFrequency: String
+  planLeadLimit: Int
+  planStripePriceId: String
+  planCurrency: String
+  planFeatures: JSON
+  activeInStripe: Boolean
+  status: String
+  activatedAt: CalendarDay
+  currentPeriodEnd: CalendarDay
+  stripeSubscriptionId: String
+  stripeCustomerId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanySubscriptionWhereUniqueInput {
+  id: ID
+}
+
+input SaasCompanySubscriptionWhereInput {
+  AND: [SaasCompanySubscriptionWhereInput!]
+  OR: [SaasCompanySubscriptionWhereInput!]
+  NOT: [SaasCompanySubscriptionWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  planName: StringFilter
+  planCost: FloatNullableFilter
+  planFrequency: StringFilter
+  planLeadLimit: IntNullableFilter
+  planStripePriceId: StringFilter
+  planCurrency: StringFilter
+  status: StringNullableFilter
+  activatedAt: CalendarDayNullableFilter
+  currentPeriodEnd: CalendarDayNullableFilter
+  stripeSubscriptionId: StringNullableFilter
+  stripeCustomerId: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input FloatNullableFilter {
+  equals: Float
+  in: [Float!]
+  notIn: [Float!]
+  lt: Float
+  lte: Float
+  gt: Float
+  gte: Float
+  not: FloatNullableFilter
+}
+
+input SaasCompanySubscriptionOrderByInput {
+  id: OrderDirection
+  planName: OrderDirection
+  planCost: OrderDirection
+  planFrequency: OrderDirection
+  planLeadLimit: OrderDirection
+  planStripePriceId: OrderDirection
+  planCurrency: OrderDirection
+  status: OrderDirection
+  activatedAt: OrderDirection
+  currentPeriodEnd: OrderDirection
+  stripeSubscriptionId: OrderDirection
+  stripeCustomerId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCompanySubscriptionUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  planName: String
+  planCost: Float
+  planFrequency: String
+  planLeadLimit: Int
+  planStripePriceId: String
+  planCurrency: String
+  planFeatures: JSON
+  status: String
+  activatedAt: CalendarDay
+  currentPeriodEnd: CalendarDay
+  stripeSubscriptionId: String
+  stripeCustomerId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanySubscriptionUpdateArgs {
+  where: SaasCompanySubscriptionWhereUniqueInput!
+  data: SaasCompanySubscriptionUpdateInput!
+}
+
+input SaasCompanySubscriptionCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  planName: String
+  planCost: Float
+  planFrequency: String
+  planLeadLimit: Int
+  planStripePriceId: String
+  planCurrency: String
+  planFeatures: JSON
+  status: String
+  activatedAt: CalendarDay
+  currentPeriodEnd: CalendarDay
+  stripeSubscriptionId: String
+  stripeCustomerId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type SaasPlan {
+  id: ID!
+  name: String
+  cost: Float
+  frequency: String
+  currency: String
+  leadLimit: Int
+  planFeatures: JSON
+  companies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
+  companiesCount(where: SaasCompanyWhereInput! = {}): Int
+  active: Boolean
+  bestSeller: Boolean
+  stripePriceId: String
+  stripeProductId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasPlanWhereUniqueInput {
+  id: ID
+  stripePriceId: String
+}
+
+input SaasPlanWhereInput {
+  AND: [SaasPlanWhereInput!]
+  OR: [SaasPlanWhereInput!]
+  NOT: [SaasPlanWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  cost: FloatNullableFilter
+  frequency: StringNullableFilter
+  currency: StringFilter
+  leadLimit: IntNullableFilter
+  companies: SaasCompanyManyRelationFilter
+  active: BooleanFilter
+  bestSeller: BooleanFilter
+  stripePriceId: StringNullableFilter
+  stripeProductId: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyManyRelationFilter {
+  every: SaasCompanyWhereInput
+  some: SaasCompanyWhereInput
+  none: SaasCompanyWhereInput
+}
+
+input SaasPlanOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  cost: OrderDirection
+  frequency: OrderDirection
+  currency: OrderDirection
+  leadLimit: OrderDirection
+  active: OrderDirection
+  bestSeller: OrderDirection
+  stripePriceId: OrderDirection
+  stripeProductId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasPlanUpdateInput {
+  name: String
+  cost: Float
+  frequency: String
+  currency: String
+  leadLimit: Int
+  planFeatures: JSON
+  companies: SaasCompanyRelateToManyForUpdateInput
+  active: Boolean
+  bestSeller: Boolean
+  stripePriceId: String
+  stripeProductId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyRelateToManyForUpdateInput {
+  disconnect: [SaasCompanyWhereUniqueInput!]
+  set: [SaasCompanyWhereUniqueInput!]
+  create: [SaasCompanyCreateInput!]
+  connect: [SaasCompanyWhereUniqueInput!]
+}
+
+input SaasPlanUpdateArgs {
+  where: SaasPlanWhereUniqueInput!
+  data: SaasPlanUpdateInput!
+}
+
+input SaasPlanCreateInput {
+  name: String
+  cost: Float
+  frequency: String
+  currency: String
+  leadLimit: Int
+  planFeatures: JSON
+  companies: SaasCompanyRelateToManyForCreateInput
+  active: Boolean
+  bestSeller: Boolean
+  stripePriceId: String
+  stripeProductId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyRelateToManyForCreateInput {
+  create: [SaasCompanyCreateInput!]
+  connect: [SaasCompanyWhereUniqueInput!]
+}
+
 type Schedule {
   id: ID!
   day: String
@@ -2755,23 +3216,6 @@ input TechBusinessLeadWhereInput {
   updatedAt: DateTimeNullableFilter
 }
 
-input FloatNullableFilter {
-  equals: Float
-  in: [Float!]
-  notIn: [Float!]
-  lt: Float
-  lte: Float
-  gt: Float
-  gte: Float
-  not: FloatNullableFilter
-}
-
-input TechStatusBusinessLeadManyRelationFilter {
-  every: TechStatusBusinessLeadWhereInput
-  some: TechStatusBusinessLeadWhereInput
-  none: TechStatusBusinessLeadWhereInput
-}
-
 input TechSalesActivityManyRelationFilter {
   every: TechSalesActivityWhereInput
   some: TechSalesActivityWhereInput
@@ -2788,12 +3232,6 @@ input TechFollowUpTaskManyRelationFilter {
   every: TechFollowUpTaskWhereInput
   some: TechFollowUpTaskWhereInput
   none: TechFollowUpTaskWhereInput
-}
-
-input SaasCompanyManyRelationFilter {
-  every: SaasCompanyWhereInput
-  some: SaasCompanyWhereInput
-  none: SaasCompanyWhereInput
 }
 
 input TechBusinessLeadOrderByInput {
@@ -2865,13 +3303,6 @@ input TechBusinessLeadUpdateInput {
   updatedAt: DateTime
 }
 
-input TechStatusBusinessLeadRelateToManyForUpdateInput {
-  disconnect: [TechStatusBusinessLeadWhereUniqueInput!]
-  set: [TechStatusBusinessLeadWhereUniqueInput!]
-  create: [TechStatusBusinessLeadCreateInput!]
-  connect: [TechStatusBusinessLeadWhereUniqueInput!]
-}
-
 input TechSalesActivityRelateToManyForUpdateInput {
   disconnect: [TechSalesActivityWhereUniqueInput!]
   set: [TechSalesActivityWhereUniqueInput!]
@@ -2891,13 +3322,6 @@ input TechFollowUpTaskRelateToManyForUpdateInput {
   set: [TechFollowUpTaskWhereUniqueInput!]
   create: [TechFollowUpTaskCreateInput!]
   connect: [TechFollowUpTaskWhereUniqueInput!]
-}
-
-input SaasCompanyRelateToManyForUpdateInput {
-  disconnect: [SaasCompanyWhereUniqueInput!]
-  set: [SaasCompanyWhereUniqueInput!]
-  create: [SaasCompanyCreateInput!]
-  connect: [SaasCompanyWhereUniqueInput!]
 }
 
 input TechBusinessLeadUpdateArgs {
@@ -2942,11 +3366,6 @@ input TechBusinessLeadCreateInput {
   updatedAt: DateTime
 }
 
-input TechStatusBusinessLeadRelateToManyForCreateInput {
-  create: [TechStatusBusinessLeadCreateInput!]
-  connect: [TechStatusBusinessLeadWhereUniqueInput!]
-}
-
 input TechSalesActivityRelateToManyForCreateInput {
   create: [TechSalesActivityCreateInput!]
   connect: [TechSalesActivityWhereUniqueInput!]
@@ -2962,65 +3381,56 @@ input TechFollowUpTaskRelateToManyForCreateInput {
   connect: [TechFollowUpTaskWhereUniqueInput!]
 }
 
-input SaasCompanyRelateToManyForCreateInput {
-  create: [SaasCompanyCreateInput!]
-  connect: [SaasCompanyWhereUniqueInput!]
-}
-
-type TechStatusBusinessLead {
+type TechFollowUpTask {
   id: ID!
+  scheduledDate: CalendarDay
+  status: String
+  priority: String
   businessLead: TechBusinessLead
-  opportunityLevel: String
-  pipelineStatus: String
-  estimatedValue: Float
-  productOffered: String
-  firstContactDate: CalendarDay
-  nextFollowUpDate: String
-  saasCompany: SaasCompany
-  salesPerson: User
+  assignedSeller: User
   notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
-input TechStatusBusinessLeadWhereUniqueInput {
+input TechFollowUpTaskWhereUniqueInput {
   id: ID
 }
 
-input TechStatusBusinessLeadWhereInput {
-  AND: [TechStatusBusinessLeadWhereInput!]
-  OR: [TechStatusBusinessLeadWhereInput!]
-  NOT: [TechStatusBusinessLeadWhereInput!]
+input TechFollowUpTaskWhereInput {
+  AND: [TechFollowUpTaskWhereInput!]
+  OR: [TechFollowUpTaskWhereInput!]
+  NOT: [TechFollowUpTaskWhereInput!]
   id: IDFilter
+  scheduledDate: CalendarDayFilter
+  status: StringNullableFilter
+  priority: StringNullableFilter
   businessLead: TechBusinessLeadWhereInput
-  opportunityLevel: StringNullableFilter
-  pipelineStatus: StringNullableFilter
-  estimatedValue: FloatNullableFilter
-  productOffered: StringFilter
-  firstContactDate: CalendarDayNullableFilter
-  saasCompany: SaasCompanyWhereInput
-  salesPerson: UserWhereInput
+  assignedSeller: UserWhereInput
   notes: StringFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
 }
 
-input TechStatusBusinessLeadOrderByInput {
+input TechFollowUpTaskOrderByInput {
   id: OrderDirection
-  opportunityLevel: OrderDirection
-  pipelineStatus: OrderDirection
-  estimatedValue: OrderDirection
-  productOffered: OrderDirection
-  firstContactDate: OrderDirection
+  scheduledDate: OrderDirection
+  status: OrderDirection
+  priority: OrderDirection
   notes: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
-input TechStatusBusinessLeadUpdateInput {
+input TechFollowUpTaskUpdateInput {
+  scheduledDate: CalendarDay
+  status: String
+  priority: String
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
-  opportunityLevel: String
-  pipelineStatus: String
-  estimatedValue: Float
-  productOffered: String
-  firstContactDate: CalendarDay
-  saasCompany: SaasCompanyRelateToOneForUpdateInput
-  salesPerson: UserRelateToOneForUpdateInput
+  assignedSeller: UserRelateToOneForUpdateInput
   notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input TechBusinessLeadRelateToOneForUpdateInput {
@@ -3029,27 +3439,20 @@ input TechBusinessLeadRelateToOneForUpdateInput {
   disconnect: Boolean
 }
 
-input SaasCompanyRelateToOneForUpdateInput {
-  create: SaasCompanyCreateInput
-  connect: SaasCompanyWhereUniqueInput
-  disconnect: Boolean
+input TechFollowUpTaskUpdateArgs {
+  where: TechFollowUpTaskWhereUniqueInput!
+  data: TechFollowUpTaskUpdateInput!
 }
 
-input TechStatusBusinessLeadUpdateArgs {
-  where: TechStatusBusinessLeadWhereUniqueInput!
-  data: TechStatusBusinessLeadUpdateInput!
-}
-
-input TechStatusBusinessLeadCreateInput {
+input TechFollowUpTaskCreateInput {
+  scheduledDate: CalendarDay
+  status: String
+  priority: String
   businessLead: TechBusinessLeadRelateToOneForCreateInput
-  opportunityLevel: String
-  pipelineStatus: String
-  estimatedValue: Float
-  productOffered: String
-  firstContactDate: CalendarDay
-  saasCompany: SaasCompanyRelateToOneForCreateInput
-  salesPerson: UserRelateToOneForCreateInput
+  assignedSeller: UserRelateToOneForCreateInput
   notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input TechBusinessLeadRelateToOneForCreateInput {
@@ -3057,9 +3460,72 @@ input TechBusinessLeadRelateToOneForCreateInput {
   connect: TechBusinessLeadWhereUniqueInput
 }
 
-input SaasCompanyRelateToOneForCreateInput {
-  create: SaasCompanyCreateInput
-  connect: SaasCompanyWhereUniqueInput
+type TechProposal {
+  id: ID!
+  sentDate: CalendarDay
+  amount: Float
+  status: String
+  fileOrUrl: String
+  businessLead: TechBusinessLead
+  assignedSeller: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechProposalWhereUniqueInput {
+  id: ID
+}
+
+input TechProposalWhereInput {
+  AND: [TechProposalWhereInput!]
+  OR: [TechProposalWhereInput!]
+  NOT: [TechProposalWhereInput!]
+  id: IDFilter
+  sentDate: CalendarDayFilter
+  amount: FloatNullableFilter
+  status: StringNullableFilter
+  fileOrUrl: StringFilter
+  businessLead: TechBusinessLeadWhereInput
+  assignedSeller: UserWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input TechProposalOrderByInput {
+  id: OrderDirection
+  sentDate: OrderDirection
+  amount: OrderDirection
+  status: OrderDirection
+  fileOrUrl: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TechProposalUpdateInput {
+  sentDate: CalendarDay
+  amount: Float
+  status: String
+  fileOrUrl: String
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  assignedSeller: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechProposalUpdateArgs {
+  where: TechProposalWhereUniqueInput!
+  data: TechProposalUpdateInput!
+}
+
+input TechProposalCreateInput {
+  sentDate: CalendarDay
+  amount: Float
+  status: String
+  fileOrUrl: String
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  assignedSeller: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type TechSalesActivity {
@@ -3136,140 +3602,77 @@ input TechSalesActivityCreateInput {
   createdAt: DateTime
 }
 
-type TechFollowUpTask {
+type TechStatusBusinessLead {
   id: ID!
-  scheduledDate: CalendarDay
-  status: String
-  priority: String
   businessLead: TechBusinessLead
-  assignedSeller: User
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  firstContactDate: CalendarDay
+  nextFollowUpDate: String
+  saasCompany: SaasCompany
+  salesPerson: User
   notes: String
-  createdAt: DateTime
-  updatedAt: DateTime
 }
 
-input TechFollowUpTaskWhereUniqueInput {
+input TechStatusBusinessLeadWhereUniqueInput {
   id: ID
 }
 
-input TechFollowUpTaskWhereInput {
-  AND: [TechFollowUpTaskWhereInput!]
-  OR: [TechFollowUpTaskWhereInput!]
-  NOT: [TechFollowUpTaskWhereInput!]
+input TechStatusBusinessLeadWhereInput {
+  AND: [TechStatusBusinessLeadWhereInput!]
+  OR: [TechStatusBusinessLeadWhereInput!]
+  NOT: [TechStatusBusinessLeadWhereInput!]
   id: IDFilter
-  scheduledDate: CalendarDayFilter
-  status: StringNullableFilter
-  priority: StringNullableFilter
   businessLead: TechBusinessLeadWhereInput
-  assignedSeller: UserWhereInput
+  opportunityLevel: StringNullableFilter
+  pipelineStatus: StringNullableFilter
+  estimatedValue: FloatNullableFilter
+  productOffered: StringFilter
+  firstContactDate: CalendarDayNullableFilter
+  saasCompany: SaasCompanyWhereInput
+  salesPerson: UserWhereInput
   notes: StringFilter
-  createdAt: DateTimeNullableFilter
-  updatedAt: DateTimeNullableFilter
 }
 
-input TechFollowUpTaskOrderByInput {
+input TechStatusBusinessLeadOrderByInput {
   id: OrderDirection
-  scheduledDate: OrderDirection
-  status: OrderDirection
-  priority: OrderDirection
+  opportunityLevel: OrderDirection
+  pipelineStatus: OrderDirection
+  estimatedValue: OrderDirection
+  productOffered: OrderDirection
+  firstContactDate: OrderDirection
   notes: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
 }
 
-input TechFollowUpTaskUpdateInput {
-  scheduledDate: CalendarDay
-  status: String
-  priority: String
+input TechStatusBusinessLeadUpdateInput {
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
-  assignedSeller: UserRelateToOneForUpdateInput
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  firstContactDate: CalendarDay
+  saasCompany: SaasCompanyRelateToOneForUpdateInput
+  salesPerson: UserRelateToOneForUpdateInput
   notes: String
-  createdAt: DateTime
-  updatedAt: DateTime
 }
 
-input TechFollowUpTaskUpdateArgs {
-  where: TechFollowUpTaskWhereUniqueInput!
-  data: TechFollowUpTaskUpdateInput!
+input TechStatusBusinessLeadUpdateArgs {
+  where: TechStatusBusinessLeadWhereUniqueInput!
+  data: TechStatusBusinessLeadUpdateInput!
 }
 
-input TechFollowUpTaskCreateInput {
-  scheduledDate: CalendarDay
-  status: String
-  priority: String
+input TechStatusBusinessLeadCreateInput {
   businessLead: TechBusinessLeadRelateToOneForCreateInput
-  assignedSeller: UserRelateToOneForCreateInput
+  opportunityLevel: String
+  pipelineStatus: String
+  estimatedValue: Float
+  productOffered: String
+  firstContactDate: CalendarDay
+  saasCompany: SaasCompanyRelateToOneForCreateInput
+  salesPerson: UserRelateToOneForCreateInput
   notes: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-type TechProposal {
-  id: ID!
-  sentDate: CalendarDay
-  amount: Float
-  status: String
-  fileOrUrl: String
-  businessLead: TechBusinessLead
-  assignedSeller: User
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input TechProposalWhereUniqueInput {
-  id: ID
-}
-
-input TechProposalWhereInput {
-  AND: [TechProposalWhereInput!]
-  OR: [TechProposalWhereInput!]
-  NOT: [TechProposalWhereInput!]
-  id: IDFilter
-  sentDate: CalendarDayFilter
-  amount: FloatNullableFilter
-  status: StringNullableFilter
-  fileOrUrl: StringFilter
-  businessLead: TechBusinessLeadWhereInput
-  assignedSeller: UserWhereInput
-  createdAt: DateTimeNullableFilter
-  updatedAt: DateTimeNullableFilter
-}
-
-input TechProposalOrderByInput {
-  id: OrderDirection
-  sentDate: OrderDirection
-  amount: OrderDirection
-  status: OrderDirection
-  fileOrUrl: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-input TechProposalUpdateInput {
-  sentDate: CalendarDay
-  amount: Float
-  status: String
-  fileOrUrl: String
-  businessLead: TechBusinessLeadRelateToOneForUpdateInput
-  assignedSeller: UserRelateToOneForUpdateInput
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input TechProposalUpdateArgs {
-  where: TechProposalWhereUniqueInput!
-  data: TechProposalUpdateInput!
-}
-
-input TechProposalCreateInput {
-  sentDate: CalendarDay
-  amount: Float
-  status: String
-  fileOrUrl: String
-  businessLead: TechBusinessLeadRelateToOneForCreateInput
-  assignedSeller: UserRelateToOneForCreateInput
-  createdAt: DateTime
-  updatedAt: DateTime
 }
 
 type TokenNotification {
@@ -3399,12 +3802,6 @@ input BlogSubscriptionManyRelationFilter {
   none: BlogSubscriptionWhereInput
 }
 
-input TechBusinessLeadManyRelationFilter {
-  every: TechBusinessLeadWhereInput
-  some: TechBusinessLeadWhereInput
-  none: TechBusinessLeadWhereInput
-}
-
 input UserOrderByInput {
   id: OrderDirection
   name: OrderDirection
@@ -3460,13 +3857,6 @@ input BlogSubscriptionRelateToManyForUpdateInput {
   connect: [BlogSubscriptionWhereUniqueInput!]
 }
 
-input TechBusinessLeadRelateToManyForUpdateInput {
-  disconnect: [TechBusinessLeadWhereUniqueInput!]
-  set: [TechBusinessLeadWhereUniqueInput!]
-  create: [TechBusinessLeadCreateInput!]
-  connect: [TechBusinessLeadWhereUniqueInput!]
-}
-
 input UserUpdateArgs {
   where: UserWhereUniqueInput!
   data: UserUpdateInput!
@@ -3505,11 +3895,6 @@ input RoleRelateToManyForCreateInput {
 input BlogSubscriptionRelateToManyForCreateInput {
   create: [BlogSubscriptionCreateInput!]
   connect: [BlogSubscriptionWhereUniqueInput!]
-}
-
-input TechBusinessLeadRelateToManyForCreateInput {
-  create: [TechBusinessLeadCreateInput!]
-  connect: [TechBusinessLeadWhereUniqueInput!]
 }
 
 type WishList {
@@ -3559,380 +3944,6 @@ input WishListCreateInput {
   user: UserRelateToOneForCreateInput
   product: ProductRelateToManyForCreateInput
   createdAt: DateTime
-}
-
-type SaasCompany {
-  id: ID!
-  name: String
-  users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
-  usersCount(where: UserWhereInput! = {}): Int
-  plan: SaasPlan
-  subscriptionStartedAt: CalendarDay
-  monthlyLeadSyncRecords(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
-  monthlyLeadSyncRecordsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
-  allowedGooglePlaceCategories: JSON
-  leads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
-  leadsCount(where: TechBusinessLeadWhereInput! = {}): Int
-  subscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
-  subscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
-  techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
-  techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasCompanyWhereUniqueInput {
-  id: ID
-}
-
-input SaasCompanyWhereInput {
-  AND: [SaasCompanyWhereInput!]
-  OR: [SaasCompanyWhereInput!]
-  NOT: [SaasCompanyWhereInput!]
-  id: IDFilter
-  name: StringFilter
-  users: UserManyRelationFilter
-  plan: SaasPlanWhereInput
-  subscriptionStartedAt: CalendarDayNullableFilter
-  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
-  leads: TechBusinessLeadManyRelationFilter
-  subscriptions: SaasCompanySubscriptionManyRelationFilter
-  techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
-  createdAt: DateTimeNullableFilter
-  updatedAt: DateTimeNullableFilter
-}
-
-input SaasCompanyMonthlyLeadSyncManyRelationFilter {
-  every: SaasCompanyMonthlyLeadSyncWhereInput
-  some: SaasCompanyMonthlyLeadSyncWhereInput
-  none: SaasCompanyMonthlyLeadSyncWhereInput
-}
-
-input SaasCompanySubscriptionManyRelationFilter {
-  every: SaasCompanySubscriptionWhereInput
-  some: SaasCompanySubscriptionWhereInput
-  none: SaasCompanySubscriptionWhereInput
-}
-
-input SaasCompanyOrderByInput {
-  id: OrderDirection
-  name: OrderDirection
-  subscriptionStartedAt: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-input SaasCompanyUpdateInput {
-  name: String
-  users: UserRelateToManyForUpdateInput
-  plan: SaasPlanRelateToOneForUpdateInput
-  subscriptionStartedAt: CalendarDay
-  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
-  allowedGooglePlaceCategories: JSON
-  leads: TechBusinessLeadRelateToManyForUpdateInput
-  subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
-  techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasPlanRelateToOneForUpdateInput {
-  create: SaasPlanCreateInput
-  connect: SaasPlanWhereUniqueInput
-  disconnect: Boolean
-}
-
-input SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput {
-  disconnect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
-  set: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
-  create: [SaasCompanyMonthlyLeadSyncCreateInput!]
-  connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
-}
-
-input SaasCompanySubscriptionRelateToManyForUpdateInput {
-  disconnect: [SaasCompanySubscriptionWhereUniqueInput!]
-  set: [SaasCompanySubscriptionWhereUniqueInput!]
-  create: [SaasCompanySubscriptionCreateInput!]
-  connect: [SaasCompanySubscriptionWhereUniqueInput!]
-}
-
-input SaasCompanyUpdateArgs {
-  where: SaasCompanyWhereUniqueInput!
-  data: SaasCompanyUpdateInput!
-}
-
-input SaasCompanyCreateInput {
-  name: String
-  users: UserRelateToManyForCreateInput
-  plan: SaasPlanRelateToOneForCreateInput
-  subscriptionStartedAt: CalendarDay
-  monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
-  allowedGooglePlaceCategories: JSON
-  leads: TechBusinessLeadRelateToManyForCreateInput
-  subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
-  techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasPlanRelateToOneForCreateInput {
-  create: SaasPlanCreateInput
-  connect: SaasPlanWhereUniqueInput
-}
-
-input SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput {
-  create: [SaasCompanyMonthlyLeadSyncCreateInput!]
-  connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
-}
-
-input SaasCompanySubscriptionRelateToManyForCreateInput {
-  create: [SaasCompanySubscriptionCreateInput!]
-  connect: [SaasCompanySubscriptionWhereUniqueInput!]
-}
-
-type SaasPlan {
-  id: ID!
-  name: String
-  cost: Float
-  frequency: String
-  currency: String
-  leadLimit: Int
-  companies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
-  companiesCount(where: SaasCompanyWhereInput! = {}): Int
-  active: Boolean
-  stripePriceId: String
-  stripeProductId: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasPlanWhereUniqueInput {
-  id: ID
-  stripePriceId: String
-}
-
-input SaasPlanWhereInput {
-  AND: [SaasPlanWhereInput!]
-  OR: [SaasPlanWhereInput!]
-  NOT: [SaasPlanWhereInput!]
-  id: IDFilter
-  name: StringFilter
-  cost: FloatNullableFilter
-  frequency: StringNullableFilter
-  currency: StringFilter
-  leadLimit: IntNullableFilter
-  companies: SaasCompanyManyRelationFilter
-  active: BooleanFilter
-  stripePriceId: StringNullableFilter
-  stripeProductId: StringNullableFilter
-  createdAt: DateTimeNullableFilter
-  updatedAt: DateTimeNullableFilter
-}
-
-input SaasPlanOrderByInput {
-  id: OrderDirection
-  name: OrderDirection
-  cost: OrderDirection
-  frequency: OrderDirection
-  currency: OrderDirection
-  leadLimit: OrderDirection
-  active: OrderDirection
-  stripePriceId: OrderDirection
-  stripeProductId: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-input SaasPlanUpdateInput {
-  name: String
-  cost: Float
-  frequency: String
-  currency: String
-  leadLimit: Int
-  companies: SaasCompanyRelateToManyForUpdateInput
-  active: Boolean
-  stripePriceId: String
-  stripeProductId: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasPlanUpdateArgs {
-  where: SaasPlanWhereUniqueInput!
-  data: SaasPlanUpdateInput!
-}
-
-input SaasPlanCreateInput {
-  name: String
-  cost: Float
-  frequency: String
-  currency: String
-  leadLimit: Int
-  companies: SaasCompanyRelateToManyForCreateInput
-  active: Boolean
-  stripePriceId: String
-  stripeProductId: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-type SaasCompanyMonthlyLeadSync {
-  id: ID!
-  company: SaasCompany
-  year: Int
-  month: Int
-  syncedCount: Int
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasCompanyMonthlyLeadSyncWhereUniqueInput {
-  id: ID
-}
-
-input SaasCompanyMonthlyLeadSyncWhereInput {
-  AND: [SaasCompanyMonthlyLeadSyncWhereInput!]
-  OR: [SaasCompanyMonthlyLeadSyncWhereInput!]
-  NOT: [SaasCompanyMonthlyLeadSyncWhereInput!]
-  id: IDFilter
-  company: SaasCompanyWhereInput
-  year: IntFilter
-  month: IntFilter
-  syncedCount: IntNullableFilter
-  createdAt: DateTimeNullableFilter
-  updatedAt: DateTimeNullableFilter
-}
-
-input SaasCompanyMonthlyLeadSyncOrderByInput {
-  id: OrderDirection
-  year: OrderDirection
-  month: OrderDirection
-  syncedCount: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-input SaasCompanyMonthlyLeadSyncUpdateInput {
-  company: SaasCompanyRelateToOneForUpdateInput
-  year: Int
-  month: Int
-  syncedCount: Int
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasCompanyMonthlyLeadSyncUpdateArgs {
-  where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!
-  data: SaasCompanyMonthlyLeadSyncUpdateInput!
-}
-
-input SaasCompanyMonthlyLeadSyncCreateInput {
-  company: SaasCompanyRelateToOneForCreateInput
-  year: Int
-  month: Int
-  syncedCount: Int
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-type SaasCompanySubscription {
-  id: ID!
-  company: SaasCompany
-  planName: String
-  planCost: Float
-  planFrequency: String
-  planLeadLimit: Int
-  planStripePriceId: String
-  planCurrency: String
-  activeInStripe: Boolean
-  status: String
-  activatedAt: CalendarDay
-  currentPeriodEnd: CalendarDay
-  stripeSubscriptionId: String
-  stripeCustomerId: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasCompanySubscriptionWhereUniqueInput {
-  id: ID
-}
-
-input SaasCompanySubscriptionWhereInput {
-  AND: [SaasCompanySubscriptionWhereInput!]
-  OR: [SaasCompanySubscriptionWhereInput!]
-  NOT: [SaasCompanySubscriptionWhereInput!]
-  id: IDFilter
-  company: SaasCompanyWhereInput
-  planName: StringFilter
-  planCost: FloatNullableFilter
-  planFrequency: StringFilter
-  planLeadLimit: IntNullableFilter
-  planStripePriceId: StringFilter
-  planCurrency: StringFilter
-  status: StringNullableFilter
-  activatedAt: CalendarDayNullableFilter
-  currentPeriodEnd: CalendarDayNullableFilter
-  stripeSubscriptionId: StringNullableFilter
-  stripeCustomerId: StringNullableFilter
-  createdAt: DateTimeNullableFilter
-  updatedAt: DateTimeNullableFilter
-}
-
-input SaasCompanySubscriptionOrderByInput {
-  id: OrderDirection
-  planName: OrderDirection
-  planCost: OrderDirection
-  planFrequency: OrderDirection
-  planLeadLimit: OrderDirection
-  planStripePriceId: OrderDirection
-  planCurrency: OrderDirection
-  status: OrderDirection
-  activatedAt: OrderDirection
-  currentPeriodEnd: OrderDirection
-  stripeSubscriptionId: OrderDirection
-  stripeCustomerId: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-input SaasCompanySubscriptionUpdateInput {
-  company: SaasCompanyRelateToOneForUpdateInput
-  planName: String
-  planCost: Float
-  planFrequency: String
-  planLeadLimit: Int
-  planStripePriceId: String
-  planCurrency: String
-  status: String
-  activatedAt: CalendarDay
-  currentPeriodEnd: CalendarDay
-  stripeSubscriptionId: String
-  stripeCustomerId: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input SaasCompanySubscriptionUpdateArgs {
-  where: SaasCompanySubscriptionWhereUniqueInput!
-  data: SaasCompanySubscriptionUpdateInput!
-}
-
-input SaasCompanySubscriptionCreateInput {
-  company: SaasCompanyRelateToOneForCreateInput
-  planName: String
-  planCost: Float
-  planFrequency: String
-  planLeadLimit: Int
-  planStripePriceId: String
-  planCurrency: String
-  status: String
-  activatedAt: CalendarDay
-  currentPeriodEnd: CalendarDay
-  stripeSubscriptionId: String
-  stripeCustomerId: String
-  createdAt: DateTime
-  updatedAt: DateTime
 }
 
 """
@@ -4115,6 +4126,30 @@ type Mutation {
   updateRoles(data: [RoleUpdateArgs!]!): [Role]
   deleteRole(where: RoleWhereUniqueInput!): Role
   deleteRoles(where: [RoleWhereUniqueInput!]!): [Role]
+  createSaasCompany(data: SaasCompanyCreateInput!): SaasCompany
+  createSaasCompanies(data: [SaasCompanyCreateInput!]!): [SaasCompany]
+  updateSaasCompany(where: SaasCompanyWhereUniqueInput!, data: SaasCompanyUpdateInput!): SaasCompany
+  updateSaasCompanies(data: [SaasCompanyUpdateArgs!]!): [SaasCompany]
+  deleteSaasCompany(where: SaasCompanyWhereUniqueInput!): SaasCompany
+  deleteSaasCompanies(where: [SaasCompanyWhereUniqueInput!]!): [SaasCompany]
+  createSaasCompanyMonthlyLeadSync(data: SaasCompanyMonthlyLeadSyncCreateInput!): SaasCompanyMonthlyLeadSync
+  createSaasCompanyMonthlyLeadSyncs(data: [SaasCompanyMonthlyLeadSyncCreateInput!]!): [SaasCompanyMonthlyLeadSync]
+  updateSaasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!, data: SaasCompanyMonthlyLeadSyncUpdateInput!): SaasCompanyMonthlyLeadSync
+  updateSaasCompanyMonthlyLeadSyncs(data: [SaasCompanyMonthlyLeadSyncUpdateArgs!]!): [SaasCompanyMonthlyLeadSync]
+  deleteSaasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
+  deleteSaasCompanyMonthlyLeadSyncs(where: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]!): [SaasCompanyMonthlyLeadSync]
+  createSaasCompanySubscription(data: SaasCompanySubscriptionCreateInput!): SaasCompanySubscription
+  createSaasCompanySubscriptions(data: [SaasCompanySubscriptionCreateInput!]!): [SaasCompanySubscription]
+  updateSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!, data: SaasCompanySubscriptionUpdateInput!): SaasCompanySubscription
+  updateSaasCompanySubscriptions(data: [SaasCompanySubscriptionUpdateArgs!]!): [SaasCompanySubscription]
+  deleteSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
+  deleteSaasCompanySubscriptions(where: [SaasCompanySubscriptionWhereUniqueInput!]!): [SaasCompanySubscription]
+  createSaasPlan(data: SaasPlanCreateInput!): SaasPlan
+  createSaasPlans(data: [SaasPlanCreateInput!]!): [SaasPlan]
+  updateSaasPlan(where: SaasPlanWhereUniqueInput!, data: SaasPlanUpdateInput!): SaasPlan
+  updateSaasPlans(data: [SaasPlanUpdateArgs!]!): [SaasPlan]
+  deleteSaasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
+  deleteSaasPlans(where: [SaasPlanWhereUniqueInput!]!): [SaasPlan]
   createSchedule(data: ScheduleCreateInput!): Schedule
   createSchedules(data: [ScheduleCreateInput!]!): [Schedule]
   updateSchedule(where: ScheduleWhereUniqueInput!, data: ScheduleUpdateInput!): Schedule
@@ -4139,18 +4174,6 @@ type Mutation {
   updateTechBusinessLeads(data: [TechBusinessLeadUpdateArgs!]!): [TechBusinessLead]
   deleteTechBusinessLead(where: TechBusinessLeadWhereUniqueInput!): TechBusinessLead
   deleteTechBusinessLeads(where: [TechBusinessLeadWhereUniqueInput!]!): [TechBusinessLead]
-  createTechStatusBusinessLead(data: TechStatusBusinessLeadCreateInput!): TechStatusBusinessLead
-  createTechStatusBusinessLeads(data: [TechStatusBusinessLeadCreateInput!]!): [TechStatusBusinessLead]
-  updateTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!, data: TechStatusBusinessLeadUpdateInput!): TechStatusBusinessLead
-  updateTechStatusBusinessLeads(data: [TechStatusBusinessLeadUpdateArgs!]!): [TechStatusBusinessLead]
-  deleteTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
-  deleteTechStatusBusinessLeads(where: [TechStatusBusinessLeadWhereUniqueInput!]!): [TechStatusBusinessLead]
-  createTechSalesActivity(data: TechSalesActivityCreateInput!): TechSalesActivity
-  createTechSalesActivities(data: [TechSalesActivityCreateInput!]!): [TechSalesActivity]
-  updateTechSalesActivity(where: TechSalesActivityWhereUniqueInput!, data: TechSalesActivityUpdateInput!): TechSalesActivity
-  updateTechSalesActivities(data: [TechSalesActivityUpdateArgs!]!): [TechSalesActivity]
-  deleteTechSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
-  deleteTechSalesActivities(where: [TechSalesActivityWhereUniqueInput!]!): [TechSalesActivity]
   createTechFollowUpTask(data: TechFollowUpTaskCreateInput!): TechFollowUpTask
   createTechFollowUpTasks(data: [TechFollowUpTaskCreateInput!]!): [TechFollowUpTask]
   updateTechFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!, data: TechFollowUpTaskUpdateInput!): TechFollowUpTask
@@ -4163,6 +4186,18 @@ type Mutation {
   updateTechProposals(data: [TechProposalUpdateArgs!]!): [TechProposal]
   deleteTechProposal(where: TechProposalWhereUniqueInput!): TechProposal
   deleteTechProposals(where: [TechProposalWhereUniqueInput!]!): [TechProposal]
+  createTechSalesActivity(data: TechSalesActivityCreateInput!): TechSalesActivity
+  createTechSalesActivities(data: [TechSalesActivityCreateInput!]!): [TechSalesActivity]
+  updateTechSalesActivity(where: TechSalesActivityWhereUniqueInput!, data: TechSalesActivityUpdateInput!): TechSalesActivity
+  updateTechSalesActivities(data: [TechSalesActivityUpdateArgs!]!): [TechSalesActivity]
+  deleteTechSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
+  deleteTechSalesActivities(where: [TechSalesActivityWhereUniqueInput!]!): [TechSalesActivity]
+  createTechStatusBusinessLead(data: TechStatusBusinessLeadCreateInput!): TechStatusBusinessLead
+  createTechStatusBusinessLeads(data: [TechStatusBusinessLeadCreateInput!]!): [TechStatusBusinessLead]
+  updateTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!, data: TechStatusBusinessLeadUpdateInput!): TechStatusBusinessLead
+  updateTechStatusBusinessLeads(data: [TechStatusBusinessLeadUpdateArgs!]!): [TechStatusBusinessLead]
+  deleteTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
+  deleteTechStatusBusinessLeads(where: [TechStatusBusinessLeadWhereUniqueInput!]!): [TechStatusBusinessLead]
   createTokenNotification(data: TokenNotificationCreateInput!): TokenNotification
   createTokenNotifications(data: [TokenNotificationCreateInput!]!): [TokenNotification]
   updateTokenNotification(where: TokenNotificationWhereUniqueInput!, data: TokenNotificationUpdateInput!): TokenNotification
@@ -4181,30 +4216,6 @@ type Mutation {
   updateWishLists(data: [WishListUpdateArgs!]!): [WishList]
   deleteWishList(where: WishListWhereUniqueInput!): WishList
   deleteWishLists(where: [WishListWhereUniqueInput!]!): [WishList]
-  createSaasCompany(data: SaasCompanyCreateInput!): SaasCompany
-  createSaasCompanies(data: [SaasCompanyCreateInput!]!): [SaasCompany]
-  updateSaasCompany(where: SaasCompanyWhereUniqueInput!, data: SaasCompanyUpdateInput!): SaasCompany
-  updateSaasCompanies(data: [SaasCompanyUpdateArgs!]!): [SaasCompany]
-  deleteSaasCompany(where: SaasCompanyWhereUniqueInput!): SaasCompany
-  deleteSaasCompanies(where: [SaasCompanyWhereUniqueInput!]!): [SaasCompany]
-  createSaasPlan(data: SaasPlanCreateInput!): SaasPlan
-  createSaasPlans(data: [SaasPlanCreateInput!]!): [SaasPlan]
-  updateSaasPlan(where: SaasPlanWhereUniqueInput!, data: SaasPlanUpdateInput!): SaasPlan
-  updateSaasPlans(data: [SaasPlanUpdateArgs!]!): [SaasPlan]
-  deleteSaasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
-  deleteSaasPlans(where: [SaasPlanWhereUniqueInput!]!): [SaasPlan]
-  createSaasCompanyMonthlyLeadSync(data: SaasCompanyMonthlyLeadSyncCreateInput!): SaasCompanyMonthlyLeadSync
-  createSaasCompanyMonthlyLeadSyncs(data: [SaasCompanyMonthlyLeadSyncCreateInput!]!): [SaasCompanyMonthlyLeadSync]
-  updateSaasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!, data: SaasCompanyMonthlyLeadSyncUpdateInput!): SaasCompanyMonthlyLeadSync
-  updateSaasCompanyMonthlyLeadSyncs(data: [SaasCompanyMonthlyLeadSyncUpdateArgs!]!): [SaasCompanyMonthlyLeadSync]
-  deleteSaasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
-  deleteSaasCompanyMonthlyLeadSyncs(where: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]!): [SaasCompanyMonthlyLeadSync]
-  createSaasCompanySubscription(data: SaasCompanySubscriptionCreateInput!): SaasCompanySubscription
-  createSaasCompanySubscriptions(data: [SaasCompanySubscriptionCreateInput!]!): [SaasCompanySubscription]
-  updateSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!, data: SaasCompanySubscriptionUpdateInput!): SaasCompanySubscription
-  updateSaasCompanySubscriptions(data: [SaasCompanySubscriptionUpdateArgs!]!): [SaasCompanySubscription]
-  deleteSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
-  deleteSaasCompanySubscriptions(where: [SaasCompanySubscriptionWhereUniqueInput!]!): [SaasCompanySubscription]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -4324,6 +4335,18 @@ type Query {
   role(where: RoleWhereUniqueInput!): Role
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
+  saasCompany(where: SaasCompanyWhereUniqueInput!): SaasCompany
+  saasCompanies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
+  saasCompaniesCount(where: SaasCompanyWhereInput! = {}): Int
+  saasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
+  saasCompanyMonthlyLeadSyncs(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
+  saasCompanyMonthlyLeadSyncsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
+  saasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
+  saasCompanySubscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
+  saasCompanySubscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
+  saasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
+  saasPlans(where: SaasPlanWhereInput! = {}, orderBy: [SaasPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPlanWhereUniqueInput): [SaasPlan!]
+  saasPlansCount(where: SaasPlanWhereInput! = {}): Int
   schedule(where: ScheduleWhereUniqueInput!): Schedule
   schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
   schedulesCount(where: ScheduleWhereInput! = {}): Int
@@ -4336,18 +4359,18 @@ type Query {
   techBusinessLead(where: TechBusinessLeadWhereUniqueInput!): TechBusinessLead
   techBusinessLeads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
   techBusinessLeadsCount(where: TechBusinessLeadWhereInput! = {}): Int
-  techStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
-  techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
-  techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
-  techSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
-  techSalesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
-  techSalesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
   techFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!): TechFollowUpTask
   techFollowUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   techFollowUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   techProposal(where: TechProposalWhereUniqueInput!): TechProposal
   techProposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
   techProposalsCount(where: TechProposalWhereInput! = {}): Int
+  techSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
+  techSalesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
+  techSalesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  techStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
+  techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
+  techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   tokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
   tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
   tokenNotificationsCount(where: TokenNotificationWhereInput! = {}): Int
@@ -4357,18 +4380,6 @@ type Query {
   wishList(where: WishListWhereUniqueInput!): WishList
   wishLists(where: WishListWhereInput! = {}, orderBy: [WishListOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WishListWhereUniqueInput): [WishList!]
   wishListsCount(where: WishListWhereInput! = {}): Int
-  saasCompany(where: SaasCompanyWhereUniqueInput!): SaasCompany
-  saasCompanies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
-  saasCompaniesCount(where: SaasCompanyWhereInput! = {}): Int
-  saasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
-  saasPlans(where: SaasPlanWhereInput! = {}, orderBy: [SaasPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPlanWhereUniqueInput): [SaasPlan!]
-  saasPlansCount(where: SaasPlanWhereInput! = {}): Int
-  saasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
-  saasCompanyMonthlyLeadSyncs(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
-  saasCompanyMonthlyLeadSyncsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
-  saasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
-  saasCompanySubscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
-  saasCompanySubscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!

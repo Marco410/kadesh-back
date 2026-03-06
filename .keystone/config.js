@@ -2828,6 +2828,7 @@ var SaasPlan_default = (0, import_core42.list)({
         "cost",
         "frequency",
         "leadLimit",
+        "planFeatures",
         "active",
         "stripePriceId",
         "companies"
@@ -2859,6 +2860,17 @@ var SaasPlan_default = (0, import_core42.list)({
     leadLimit: (0, import_fields42.integer)({
       ui: { description: "Max leads that can be synced per month for this plan" }
     }),
+    /**
+     * Plan features: what this plan offers. JSON array of { key, name, description? }.
+     * key: used in code to enable/check feature (e.g. "lead_sync", "reports", "api_access").
+     * name: display name. description: optional.
+     * Copied to SaasCompanySubscription.planFeatures when subscribing.
+     */
+    planFeatures: (0, import_fields42.json)({
+      ui: {
+        description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
+      }
+    }),
     companies: (0, import_fields42.relationship)({
       ref: "SaasCompany.plan",
       many: true,
@@ -2868,6 +2880,10 @@ var SaasPlan_default = (0, import_core42.list)({
     active: (0, import_fields42.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
+    }),
+    bestSeller: (0, import_fields42.checkbox)({
+      defaultValue: false,
+      ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
     stripePriceId: (0, import_fields42.text)({
@@ -3015,6 +3031,7 @@ var SaasCompanySubscription_default = (0, import_core44.list)({
         "planName",
         "planCost",
         "planLeadLimit",
+        "planFeatures",
         "status",
         "activeInStripe",
         "activatedAt",
@@ -3053,7 +3070,11 @@ var SaasCompanySubscription_default = (0, import_core44.list)({
     planCurrency: (0, import_fields44.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    /** Virtual: checks Stripe API if the contracted price (planStripePriceId) is still active. Requires STRIPE_SECRET_KEY. */
+    planFeatures: (0, import_fields44.json)({
+      ui: {
+        description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
+      }
+    }),
     activeInStripe: (0, import_fields44.virtual)({
       field: import_core44.graphql.field({
         type: import_core44.graphql.Boolean,

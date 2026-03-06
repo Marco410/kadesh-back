@@ -8,6 +8,7 @@ import {
   relationship,
   timestamp,
   virtual,
+  json,
 } from "@keystone-6/core/fields";
 import { saasCompanySubscriptionAccess } from "./SaasCompanySubscription.access";
 import { SUBSCRIPTION_STATUS_OPTIONS } from "./constants";
@@ -40,6 +41,7 @@ export default list({
         "planName",
         "planCost",
         "planLeadLimit",
+        "planFeatures",
         "status",
         "activeInStripe",
         "activatedAt",
@@ -78,7 +80,12 @@ export default list({
     planCurrency: text({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" },
     }),
-    /** Virtual: checks Stripe API if the contracted price (planStripePriceId) is still active. Requires STRIPE_SECRET_KEY. */
+    planFeatures: json({
+      ui: {
+        description:
+          "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features.",
+      },
+    }),
     activeInStripe: virtual({
       field: graphql.field({
         type: graphql.Boolean,

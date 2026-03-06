@@ -458,6 +458,81 @@ model Role {
   createdAt DateTime? @default(now())
 }
 
+model SaasCompany {
+  id                           String                       @id @default(cuid())
+  name                         String                       @default("")
+  users                        User[]                       @relation("User_company")
+  plan                         SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
+  planId                       String?                      @map("plan")
+  subscriptionStartedAt        DateTime?                    @postgresql.Date
+  monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
+  allowedGooglePlaceCategories Json?
+  leads                        TechBusinessLead[]           @relation("SaasCompany_leads")
+  subscriptions                SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
+  techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
+  createdAt                    DateTime?                    @default(now())
+  updatedAt                    DateTime?                    @updatedAt
+
+  @@index([name])
+  @@index([planId])
+}
+
+model SaasCompanyMonthlyLeadSync {
+  id          String       @id @default(cuid())
+  company     SaasCompany? @relation("SaasCompanyMonthlyLeadSync_company", fields: [companyId], references: [id])
+  companyId   String?      @map("company")
+  year        Int
+  month       Int
+  syncedCount Int?         @default(0)
+  createdAt   DateTime?    @default(now())
+  updatedAt   DateTime?    @updatedAt
+
+  @@index([companyId])
+  @@index([year])
+  @@index([month])
+}
+
+model SaasCompanySubscription {
+  id                   String       @id @default(cuid())
+  company              SaasCompany? @relation("SaasCompanySubscription_company", fields: [companyId], references: [id])
+  companyId            String?      @map("company")
+  planName             String       @default("")
+  planCost             Float?
+  planFrequency        String       @default("")
+  planLeadLimit        Int?
+  planStripePriceId    String       @default("")
+  planCurrency         String       @default("")
+  planFeatures         Json?
+  status               String?      @default("active")
+  activatedAt          DateTime?    @postgresql.Date
+  currentPeriodEnd     DateTime?    @postgresql.Date
+  stripeSubscriptionId String?
+  stripeCustomerId     String?
+  createdAt            DateTime?    @default(now())
+  updatedAt            DateTime?    @updatedAt
+
+  @@index([companyId])
+}
+
+model SaasPlan {
+  id              String        @id @default(cuid())
+  name            String        @default("")
+  cost            Float?
+  frequency       String?
+  currency        String        @default("mxn")
+  leadLimit       Int?
+  planFeatures    Json?
+  companies       SaasCompany[] @relation("SaasCompany_plan")
+  active          Boolean       @default(true)
+  bestSeller      Boolean       @default(false)
+  stripePriceId   String?       @unique
+  stripeProductId String?
+  createdAt       DateTime?     @default(now())
+  updatedAt       DateTime?     @updatedAt
+
+  @@index([name])
+}
+
 model Schedule {
   id          String    @id @default(cuid())
   day         String
@@ -532,45 +607,6 @@ model TechBusinessLead {
   @@index([country])
 }
 
-model TechStatusBusinessLead {
-  id               String            @id @default(cuid())
-  businessLead     TechBusinessLead? @relation("TechStatusBusinessLead_businessLead", fields: [businessLeadId], references: [id])
-  businessLeadId   String?           @map("businessLead")
-  opportunityLevel String?           @default("Media")
-  pipelineStatus   String?           @default("01 - Detectado")
-  estimatedValue   Float?
-  productOffered   String            @default("")
-  firstContactDate DateTime?         @postgresql.Date
-  saasCompany      SaasCompany?      @relation("TechStatusBusinessLead_saasCompany", fields: [saasCompanyId], references: [id])
-  saasCompanyId    String?           @map("saasCompany")
-  salesPerson      User?             @relation("TechStatusBusinessLead_salesPerson", fields: [salesPersonId], references: [id])
-  salesPersonId    String?           @map("salesPerson")
-  notes            String            @default("")
-
-  @@index([businessLeadId])
-  @@index([opportunityLevel])
-  @@index([pipelineStatus])
-  @@index([saasCompanyId])
-  @@index([salesPersonId])
-}
-
-model TechSalesActivity {
-  id               String            @id @default(cuid())
-  type             String
-  activityDate     DateTime          @default(now())
-  result           String            @default("")
-  comments         String            @default("")
-  businessLead     TechBusinessLead? @relation("TechSalesActivity_businessLead", fields: [businessLeadId], references: [id])
-  businessLeadId   String?           @map("businessLead")
-  assignedSeller   User?             @relation("TechSalesActivity_assignedSeller", fields: [assignedSellerId], references: [id])
-  assignedSellerId String?           @map("assignedSeller")
-  createdAt        DateTime?         @default(now())
-
-  @@index([type])
-  @@index([businessLeadId])
-  @@index([assignedSellerId])
-}
-
 model TechFollowUpTask {
   id               String            @id @default(cuid())
   scheduledDate    DateTime          @postgresql.Date
@@ -606,6 +642,45 @@ model TechProposal {
   @@index([status])
   @@index([businessLeadId])
   @@index([assignedSellerId])
+}
+
+model TechSalesActivity {
+  id               String            @id @default(cuid())
+  type             String
+  activityDate     DateTime          @default(now())
+  result           String            @default("")
+  comments         String            @default("")
+  businessLead     TechBusinessLead? @relation("TechSalesActivity_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId   String?           @map("businessLead")
+  assignedSeller   User?             @relation("TechSalesActivity_assignedSeller", fields: [assignedSellerId], references: [id])
+  assignedSellerId String?           @map("assignedSeller")
+  createdAt        DateTime?         @default(now())
+
+  @@index([type])
+  @@index([businessLeadId])
+  @@index([assignedSellerId])
+}
+
+model TechStatusBusinessLead {
+  id               String            @id @default(cuid())
+  businessLead     TechBusinessLead? @relation("TechStatusBusinessLead_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId   String?           @map("businessLead")
+  opportunityLevel String?           @default("Media")
+  pipelineStatus   String?           @default("01 - Detectado")
+  estimatedValue   Float?
+  productOffered   String            @default("")
+  firstContactDate DateTime?         @postgresql.Date
+  saasCompany      SaasCompany?      @relation("TechStatusBusinessLead_saasCompany", fields: [saasCompanyId], references: [id])
+  saasCompanyId    String?           @map("saasCompany")
+  salesPerson      User?             @relation("TechStatusBusinessLead_salesPerson", fields: [salesPersonId], references: [id])
+  salesPersonId    String?           @map("salesPerson")
+  notes            String            @default("")
+
+  @@index([businessLeadId])
+  @@index([opportunityLevel])
+  @@index([pipelineStatus])
+  @@index([saasCompanyId])
+  @@index([salesPersonId])
 }
 
 model TokenNotification {
@@ -677,78 +752,6 @@ model WishList {
   createdAt DateTime? @default(now())
 
   @@index([userId])
-}
-
-model SaasCompany {
-  id                           String                       @id @default(cuid())
-  name                         String                       @default("")
-  users                        User[]                       @relation("User_company")
-  plan                         SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
-  planId                       String?                      @map("plan")
-  subscriptionStartedAt        DateTime?                    @postgresql.Date
-  monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
-  allowedGooglePlaceCategories Json?
-  leads                        TechBusinessLead[]           @relation("SaasCompany_leads")
-  subscriptions                SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
-  techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
-  createdAt                    DateTime?                    @default(now())
-  updatedAt                    DateTime?                    @updatedAt
-
-  @@index([name])
-  @@index([planId])
-}
-
-model SaasPlan {
-  id              String        @id @default(cuid())
-  name            String        @default("")
-  cost            Float?
-  frequency       String?
-  currency        String        @default("mxn")
-  leadLimit       Int?
-  companies       SaasCompany[] @relation("SaasCompany_plan")
-  active          Boolean       @default(true)
-  stripePriceId   String?       @unique
-  stripeProductId String?
-  createdAt       DateTime?     @default(now())
-  updatedAt       DateTime?     @updatedAt
-
-  @@index([name])
-}
-
-model SaasCompanyMonthlyLeadSync {
-  id          String       @id @default(cuid())
-  company     SaasCompany? @relation("SaasCompanyMonthlyLeadSync_company", fields: [companyId], references: [id])
-  companyId   String?      @map("company")
-  year        Int
-  month       Int
-  syncedCount Int?         @default(0)
-  createdAt   DateTime?    @default(now())
-  updatedAt   DateTime?    @updatedAt
-
-  @@index([companyId])
-  @@index([year])
-  @@index([month])
-}
-
-model SaasCompanySubscription {
-  id                   String       @id @default(cuid())
-  company              SaasCompany? @relation("SaasCompanySubscription_company", fields: [companyId], references: [id])
-  companyId            String?      @map("company")
-  planName             String       @default("")
-  planCost             Float?
-  planFrequency        String       @default("")
-  planLeadLimit        Int?
-  planStripePriceId    String       @default("")
-  planCurrency         String       @default("")
-  status               String?      @default("active")
-  activatedAt          DateTime?    @postgresql.Date
-  currentPeriodEnd     DateTime?    @postgresql.Date
-  stripeSubscriptionId String?
-  stripeCustomerId     String?
-  createdAt            DateTime?    @default(now())
-  updatedAt            DateTime?    @updatedAt
-
-  @@index([companyId])
 }
 
 enum PaymentStatusType {

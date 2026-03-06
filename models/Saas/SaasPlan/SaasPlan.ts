@@ -7,6 +7,7 @@ import {
   relationship,
   timestamp,
   checkbox,
+  json,
 } from "@keystone-6/core/fields";
 import { saasPlanAccess } from "./SaasPlan.access";
 import { PLAN_FREQUENCY_OPTIONS } from "./constants";
@@ -20,6 +21,7 @@ export default list({
         "cost",
         "frequency",
         "leadLimit",
+        "planFeatures",
         "active",
         "stripePriceId",
         "companies",
@@ -51,6 +53,18 @@ export default list({
     leadLimit: integer({
       ui: { description: "Max leads that can be synced per month for this plan" },
     }),
+    /**
+     * Plan features: what this plan offers. JSON array of { key, name, description? }.
+     * key: used in code to enable/check feature (e.g. "lead_sync", "reports", "api_access").
+     * name: display name. description: optional.
+     * Copied to SaasCompanySubscription.planFeatures when subscribing.
+     */
+    planFeatures: json({
+      ui: {
+        description:
+          'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.',
+      },
+    }),
     companies: relationship({
       ref: "SaasCompany.plan",
       many: true,
@@ -60,6 +74,10 @@ export default list({
     active: checkbox({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" },
+    }),
+    bestSeller: checkbox({
+      defaultValue: false,
+      ui: { description: "Plan best seller" },
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
     stripePriceId: text({
