@@ -2525,6 +2525,7 @@ type SaasCompany {
   leads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
   leadsCount(where: TechBusinessLeadWhereInput! = {}): Int
   plan: SaasPlan
+  subscriptionStartedAt: CalendarDay
   subscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
   subscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
   techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
@@ -2548,6 +2549,7 @@ input SaasCompanyWhereInput {
   users: UserManyRelationFilter
   leads: TechBusinessLeadManyRelationFilter
   plan: SaasPlanWhereInput
+  subscriptionStartedAt: CalendarDayNullableFilter
   subscriptions: SaasCompanySubscriptionManyRelationFilter
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
@@ -2582,6 +2584,7 @@ input SaasCompanyMonthlyLeadSyncManyRelationFilter {
 input SaasCompanyOrderByInput {
   id: OrderDirection
   name: OrderDirection
+  subscriptionStartedAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2592,6 +2595,7 @@ input SaasCompanyUpdateInput {
   allowedGooglePlaceCategories: JSON
   leads: TechBusinessLeadRelateToManyForUpdateInput
   plan: SaasPlanRelateToOneForUpdateInput
+  subscriptionStartedAt: CalendarDay
   subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
@@ -2644,6 +2648,7 @@ input SaasCompanyCreateInput {
   allowedGooglePlaceCategories: JSON
   leads: TechBusinessLeadRelateToManyForCreateInput
   plan: SaasPlanRelateToOneForCreateInput
+  subscriptionStartedAt: CalendarDay
   subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput

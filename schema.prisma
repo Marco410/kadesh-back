@@ -466,6 +466,7 @@ model SaasCompany {
   leads                        TechBusinessLead[]           @relation("SaasCompany_leads")
   plan                         SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
   planId                       String?                      @map("plan")
+  subscriptionStartedAt        DateTime?                    @postgresql.Date
   subscriptions                SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
   techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
   monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")

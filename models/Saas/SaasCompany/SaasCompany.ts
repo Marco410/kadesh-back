@@ -57,6 +57,11 @@ export default list({
       many: false,
       ui: { description: "Current plan for this company" },
     }),
+    /** Date when the company started its first subscription (e.g. free trial). */
+    subscriptionStartedAt: calendarDay({
+      db: { isNullable: true },
+      ui: { description: "Date when the first subscription started" },
+    }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
     subscriptions: relationship({
       ref: "SaasCompanySubscription.company",

@@ -2903,6 +2903,11 @@ var SaasCompany_default = (0, import_core41.list)({
       many: false,
       ui: { description: "Current plan for this company" }
     }),
+    /** Date when the company started its first subscription (e.g. free trial). */
+    subscriptionStartedAt: (0, import_fields41.calendarDay)({
+      db: { isNullable: true },
+      ui: { description: "Date when the first subscription started" }
+    }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
     subscriptions: (0, import_fields41.relationship)({
       ref: "SaasCompanySubscription.company",
