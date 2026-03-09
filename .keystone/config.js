@@ -2793,6 +2793,7 @@ var saasCompanySubscriptionHook = {
     try {
       const session2 = context.session;
       const createdByUserId = session2?.data?.id;
+      console.log("createdByUserId", createdByUserId);
       if (createdByUserId) {
         const [adminCompanyRole] = await context.sudo().query.Role.findMany({
           where: { name: { equals: "admin_company" /* ADMIN_COMPANY */ } },
