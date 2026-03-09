@@ -20,14 +20,16 @@ async function ensureStatusForLeadAssignment(
   userId: string,
   opportunityLevel: "Alta" | "Media" | "Baja" = "Media",
 ): Promise<void> {
-  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
-    where: {
-      businessLead: { id: { equals: leadId } },
-      saasCompany: { id: { equals: companyId } },
-    },
-    take: 1,
-    query: "id",
-  });
+  const [existing] = await context
+    .sudo()
+    .query.TechStatusBusinessLead.findMany({
+      where: {
+        businessLead: { id: { equals: leadId } },
+        saasCompany: { id: { equals: companyId } },
+      },
+      take: 1,
+      query: "id",
+    });
   if (existing) {
     await context.sudo().query.TechStatusBusinessLead.updateOne({
       where: { id: (existing as { id: string }).id },
@@ -53,7 +55,6 @@ async function ensureStatusForLeadAssignment(
 const MIN_RATING = 3.7;
 const MIN_REVIEWS = 15;
 const DEFAULT_MAX_RESULTS = 60;
-
 
 const typeDefs = `
   input SyncLeadsFrontInput {
@@ -124,7 +125,8 @@ const resolver = {
       query: "id company { id name }",
     });
 
-    const company = (user as { company?: { id: string; name?: string } | null })?.company;
+    const company = (user as { company?: { id: string; name?: string } | null })
+      ?.company;
 
     if (!company?.id) {
       return {
@@ -135,15 +137,17 @@ const resolver = {
     }
 
     // Resolver límite desde la suscripción activa (snapshot del plan contratado), no del plan actual
-    const [activeSubscription] = await context.sudo().query.SaasCompanySubscription.findMany({
-      where: {
-        company: { id: { equals: company.id } },
-        status: { equals: SUBSCRIPTION_STATUS.ACTIVE },
-      },
-      orderBy: [{ activatedAt: "desc" }],
-      take: 1,
-      query: "id planLeadLimit",
-    });
+    const [activeSubscription] = await context
+      .sudo()
+      .query.SaasCompanySubscription.findMany({
+        where: {
+          company: { id: { equals: company.id } },
+          status: { equals: SUBSCRIPTION_STATUS.ACTIVE },
+        },
+        orderBy: [{ activatedAt: "desc" }],
+        take: 1,
+        query: "id planLeadLimit planCost activatedAt",
+      });
 
     if (!activeSubscription) {
       return {
@@ -153,8 +157,32 @@ const resolver = {
       };
     }
 
-    const leadLimit =
-      (activeSubscription as { planLeadLimit: number | null }).planLeadLimit ?? null;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    const sub = activeSubscription as {
+      planLeadLimit: number | null;
+      planCost?: number | null;
+      activatedAt?: string | null;
+    };
+    const isFreePlan = sub.planCost != null && sub.planCost <= 0;
+    if (isFreePlan && sub.activatedAt) {
+      const [subYear, subMonth] = sub.activatedAt.split("-").map(Number);
+      const currentMonthStart = year * 12 + month;
+      const subMonthStart = subYear * 12 + subMonth;
+      if (currentMonthStart > subMonthStart) {
+        return {
+          success: false,
+          message:
+            "Tu plan gratuito ha terminado. Contrata o activa una suscripción para poder obtener más clientes.",
+          ...emptyResult,
+          leadLimit: 0,
+        };
+      }
+    }
+
+    const leadLimit = sub.planLeadLimit ?? null;
 
     if (leadLimit === null) {
       return {
@@ -173,10 +201,6 @@ const resolver = {
         leadLimit,
       };
     }
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
 
     const { id: recordId, syncedCount } = await getOrCreateMonthlyRecord(
       context,
@@ -197,8 +221,16 @@ const resolver = {
       };
     }
 
-    const maxResults = Math.min(input.maxResults ?? DEFAULT_MAX_RESULTS, remainingQuota);
-    const { lat: centerLat, lng: centerLng, radius: radiusKm, category: inputCategory } = input;
+    const maxResults = Math.min(
+      input.maxResults ?? DEFAULT_MAX_RESULTS,
+      remainingQuota,
+    );
+    const {
+      lat: centerLat,
+      lng: centerLng,
+      radius: radiusKm,
+      category: inputCategory,
+    } = input;
 
     // 1) Buscar TechBusinessLead en BD por categoría, dentro del radio; excluir los que ya están asignados a esta company
     const candidates = await context.sudo().query.TechBusinessLead.findMany({
@@ -209,23 +241,33 @@ const resolver = {
       query: "id lat lng saasCompany { id }",
     });
 
-    type LeadCandidate = { id: string; lat: number | null; lng: number | null; saasCompany?: { id: string }[] };
+    type LeadCandidate = {
+      id: string;
+      lat: number | null;
+      lng: number | null;
+      saasCompany?: { id: string }[];
+    };
     const existingIds: string[] = [];
     for (const lead of candidates as LeadCandidate[]) {
       if (existingIds.length >= maxResults) break;
       const leadLat = lead.lat;
       const leadLng = lead.lng;
       if (leadLat == null || leadLng == null) continue;
-      const distanceKm = haversineDistance(centerLat, centerLng, leadLat, leadLng);
+      const distanceKm = haversineDistance(
+        centerLat,
+        centerLng,
+        leadLat,
+        leadLng,
+      );
       if (distanceKm > radiusKm) continue;
       // No asignar si ya está asignado a esta company
       const alreadyAssignedToThisCompany = (lead.saasCompany ?? []).some(
-        (c) => c.id === company.id
+        (c) => c.id === company.id,
       );
       if (alreadyAssignedToThisCompany) continue;
       existingIds.push(lead.id);
     }
-    
+
     // Asignar siempre los leads existentes en el área a esta company (solo connect: un mismo lead puede estar en varias companies).
     let assignedFromDb = 0;
     for (const leadId of existingIds) {
@@ -234,7 +276,12 @@ const resolver = {
           where: { id: leadId },
           data: { saasCompany: { connect: { id: company.id } } }, // ADD only; never replace
         });
-        await ensureStatusForLeadAssignment(context, leadId, company.id, userId);
+        await ensureStatusForLeadAssignment(
+          context,
+          leadId,
+          company.id,
+          userId,
+        );
         assignedFromDb++;
       } catch (_) {}
     }
@@ -248,7 +295,10 @@ const resolver = {
     }
 
     // Si ya alcanzamos maxResults o la cuota, devolver (mismo pool de leads para cualquier company)
-    if (syncedThisRequest >= maxResults || (leadLimit !== null && currentSyncedCount >= leadLimit)) {
+    if (
+      syncedThisRequest >= maxResults ||
+      (leadLimit !== null && currentSyncedCount >= leadLimit)
+    ) {
       return {
         success: true,
         message: `${assignedFromDb} leads asignados. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
@@ -331,8 +381,12 @@ const resolver = {
           });
 
           if (lead) {
-            const leadCompanies = (lead as { id: string; saasCompany?: { id: string }[] }).saasCompany ?? [];
-            const alreadyAssignedToThisCompany = leadCompanies.some((c) => c.id === company.id);
+            const leadCompanies =
+              (lead as { id: string; saasCompany?: { id: string }[] })
+                .saasCompany ?? [];
+            const alreadyAssignedToThisCompany = leadCompanies.some(
+              (c) => c.id === company.id,
+            );
             if (alreadyAssignedToThisCompany) {
               // Ya asignado a esta company: no volver a asignar ni sumar a la cuota
               continue;
@@ -346,8 +400,18 @@ const resolver = {
                 data: { saasCompany: { connect: { id: company.id } } },
               });
               const level: "Alta" | "Media" | "Baja" =
-                placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
-              await ensureStatusForLeadAssignment(context, leadId, company.id, userId, level);
+                placeRating >= 4.5
+                  ? "Alta"
+                  : placeRating >= 4
+                    ? "Media"
+                    : "Baja";
+              await ensureStatusForLeadAssignment(
+                context,
+                leadId,
+                company.id,
+                userId,
+                level,
+              );
               syncedThisRequest++;
               currentSyncedCount++;
             } catch (_) {}
@@ -362,53 +426,62 @@ const resolver = {
           const details = await getPlaceDetails(placeId, apiKey);
           if (!details) continue;
 
-          const { city: parsedCity, state, country } = parseAddressComponents(
-            details.address_components || [],
-          );
+          const {
+            city: parsedCity,
+            state,
+            country,
+          } = parseAddressComponents(details.address_components || []);
           const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
             details,
             category,
           );
 
-            const leadData: Record<string, unknown> = {
-              businessName: details.name,
-              category,
-              phone:
-                details.formatted_phone_number ||
-                details.international_phone_number ||
-                "",
-              address: details.formatted_address || "",
-              city: parsedCity || "",
-              state: state || "",
-              country: country || "",
-              rating: details.rating ?? null,
-              reviewCount: details.user_ratings_total ?? null,
-              hasWebsite: !!details.website,
-              source: "Google Maps",
-              googlePlaceId: placeId,
-              googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
-              topReview1: topReviews[0] || null,
-              topReview2: topReviews[1] || null,
-              topReview3: topReviews[2] || null,
-              topReview4: topReviews[3] || null,
-              topReview5: topReviews[4] || null,
-              websitePromptContent,
-              saasCompany: { connect: { id: company.id } },
-              lat: details.geometry?.location?.lat ?? null,
-              lng: details.geometry?.location?.lng ?? null,
-            };
+          const leadData: Record<string, unknown> = {
+            businessName: details.name,
+            category,
+            phone:
+              details.formatted_phone_number ||
+              details.international_phone_number ||
+              "",
+            address: details.formatted_address || "",
+            city: parsedCity || "",
+            state: state || "",
+            country: country || "",
+            rating: details.rating ?? null,
+            reviewCount: details.user_ratings_total ?? null,
+            hasWebsite: !!details.website,
+            source: "Google Maps",
+            googlePlaceId: placeId,
+            googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
+            topReview1: topReviews[0] || null,
+            topReview2: topReviews[1] || null,
+            topReview3: topReviews[2] || null,
+            topReview4: topReviews[3] || null,
+            topReview5: topReviews[4] || null,
+            websitePromptContent,
+            saasCompany: { connect: { id: company.id } },
+            lat: details.geometry?.location?.lat ?? null,
+            lng: details.geometry?.location?.lng ?? null,
+          };
 
           try {
-            const newLead = await context.sudo().query.TechBusinessLead.createOne({
-              data: leadData as any,
-            });
+            const newLead = await context
+              .sudo()
+              .query.TechBusinessLead.createOne({
+                data: leadData as any,
+              });
             await context.sudo().query.TechStatusBusinessLead.createOne({
               data: {
                 businessLead: { connect: { id: newLead.id } },
                 saasCompany: { connect: { id: company.id } },
                 salesPerson: { connect: { id: userId } },
                 pipelineStatus: PIPELINE_STATUS.DETECTADO,
-                opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja",
+                opportunityLevel:
+                  placeRating >= 4.5
+                    ? "Alta"
+                    : placeRating >= 4
+                      ? "Media"
+                      : "Baja",
               },
             });
             created++;

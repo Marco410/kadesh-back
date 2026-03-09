@@ -7,9 +7,13 @@ import {
   json,
 } from "@keystone-6/core/fields";
 import { saasCompanyAccess } from "./SaasCompany.access";
+import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
 
 export default list({
   access: saasCompanyAccess,
+  hooks: {
+    afterOperation: saasCompanySubscriptionHook.afterOperation,
+  },
   ui: {
     listView: {
       initialColumns: [
@@ -35,26 +39,11 @@ export default list({
       many: true,
       ui: { description: "Users belonging to this company" },
     }),
-    /** Subscription plan for this company */
-    plan: relationship({
-      ref: "SaasPlan.companies",
-      many: false,
-      ui: { description: "Subscription plan (defines cost, frequency, lead limit)" },
-    }),
-    /** Date when the company started its subscription */
-    subscriptionStartedAt: calendarDay({
-      ui: { description: "Date when the subscription started" },
-    }),
-    /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: relationship({
-      ref: "SaasCompanyMonthlyLeadSync.company",
-      many: true,
-      ui: { description: "Per-month lead sync usage (for quota enforcement)" },
-    }),
+
     allowedGooglePlaceCategories: json({
       ui: {
         description:
-          "Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. [\"restaurantes\", \"cafeterías\"]). Empty or null = all allowed.",
+          'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeterías"]). Empty or null = all allowed.',
       },
     }),
     leads: relationship({
@@ -66,20 +55,35 @@ export default list({
     subscriptions: relationship({
       ref: "SaasCompanySubscription.company",
       many: true,
-      ui: { description: "Subscription history; plan data is stored as snapshot per record" },
+      ui: {
+        description:
+          "Subscription history; plan data is stored as snapshot per record",
+      },
     }),
     techStatusBusinessLeads: relationship({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" },
     }),
+    /** Monthly lead sync usage records (count of leads synced per month) */
+    monthlyLeadSyncRecords: relationship({
+      ref: "SaasCompanyMonthlyLeadSync.company",
+      many: true,
+      ui: { description: "Per-month lead sync usage (for quota enforcement)" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" },
+      },
     }),
     updatedAt: timestamp({
       db: { updatedAt: true },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" },
+      },
     }),
   },
 });

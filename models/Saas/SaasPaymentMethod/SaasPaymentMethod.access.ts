@@ -1,6 +1,6 @@
 import { ListAccessControl } from "@keystone-6/core/types";
 
-export const saasPaymentMethodAccess: ListAccessControl<unknown> = {
+export const saasPaymentMethodAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
     create: () => true,

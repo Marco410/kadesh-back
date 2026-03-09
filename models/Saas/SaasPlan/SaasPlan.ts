@@ -51,7 +51,9 @@ export default list({
       ui: { description: "Stripe currency code (e.g. mxn, usd)" },
     }),
     leadLimit: integer({
-      ui: { description: "Max leads that can be synced per month for this plan" },
+      ui: {
+        description: "Max leads that can be synced per month for this plan",
+      },
     }),
     /**
      * Plan features: what this plan offers. JSON array of { key, name, description? }.
@@ -64,11 +66,6 @@ export default list({
         description:
           'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.',
       },
-    }),
-    companies: relationship({
-      ref: "SaasCompany.plan",
-      many: true,
-      ui: { description: "Companies using this plan" },
     }),
     /** Payments associated with this plan */
     saasPayments: relationship({
@@ -90,23 +87,36 @@ export default list({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
-        description: "Stripe Price ID (from Stripe Dashboard or API when creating Price)",
+        description:
+          "Stripe Price ID (from Stripe Dashboard or API when creating Price)",
       },
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
     stripeProductId: text({
       db: { isNullable: true },
       ui: {
-        description: "Stripe Product ID (optional, from Stripe when creating Product)",
+        description:
+          "Stripe Product ID (optional, from Stripe when creating Product)",
       },
+    }),
+    subscriptions: relationship({
+      ref: "SaasCompanySubscription.plan",
+      many: true,
+      ui: { description: "Subscriptions for this plan" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" },
+      },
     }),
     updatedAt: timestamp({
       db: { updatedAt: true },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" },
+      },
     }),
   },
 });

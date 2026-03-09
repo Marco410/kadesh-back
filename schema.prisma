@@ -462,19 +462,15 @@ model SaasCompany {
   id                           String                       @id @default(cuid())
   name                         String                       @default("")
   users                        User[]                       @relation("User_company")
-  plan                         SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
-  planId                       String?                      @map("plan")
-  subscriptionStartedAt        DateTime?                    @postgresql.Date
-  monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
   allowedGooglePlaceCategories Json?
   leads                        TechBusinessLead[]           @relation("SaasCompany_leads")
   subscriptions                SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
   techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
+  monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
   createdAt                    DateTime?                    @default(now())
   updatedAt                    DateTime?                    @updatedAt
 
   @@index([name])
-  @@index([planId])
 }
 
 model SaasCompanyMonthlyLeadSync {
@@ -509,10 +505,13 @@ model SaasCompanySubscription {
   stripeSubscriptionId String?
   stripeCustomerId     String?
   saasPayments         SaasPayment[] @relation("SaasPayment_subscription")
+  plan                 SaasPlan?     @relation("SaasCompanySubscription_plan", fields: [planId], references: [id])
+  planId               String?       @map("plan")
   createdAt            DateTime?     @default(now())
   updatedAt            DateTime?     @updatedAt
 
   @@index([companyId])
+  @@index([planId])
 }
 
 model SaasPayment {
@@ -562,21 +561,21 @@ model SaasPaymentMethod {
 }
 
 model SaasPlan {
-  id              String        @id @default(cuid())
-  name            String        @default("")
+  id              String                    @id @default(cuid())
+  name            String                    @default("")
   cost            Float?
   frequency       String?
-  currency        String        @default("mxn")
+  currency        String                    @default("mxn")
   leadLimit       Int?
   planFeatures    Json?
-  companies       SaasCompany[] @relation("SaasCompany_plan")
-  saasPayments    SaasPayment[] @relation("SaasPayment_plan")
-  active          Boolean       @default(true)
-  bestSeller      Boolean       @default(false)
-  stripePriceId   String?       @unique
+  saasPayments    SaasPayment[]             @relation("SaasPayment_plan")
+  active          Boolean                   @default(true)
+  bestSeller      Boolean                   @default(false)
+  stripePriceId   String?                   @unique
   stripeProductId String?
-  createdAt       DateTime?     @default(now())
-  updatedAt       DateTime?     @updatedAt
+  subscriptions   SaasCompanySubscription[] @relation("SaasCompanySubscription_plan")
+  createdAt       DateTime?                 @default(now())
+  updatedAt       DateTime?                 @updatedAt
 
   @@index([name])
 }

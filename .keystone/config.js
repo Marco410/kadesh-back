@@ -2770,9 +2770,76 @@ var saasCompanyAccess = {
   }
 };
 
+// models/Saas/SaasCompanySubscription/constants.ts
+var SUBSCRIPTION_STATUS = {
+  ACTIVE: "active",
+  PAST_DUE: "past_due",
+  CANCELLED: "cancelled",
+  UNPAID: "unpaid",
+  TRIALING: "trialing"
+};
+var SUBSCRIPTION_STATUS_OPTIONS = [
+  { label: "Active", value: SUBSCRIPTION_STATUS.ACTIVE },
+  { label: "Past due", value: SUBSCRIPTION_STATUS.PAST_DUE },
+  { label: "Cancelled", value: SUBSCRIPTION_STATUS.CANCELLED },
+  { label: "Unpaid", value: SUBSCRIPTION_STATUS.UNPAID },
+  { label: "Trialing", value: SUBSCRIPTION_STATUS.TRIALING }
+];
+
+// models/Saas/SaasCompany/SaasCompany.hooks.ts
+var saasCompanySubscriptionHook = {
+  afterOperation: async ({ operation, item, context }) => {
+    if (operation !== "create" || !item?.id) return;
+    try {
+      const [freePlan] = await context.sudo().query.SaasPlan.findMany({
+        where: { cost: { equals: 0 } },
+        take: 1,
+        query: "id name cost frequency leadLimit stripePriceId currency planFeatures"
+      });
+      if (!freePlan) {
+        console.warn(
+          "SaasCompany created but no free plan (cost=0) found; skipping subscription."
+        );
+        return;
+      }
+      const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+      const oneMonthFromNow = /* @__PURE__ */ new Date();
+      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+      const periodEnd = oneMonthFromNow.toISOString().slice(0, 10);
+      await context.sudo().query.SaasCompanySubscription.createOne({
+        data: {
+          company: { connect: { id: item.id } },
+          planName: freePlan.name,
+          planCost: freePlan.cost,
+          planFrequency: freePlan.frequency,
+          planLeadLimit: freePlan.leadLimit,
+          planStripePriceId: freePlan.stripePriceId ?? void 0,
+          planCurrency: freePlan.currency ?? "mxn",
+          planFeatures: freePlan.planFeatures ?? void 0,
+          status: SUBSCRIPTION_STATUS.ACTIVE,
+          activatedAt: today,
+          currentPeriodEnd: periodEnd
+        }
+      });
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: item.id },
+        data: {
+          plan: { connect: { id: freePlan.id } },
+          subscriptionStartedAt: today
+        }
+      });
+    } catch (error) {
+      console.error("Error creating free subscription for SaasCompany:", error);
+    }
+  }
+};
+
 // models/Saas/SaasCompany/SaasCompany.ts
 var SaasCompany_default = (0, import_core41.list)({
   access: saasCompanyAccess,
+  hooks: {
+    afterOperation: saasCompanySubscriptionHook.afterOperation
+  },
   ui: {
     listView: {
       initialColumns: [
@@ -2798,22 +2865,6 @@ var SaasCompany_default = (0, import_core41.list)({
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    /** Subscription plan for this company */
-    plan: (0, import_fields41.relationship)({
-      ref: "SaasPlan.companies",
-      many: false,
-      ui: { description: "Subscription plan (defines cost, frequency, lead limit)" }
-    }),
-    /** Date when the company started its subscription */
-    subscriptionStartedAt: (0, import_fields41.calendarDay)({
-      ui: { description: "Date when the subscription started" }
-    }),
-    /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields41.relationship)({
-      ref: "SaasCompanyMonthlyLeadSync.company",
-      many: true,
-      ui: { description: "Per-month lead sync usage (for quota enforcement)" }
-    }),
     allowedGooglePlaceCategories: (0, import_fields41.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
@@ -2828,20 +2879,34 @@ var SaasCompany_default = (0, import_core41.list)({
     subscriptions: (0, import_fields41.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
-      ui: { description: "Subscription history; plan data is stored as snapshot per record" }
+      ui: {
+        description: "Subscription history; plan data is stored as snapshot per record"
+      }
     }),
     techStatusBusinessLeads: (0, import_fields41.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
+    /** Monthly lead sync usage records (count of leads synced per month) */
+    monthlyLeadSyncRecords: (0, import_fields41.relationship)({
+      ref: "SaasCompanyMonthlyLeadSync.company",
+      many: true,
+      ui: { description: "Per-month lead sync usage (for quota enforcement)" }
+    }),
     createdAt: (0, import_fields41.timestamp)({
       defaultValue: { kind: "now" },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
     }),
     updatedAt: (0, import_fields41.timestamp)({
       db: { updatedAt: true },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
     })
   }
 });
@@ -2917,7 +2982,9 @@ var SaasPlan_default = (0, import_core42.list)({
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
     leadLimit: (0, import_fields42.integer)({
-      ui: { description: "Max leads that can be synced per month for this plan" }
+      ui: {
+        description: "Max leads that can be synced per month for this plan"
+      }
     }),
     /**
      * Plan features: what this plan offers. JSON array of { key, name, description? }.
@@ -2929,11 +2996,6 @@ var SaasPlan_default = (0, import_core42.list)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
-    }),
-    companies: (0, import_fields42.relationship)({
-      ref: "SaasCompany.plan",
-      many: true,
-      ui: { description: "Companies using this plan" }
     }),
     /** Payments associated with this plan */
     saasPayments: (0, import_fields42.relationship)({
@@ -2965,13 +3027,24 @@ var SaasPlan_default = (0, import_core42.list)({
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
+    subscriptions: (0, import_fields42.relationship)({
+      ref: "SaasCompanySubscription.plan",
+      many: true,
+      ui: { description: "Subscriptions for this plan" }
+    }),
     createdAt: (0, import_fields42.timestamp)({
       defaultValue: { kind: "now" },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
     }),
     updatedAt: (0, import_fields42.timestamp)({
       db: { updatedAt: true },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
     })
   }
 });
@@ -3053,33 +3126,20 @@ var saasCompanySubscriptionAccess = {
   }
 };
 
-// models/Saas/SaasCompanySubscription/constants.ts
-var SUBSCRIPTION_STATUS = {
-  ACTIVE: "active",
-  PAST_DUE: "past_due",
-  CANCELLED: "cancelled",
-  UNPAID: "unpaid",
-  TRIALING: "trialing"
-};
-var SUBSCRIPTION_STATUS_OPTIONS = [
-  { label: "Active", value: SUBSCRIPTION_STATUS.ACTIVE },
-  { label: "Past due", value: SUBSCRIPTION_STATUS.PAST_DUE },
-  { label: "Cancelled", value: SUBSCRIPTION_STATUS.CANCELLED },
-  { label: "Unpaid", value: SUBSCRIPTION_STATUS.UNPAID },
-  { label: "Trialing", value: SUBSCRIPTION_STATUS.TRIALING }
-];
-
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
 async function checkStripeSubscriptionActive(subscriptionId) {
   if (!STRIPE_SECRET) return false;
   try {
-    const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
-      headers: {
-        Authorization: `Bearer ${STRIPE_SECRET}`,
-        Accept: "application/json"
+    const res = await fetch(
+      `https://api.stripe.com/v1/subscriptions/${subscriptionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${STRIPE_SECRET}`,
+          Accept: "application/json"
+        }
       }
-    });
+    );
     if (!res.ok) return false;
     const data = await res.json();
     return data.status === "active" || data.status === "trialing";
@@ -3214,13 +3274,27 @@ var SaasCompanySubscription_default = (0, import_core44.list)({
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
+    /** Subscription plan for this company */
+    plan: (0, import_fields44.relationship)({
+      ref: "SaasPlan.subscriptions",
+      many: false,
+      ui: {
+        description: "Subscription plan (defines cost, frequency, lead limit)"
+      }
+    }),
     createdAt: (0, import_fields44.timestamp)({
       defaultValue: { kind: "now" },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
     }),
     updatedAt: (0, import_fields44.timestamp)({
       db: { updatedAt: true },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
     })
   }
 });
@@ -4270,7 +4344,7 @@ var resolver5 = {
       },
       orderBy: [{ activatedAt: "desc" }],
       take: 1,
-      query: "id planLeadLimit"
+      query: "id planLeadLimit planCost activatedAt"
     });
     if (!activeSubscription) {
       return {
@@ -4279,7 +4353,25 @@ var resolver5 = {
         ...emptyResult
       };
     }
-    const leadLimit = activeSubscription.planLeadLimit ?? null;
+    const now = /* @__PURE__ */ new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const sub = activeSubscription;
+    const isFreePlan = sub.planCost != null && sub.planCost <= 0;
+    if (isFreePlan && sub.activatedAt) {
+      const [subYear, subMonth] = sub.activatedAt.split("-").map(Number);
+      const currentMonthStart = year * 12 + month;
+      const subMonthStart = subYear * 12 + subMonth;
+      if (currentMonthStart > subMonthStart) {
+        return {
+          success: false,
+          message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.",
+          ...emptyResult,
+          leadLimit: 0
+        };
+      }
+    }
+    const leadLimit = sub.planLeadLimit ?? null;
     if (leadLimit === null) {
       return {
         success: false,
@@ -4296,9 +4388,6 @@ var resolver5 = {
         leadLimit
       };
     }
-    const now = /* @__PURE__ */ new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
     const { id: recordId, syncedCount } = await getOrCreateMonthlyRecord(
       context,
       company.id,
@@ -4315,8 +4404,16 @@ var resolver5 = {
         leadLimit
       };
     }
-    const maxResults = Math.min(input.maxResults ?? DEFAULT_MAX_RESULTS, remainingQuota);
-    const { lat: centerLat, lng: centerLng, radius: radiusKm, category: inputCategory } = input;
+    const maxResults = Math.min(
+      input.maxResults ?? DEFAULT_MAX_RESULTS,
+      remainingQuota
+    );
+    const {
+      lat: centerLat,
+      lng: centerLng,
+      radius: radiusKm,
+      category: inputCategory
+    } = input;
     const candidates = await context.sudo().query.TechBusinessLead.findMany({
       where: {
         category: { equals: inputCategory }
@@ -4330,7 +4427,12 @@ var resolver5 = {
       const leadLat = lead.lat;
       const leadLng = lead.lng;
       if (leadLat == null || leadLng == null) continue;
-      const distanceKm = haversineDistance(centerLat, centerLng, leadLat, leadLng);
+      const distanceKm = haversineDistance(
+        centerLat,
+        centerLng,
+        leadLat,
+        leadLng
+      );
       if (distanceKm > radiusKm) continue;
       const alreadyAssignedToThisCompany = (lead.saasCompany ?? []).some(
         (c) => c.id === company.id
@@ -4346,7 +4448,12 @@ var resolver5 = {
           data: { saasCompany: { connect: { id: company.id } } }
           // ADD only; never replace
         });
-        await ensureStatusForLeadAssignment(context, leadId, company.id, userId);
+        await ensureStatusForLeadAssignment(
+          context,
+          leadId,
+          company.id,
+          userId
+        );
         assignedFromDb++;
       } catch (_) {
       }
@@ -4432,7 +4539,9 @@ var resolver5 = {
           });
           if (lead) {
             const leadCompanies = lead.saasCompany ?? [];
-            const alreadyAssignedToThisCompany = leadCompanies.some((c) => c.id === company.id);
+            const alreadyAssignedToThisCompany = leadCompanies.some(
+              (c) => c.id === company.id
+            );
             if (alreadyAssignedToThisCompany) {
               continue;
             }
@@ -4444,7 +4553,13 @@ var resolver5 = {
                 data: { saasCompany: { connect: { id: company.id } } }
               });
               const level = placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
-              await ensureStatusForLeadAssignment(context, leadId, company.id, userId, level);
+              await ensureStatusForLeadAssignment(
+                context,
+                leadId,
+                company.id,
+                userId,
+                level
+              );
               syncedThisRequest++;
               currentSyncedCount++;
             } catch (_) {
@@ -4457,9 +4572,11 @@ var resolver5 = {
           }
           const details = await getPlaceDetails2(placeId, apiKey);
           if (!details) continue;
-          const { city: parsedCity, state, country } = parseAddressComponents2(
-            details.address_components || []
-          );
+          const {
+            city: parsedCity,
+            state,
+            country
+          } = parseAddressComponents2(details.address_components || []);
           const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
             details,
             category

@@ -16,15 +16,20 @@ import { SUBSCRIPTION_STATUS_OPTIONS } from "./constants";
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
 
 /** Fetches Stripe Subscription and returns whether it is active/trialing. Uses STRIPE_SECRET_KEY. */
-async function checkStripeSubscriptionActive(subscriptionId: string): Promise<boolean> {
+async function checkStripeSubscriptionActive(
+  subscriptionId: string,
+): Promise<boolean> {
   if (!STRIPE_SECRET) return false;
   try {
-    const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
-      headers: {
-        Authorization: `Bearer ${STRIPE_SECRET}`,
-        Accept: "application/json",
+    const res = await fetch(
+      `https://api.stripe.com/v1/subscriptions/${subscriptionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${STRIPE_SECRET}`,
+          Accept: "application/json",
+        },
       },
-    });
+    );
     if (!res.ok) return false;
     const data = (await res.json()) as { status?: string };
     return data.status === "active" || data.status === "trialing";
@@ -75,6 +80,7 @@ export default list({
       many: false,
       ui: { description: "Company that paid for this subscription" },
     }),
+
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
     planName: text({
       ui: { description: "Plan name as contracted (snapshot)" },
@@ -115,15 +121,20 @@ export default list({
             stripeSubscriptionId?: string | null;
           },
           _args,
-          context
+          context,
         ) {
           let subId = item.stripeSubscriptionId;
           let priceId = item.planStripePriceId;
           if (item.id && (subId == null || priceId == null)) {
-            const sub = await context.sudo().query.SaasCompanySubscription.findOne({
-              where: { id: item.id },
-              query: "stripeSubscriptionId planStripePriceId",
-            }) as { stripeSubscriptionId?: string | null; planStripePriceId?: string | null } | null;
+            const sub = (await context
+              .sudo()
+              .query.SaasCompanySubscription.findOne({
+                where: { id: item.id },
+                query: "stripeSubscriptionId planStripePriceId",
+              })) as {
+              stripeSubscriptionId?: string | null;
+              planStripePriceId?: string | null;
+            } | null;
             subId = sub?.stripeSubscriptionId ?? null;
             priceId = sub?.planStripePriceId ?? null;
           }
@@ -172,13 +183,27 @@ export default list({
       many: true,
       ui: { description: "Payments for this subscription" },
     }),
+    /** Subscription plan for this company */
+    plan: relationship({
+      ref: "SaasPlan.subscriptions",
+      many: false,
+      ui: {
+        description: "Subscription plan (defines cost, frequency, lead limit)",
+      },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" },
+      },
     }),
     updatedAt: timestamp({
       db: { updatedAt: true },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" },
+      },
     }),
   },
 });
