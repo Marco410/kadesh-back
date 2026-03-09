@@ -99,6 +99,12 @@ export default list({
           "Stripe Product ID (optional, from Stripe when creating Product)",
       },
     }),
+    /** Companies currently on this plan */
+    companies: relationship({
+      ref: "SaasCompany.plan",
+      many: true,
+      ui: { description: "Companies on this plan" },
+    }),
     subscriptions: relationship({
       ref: "SaasCompanySubscription.plan",
       many: true,

@@ -464,6 +464,8 @@ model SaasCompany {
   users                        User[]                       @relation("User_company")
   allowedGooglePlaceCategories Json?
   leads                        TechBusinessLead[]           @relation("SaasCompany_leads")
+  plan                         SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
+  planId                       String?                      @map("plan")
   subscriptions                SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
   techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
   monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
@@ -471,6 +473,7 @@ model SaasCompany {
   updatedAt                    DateTime?                    @updatedAt
 
   @@index([name])
+  @@index([planId])
 }
 
 model SaasCompanyMonthlyLeadSync {
@@ -573,6 +576,7 @@ model SaasPlan {
   bestSeller      Boolean                   @default(false)
   stripePriceId   String?                   @unique
   stripeProductId String?
+  companies       SaasCompany[]             @relation("SaasCompany_plan")
   subscriptions   SaasCompanySubscription[] @relation("SaasCompanySubscription_plan")
   createdAt       DateTime?                 @default(now())
   updatedAt       DateTime?                 @updatedAt

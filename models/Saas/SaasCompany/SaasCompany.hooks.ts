@@ -1,11 +1,34 @@
 import { SUBSCRIPTION_STATUS } from "../SaasCompanySubscription/constants";
+import { Role } from "../../Role/constants";
 
-/** On SaasCompany create: assign free plan (cost = 0) and create a SaasCompanySubscription. */
+/** On SaasCompany create: assign free plan (cost = 0), create a SaasCompanySubscription, and assign Admin (Company) role to the creator. */
 export const saasCompanySubscriptionHook = {
   afterOperation: async ({ operation, item, context }: any) => {
     if (operation !== "create" || !item?.id) return;
 
     try {
+      const session = context.session as { data?: { id: string } } | undefined;
+      const createdByUserId = session?.data?.id;
+      if (createdByUserId) {
+        const [adminCompanyRole] = await context.sudo().query.Role.findMany({
+          where: { name: { equals: Role.ADMIN_COMPANY } },
+          take: 1,
+          query: "id",
+        });
+        if (adminCompanyRole) {
+          const user = await context.sudo().query.User.findOne({
+            where: { id: createdByUserId },
+            query: "id roles { id }",
+          }) as { id: string; roles?: { id: string }[] } | null;
+          const alreadyHasRole = user?.roles?.some((r) => r.id === (adminCompanyRole as { id: string }).id);
+          if (!alreadyHasRole) {
+            await context.sudo().query.User.updateOne({
+              where: { id: createdByUserId },
+              data: { roles: { connect: { id: (adminCompanyRole as { id: string }).id } } },
+            });
+          }
+        }
+      }
       const [freePlan] = await context.sudo().query.SaasPlan.findMany({
         where: { cost: { equals: 0 } },
         take: 1,
@@ -35,7 +58,7 @@ export const saasCompanySubscriptionHook = {
           planStripePriceId: freePlan.stripePriceId ?? undefined,
           planCurrency: freePlan.currency ?? "mxn",
           planFeatures: freePlan.planFeatures ?? undefined,
-          status: SUBSCRIPTION_STATUS.ACTIVE,
+          status: SUBSCRIPTION_STATUS.TRIALING,
           activatedAt: today,
           currentPeriodEnd: periodEnd,
         },

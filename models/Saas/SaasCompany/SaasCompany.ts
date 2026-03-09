@@ -51,6 +51,12 @@ export default list({
       many: true,
       ui: { description: "Leads belonging to this company" },
     }),
+    /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
+    plan: relationship({
+      ref: "SaasPlan.companies",
+      many: false,
+      ui: { description: "Current plan for this company" },
+    }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
     subscriptions: relationship({
       ref: "SaasCompanySubscription.company",

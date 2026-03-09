@@ -2779,11 +2779,11 @@ var SUBSCRIPTION_STATUS = {
   TRIALING: "trialing"
 };
 var SUBSCRIPTION_STATUS_OPTIONS = [
-  { label: "Active", value: SUBSCRIPTION_STATUS.ACTIVE },
-  { label: "Past due", value: SUBSCRIPTION_STATUS.PAST_DUE },
-  { label: "Cancelled", value: SUBSCRIPTION_STATUS.CANCELLED },
-  { label: "Unpaid", value: SUBSCRIPTION_STATUS.UNPAID },
-  { label: "Trialing", value: SUBSCRIPTION_STATUS.TRIALING }
+  { label: "Activa", value: SUBSCRIPTION_STATUS.ACTIVE },
+  { label: "Vencida", value: SUBSCRIPTION_STATUS.PAST_DUE },
+  { label: "Cancelada", value: SUBSCRIPTION_STATUS.CANCELLED },
+  { label: "No pagada", value: SUBSCRIPTION_STATUS.UNPAID },
+  { label: "En prueba", value: SUBSCRIPTION_STATUS.TRIALING }
 ];
 
 // models/Saas/SaasCompany/SaasCompany.hooks.ts
@@ -2791,6 +2791,28 @@ var saasCompanySubscriptionHook = {
   afterOperation: async ({ operation, item, context }) => {
     if (operation !== "create" || !item?.id) return;
     try {
+      const session2 = context.session;
+      const createdByUserId = session2?.data?.id;
+      if (createdByUserId) {
+        const [adminCompanyRole] = await context.sudo().query.Role.findMany({
+          where: { name: { equals: "admin_company" /* ADMIN_COMPANY */ } },
+          take: 1,
+          query: "id"
+        });
+        if (adminCompanyRole) {
+          const user = await context.sudo().query.User.findOne({
+            where: { id: createdByUserId },
+            query: "id roles { id }"
+          });
+          const alreadyHasRole = user?.roles?.some((r) => r.id === adminCompanyRole.id);
+          if (!alreadyHasRole) {
+            await context.sudo().query.User.updateOne({
+              where: { id: createdByUserId },
+              data: { roles: { connect: { id: adminCompanyRole.id } } }
+            });
+          }
+        }
+      }
       const [freePlan] = await context.sudo().query.SaasPlan.findMany({
         where: { cost: { equals: 0 } },
         take: 1,
@@ -2816,7 +2838,7 @@ var saasCompanySubscriptionHook = {
           planStripePriceId: freePlan.stripePriceId ?? void 0,
           planCurrency: freePlan.currency ?? "mxn",
           planFeatures: freePlan.planFeatures ?? void 0,
-          status: SUBSCRIPTION_STATUS.ACTIVE,
+          status: SUBSCRIPTION_STATUS.TRIALING,
           activatedAt: today,
           currentPeriodEnd: periodEnd
         }
@@ -2874,6 +2896,12 @@ var SaasCompany_default = (0, import_core41.list)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
+    }),
+    /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
+    plan: (0, import_fields41.relationship)({
+      ref: "SaasPlan.companies",
+      many: false,
+      ui: { description: "Current plan for this company" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
     subscriptions: (0, import_fields41.relationship)({
@@ -3027,6 +3055,12 @@ var SaasPlan_default = (0, import_core42.list)({
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
+    /** Companies currently on this plan */
+    companies: (0, import_fields42.relationship)({
+      ref: "SaasCompany.plan",
+      many: true,
+      ui: { description: "Companies on this plan" }
+    }),
     subscriptions: (0, import_fields42.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
@@ -3127,42 +3161,6 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
-async function checkStripeSubscriptionActive(subscriptionId) {
-  if (!STRIPE_SECRET) return false;
-  try {
-    const res = await fetch(
-      `https://api.stripe.com/v1/subscriptions/${subscriptionId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${STRIPE_SECRET}`,
-          Accept: "application/json"
-        }
-      }
-    );
-    if (!res.ok) return false;
-    const data = await res.json();
-    return data.status === "active" || data.status === "trialing";
-  } catch {
-    return false;
-  }
-}
-async function checkStripePriceActive(priceId) {
-  if (!STRIPE_SECRET) return false;
-  try {
-    const res = await fetch(`https://api.stripe.com/v1/prices/${priceId}`, {
-      headers: {
-        Authorization: `Bearer ${STRIPE_SECRET}`,
-        Accept: "application/json"
-      }
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    return data.active === true;
-  } catch {
-    return false;
-  }
-}
 var SaasCompanySubscription_default = (0, import_core44.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
@@ -3174,7 +3172,6 @@ var SaasCompanySubscription_default = (0, import_core44.list)({
         "planLeadLimit",
         "planFeatures",
         "status",
-        "activeInStripe",
         "activatedAt",
         "stripeSubscriptionId"
       ]
@@ -3216,34 +3213,7 @@ var SaasCompanySubscription_default = (0, import_core44.list)({
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
-    activeInStripe: (0, import_fields44.virtual)({
-      field: import_core44.graphql.field({
-        type: import_core44.graphql.Boolean,
-        async resolve(item, _args, context) {
-          let subId = item.stripeSubscriptionId;
-          let priceId = item.planStripePriceId;
-          if (item.id && (subId == null || priceId == null)) {
-            const sub = await context.sudo().query.SaasCompanySubscription.findOne({
-              where: { id: item.id },
-              query: "stripeSubscriptionId planStripePriceId"
-            });
-            subId = sub?.stripeSubscriptionId ?? null;
-            priceId = sub?.planStripePriceId ?? null;
-          }
-          if (subId && typeof subId === "string") {
-            return checkStripeSubscriptionActive(subId);
-          }
-          if (priceId && typeof priceId === "string") {
-            return checkStripePriceActive(priceId);
-          }
-          return false;
-        }
-      }),
-      ui: {
-        description: "Whether the Stripe subscription is still active (or the Price is active if no subscription ID)"
-      }
-    }),
-    /** Subscription status (e.g. active, cancelled) */
+    /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
     status: (0, import_fields44.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
@@ -4340,7 +4310,7 @@ var resolver5 = {
     const [activeSubscription] = await context.sudo().query.SaasCompanySubscription.findMany({
       where: {
         company: { id: { equals: company.id } },
-        status: { equals: SUBSCRIPTION_STATUS.ACTIVE }
+        status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] }
       },
       orderBy: [{ activatedAt: "desc" }],
       take: 1,
@@ -5037,23 +5007,19 @@ var resolver7 = {
       });
       const existingSubs = await context.sudo().query.SaasCompanySubscription.findMany({
         where: {
-          company: { id: company.id },
-          status: "active",
-          stripeSubscriptionId: { not: null }
+          company: { id: { equals: company.id } },
+          status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] }
         },
         query: "id stripeSubscriptionId"
       });
       for (const prev of existingSubs) {
         if (prev.stripeSubscriptionId) {
-          try {
-            await stripe_default.subscriptions.cancel(prev.stripeSubscriptionId);
-          } catch (_) {
-          }
-          await context.sudo().query.SaasCompanySubscription.updateOne({
-            where: { id: prev.id },
-            data: { status: SUBSCRIPTION_STATUS.CANCELLED }
-          });
+          await stripe_default.subscriptions.cancel(prev.stripeSubscriptionId);
         }
+        await context.sudo().query.SaasCompanySubscription.updateOne({
+          where: { id: prev.id },
+          data: { status: SUBSCRIPTION_STATUS.CANCELLED }
+        });
       }
       const stripeSubscription = await createStripeSubscription({
         customerId: user.stripeCustomerId,
@@ -5063,8 +5029,19 @@ var resolver7 = {
       });
       stripeSubscriptionId = stripeSubscription.id;
       const subStatus = stripeSubscription.status ?? "active";
-      const periodEnd = stripeSubscription.current_period_end ? new Date(stripeSubscription.current_period_end * 1e3).toISOString().slice(0, 10) : (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
       const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+      let periodEnd;
+      if (stripeSubscription.current_period_end && typeof stripeSubscription.current_period_end === "number") {
+        periodEnd = new Date(stripeSubscription.current_period_end * 1e3).toISOString().slice(0, 10);
+      } else {
+        periodEnd = today;
+      }
+      if (periodEnd <= today) {
+        const [y, m, day] = today.split("-").map(Number);
+        const d = new Date(y, m - 1, day);
+        d.setMonth(d.getMonth() + 1);
+        periodEnd = d.toISOString().slice(0, 10);
+      }
       const subscription = await context.sudo().query.SaasCompanySubscription.createOne({
         data: {
           company: { connect: { id: company.id } },
@@ -5901,22 +5878,224 @@ var resolver10 = {
 };
 var stripePaymentMethods_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
 
+// utils/saas/stripeSubscription.ts
+var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
+async function getStripeSubscription(subscriptionId) {
+  if (!STRIPE_SECRET) {
+    return { status: null, currentPeriodEnd: null, active: false };
+  }
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/subscriptions/${subscriptionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${STRIPE_SECRET}`,
+          Accept: "application/json"
+        }
+      }
+    );
+    if (!res.ok) return { status: null, currentPeriodEnd: null, active: false };
+    const data = await res.json();
+    const status = data.status ?? null;
+    const active = status === "active" || status === "trialing";
+    return {
+      status,
+      currentPeriodEnd: data.current_period_end ?? null,
+      active
+    };
+  } catch {
+    return { status: null, currentPeriodEnd: null, active: false };
+  }
+}
+
+// graphql/customs/queries/saas/subscriptionStatus.ts
+var TRIAL_MONTHS_FREE_PLAN = 1;
+function stripeStatusToLocal(stripeStatus) {
+  if (!stripeStatus) return SUBSCRIPTION_STATUS.CANCELLED;
+  const s = stripeStatus.toLowerCase();
+  if (s === "active") return SUBSCRIPTION_STATUS.ACTIVE;
+  if (s === "trialing") return SUBSCRIPTION_STATUS.TRIALING;
+  if (s === "past_due") return SUBSCRIPTION_STATUS.PAST_DUE;
+  if (s === "canceled" || s === "cancelled") return SUBSCRIPTION_STATUS.CANCELLED;
+  if (s === "unpaid") return SUBSCRIPTION_STATUS.UNPAID;
+  return s;
+}
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const endOfDay = new Date(y, m - 1, d, 23, 59, 59, 999);
+  const now = /* @__PURE__ */ new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const diffMs = endOfDay.getTime() - startOfToday.getTime();
+  const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
+  return days < 0 ? 0 : days;
+}
+var typeDefs11 = `
+  type SubscriptionData {
+    id: ID
+    activatedAt: String
+    planCost: Float
+    planCurrency: String
+    planFrequency: String
+    planLeadLimit: Int
+    planName: String
+    planFeatures: JSON
+    status: String
+    stripeCustomerId: String
+    stripeSubscriptionId: String
+    currentPeriodEnd: String
+  }
+
+  type SubscriptionStatusResult {
+    success: Boolean!
+    message: String
+    daysUntilNextBilling: Int
+    subscriptionActive: Boolean
+    subscription: SubscriptionData
+  }
+
+  type Query {
+    subscriptionStatus(companyId: ID): SubscriptionStatusResult
+  }
+`;
+var definition11 = `
+  subscriptionStatus(companyId: ID): SubscriptionStatusResult
+`;
+var resolver11 = {
+  subscriptionStatus: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    const userId = session2?.data?.id;
+    if (!userId) {
+      return {
+        success: false,
+        message: "Debes iniciar sesi\xF3n para ver el estado de la suscripci\xF3n",
+        daysUntilNextBilling: null,
+        subscriptionActive: false,
+        subscription: null
+      };
+    }
+    const user = await context.sudo().query.User.findOne({
+      where: { id: userId },
+      query: "id company { id name }"
+    });
+    const userCompany = user?.company;
+    const companyIdToUse = companyId ?? userCompany?.id;
+    if (!companyIdToUse) {
+      return {
+        success: false,
+        message: "No se encontr\xF3 un negocio asignado.",
+        daysUntilNextBilling: null,
+        subscriptionActive: false,
+        subscription: null
+      };
+    }
+    const [subscription] = await context.sudo().query.SaasCompanySubscription.findMany({
+      where: {
+        company: { id: { equals: companyIdToUse } },
+        status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] }
+      },
+      orderBy: [{ activatedAt: "desc" }],
+      take: 1,
+      query: "id status activatedAt currentPeriodEnd planCost planCurrency planFrequency planLeadLimit planName planFeatures stripeCustomerId stripeSubscriptionId"
+    });
+    if (!subscription) {
+      return {
+        success: true,
+        message: "Tu negocio no tiene una suscripci\xF3n activa. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.",
+        daysUntilNextBilling: null,
+        subscriptionActive: false,
+        subscription: null
+      };
+    }
+    const sub = subscription;
+    const isFreePlan = sub.planCost != null && sub.planCost <= 0;
+    let newStatus = sub.status;
+    let periodEnd = sub.currentPeriodEnd;
+    let subscriptionActive = false;
+    if (sub.stripeSubscriptionId) {
+      const stripeInfo = await getStripeSubscription(sub.stripeSubscriptionId);
+      subscriptionActive = stripeInfo.active;
+      if (stripeInfo.currentPeriodEnd) {
+        periodEnd = new Date(stripeInfo.currentPeriodEnd * 1e3).toISOString().slice(0, 10);
+      }
+      const mappedStatus = stripeStatusToLocal(stripeInfo.status);
+      if (mappedStatus !== sub.status) {
+        newStatus = mappedStatus;
+        await context.sudo().query.SaasCompanySubscription.updateOne({
+          where: { id: sub.id },
+          data: {
+            status: newStatus,
+            ...periodEnd ? { currentPeriodEnd: periodEnd } : {}
+          }
+        });
+      }
+    } else if (isFreePlan && sub.activatedAt) {
+      const [y, m, d] = sub.activatedAt.split("-").map(Number);
+      const trialEnd = new Date(y, m - 1 + TRIAL_MONTHS_FREE_PLAN, d);
+      const trialEndStr = trialEnd.toISOString().slice(0, 10);
+      const now = /* @__PURE__ */ new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      if (trialEndStr < todayStr) {
+        newStatus = SUBSCRIPTION_STATUS.PAST_DUE;
+        await context.sudo().query.SaasCompanySubscription.updateOne({
+          where: { id: sub.id },
+          data: { status: newStatus }
+        });
+        periodEnd = trialEndStr;
+        subscriptionActive = false;
+      } else {
+        periodEnd = trialEndStr;
+        subscriptionActive = true;
+      }
+    } else {
+      subscriptionActive = newStatus === SUBSCRIPTION_STATUS.ACTIVE || newStatus === SUBSCRIPTION_STATUS.TRIALING;
+    }
+    console.log("periodEnd", periodEnd);
+    const daysUntilNextBilling = periodEnd ? daysUntil(periodEnd) : null;
+    const subscriptionData = {
+      id: sub.id,
+      activatedAt: sub.activatedAt,
+      planCost: sub.planCost,
+      planCurrency: sub.planCurrency,
+      planFrequency: sub.planFrequency,
+      planLeadLimit: sub.planLeadLimit,
+      planName: sub.planName,
+      planFeatures: sub.planFeatures,
+      status: newStatus,
+      stripeCustomerId: sub.stripeCustomerId,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      currentPeriodEnd: periodEnd
+    };
+    return {
+      success: true,
+      message: null,
+      daysUntilNextBilling,
+      subscriptionActive,
+      subscription: subscriptionData
+    };
+  }
+};
+var subscriptionStatus_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
+
 // graphql/customs/queries/index.ts
 var customQuery = {
   typeDefs: `
     ${nearbyAnimals_default.typeDefs}
     ${nearbyPetPlaces_default.typeDefs}
     ${stripePaymentMethods_default.typeDefs}
+    ${subscriptionStatus_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
     ${nearbyPetPlaces_default.definition}
     ${stripePaymentMethods_default.definition}
+    ${subscriptionStatus_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
     ...nearbyPetPlaces_default.resolver,
-    ...stripePaymentMethods_default.resolver
+    ...stripePaymentMethods_default.resolver,
+    ...subscriptionStatus_default.resolver
   }
 };
 var queries_default = customQuery;

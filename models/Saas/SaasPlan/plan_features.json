@@ -1,12 +1,12 @@
 [
-  {"key": "lead_sync","included": true, "name": "Búsqueda de leads en mapa", "description": "Búsqueda de leads"},
-  {"key": "crm","included": true, "name": "CRM", "description": "Gestión de leads y ventas"},
-  {"key": "edit_lead_data","included": true, "name": "Editar datos del lead", "description": "Editar datos del lead"},
-  {"key": "sales_activities","included": true, "name": "Actividades de ventas", "description": "Registrar actividades de ventas"},
-  {"key": "follow_up_tasks","included": true, "name": "Tareas de seguimiento", "description": "Crear tareas de seguimiento"},
-  {"key": "proposals","included": true, "name": "Propuestas", "description": "Crear y gestionar propuestas"},
-  {"key": "sales_person_management","included": true, "name": "Gestión de vendedores", "description": "Gestión de vendedores"},
-  {"key": "sales_commission","included": true, "name": "Comisión de ventas", "description": "Configurar comisión de ventas"},
-  {"key": "assign_sales_person","included": true, "name": "Asignar vendedor", "description": "Asignar vendedor al lead"},
-  {"key": "calendar_crm","included": true, "name": "Gestión de calendario", "description": "Gestión de propuestas, actividades de ventas y tareas de seguimiento"}
+  {"key": "lead_sync", "name": "Búsqueda de leads en mapa", "description": "Búsqueda de leads"},
+  {"key": "crm", "name": "CRM", "description": "Gestión de leads y ventas"},
+  {"key": "edit_lead_data", "name": "Editar datos del lead", "description": "Editar datos del lead"},
+  {"key": "sales_activities", "name": "Actividades de ventas", "description": "Registrar actividades de ventas"},
+  {"key": "follow_up_tasks", "name": "Tareas de seguimiento", "description": "Crear tareas de seguimiento"},
+  {"key": "proposals", "name": "Propuestas", "description": "Crear y gestionar propuestas"},
+  {"key": "sales_person_management", "name": "Gestión de vendedores", "description": "Gestión de vendedores"},
+  {"key": "sales_commission", "name": "Comisión de ventas", "description": "Configurar comisión de ventas"},
+  {"key": "assign_sales_person", "name": "Asignar vendedor", "description": "Asignar vendedor al lead"},
+  {"key": "calendar_crm", "name": "Gestión de calendario", "description": "Gestión de propuestas, actividades de ventas y tareas de seguimiento"}
 ]

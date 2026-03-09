@@ -2524,6 +2524,7 @@ type SaasCompany {
   allowedGooglePlaceCategories: JSON
   leads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
   leadsCount(where: TechBusinessLeadWhereInput! = {}): Int
+  plan: SaasPlan
   subscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
   subscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
   techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
@@ -2546,6 +2547,7 @@ input SaasCompanyWhereInput {
   name: StringFilter
   users: UserManyRelationFilter
   leads: TechBusinessLeadManyRelationFilter
+  plan: SaasPlanWhereInput
   subscriptions: SaasCompanySubscriptionManyRelationFilter
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
@@ -2589,6 +2591,7 @@ input SaasCompanyUpdateInput {
   users: UserRelateToManyForUpdateInput
   allowedGooglePlaceCategories: JSON
   leads: TechBusinessLeadRelateToManyForUpdateInput
+  plan: SaasPlanRelateToOneForUpdateInput
   subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
@@ -2601,6 +2604,12 @@ input TechBusinessLeadRelateToManyForUpdateInput {
   set: [TechBusinessLeadWhereUniqueInput!]
   create: [TechBusinessLeadCreateInput!]
   connect: [TechBusinessLeadWhereUniqueInput!]
+}
+
+input SaasPlanRelateToOneForUpdateInput {
+  create: SaasPlanCreateInput
+  connect: SaasPlanWhereUniqueInput
+  disconnect: Boolean
 }
 
 input SaasCompanySubscriptionRelateToManyForUpdateInput {
@@ -2634,6 +2643,7 @@ input SaasCompanyCreateInput {
   users: UserRelateToManyForCreateInput
   allowedGooglePlaceCategories: JSON
   leads: TechBusinessLeadRelateToManyForCreateInput
+  plan: SaasPlanRelateToOneForCreateInput
   subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
@@ -2644,6 +2654,11 @@ input SaasCompanyCreateInput {
 input TechBusinessLeadRelateToManyForCreateInput {
   create: [TechBusinessLeadCreateInput!]
   connect: [TechBusinessLeadWhereUniqueInput!]
+}
+
+input SaasPlanRelateToOneForCreateInput {
+  create: SaasPlanCreateInput
+  connect: SaasPlanWhereUniqueInput
 }
 
 input SaasCompanySubscriptionRelateToManyForCreateInput {
@@ -2741,7 +2756,6 @@ type SaasCompanySubscription {
   planStripePriceId: String
   planCurrency: String
   planFeatures: JSON
-  activeInStripe: Boolean
   status: String
   activatedAt: CalendarDay
   currentPeriodEnd: CalendarDay
@@ -2842,12 +2856,6 @@ input SaasPaymentRelateToManyForUpdateInput {
   connect: [SaasPaymentWhereUniqueInput!]
 }
 
-input SaasPlanRelateToOneForUpdateInput {
-  create: SaasPlanCreateInput
-  connect: SaasPlanWhereUniqueInput
-  disconnect: Boolean
-}
-
 input SaasCompanySubscriptionUpdateArgs {
   where: SaasCompanySubscriptionWhereUniqueInput!
   data: SaasCompanySubscriptionUpdateInput!
@@ -2876,11 +2884,6 @@ input SaasCompanySubscriptionCreateInput {
 input SaasPaymentRelateToManyForCreateInput {
   create: [SaasPaymentCreateInput!]
   connect: [SaasPaymentWhereUniqueInput!]
-}
-
-input SaasPlanRelateToOneForCreateInput {
-  create: SaasPlanCreateInput
-  connect: SaasPlanWhereUniqueInput
 }
 
 type SaasPayment {
@@ -3105,6 +3108,8 @@ type SaasPlan {
   bestSeller: Boolean
   stripePriceId: String
   stripeProductId: String
+  companies(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
+  companiesCount(where: SaasCompanyWhereInput! = {}): Int
   subscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
   subscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
   createdAt: DateTime
@@ -3131,9 +3136,16 @@ input SaasPlanWhereInput {
   bestSeller: BooleanFilter
   stripePriceId: StringNullableFilter
   stripeProductId: StringNullableFilter
+  companies: SaasCompanyManyRelationFilter
   subscriptions: SaasCompanySubscriptionManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyManyRelationFilter {
+  every: SaasCompanyWhereInput
+  some: SaasCompanyWhereInput
+  none: SaasCompanyWhereInput
 }
 
 input SaasPlanOrderByInput {
@@ -3163,9 +3175,17 @@ input SaasPlanUpdateInput {
   bestSeller: Boolean
   stripePriceId: String
   stripeProductId: String
+  companies: SaasCompanyRelateToManyForUpdateInput
   subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasCompanyRelateToManyForUpdateInput {
+  disconnect: [SaasCompanyWhereUniqueInput!]
+  set: [SaasCompanyWhereUniqueInput!]
+  create: [SaasCompanyCreateInput!]
+  connect: [SaasCompanyWhereUniqueInput!]
 }
 
 input SaasPlanUpdateArgs {
@@ -3185,9 +3205,15 @@ input SaasPlanCreateInput {
   bestSeller: Boolean
   stripePriceId: String
   stripeProductId: String
+  companies: SaasCompanyRelateToManyForCreateInput
   subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasCompanyRelateToManyForCreateInput {
+  create: [SaasCompanyCreateInput!]
+  connect: [SaasCompanyWhereUniqueInput!]
 }
 
 type Schedule {
@@ -3447,12 +3473,6 @@ input TechFollowUpTaskManyRelationFilter {
   none: TechFollowUpTaskWhereInput
 }
 
-input SaasCompanyManyRelationFilter {
-  every: SaasCompanyWhereInput
-  some: SaasCompanyWhereInput
-  none: SaasCompanyWhereInput
-}
-
 input TechBusinessLeadOrderByInput {
   id: OrderDirection
   businessName: OrderDirection
@@ -3543,13 +3563,6 @@ input TechFollowUpTaskRelateToManyForUpdateInput {
   connect: [TechFollowUpTaskWhereUniqueInput!]
 }
 
-input SaasCompanyRelateToManyForUpdateInput {
-  disconnect: [SaasCompanyWhereUniqueInput!]
-  set: [SaasCompanyWhereUniqueInput!]
-  create: [SaasCompanyCreateInput!]
-  connect: [SaasCompanyWhereUniqueInput!]
-}
-
 input TechBusinessLeadUpdateArgs {
   where: TechBusinessLeadWhereUniqueInput!
   data: TechBusinessLeadUpdateInput!
@@ -3605,11 +3618,6 @@ input TechProposalRelateToManyForCreateInput {
 input TechFollowUpTaskRelateToManyForCreateInput {
   create: [TechFollowUpTaskCreateInput!]
   connect: [TechFollowUpTaskWhereUniqueInput!]
-}
-
-input SaasCompanyRelateToManyForCreateInput {
-  create: [SaasCompanyCreateInput!]
-  connect: [SaasCompanyWhereUniqueInput!]
 }
 
 type TechFollowUpTask {
@@ -4668,6 +4676,7 @@ type Query {
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   StripePaymentMethods(email: String!): StripePaymentMethodsType
+  subscriptionStatus(companyId: ID): SubscriptionStatusResult
 }
 
 union AuthenticatedItem = User
@@ -5022,4 +5031,27 @@ type StripePaymentMethodsType {
   message: String
   success: Boolean
   data: StripePaymentMethodsData
+}
+
+type SubscriptionData {
+  id: ID
+  activatedAt: String
+  planCost: Float
+  planCurrency: String
+  planFrequency: String
+  planLeadLimit: Int
+  planName: String
+  planFeatures: JSON
+  status: String
+  stripeCustomerId: String
+  stripeSubscriptionId: String
+  currentPeriodEnd: String
+}
+
+type SubscriptionStatusResult {
+  success: Boolean!
+  message: String
+  daysUntilNextBilling: Int
+  subscriptionActive: Boolean
+  subscription: SubscriptionData
 }

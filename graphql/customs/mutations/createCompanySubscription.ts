@@ -212,25 +212,22 @@ const resolver = {
         },
       });
 
-      // 6. Cancel any existing active Stripe subscription for this company (change of plan)
+      // 6. Cancel any existing active or trialing subscription for this company (change of plan)
       const existingSubs = await context.sudo().query.SaasCompanySubscription.findMany({
         where: {
-          company: { id: company.id },
-          status: "active",
-          stripeSubscriptionId: { not: null },
+          company: { id: { equals: company.id } },
+          status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] },
         },
         query: "id stripeSubscriptionId",
       }) as { id: string; stripeSubscriptionId: string | null }[];
       for (const prev of existingSubs) {
         if (prev.stripeSubscriptionId) {
-          try {
-            await Stripe.subscriptions.cancel(prev.stripeSubscriptionId);
-          } catch (_) {}
-          await context.sudo().query.SaasCompanySubscription.updateOne({
-            where: { id: prev.id },
-            data: { status: SUBSCRIPTION_STATUS.CANCELLED },
-          });
+          await Stripe.subscriptions.cancel(prev.stripeSubscriptionId);
         }
+        await context.sudo().query.SaasCompanySubscription.updateOne({
+          where: { id: prev.id },
+          data: { status: SUBSCRIPTION_STATUS.CANCELLED },
+        });
       }
 
       // 7. Create Stripe Subscription (uses plan.stripePriceId — recurring; first invoice charged now)
@@ -243,12 +240,22 @@ const resolver = {
 
       stripeSubscriptionId = stripeSubscription.id;
       const subStatus = (stripeSubscription.status as string) ?? "active";
-      const periodEnd = stripeSubscription.current_period_end
-        ? new Date((stripeSubscription.current_period_end as number) * 1000).toISOString().slice(0, 10)
-        : new Date().toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
+
+      let periodEnd: string;
+      if (stripeSubscription.current_period_end && typeof stripeSubscription.current_period_end === "number") {
+        periodEnd = new Date(stripeSubscription.current_period_end * 1000).toISOString().slice(0, 10);
+      } else {
+        periodEnd = today;
+      }
+      if (periodEnd <= today) {
+        const [y, m, day] = today.split("-").map(Number);
+        const d = new Date(y, m - 1, day);
+        d.setMonth(d.getMonth() + 1);
+        periodEnd = d.toISOString().slice(0, 10);
+      }
 
       // 8. Create SaasCompanySubscription (snapshot + stripeSubscriptionId to check if still active)
-      const today = new Date().toISOString().slice(0, 10);
       const subscription = await context.sudo().query.SaasCompanySubscription.createOne({
         data: {
           company: { connect: { id: company.id } },

@@ -136,13 +136,13 @@ const resolver = {
       };
     }
 
-    // Resolver límite desde la suscripción activa (snapshot del plan contratado), no del plan actual
+    // Resolver límite desde la suscripción activa o en prueba (snapshot del plan contratado), no del plan actual
     const [activeSubscription] = await context
       .sudo()
       .query.SaasCompanySubscription.findMany({
         where: {
           company: { id: { equals: company.id } },
-          status: { equals: SUBSCRIPTION_STATUS.ACTIVE },
+          status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] },
         },
         orderBy: [{ activatedAt: "desc" }],
         take: 1,

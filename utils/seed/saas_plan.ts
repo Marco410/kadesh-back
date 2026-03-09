@@ -1,310 +1,118 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { PLAN_FREQUENCY } from "../../models/Saas/SaasPlan/constants";
+import { getPlanFeatures } from "../../models/Saas/SaasPlan/getPlanFeatures";
+
+const planFeaturesFree = getPlanFeatures();
+
+const planFeaturesStarter = getPlanFeatures({
+  lead_sync: true,
+  crm: true,
+  edit_lead_data: true,
+  sales_activities: true,
+  follow_up_tasks: true,
+  proposals: true,
+  calendar_crm: false,
+  sales_person_management: false,
+  sales_commission: false,
+  assign_sales_person: false,
+});
+
+const planFeaturesPro = getPlanFeatures({
+  lead_sync: true,
+  crm: true,
+  edit_lead_data: true,
+  sales_activities: true,
+  follow_up_tasks: true,
+  proposals: true,
+  calendar_crm: false,
+  sales_person_management: false,
+  sales_commission: false,
+  assign_sales_person: false,
+});
+
+const planFeaturesAgency = getPlanFeatures();
+
+async function upsertPlan(
+  context: KeystoneContext,
+  name: string,
+  data: {
+    name: string;
+    cost: number;
+    frequency: string;
+    leadLimit: number;
+    planFeatures: ReturnType<typeof getPlanFeatures>;
+    stripePriceId?: string;
+    stripeProductId?: string;
+    bestSeller?: boolean;
+  },
+): Promise<string> {
+  const [existing] = await context.sudo().query.SaasPlan.findMany({
+    where: { name: { equals: name } },
+    query: "id",
+    take: 1,
+  });
+  const payload = {
+    name: data.name,
+    cost: data.cost,
+    frequency: data.frequency,
+    leadLimit: data.leadLimit,
+    planFeatures: data.planFeatures,
+    ...(data.stripePriceId != null && { stripePriceId: data.stripePriceId }),
+    ...(data.stripeProductId != null && { stripeProductId: data.stripeProductId }),
+    ...(data.bestSeller != null && { bestSeller: data.bestSeller }),
+  };
+  if (existing) {
+    await context.sudo().query.SaasPlan.updateOne({
+      where: { id: (existing as { id: string }).id },
+      data: payload,
+    });
+    return (existing as { id: string }).id;
+  }
+  const created = await context.sudo().query.SaasPlan.createOne({
+    data: payload,
+    query: "id",
+  });
+  return (created as { id: string }).id;
+}
 
 export async function createSaasPlan(
   context: KeystoneContext,
 ): Promise<string | null> {
-  const existing = await context.sudo().query.SaasPlan.findMany({
-    query: "id",
-  });
-  if (existing.length > 0) {
-    console.log("♻️  Skipped SaasPlan seeding.");
-    return existing[0].id;
-  }
-
-  const free = await context.sudo().query.SaasPlan.createOne({
-    data: {
-      name: "Free",
-      cost: 0,
-      frequency: PLAN_FREQUENCY.MONTHLY,
-      leadLimit: 50,
-      planFeatures: [
-        {
-          key: "lead_sync",
-          included: true,
-          name: "Búsqueda de leads en mapa",
-          description: "Búsqueda de leads",
-        },
-        {
-          key: "crm",
-          included: true,
-          name: "CRM",
-          description: "Gestión de leads y ventas",
-        },
-        {
-          key: "edit_lead_data",
-          included: true,
-          name: "Editar datos del lead",
-          description: "Editar datos del lead",
-        },
-        {
-          key: "sales_activities",
-          included: true,
-          name: "Actividades de ventas",
-          description: "Registrar actividades de ventas",
-        },
-        {
-          key: "follow_up_tasks",
-          included: true,
-          name: "Tareas de seguimiento",
-          description: "Crear tareas de seguimiento",
-        },
-        {
-          key: "proposals",
-          included: true,
-          name: "Propuestas",
-          description: "Crear y gestionar propuestas",
-        },
-        {
-          key: "sales_person_management",
-          included: true,
-          name: "Gestión de vendedores",
-          description: "Gestión de vendedores",
-        },
-        {
-          key: "sales_commission",
-          included: true,
-          name: "Comisión de ventas",
-          description: "Configurar comisión de ventas",
-        },
-        {
-          key: "assign_sales_person",
-          included: true,
-          name: "Asignar vendedor",
-          description: "Asignar vendedor al lead",
-        },
-        {
-          key: "calendar_crm",
-          included: true,
-          name: "Gestión de calendario",
-          description:
-            "Gestión de propuestas, actividades de ventas y tareas de seguimiento",
-        },
-      ],
-    },
-    query: "id",
+  const freeId = await upsertPlan(context, "Free", {
+    name: "Free",
+    cost: 0,
+    frequency: PLAN_FREQUENCY.MONTHLY,
+    leadLimit: 50,
+    planFeatures: planFeaturesFree,
   });
 
-  await context.sudo().query.SaasPlan.createOne({
-    data: {
-      name: "Starter",
-      cost: 499,
-      frequency: PLAN_FREQUENCY.MONTHLY,
-      leadLimit: 400,
-      planFeatures: [
-        {
-          key: "lead_sync",
-          included: true,
-          name: "Búsqueda de leads en mapa",
-          description: "Búsqueda de leads",
-        },
-        {
-          key: "crm",
-          included: true,
-          name: "CRM",
-          description: "Gestión de leads y ventas",
-        },
-        {
-          key: "edit_lead_data",
-          included: true,
-          name: "Editar datos del lead",
-          description: "Editar datos del lead",
-        },
-        {
-          key: "sales_activities",
-          included: true,
-          name: "Actividades de ventas",
-          description: "Registrar actividades de ventas",
-        },
-        {
-          key: "follow_up_tasks",
-          included: true,
-          name: "Tareas de seguimiento",
-          description: "Crear tareas de seguimiento",
-        },
-        {
-          key: "proposals",
-          included: true,
-          name: "Propuestas",
-          description: "Crear y gestionar propuestas",
-        },
-        {
-          key: "sales_person_management",
-          included: true,
-          name: "Gestión de vendedores",
-          description: "Gestión de vendedores",
-        },
-        {
-          key: "sales_commission",
-          included: true,
-          name: "Comisión de ventas",
-          description: "Configurar comisión de ventas",
-        },
-        {
-          key: "assign_sales_person",
-          included: true,
-          name: "Asignar vendedor",
-          description: "Asignar vendedor al lead",
-        },
-        {
-          key: "calendar_crm",
-          included: true,
-          name: "Gestión de calendario",
-          description:
-            "Gestión de propuestas, actividades de ventas y tareas de seguimiento",
-        },
-      ],
-    },
-    query: "id",
+  await upsertPlan(context, "Starter", {
+    name: "Starter",
+    cost: 499,
+    frequency: PLAN_FREQUENCY.MONTHLY,
+    leadLimit: 400,
+    stripePriceId: "price_1T8wP9QB4ei9YzRVJvhOHUnJ",
+    stripeProductId: "prod_U7AkUsHqLHpNrL",
+    planFeatures: planFeaturesStarter,
   });
 
-  await context.sudo().query.SaasPlan.createOne({
-    data: {
-      name: "Pro",
-      cost: 999,
-      frequency: PLAN_FREQUENCY.MONTHLY,
-      leadLimit: 1500,
-      planFeatures: [
-        {
-          key: "lead_sync",
-          included: true,
-          name: "Búsqueda de leads en mapa",
-          description: "Búsqueda de leads",
-        },
-        {
-          key: "crm",
-          included: true,
-          name: "CRM",
-          description: "Gestión de leads y ventas",
-        },
-        {
-          key: "edit_lead_data",
-          included: true,
-          name: "Editar datos del lead",
-          description: "Editar datos del lead",
-        },
-        {
-          key: "sales_activities",
-          included: true,
-          name: "Actividades de ventas",
-          description: "Registrar actividades de ventas",
-        },
-        {
-          key: "follow_up_tasks",
-          included: true,
-          name: "Tareas de seguimiento",
-          description: "Crear tareas de seguimiento",
-        },
-        {
-          key: "proposals",
-          included: true,
-          name: "Propuestas",
-          description: "Crear y gestionar propuestas",
-        },
-        {
-          key: "sales_person_management",
-          included: true,
-          name: "Gestión de vendedores",
-          description: "Gestión de vendedores",
-        },
-        {
-          key: "sales_commission",
-          included: true,
-          name: "Comisión de ventas",
-          description: "Configurar comisión de ventas",
-        },
-        {
-          key: "assign_sales_person",
-          included: true,
-          name: "Asignar vendedor",
-          description: "Asignar vendedor al lead",
-        },
-        {
-          key: "calendar_crm",
-          included: true,
-          name: "Gestión de calendario",
-          description:
-            "Gestión de propuestas, actividades de ventas y tareas de seguimiento",
-        },
-      ],
-      bestSeller: true,
-    },
-    query: "id",
+  await upsertPlan(context, "Pro", {
+    name: "Pro",
+    cost: 999,
+    frequency: PLAN_FREQUENCY.MONTHLY,
+    leadLimit: 1500,
+    planFeatures: planFeaturesPro,
+    bestSeller: true,
   });
 
-  await context.sudo().query.SaasPlan.createOne({
-    data: {
-      name: "Agencia",
-      cost: 1999,
-      frequency: PLAN_FREQUENCY.MONTHLY,
-      leadLimit: 5000,
-      planFeatures: [
-        {
-          key: "lead_sync",
-          included: true,
-          name: "Búsqueda de leads en mapa",
-          description: "Búsqueda de leads",
-        },
-        {
-          key: "crm",
-          included: true,
-          name: "CRM",
-          description: "Gestión de leads y ventas",
-        },
-        {
-          key: "edit_lead_data",
-          included: true,
-          name: "Editar datos del lead",
-          description: "Editar datos del lead",
-        },
-        {
-          key: "sales_activities",
-          included: true,
-          name: "Actividades de ventas",
-          description: "Registrar actividades de ventas",
-        },
-        {
-          key: "follow_up_tasks",
-          included: true,
-          name: "Tareas de seguimiento",
-          description: "Crear tareas de seguimiento",
-        },
-        {
-          key: "proposals",
-          included: true,
-          name: "Propuestas",
-          description: "Crear y gestionar propuestas",
-        },
-        {
-          key: "sales_person_management",
-          included: true,
-          name: "Gestión de vendedores",
-          description: "Gestión de vendedores",
-        },
-        {
-          key: "sales_commission",
-          included: true,
-          name: "Comisión de ventas",
-          description: "Configurar comisión de ventas",
-        },
-        {
-          key: "assign_sales_person",
-          included: true,
-          name: "Asignar vendedor",
-          description: "Asignar vendedor al lead",
-        },
-        {
-          key: "calendar_crm",
-          included: true,
-          name: "Gestión de calendario",
-          description:
-            "Gestión de propuestas, actividades de ventas y tareas de seguimiento",
-        },
-      ],
-    },
-    query: "id",
+  await upsertPlan(context, "Agencia", {
+    name: "Agencia",
+    cost: 1999,
+    frequency: PLAN_FREQUENCY.MONTHLY,
+    leadLimit: 5000,
+    planFeatures: planFeaturesAgency,
   });
 
   console.log("✅ SaasPlan seeding complete.");
-  return free.id;
+  return freeId;
 }
