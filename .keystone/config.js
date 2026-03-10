@@ -2793,7 +2793,6 @@ var saasCompanySubscriptionHook = {
     try {
       const session2 = context.session;
       const createdByUserId = session2?.data?.id;
-      console.log("createdByUserId", createdByUserId);
       if (createdByUserId) {
         const [adminCompanyRole] = await context.sudo().query.Role.findMany({
           where: { name: { equals: "admin_company" /* ADMIN_COMPANY */ } },
@@ -6056,7 +6055,6 @@ var resolver11 = {
     } else {
       subscriptionActive = newStatus === SUBSCRIPTION_STATUS.ACTIVE || newStatus === SUBSCRIPTION_STATUS.TRIALING;
     }
-    console.log("periodEnd", periodEnd);
     const daysUntilNextBilling = periodEnd ? daysUntil(periodEnd) : null;
     const subscriptionData = {
       id: sub.id,

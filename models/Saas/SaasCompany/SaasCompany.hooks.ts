@@ -9,7 +9,6 @@ export const saasCompanySubscriptionHook = {
     try {
       const session = context.session as { data?: { id: string } } | undefined;
       const createdByUserId = session?.data?.id;
-      console.log("createdByUserId", createdByUserId);
       if (createdByUserId) {
         const [adminCompanyRole] = await context.sudo().query.Role.findMany({
           where: { name: { equals: Role.ADMIN_COMPANY } },

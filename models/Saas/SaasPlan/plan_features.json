@@ -1,12 +1,12 @@
 [
-  {"key": "lead_sync", "name": "Búsqueda de leads en mapa", "description": "Búsqueda de leads"},
-  {"key": "crm", "name": "CRM", "description": "Gestión de leads y ventas"},
-  {"key": "edit_lead_data", "name": "Editar datos del lead", "description": "Editar datos del lead"},
-  {"key": "sales_activities", "name": "Actividades de ventas", "description": "Registrar actividades de ventas"},
-  {"key": "follow_up_tasks", "name": "Tareas de seguimiento", "description": "Crear tareas de seguimiento"},
-  {"key": "proposals", "name": "Propuestas", "description": "Crear y gestionar propuestas"},
-  {"key": "sales_person_management", "name": "Gestión de vendedores", "description": "Gestión de vendedores"},
-  {"key": "sales_commission", "name": "Comisión de ventas", "description": "Configurar comisión de ventas"},
-  {"key": "assign_sales_person", "name": "Asignar vendedor", "description": "Asignar vendedor al lead"},
-  {"key": "calendar_crm", "name": "Gestión de calendario", "description": "Gestión de propuestas, actividades de ventas y tareas de seguimiento"}
+  {"key": "lead_sync", "name": "Búsqueda de leads en mapa", "description": "Extrae prospectos reales por categoría y radio de acción (KM) directamente desde el mapa."},
+  {"key": "crm", "name": "CRM", "description": "Visualiza y gestiona el progreso de tus prospectos desde el primer contacto hasta el cierre."},
+  {"key": "edit_lead_data", "name": "Editar datos del lead", "description": "Enriquece y edita la información de cada negocio para un enfoque de venta más directo."},
+  {"key": "sales_activities", "name": "Actividades de ventas", "description": "Registra llamadas, notas y correos para mantener el historial completo de cada interacción."},
+  {"key": "follow_up_tasks", "name": "Tareas de seguimiento", "description": "Programa tareas automáticas para que nunca olvides contactar a un cliente potencial."},
+  {"key": "proposals", "name": "Propuestas", "description": "Crea, vincula y controla el estatus y montos de tus cotizaciones enviadas."},
+  {"key": "sales_person_management", "name": "Gestión de vendedores", "description": "Administra múltiples perfiles de vendedores y controla sus accesos al sistema."},
+  {"key": "sales_commission", "name": "Comisión de ventas", "description": "Configura y calcula automáticamente el porcentaje de ganancia para tus vendedores."},
+  {"key": "assign_sales_person", "name": "Asignar vendedor", "description": "Distribuye leads de forma equitativa o específica entre los miembros de tu equipo."},
+  {"key": "calendar_crm", "name": "Gestión de calendario", "description": "Vista unificada de todas tus citas, tareas y propuestas para organizar tu semana."}
 ]

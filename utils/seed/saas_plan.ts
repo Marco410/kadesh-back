@@ -103,6 +103,8 @@ export async function createSaasPlan(
     leadLimit: 1500,
     planFeatures: planFeaturesPro,
     bestSeller: true,
+    stripePriceId: "price_1T97OjQB4ei9YzRVJqkhleiQ",
+    stripeProductId: "prod_U7M6geL01RYWf5",
   });
 
   await upsertPlan(context, "Agencia", {
@@ -111,6 +113,8 @@ export async function createSaasPlan(
     frequency: PLAN_FREQUENCY.MONTHLY,
     leadLimit: 5000,
     planFeatures: planFeaturesAgency,
+    stripePriceId: "price_1T98JSQB4ei9YzRV6wVlfDy5",
+    stripeProductId: "prod_U7N3RIsVzkxTB1",
   });
 
   console.log("✅ SaasPlan seeding complete.");
