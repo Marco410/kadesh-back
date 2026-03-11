@@ -217,6 +217,7 @@ var Animal_default = (0, import_core.list)({
     }),
     color: (0, import_fields.text)(),
     size: (0, import_fields.text)(),
+    contactNumber: (0, import_fields.text)(),
     animal_type: (0, import_fields.relationship)({
       ref: "AnimalType",
       many: false
