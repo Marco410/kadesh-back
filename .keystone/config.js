@@ -6181,6 +6181,9 @@ var keystone_default = withAuth(
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
     },
+    ui: {
+      isAccessAllowed: (context) => !!context.session?.data
+    },
     server: {
       cors: true,
       maxFileSize: 200 * 1024 * 1024,
