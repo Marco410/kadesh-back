@@ -470,6 +470,7 @@ model SaasCompany {
   subscriptions                SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
   techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
   monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
+  techFiles                    TechFile[]                   @relation("TechFile_company")
   createdAt                    DateTime?                    @default(now())
   updatedAt                    DateTime?                    @updatedAt
 
@@ -657,6 +658,23 @@ model TechBusinessLead {
   @@index([city])
   @@index([state])
   @@index([country])
+}
+
+model TechFile {
+  id            String       @id @default(cuid())
+  title         String       @default("")
+  description   String       @default("")
+  category      String?      @default("otro")
+  file_filesize Int?
+  file_filename String?
+  company       SaasCompany? @relation("TechFile_company", fields: [companyId], references: [id])
+  companyId     String?      @map("company")
+  createdAt     DateTime?    @default(now())
+  updatedAt     DateTime?    @updatedAt
+
+  @@index([title])
+  @@index([category])
+  @@index([companyId])
 }
 
 model TechFollowUpTask {

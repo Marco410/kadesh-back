@@ -15,6 +15,7 @@ const planFeaturesStarter = getPlanFeatures({
   sales_person_management: false,
   sales_commission: false,
   assign_sales_person: false,
+  upload_files: false,
 });
 
 const planFeaturesPro = getPlanFeatures({
@@ -28,6 +29,7 @@ const planFeaturesPro = getPlanFeatures({
   sales_person_management: false,
   sales_commission: false,
   assign_sales_person: false,
+  upload_files: false,
 });
 
 const planFeaturesAgency = getPlanFeatures();

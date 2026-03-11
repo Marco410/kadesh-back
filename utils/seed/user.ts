@@ -15,7 +15,6 @@ export async function createUserAdmin(context: KeystoneContext) {
       username: "marco410",
       email: "marco_pascual410@hotmail.com",
       password: "1234567890",
-      role: "admin",
     },
     query: "id",
   });

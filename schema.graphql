@@ -2532,6 +2532,8 @@ type SaasCompany {
   techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   monthlyLeadSyncRecords(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
   monthlyLeadSyncRecordsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
+  techFiles(where: TechFileWhereInput! = {}, orderBy: [TechFileOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFileWhereUniqueInput): [TechFile!]
+  techFilesCount(where: TechFileWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2553,6 +2555,7 @@ input SaasCompanyWhereInput {
   subscriptions: SaasCompanySubscriptionManyRelationFilter
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
+  techFiles: TechFileManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2581,6 +2584,12 @@ input SaasCompanyMonthlyLeadSyncManyRelationFilter {
   none: SaasCompanyMonthlyLeadSyncWhereInput
 }
 
+input TechFileManyRelationFilter {
+  every: TechFileWhereInput
+  some: TechFileWhereInput
+  none: TechFileWhereInput
+}
+
 input SaasCompanyOrderByInput {
   id: OrderDirection
   name: OrderDirection
@@ -2599,6 +2608,7 @@ input SaasCompanyUpdateInput {
   subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
+  techFiles: TechFileRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2637,6 +2647,13 @@ input SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput {
   connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
 }
 
+input TechFileRelateToManyForUpdateInput {
+  disconnect: [TechFileWhereUniqueInput!]
+  set: [TechFileWhereUniqueInput!]
+  create: [TechFileCreateInput!]
+  connect: [TechFileWhereUniqueInput!]
+}
+
 input SaasCompanyUpdateArgs {
   where: SaasCompanyWhereUniqueInput!
   data: SaasCompanyUpdateInput!
@@ -2652,6 +2669,7 @@ input SaasCompanyCreateInput {
   subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
+  techFiles: TechFileRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2679,6 +2697,11 @@ input TechStatusBusinessLeadRelateToManyForCreateInput {
 input SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput {
   create: [SaasCompanyMonthlyLeadSyncCreateInput!]
   connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+}
+
+input TechFileRelateToManyForCreateInput {
+  create: [TechFileCreateInput!]
+  connect: [TechFileWhereUniqueInput!]
 }
 
 type SaasCompanyMonthlyLeadSync {
@@ -3625,6 +3648,78 @@ input TechFollowUpTaskRelateToManyForCreateInput {
   connect: [TechFollowUpTaskWhereUniqueInput!]
 }
 
+type TechFile {
+  id: ID!
+  title: String
+  description: String
+  category: String
+  file: FileFieldOutput
+  company: SaasCompany
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type FileFieldOutput {
+  filename: String!
+  filesize: Int!
+  url: String!
+}
+
+input TechFileWhereUniqueInput {
+  id: ID
+}
+
+input TechFileWhereInput {
+  AND: [TechFileWhereInput!]
+  OR: [TechFileWhereInput!]
+  NOT: [TechFileWhereInput!]
+  id: IDFilter
+  title: StringFilter
+  description: StringFilter
+  category: StringNullableFilter
+  company: SaasCompanyWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input TechFileOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  description: OrderDirection
+  category: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TechFileUpdateInput {
+  title: String
+  description: String
+  category: String
+  file: FileFieldInput
+  company: SaasCompanyRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FileFieldInput {
+  upload: Upload!
+}
+
+input TechFileUpdateArgs {
+  where: TechFileWhereUniqueInput!
+  data: TechFileUpdateInput!
+}
+
+input TechFileCreateInput {
+  title: String
+  description: String
+  category: String
+  file: FileFieldInput
+  company: SaasCompanyRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
 type TechFollowUpTask {
   id: ID!
   scheduledDate: CalendarDay
@@ -4473,6 +4568,12 @@ type Mutation {
   updateTechBusinessLeads(data: [TechBusinessLeadUpdateArgs!]!): [TechBusinessLead]
   deleteTechBusinessLead(where: TechBusinessLeadWhereUniqueInput!): TechBusinessLead
   deleteTechBusinessLeads(where: [TechBusinessLeadWhereUniqueInput!]!): [TechBusinessLead]
+  createTechFile(data: TechFileCreateInput!): TechFile
+  createTechFiles(data: [TechFileCreateInput!]!): [TechFile]
+  updateTechFile(where: TechFileWhereUniqueInput!, data: TechFileUpdateInput!): TechFile
+  updateTechFiles(data: [TechFileUpdateArgs!]!): [TechFile]
+  deleteTechFile(where: TechFileWhereUniqueInput!): TechFile
+  deleteTechFiles(where: [TechFileWhereUniqueInput!]!): [TechFile]
   createTechFollowUpTask(data: TechFollowUpTaskCreateInput!): TechFollowUpTask
   createTechFollowUpTasks(data: [TechFollowUpTaskCreateInput!]!): [TechFollowUpTask]
   updateTechFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!, data: TechFollowUpTaskUpdateInput!): TechFollowUpTask
@@ -4665,6 +4766,9 @@ type Query {
   techBusinessLead(where: TechBusinessLeadWhereUniqueInput!): TechBusinessLead
   techBusinessLeads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
   techBusinessLeadsCount(where: TechBusinessLeadWhereInput! = {}): Int
+  techFile(where: TechFileWhereUniqueInput!): TechFile
+  techFiles(where: TechFileWhereInput! = {}, orderBy: [TechFileOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFileWhereUniqueInput): [TechFile!]
+  techFilesCount(where: TechFileWhereInput! = {}): Int
   techFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!): TechFollowUpTask
   techFollowUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   techFollowUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int

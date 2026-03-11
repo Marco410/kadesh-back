@@ -46,6 +46,7 @@ const storage: Record<string, any> = {
         s3_animals: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", signed: { expiry: 3600 } },
         s3_pets: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", signed: { expiry: 3600 } },
         s3_ads: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", signed: { expiry: 3600 } },
+        s3_tech_files: { kind: "s3", type: "file", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/tech-files/" : "tech-files/", signed: { expiry: 3600 } },
       }
     : {
         s3_files: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
@@ -55,6 +56,7 @@ const storage: Record<string, any> = {
         s3_animals: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
         s3_pets: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
         s3_ads: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
+        s3_tech_files: { kind: "local", type: "file", serverRoute: { path: "/files" }, storagePath: "public/files" },
       }),
 };
 

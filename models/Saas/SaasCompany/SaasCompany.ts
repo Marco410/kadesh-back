@@ -82,6 +82,11 @@ export default list({
       many: true,
       ui: { description: "Per-month lead sync usage (for quota enforcement)" },
     }),
+    techFiles: relationship({
+      ref: "TechFile.company",
+      many: true,
+      ui: { description: "Archivos y materiales para el equipo de ventas" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {
