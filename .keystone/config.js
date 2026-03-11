@@ -2656,6 +2656,14 @@ var TechProposal_default = (0, import_core39.list)({
     fileOrUrl: (0, import_fields39.text)({
       ui: { description: "URL o referencia al archivo de la propuesta" }
     }),
+    approved: (0, import_fields39.checkbox)({
+      defaultValue: false,
+      ui: { description: "Aprobado por administrador" }
+    }),
+    paid: (0, import_fields39.checkbox)({
+      defaultValue: false,
+      ui: { description: "Pagado" }
+    }),
     businessLead: (0, import_fields39.relationship)({
       ref: "TechBusinessLead.proposals",
       many: false

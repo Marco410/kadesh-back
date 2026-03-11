@@ -6,6 +6,7 @@ import {
   calendarDay,
   select,
   relationship,
+  checkbox,
 } from "@keystone-6/core/fields";
 import { proposalAccess } from "./TechProposal.access";
 import { proposalHooks } from "./TechProposal.hooks";
@@ -38,6 +39,14 @@ export default list({
     }),
     fileOrUrl: text({
       ui: { description: "URL o referencia al archivo de la propuesta" },
+    }),
+    approved: checkbox({
+      defaultValue: false,
+      ui: { description: "Aprobado por administrador" },
+    }),
+    paid: checkbox({
+      defaultValue: false,
+      ui: { description: "Pagado" },
     }),
     businessLead: relationship({
       ref: "TechBusinessLead.proposals",

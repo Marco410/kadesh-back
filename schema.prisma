@@ -684,6 +684,8 @@ model TechProposal {
   amount           Float?
   status           String?           @default("Enviada")
   fileOrUrl        String            @default("")
+  approved         Boolean           @default(false)
+  paid             Boolean           @default(false)
   businessLead     TechBusinessLead? @relation("TechProposal_businessLead", fields: [businessLeadId], references: [id])
   businessLeadId   String?           @map("businessLead")
   assignedSeller   User?             @relation("TechProposal_assignedSeller", fields: [assignedSellerId], references: [id])

@@ -3710,6 +3710,8 @@ type TechProposal {
   amount: Float
   status: String
   fileOrUrl: String
+  approved: Boolean
+  paid: Boolean
   businessLead: TechBusinessLead
   assignedSeller: User
   createdAt: DateTime
@@ -3729,6 +3731,8 @@ input TechProposalWhereInput {
   amount: FloatNullableFilter
   status: StringNullableFilter
   fileOrUrl: StringFilter
+  approved: BooleanFilter
+  paid: BooleanFilter
   businessLead: TechBusinessLeadWhereInput
   assignedSeller: UserWhereInput
   createdAt: DateTimeNullableFilter
@@ -3741,6 +3745,8 @@ input TechProposalOrderByInput {
   amount: OrderDirection
   status: OrderDirection
   fileOrUrl: OrderDirection
+  approved: OrderDirection
+  paid: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -3750,6 +3756,8 @@ input TechProposalUpdateInput {
   amount: Float
   status: String
   fileOrUrl: String
+  approved: Boolean
+  paid: Boolean
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
   assignedSeller: UserRelateToOneForUpdateInput
   createdAt: DateTime
@@ -3766,6 +3774,8 @@ input TechProposalCreateInput {
   amount: Float
   status: String
   fileOrUrl: String
+  approved: Boolean
+  paid: Boolean
   businessLead: TechBusinessLeadRelateToOneForCreateInput
   assignedSeller: UserRelateToOneForCreateInput
   createdAt: DateTime
