@@ -9,5 +9,6 @@
   {"key": "sales_commission", "name": "Comisión de ventas", "description": "Configura y calcula automáticamente el porcentaje de ganancia para tus vendedores."},
   {"key": "assign_sales_person", "name": "Asignar vendedor", "description": "Distribuye leads de forma equitativa o específica entre los miembros de tu equipo."},
   {"key": "calendar_crm", "name": "Gestión de calendario", "description": "Vista unificada de todas tus citas, tareas y propuestas para organizar tu semana."},
-  {"key": "upload_files", "name": "Subir archivos", "description": "Sube archivos para tus vendedores como procesos, técnicas, cierres, speech, etc."}
+  {"key": "upload_files", "name": "Subir archivos", "description": "Sube archivos para tus vendedores como procesos, técnicas, cierres, speech, etc."},
+  {"key": "projects", "name": "Proyectos", "description": "Crea, dale seguimiento y controla tus proyectos de ventas cerradas de tus clientes."}
 ]
