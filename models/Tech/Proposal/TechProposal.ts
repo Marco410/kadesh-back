@@ -48,6 +48,15 @@ export default list({
       defaultValue: false,
       ui: { description: "Pagado" },
     }),
+    product: text({
+      ui: { description: "Producto o servicio principal cotizado" },
+    }),
+    notes: text({
+      ui: {
+        displayMode: "textarea",
+        description: "Notas adicionales o condiciones de la propuesta",
+      },
+    }),
     businessLead: relationship({
       ref: "TechBusinessLead.proposals",
       many: false,

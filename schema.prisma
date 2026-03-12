@@ -704,6 +704,8 @@ model TechProposal {
   fileOrUrl        String            @default("")
   approved         Boolean           @default(false)
   paid             Boolean           @default(false)
+  product          String            @default("")
+  notes            String            @default("")
   businessLead     TechBusinessLead? @relation("TechProposal_businessLead", fields: [businessLeadId], references: [id])
   businessLeadId   String?           @map("businessLead")
   assignedSeller   User?             @relation("TechProposal_assignedSeller", fields: [assignedSellerId], references: [id])

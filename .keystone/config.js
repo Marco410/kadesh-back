@@ -2664,6 +2664,15 @@ var TechProposal_default = (0, import_core39.list)({
       defaultValue: false,
       ui: { description: "Pagado" }
     }),
+    product: (0, import_fields39.text)({
+      ui: { description: "Producto o servicio principal cotizado" }
+    }),
+    notes: (0, import_fields39.text)({
+      ui: {
+        displayMode: "textarea",
+        description: "Notas adicionales o condiciones de la propuesta"
+      }
+    }),
     businessLead: (0, import_fields39.relationship)({
       ref: "TechBusinessLead.proposals",
       many: false
