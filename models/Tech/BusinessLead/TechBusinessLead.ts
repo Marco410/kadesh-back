@@ -101,6 +101,11 @@ export default list({
       many: true,
       ui: { hideCreate: true },
     }),
+    projects: relationship({
+      ref: "SaasProject.businessLead",
+      many: true,
+      ui: { description: "Proyectos creados tras venta cerrada (cliente)" },
+    }),
     followUpTasks: relationship({
       ref: "TechFollowUpTask.businessLead",
       many: true,

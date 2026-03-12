@@ -87,6 +87,11 @@ export default list({
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" },
     }),
+    projects: relationship({
+      ref: "SaasProject.company",
+      many: true,
+      ui: { description: "Proyectos o servicios de la empresa" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

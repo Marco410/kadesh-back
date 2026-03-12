@@ -2534,6 +2534,8 @@ type SaasCompany {
   monthlyLeadSyncRecordsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
   techFiles(where: TechFileWhereInput! = {}, orderBy: [TechFileOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFileWhereUniqueInput): [TechFile!]
   techFilesCount(where: TechFileWhereInput! = {}): Int
+  projects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
+  projectsCount(where: SaasProjectWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2556,6 +2558,7 @@ input SaasCompanyWhereInput {
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
   techFiles: TechFileManyRelationFilter
+  projects: SaasProjectManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2590,6 +2593,12 @@ input TechFileManyRelationFilter {
   none: TechFileWhereInput
 }
 
+input SaasProjectManyRelationFilter {
+  every: SaasProjectWhereInput
+  some: SaasProjectWhereInput
+  none: SaasProjectWhereInput
+}
+
 input SaasCompanyOrderByInput {
   id: OrderDirection
   name: OrderDirection
@@ -2609,6 +2618,7 @@ input SaasCompanyUpdateInput {
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
   techFiles: TechFileRelateToManyForUpdateInput
+  projects: SaasProjectRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2654,6 +2664,13 @@ input TechFileRelateToManyForUpdateInput {
   connect: [TechFileWhereUniqueInput!]
 }
 
+input SaasProjectRelateToManyForUpdateInput {
+  disconnect: [SaasProjectWhereUniqueInput!]
+  set: [SaasProjectWhereUniqueInput!]
+  create: [SaasProjectCreateInput!]
+  connect: [SaasProjectWhereUniqueInput!]
+}
+
 input SaasCompanyUpdateArgs {
   where: SaasCompanyWhereUniqueInput!
   data: SaasCompanyUpdateInput!
@@ -2670,6 +2687,7 @@ input SaasCompanyCreateInput {
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
   techFiles: TechFileRelateToManyForCreateInput
+  projects: SaasProjectRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2702,6 +2720,11 @@ input SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput {
 input TechFileRelateToManyForCreateInput {
   create: [TechFileCreateInput!]
   connect: [TechFileWhereUniqueInput!]
+}
+
+input SaasProjectRelateToManyForCreateInput {
+  create: [SaasProjectCreateInput!]
+  connect: [SaasProjectWhereUniqueInput!]
 }
 
 type SaasCompanyMonthlyLeadSync {
@@ -3244,6 +3267,115 @@ input SaasCompanyRelateToManyForCreateInput {
   connect: [SaasCompanyWhereUniqueInput!]
 }
 
+type SaasProject {
+  id: ID!
+  name: String
+  serviceType: String
+  responsible: User
+  startDate: CalendarDay
+  estimatedEndDate: CalendarDay
+  description: String
+  status: String
+  company: SaasCompany
+  businessLead: TechBusinessLead
+  proposal: TechProposal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasProjectWhereUniqueInput {
+  id: ID
+  proposal: TechProposalWhereUniqueInput
+}
+
+input SaasProjectWhereInput {
+  AND: [SaasProjectWhereInput!]
+  OR: [SaasProjectWhereInput!]
+  NOT: [SaasProjectWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  serviceType: StringFilter
+  responsible: UserWhereInput
+  startDate: CalendarDayNullableFilter
+  estimatedEndDate: CalendarDayNullableFilter
+  description: StringFilter
+  status: StringNullableFilter
+  company: SaasCompanyWhereInput
+  businessLead: TechBusinessLeadWhereInput
+  proposal: TechProposalWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasProjectOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  serviceType: OrderDirection
+  startDate: OrderDirection
+  estimatedEndDate: OrderDirection
+  description: OrderDirection
+  status: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasProjectUpdateInput {
+  name: String
+  serviceType: String
+  responsible: UserRelateToOneForUpdateInput
+  startDate: CalendarDay
+  estimatedEndDate: CalendarDay
+  description: String
+  status: String
+  company: SaasCompanyRelateToOneForUpdateInput
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  proposal: TechProposalRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechBusinessLeadRelateToOneForUpdateInput {
+  create: TechBusinessLeadCreateInput
+  connect: TechBusinessLeadWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechProposalRelateToOneForUpdateInput {
+  create: TechProposalCreateInput
+  connect: TechProposalWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasProjectUpdateArgs {
+  where: SaasProjectWhereUniqueInput!
+  data: SaasProjectUpdateInput!
+}
+
+input SaasProjectCreateInput {
+  name: String
+  serviceType: String
+  responsible: UserRelateToOneForCreateInput
+  startDate: CalendarDay
+  estimatedEndDate: CalendarDay
+  description: String
+  status: String
+  company: SaasCompanyRelateToOneForCreateInput
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  proposal: TechProposalRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechBusinessLeadRelateToOneForCreateInput {
+  create: TechBusinessLeadCreateInput
+  connect: TechBusinessLeadWhereUniqueInput
+}
+
+input TechProposalRelateToOneForCreateInput {
+  create: TechProposalCreateInput
+  connect: TechProposalWhereUniqueInput
+}
+
 type Schedule {
   id: ID!
   day: String
@@ -3425,6 +3557,8 @@ type TechBusinessLead {
   activitiesCount(where: TechSalesActivityWhereInput! = {}): Int
   proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
   proposalsCount(where: TechProposalWhereInput! = {}): Int
+  projects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
+  projectsCount(where: SaasProjectWhereInput! = {}): Int
   followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   googleMapsUrl: String
@@ -3474,6 +3608,7 @@ input TechBusinessLeadWhereInput {
   websitePromptContent: StringFilter
   activities: TechSalesActivityManyRelationFilter
   proposals: TechProposalManyRelationFilter
+  projects: SaasProjectManyRelationFilter
   followUpTasks: TechFollowUpTaskManyRelationFilter
   googleMapsUrl: StringFilter
   googlePlaceId: StringNullableFilter
@@ -3561,6 +3696,7 @@ input TechBusinessLeadUpdateInput {
   websitePromptContent: String
   activities: TechSalesActivityRelateToManyForUpdateInput
   proposals: TechProposalRelateToManyForUpdateInput
+  projects: SaasProjectRelateToManyForUpdateInput
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   googleMapsUrl: String
   googlePlaceId: String
@@ -3624,6 +3760,7 @@ input TechBusinessLeadCreateInput {
   websitePromptContent: String
   activities: TechSalesActivityRelateToManyForCreateInput
   proposals: TechProposalRelateToManyForCreateInput
+  projects: SaasProjectRelateToManyForCreateInput
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   googleMapsUrl: String
   googlePlaceId: String
@@ -3772,12 +3909,6 @@ input TechFollowUpTaskUpdateInput {
   updatedAt: DateTime
 }
 
-input TechBusinessLeadRelateToOneForUpdateInput {
-  create: TechBusinessLeadCreateInput
-  connect: TechBusinessLeadWhereUniqueInput
-  disconnect: Boolean
-}
-
 input TechFollowUpTaskUpdateArgs {
   where: TechFollowUpTaskWhereUniqueInput!
   data: TechFollowUpTaskUpdateInput!
@@ -3794,11 +3925,6 @@ input TechFollowUpTaskCreateInput {
   updatedAt: DateTime
 }
 
-input TechBusinessLeadRelateToOneForCreateInput {
-  create: TechBusinessLeadCreateInput
-  connect: TechBusinessLeadWhereUniqueInput
-}
-
 type TechProposal {
   id: ID!
   sentDate: CalendarDay
@@ -3811,12 +3937,14 @@ type TechProposal {
   notes: String
   businessLead: TechBusinessLead
   assignedSeller: User
+  project: SaasProject
   createdAt: DateTime
   updatedAt: DateTime
 }
 
 input TechProposalWhereUniqueInput {
   id: ID
+  project: SaasProjectWhereUniqueInput
 }
 
 input TechProposalWhereInput {
@@ -3834,6 +3962,7 @@ input TechProposalWhereInput {
   notes: StringFilter
   businessLead: TechBusinessLeadWhereInput
   assignedSeller: UserWhereInput
+  project: SaasProjectWhereInput
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3863,8 +3992,15 @@ input TechProposalUpdateInput {
   notes: String
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
   assignedSeller: UserRelateToOneForUpdateInput
+  project: SaasProjectRelateToOneForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasProjectRelateToOneForUpdateInput {
+  create: SaasProjectCreateInput
+  connect: SaasProjectWhereUniqueInput
+  disconnect: Boolean
 }
 
 input TechProposalUpdateArgs {
@@ -3883,8 +4019,14 @@ input TechProposalCreateInput {
   notes: String
   businessLead: TechBusinessLeadRelateToOneForCreateInput
   assignedSeller: UserRelateToOneForCreateInput
+  project: SaasProjectRelateToOneForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasProjectRelateToOneForCreateInput {
+  create: SaasProjectCreateInput
+  connect: SaasProjectWhereUniqueInput
 }
 
 type TechSalesActivity {
@@ -4095,6 +4237,8 @@ type User {
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
   proposalsCount(where: TechProposalWhereInput! = {}): Int
+  projectsResponsible(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
+  projectsResponsibleCount(where: SaasProjectWhereInput! = {}): Int
   profileImage: ImageFieldOutput
   birthday: CalendarDay
   age: String
@@ -4141,6 +4285,7 @@ input UserWhereInput {
   salesActivities: TechSalesActivityManyRelationFilter
   followUpTasks: TechFollowUpTaskManyRelationFilter
   proposals: TechProposalManyRelationFilter
+  projectsResponsible: SaasProjectManyRelationFilter
   birthday: CalendarDayNullableFilter
   smsRegistrationId: StringFilter
   verified: BooleanFilter
@@ -4207,6 +4352,7 @@ input UserUpdateInput {
   salesActivities: TechSalesActivityRelateToManyForUpdateInput
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   proposals: TechProposalRelateToManyForUpdateInput
+  projectsResponsible: SaasProjectRelateToManyForUpdateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -4261,6 +4407,7 @@ input UserCreateInput {
   salesActivities: TechSalesActivityRelateToManyForCreateInput
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   proposals: TechProposalRelateToManyForCreateInput
+  projectsResponsible: SaasProjectRelateToManyForCreateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -4554,6 +4701,12 @@ type Mutation {
   updateSaasPlans(data: [SaasPlanUpdateArgs!]!): [SaasPlan]
   deleteSaasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
   deleteSaasPlans(where: [SaasPlanWhereUniqueInput!]!): [SaasPlan]
+  createSaasProject(data: SaasProjectCreateInput!): SaasProject
+  createSaasProjects(data: [SaasProjectCreateInput!]!): [SaasProject]
+  updateSaasProject(where: SaasProjectWhereUniqueInput!, data: SaasProjectUpdateInput!): SaasProject
+  updateSaasProjects(data: [SaasProjectUpdateArgs!]!): [SaasProject]
+  deleteSaasProject(where: SaasProjectWhereUniqueInput!): SaasProject
+  deleteSaasProjects(where: [SaasProjectWhereUniqueInput!]!): [SaasProject]
   createSchedule(data: ScheduleCreateInput!): Schedule
   createSchedules(data: [ScheduleCreateInput!]!): [Schedule]
   updateSchedule(where: ScheduleWhereUniqueInput!, data: ScheduleUpdateInput!): Schedule
@@ -4764,6 +4917,9 @@ type Query {
   saasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
   saasPlans(where: SaasPlanWhereInput! = {}, orderBy: [SaasPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPlanWhereUniqueInput): [SaasPlan!]
   saasPlansCount(where: SaasPlanWhereInput! = {}): Int
+  saasProject(where: SaasProjectWhereUniqueInput!): SaasProject
+  saasProjects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
+  saasProjectsCount(where: SaasProjectWhereInput! = {}): Int
   schedule(where: ScheduleWhereUniqueInput!): Schedule
   schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
   schedulesCount(where: ScheduleWhereInput! = {}): Int

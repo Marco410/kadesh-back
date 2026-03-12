@@ -471,6 +471,7 @@ model SaasCompany {
   techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
   monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
   techFiles                    TechFile[]                   @relation("TechFile_company")
+  projects                     SaasProject[]                @relation("SaasProject_company")
   createdAt                    DateTime?                    @default(now())
   updatedAt                    DateTime?                    @updatedAt
 
@@ -586,6 +587,33 @@ model SaasPlan {
   @@index([name])
 }
 
+model SaasProject {
+  id               String            @id @default(cuid())
+  name             String            @default("")
+  serviceType      String            @default("")
+  responsible      User?             @relation("SaasProject_responsible", fields: [responsibleId], references: [id])
+  responsibleId    String?           @map("responsible")
+  startDate        DateTime?         @postgresql.Date
+  estimatedEndDate DateTime?         @postgresql.Date
+  description      String            @default("")
+  status           String?           @default("Pendiente")
+  company          SaasCompany?      @relation("SaasProject_company", fields: [companyId], references: [id])
+  companyId        String?           @map("company")
+  businessLead     TechBusinessLead? @relation("SaasProject_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId   String?           @map("businessLead")
+  proposal         TechProposal?     @relation("SaasProject_proposal", fields: [proposalId], references: [id])
+  proposalId       String?           @unique @map("proposal")
+  createdAt        DateTime?         @default(now())
+  updatedAt        DateTime?         @updatedAt
+
+  @@index([name])
+  @@index([serviceType])
+  @@index([responsibleId])
+  @@index([status])
+  @@index([companyId])
+  @@index([businessLeadId])
+}
+
 model Schedule {
   id          String    @id @default(cuid())
   day         String
@@ -645,6 +673,7 @@ model TechBusinessLead {
   websitePromptContent String                   @default("")
   activities           TechSalesActivity[]      @relation("TechSalesActivity_businessLead")
   proposals            TechProposal[]           @relation("TechProposal_businessLead")
+  projects             SaasProject[]            @relation("SaasProject_businessLead")
   followUpTasks        TechFollowUpTask[]       @relation("TechFollowUpTask_businessLead")
   googleMapsUrl        String                   @default("")
   googlePlaceId        String?                  @unique
@@ -710,6 +739,7 @@ model TechProposal {
   businessLeadId   String?           @map("businessLead")
   assignedSeller   User?             @relation("TechProposal_assignedSeller", fields: [assignedSellerId], references: [id])
   assignedSellerId String?           @map("assignedSeller")
+  project          SaasProject?      @relation("SaasProject_proposal")
   createdAt        DateTime?         @default(now())
   updatedAt        DateTime?         @updatedAt
 
@@ -783,6 +813,7 @@ model User {
   salesActivities             TechSalesActivity[]      @relation("TechSalesActivity_assignedSeller")
   followUpTasks               TechFollowUpTask[]       @relation("TechFollowUpTask_assignedSeller")
   proposals                   TechProposal[]           @relation("TechProposal_assignedSeller")
+  projectsResponsible         SaasProject[]            @relation("SaasProject_responsible")
   profileImage_id             String?
   profileImage_filesize       Int?
   profileImage_width          Int?

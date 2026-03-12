@@ -623,6 +623,11 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { hideCreate: true }
     }),
+    projectsResponsible: (0, import_fields7.relationship)({
+      ref: "SaasProject.responsible",
+      many: true,
+      ui: { description: "Proyectos donde es responsable" }
+    }),
     profileImage: (0, import_fields7.image)({ storage: "s3_profile" }),
     birthday: (0, import_fields7.calendarDay)(),
     age: (0, import_fields7.virtual)({
@@ -1897,9 +1902,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text37) {
+function sanitizeUrl2(text38) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text37.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text38.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -2330,6 +2335,11 @@ var TechBusinessLead_default = (0, import_core36.list)({
       many: true,
       ui: { hideCreate: true }
     }),
+    projects: (0, import_fields36.relationship)({
+      ref: "SaasProject.businessLead",
+      many: true,
+      ui: { description: "Proyectos creados tras venta cerrada (cliente)" }
+    }),
     followUpTasks: (0, import_fields36.relationship)({
       ref: "TechFollowUpTask.businessLead",
       many: true,
@@ -2680,6 +2690,11 @@ var TechProposal_default = (0, import_core39.list)({
     assignedSeller: (0, import_fields39.relationship)({
       ref: "User.proposals",
       many: false
+    }),
+    project: (0, import_fields39.relationship)({
+      ref: "SaasProject.proposal",
+      many: false,
+      ui: { description: "Proyecto creado a partir de esta propuesta" }
     }),
     createdAt: (0, import_fields39.timestamp)({
       defaultValue: { kind: "now" },
@@ -3041,6 +3056,11 @@ var SaasCompany_default = (0, import_core42.list)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
+    }),
+    projects: (0, import_fields42.relationship)({
+      ref: "SaasProject.company",
+      many: true,
+      ui: { description: "Proyectos o servicios de la empresa" }
     }),
     createdAt: (0, import_fields42.timestamp)({
       defaultValue: { kind: "now" },
@@ -3597,6 +3617,138 @@ var SaasPayment_default = (0, import_core47.list)({
   }
 });
 
+// models/Saas/Project/SaasProject.ts
+var import_core48 = require("@keystone-6/core");
+var import_fields48 = require("@keystone-6/core/fields");
+
+// models/Saas/Project/SaasProject.access.ts
+var getCompanyId2 = (session2) => session2?.data?.company?.id;
+var projectAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId2(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      const companyId = getCompanyId2(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => {
+      const companyId = getCompanyId2(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    delete: ({ session: session2 }) => {
+      const companyId = getCompanyId2(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// models/Saas/Project/SaasProject.constants.ts
+var PROJECT_STATUS = {
+  PENDIENTE: "Pendiente",
+  EN_PROCESO: "En proceso",
+  EN_REVISION: "En revisi\xF3n",
+  FINALIZADO: "Finalizado",
+  CANCELADO: "Cancelado"
+};
+var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
+  ([, value]) => ({ label: value, value })
+);
+
+// models/Saas/Project/SaasProject.ts
+var SaasProject_default = (0, import_core48.list)({
+  access: projectAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "name",
+        "serviceType",
+        "status",
+        "responsible",
+        "startDate",
+        "company"
+      ]
+    }
+  },
+  fields: {
+    name: (0, import_fields48.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Nombre del proyecto" }
+    }),
+    serviceType: (0, import_fields48.text)({
+      isIndexed: true,
+      ui: {
+        description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
+      }
+    }),
+    responsible: (0, import_fields48.relationship)({
+      ref: "User.projectsResponsible",
+      many: false,
+      ui: { description: "Responsable del proyecto" }
+    }),
+    startDate: (0, import_fields48.calendarDay)({
+      ui: { description: "Fecha de inicio" }
+    }),
+    estimatedEndDate: (0, import_fields48.calendarDay)({
+      db: { isNullable: true },
+      ui: { description: "Fecha estimada de fin" }
+    }),
+    description: (0, import_fields48.text)({
+      ui: {
+        displayMode: "textarea",
+        description: "Descripci\xF3n del proyecto o alcance"
+      }
+    }),
+    status: (0, import_fields48.select)({
+      type: "string",
+      options: PROJECT_STATUS_OPTIONS,
+      defaultValue: "Pendiente",
+      isIndexed: true,
+      ui: { description: "Estado del proyecto" }
+    }),
+    company: (0, import_fields48.relationship)({
+      ref: "SaasCompany.projects",
+      many: false,
+      ui: { description: "Empresa a la que pertenece el proyecto" }
+    }),
+    businessLead: (0, import_fields48.relationship)({
+      ref: "TechBusinessLead.projects",
+      many: false,
+      ui: {
+        description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
+      }
+    }),
+    proposal: (0, import_fields48.relationship)({
+      ref: "TechProposal.project",
+      many: false,
+      ui: {
+        description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
+      }
+    }),
+    createdAt: (0, import_fields48.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields48.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   Ad: Ad_default,
@@ -3634,6 +3786,7 @@ var schema_default = {
   SaasPayment: SaasPayment_default,
   SaasPaymentMethod: SaasPaymentMethod_default,
   SaasPlan: SaasPlan_default,
+  SaasProject: SaasProject_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
   Tag: Tag_default,
@@ -3649,7 +3802,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core48 = require("@keystone-6/core");
+var import_core49 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -4245,8 +4398,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text37 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text37}`;
+  const text38 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text38}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -4801,8 +4954,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text37 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text37}`;
+  const text38 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text38}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -6286,7 +6439,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core48.config)({
+  (0, import_core49.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

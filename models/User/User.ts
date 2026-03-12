@@ -90,6 +90,11 @@ export default list({
       many: true,
       ui: { hideCreate: true },
     }),
+    projectsResponsible: relationship({
+      ref: "SaasProject.responsible",
+      many: true,
+      ui: { description: "Proyectos donde es responsable" },
+    }),
     profileImage: image({ storage: "s3_profile" }),
     birthday: calendarDay(),
     age: virtual({

@@ -65,6 +65,11 @@ export default list({
       ref: "User.proposals",
       many: false,
     }),
+    project: relationship({
+      ref: "SaasProject.proposal",
+      many: false,
+      ui: { description: "Proyecto creado a partir de esta propuesta" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {
