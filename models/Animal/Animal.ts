@@ -15,6 +15,7 @@ export default list({
     }),
     color: text(),
     size: text(),
+    contactNumber: text(),
     animal_type: relationship({
       ref: "AnimalType",
       many: false,
