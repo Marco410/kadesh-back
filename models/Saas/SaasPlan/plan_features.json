@@ -5,11 +5,11 @@
   {"key": "sales_activities", "name": "Actividades de ventas", "description": "Registra llamadas, notas y correos para mantener el historial completo de cada interacción."},
   {"key": "follow_up_tasks", "name": "Tareas de seguimiento", "description": "Programa tareas automáticas para que nunca olvides contactar a un cliente potencial."},
   {"key": "proposals", "name": "Propuestas", "description": "Crea, vincula y controla el estatus y montos de tus cotizaciones enviadas."},
+  {"key": "add_own_leads", "name": "Agregar leads propios", "description": "Agrega leads propios a tu CRM para tener un control total de tus ventas."},
   {"key": "sales_person_management", "name": "Gestión de vendedores", "description": "Administra múltiples perfiles de vendedores y controla sus accesos al sistema."},
   {"key": "sales_commission", "name": "Comisión de ventas", "description": "Configura y calcula automáticamente el porcentaje de ganancia para tus vendedores."},
   {"key": "assign_sales_person", "name": "Asignar vendedor", "description": "Distribuye leads de forma equitativa o específica entre los miembros de tu equipo."},
   {"key": "calendar_crm", "name": "Gestión de calendario", "description": "Vista unificada de todas tus citas, tareas y propuestas para organizar tu semana."},
   {"key": "upload_files", "name": "Subir archivos", "description": "Sube archivos para tus vendedores como procesos, técnicas, cierres, speech, etc."},
-  {"key": "projects", "name": "Crear proyectos", "description": "Crea, dale seguimiento y controla tus proyectos de ventas cerradas de tus clientes."},
-  {"key": "add_own_leads", "name": "Agregar leads propios", "description": "Agrega leads propios a tu CRM para tener un control total de tus ventas."}
+  {"key": "projects", "name": "Crear proyectos", "description": "Crea, dale seguimiento y controla tus proyectos de ventas cerradas de tus clientes."}
 ]

@@ -272,6 +272,7 @@ type Animal {
   sex: String
   color: String
   size: String
+  contactNumber: String
   animal_type: AnimalType
   animal_breed: AnimalBreed
   user: User
@@ -297,6 +298,7 @@ input AnimalWhereInput {
   sex: StringNullableFilter
   color: StringFilter
   size: StringFilter
+  contactNumber: StringFilter
   animal_type: AnimalTypeWhereInput
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
@@ -325,6 +327,7 @@ input AnimalOrderByInput {
   sex: OrderDirection
   color: OrderDirection
   size: OrderDirection
+  contactNumber: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -335,6 +338,7 @@ input AnimalUpdateInput {
   sex: String
   color: String
   size: String
+  contactNumber: String
   animal_type: AnimalTypeRelateToOneForUpdateInput
   animal_breed: AnimalBreedRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
@@ -381,6 +385,7 @@ input AnimalCreateInput {
   sex: String
   color: String
   size: String
+  contactNumber: String
   animal_type: AnimalTypeRelateToOneForCreateInput
   animal_breed: AnimalBreedRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput

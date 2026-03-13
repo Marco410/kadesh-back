@@ -29,7 +29,7 @@ const planFeaturesPro = getPlanFeatures({
   proposals: true,
   add_own_leads: true,
   calendar_crm: false,
-  sales_person_management: false,
+  sales_person_management: true,
   sales_commission: false,
   assign_sales_person: false,
   upload_files: false,

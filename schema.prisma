@@ -49,6 +49,7 @@ model Animal {
   sex                        String?            @default("male")
   color                      String             @default("")
   size                       String             @default("")
+  contactNumber              String             @default("")
   animal_type                AnimalType?        @relation("Animal_animal_type", fields: [animal_typeId], references: [id])
   animal_typeId              String?            @map("animal_type")
   animal_breed               AnimalBreed?       @relation("Animal_animal_breed", fields: [animal_breedId], references: [id])
