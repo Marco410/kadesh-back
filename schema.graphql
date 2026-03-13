@@ -3530,6 +3530,7 @@ type TechBusinessLead {
   businessName: String
   category: String
   phone: String
+  email: String
   address: String
   city: String
   state: String
@@ -3584,6 +3585,7 @@ input TechBusinessLeadWhereInput {
   businessName: StringFilter
   category: StringFilter
   phone: StringFilter
+  email: StringFilter
   address: StringFilter
   city: StringFilter
   state: StringFilter
@@ -3641,6 +3643,7 @@ input TechBusinessLeadOrderByInput {
   businessName: OrderDirection
   category: OrderDirection
   phone: OrderDirection
+  email: OrderDirection
   address: OrderDirection
   city: OrderDirection
   state: OrderDirection
@@ -3672,6 +3675,7 @@ input TechBusinessLeadUpdateInput {
   businessName: String
   category: String
   phone: String
+  email: String
   address: String
   city: String
   state: String
@@ -3736,6 +3740,7 @@ input TechBusinessLeadCreateInput {
   businessName: String
   category: String
   phone: String
+  email: String
   address: String
   city: String
   state: String
@@ -4787,6 +4792,7 @@ type Mutation {
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
+  addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
 }
@@ -5189,6 +5195,38 @@ type CreateCompanySubscriptionResult {
   message: String!
   subscriptionId: String
   paymentId: String
+}
+
+input AddOwnLeadInput {
+  businessName: String!
+  category: String
+  phone: String
+  address: String
+  city: String
+  state: String
+  country: String
+  email: String
+  websiteUrl: String
+  instagram: String
+  facebook: String
+  xTwitter: String
+  tiktok: String
+  lat: Float
+  lng: Float
+  source: String
+  notes: String
+  opportunityLevel: String
+  topReview1: String
+  topReview2: String
+  topReview3: String
+  topReview4: String
+  topReview5: String
+}
+
+type AddOwnLeadResult {
+  success: Boolean!
+  message: String!
+  leadId: String
 }
 
 type AnimalMultimediaImage {

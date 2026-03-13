@@ -38,6 +38,7 @@ export default list({
     }),
     category: text({ isIndexed: true }),
     phone: text(),
+    email: text(),
     address: text(),
     city: text({ isIndexed: true }),
     state: text({ isIndexed: true }),

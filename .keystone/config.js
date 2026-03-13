@@ -2245,6 +2245,9 @@ var LEAD_SOURCE = {
   GOOGLE_MAPS: "Google Maps",
   REFERIDO: "Referido",
   WEB: "Web",
+  SOCIAL_MEDIA: "Redes Sociales",
+  EMAIL: "Email",
+  CALL: "Llamada",
   OTRO: "Otro"
 };
 
@@ -2274,6 +2277,7 @@ var TechBusinessLead_default = (0, import_core36.list)({
     }),
     category: (0, import_fields36.text)({ isIndexed: true }),
     phone: (0, import_fields36.text)(),
+    email: (0, import_fields36.text)(),
     address: (0, import_fields36.text)(),
     city: (0, import_fields36.text)({ isIndexed: true }),
     state: (0, import_fields36.text)({ isIndexed: true }),
@@ -5365,6 +5369,160 @@ var resolver7 = {
 };
 var createCompanySubscription_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
 
+// graphql/customs/mutations/addOwnLead.ts
+var ADD_OWN_LEADS_FEATURE_KEY = "add_own_leads";
+function subscriptionHasFeature(planFeatures, featureKey) {
+  if (!Array.isArray(planFeatures)) return false;
+  return planFeatures.some((f) => f.key === featureKey);
+}
+var typeDefs8 = `
+  input AddOwnLeadInput {
+    businessName: String!
+    category: String
+    phone: String
+    address: String
+    city: String
+    state: String
+    country: String
+    email: String
+    websiteUrl: String
+    instagram: String
+    facebook: String
+    xTwitter: String
+    tiktok: String
+    lat: Float
+    lng: Float
+    source: String
+    notes: String
+    opportunityLevel: String
+    topReview1: String
+    topReview2: String
+    topReview3: String
+    topReview4: String
+    topReview5: String
+  }
+
+  type AddOwnLeadResult {
+    success: Boolean!
+    message: String!
+    leadId: String
+  }
+
+  type Mutation {
+    addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
+  }
+`;
+var definition8 = `
+  addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
+`;
+var resolver8 = {
+  addOwnLead: async (_root, {
+    input
+  }, context) => {
+    const session2 = context.session;
+    const userId = session2?.data?.id;
+    if (!userId) {
+      return {
+        success: false,
+        message: "Debes iniciar sesi\xF3n para agregar leads",
+        leadId: null
+      };
+    }
+    const user = await context.sudo().query.User.findOne({
+      where: { id: userId },
+      query: "id company { id name }"
+    });
+    const company = user?.company;
+    if (!company?.id) {
+      return {
+        success: false,
+        message: "Tu usuario no tiene una empresa asignada",
+        leadId: null
+      };
+    }
+    const [activeSubscription] = await context.sudo().query.SaasCompanySubscription.findMany({
+      where: {
+        company: { id: { equals: company.id } },
+        status: {
+          in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING]
+        }
+      },
+      orderBy: [{ activatedAt: "desc" }],
+      take: 1,
+      query: "id planFeatures"
+    });
+    if (!activeSubscription) {
+      return {
+        success: false,
+        message: `"${company.name ?? "La empresa"}" no tiene una suscripci\xF3n activa.`,
+        leadId: null
+      };
+    }
+    const sub = activeSubscription;
+    if (!subscriptionHasFeature(sub.planFeatures, ADD_OWN_LEADS_FEATURE_KEY)) {
+      return {
+        success: false,
+        message: "Tu plan actual no incluye la funcionalidad de agregar leads propios. Actualiza tu suscripci\xF3n para desbloquear esta funci\xF3n.",
+        leadId: null
+      };
+    }
+    const validSources = Object.values(LEAD_SOURCE);
+    const source = input.source && validSources.includes(input.source) ? input.source : LEAD_SOURCE.OTRO;
+    try {
+      const newLead = await context.sudo().query.TechBusinessLead.createOne({
+        data: {
+          businessName: input.businessName,
+          category: input.category ?? "",
+          phone: input.phone ?? "",
+          email: input.email ?? "",
+          address: input.address ?? "",
+          city: input.city ?? "",
+          state: input.state ?? "",
+          country: input.country ?? "",
+          hasWebsite: !!input.websiteUrl,
+          websiteUrl: input.websiteUrl ?? "",
+          instagram: input.instagram ?? "",
+          facebook: input.facebook ?? "",
+          xTwitter: input.xTwitter ?? "",
+          tiktok: input.tiktok ?? "",
+          lat: input.lat ?? null,
+          lng: input.lng ?? null,
+          source,
+          topReview1: input.topReview1 ?? "",
+          topReview2: input.topReview2 ?? "",
+          topReview3: input.topReview3 ?? "",
+          topReview4: input.topReview4 ?? "",
+          topReview5: input.topReview5 ?? "",
+          saasCompany: { connect: { id: company.id } },
+          salesPerson: { connect: { id: userId } }
+        }
+      });
+      await context.sudo().query.TechStatusBusinessLead.createOne({
+        data: {
+          businessLead: { connect: { id: newLead.id } },
+          saasCompany: { connect: { id: company.id } },
+          salesPerson: { connect: { id: userId } },
+          pipelineStatus: PIPELINE_STATUS.DETECTADO,
+          opportunityLevel: ["Alta", "Media", "Baja"].includes(input.opportunityLevel ?? "") ? input.opportunityLevel : "Media",
+          notes: input.notes ?? ""
+        }
+      });
+      return {
+        success: true,
+        message: "Lead agregado exitosamente",
+        leadId: newLead.id
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Error al crear el lead",
+        leadId: null
+      };
+    }
+  }
+};
+var addOwnLead_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -5375,6 +5533,7 @@ var customMutation = {
     ${syncBusinessLeadsFromGoogle_default.typeDefs}
     ${syncLeadsFront_default.typeDefs}
     ${createCompanySubscription_default.typeDefs}
+    ${addOwnLead_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -5384,6 +5543,7 @@ var customMutation = {
     ${syncBusinessLeadsFromGoogle_default.definition}
     ${syncLeadsFront_default.definition}
     ${createCompanySubscription_default.definition}
+    ${addOwnLead_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -5392,7 +5552,8 @@ var customMutation = {
     ...importBusinessLeadFromGoogle_default.resolver,
     ...syncBusinessLeadsFromGoogle_default.resolver,
     ...syncLeadsFront_default.resolver,
-    ...createCompanySubscription_default.resolver
+    ...createCompanySubscription_default.resolver,
+    ...addOwnLead_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -5403,7 +5564,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs8 = `
+var typeDefs9 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -5460,7 +5621,7 @@ var typeDefs8 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition8 = `
+var definition9 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -5510,7 +5671,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver8 = {
+var resolver9 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -5664,7 +5825,7 @@ var resolver8 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
+var nearbyAnimals_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -5932,7 +6093,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs9 = `
+var typeDefs10 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -5990,10 +6151,10 @@ var typeDefs9 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition9 = `
+var definition10 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver9 = {
+var resolver10 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -6075,10 +6236,10 @@ var resolver9 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs10 = `
+var typeDefs11 = `
   type StripeCard {
     brand: String
     country: String
@@ -6112,10 +6273,10 @@ var typeDefs10 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition10 = `
+var definition11 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver10 = {
+var resolver11 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -6151,7 +6312,7 @@ var resolver10 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
+var stripePaymentMethods_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -6205,7 +6366,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs11 = `
+var typeDefs12 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -6233,10 +6394,10 @@ var typeDefs11 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition11 = `
+var definition12 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver11 = {
+var resolver12 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -6349,7 +6510,7 @@ var resolver11 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
+var subscriptionStatus_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

@@ -10,5 +10,6 @@
   {"key": "assign_sales_person", "name": "Asignar vendedor", "description": "Distribuye leads de forma equitativa o específica entre los miembros de tu equipo."},
   {"key": "calendar_crm", "name": "Gestión de calendario", "description": "Vista unificada de todas tus citas, tareas y propuestas para organizar tu semana."},
   {"key": "upload_files", "name": "Subir archivos", "description": "Sube archivos para tus vendedores como procesos, técnicas, cierres, speech, etc."},
-  {"key": "projects", "name": "Crear proyectos", "description": "Crea, dale seguimiento y controla tus proyectos de ventas cerradas de tus clientes."}
+  {"key": "projects", "name": "Crear proyectos", "description": "Crea, dale seguimiento y controla tus proyectos de ventas cerradas de tus clientes."},
+  {"key": "add_own_leads", "name": "Agregar leads propios", "description": "Agrega leads propios a tu CRM para tener un control total de tus ventas."}
 ]

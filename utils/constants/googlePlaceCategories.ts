@@ -49,4 +49,5 @@ export const GOOGLE_PLACE_CATEGORIES = [
   { value: "tiendas de mascotas", label: "Tiendas de mascotas" },
   { value: "tiendas de ropa", label: "Tiendas de ropa" },
   { value: "veterinarias", label: "Veterinarias" },
+  { value: "otra", label: "Otra" },
 ] as const;

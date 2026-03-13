@@ -649,6 +649,7 @@ model TechBusinessLead {
   businessName         String                   @default("")
   category             String                   @default("")
   phone                String                   @default("")
+  email                String                   @default("")
   address              String                   @default("")
   city                 String                   @default("")
   state                String                   @default("")

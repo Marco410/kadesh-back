@@ -61,6 +61,9 @@ export const LEAD_SOURCE = {
   GOOGLE_MAPS: "Google Maps",
   REFERIDO: "Referido",
   WEB: "Web",
+  SOCIAL_MEDIA: "Redes Sociales",
+  EMAIL: "Email",
+  CALL: "Llamada",
   OTRO: "Otro",
 } as const;
 
