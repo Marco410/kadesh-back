@@ -629,6 +629,11 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { description: "Proyectos donde es responsable" }
     }),
+    leadSyncLogs: (0, import_fields7.relationship)({
+      ref: "TechLeadSyncLog.user",
+      many: true,
+      ui: { description: "Logs de sincronizaci\xF3n de leads (mapa)" }
+    }),
     profileImage: (0, import_fields7.image)({ storage: "s3_profile" }),
     birthday: (0, import_fields7.calendarDay)(),
     age: (0, import_fields7.virtual)({
@@ -1903,9 +1908,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text38) {
+function sanitizeUrl2(text39) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text38.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text39.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -2881,9 +2886,120 @@ var TechFiles_default = (0, import_core41.list)({
   }
 });
 
-// models/Saas/SaasCompany/SaasCompany.ts
+// models/Tech/LeadSyncLog/TechLeadSyncLog.ts
 var import_core42 = require("@keystone-6/core");
 var import_fields42 = require("@keystone-6/core/fields");
+
+// models/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
+var getCompanyId2 = (session2) => session2?.data?.company?.id;
+var techLeadSyncLogAccess = {
+  operation: {
+    query: () => true,
+    create: () => false,
+    update: () => false,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      const companyId = getCompanyId2(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: () => false,
+    delete: ({ session: session2 }) => {
+      const companyId = getCompanyId2(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// models/Tech/LeadSyncLog/TechLeadSyncLog.ts
+var TechLeadSyncLog_default = (0, import_core42.list)({
+  access: techLeadSyncLogAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "createdAt",
+        "user",
+        "success",
+        "message",
+        "syncedLeadsCount",
+        "created",
+        "alreadyInDb",
+        "category"
+      ]
+    },
+    label: "Logs de sincronizaci\xF3n de leads",
+    description: "Registro de cada b\xFAsqueda/sincronizaci\xF3n de leads desde el mapa"
+  },
+  fields: {
+    user: (0, import_fields42.relationship)({
+      ref: "User.leadSyncLogs",
+      many: false,
+      ui: { description: "Usuario que ejecut\xF3 la sincronizaci\xF3n" }
+    }),
+    company: (0, import_fields42.relationship)({
+      ref: "SaasCompany.leadSyncLogs",
+      many: false,
+      ui: { description: "Empresa" }
+    }),
+    success: (0, import_fields42.checkbox)({
+      defaultValue: false,
+      ui: { description: "Si la operaci\xF3n fue exitosa" }
+    }),
+    message: (0, import_fields42.text)({
+      ui: { description: "Mensaje de resultado" }
+    }),
+    created: (0, import_fields42.integer)({
+      defaultValue: 0,
+      ui: { description: "Leads creados desde Google" }
+    }),
+    alreadyInDb: (0, import_fields42.integer)({
+      defaultValue: 0,
+      ui: { description: "Leads ya en BD asignados a la company" }
+    }),
+    skippedLowRating: (0, import_fields42.integer)({
+      defaultValue: 0,
+      ui: { description: "Leads omitidos por rating/rese\xF1as bajas" }
+    }),
+    syncedLeadsCount: (0, import_fields42.integer)({
+      defaultValue: 0,
+      ui: { description: "Total de leads asignados en esta ejecuci\xF3n" }
+    }),
+    syncedCount: (0, import_fields42.integer)({
+      db: { isNullable: true },
+      ui: { description: "Cuota usada este mes (total)" }
+    }),
+    leadLimit: (0, import_fields42.integer)({
+      db: { isNullable: true },
+      ui: { description: "L\xEDmite de leads del plan" }
+    }),
+    lat: (0, import_fields42.float)({
+      db: { isNullable: true },
+      ui: { description: "Latitud del centro de b\xFAsqueda" }
+    }),
+    lng: (0, import_fields42.float)({
+      db: { isNullable: true },
+      ui: { description: "Longitud del centro de b\xFAsqueda" }
+    }),
+    radius: (0, import_fields42.float)({
+      db: { isNullable: true },
+      ui: { description: "Radio de b\xFAsqueda (km)" }
+    }),
+    category: (0, import_fields42.text)({
+      ui: { description: "Categor\xEDa buscada" }
+    }),
+    createdAt: (0, import_fields42.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { description: "Fecha y hora de la ejecuci\xF3n" }
+    })
+  }
+});
+
+// models/Saas/SaasCompany/SaasCompany.ts
+var import_core43 = require("@keystone-6/core");
+var import_fields43 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
 var saasCompanyAccess = {
@@ -2987,7 +3103,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core42.list)({
+var SaasCompany_default = (0, import_core43.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -3006,75 +3122,80 @@ var SaasCompany_default = (0, import_core42.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields42.text)({
+    name: (0, import_fields43.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields42.relationship)({
+    users: (0, import_fields43.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields42.json)({
+    allowedGooglePlaceCategories: (0, import_fields43.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields42.relationship)({
+    leads: (0, import_fields43.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields42.relationship)({
+    plan: (0, import_fields43.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields42.calendarDay)({
+    subscriptionStartedAt: (0, import_fields43.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields42.relationship)({
+    subscriptions: (0, import_fields43.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields42.relationship)({
+    techStatusBusinessLeads: (0, import_fields43.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields42.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields43.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (for quota enforcement)" }
     }),
-    techFiles: (0, import_fields42.relationship)({
+    techFiles: (0, import_fields43.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields42.relationship)({
+    projects: (0, import_fields43.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    createdAt: (0, import_fields42.timestamp)({
+    leadSyncLogs: (0, import_fields43.relationship)({
+      ref: "TechLeadSyncLog.company",
+      many: true,
+      ui: { description: "Logs de sincronizaci\xF3n de leads" }
+    }),
+    createdAt: (0, import_fields43.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields42.timestamp)({
+    updatedAt: (0, import_fields43.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -3085,8 +3206,8 @@ var SaasCompany_default = (0, import_core42.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core43 = require("@keystone-6/core");
-var import_fields43 = require("@keystone-6/core/fields");
+var import_core44 = require("@keystone-6/core");
+var import_fields44 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -3116,7 +3237,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core43.list)({
+var SaasPlan_default = (0, import_core44.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -3134,27 +3255,27 @@ var SaasPlan_default = (0, import_core43.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields43.text)({
+    name: (0, import_fields44.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields43.float)({
+    cost: (0, import_fields44.float)({
       ui: { description: "Plan cost per billing period" }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields43.select)({
+    frequency: (0, import_fields44.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields43.text)({
+    currency: (0, import_fields44.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields43.integer)({
+    leadLimit: (0, import_fields44.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -3165,28 +3286,28 @@ var SaasPlan_default = (0, import_core43.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields43.json)({
+    planFeatures: (0, import_fields44.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields43.relationship)({
+    saasPayments: (0, import_fields44.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields43.checkbox)({
+    active: (0, import_fields44.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields43.checkbox)({
+    bestSeller: (0, import_fields44.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields43.text)({
+    stripePriceId: (0, import_fields44.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -3194,31 +3315,31 @@ var SaasPlan_default = (0, import_core43.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields43.text)({
+    stripeProductId: (0, import_fields44.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
     /** Companies currently on this plan */
-    companies: (0, import_fields43.relationship)({
+    companies: (0, import_fields44.relationship)({
       ref: "SaasCompany.plan",
       many: true,
       ui: { description: "Companies on this plan" }
     }),
-    subscriptions: (0, import_fields43.relationship)({
+    subscriptions: (0, import_fields44.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
-    createdAt: (0, import_fields43.timestamp)({
+    createdAt: (0, import_fields44.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields43.timestamp)({
+    updatedAt: (0, import_fields44.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -3229,8 +3350,8 @@ var SaasPlan_default = (0, import_core43.list)({
 });
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var import_core44 = require("@keystone-6/core");
-var import_fields44 = require("@keystone-6/core/fields");
+var import_core45 = require("@keystone-6/core");
+var import_fields45 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
 var saasCompanyMonthlyLeadSyncAccess = {
@@ -3248,7 +3369,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
 };
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core44.list)({
+var SaasCompanyMonthlyLeadSync_default = (0, import_core45.list)({
   access: saasCompanyMonthlyLeadSyncAccess,
   ui: {
     listView: {
@@ -3256,30 +3377,30 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core44.list)({
     }
   },
   fields: {
-    company: (0, import_fields44.relationship)({
+    company: (0, import_fields45.relationship)({
       ref: "SaasCompany.monthlyLeadSyncRecords",
       many: false
     }),
-    year: (0, import_fields44.integer)({
+    year: (0, import_fields45.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the sync period" }
     }),
-    month: (0, import_fields44.integer)({
+    month: (0, import_fields45.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the sync period (1-12)" }
     }),
     /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields44.integer)({
+    syncedCount: (0, import_fields45.integer)({
       defaultValue: 0,
       ui: { description: "Number of leads synced this month (for quota tracking)" }
     }),
-    createdAt: (0, import_fields44.timestamp)({
+    createdAt: (0, import_fields45.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields44.timestamp)({
+    updatedAt: (0, import_fields45.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -3287,8 +3408,8 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core44.list)({
 });
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var import_core45 = require("@keystone-6/core");
-var import_fields45 = require("@keystone-6/core/fields");
+var import_core46 = require("@keystone-6/core");
+var import_fields46 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
 var saasCompanySubscriptionAccess = {
@@ -3306,7 +3427,7 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core45.list)({
+var SaasCompanySubscription_default = (0, import_core46.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -3324,87 +3445,87 @@ var SaasCompanySubscription_default = (0, import_core45.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields45.relationship)({
+    company: (0, import_fields46.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields45.text)({
+    planName: (0, import_fields46.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields45.float)({
+    planCost: (0, import_fields46.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields45.text)({
+    planFrequency: (0, import_fields46.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields45.integer)({
+    planLeadLimit: (0, import_fields46.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields45.text)({
+    planStripePriceId: (0, import_fields46.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields45.text)({
+    planCurrency: (0, import_fields46.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields45.json)({
+    planFeatures: (0, import_fields46.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields45.select)({
+    status: (0, import_fields46.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields45.calendarDay)({
+    activatedAt: (0, import_fields46.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields45.calendarDay)({
+    currentPeriodEnd: (0, import_fields46.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields45.text)({
+    stripeSubscriptionId: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields45.text)({
+    stripeCustomerId: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields45.relationship)({
+    saasPayments: (0, import_fields46.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields45.relationship)({
+    plan: (0, import_fields46.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    createdAt: (0, import_fields45.timestamp)({
+    createdAt: (0, import_fields46.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields45.timestamp)({
+    updatedAt: (0, import_fields46.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -3415,8 +3536,8 @@ var SaasCompanySubscription_default = (0, import_core45.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core46 = require("@keystone-6/core");
-var import_fields46 = require("@keystone-6/core/fields");
+var import_core47 = require("@keystone-6/core");
+var import_fields47 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
 var saasPaymentMethodAccess = {
@@ -3434,7 +3555,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core46.list)({
+var SaasPaymentMethod_default = (0, import_core47.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -3449,61 +3570,61 @@ var SaasPaymentMethod_default = (0, import_core46.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields46.relationship)({
+    user: (0, import_fields47.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields46.text)({
+    cardType: (0, import_fields47.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields46.text)({
+    lastFourDigits: (0, import_fields47.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields46.text)({
+    expMonth: (0, import_fields47.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields46.text)({
+    expYear: (0, import_fields47.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields46.text)({
+    stripeProcessorId: (0, import_fields47.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields46.text)({
+    stripePaymentMethodId: (0, import_fields47.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields46.text)({
+    address: (0, import_fields47.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields46.text)({
+    postalCode: (0, import_fields47.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields46.text)({
+    ownerName: (0, import_fields47.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields46.text)({
+    country: (0, import_fields47.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields46.relationship)({
+    saasPayments: (0, import_fields47.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields46.timestamp)({
+    createdAt: (0, import_fields47.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields46.timestamp)({
+    updatedAt: (0, import_fields47.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -3511,8 +3632,8 @@ var SaasPaymentMethod_default = (0, import_core46.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core47 = require("@keystone-6/core");
-var import_fields47 = require("@keystone-6/core/fields");
+var import_core48 = require("@keystone-6/core");
+var import_fields48 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
 var saasPaymentAccess = {
@@ -3530,7 +3651,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core47.list)({
+var SaasPayment_default = (0, import_core48.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -3548,30 +3669,30 @@ var SaasPayment_default = (0, import_core47.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields47.relationship)({
+    user: (0, import_fields48.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields47.text)({
+    paymentMethodType: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields47.relationship)({
+    paymentMethod: (0, import_fields48.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields47.decimal)({
+    amount: (0, import_fields48.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields47.select)({
+    status: (0, import_fields48.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -3584,38 +3705,38 @@ var SaasPayment_default = (0, import_core47.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields47.text)({
+    processorStripeChargeId: (0, import_fields48.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields47.text)({
+    stripeErrorMessage: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields47.text)({
+    notes: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields47.relationship)({
+    plan: (0, import_fields48.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields47.relationship)({
+    subscription: (0, import_fields48.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields47.timestamp)({
+    createdAt: (0, import_fields48.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields47.timestamp)({
+    updatedAt: (0, import_fields48.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -3623,31 +3744,31 @@ var SaasPayment_default = (0, import_core47.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core48 = require("@keystone-6/core");
-var import_fields48 = require("@keystone-6/core/fields");
+var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
-var getCompanyId2 = (session2) => session2?.data?.company?.id;
+var getCompanyId3 = (session2) => session2?.data?.company?.id;
 var projectAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId2(session2),
+    create: ({ session: session2 }) => !!getCompanyId3(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId2(session2);
+      const companyId = getCompanyId3(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId2(session2);
+      const companyId = getCompanyId3(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId2(session2);
+      const companyId = getCompanyId3(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -3667,7 +3788,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core48.list)({
+var SaasProject_default = (0, import_core49.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -3682,69 +3803,69 @@ var SaasProject_default = (0, import_core48.list)({
     }
   },
   fields: {
-    name: (0, import_fields48.text)({
+    name: (0, import_fields49.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields48.text)({
+    serviceType: (0, import_fields49.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields48.relationship)({
+    responsible: (0, import_fields49.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields48.calendarDay)({
+    startDate: (0, import_fields49.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields48.calendarDay)({
+    estimatedEndDate: (0, import_fields49.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields48.text)({
+    description: (0, import_fields49.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields48.select)({
+    status: (0, import_fields49.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    company: (0, import_fields48.relationship)({
+    company: (0, import_fields49.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields48.relationship)({
+    businessLead: (0, import_fields49.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields48.relationship)({
+    proposal: (0, import_fields49.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    createdAt: (0, import_fields48.timestamp)({
+    createdAt: (0, import_fields49.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields48.timestamp)({
+    updatedAt: (0, import_fields49.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -3797,6 +3918,7 @@ var schema_default = {
   Tag: Tag_default,
   TechBusinessLead: TechBusinessLead_default,
   TechFile: TechFiles_default,
+  TechLeadSyncLog: TechLeadSyncLog_default,
   TechFollowUpTask: TechFollowUpTask_default,
   TechProposal: TechProposal_default,
   TechSalesActivity: TechSalesActivity_default,
@@ -3807,7 +3929,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core49 = require("@keystone-6/core");
+var import_core50 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -4403,8 +4525,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text38 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text38}`;
+  const text39 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text39}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -4526,6 +4648,30 @@ async function ensureStatusForLeadAssignment(context, leadId, companyId, userId,
 var MIN_RATING = 3.7;
 var MIN_REVIEWS = 15;
 var DEFAULT_MAX_RESULTS = 60;
+async function logSyncLeadsResult(context, userId, companyId, input, result) {
+  if (!userId) return;
+  try {
+    await context.sudo().query.TechLeadSyncLog.createOne({
+      data: {
+        user: { connect: { id: userId } },
+        ...companyId && { company: { connect: { id: companyId } } },
+        success: result.success,
+        message: result.message,
+        created: result.created,
+        alreadyInDb: result.alreadyInDb,
+        skippedLowRating: result.skippedLowRating,
+        syncedLeadsCount: result.syncedLeadsCount,
+        syncedCount: result.syncedCount,
+        leadLimit: result.leadLimit,
+        lat: input.lat,
+        lng: input.lng,
+        radius: input.radius,
+        category: input.category
+      }
+    });
+  } catch (_) {
+  }
+}
 var typeDefs5 = `
   input SyncLeadsFrontInput {
     lat: Float!
@@ -4580,11 +4726,13 @@ var resolver5 = {
     });
     const company = user?.company;
     if (!company?.id) {
-      return {
+      const result = {
         success: false,
         message: "Tu usuario no tiene una empresa asignada",
         ...emptyResult
       };
+      await logSyncLeadsResult(context, userId, void 0, input, result);
+      return result;
     }
     const [activeSubscription] = await context.sudo().query.SaasCompanySubscription.findMany({
       where: {
@@ -4596,11 +4744,13 @@ var resolver5 = {
       query: "id planLeadLimit planCost activatedAt"
     });
     if (!activeSubscription) {
-      return {
+      const result = {
         success: false,
         message: `"${company?.name ?? "La empresa"}" no tiene una suscripci\xF3n activa. Contrata o activa una suscripci\xF3n para sincronizar leads.`,
         ...emptyResult
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
     const now = /* @__PURE__ */ new Date();
     const year = now.getFullYear();
@@ -4612,30 +4762,36 @@ var resolver5 = {
       const currentMonthStart = year * 12 + month;
       const subMonthStart = subYear * 12 + subMonth;
       if (currentMonthStart > subMonthStart) {
-        return {
+        const result = {
           success: false,
           message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.",
           ...emptyResult,
           leadLimit: 0
         };
+        await logSyncLeadsResult(context, userId, company.id, input, result);
+        return result;
       }
     }
     const leadLimit = sub.planLeadLimit ?? null;
     if (leadLimit === null) {
-      return {
+      const result = {
         success: false,
         message: `La suscripci\xF3n activa de "${company?.name ?? "la empresa"}" no tiene l\xEDmite de leads configurado.`,
         ...emptyResult,
         leadLimit
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
     if (leadLimit < 1) {
-      return {
+      const result = {
         success: false,
         message: `La suscripci\xF3n activa de "${company?.name ?? "la empresa"}" no permite sincronizar leads.`,
         ...emptyResult,
         leadLimit
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
     const { id: recordId, syncedCount } = await getOrCreateMonthlyRecord(
       context,
@@ -4645,13 +4801,15 @@ var resolver5 = {
     );
     const remainingQuota = Math.max(0, leadLimit - syncedCount);
     if (remainingQuota === 0) {
-      return {
+      const result = {
         success: false,
         message: `Cuota mensual de tu suscripci\xF3n alcanzada (${syncedCount}/${leadLimit} leads). Pr\xF3ximo reinicio el mes siguiente.`,
         ...emptyResult,
         syncedCount,
         leadLimit
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
     const maxResults = Math.min(
       input.maxResults ?? DEFAULT_MAX_RESULTS,
@@ -4716,7 +4874,7 @@ var resolver5 = {
       });
     }
     if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
-      return {
+      const result = {
         success: true,
         message: `${assignedFromDb} leads asignados. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
         created: 0,
@@ -4726,11 +4884,13 @@ var resolver5 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       if (syncedThisRequest > 0) {
-        return {
+        const result2 = {
           success: true,
           message: `${syncedThisRequest} leads asignados desde BD. GOOGLE_MAPS_API_KEY no configurada para buscar m\xE1s. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
           created: 0,
@@ -4740,12 +4900,16 @@ var resolver5 = {
           syncedCount: currentSyncedCount,
           leadLimit
         };
+        await logSyncLeadsResult(context, userId, company.id, input, result2);
+        return result2;
       }
-      return {
+      const result = {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
         ...emptyResult
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
     const { lat, lng, radius, category } = input;
     const radiusMeters = Math.round(radius * 1e3);
@@ -4764,7 +4928,7 @@ var resolver5 = {
         const res = await fetch(url);
         const data = await res.json();
         if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-          return {
+          const result2 = {
             success: false,
             message: data.error_message || data.status,
             created,
@@ -4774,6 +4938,8 @@ var resolver5 = {
             syncedCount: currentSyncedCount,
             leadLimit
           };
+          await logSyncLeadsResult(context, userId, company.id, input, result2);
+          return result2;
         }
         const results = data.results || [];
         for (const place of results) {
@@ -4881,7 +5047,7 @@ var resolver5 = {
           data: { syncedCount: currentSyncedCount }
         });
       }
-      return {
+      const result = {
         success: true,
         message: `Sincronizaci\xF3n completada. Leads asignados a tu empresa: ${syncedThisRequest} ${leadLimit !== null ? ` Cuota: ${currentSyncedCount}/${leadLimit} este mes.` : ""}`,
         created,
@@ -4891,8 +5057,10 @@ var resolver5 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     } catch (err) {
-      return {
+      const result = {
         success: false,
         message: err instanceof Error ? err.message : "Error en sincronizaci\xF3n",
         created,
@@ -4902,6 +5070,8 @@ var resolver5 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
   }
 };
@@ -4959,8 +5129,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text38 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text38}`;
+  const text39 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text39}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -6601,7 +6771,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core49.config)({
+  (0, import_core50.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

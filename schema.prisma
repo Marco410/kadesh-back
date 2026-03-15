@@ -473,6 +473,7 @@ model SaasCompany {
   monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
   techFiles                    TechFile[]                   @relation("TechFile_company")
   projects                     SaasProject[]                @relation("SaasProject_company")
+  leadSyncLogs                 TechLeadSyncLog[]            @relation("TechLeadSyncLog_company")
   createdAt                    DateTime?                    @default(now())
   updatedAt                    DateTime?                    @updatedAt
 
@@ -708,6 +709,30 @@ model TechFile {
   @@index([companyId])
 }
 
+model TechLeadSyncLog {
+  id               String       @id @default(cuid())
+  user             User?        @relation("TechLeadSyncLog_user", fields: [userId], references: [id])
+  userId           String?      @map("user")
+  company          SaasCompany? @relation("TechLeadSyncLog_company", fields: [companyId], references: [id])
+  companyId        String?      @map("company")
+  success          Boolean      @default(false)
+  message          String       @default("")
+  created          Int?         @default(0)
+  alreadyInDb      Int?         @default(0)
+  skippedLowRating Int?         @default(0)
+  syncedLeadsCount Int?         @default(0)
+  syncedCount      Int?
+  leadLimit        Int?
+  lat              Float?
+  lng              Float?
+  radius           Float?
+  category         String       @default("")
+  createdAt        DateTime?    @default(now())
+
+  @@index([userId])
+  @@index([companyId])
+}
+
 model TechFollowUpTask {
   id               String            @id @default(cuid())
   scheduledDate    DateTime          @postgresql.Date
@@ -816,6 +841,7 @@ model User {
   followUpTasks               TechFollowUpTask[]       @relation("TechFollowUpTask_assignedSeller")
   proposals                   TechProposal[]           @relation("TechProposal_assignedSeller")
   projectsResponsible         SaasProject[]            @relation("SaasProject_responsible")
+  leadSyncLogs                TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
   profileImage_id             String?
   profileImage_filesize       Int?
   profileImage_width          Int?

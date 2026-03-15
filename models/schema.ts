@@ -39,6 +39,7 @@ import TechFollowUpTask from "./Tech/FollowUpTask/TechFollowUpTask";
 import TechProposal from "./Tech/Proposal/TechProposal";
 import TechSalesActivity from "./Tech/SalesActivity/TechSalesActivity";
 import TechFile from "./Tech/TechFiles/TechFiles";
+import TechLeadSyncLog from "./Tech/LeadSyncLog/TechLeadSyncLog";
 import SaasCompany from "./Saas/SaasCompany/SaasCompany";
 import SaasPlan from "./Saas/SaasPlan/SaasPlan";
 import SaasCompanyMonthlyLeadSync from "./Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync";
@@ -89,6 +90,7 @@ export default {
   Tag,
   TechBusinessLead,
   TechFile,
+  TechLeadSyncLog,
   TechFollowUpTask,
   TechProposal,
   TechSalesActivity,

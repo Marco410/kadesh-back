@@ -2541,6 +2541,8 @@ type SaasCompany {
   techFilesCount(where: TechFileWhereInput! = {}): Int
   projects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
   projectsCount(where: SaasProjectWhereInput! = {}): Int
+  leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
+  leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2564,6 +2566,7 @@ input SaasCompanyWhereInput {
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
   techFiles: TechFileManyRelationFilter
   projects: SaasProjectManyRelationFilter
+  leadSyncLogs: TechLeadSyncLogManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2604,6 +2607,12 @@ input SaasProjectManyRelationFilter {
   none: SaasProjectWhereInput
 }
 
+input TechLeadSyncLogManyRelationFilter {
+  every: TechLeadSyncLogWhereInput
+  some: TechLeadSyncLogWhereInput
+  none: TechLeadSyncLogWhereInput
+}
+
 input SaasCompanyOrderByInput {
   id: OrderDirection
   name: OrderDirection
@@ -2624,6 +2633,7 @@ input SaasCompanyUpdateInput {
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
   techFiles: TechFileRelateToManyForUpdateInput
   projects: SaasProjectRelateToManyForUpdateInput
+  leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2676,6 +2686,13 @@ input SaasProjectRelateToManyForUpdateInput {
   connect: [SaasProjectWhereUniqueInput!]
 }
 
+input TechLeadSyncLogRelateToManyForUpdateInput {
+  disconnect: [TechLeadSyncLogWhereUniqueInput!]
+  set: [TechLeadSyncLogWhereUniqueInput!]
+  create: [TechLeadSyncLogCreateInput!]
+  connect: [TechLeadSyncLogWhereUniqueInput!]
+}
+
 input SaasCompanyUpdateArgs {
   where: SaasCompanyWhereUniqueInput!
   data: SaasCompanyUpdateInput!
@@ -2693,6 +2710,7 @@ input SaasCompanyCreateInput {
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
   techFiles: TechFileRelateToManyForCreateInput
   projects: SaasProjectRelateToManyForCreateInput
+  leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2730,6 +2748,11 @@ input TechFileRelateToManyForCreateInput {
 input SaasProjectRelateToManyForCreateInput {
   create: [SaasProjectCreateInput!]
   connect: [SaasProjectWhereUniqueInput!]
+}
+
+input TechLeadSyncLogRelateToManyForCreateInput {
+  create: [TechLeadSyncLogCreateInput!]
+  connect: [TechLeadSyncLogWhereUniqueInput!]
 }
 
 type SaasCompanyMonthlyLeadSync {
@@ -3867,6 +3890,109 @@ input TechFileCreateInput {
   updatedAt: DateTime
 }
 
+type TechLeadSyncLog {
+  id: ID!
+  user: User
+  company: SaasCompany
+  success: Boolean
+  message: String
+  created: Int
+  alreadyInDb: Int
+  skippedLowRating: Int
+  syncedLeadsCount: Int
+  syncedCount: Int
+  leadLimit: Int
+  lat: Float
+  lng: Float
+  radius: Float
+  category: String
+  createdAt: DateTime
+}
+
+input TechLeadSyncLogWhereUniqueInput {
+  id: ID
+}
+
+input TechLeadSyncLogWhereInput {
+  AND: [TechLeadSyncLogWhereInput!]
+  OR: [TechLeadSyncLogWhereInput!]
+  NOT: [TechLeadSyncLogWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  company: SaasCompanyWhereInput
+  success: BooleanFilter
+  message: StringFilter
+  created: IntNullableFilter
+  alreadyInDb: IntNullableFilter
+  skippedLowRating: IntNullableFilter
+  syncedLeadsCount: IntNullableFilter
+  syncedCount: IntNullableFilter
+  leadLimit: IntNullableFilter
+  lat: FloatNullableFilter
+  lng: FloatNullableFilter
+  radius: FloatNullableFilter
+  category: StringFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input TechLeadSyncLogOrderByInput {
+  id: OrderDirection
+  success: OrderDirection
+  message: OrderDirection
+  created: OrderDirection
+  alreadyInDb: OrderDirection
+  skippedLowRating: OrderDirection
+  syncedLeadsCount: OrderDirection
+  syncedCount: OrderDirection
+  leadLimit: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  radius: OrderDirection
+  category: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TechLeadSyncLogUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  company: SaasCompanyRelateToOneForUpdateInput
+  success: Boolean
+  message: String
+  created: Int
+  alreadyInDb: Int
+  skippedLowRating: Int
+  syncedLeadsCount: Int
+  syncedCount: Int
+  leadLimit: Int
+  lat: Float
+  lng: Float
+  radius: Float
+  category: String
+  createdAt: DateTime
+}
+
+input TechLeadSyncLogUpdateArgs {
+  where: TechLeadSyncLogWhereUniqueInput!
+  data: TechLeadSyncLogUpdateInput!
+}
+
+input TechLeadSyncLogCreateInput {
+  user: UserRelateToOneForCreateInput
+  company: SaasCompanyRelateToOneForCreateInput
+  success: Boolean
+  message: String
+  created: Int
+  alreadyInDb: Int
+  skippedLowRating: Int
+  syncedLeadsCount: Int
+  syncedCount: Int
+  leadLimit: Int
+  lat: Float
+  lng: Float
+  radius: Float
+  category: String
+  createdAt: DateTime
+}
+
 type TechFollowUpTask {
   id: ID!
   scheduledDate: CalendarDay
@@ -4249,6 +4375,8 @@ type User {
   proposalsCount(where: TechProposalWhereInput! = {}): Int
   projectsResponsible(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
   projectsResponsibleCount(where: SaasProjectWhereInput! = {}): Int
+  leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
+  leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
   profileImage: ImageFieldOutput
   birthday: CalendarDay
   age: String
@@ -4296,6 +4424,7 @@ input UserWhereInput {
   followUpTasks: TechFollowUpTaskManyRelationFilter
   proposals: TechProposalManyRelationFilter
   projectsResponsible: SaasProjectManyRelationFilter
+  leadSyncLogs: TechLeadSyncLogManyRelationFilter
   birthday: CalendarDayNullableFilter
   smsRegistrationId: StringFilter
   verified: BooleanFilter
@@ -4363,6 +4492,7 @@ input UserUpdateInput {
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   proposals: TechProposalRelateToManyForUpdateInput
   projectsResponsible: SaasProjectRelateToManyForUpdateInput
+  leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -4418,6 +4548,7 @@ input UserCreateInput {
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   proposals: TechProposalRelateToManyForCreateInput
   projectsResponsible: SaasProjectRelateToManyForCreateInput
+  leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -4747,6 +4878,12 @@ type Mutation {
   updateTechFiles(data: [TechFileUpdateArgs!]!): [TechFile]
   deleteTechFile(where: TechFileWhereUniqueInput!): TechFile
   deleteTechFiles(where: [TechFileWhereUniqueInput!]!): [TechFile]
+  createTechLeadSyncLog(data: TechLeadSyncLogCreateInput!): TechLeadSyncLog
+  createTechLeadSyncLogs(data: [TechLeadSyncLogCreateInput!]!): [TechLeadSyncLog]
+  updateTechLeadSyncLog(where: TechLeadSyncLogWhereUniqueInput!, data: TechLeadSyncLogUpdateInput!): TechLeadSyncLog
+  updateTechLeadSyncLogs(data: [TechLeadSyncLogUpdateArgs!]!): [TechLeadSyncLog]
+  deleteTechLeadSyncLog(where: TechLeadSyncLogWhereUniqueInput!): TechLeadSyncLog
+  deleteTechLeadSyncLogs(where: [TechLeadSyncLogWhereUniqueInput!]!): [TechLeadSyncLog]
   createTechFollowUpTask(data: TechFollowUpTaskCreateInput!): TechFollowUpTask
   createTechFollowUpTasks(data: [TechFollowUpTaskCreateInput!]!): [TechFollowUpTask]
   updateTechFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!, data: TechFollowUpTaskUpdateInput!): TechFollowUpTask
@@ -4946,6 +5083,9 @@ type Query {
   techFile(where: TechFileWhereUniqueInput!): TechFile
   techFiles(where: TechFileWhereInput! = {}, orderBy: [TechFileOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFileWhereUniqueInput): [TechFile!]
   techFilesCount(where: TechFileWhereInput! = {}): Int
+  techLeadSyncLog(where: TechLeadSyncLogWhereUniqueInput!): TechLeadSyncLog
+  techLeadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
+  techLeadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
   techFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!): TechFollowUpTask
   techFollowUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   techFollowUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int

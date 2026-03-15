@@ -92,6 +92,11 @@ export default list({
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" },
     }),
+    leadSyncLogs: relationship({
+      ref: "TechLeadSyncLog.company",
+      many: true,
+      ui: { description: "Logs de sincronización de leads" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

@@ -95,6 +95,11 @@ export default list({
       many: true,
       ui: { description: "Proyectos donde es responsable" },
     }),
+    leadSyncLogs: relationship({
+      ref: "TechLeadSyncLog.user",
+      many: true,
+      ui: { description: "Logs de sincronización de leads (mapa)" },
+    }),
     profileImage: image({ storage: "s3_profile" }),
     birthday: calendarDay(),
     age: virtual({

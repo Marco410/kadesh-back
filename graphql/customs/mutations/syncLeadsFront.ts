@@ -56,6 +56,47 @@ const MIN_RATING = 3.7;
 const MIN_REVIEWS = 15;
 const DEFAULT_MAX_RESULTS = 60;
 
+type SyncLeadsResult = {
+  success: boolean;
+  message: string;
+  created: number;
+  alreadyInDb: number;
+  skippedLowRating: number;
+  syncedLeadsCount: number;
+  syncedCount: number | null;
+  leadLimit: number | null;
+};
+
+async function logSyncLeadsResult(
+  context: KeystoneContext,
+  userId: string | undefined,
+  companyId: string | undefined,
+  input: { lat: number; lng: number; radius: number; category: string },
+  result: SyncLeadsResult,
+): Promise<void> {
+  if (!userId) return;
+  try {
+    await context.sudo().query.TechLeadSyncLog.createOne({
+      data: {
+        user: { connect: { id: userId } },
+        ...(companyId && { company: { connect: { id: companyId } } }),
+        success: result.success,
+        message: result.message,
+        created: result.created,
+        alreadyInDb: result.alreadyInDb,
+        skippedLowRating: result.skippedLowRating,
+        syncedLeadsCount: result.syncedLeadsCount,
+        syncedCount: result.syncedCount,
+        leadLimit: result.leadLimit,
+        lat: input.lat,
+        lng: input.lng,
+        radius: input.radius,
+        category: input.category,
+      },
+    });
+  } catch (_) {}
+}
+
 const typeDefs = `
   input SyncLeadsFrontInput {
     lat: Float!
@@ -129,11 +170,13 @@ const resolver = {
       ?.company;
 
     if (!company?.id) {
-      return {
+      const result = {
         success: false,
         message: "Tu usuario no tiene una empresa asignada",
         ...emptyResult,
       };
+      await logSyncLeadsResult(context, userId, undefined, input, result);
+      return result;
     }
 
     // Resolver límite desde la suscripción activa o en prueba (snapshot del plan contratado), no del plan actual
@@ -150,11 +193,13 @@ const resolver = {
       });
 
     if (!activeSubscription) {
-      return {
+      const result = {
         success: false,
         message: `"${company?.name ?? "La empresa"}" no tiene una suscripción activa. Contrata o activa una suscripción para sincronizar leads.`,
         ...emptyResult,
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
 
     const now = new Date();
@@ -172,34 +217,40 @@ const resolver = {
       const currentMonthStart = year * 12 + month;
       const subMonthStart = subYear * 12 + subMonth;
       if (currentMonthStart > subMonthStart) {
-        return {
+        const result = {
           success: false,
           message:
             "Tu plan gratuito ha terminado. Contrata o activa una suscripción para poder obtener más clientes.",
           ...emptyResult,
           leadLimit: 0,
         };
+        await logSyncLeadsResult(context, userId, company.id, input, result);
+        return result;
       }
     }
 
     const leadLimit = sub.planLeadLimit ?? null;
 
     if (leadLimit === null) {
-      return {
+      const result = {
         success: false,
         message: `La suscripción activa de "${company?.name ?? "la empresa"}" no tiene límite de leads configurado.`,
         ...emptyResult,
         leadLimit,
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
 
     if (leadLimit < 1) {
-      return {
+      const result = {
         success: false,
         message: `La suscripción activa de "${company?.name ?? "la empresa"}" no permite sincronizar leads.`,
         ...emptyResult,
         leadLimit,
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
 
     const { id: recordId, syncedCount } = await getOrCreateMonthlyRecord(
@@ -212,13 +263,15 @@ const resolver = {
     // leadLimit viene de la suscripción activa (ya validado arriba)
     const remainingQuota = Math.max(0, leadLimit - syncedCount);
     if (remainingQuota === 0) {
-      return {
+      const result = {
         success: false,
         message: `Cuota mensual de tu suscripción alcanzada (${syncedCount}/${leadLimit} leads). Próximo reinicio el mes siguiente.`,
         ...emptyResult,
         syncedCount,
         leadLimit,
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
 
     const maxResults = Math.min(
@@ -299,7 +352,7 @@ const resolver = {
       syncedThisRequest >= maxResults ||
       (leadLimit !== null && currentSyncedCount >= leadLimit)
     ) {
-      return {
+      const result = {
         success: true,
         message: `${assignedFromDb} leads asignados. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
         created: 0,
@@ -309,13 +362,15 @@ const resolver = {
         syncedCount: currentSyncedCount,
         leadLimit,
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
 
     // Buscar más en Google Maps si hace falta (crear si no existe, asignar a la company; connect solo, nunca quitar otras companies).
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       if (syncedThisRequest > 0) {
-        return {
+        const result = {
           success: true,
           message: `${syncedThisRequest} leads asignados desde BD. GOOGLE_MAPS_API_KEY no configurada para buscar más. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
           created: 0,
@@ -325,12 +380,16 @@ const resolver = {
           syncedCount: currentSyncedCount,
           leadLimit,
         };
+        await logSyncLeadsResult(context, userId, company.id, input, result);
+        return result;
       }
-      return {
+      const result = {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
         ...emptyResult,
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
 
     const { lat, lng, radius, category } = input;
@@ -354,7 +413,7 @@ const resolver = {
         const data = await res.json();
 
         if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-          return {
+          const result = {
             success: false,
             message: data.error_message || data.status,
             created,
@@ -364,6 +423,8 @@ const resolver = {
             syncedCount: currentSyncedCount,
             leadLimit,
           };
+          await logSyncLeadsResult(context, userId, company.id, input, result);
+          return result;
         }
 
         const results = data.results || [];
@@ -506,7 +567,7 @@ const resolver = {
         });
       }
 
-      return {
+      const result = {
         success: true,
         message: `Sincronización completada. Leads asignados a tu empresa: ${syncedThisRequest} ${leadLimit !== null ? ` Cuota: ${currentSyncedCount}/${leadLimit} este mes.` : ""}`,
         created,
@@ -516,8 +577,10 @@ const resolver = {
         syncedCount: currentSyncedCount,
         leadLimit,
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     } catch (err) {
-      return {
+      const result = {
         success: false,
         message: err instanceof Error ? err.message : "Error en sincronización",
         created,
@@ -527,6 +590,8 @@ const resolver = {
         syncedCount: currentSyncedCount,
         leadLimit,
       };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
     }
   },
 };
