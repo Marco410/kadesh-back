@@ -3839,6 +3839,9 @@ var SaasProject_default = (0, import_core49.list)({
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
+    urlData: (0, import_fields49.text)({
+      ui: { description: "URL de la data del proyecto" }
+    }),
     company: (0, import_fields49.relationship)({
       ref: "SaasCompany.projects",
       many: false,

@@ -61,6 +61,9 @@ export default list({
       isIndexed: true,
       ui: { description: "Estado del proyecto" },
     }),
+    urlData: text({
+      ui: { description: "URL de la data del proyecto" },
+    }),
     company: relationship({
       ref: "SaasCompany.projects",
       many: false,
@@ -70,7 +73,8 @@ export default list({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
-        description: "Cliente o lead del que surgió este proyecto (venta cerrada)",
+        description:
+          "Cliente o lead del que surgió este proyecto (venta cerrada)",
       },
     }),
     proposal: relationship({
