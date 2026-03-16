@@ -64,7 +64,9 @@ async function upsertPlan(
     leadLimit: data.leadLimit,
     planFeatures: data.planFeatures,
     ...(data.stripePriceId != null && { stripePriceId: data.stripePriceId }),
-    ...(data.stripeProductId != null && { stripeProductId: data.stripeProductId }),
+    ...(data.stripeProductId != null && {
+      stripeProductId: data.stripeProductId,
+    }),
     ...(data.bestSeller != null && { bestSeller: data.bestSeller }),
   };
   if (existing) {
@@ -94,32 +96,32 @@ export async function createSaasPlan(
 
   await upsertPlan(context, "Starter", {
     name: "Starter",
-    cost: 499,
+    cost: 799,
     frequency: PLAN_FREQUENCY.MONTHLY,
     leadLimit: 400,
-    stripePriceId: "price_1T8wP9QB4ei9YzRVJvhOHUnJ",
+    stripePriceId: "price_1TBQ0zQB4ei9YzRV6UzktPtz",
     stripeProductId: "prod_U7AkUsHqLHpNrL",
     planFeatures: planFeaturesStarter,
   });
 
   await upsertPlan(context, "Pro", {
     name: "Pro",
-    cost: 999,
+    cost: 1699,
     frequency: PLAN_FREQUENCY.MONTHLY,
     leadLimit: 1500,
     planFeatures: planFeaturesPro,
     bestSeller: true,
-    stripePriceId: "price_1T97OjQB4ei9YzRVJqkhleiQ",
+    stripePriceId: "price_1TBQ3EQB4ei9YzRVldT380Jw",
     stripeProductId: "prod_U7M6geL01RYWf5",
   });
 
   await upsertPlan(context, "Agencia", {
     name: "Agencia",
-    cost: 1999,
+    cost: 3499,
     frequency: PLAN_FREQUENCY.MONTHLY,
     leadLimit: 5000,
     planFeatures: planFeaturesAgency,
-    stripePriceId: "price_1T98JSQB4ei9YzRV6wVlfDy5",
+    stripePriceId: "price_1TBQ40QB4ei9YzRVf2kQEHQX",
     stripeProductId: "prod_U7N3RIsVzkxTB1",
   });
 
