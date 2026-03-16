@@ -1,5 +1,5 @@
--- CreateTable
-CREATE TABLE "TechLeadSyncLog" (
+-- CreateTable (skip if already exists)
+CREATE TABLE IF NOT EXISTS "TechLeadSyncLog" (
     "id" TEXT NOT NULL,
     "user" TEXT,
     "company" TEXT,
@@ -20,14 +20,17 @@ CREATE TABLE "TechLeadSyncLog" (
     CONSTRAINT "TechLeadSyncLog_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "TechLeadSyncLog_user_idx" ON "TechLeadSyncLog"("user");
+-- CreateIndex (skip if already exists)
+CREATE INDEX IF NOT EXISTS "TechLeadSyncLog_user_idx" ON "TechLeadSyncLog"("user");
+CREATE INDEX IF NOT EXISTS "TechLeadSyncLog_company_idx" ON "TechLeadSyncLog"("company");
 
--- CreateIndex
-CREATE INDEX "TechLeadSyncLog_company_idx" ON "TechLeadSyncLog"("company");
-
--- AddForeignKey
-ALTER TABLE "TechLeadSyncLog" ADD CONSTRAINT "TechLeadSyncLog_user_fkey" FOREIGN KEY ("user") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TechLeadSyncLog" ADD CONSTRAINT "TechLeadSyncLog_company_fkey" FOREIGN KEY ("company") REFERENCES "SaasCompany"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- AddForeignKey (skip if constraint already exists)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TechLeadSyncLog_user_fkey') THEN
+        ALTER TABLE "TechLeadSyncLog" ADD CONSTRAINT "TechLeadSyncLog_user_fkey" FOREIGN KEY ("user") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TechLeadSyncLog_company_fkey') THEN
+        ALTER TABLE "TechLeadSyncLog" ADD CONSTRAINT "TechLeadSyncLog_company_fkey" FOREIGN KEY ("company") REFERENCES "SaasCompany"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
