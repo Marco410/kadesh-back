@@ -1,5 +1,6 @@
 import customAuth from "./auth/customAuth";
 import authenticateUserWithGoogle from "./auth/authenticateUserWithGoogle";
+import registerUser from "./auth/registerUser";
 import importBusinessLeadFromGoogle from "./importBusinessLeadFromGoogle";
 import importPetPlace from "./importPetPlace";
 import syncLeadsFront from "./syncLeadsFront";
@@ -11,6 +12,7 @@ const customMutation = {
   typeDefs: `
     ${customAuth.typeDefs}
     ${authenticateUserWithGoogle.typeDefs}
+    ${registerUser.typeDefs}
     ${importPetPlace.typeDefs}
     ${importBusinessLeadFromGoogle.typeDefs}
     ${syncBusinessLeadsFromGoogle.typeDefs}
@@ -21,6 +23,7 @@ const customMutation = {
   definitions: `
     ${customAuth.definition}
     ${authenticateUserWithGoogle.definition}
+    ${registerUser.definition}
     ${importPetPlace.definition}
     ${importBusinessLeadFromGoogle.definition}
     ${syncBusinessLeadsFromGoogle.definition}
@@ -31,6 +34,7 @@ const customMutation = {
   resolvers: {
     ...customAuth.resolver,
     ...authenticateUserWithGoogle.resolver,
+    ...registerUser.resolver,
     ...importPetPlace.resolver,
     ...importBusinessLeadFromGoogle.resolver,
     ...syncBusinessLeadsFromGoogle.resolver,

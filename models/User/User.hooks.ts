@@ -123,6 +123,66 @@ export const userRoleHook = {
   },
 };
 
+const REFERRAL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+function generateReferralSuffix(length = 5): string {
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    const index = Math.floor(Math.random() * REFERRAL_CHARS.length);
+    result += REFERRAL_CHARS[index];
+  }
+  return result;
+}
+
+async function generateUniqueReferralCode(
+  context: KeystoneContext
+): Promise<string> {
+  while (true) {
+    const candidate = "K" + generateReferralSuffix(5);
+    const existing = await context.sudo().query.User.findOne({
+      where: { referralCode: candidate },
+      query: "id",
+    });
+    if (!existing) {
+      return candidate;
+    }
+  }
+}
+
+export const userReferralHook = {
+  resolveInput: async ({
+    resolvedData,
+    item,
+    operation,
+    context,
+  }: {
+    resolvedData: Record<string, unknown>;
+    item: any;
+    operation: "create" | "update";
+    context: KeystoneContext;
+  }) => {
+    if (operation === "create" && !item && !resolvedData.referralCode) {
+      const code = await generateUniqueReferralCode(context);
+      resolvedData.referralCode = code;
+    }
+
+    if (resolvedData.referralCode) {
+      const code = String(resolvedData.referralCode).toUpperCase();
+      const pattern = /^K[A-Z0-9]{5}$/;
+
+      if (!pattern.test(code)) {
+        throw new Error(
+          "El código de referido debe empezar con K y tener 5 caracteres alfanuméricos más (total 6)."
+        );
+      }
+
+      resolvedData.referralCode = code;
+    }
+
+    return resolvedData;
+  },
+};
+
 /** On user create, finds or creates a Stripe customer and sets stripeCustomerId. */
 export const stripeCustomerHook = {
   resolveInput: async ({

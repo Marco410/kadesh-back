@@ -160,6 +160,33 @@ const resolver = {
             ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
           },
         });
+
+        // If subscription is no longer active/trialing, cancel all pending referral commissions for this subscription
+        if (
+          newStatus === SUBSCRIPTION_STATUS.CANCELLED ||
+          newStatus === SUBSCRIPTION_STATUS.UNPAID ||
+          newStatus === SUBSCRIPTION_STATUS.PAST_DUE
+        ) {
+          const pendingCommissions =
+            await context.sudo().query.SaasReferralCommission.findMany({
+              where: {
+                subscription: { id: { equals: sub.id } },
+                status: { equals: "PENDING" },
+              },
+              query: "id",
+            });
+
+          for (const commission of pendingCommissions as { id: string }[]) {
+            await context.sudo().query.SaasReferralCommission.updateOne({
+              where: { id: commission.id },
+              data: {
+                status: "CANCELLED",
+                notes:
+                  "Comisión cancelada porque el cliente canceló o dejó de pagar la suscripción.",
+              },
+            });
+          }
+        }
       }
     } else if (isFreePlan && sub.activatedAt) {
       const [y, m, d] = sub.activatedAt.split("-").map(Number);

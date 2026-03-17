@@ -460,22 +460,23 @@ model Role {
 }
 
 model SaasCompany {
-  id                           String                       @id @default(cuid())
-  name                         String                       @default("")
-  users                        User[]                       @relation("User_company")
-  allowedGooglePlaceCategories Json?
-  leads                        TechBusinessLead[]           @relation("SaasCompany_leads")
-  plan                         SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
-  planId                       String?                      @map("plan")
-  subscriptionStartedAt        DateTime?                    @postgresql.Date
-  subscriptions                SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
-  techStatusBusinessLeads      TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
-  monthlyLeadSyncRecords       SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
-  techFiles                    TechFile[]                   @relation("TechFile_company")
-  projects                     SaasProject[]                @relation("SaasProject_company")
-  leadSyncLogs                 TechLeadSyncLog[]            @relation("TechLeadSyncLog_company")
-  createdAt                    DateTime?                    @default(now())
-  updatedAt                    DateTime?                    @updatedAt
+  id                                  String                       @id @default(cuid())
+  name                                String                       @default("")
+  users                               User[]                       @relation("User_company")
+  allowedGooglePlaceCategories        Json?
+  leads                               TechBusinessLead[]           @relation("SaasCompany_leads")
+  plan                                SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
+  planId                              String?                      @map("plan")
+  subscriptionStartedAt               DateTime?                    @postgresql.Date
+  subscriptions                       SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
+  techStatusBusinessLeads             TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
+  monthlyLeadSyncRecords              SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
+  techFiles                           TechFile[]                   @relation("TechFile_company")
+  projects                            SaasProject[]                @relation("SaasProject_company")
+  leadSyncLogs                        TechLeadSyncLog[]            @relation("TechLeadSyncLog_company")
+  createdAt                           DateTime?                    @default(now())
+  updatedAt                           DateTime?                    @updatedAt
+  from_SaasReferralCommission_company SaasReferralCommission[]     @relation("SaasReferralCommission_company")
 
   @@index([name])
   @@index([planId])
@@ -497,26 +498,27 @@ model SaasCompanyMonthlyLeadSync {
 }
 
 model SaasCompanySubscription {
-  id                   String        @id @default(cuid())
-  company              SaasCompany?  @relation("SaasCompanySubscription_company", fields: [companyId], references: [id])
-  companyId            String?       @map("company")
-  planName             String        @default("")
-  planCost             Float?
-  planFrequency        String        @default("")
-  planLeadLimit        Int?
-  planStripePriceId    String        @default("")
-  planCurrency         String        @default("")
-  planFeatures         Json?
-  status               String?       @default("active")
-  activatedAt          DateTime?     @postgresql.Date
-  currentPeriodEnd     DateTime?     @postgresql.Date
-  stripeSubscriptionId String?
-  stripeCustomerId     String?
-  saasPayments         SaasPayment[] @relation("SaasPayment_subscription")
-  plan                 SaasPlan?     @relation("SaasCompanySubscription_plan", fields: [planId], references: [id])
-  planId               String?       @map("plan")
-  createdAt            DateTime?     @default(now())
-  updatedAt            DateTime?     @updatedAt
+  id                                       String                   @id @default(cuid())
+  company                                  SaasCompany?             @relation("SaasCompanySubscription_company", fields: [companyId], references: [id])
+  companyId                                String?                  @map("company")
+  planName                                 String                   @default("")
+  planCost                                 Float?
+  planFrequency                            String                   @default("")
+  planLeadLimit                            Int?
+  planStripePriceId                        String                   @default("")
+  planCurrency                             String                   @default("")
+  planFeatures                             Json?
+  status                                   String?                  @default("active")
+  activatedAt                              DateTime?                @postgresql.Date
+  currentPeriodEnd                         DateTime?                @postgresql.Date
+  stripeSubscriptionId                     String?
+  stripeCustomerId                         String?
+  saasPayments                             SaasPayment[]            @relation("SaasPayment_subscription")
+  plan                                     SaasPlan?                @relation("SaasCompanySubscription_plan", fields: [planId], references: [id])
+  planId                                   String?                  @map("plan")
+  createdAt                                DateTime?                @default(now())
+  updatedAt                                DateTime?                @updatedAt
+  from_SaasReferralCommission_subscription SaasReferralCommission[] @relation("SaasReferralCommission_subscription")
 
   @@index([companyId])
   @@index([planId])
@@ -569,22 +571,25 @@ model SaasPaymentMethod {
 }
 
 model SaasPlan {
-  id              String                    @id @default(cuid())
-  name            String                    @default("")
-  cost            Float?
-  frequency       String?
-  currency        String                    @default("mxn")
-  leadLimit       Int?
-  planFeatures    Json?
-  saasPayments    SaasPayment[]             @relation("SaasPayment_plan")
-  active          Boolean                   @default(true)
-  bestSeller      Boolean                   @default(false)
-  stripePriceId   String?                   @unique
-  stripeProductId String?
-  companies       SaasCompany[]             @relation("SaasCompany_plan")
-  subscriptions   SaasCompanySubscription[] @relation("SaasCompanySubscription_plan")
-  createdAt       DateTime?                 @default(now())
-  updatedAt       DateTime?                 @updatedAt
+  id                               String                    @id @default(cuid())
+  name                             String                    @default("")
+  cost                             Float?
+  referralUpfrontCommissionPct     Float?
+  referralRecurringCommissionPct   Float?
+  frequency                        String?
+  currency                         String                    @default("mxn")
+  leadLimit                        Int?
+  planFeatures                     Json?
+  saasPayments                     SaasPayment[]             @relation("SaasPayment_plan")
+  active                           Boolean                   @default(true)
+  bestSeller                       Boolean                   @default(false)
+  stripePriceId                    String?                   @unique
+  stripeProductId                  String?
+  companies                        SaasCompany[]             @relation("SaasCompany_plan")
+  subscriptions                    SaasCompanySubscription[] @relation("SaasCompanySubscription_plan")
+  createdAt                        DateTime?                 @default(now())
+  updatedAt                        DateTime?                 @updatedAt
+  from_SaasReferralCommission_plan SaasReferralCommission[]  @relation("SaasReferralCommission_plan")
 
   @@index([name])
 }
@@ -615,6 +620,37 @@ model SaasProject {
   @@index([status])
   @@index([companyId])
   @@index([businessLeadId])
+}
+
+model SaasReferralCommission {
+  id             String                   @id @default(cuid())
+  referrer       User?                    @relation("SaasReferralCommission_referrer", fields: [referrerId], references: [id])
+  referrerId     String?                  @map("referrer")
+  referredUser   User?                    @relation("SaasReferralCommission_referredUser", fields: [referredUserId], references: [id])
+  referredUserId String?                  @map("referredUser")
+  company        SaasCompany?             @relation("SaasReferralCommission_company", fields: [companyId], references: [id])
+  companyId      String?                  @map("company")
+  subscription   SaasCompanySubscription? @relation("SaasReferralCommission_subscription", fields: [subscriptionId], references: [id])
+  subscriptionId String?                  @map("subscription")
+  plan           SaasPlan?                @relation("SaasReferralCommission_plan", fields: [planId], references: [id])
+  planId         String?                  @map("plan")
+  type           String?
+  percentage     Float?
+  amount         Float?
+  currency       String                   @default("mxn")
+  periodIndex    Float?
+  periodStart    DateTime?                @postgresql.Date
+  periodEnd      DateTime?                @postgresql.Date
+  status         String?                  @default("PENDING")
+  notes          String?
+  createdAt      DateTime?                @default(now())
+  updatedAt      DateTime?                @updatedAt
+
+  @@index([referrerId])
+  @@index([referredUserId])
+  @@index([companyId])
+  @@index([subscriptionId])
+  @@index([planId])
 }
 
 model Schedule {
@@ -825,58 +861,65 @@ model TokenNotification {
 }
 
 model User {
-  id                          String                   @id @default(cuid())
-  name                        String                   @default("")
-  lastName                    String                   @default("")
-  secondLastName              String                   @default("")
-  username                    String                   @unique @default("")
-  email                       String                   @unique @default("")
-  password                    String?
-  phone                       String                   @default("")
-  roles                       Role[]                   @relation("Role_users")
-  company                     SaasCompany?             @relation("User_company", fields: [companyId], references: [id])
-  companyId                   String?                  @map("company")
-  blog_subscriptions          BlogSubscription[]       @relation("BlogSubscription_user")
-  businessLeadsAssigned       TechBusinessLead[]       @relation("TechBusinessLead_salesPerson")
-  salesActivities             TechSalesActivity[]      @relation("TechSalesActivity_assignedSeller")
-  followUpTasks               TechFollowUpTask[]       @relation("TechFollowUpTask_assignedSeller")
-  proposals                   TechProposal[]           @relation("TechProposal_assignedSeller")
-  projectsResponsible         SaasProject[]            @relation("SaasProject_responsible")
-  leadSyncLogs                TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
-  profileImage_id             String?
-  profileImage_filesize       Int?
-  profileImage_width          Int?
-  profileImage_height         Int?
-  profileImage_extension      String?
-  birthday                    DateTime?                @postgresql.Date
-  smsRegistrationId           String                   @default("")
-  verified                    Boolean                  @default(false)
-  salesPersonVerified         Boolean                  @default(false)
-  salesComission              Int?                     @default(10)
-  stripeCustomerId            String?
-  saasPaymentMethods          SaasPaymentMethod[]      @relation("SaasPaymentMethod_user")
-  saasPayments                SaasPayment[]            @relation("SaasPayment_user")
-  techStatusBusinessLeads     TechStatusBusinessLead[] @relation("TechStatusBusinessLead_salesPerson")
-  createdAt                   DateTime?                @default(now())
-  from_Ad_user                Ad[]                     @relation("Ad_user")
-  from_Animal_user            Animal[]                 @relation("Animal_user")
-  from_AnimalComment_user     AnimalComment[]          @relation("AnimalComment_user")
-  from_AnimalFavorite_user    AnimalFavorite[]         @relation("AnimalFavorite_user")
-  from_Cart_user              Cart[]                   @relation("Cart_user")
-  from_Order_user             Order[]                  @relation("Order_user")
-  from_PaymentMethod_user     PaymentMethod[]          @relation("PaymentMethod_user")
-  from_Pet_user               Pet[]                    @relation("Pet_user")
-  from_PetPlace_user          PetPlace[]               @relation("PetPlace_user")
-  from_PetPlaceLike_user      PetPlaceLike[]           @relation("PetPlaceLike_user")
-  from_Post_author            Post[]                   @relation("Post_author")
-  from_PostComment_user       PostComment[]            @relation("PostComment_user")
-  from_PostFavorite_user      PostFavorite[]           @relation("PostFavorite_user")
-  from_PostLike_user          PostLike[]               @relation("PostLike_user")
-  from_PostView_user          PostView[]               @relation("PostView_user")
-  from_Review_user            Review[]                 @relation("Review_user")
-  from_TokenNotification_user TokenNotification[]      @relation("TokenNotification_user")
-  from_WishList_user          WishList[]               @relation("WishList_user")
+  id                                       String                   @id @default(cuid())
+  name                                     String                   @default("")
+  lastName                                 String                   @default("")
+  secondLastName                           String                   @default("")
+  username                                 String                   @unique @default("")
+  referralCode                             String                   @unique @default("")
+  email                                    String                   @unique @default("")
+  password                                 String?
+  phone                                    String                   @default("")
+  roles                                    Role[]                   @relation("Role_users")
+  referredBy                               User?                    @relation("User_referredBy", fields: [referredById], references: [id])
+  referredById                             String?                  @map("referredBy")
+  referrals                                User[]                   @relation("User_referredBy")
+  company                                  SaasCompany?             @relation("User_company", fields: [companyId], references: [id])
+  companyId                                String?                  @map("company")
+  blog_subscriptions                       BlogSubscription[]       @relation("BlogSubscription_user")
+  businessLeadsAssigned                    TechBusinessLead[]       @relation("TechBusinessLead_salesPerson")
+  salesActivities                          TechSalesActivity[]      @relation("TechSalesActivity_assignedSeller")
+  followUpTasks                            TechFollowUpTask[]       @relation("TechFollowUpTask_assignedSeller")
+  proposals                                TechProposal[]           @relation("TechProposal_assignedSeller")
+  projectsResponsible                      SaasProject[]            @relation("SaasProject_responsible")
+  leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
+  profileImage_id                          String?
+  profileImage_filesize                    Int?
+  profileImage_width                       Int?
+  profileImage_height                      Int?
+  profileImage_extension                   String?
+  birthday                                 DateTime?                @postgresql.Date
+  smsRegistrationId                        String                   @default("")
+  verified                                 Boolean                  @default(false)
+  salesPersonVerified                      Boolean                  @default(false)
+  salesComission                           Int?                     @default(10)
+  stripeCustomerId                         String?
+  saasPaymentMethods                       SaasPaymentMethod[]      @relation("SaasPaymentMethod_user")
+  saasPayments                             SaasPayment[]            @relation("SaasPayment_user")
+  techStatusBusinessLeads                  TechStatusBusinessLead[] @relation("TechStatusBusinessLead_salesPerson")
+  createdAt                                DateTime?                @default(now())
+  from_Ad_user                             Ad[]                     @relation("Ad_user")
+  from_Animal_user                         Animal[]                 @relation("Animal_user")
+  from_AnimalComment_user                  AnimalComment[]          @relation("AnimalComment_user")
+  from_AnimalFavorite_user                 AnimalFavorite[]         @relation("AnimalFavorite_user")
+  from_Cart_user                           Cart[]                   @relation("Cart_user")
+  from_Order_user                          Order[]                  @relation("Order_user")
+  from_PaymentMethod_user                  PaymentMethod[]          @relation("PaymentMethod_user")
+  from_Pet_user                            Pet[]                    @relation("Pet_user")
+  from_PetPlace_user                       PetPlace[]               @relation("PetPlace_user")
+  from_PetPlaceLike_user                   PetPlaceLike[]           @relation("PetPlaceLike_user")
+  from_Post_author                         Post[]                   @relation("Post_author")
+  from_PostComment_user                    PostComment[]            @relation("PostComment_user")
+  from_PostFavorite_user                   PostFavorite[]           @relation("PostFavorite_user")
+  from_PostLike_user                       PostLike[]               @relation("PostLike_user")
+  from_PostView_user                       PostView[]               @relation("PostView_user")
+  from_Review_user                         Review[]                 @relation("Review_user")
+  from_SaasReferralCommission_referrer     SaasReferralCommission[] @relation("SaasReferralCommission_referrer")
+  from_SaasReferralCommission_referredUser SaasReferralCommission[] @relation("SaasReferralCommission_referredUser")
+  from_TokenNotification_user              TokenNotification[]      @relation("TokenNotification_user")
+  from_WishList_user                       WishList[]               @relation("WishList_user")
 
+  @@index([referredById])
   @@index([companyId])
 }
 

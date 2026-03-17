@@ -39,6 +39,20 @@ export default list({
     cost: float({
       ui: { description: "Plan cost per billing period" },
     }),
+    /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
+    referralUpfrontCommissionPct: float({
+      ui: {
+        description:
+          "Referral upfront commission percentage (e.g. 20 = 20% of first payment)",
+      },
+    }),
+    /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
+    referralRecurringCommissionPct: float({
+      ui: {
+        description:
+          "Referral recurring commission percentage per billing period (e.g. 10 = 10%)",
+      },
+    }),
     /** Billing frequency: weekly, monthly, or annual */
     frequency: select({
       type: "string",

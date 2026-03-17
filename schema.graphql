@@ -3177,6 +3177,8 @@ type SaasPlan {
   id: ID!
   name: String
   cost: Float
+  referralUpfrontCommissionPct: Float
+  referralRecurringCommissionPct: Float
   frequency: String
   currency: String
   leadLimit: Int
@@ -3207,6 +3209,8 @@ input SaasPlanWhereInput {
   id: IDFilter
   name: StringFilter
   cost: FloatNullableFilter
+  referralUpfrontCommissionPct: FloatNullableFilter
+  referralRecurringCommissionPct: FloatNullableFilter
   frequency: StringNullableFilter
   currency: StringFilter
   leadLimit: IntNullableFilter
@@ -3231,6 +3235,8 @@ input SaasPlanOrderByInput {
   id: OrderDirection
   name: OrderDirection
   cost: OrderDirection
+  referralUpfrontCommissionPct: OrderDirection
+  referralRecurringCommissionPct: OrderDirection
   frequency: OrderDirection
   currency: OrderDirection
   leadLimit: OrderDirection
@@ -3245,6 +3251,8 @@ input SaasPlanOrderByInput {
 input SaasPlanUpdateInput {
   name: String
   cost: Float
+  referralUpfrontCommissionPct: Float
+  referralRecurringCommissionPct: Float
   frequency: String
   currency: String
   leadLimit: Int
@@ -3275,6 +3283,8 @@ input SaasPlanUpdateArgs {
 input SaasPlanCreateInput {
   name: String
   cost: Float
+  referralUpfrontCommissionPct: Float
+  referralRecurringCommissionPct: Float
   frequency: String
   currency: String
   leadLimit: Int
@@ -3407,6 +3417,111 @@ input TechBusinessLeadRelateToOneForCreateInput {
 input TechProposalRelateToOneForCreateInput {
   create: TechProposalCreateInput
   connect: TechProposalWhereUniqueInput
+}
+
+type SaasReferralCommission {
+  id: ID!
+  referrer: User
+  referredUser: User
+  company: SaasCompany
+  subscription: SaasCompanySubscription
+  plan: SaasPlan
+  type: String
+  percentage: Float
+  amount: Float
+  currency: String
+  periodIndex: Float
+  periodStart: CalendarDay
+  periodEnd: CalendarDay
+  status: String
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasReferralCommissionWhereUniqueInput {
+  id: ID
+}
+
+input SaasReferralCommissionWhereInput {
+  AND: [SaasReferralCommissionWhereInput!]
+  OR: [SaasReferralCommissionWhereInput!]
+  NOT: [SaasReferralCommissionWhereInput!]
+  id: IDFilter
+  referrer: UserWhereInput
+  referredUser: UserWhereInput
+  company: SaasCompanyWhereInput
+  subscription: SaasCompanySubscriptionWhereInput
+  plan: SaasPlanWhereInput
+  type: StringNullableFilter
+  percentage: FloatNullableFilter
+  amount: FloatNullableFilter
+  currency: StringFilter
+  periodIndex: FloatNullableFilter
+  periodStart: CalendarDayNullableFilter
+  periodEnd: CalendarDayNullableFilter
+  status: StringNullableFilter
+  notes: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasReferralCommissionOrderByInput {
+  id: OrderDirection
+  type: OrderDirection
+  percentage: OrderDirection
+  amount: OrderDirection
+  currency: OrderDirection
+  periodIndex: OrderDirection
+  periodStart: OrderDirection
+  periodEnd: OrderDirection
+  status: OrderDirection
+  notes: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasReferralCommissionUpdateInput {
+  referrer: UserRelateToOneForUpdateInput
+  referredUser: UserRelateToOneForUpdateInput
+  company: SaasCompanyRelateToOneForUpdateInput
+  subscription: SaasCompanySubscriptionRelateToOneForUpdateInput
+  plan: SaasPlanRelateToOneForUpdateInput
+  type: String
+  percentage: Float
+  amount: Float
+  currency: String
+  periodIndex: Float
+  periodStart: CalendarDay
+  periodEnd: CalendarDay
+  status: String
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasReferralCommissionUpdateArgs {
+  where: SaasReferralCommissionWhereUniqueInput!
+  data: SaasReferralCommissionUpdateInput!
+}
+
+input SaasReferralCommissionCreateInput {
+  referrer: UserRelateToOneForCreateInput
+  referredUser: UserRelateToOneForCreateInput
+  company: SaasCompanyRelateToOneForCreateInput
+  subscription: SaasCompanySubscriptionRelateToOneForCreateInput
+  plan: SaasPlanRelateToOneForCreateInput
+  type: String
+  percentage: Float
+  amount: Float
+  currency: String
+  periodIndex: Float
+  periodStart: CalendarDay
+  periodEnd: CalendarDay
+  status: String
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type Schedule {
@@ -4362,11 +4477,15 @@ type User {
   lastName: String
   secondLastName: String
   username: String
+  referralCode: String
   email: String
   password: PasswordState
   phone: String
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
+  referredBy: User
+  referrals(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
+  referralsCount(where: UserWhereInput! = {}): Int
   company: SaasCompany
   blog_subscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
   blog_subscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
@@ -4406,6 +4525,7 @@ type PasswordState {
 input UserWhereUniqueInput {
   id: ID
   username: String
+  referralCode: String
   email: String
 }
 
@@ -4418,10 +4538,13 @@ input UserWhereInput {
   lastName: StringFilter
   secondLastName: StringFilter
   username: StringFilter
+  referralCode: StringFilter
   email: StringFilter
   password: PasswordFilter
   phone: StringFilter
   roles: RoleManyRelationFilter
+  referredBy: UserWhereInput
+  referrals: UserManyRelationFilter
   company: SaasCompanyWhereInput
   blog_subscriptions: BlogSubscriptionManyRelationFilter
   businessLeadsAssigned: TechBusinessLeadManyRelationFilter
@@ -4470,6 +4593,7 @@ input UserOrderByInput {
   lastName: OrderDirection
   secondLastName: OrderDirection
   username: OrderDirection
+  referralCode: OrderDirection
   email: OrderDirection
   phone: OrderDirection
   birthday: OrderDirection
@@ -4486,10 +4610,13 @@ input UserUpdateInput {
   lastName: String
   secondLastName: String
   username: String
+  referralCode: String
   email: String
   password: String
   phone: String
   roles: RoleRelateToManyForUpdateInput
+  referredBy: UserRelateToOneForUpdateInput
+  referrals: UserRelateToManyForUpdateInput
   company: SaasCompanyRelateToOneForUpdateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForUpdateInput
   businessLeadsAssigned: TechBusinessLeadRelateToManyForUpdateInput
@@ -4542,10 +4669,13 @@ input UserCreateInput {
   lastName: String
   secondLastName: String
   username: String
+  referralCode: String
   email: String
   password: String
   phone: String
   roles: RoleRelateToManyForCreateInput
+  referredBy: UserRelateToOneForCreateInput
+  referrals: UserRelateToManyForCreateInput
   company: SaasCompanyRelateToOneForCreateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForCreateInput
   businessLeadsAssigned: TechBusinessLeadRelateToManyForCreateInput
@@ -4853,6 +4983,12 @@ type Mutation {
   updateSaasProjects(data: [SaasProjectUpdateArgs!]!): [SaasProject]
   deleteSaasProject(where: SaasProjectWhereUniqueInput!): SaasProject
   deleteSaasProjects(where: [SaasProjectWhereUniqueInput!]!): [SaasProject]
+  createSaasReferralCommission(data: SaasReferralCommissionCreateInput!): SaasReferralCommission
+  createSaasReferralCommissions(data: [SaasReferralCommissionCreateInput!]!): [SaasReferralCommission]
+  updateSaasReferralCommission(where: SaasReferralCommissionWhereUniqueInput!, data: SaasReferralCommissionUpdateInput!): SaasReferralCommission
+  updateSaasReferralCommissions(data: [SaasReferralCommissionUpdateArgs!]!): [SaasReferralCommission]
+  deleteSaasReferralCommission(where: SaasReferralCommissionWhereUniqueInput!): SaasReferralCommission
+  deleteSaasReferralCommissions(where: [SaasReferralCommissionWhereUniqueInput!]!): [SaasReferralCommission]
   createSchedule(data: ScheduleCreateInput!): Schedule
   createSchedules(data: [ScheduleCreateInput!]!): [Schedule]
   updateSchedule(where: ScheduleWhereUniqueInput!, data: ScheduleUpdateInput!): Schedule
@@ -4941,7 +5077,8 @@ type Mutation {
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
-  authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
+  authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
+  registerUser(data: UserCreateInput!, referrerCode: String): User
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -5073,6 +5210,9 @@ type Query {
   saasProject(where: SaasProjectWhereUniqueInput!): SaasProject
   saasProjects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
   saasProjectsCount(where: SaasProjectWhereInput! = {}): Int
+  saasReferralCommission(where: SaasReferralCommissionWhereUniqueInput!): SaasReferralCommission
+  saasReferralCommissions(where: SaasReferralCommissionWhereInput! = {}, orderBy: [SaasReferralCommissionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasReferralCommissionWhereUniqueInput): [SaasReferralCommission!]
+  saasReferralCommissionsCount(where: SaasReferralCommissionWhereInput! = {}): Int
   schedule(where: ScheduleWhereUniqueInput!): Schedule
   schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
   schedulesCount(where: ScheduleWhereInput! = {}): Int

@@ -50,6 +50,8 @@ async function upsertPlan(
     stripePriceId?: string;
     stripeProductId?: string;
     bestSeller?: boolean;
+    referralUpfrontCommissionPct?: number;
+    referralRecurringCommissionPct?: number;
   },
 ): Promise<string> {
   const [existing] = await context.sudo().query.SaasPlan.findMany({
@@ -68,6 +70,8 @@ async function upsertPlan(
       stripeProductId: data.stripeProductId,
     }),
     ...(data.bestSeller != null && { bestSeller: data.bestSeller }),
+    ...(data.referralUpfrontCommissionPct != null && { referralUpfrontCommissionPct: data.referralUpfrontCommissionPct }),
+    ...(data.referralRecurringCommissionPct != null && { referralRecurringCommissionPct: data.referralRecurringCommissionPct }),
   };
   if (existing) {
     await context.sudo().query.SaasPlan.updateOne({
@@ -92,6 +96,8 @@ export async function createSaasPlan(
     frequency: PLAN_FREQUENCY.MONTHLY,
     leadLimit: 50,
     planFeatures: planFeaturesFree,
+    referralUpfrontCommissionPct: 0,
+    referralRecurringCommissionPct: 0,
   });
 
   await upsertPlan(context, "Starter", {
@@ -102,6 +108,8 @@ export async function createSaasPlan(
     stripePriceId: "price_1TBQ0zQB4ei9YzRV6UzktPtz",
     stripeProductId: "prod_U7AkUsHqLHpNrL",
     planFeatures: planFeaturesStarter,
+    referralUpfrontCommissionPct: 20,
+    referralRecurringCommissionPct: 10,
   });
 
   await upsertPlan(context, "Pro", {
@@ -113,6 +121,8 @@ export async function createSaasPlan(
     bestSeller: true,
     stripePriceId: "price_1TBQ3EQB4ei9YzRVldT380Jw",
     stripeProductId: "prod_U7M6geL01RYWf5",
+    referralUpfrontCommissionPct: 20,
+    referralRecurringCommissionPct: 10,
   });
 
   await upsertPlan(context, "Agencia", {
@@ -123,6 +133,8 @@ export async function createSaasPlan(
     planFeatures: planFeaturesAgency,
     stripePriceId: "price_1TBQ40QB4ei9YzRVf2kQEHQX",
     stripeProductId: "prod_U7N3RIsVzkxTB1",
+    referralUpfrontCommissionPct: 20,
+    referralRecurringCommissionPct: 10,
   });
 
   console.log("✅ SaasPlan seeding complete.");

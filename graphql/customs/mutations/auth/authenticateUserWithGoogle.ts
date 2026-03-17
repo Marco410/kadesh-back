@@ -20,7 +20,10 @@ const typeDefs = `
 `;
 
 const definition = `
-  authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
+  authenticateUserWithGoogle(
+    idToken: String!
+    referrerCode: String
+  ): AuthenticateUserWithGoogleResult!
 `;
 
 async function verifyGoogleIdToken(idToken: string): Promise<{
@@ -51,7 +54,13 @@ const USER_QUERY =
 const resolver = {
   authenticateUserWithGoogle: async (
     _root: unknown,
-    { idToken }: { idToken: string },
+    {
+      idToken,
+      referrerCode,
+    }: {
+      idToken: string;
+      referrerCode?: string | null;
+    },
     context: KeystoneContext,
   ) => {
     const payload = await verifyGoogleIdToken(idToken);
@@ -75,22 +84,72 @@ const resolver = {
           take: 1,
           query: "id",
         });
-        const username = await checkUserName(
-          payload.name?.trim() || payload.email.split("@")[0],
-          "",
-          context,
-        );
+
+        let referredByConnect:
+          | {
+              connect: { id: string };
+            }
+          | undefined;
+
+        if (referrerCode) {
+          const referrer = await context.sudo().query.User.findOne({
+            where: { referralCode: referrerCode.toUpperCase() },
+            query: "id",
+          });
+
+          if (referrer) {
+            referredByConnect = { connect: { id: referrer.id } };
+          }
+        }
+
+        const baseName = payload.name?.trim() || payload.email.split("@")[0];
+        const username = await checkUserName(baseName, "", context);
+
         user = await context.sudo().query.User.createOne({
           data: {
             email: payload.email,
-            name: payload.name?.trim() || payload.email.split("@")[0],
+            name: baseName,
             lastName: "",
             username,
             verified: true,
+            referredBy: referredByConnect,
             roles: userRole ? { connect: [{ id: userRole.id }] } : undefined,
           },
           query: USER_QUERY,
         });
+
+        // Crear automáticamente una SaasCompany básica usando el nombre del usuario
+        const company = await context.sudo().query.SaasCompany.createOne({
+          data: {
+            name: baseName,
+          },
+          query: "id",
+        });
+
+        try {
+          const [adminCompanyRole] = await context.sudo().query.Role.findMany({
+            where: { name: { equals: Role.ADMIN_COMPANY } },
+            take: 1,
+            query: "id",
+          });
+
+          await context.sudo().query.User.updateOne({
+            where: { id: user.id },
+            data: {
+              company: { connect: { id: company.id } },
+              ...(adminCompanyRole && {
+                roles: {
+                  connect: [{ id: adminCompanyRole.id }],
+                },
+              }),
+            },
+          });
+        } catch (error) {
+          console.error(
+            "Error al asignar compañía y rol ADMIN_COMPANY al usuario de Google:",
+            error,
+          );
+        }
 
       } catch (err) {
         return {

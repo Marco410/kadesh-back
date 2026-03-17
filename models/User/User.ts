@@ -17,6 +17,7 @@ import {
   userRoleHook,
   userBlogSubscriptionHook,
   stripeCustomerHook,
+  userReferralHook,
 } from "./User.hooks";
 import access from "../../utils/generalAccess/access";
 
@@ -24,7 +25,17 @@ async function resolveInput(
   args: Parameters<typeof userRoleHook.resolveInput>[0]
 ) {
   const afterRole = await userRoleHook.resolveInput(args);
-  return stripeCustomerHook.resolveInput({ ...args, resolvedData: afterRole });
+  const afterStripe = await stripeCustomerHook.resolveInput({
+    ...args,
+    resolvedData: afterRole,
+  });
+
+  const afterReferral = await userReferralHook.resolveInput({
+    ...args,
+    resolvedData: afterStripe,
+  });
+
+  return afterReferral;
 }
 
 export default list({
@@ -41,6 +52,13 @@ export default list({
       isIndexed: "unique",
       validation: { isRequired: true },
       hooks: userNameHook,
+    }),
+    referralCode: text({
+      isIndexed: "unique",
+      validation: { isRequired: true, length: { min: 6, max: 6 } },
+      ui: {
+        description: "Código de referido (K + 5 caracteres alfanuméricos)",
+      },
     }),
     email: text({
       isIndexed: "unique",
@@ -60,6 +78,19 @@ export default list({
     roles: relationship({
       ref: "Role.users",
       many: true,
+    }),
+    referredBy: relationship({
+      ref: "User.referrals",
+      ui: {
+        description: "Usuario que refirió a este usuario",
+      },
+    }),
+    referrals: relationship({
+      ref: "User.referredBy",
+      many: true,
+      ui: {
+        description: "Usuarios que este usuario ha referido",
+      },
     }),
     /** Company (SaaS tenant) this user belongs to; 1 company : N users */
     company: relationship({

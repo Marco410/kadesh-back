@@ -94,15 +94,20 @@ const resolver = {
       // 1. Find user by email (with stripeCustomerId and company)
       const user = (await context.sudo().query.User.findOne({
         where: { email: input.email.trim() },
-        query: "id name email stripeCustomerId company { id plan { id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId } }",
+        query:
+          "id name email stripeCustomerId referredBy { id } company { id plan { id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId referralUpfrontCommissionPct referralRecurringCommissionPct } }",
       })) as {
         id: string;
         name?: string | null;
         email?: string | null;
         stripeCustomerId?: string | null;
+        referredBy?: { id: string } | null;
         company?: {
           id: string;
-          plan?: PlanRecord | null;
+          plan?: (PlanRecord & {
+            referralUpfrontCommissionPct?: number | null;
+            referralRecurringCommissionPct?: number | null;
+          }) | null;
         } | null;
       } | null;
 
@@ -140,13 +145,17 @@ const resolver = {
       }
 
       // 3. Resolve plan (input.planId or company.plan) — must have stripePriceId (recurring in Stripe)
-      let plan: PlanRecord | null = company.plan ?? null;
+      let plan: (PlanRecord & {
+        referralUpfrontCommissionPct?: number | null;
+        referralRecurringCommissionPct?: number | null;
+      }) | null = company.plan ?? null;
       if (input.planId) {
         const planRecord = await context.sudo().query.SaasPlan.findOne({
           where: { id: input.planId },
-          query: "id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId",
+          query:
+            "id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId referralUpfrontCommissionPct referralRecurringCommissionPct",
         });
-        plan = planRecord as PlanRecord | null;
+        plan = planRecord as typeof plan;
       }
       if (!plan?.id) {
         return {
@@ -218,8 +227,13 @@ const resolver = {
           company: { id: { equals: company.id } },
           status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] },
         },
-        query: "id stripeSubscriptionId",
-      }) as { id: string; stripeSubscriptionId: string | null }[];
+        query: "id stripeSubscriptionId planCost",
+      }) as { id: string; stripeSubscriptionId: string | null; planCost: number | null }[];
+
+      // Consider as "previous subscription" only those with cost > 0 (ignore free / trial-only plans)
+      const hadPreviousActiveSubscription = existingSubs.some(
+        (sub) => sub.planCost != null && sub.planCost > 0,
+      );
       for (const prev of existingSubs) {
         if (prev.stripeSubscriptionId) {
           await Stripe.subscriptions.cancel(prev.stripeSubscriptionId);
@@ -266,7 +280,10 @@ const resolver = {
           planCurrency: plan.currency ?? "",
           planStripePriceId: stripePriceId,
           planFeatures: plan.planFeatures ?? undefined,
-          status: subStatus === "active" || subStatus === "trialing" ? SUBSCRIPTION_STATUS.ACTIVE : subStatus,
+          status:
+            subStatus === "active" || subStatus === "trialing"
+              ? SUBSCRIPTION_STATUS.ACTIVE
+              : subStatus,
           activatedAt: today,
           currentPeriodEnd: periodEnd,
           stripeCustomerId: user.stripeCustomerId ?? null,
@@ -275,6 +292,86 @@ const resolver = {
         query: "id",
       });
       const subscriptionId = (subscription as { id: string } | null)?.id;
+
+      // 9.1. Generate referral commissions only for the first subscription (no previous active/trialing)
+      const referrer = user.referredBy;
+      const upfrontPct = plan.referralUpfrontCommissionPct ?? 0;
+      const recurringPct = plan.referralRecurringCommissionPct ?? 0;
+
+      if (
+        !hadPreviousActiveSubscription &&
+        referrer &&
+        (upfrontPct > 0 || recurringPct > 0) &&
+        subscriptionId
+      ) {
+        const baseCost = planCost;
+        const currency = plan.currency ?? "mxn";
+        const [actYear, actMonth, actDay] = today.split("-").map(Number);
+        const activationDate = new Date(actYear, actMonth - 1, actDay);
+
+        const addMonths = (date: Date, months: number) => {
+          const d = new Date(date);
+          d.setMonth(d.getMonth() + months);
+          return d;
+        };
+
+        // Upfront commission (periodIndex = 0)
+        if (upfrontPct > 0) {
+          const upfrontAmount = Math.round(baseCost * (upfrontPct / 100));
+          await context.sudo().query.SaasReferralCommission.createOne({
+            data: {
+              referrer: { connect: { id: referrer.id } },
+              referredUser: { connect: { id: user.id } },
+              company: { connect: { id: company.id } },
+              subscription: { connect: { id: subscriptionId } },
+              plan: { connect: { id: plan.id } },
+              type: "UPFRONT",
+              percentage: upfrontPct,
+              amount: upfrontAmount,
+              currency,
+              periodIndex: 0,
+              periodStart: today,
+              periodEnd: today,
+              status: "PENDING",
+            },
+          });
+        }
+
+        // Recurring commissions (e.g., 12 months) as pending
+        if (recurringPct > 0) {
+          const recurringAmount = Math.round(baseCost * (recurringPct / 100));
+          const monthsToGenerate = 12;
+
+          for (let i = 1; i <= monthsToGenerate; i++) {
+            const periodStartDate = addMonths(activationDate, i - 1);
+            const periodEndDate = addMonths(activationDate, i);
+            const periodStartStr = periodStartDate
+              .toISOString()
+              .slice(0, 10);
+            const periodEndPlus5 = new Date(periodEndDate);
+            periodEndPlus5.setDate(periodEndPlus5.getDate() + 5);
+            const periodEndStr = periodEndPlus5.toISOString().slice(0, 10);
+
+            await context.sudo().query.SaasReferralCommission.createOne({
+              data: {
+                referrer: { connect: { id: referrer.id } },
+                referredUser: { connect: { id: user.id } },
+                company: { connect: { id: company.id } },
+                subscription: { connect: { id: subscriptionId } },
+                plan: { connect: { id: plan.id } },
+                type: "RECURRING",
+                percentage: recurringPct,
+                amount: recurringAmount,
+                currency,
+                periodIndex: i,
+                periodStart: periodStartStr,
+                periodEnd: periodEndStr,
+                status: "PENDING",
+              },
+            });
+          }
+        }
+      }
 
       // 9. Update company.plan to the new plan
       await context.sudo().query.SaasCompany.updateOne({

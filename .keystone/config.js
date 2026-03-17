@@ -496,6 +496,51 @@ var userRoleHook = {
     return resolvedData;
   }
 };
+var REFERRAL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+function generateReferralSuffix(length = 5) {
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    const index = Math.floor(Math.random() * REFERRAL_CHARS.length);
+    result += REFERRAL_CHARS[index];
+  }
+  return result;
+}
+async function generateUniqueReferralCode(context) {
+  while (true) {
+    const candidate = "K" + generateReferralSuffix(5);
+    const existing = await context.sudo().query.User.findOne({
+      where: { referralCode: candidate },
+      query: "id"
+    });
+    if (!existing) {
+      return candidate;
+    }
+  }
+}
+var userReferralHook = {
+  resolveInput: async ({
+    resolvedData,
+    item,
+    operation,
+    context
+  }) => {
+    if (operation === "create" && !item && !resolvedData.referralCode) {
+      const code = await generateUniqueReferralCode(context);
+      resolvedData.referralCode = code;
+    }
+    if (resolvedData.referralCode) {
+      const code = String(resolvedData.referralCode).toUpperCase();
+      const pattern = /^K[A-Z0-9]{5}$/;
+      if (!pattern.test(code)) {
+        throw new Error(
+          "El c\xF3digo de referido debe empezar con K y tener 5 caracteres alfanum\xE9ricos m\xE1s (total 6)."
+        );
+      }
+      resolvedData.referralCode = code;
+    }
+    return resolvedData;
+  }
+};
 var stripeCustomerHook = {
   resolveInput: async ({
     resolvedData,
@@ -559,7 +604,15 @@ var userBlogSubscriptionHook = {
 // models/User/User.ts
 async function resolveInput(args) {
   const afterRole = await userRoleHook.resolveInput(args);
-  return stripeCustomerHook.resolveInput({ ...args, resolvedData: afterRole });
+  const afterStripe = await stripeCustomerHook.resolveInput({
+    ...args,
+    resolvedData: afterRole
+  });
+  const afterReferral = await userReferralHook.resolveInput({
+    ...args,
+    resolvedData: afterStripe
+  });
+  return afterReferral;
 }
 var User_default = (0, import_core7.list)({
   access: access_default,
@@ -575,6 +628,13 @@ var User_default = (0, import_core7.list)({
       isIndexed: "unique",
       validation: { isRequired: true },
       hooks: userNameHook
+    }),
+    referralCode: (0, import_fields7.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true, length: { min: 6, max: 6 } },
+      ui: {
+        description: "C\xF3digo de referido (K + 5 caracteres alfanum\xE9ricos)"
+      }
     }),
     email: (0, import_fields7.text)({
       isIndexed: "unique",
@@ -594,6 +654,19 @@ var User_default = (0, import_core7.list)({
     roles: (0, import_fields7.relationship)({
       ref: "Role.users",
       many: true
+    }),
+    referredBy: (0, import_fields7.relationship)({
+      ref: "User.referrals",
+      ui: {
+        description: "Usuario que refiri\xF3 a este usuario"
+      }
+    }),
+    referrals: (0, import_fields7.relationship)({
+      ref: "User.referredBy",
+      many: true,
+      ui: {
+        description: "Usuarios que este usuario ha referido"
+      }
     }),
     /** Company (SaaS tenant) this user belongs to; 1 company : N users */
     company: (0, import_fields7.relationship)({
@@ -1908,9 +1981,9 @@ var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text39) {
+function sanitizeUrl2(text40) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text39.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text40.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -3264,6 +3337,18 @@ var SaasPlan_default = (0, import_core44.list)({
     cost: (0, import_fields44.float)({
       ui: { description: "Plan cost per billing period" }
     }),
+    /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
+    referralUpfrontCommissionPct: (0, import_fields44.float)({
+      ui: {
+        description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
+      }
+    }),
+    /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
+    referralRecurringCommissionPct: (0, import_fields44.float)({
+      ui: {
+        description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
+      }
+    }),
     /** Billing frequency: weekly, monthly, or annual */
     frequency: (0, import_fields44.select)({
       type: "string",
@@ -3878,6 +3963,111 @@ var SaasProject_default = (0, import_core49.list)({
   }
 });
 
+// models/Saas/SaasReferralCommission/SaasReferralCommission.ts
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
+var SaasReferralCommission_default = (0, import_core50.list)({
+  access: () => true,
+  ui: {
+    listView: {
+      initialColumns: [
+        "referrer",
+        "referredUser",
+        "company",
+        "subscription",
+        "plan",
+        "type",
+        "status",
+        "amount",
+        "currency",
+        "notes"
+      ]
+    }
+  },
+  fields: {
+    referrer: (0, import_fields50.relationship)({
+      ref: "User",
+      ui: { description: "User who receives the commission (referrer)" }
+    }),
+    referredUser: (0, import_fields50.relationship)({
+      ref: "User",
+      ui: { description: "User who was referred and purchased the plan" }
+    }),
+    company: (0, import_fields50.relationship)({
+      ref: "SaasCompany",
+      ui: { description: "Company associated with the subscription" }
+    }),
+    subscription: (0, import_fields50.relationship)({
+      ref: "SaasCompanySubscription",
+      ui: { description: "Subscription that originated this commission" }
+    }),
+    plan: (0, import_fields50.relationship)({
+      ref: "SaasPlan",
+      ui: { description: "Plan associated with this commission" }
+    }),
+    type: (0, import_fields50.select)({
+      type: "string",
+      options: [
+        { label: "Upfront", value: "UPFRONT" },
+        { label: "Recurring", value: "RECURRING" }
+      ],
+      ui: { displayMode: "segmented-control" }
+    }),
+    percentage: (0, import_fields50.float)({
+      ui: { description: "Percentage applied to plan cost to compute amount" }
+    }),
+    amount: (0, import_fields50.float)({
+      ui: { description: "Commission amount (snapshot at creation time)" }
+    }),
+    currency: (0, import_fields50.text)({
+      defaultValue: "mxn",
+      ui: { description: "Currency code, e.g. mxn, usd" }
+    }),
+    periodIndex: (0, import_fields50.float)({
+      ui: {
+        description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
+      }
+    }),
+    periodStart: (0, import_fields50.calendarDay)({
+      db: { isNullable: true },
+      ui: { description: "Start date of the commission period (if applicable)" }
+    }),
+    periodEnd: (0, import_fields50.calendarDay)({
+      db: { isNullable: true },
+      ui: { description: "End date of the commission period (if applicable)" }
+    }),
+    status: (0, import_fields50.select)({
+      type: "string",
+      options: [
+        { label: "Pending", value: "PENDING" },
+        { label: "Earned", value: "EARNED" },
+        { label: "Cancelled", value: "CANCELLED" },
+        { label: "Paid", value: "PAID" }
+      ],
+      defaultValue: "PENDING",
+      ui: { displayMode: "segmented-control" }
+    }),
+    notes: (0, import_fields50.text)({
+      db: { isNullable: true },
+      ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
+    }),
+    createdAt: (0, import_fields50.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields50.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   Ad: Ad_default,
@@ -3916,6 +4106,7 @@ var schema_default = {
   SaasPaymentMethod: SaasPaymentMethod_default,
   SaasPlan: SaasPlan_default,
   SaasProject: SaasProject_default,
+  SaasReferralCommission: SaasReferralCommission_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
   Tag: Tag_default,
@@ -3932,7 +4123,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core50 = require("@keystone-6/core");
+var import_core51 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -4047,7 +4238,10 @@ var typeDefs2 = `
     | UserAuthenticationWithGoogleFailure
 `;
 var definition2 = `
-  authenticateUserWithGoogle(idToken: String!): AuthenticateUserWithGoogleResult!
+  authenticateUserWithGoogle(
+    idToken: String!
+    referrerCode: String
+  ): AuthenticateUserWithGoogleResult!
 `;
 async function verifyGoogleIdToken(idToken) {
   try {
@@ -4067,7 +4261,10 @@ async function verifyGoogleIdToken(idToken) {
 }
 var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified";
 var resolver2 = {
-  authenticateUserWithGoogle: async (_root, { idToken }, context) => {
+  authenticateUserWithGoogle: async (_root, {
+    idToken,
+    referrerCode
+  }, context) => {
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
       return {
@@ -4086,22 +4283,59 @@ var resolver2 = {
           take: 1,
           query: "id"
         });
-        const username = await checkUserName(
-          payload.name?.trim() || payload.email.split("@")[0],
-          "",
-          context
-        );
+        let referredByConnect;
+        if (referrerCode) {
+          const referrer = await context.sudo().query.User.findOne({
+            where: { referralCode: referrerCode.toUpperCase() },
+            query: "id"
+          });
+          if (referrer) {
+            referredByConnect = { connect: { id: referrer.id } };
+          }
+        }
+        const baseName = payload.name?.trim() || payload.email.split("@")[0];
+        const username = await checkUserName(baseName, "", context);
         user = await context.sudo().query.User.createOne({
           data: {
             email: payload.email,
-            name: payload.name?.trim() || payload.email.split("@")[0],
+            name: baseName,
             lastName: "",
             username,
             verified: true,
+            referredBy: referredByConnect,
             roles: userRole ? { connect: [{ id: userRole.id }] } : void 0
           },
           query: USER_QUERY
         });
+        const company = await context.sudo().query.SaasCompany.createOne({
+          data: {
+            name: baseName
+          },
+          query: "id"
+        });
+        try {
+          const [adminCompanyRole] = await context.sudo().query.Role.findMany({
+            where: { name: { equals: "admin_company" /* ADMIN_COMPANY */ } },
+            take: 1,
+            query: "id"
+          });
+          await context.sudo().query.User.updateOne({
+            where: { id: user.id },
+            data: {
+              company: { connect: { id: company.id } },
+              ...adminCompanyRole && {
+                roles: {
+                  connect: [{ id: adminCompanyRole.id }]
+                }
+              }
+            }
+          });
+        } catch (error) {
+          console.error(
+            "Error al asignar compa\xF1\xEDa y rol ADMIN_COMPANY al usuario de Google:",
+            error
+          );
+        }
       } catch (err) {
         return {
           __typename: "UserAuthenticationWithGoogleFailure",
@@ -4141,8 +4375,43 @@ var resolver2 = {
 };
 var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
 
+// graphql/customs/mutations/auth/registerUser.ts
+var typeDefs3 = ``;
+var definition3 = `
+  registerUser(data: UserCreateInput!, referrerCode: String): User
+`;
+var resolver3 = {
+  registerUser: async (_root, {
+    data,
+    referrerCode
+  }, context) => {
+    let referredByConnect;
+    if (referrerCode) {
+      const referrer = await context.sudo().query.User.findOne({
+        where: { referralCode: referrerCode.toUpperCase() },
+        query: "id"
+      });
+      if (!referrer) {
+        throw new Error(
+          "El c\xF3digo de referido no pertenece a ning\xFAn usuario."
+        );
+      }
+      referredByConnect = { connect: { id: referrer.id } };
+    }
+    const user = await context.sudo().query.User.createOne({
+      data: {
+        ...data,
+        referredBy: referredByConnect
+      },
+      query: "id name lastName secondLastName email phone username referralCode referredBy { id }"
+    });
+    return user;
+  }
+};
+var registerUser_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
+
 // graphql/customs/mutations/importBusinessLeadFromGoogle.ts
-var typeDefs3 = `
+var typeDefs4 = `
   input ImportBusinessLeadFromGoogleInput {
     placeId: String!
     category: String
@@ -4159,7 +4428,7 @@ var typeDefs3 = `
     importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
   }
 `;
-var definition3 = `
+var definition4 = `
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
 `;
 async function getPlaceDetails(placeId, apiKey) {
@@ -4181,7 +4450,7 @@ function parseAddressComponents(components) {
   }
   return { city, state, country };
 }
-var resolver3 = {
+var resolver4 = {
   importBusinessLeadFromGoogle: async (_root, {
     input
   }, context) => {
@@ -4278,10 +4547,10 @@ async function getVerifiedSalesPersonIds(context) {
   });
   return users.map((u) => u.id);
 }
-var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
+var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
 
 // graphql/customs/mutations/importPetPlace.ts
-var typeDefs4 = `
+var typeDefs5 = `
   input ImportPetPlaceInput {
     inputValue: String!
     type: String!
@@ -4297,10 +4566,10 @@ var typeDefs4 = `
     executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
   }
 `;
-var definition4 = `
+var definition5 = `
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
 `;
-var resolver4 = {
+var resolver5 = {
   executeImportPetPlace: async (root, { input }, context) => {
     try {
       console.log("Ejecutando importaci\xF3n de lugares con datos:", input.inputValue, "tipo:", input.type);
@@ -4506,9 +4775,9 @@ ${errors.join("\n")}`;
   }
 }
 var importPetPlace_default = {
-  typeDefs: typeDefs4,
-  definition: definition4,
-  resolver: resolver4
+  typeDefs: typeDefs5,
+  definition: definition5,
+  resolver: resolver5
 };
 
 // utils/helpers/calculate_distances.ts
@@ -4526,8 +4795,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text39 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text39}`;
+  const text40 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text40}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -4673,7 +4942,7 @@ async function logSyncLeadsResult(context, userId, companyId, input, result) {
   } catch (_) {
   }
 }
-var typeDefs5 = `
+var typeDefs6 = `
   input SyncLeadsFrontInput {
     lat: Float!
     lng: Float!
@@ -4697,10 +4966,10 @@ var typeDefs5 = `
     syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
   }
 `;
-var definition5 = `
+var definition6 = `
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
 `;
-var resolver5 = {
+var resolver6 = {
   syncLeadsFront: async (_root, {
     input
   }, context) => {
@@ -5076,7 +5345,7 @@ var resolver5 = {
     }
   }
 };
-var syncLeadsFront_default = { typeDefs: typeDefs5, definition: definition5, resolver: resolver5 };
+var syncLeadsFront_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
 
 // graphql/customs/mutations/syncBusinessLeadsFromGoogle.ts
 async function getVerifiedSalesPersonIds2(context) {
@@ -5092,7 +5361,7 @@ async function getVerifiedSalesPersonIds2(context) {
 var MIN_RATING2 = 4;
 var MIN_REVIEWS2 = 20;
 var DEFAULT_MAX_RESULTS2 = 60;
-var typeDefs6 = `
+var typeDefs7 = `
   input SyncBusinessLeadsFromGoogleInput {
     lat: Float!
     lng: Float!
@@ -5114,7 +5383,7 @@ var typeDefs6 = `
     syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   }
 `;
-var definition6 = `
+var definition7 = `
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
 `;
 var PROMPT_PREFIX2 = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
@@ -5130,8 +5399,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text39 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text39}`;
+  const text40 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text40}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -5170,7 +5439,7 @@ function parseAddressComponents3(components) {
   }
   return { city, state, country };
 }
-var resolver6 = {
+var resolver7 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
@@ -5306,10 +5575,10 @@ var resolver6 = {
     }
   }
 };
-var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
+var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
 
 // graphql/customs/mutations/createCompanySubscription.ts
-var typeDefs7 = `
+var typeDefs8 = `
   input CreateCompanySubscriptionInput {
     planId: ID!
     notes: String
@@ -5332,7 +5601,7 @@ var typeDefs7 = `
     createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
   }
 `;
-var definition7 = `
+var definition8 = `
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
 `;
 async function createStripeSubscription(params) {
@@ -5346,7 +5615,7 @@ async function createStripeSubscription(params) {
   });
   return subscription;
 }
-var resolver7 = {
+var resolver8 = {
   createCompanySubscription: async (_root, {
     input
   }, context) => {
@@ -5362,7 +5631,7 @@ var resolver7 = {
       }
       const user = await context.sudo().query.User.findOne({
         where: { email: input.email.trim() },
-        query: "id name email stripeCustomerId company { id plan { id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId } }"
+        query: "id name email stripeCustomerId referredBy { id } company { id plan { id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId referralUpfrontCommissionPct referralRecurringCommissionPct } }"
       });
       if (!user) {
         return {
@@ -5397,7 +5666,7 @@ var resolver7 = {
       if (input.planId) {
         const planRecord = await context.sudo().query.SaasPlan.findOne({
           where: { id: input.planId },
-          query: "id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId"
+          query: "id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId referralUpfrontCommissionPct referralRecurringCommissionPct"
         });
         plan = planRecord;
       }
@@ -5460,8 +5729,11 @@ var resolver7 = {
           company: { id: { equals: company.id } },
           status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] }
         },
-        query: "id stripeSubscriptionId"
+        query: "id stripeSubscriptionId planCost"
       });
+      const hadPreviousActiveSubscription = existingSubs.some(
+        (sub) => sub.planCost != null && sub.planCost > 0
+      );
       for (const prev of existingSubs) {
         if (prev.stripeSubscriptionId) {
           await stripe_default.subscriptions.cancel(prev.stripeSubscriptionId);
@@ -5511,6 +5783,69 @@ var resolver7 = {
         query: "id"
       });
       const subscriptionId = subscription?.id;
+      const referrer = user.referredBy;
+      const upfrontPct = plan.referralUpfrontCommissionPct ?? 0;
+      const recurringPct = plan.referralRecurringCommissionPct ?? 0;
+      if (!hadPreviousActiveSubscription && referrer && (upfrontPct > 0 || recurringPct > 0) && subscriptionId) {
+        const baseCost = planCost;
+        const currency = plan.currency ?? "mxn";
+        const [actYear, actMonth, actDay] = today.split("-").map(Number);
+        const activationDate = new Date(actYear, actMonth - 1, actDay);
+        const addMonths = (date, months) => {
+          const d = new Date(date);
+          d.setMonth(d.getMonth() + months);
+          return d;
+        };
+        if (upfrontPct > 0) {
+          const upfrontAmount = Math.round(baseCost * (upfrontPct / 100));
+          await context.sudo().query.SaasReferralCommission.createOne({
+            data: {
+              referrer: { connect: { id: referrer.id } },
+              referredUser: { connect: { id: user.id } },
+              company: { connect: { id: company.id } },
+              subscription: { connect: { id: subscriptionId } },
+              plan: { connect: { id: plan.id } },
+              type: "UPFRONT",
+              percentage: upfrontPct,
+              amount: upfrontAmount,
+              currency,
+              periodIndex: 0,
+              periodStart: today,
+              periodEnd: today,
+              status: "PENDING"
+            }
+          });
+        }
+        if (recurringPct > 0) {
+          const recurringAmount = Math.round(baseCost * (recurringPct / 100));
+          const monthsToGenerate = 12;
+          for (let i = 1; i <= monthsToGenerate; i++) {
+            const periodStartDate = addMonths(activationDate, i - 1);
+            const periodEndDate = addMonths(activationDate, i);
+            const periodStartStr = periodStartDate.toISOString().slice(0, 10);
+            const periodEndPlus5 = new Date(periodEndDate);
+            periodEndPlus5.setDate(periodEndPlus5.getDate() + 5);
+            const periodEndStr = periodEndPlus5.toISOString().slice(0, 10);
+            await context.sudo().query.SaasReferralCommission.createOne({
+              data: {
+                referrer: { connect: { id: referrer.id } },
+                referredUser: { connect: { id: user.id } },
+                company: { connect: { id: company.id } },
+                subscription: { connect: { id: subscriptionId } },
+                plan: { connect: { id: plan.id } },
+                type: "RECURRING",
+                percentage: recurringPct,
+                amount: recurringAmount,
+                currency,
+                periodIndex: i,
+                periodStart: periodStartStr,
+                periodEnd: periodEndStr,
+                status: "PENDING"
+              }
+            });
+          }
+        }
+      }
       await context.sudo().query.SaasCompany.updateOne({
         where: { id: company.id },
         data: { plan: { connect: { id: plan.id } } }
@@ -5538,7 +5873,7 @@ var resolver7 = {
     }
   }
 };
-var createCompanySubscription_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
+var createCompanySubscription_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
 
 // graphql/customs/mutations/addOwnLead.ts
 var ADD_OWN_LEADS_FEATURE_KEY = "add_own_leads";
@@ -5546,7 +5881,7 @@ function subscriptionHasFeature(planFeatures, featureKey) {
   if (!Array.isArray(planFeatures)) return false;
   return planFeatures.some((f) => f.key === featureKey);
 }
-var typeDefs8 = `
+var typeDefs9 = `
   input AddOwnLeadInput {
     businessName: String!
     category: String
@@ -5583,10 +5918,10 @@ var typeDefs8 = `
     addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   }
 `;
-var definition8 = `
+var definition9 = `
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
 `;
-var resolver8 = {
+var resolver9 = {
   addOwnLead: async (_root, {
     input
   }, context) => {
@@ -5692,13 +6027,14 @@ var resolver8 = {
     }
   }
 };
-var addOwnLead_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
+var addOwnLead_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
     ${customAuth_default.typeDefs}
     ${authenticateUserWithGoogle_default.typeDefs}
+    ${registerUser_default.typeDefs}
     ${importPetPlace_default.typeDefs}
     ${importBusinessLeadFromGoogle_default.typeDefs}
     ${syncBusinessLeadsFromGoogle_default.typeDefs}
@@ -5709,6 +6045,7 @@ var customMutation = {
   definitions: `
     ${customAuth_default.definition}
     ${authenticateUserWithGoogle_default.definition}
+    ${registerUser_default.definition}
     ${importPetPlace_default.definition}
     ${importBusinessLeadFromGoogle_default.definition}
     ${syncBusinessLeadsFromGoogle_default.definition}
@@ -5719,6 +6056,7 @@ var customMutation = {
   resolvers: {
     ...customAuth_default.resolver,
     ...authenticateUserWithGoogle_default.resolver,
+    ...registerUser_default.resolver,
     ...importPetPlace_default.resolver,
     ...importBusinessLeadFromGoogle_default.resolver,
     ...syncBusinessLeadsFromGoogle_default.resolver,
@@ -5735,7 +6073,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs9 = `
+var typeDefs10 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -5792,7 +6130,7 @@ var typeDefs9 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition9 = `
+var definition10 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -5842,7 +6180,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver9 = {
+var resolver10 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -5996,7 +6334,7 @@ var resolver9 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
+var nearbyAnimals_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -6264,7 +6602,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs10 = `
+var typeDefs11 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -6322,10 +6660,10 @@ var typeDefs10 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition10 = `
+var definition11 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver10 = {
+var resolver11 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -6407,10 +6745,10 @@ var resolver10 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs11 = `
+var typeDefs12 = `
   type StripeCard {
     brand: String
     country: String
@@ -6444,10 +6782,10 @@ var typeDefs11 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition11 = `
+var definition12 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver11 = {
+var resolver12 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -6483,7 +6821,7 @@ var resolver11 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
+var stripePaymentMethods_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -6537,7 +6875,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs12 = `
+var typeDefs13 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -6565,10 +6903,10 @@ var typeDefs12 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition12 = `
+var definition13 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver12 = {
+var resolver13 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -6635,6 +6973,24 @@ var resolver12 = {
             ...periodEnd ? { currentPeriodEnd: periodEnd } : {}
           }
         });
+        if (newStatus === SUBSCRIPTION_STATUS.CANCELLED || newStatus === SUBSCRIPTION_STATUS.UNPAID || newStatus === SUBSCRIPTION_STATUS.PAST_DUE) {
+          const pendingCommissions = await context.sudo().query.SaasReferralCommission.findMany({
+            where: {
+              subscription: { id: { equals: sub.id } },
+              status: { equals: "PENDING" }
+            },
+            query: "id"
+          });
+          for (const commission of pendingCommissions) {
+            await context.sudo().query.SaasReferralCommission.updateOne({
+              where: { id: commission.id },
+              data: {
+                status: "CANCELLED",
+                notes: "Comisi\xF3n cancelada porque el cliente cancel\xF3 o dej\xF3 de pagar la suscripci\xF3n."
+              }
+            });
+          }
+        }
       }
     } else if (isFreePlan && sub.activatedAt) {
       const [y, m, d] = sub.activatedAt.split("-").map(Number);
@@ -6681,7 +7037,7 @@ var resolver12 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
+var subscriptionStatus_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -6772,7 +7128,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core50.config)({
+  (0, import_core51.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

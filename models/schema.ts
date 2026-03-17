@@ -47,6 +47,7 @@ import SaasCompanySubscription from "./Saas/SaasCompanySubscription/SaasCompanyS
 import SaasPaymentMethod from "./Saas/SaasPaymentMethod/SaasPaymentMethod";
 import SaasPayment from "./Saas/SaasPayment/SaasPayment";
 import SaasProject from "./Saas/Project/SaasProject";
+import SaasReferralCommission from "./Saas/SaasReferralCommission/SaasReferralCommission";
 
 export default {
   Ad,
@@ -85,6 +86,7 @@ export default {
   SaasPaymentMethod,
   SaasPlan,
   SaasProject,
+  SaasReferralCommission,
   Schedule,
   SocialMedia,
   Tag,
