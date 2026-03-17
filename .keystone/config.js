@@ -4017,8 +4017,6 @@ var resolver = {
       },
       sessionSecret2
     );
-    console.log("userFound");
-    console.log(userFound);
     return {
       success: true,
       message: "Success",

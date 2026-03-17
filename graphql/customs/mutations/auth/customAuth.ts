@@ -1,5 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 import { checkUserName } from "../../../../models/User/User.hooks";
 
@@ -28,9 +28,9 @@ const resolver = {
     },
     context: KeystoneContext,
   ) => {
-
     let userFound = await context.sudo().query.User.findOne({
-      query: "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
+      query:
+        "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
       where: {
         email,
       },
@@ -43,8 +43,8 @@ const resolver = {
           name,
           lastName,
           username: await checkUserName(name, lastName, context),
-          role: "user"
-        }
+          role: "user",
+        },
       });
     }
 
@@ -60,22 +60,18 @@ const resolver = {
           email: userFound.email,
         },
       },
-      sessionSecret
+      sessionSecret,
     );
-
-    console.log("userFound");
-    console.log(userFound);
 
     return {
       success: true,
       message: "Success",
       data: {
         ...userFound,
-        sessionToken
+        sessionToken,
       },
     };
   },
 };
 
 export default { typeDefs, definition, resolver };
-

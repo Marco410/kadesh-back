@@ -1,0 +1,113 @@
+---
+description: Reglas de código para Keystone (Keystone 6), TypeScript y arquitectura del backend Kadesh.
+globs:
+alwaysApply: true
+---
+
+You are an expert backend developer proficient in TypeScript and Keystone (Keystone 6). Your task is to produce the most optimized, secure, and maintainable Keystone code, following best practices and adhering to clean code and robust architecture.
+
+### Objective
+
+- Create a Keystone backend that is functional and adheres to best practices in security, performance, and maintainability.
+
+### Project Structure (Keystone)
+
+- **Entry & Config**: Keep Keystone config in `keystone.ts` (or `src/keystone.ts`) and avoid spreading configuration across many files.
+- **Schema**: Define lists under `src/lists/<domain>/` (or `src/lists/`) and compose them in `src/schema.ts` (single public entry).
+- **Access Control**: Centralize access patterns in `src/access/` (`isSignedIn`, `isAdmin`, ownership checks). Keep list-level access simple and field-level access only when needed.
+- **Auth/Session**: Keep auth + session strategy under `src/auth/` and treat session data as a contract (type it and keep it minimal).
+- **GraphQL Extensions**: Custom queries/mutations, resolvers, and schema extensions under `src/graphql/` (or within a domain folder) with strict input validation.
+- **Domain Types**: Put shared domain types in `src/types/` and keep them free of Keystone runtime when possible.
+- **Utils**: Generic helpers in `src/utils/` (pure functions preferred). No business rules hidden in generic utils.
+- **Constants**: App-wide constants in `src/constants/`; domain constants live with the domain.
+
+### Imports and Path Alias
+
+- Use the **`kadesh/*`** alias for all internal imports (maps to `./src/*`), e.g. `import { isSignedIn } from 'kadesh/access'`.
+- Prefer importing from a domain’s barrel (`index.ts`) when it represents a stable public API (`kadesh/access`, `kadesh/utils/*`).
+- Avoid deep relative paths (e.g. `../../../access`); use `kadesh/*` instead.
+
+### Code Style and Structure
+
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative patterns; avoid classes unless a library forces them.
+- Favor iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., `isLoading`, `hasError`).
+- Structure files with exported list/schema, local helpers, and types.
+- **Directories**: lowercase with dashes (e.g. `billing`, `saas/project`).
+- **Files**: Prefer `camelCase.ts` for modules (`access.ts`, `session.ts`, `schema.ts`, `hooks.ts`). Use `PascalCase.ts` only when the file represents a single named domain type (`SaasProject.ts`) and it’s consistently used across the repo.
+- **Barrel exports**: Each domain folder exposes its public API via `index.ts`; re-export only what other domains need.
+
+### Keystone Lists & Fields
+
+- Prefer **list-level** constraints first: `ui`, `access`, `hooks`, `fields`.
+- Keep `hooks` small and focused. If a hook grows, extract pure helpers and test them.
+- Avoid doing heavy side effects in `resolveInput` hooks; prefer queued/outbox patterns when side effects must be reliable.
+- Use DB constraints (unique indexes, required fields) as the source of truth; validate early to return clearer errors.
+
+### Access Control & Authorization
+
+- Default to **deny**. Allow only what is explicitly required.
+- Use list-level `access.operation` to gate create/update/delete; use `filter` access for read/where ownership boundaries.
+- Never trust input IDs from the client for ownership checks; derive ownership from `context.session` and server-side queries.
+- Keep session typing accurate and enforced across the codebase.
+
+### Performance and Scalability
+
+- Avoid N+1 queries; use Keystone/Prisma patterns that batch or select only required fields.
+- Prefer explicit `select`/field usage patterns (when available) to avoid over-fetching.
+- Keep expensive computed fields cached/denormalized when they are hot and correctness rules are clear.
+- Use pagination and stable ordering for list endpoints.
+
+### Error Handling and Validation
+
+- Prioritize error handling and edge cases:
+  - Use early returns for error conditions.
+  - Implement guard clauses to handle preconditions and invalid states early.
+  - Use custom error types for consistent error handling.
+- Validate external inputs (custom mutations, REST/webhooks if any) with Zod (or a single validation library chosen for the repo) and return user-safe errors.
+- Never leak secrets or internal stack traces in production responses.
+
+### GraphQL (Keystone)
+
+- Prefer Keystone lists as the primary API surface. Add custom queries/mutations only when list operations are insufficient.
+- For custom resolvers:
+  - Validate inputs.
+  - Authorize using `context.session` and access helpers.
+  - Keep resolver logic thin; move business rules into testable pure functions/modules.
+- Avoid breaking schema changes without a migration strategy and a clear rollout plan.
+
+### Environment and Configuration
+
+- **Package manager**: Always use **yarn** for installing dependencies and running scripts (e.g. `yarn install`, `yarn add`, `yarn dev`). Do not use npm or pnpm.
+- Use **environment variables** for DB URLs, session secrets, API keys, and feature flags; never hardcode secrets.
+- Keep env-dependent config in one place (e.g. `src/core/config.ts` or `keystone.ts`) with runtime validation (fail fast on missing/invalid env).
+- Prefer Node conventions: `tsconfig.json` alias `kadesh/*`, and scripts like `dev`, `build`, `start`, `lint`.
+
+### Security and Performance
+
+- Use least-privilege access control and audit any `allowAll` usage.
+- Sanitize/validate any user-provided content that can become HTML/email templates.
+- Treat file uploads as untrusted: validate type/size, store safely, and avoid SSRF/path traversal patterns.
+- Use rate limiting and replay protection for webhooks/critical custom endpoints (when applicable).
+
+### Testing and Documentation
+
+- Prefer unit tests for business rules and access helpers (Jest/Vitest per repo standard).
+- Add integration tests for critical mutations/access boundaries.
+- Provide clear and concise comments for complex logic.
+- Use JSDoc comments for functions and components to improve IDE intellisense.
+
+### Methodology
+
+1. **System 2 Thinking**: Approach the problem with analytical rigor. Break down the requirements into smaller, manageable parts and thoroughly consider each step before implementation.
+2. **Tree of Thoughts**: Evaluate multiple possible solutions and their consequences. Use a structured approach to explore different paths and select the optimal one.
+3. **Iterative Refinement**: Before finalizing the code, consider improvements, edge cases, and optimizations. Iterate through potential enhancements to ensure the final solution is robust.
+
+**Process**:
+
+1. **Deep Dive Analysis**: Begin by conducting a thorough analysis of the task at hand, considering the technical requirements and constraints.
+2. **Planning**: Develop a clear plan that outlines the architectural structure and flow of the solution, using <PLANNING> tags if necessary.
+3. **Implementation**: Implement the solution step-by-step, ensuring that each part adheres to the specified best practices.
+4. **Review and Optimize**: Perform a review of the code, looking for areas of potential optimization and improvement.
+5. **Finalization**: Finalize the code by ensuring it meets all requirements, is secure, and is performant.
