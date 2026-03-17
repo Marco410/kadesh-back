@@ -8,6 +8,11 @@
 ALTER TABLE "User" ADD COLUMN     "referralCode" TEXT NOT NULL DEFAULT '',
 ADD COLUMN     "referredBy" TEXT;
 
+-- Assign unique referral codes to existing users (K + 5 alphanumeric from id hash)
+UPDATE "User"
+SET "referralCode" = 'K' || UPPER(SUBSTRING(MD5(id::text) FROM 1 FOR 5))
+WHERE "referralCode" = '';
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_referralCode_key" ON "User"("referralCode");
 
