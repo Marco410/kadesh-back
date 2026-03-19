@@ -5456,6 +5456,8 @@ input SyncLeadsFrontInput {
   radius: Float!
   category: String!
   maxResults: Int
+  minRating: Float
+  minReviews: Int
 }
 
 type SyncLeadsFrontResult {

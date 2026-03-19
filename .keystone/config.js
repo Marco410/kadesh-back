@@ -4949,6 +4949,8 @@ var typeDefs6 = `
     radius: Float!
     category: String!
     maxResults: Int
+    minRating: Float
+    minReviews: Int
   }
 
   type SyncLeadsFrontResult {
@@ -5085,6 +5087,8 @@ var resolver6 = {
       input.maxResults ?? DEFAULT_MAX_RESULTS,
       remainingQuota
     );
+    const minRating = typeof input.minRating === "number" ? Math.max(0, input.minRating) : MIN_RATING;
+    const minReviews = typeof input.minReviews === "number" ? Math.max(0, Math.floor(input.minReviews)) : MIN_REVIEWS;
     const {
       lat: centerLat,
       lng: centerLng,
@@ -5251,7 +5255,7 @@ var resolver6 = {
             }
             continue;
           }
-          if (placeRating < MIN_RATING || userRatingsTotal < MIN_REVIEWS) {
+          if (placeRating < minRating || userRatingsTotal < minReviews) {
             skippedLowRating++;
             continue;
           }
