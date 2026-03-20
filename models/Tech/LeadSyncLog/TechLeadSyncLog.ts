@@ -24,8 +24,6 @@ export default list({
         "category",
       ],
     },
-    label: "Logs de sincronización de leads",
-    description: "Registro de cada búsqueda/sincronización de leads desde el mapa",
   },
   fields: {
     user: relationship({

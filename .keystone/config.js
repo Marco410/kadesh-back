@@ -3002,9 +3002,7 @@ var TechLeadSyncLog_default = (0, import_core42.list)({
         "alreadyInDb",
         "category"
       ]
-    },
-    label: "Logs de sincronizaci\xF3n de leads",
-    description: "Registro de cada b\xFAsqueda/sincronizaci\xF3n de leads desde el mapa"
+    }
   },
   fields: {
     user: (0, import_fields42.relationship)({
