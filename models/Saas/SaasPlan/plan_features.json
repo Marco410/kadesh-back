@@ -7,6 +7,7 @@
   {"key": "proposals", "name": "Propuestas", "description": "Crea, vincula y controla el estatus y montos de tus cotizaciones enviadas."},
   {"key": "add_own_leads", "name": "Agregar leads propios", "description": "Agrega leads propios a tu CRM para tener un control total de tus ventas."},
   {"key": "sales_person_management", "name": "Gestión de vendedores", "description": "Administra múltiples perfiles de vendedores y controla sus accesos al sistema."},
+  {"key": "export_excel", "name": "Exportar a Excel", "description": "Exporta tus clientes a Excel para analizarlos en hojas de cálculo."},
   {"key": "sales_commission", "name": "Comisión de ventas", "description": "Configura y calcula automáticamente el porcentaje de ganancia para tus vendedores."},
   {"key": "assign_sales_person", "name": "Asignar vendedor", "description": "Distribuye leads de forma equitativa o específica entre los miembros de tu equipo."},
   {"key": "calendar_crm", "name": "Gestión de calendario", "description": "Vista unificada de todas tus citas, tareas y propuestas para organizar tu semana."},
