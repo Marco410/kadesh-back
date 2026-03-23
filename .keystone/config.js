@@ -767,6 +767,13 @@ var User_default = (0, import_core7.list)({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
+    }),
+    lastLoginAt: (0, import_fields7.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     })
   }
 });
@@ -2964,7 +2971,27 @@ var import_core42 = require("@keystone-6/core");
 var import_fields42 = require("@keystone-6/core/fields");
 
 // auth/permissions.ts
-var hasRole = (session2, allowedRoles) => !!session2 && [...allowedRoles, "admin" /* ADMIN */].includes(session2.data.role || "");
+function sessionRoleNames(session2) {
+  const names = [];
+  const roles = session2?.data?.roles;
+  if (Array.isArray(roles)) {
+    for (const r of roles) {
+      if (r && typeof r.name === "string" && r.name) {
+        names.push(r.name);
+      }
+    }
+  }
+  const single = session2?.data?.role;
+  if (typeof single === "string" && single) {
+    names.push(single);
+  }
+  return names;
+}
+var hasRole = (session2, allowedRoles) => {
+  if (!session2?.data) return false;
+  const allowed = /* @__PURE__ */ new Set([...allowedRoles, "admin" /* ADMIN */]);
+  return sessionRoleNames(session2).some((name) => allowed.has(name));
+};
 
 // models/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
 var getCompanyId2 = (session2) => session2?.data?.company?.id;
@@ -4185,6 +4212,7 @@ var resolver = {
     name,
     lastName
   }, context) => {
+    const lastLoginAt = (/* @__PURE__ */ new Date()).toISOString();
     let userFound = await context.sudo().query.User.findOne({
       query: "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
       where: {
@@ -4198,8 +4226,15 @@ var resolver = {
           name,
           lastName,
           username: await checkUserName(name, lastName, context),
-          role: "user"
+          role: "user",
+          lastLoginAt
         }
+      });
+    } else {
+      userFound = await context.sudo().query.User.updateOne({
+        where: { id: userFound.id },
+        data: { lastLoginAt },
+        query: "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } "
       });
     }
     let sessionSecret2 = process.env.SESSION_SECRET;
@@ -4266,7 +4301,7 @@ async function verifyGoogleIdToken(idToken) {
     return null;
   }
 }
-var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified";
+var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified lastLoginAt";
 var resolver2 = {
   authenticateUserWithGoogle: async (_root, {
     idToken,
@@ -4350,6 +4385,11 @@ var resolver2 = {
         };
       }
     }
+    user = await context.sudo().query.User.updateOne({
+      where: { id: user.id },
+      data: { lastLoginAt: (/* @__PURE__ */ new Date()).toISOString() },
+      query: USER_QUERY
+    });
     let sessionSecret2 = process.env.SESSION_SECRET;
     if (!sessionSecret2 && process.env.NODE_ENV !== "production") {
       sessionSecret2 = (0, import_crypto3.randomBytes)(32).toString("hex");

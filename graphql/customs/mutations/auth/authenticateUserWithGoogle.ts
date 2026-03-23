@@ -49,7 +49,7 @@ async function verifyGoogleIdToken(idToken: string): Promise<{
 }
 
 const USER_QUERY =
-  "id lastName name phone email profileImage { url } roles { name } secondLastName username verified";
+  "id lastName name phone email profileImage { url } roles { name } secondLastName username verified lastLoginAt";
 
 const resolver = {
   authenticateUserWithGoogle: async (
@@ -159,6 +159,12 @@ const resolver = {
         };
       }
     }
+
+    user = await context.sudo().query.User.updateOne({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date().toISOString() },
+      query: USER_QUERY,
+    });
 
     let sessionSecret = process.env.SESSION_SECRET;
     if (!sessionSecret && process.env.NODE_ENV !== "production") {

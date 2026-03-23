@@ -192,5 +192,12 @@ export default list({
         itemView: { fieldMode: "read" },
       },
     }),
+    lastLoginAt: timestamp({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
   },
 });

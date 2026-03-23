@@ -4516,6 +4516,7 @@ type User {
   techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
   techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   createdAt: DateTime
+  lastLoginAt: DateTime
 }
 
 type PasswordState {
@@ -4563,6 +4564,7 @@ input UserWhereInput {
   saasPayments: SaasPaymentManyRelationFilter
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   createdAt: DateTimeNullableFilter
+  lastLoginAt: DateTimeNullableFilter
 }
 
 input PasswordFilter {
@@ -4603,6 +4605,7 @@ input UserOrderByInput {
   salesComission: OrderDirection
   stripeCustomerId: OrderDirection
   createdAt: OrderDirection
+  lastLoginAt: OrderDirection
 }
 
 input UserUpdateInput {
@@ -4636,6 +4639,7 @@ input UserUpdateInput {
   saasPayments: SaasPaymentRelateToManyForUpdateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   createdAt: DateTime
+  lastLoginAt: DateTime
 }
 
 input RoleRelateToManyForUpdateInput {
@@ -4695,6 +4699,7 @@ input UserCreateInput {
   saasPayments: SaasPaymentRelateToManyForCreateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   createdAt: DateTime
+  lastLoginAt: DateTime
 }
 
 input RoleRelateToManyForCreateInput {

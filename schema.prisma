@@ -898,6 +898,7 @@ model User {
   saasPayments                             SaasPayment[]            @relation("SaasPayment_user")
   techStatusBusinessLeads                  TechStatusBusinessLead[] @relation("TechStatusBusinessLead_salesPerson")
   createdAt                                DateTime?                @default(now())
+  lastLoginAt                              DateTime?
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")
   from_AnimalComment_user                  AnimalComment[]          @relation("AnimalComment_user")

@@ -28,6 +28,7 @@ const resolver = {
     },
     context: KeystoneContext,
   ) => {
+    const lastLoginAt = new Date().toISOString();
     let userFound = await context.sudo().query.User.findOne({
       query:
         "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
@@ -44,7 +45,15 @@ const resolver = {
           lastName,
           username: await checkUserName(name, lastName, context),
           role: "user",
+          lastLoginAt,
         },
+      });
+    } else {
+      userFound = await context.sudo().query.User.updateOne({
+        where: { id: userFound.id },
+        data: { lastLoginAt },
+        query:
+          "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
       });
     }
 

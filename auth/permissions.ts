@@ -2,6 +2,23 @@
 
 import { Role } from "../models/Role/constants";
 
+function sessionRoleNames(session: any): string[] {
+  const names: string[] = [];
+  const roles = session?.data?.roles;
+  if (Array.isArray(roles)) {
+    for (const r of roles) {
+      if (r && typeof r.name === "string" && r.name) {
+        names.push(r.name);
+      }
+    }
+  }
+  const single = session?.data?.role;
+  if (typeof single === "string" && single) {
+    names.push(single);
+  }
+  return names;
+}
+
 /**
  * Function that based on the sent permission determinates if a user can do an action
  * IMPORTANT: ADMIN ROLE HAS ALL PERMISSIONS
@@ -9,8 +26,11 @@ import { Role } from "../models/Role/constants";
  * @param allowedRoles string[] => Array of allowed Roles
  * @returns : boolean -> if set user has permission for desaired action
  */
-export const hasRole = (session: any, allowedRoles: string[]) =>
-  !!session && [...allowedRoles, Role.ADMIN].includes(session.data.role || "");
+export const hasRole = (session: any, allowedRoles: string[]) => {
+  if (!session?.data) return false;
+  const allowed = new Set([...allowedRoles, Role.ADMIN]);
+  return sessionRoleNames(session).some((name) => allowed.has(name));
+};
 
 // ------- AUTH VALIDATIONS --------
 /**
