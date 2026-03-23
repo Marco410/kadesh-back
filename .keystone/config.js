@@ -630,7 +630,9 @@ var User_default = (0, import_core7.list)({
         "phone",
         "roles",
         "company",
-        "businessLeadsAssigned"
+        "leadSyncLogs",
+        "createdAt",
+        "lastLoginAt"
       ]
     }
   },
