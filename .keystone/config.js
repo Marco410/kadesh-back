@@ -2963,6 +2963,9 @@ var TechFiles_default = (0, import_core41.list)({
 var import_core42 = require("@keystone-6/core");
 var import_fields42 = require("@keystone-6/core/fields");
 
+// auth/permissions.ts
+var hasRole = (session2, allowedRoles) => !!session2 && [...allowedRoles, "admin" /* ADMIN */].includes(session2.data.role || "");
+
 // models/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
 var getCompanyId2 = (session2) => session2?.data?.company?.id;
 var techLeadSyncLogAccess = {
@@ -2974,12 +2977,18 @@ var techLeadSyncLogAccess = {
   },
   filter: {
     query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
       const companyId = getCompanyId2(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: () => false,
     delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
       const companyId = getCompanyId2(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
