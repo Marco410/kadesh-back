@@ -98,6 +98,11 @@ export const GOOGLE_PLACE_CATEGORIES = [
   { value: "tiendas de materiales", label: "Tiendas de materiales" },
   { value: "distribuidoras", label: "Distribuidoras" },
 
+  // ── INDUSTRIA Y PRODUCCIÓN ─────────────────────────────
+  { value: "fábricas", label: "Fábricas" },
+  { value: "procesadoras", label: "Procesadoras" },
+  { value: "servicio de distribución", label: "Servicio de distribución" },
+
   // ── SERVICIOS AL HOGAR ─────────────────────────────────
   { value: "plomeros", label: "Plomeros" },
   { value: "electricistas", label: "Electricistas" },
