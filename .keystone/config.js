@@ -620,6 +620,20 @@ var User_default = (0, import_core7.list)({
     resolveInput,
     afterOperation: userBlogSubscriptionHook.afterOperation
   },
+  ui: {
+    listView: {
+      initialColumns: [
+        "name",
+        "lastName",
+        "secondLastName",
+        "email",
+        "phone",
+        "roles",
+        "company",
+        "businessLeadsAssigned"
+      ]
+    }
+  },
   fields: {
     name: (0, import_fields7.text)({ validation: { isRequired: true } }),
     lastName: (0, import_fields7.text)(),

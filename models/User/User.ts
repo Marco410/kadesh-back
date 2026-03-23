@@ -44,6 +44,20 @@ export default list({
     resolveInput,
     afterOperation: userBlogSubscriptionHook.afterOperation,
   },
+  ui: {
+    listView: {
+      initialColumns: [
+        "name",
+        "lastName",
+        "secondLastName",
+        "email",
+        "phone",
+        "roles",
+        "company",
+        "businessLeadsAssigned",
+      ],
+    },
+  },
   fields: {
     name: text({ validation: { isRequired: true } }),
     lastName: text(),
