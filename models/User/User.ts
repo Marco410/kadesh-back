@@ -88,9 +88,7 @@ export default list({
         },
       },
     }),
-    phone: text({
-      hooks: phoneHooks,
-    }),
+    phone: text(),
     roles: relationship({
       ref: "Role.users",
       many: true,

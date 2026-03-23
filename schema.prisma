@@ -676,6 +676,19 @@ model SocialMedia {
   @@index([pet_placeId])
 }
 
+model SystemRelease {
+  id          String    @id @default(cuid())
+  version     String    @default("")
+  product     String
+  title       String    @default("")
+  body        String    @default("")
+  releasedAt  DateTime
+  isPublished Boolean   @default(false)
+  createdAt   DateTime? @default(now())
+
+  @@index([version])
+}
+
 model Tag {
   id        String    @id @default(cuid())
   name      String    @unique @default("")

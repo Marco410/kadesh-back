@@ -13,6 +13,7 @@ import PetPlaceLike from "./PetPlace/PetPlaceLike/PetPlaceLike";
 import PetPlaceService from "./PetPlace/PetPlaceService/PetPlaceService";
 import Schedule from "./Schedule/Schedule";
 import SocialMedia from "./SocialMedia/SocialMedia";
+import SystemRelease from "./SystemRelease/SystemRelease";
 import Review from "./Review/Review";
 import Product from "./Store/Product/Product";
 import WishList from "./Store/WishList/WishList";
@@ -89,6 +90,7 @@ export default {
   SaasReferralCommission,
   Schedule,
   SocialMedia,
+  SystemRelease,
   Tag,
   TechBusinessLead,
   TechFile,

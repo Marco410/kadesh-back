@@ -3627,6 +3627,82 @@ input SocialMediaCreateInput {
   createdAt: DateTime
 }
 
+type SystemRelease {
+  id: ID!
+  version: String
+  product: String
+  title: String
+  body: String
+  releasedAt: DateTime
+  isPublished: Boolean
+  createdAt: DateTime
+}
+
+input SystemReleaseWhereUniqueInput {
+  id: ID
+}
+
+input SystemReleaseWhereInput {
+  AND: [SystemReleaseWhereInput!]
+  OR: [SystemReleaseWhereInput!]
+  NOT: [SystemReleaseWhereInput!]
+  id: IDFilter
+  version: StringFilter
+  product: StringFilter
+  title: StringFilter
+  body: StringFilter
+  releasedAt: DateTimeFilter
+  isPublished: BooleanFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input DateTimeFilter {
+  equals: DateTime
+  in: [DateTime!]
+  notIn: [DateTime!]
+  lt: DateTime
+  lte: DateTime
+  gt: DateTime
+  gte: DateTime
+  not: DateTimeFilter
+}
+
+input SystemReleaseOrderByInput {
+  id: OrderDirection
+  version: OrderDirection
+  product: OrderDirection
+  title: OrderDirection
+  body: OrderDirection
+  releasedAt: OrderDirection
+  isPublished: OrderDirection
+  createdAt: OrderDirection
+}
+
+input SystemReleaseUpdateInput {
+  version: String
+  product: String
+  title: String
+  body: String
+  releasedAt: DateTime
+  isPublished: Boolean
+  createdAt: DateTime
+}
+
+input SystemReleaseUpdateArgs {
+  where: SystemReleaseWhereUniqueInput!
+  data: SystemReleaseUpdateInput!
+}
+
+input SystemReleaseCreateInput {
+  version: String
+  product: String
+  title: String
+  body: String
+  releasedAt: DateTime
+  isPublished: Boolean
+  createdAt: DateTime
+}
+
 type Tag {
   id: ID!
   name: String
@@ -4314,17 +4390,6 @@ input TechSalesActivityWhereInput {
   createdAt: DateTimeNullableFilter
 }
 
-input DateTimeFilter {
-  equals: DateTime
-  in: [DateTime!]
-  notIn: [DateTime!]
-  lt: DateTime
-  lte: DateTime
-  gt: DateTime
-  gte: DateTime
-  not: DateTimeFilter
-}
-
 input TechSalesActivityOrderByInput {
   id: OrderDirection
   type: OrderDirection
@@ -5006,6 +5071,12 @@ type Mutation {
   updateSocialMedias(data: [SocialMediaUpdateArgs!]!): [SocialMedia]
   deleteSocialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
   deleteSocialMedias(where: [SocialMediaWhereUniqueInput!]!): [SocialMedia]
+  createSystemRelease(data: SystemReleaseCreateInput!): SystemRelease
+  createSystemReleases(data: [SystemReleaseCreateInput!]!): [SystemRelease]
+  updateSystemRelease(where: SystemReleaseWhereUniqueInput!, data: SystemReleaseUpdateInput!): SystemRelease
+  updateSystemReleases(data: [SystemReleaseUpdateArgs!]!): [SystemRelease]
+  deleteSystemRelease(where: SystemReleaseWhereUniqueInput!): SystemRelease
+  deleteSystemReleases(where: [SystemReleaseWhereUniqueInput!]!): [SystemRelease]
   createTag(data: TagCreateInput!): Tag
   createTags(data: [TagCreateInput!]!): [Tag]
   updateTag(where: TagWhereUniqueInput!, data: TagUpdateInput!): Tag
@@ -5224,6 +5295,9 @@ type Query {
   socialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
   socialMedias(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
   socialMediasCount(where: SocialMediaWhereInput! = {}): Int
+  systemRelease(where: SystemReleaseWhereUniqueInput!): SystemRelease
+  systemReleases(where: SystemReleaseWhereInput! = {}, orderBy: [SystemReleaseOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SystemReleaseWhereUniqueInput): [SystemRelease!]
+  systemReleasesCount(where: SystemReleaseWhereInput! = {}): Int
   tag(where: TagWhereUniqueInput!): Tag
   tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
   tagsCount(where: TagWhereInput! = {}): Int
