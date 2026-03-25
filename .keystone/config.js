@@ -387,6 +387,190 @@ function genUniqueLink(link) {
   return link.toLowerCase().replace(/ñ/g, "n").replace(/\s+/g, ".");
 }
 
+// utils/helpers/sendgrid.ts
+var import_mail = __toESM(require("@sendgrid/mail"));
+if (process.env.SENDGRID_API_KEY) {
+  import_mail.default.setApiKey(process.env.SENDGRID_API_KEY);
+}
+async function sendEmail({
+  to,
+  subject,
+  html,
+  from = process.env.SENDGRID_FROM_EMAIL || "noreply@kadesh.com"
+}) {
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn("SENDGRID_API_KEY is not configured. Email not sent.");
+    return;
+  }
+  try {
+    const msg = {
+      to: Array.isArray(to) ? to : [to],
+      from,
+      subject,
+      html
+    };
+    await import_mail.default.send(msg);
+    console.log(
+      `Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`
+    );
+  } catch (error) {
+    console.error("Error sending email:", error);
+    if (error.response) {
+      console.error("SendGrid error response:", error.response.body);
+    }
+    throw error;
+  }
+}
+function parseAdminNotificationEmails() {
+  const raw = process.env.SENDGRID_FROM_EMAIL?.trim();
+  if (!raw) return [];
+  return raw.split(",").map((e) => e.trim()).filter(Boolean);
+}
+async function sendAdminUserBankDetailsUpdatedEmail({
+  userId,
+  userEmail,
+  userName,
+  fieldsUpdated
+}) {
+  const recipients = parseAdminNotificationEmails();
+  if (recipients.length === 0) {
+    console.warn(
+      "SENDGRID_FROM_EMAIL no configurado. No se env\xEDa aviso de datos bancarios."
+    );
+    return;
+  }
+  const fieldsList = fieldsUpdated.join(", ");
+  const subject = "[Kadesh] Usuario actualiz\xF3 datos bancarios";
+  const html = `
+    <p>Un usuario actualiz\xF3 informaci\xF3n bancaria en el sistema.</p>
+    <ul>
+      <li><strong>ID:</strong> ${escapeHtml(userId)}</li>
+      <li><strong>Nombre:</strong> ${escapeHtml(userName)}</li>
+      <li><strong>Email:</strong> ${escapeHtml(userEmail)}</li>
+      <li><strong>Campos tocados:</strong> ${escapeHtml(fieldsList)}</li>
+    </ul>
+    <p>Revisa el detalle en el Admin de Keystone (Usuario).</p>
+  `;
+  await sendEmail({ to: recipients, subject, html });
+}
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+async function sendNewPostEmail({
+  postTitle,
+  postUrl,
+  postExcerpt,
+  authorName,
+  categoryName,
+  recipientEmails
+}) {
+  if (recipientEmails.length === 0) {
+    return;
+  }
+  const subject = `Nuevo post publicado: ${postTitle}`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="color-scheme" content="dark">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #BBBBBB;
+          background-color: #1A1A1A;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background-color: #FF8C42;
+          color: #FFFFFF;
+          padding: 20px;
+          text-align: center;
+          border-radius: 5px 5px 0 0;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 22px;
+        }
+        .content {
+          background-color: #2C2C2C;
+          padding: 20px;
+          border-radius: 0 0 5px 5px;
+          border: 1px solid #404040;
+          border-top: none;
+        }
+        .post-title {
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 15px;
+          color: #FFFFFF;
+        }
+        .post-excerpt {
+          font-size: 16px;
+          color: #BBBBBB;
+          margin-bottom: 20px;
+          line-height: 1.8;
+        }
+        .post-meta {
+          font-size: 14px;
+          color: #87CEEB;
+          margin-bottom: 20px;
+        }
+        .button {
+          display: inline-block;
+          padding: 12px 30px;
+          background-color: #FF8C42;
+          color: #FFFFFF;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: bold;
+          margin-top: 20px;
+        }
+        .button:hover {
+          background-color: #E67A35;
+        }
+        .footer {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #404040;
+          font-size: 12px;
+          color: #BBBBBB;
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>\xA1Nuevo Post Publicado!</h1>
+      </div>
+      <div class="content">
+        <div class="post-title">${postTitle}</div>
+        ${postExcerpt ? `<div class="post-excerpt">${postExcerpt}</div>` : ""}
+        <div class="post-meta">
+          ${authorName ? `<strong>Autor:</strong> ${authorName}<br>` : ""}
+          ${categoryName ? `<strong>Categor\xEDa:</strong> ${categoryName}` : ""}
+        </div>
+        <a href="${postUrl}" class="button">Leer Post Completo</a>
+      </div>
+      <div class="footer">
+        <p>Gracias por suscribirte a nuestro blog.</p>
+        <p>Si no deseas recibir m\xE1s notificaciones, puedes cancelar tu suscripci\xF3n en cualquier momento.</p>
+      </div>
+    </body>
+    </html>
+  `;
+  for (const email of recipientEmails) {
+    await sendEmail({
+      to: email,
+      subject,
+      html
+    });
+  }
+}
+
 // models/Role/constants.ts
 var ROLES = [
   { label: "Admin", value: "admin" /* ADMIN */ },
@@ -401,20 +585,7 @@ var Stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 var stripe_default = Stripe;
 
 // models/User/User.hooks.ts
-var phoneHooks = {
-  validateInput: async ({ resolvedData, addValidationError }) => {
-    const { phone } = resolvedData;
-    if (phone) {
-      const pattern = /\+?\d{10,}(?:-?\d+)*$/;
-      if (!pattern.test(phone) || phone.length < 10 && phone.length !== 0) {
-        addValidationError(
-          "El tel\xE9fono debe ser de 10 d\xEDgitos y puros n\xFAmeros"
-        );
-      }
-    }
-    return phone;
-  }
-};
+var USER_BANK_NOTIFICATION_FIELDS = ["bank", "clabe", "cardNumber"];
 var emailHooks = {
   validateInput: async ({ resolvedData, addValidationError }) => {
     const { email } = resolvedData;
@@ -571,6 +742,30 @@ var stripeCustomerHook = {
     return resolvedData;
   }
 };
+var userBankDetailsNotificationHook = {
+  afterOperation: async (args) => {
+    const { listKey, operation, inputData, item } = args;
+    if (listKey !== "User" || operation !== "update" || !item?.id) return;
+    if (!inputData) return;
+    const fieldsUpdated = USER_BANK_NOTIFICATION_FIELDS.filter(
+      (f) => Object.prototype.hasOwnProperty.call(inputData, f)
+    );
+    if (fieldsUpdated.length === 0) return;
+    const userId = String(item.id);
+    const userName = [item.name, item.lastName].filter(Boolean).join(" ").trim() || "(sin nombre)";
+    const userEmail = item.email ?? "";
+    try {
+      await sendAdminUserBankDetailsUpdatedEmail({
+        userId,
+        userEmail,
+        userName,
+        fieldsUpdated: [...fieldsUpdated]
+      });
+    } catch (err) {
+      console.error("Error enviando aviso de actualizaci\xF3n de datos bancarios:", err);
+    }
+  }
+};
 var userBlogSubscriptionHook = {
   afterOperation: async ({ operation, item, context }) => {
     if (operation === "create" && item && item.email) {
@@ -618,7 +813,10 @@ var User_default = (0, import_core7.list)({
   access: access_default,
   hooks: {
     resolveInput,
-    afterOperation: userBlogSubscriptionHook.afterOperation
+    afterOperation: async (args) => {
+      await userBlogSubscriptionHook.afterOperation(args);
+      await userBankDetailsNotificationHook.afterOperation(args);
+    }
   },
   ui: {
     listView: {
@@ -664,9 +862,7 @@ var User_default = (0, import_core7.list)({
         }
       }
     }),
-    phone: (0, import_fields7.text)({
-      hooks: phoneHooks
-    }),
+    phone: (0, import_fields7.text)(),
     roles: (0, import_fields7.relationship)({
       ref: "Role.users",
       many: true
@@ -749,6 +945,19 @@ var User_default = (0, import_core7.list)({
     salesComission: (0, import_fields7.integer)({
       ui: { description: "Comisi\xF3n de ventas (en porcentaje)" },
       defaultValue: 10
+    }),
+    bank: (0, import_fields7.text)({
+      ui: { description: "Nombre del banco" }
+    }),
+    clabe: (0, import_fields7.text)({
+      ui: {
+        listView: { fieldMode: "hidden" }
+      }
+    }),
+    cardNumber: (0, import_fields7.text)({
+      ui: {
+        listView: { fieldMode: "hidden" }
+      }
     }),
     stripeCustomerId: (0, import_fields7.text)({
       db: { isNullable: true },
@@ -1616,155 +1825,6 @@ var Ad_default = (0, import_core25.list)({
 // models/Blog/Post/Post.ts
 var import_core26 = require("@keystone-6/core");
 var import_fields26 = require("@keystone-6/core/fields");
-
-// utils/helpers/sendgrid.ts
-var import_mail = __toESM(require("@sendgrid/mail"));
-if (process.env.SENDGRID_API_KEY) {
-  import_mail.default.setApiKey(process.env.SENDGRID_API_KEY);
-}
-async function sendEmail({
-  to,
-  subject,
-  html,
-  from = process.env.SENDGRID_FROM_EMAIL || "noreply@kadesh.com"
-}) {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.warn("SENDGRID_API_KEY is not configured. Email not sent.");
-    return;
-  }
-  try {
-    const msg = {
-      to: Array.isArray(to) ? to : [to],
-      from,
-      subject,
-      html
-    };
-    await import_mail.default.send(msg);
-    console.log(
-      `Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`
-    );
-  } catch (error) {
-    console.error("Error sending email:", error);
-    if (error.response) {
-      console.error("SendGrid error response:", error.response.body);
-    }
-    throw error;
-  }
-}
-async function sendNewPostEmail({
-  postTitle,
-  postUrl,
-  postExcerpt,
-  authorName,
-  categoryName,
-  recipientEmails
-}) {
-  if (recipientEmails.length === 0) {
-    return;
-  }
-  const subject = `Nuevo post publicado: ${postTitle}`;
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="color-scheme" content="dark">
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #BBBBBB;
-          background-color: #1A1A1A;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .header {
-          background-color: #FF8C42;
-          color: #FFFFFF;
-          padding: 20px;
-          text-align: center;
-          border-radius: 5px 5px 0 0;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 22px;
-        }
-        .content {
-          background-color: #2C2C2C;
-          padding: 20px;
-          border-radius: 0 0 5px 5px;
-          border: 1px solid #404040;
-          border-top: none;
-        }
-        .post-title {
-          font-size: 24px;
-          font-weight: bold;
-          margin-bottom: 15px;
-          color: #FFFFFF;
-        }
-        .post-excerpt {
-          font-size: 16px;
-          color: #BBBBBB;
-          margin-bottom: 20px;
-          line-height: 1.8;
-        }
-        .post-meta {
-          font-size: 14px;
-          color: #87CEEB;
-          margin-bottom: 20px;
-        }
-        .button {
-          display: inline-block;
-          padding: 12px 30px;
-          background-color: #FF8C42;
-          color: #FFFFFF;
-          text-decoration: none;
-          border-radius: 5px;
-          font-weight: bold;
-          margin-top: 20px;
-        }
-        .button:hover {
-          background-color: #E67A35;
-        }
-        .footer {
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #404040;
-          font-size: 12px;
-          color: #BBBBBB;
-          text-align: center;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>\xA1Nuevo Post Publicado!</h1>
-      </div>
-      <div class="content">
-        <div class="post-title">${postTitle}</div>
-        ${postExcerpt ? `<div class="post-excerpt">${postExcerpt}</div>` : ""}
-        <div class="post-meta">
-          ${authorName ? `<strong>Autor:</strong> ${authorName}<br>` : ""}
-          ${categoryName ? `<strong>Categor\xEDa:</strong> ${categoryName}` : ""}
-        </div>
-        <a href="${postUrl}" class="button">Leer Post Completo</a>
-      </div>
-      <div class="footer">
-        <p>Gracias por suscribirte a nuestro blog.</p>
-        <p>Si no deseas recibir m\xE1s notificaciones, puedes cancelar tu suscripci\xF3n en cualquier momento.</p>
-      </div>
-    </body>
-    </html>
-  `;
-  for (const email of recipientEmails) {
-    await sendEmail({
-      to: email,
-      subject,
-      html
-    });
-  }
-}
 
 // models/Blog/Post/Post.hooks.ts
 var postUrlHook = {

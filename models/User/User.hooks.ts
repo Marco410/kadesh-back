@@ -1,7 +1,10 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { genUniqueLink } from "../../utils/helpers/unike_link";
+import { sendAdminUserBankDetailsUpdatedEmail } from "../../utils/helpers/sendgrid";
 import { Role } from "../Role/constants";
 import Stripe from "../../utils/intregrations/stripe";
+
+const USER_BANK_NOTIFICATION_FIELDS = ["bank", "clabe", "cardNumber"] as const;
 
 export const phoneHooks = {
   validateInput: async ({ resolvedData, addValidationError }: any) => {
@@ -219,6 +222,35 @@ export const stripeCustomerHook = {
       // leave stripeCustomerId unset on error
     }
     return resolvedData;
+  },
+};
+
+export const userBankDetailsNotificationHook = {
+  afterOperation: async (args: any) => {
+    const { listKey, operation, inputData, item } = args;
+    if (listKey !== "User" || operation !== "update" || !item?.id) return;
+    if (!inputData) return;
+
+    const fieldsUpdated = USER_BANK_NOTIFICATION_FIELDS.filter((f) =>
+      Object.prototype.hasOwnProperty.call(inputData, f),
+    );
+    if (fieldsUpdated.length === 0) return;
+
+    const userId = String(item.id);
+    const userName =
+      [item.name, item.lastName].filter(Boolean).join(" ").trim() || "(sin nombre)";
+    const userEmail = item.email ?? "";
+
+    try {
+      await sendAdminUserBankDetailsUpdatedEmail({
+        userId,
+        userEmail,
+        userName,
+        fieldsUpdated: [...fieldsUpdated],
+      });
+    } catch (err) {
+      console.error("Error enviando aviso de actualización de datos bancarios:", err);
+    }
   },
 };
 

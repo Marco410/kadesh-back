@@ -16,6 +16,7 @@ import {
   userNameHook,
   userRoleHook,
   userBlogSubscriptionHook,
+  userBankDetailsNotificationHook,
   stripeCustomerHook,
   userReferralHook,
 } from "./User.hooks";
@@ -42,7 +43,10 @@ export default list({
   access,
   hooks: {
     resolveInput,
-    afterOperation: userBlogSubscriptionHook.afterOperation,
+    afterOperation: async (args: any) => {
+      await userBlogSubscriptionHook.afterOperation(args);
+      await userBankDetailsNotificationHook.afterOperation(args);
+    },
   },
   ui: {
     listView: {
@@ -171,6 +175,19 @@ export default list({
     salesComission: integer({
       ui: { description: "Comisión de ventas (en porcentaje)" },
       defaultValue: 10,
+    }),
+    bank: text({
+      ui: { description: "Nombre del banco" },
+    }),
+    clabe: text({
+      ui: {
+        listView: { fieldMode: "hidden" },
+      },
+    }),
+    cardNumber: text({
+      ui: {
+        listView: { fieldMode: "hidden" },
+      },
     }),
     stripeCustomerId: text({
       db: { isNullable: true },

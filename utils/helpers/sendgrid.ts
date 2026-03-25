@@ -47,6 +47,62 @@ export async function sendEmail({
   }
 }
 
+function parseAdminNotificationEmails(): string[] {
+  const raw = process.env.SENDGRID_FROM_EMAIL?.trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Notifica al admin cuando un usuario actualiza banco, CLABE o número de tarjeta.
+ * Configura SENDGRID_FROM_EMAIL (coma para varios) y SENDGRID_API_KEY.
+ */
+export async function sendAdminUserBankDetailsUpdatedEmail({
+  userId,
+  userEmail,
+  userName,
+  fieldsUpdated,
+}: {
+  userId: string;
+  userEmail: string;
+  userName: string;
+  fieldsUpdated: string[];
+}): Promise<void> {
+  const recipients = parseAdminNotificationEmails();
+  if (recipients.length === 0) {
+    console.warn(
+      "SENDGRID_FROM_EMAIL no configurado. No se envía aviso de datos bancarios.",
+    );
+    return;
+  }
+
+  const fieldsList = fieldsUpdated.join(", ");
+  const subject = "[Kadesh] Usuario actualizó datos bancarios";
+  const html = `
+    <p>Un usuario actualizó información bancaria en el sistema.</p>
+    <ul>
+      <li><strong>ID:</strong> ${escapeHtml(userId)}</li>
+      <li><strong>Nombre:</strong> ${escapeHtml(userName)}</li>
+      <li><strong>Email:</strong> ${escapeHtml(userEmail)}</li>
+      <li><strong>Campos tocados:</strong> ${escapeHtml(fieldsList)}</li>
+    </ul>
+    <p>Revisa el detalle en el Admin de Keystone (Usuario).</p>
+  `;
+
+  await sendEmail({ to: recipients, subject, html });
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 /**
  * Send email notification for new blog post
  */

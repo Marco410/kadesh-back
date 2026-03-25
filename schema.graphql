@@ -4573,6 +4573,9 @@ type User {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  bank: String
+  clabe: String
+  cardNumber: String
   stripeCustomerId: String
   saasPaymentMethods(where: SaasPaymentMethodWhereInput! = {}, orderBy: [SaasPaymentMethodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentMethodWhereUniqueInput): [SaasPaymentMethod!]
   saasPaymentMethodsCount(where: SaasPaymentMethodWhereInput! = {}): Int
@@ -4624,6 +4627,9 @@ input UserWhereInput {
   verified: BooleanFilter
   salesPersonVerified: BooleanFilter
   salesComission: IntNullableFilter
+  bank: StringFilter
+  clabe: StringFilter
+  cardNumber: StringFilter
   stripeCustomerId: StringNullableFilter
   saasPaymentMethods: SaasPaymentMethodManyRelationFilter
   saasPayments: SaasPaymentManyRelationFilter
@@ -4668,6 +4674,9 @@ input UserOrderByInput {
   verified: OrderDirection
   salesPersonVerified: OrderDirection
   salesComission: OrderDirection
+  bank: OrderDirection
+  clabe: OrderDirection
+  cardNumber: OrderDirection
   stripeCustomerId: OrderDirection
   createdAt: OrderDirection
   lastLoginAt: OrderDirection
@@ -4699,6 +4708,9 @@ input UserUpdateInput {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  bank: String
+  clabe: String
+  cardNumber: String
   stripeCustomerId: String
   saasPaymentMethods: SaasPaymentMethodRelateToManyForUpdateInput
   saasPayments: SaasPaymentRelateToManyForUpdateInput
@@ -4759,6 +4771,9 @@ input UserCreateInput {
   verified: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
+  bank: String
+  clabe: String
+  cardNumber: String
   stripeCustomerId: String
   saasPaymentMethods: SaasPaymentMethodRelateToManyForCreateInput
   saasPayments: SaasPaymentRelateToManyForCreateInput

@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "bank" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "cardNumber" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "clabe" TEXT NOT NULL DEFAULT '';
