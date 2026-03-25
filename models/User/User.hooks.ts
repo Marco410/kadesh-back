@@ -1,6 +1,9 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { genUniqueLink } from "../../utils/helpers/unike_link";
-import { sendAdminUserBankDetailsUpdatedEmail } from "../../utils/helpers/sendgrid";
+import {
+  sendAdminUserBankDetailsUpdatedEmail,
+  sendUserWelcomeEmail,
+} from "../../utils/helpers/sendgrid";
 import { Role } from "../Role/constants";
 import Stripe from "../../utils/intregrations/stripe";
 
@@ -222,6 +225,27 @@ export const stripeCustomerHook = {
       // leave stripeCustomerId unset on error
     }
     return resolvedData;
+  },
+};
+
+export const userWelcomeEmailHook = {
+  afterOperation: async (args: any) => {
+    const { listKey, operation, item } = args;
+    if (listKey !== "User" || operation !== "create" || !item) return;
+    const email = item.email;
+    if (!email || String(email).trim() === "") return;
+
+    const displayName =
+      [item.name, item.lastName].filter(Boolean).join(" ").trim() || "ahí";
+
+    try {
+      await sendUserWelcomeEmail({
+        to: String(email),
+        displayName,
+      });
+    } catch (err) {
+      console.error("Error enviando correo de bienvenida:", err);
+    }
   },
 };
 

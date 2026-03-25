@@ -421,10 +421,149 @@ async function sendEmail({
     throw error;
   }
 }
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+var BRAND_ORANGE = "#FF8C42";
+var BRAND_ORANGE_DARK = "#E6732E";
 function parseAdminNotificationEmails() {
   const raw = process.env.SENDGRID_FROM_EMAIL?.trim();
   if (!raw) return [];
   return raw.split(",").map((e) => e.trim()).filter(Boolean);
+}
+function buildWelcomeEmailHtml(displayName, appUrl) {
+  const name = escapeHtml(displayName || "ah\xED");
+  const ctaRow = appUrl ? `
+        <tr>
+          <td style="padding: 8px 0 0 0;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0;">
+              <tr>
+                <td style="border-radius: 8px; background: ${BRAND_ORANGE};">
+                  <a href="${escapeHtml(appUrl)}" target="_blank" rel="noopener noreferrer"
+                    style="display: inline-block; padding: 14px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none;">
+                    Ir a la plataforma
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>` : "";
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Bienvenido</title>
+</head>
+<body style="margin:0; padding:0; background-color:#eef0f4; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, ${BRAND_ORANGE} 0%, ${BRAND_ORANGE_DARK} 100%); padding: 28px 32px;">
+              <p style="margin:0; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.9);">Kadesh</p>
+              <h1 style="margin: 8px 0 0 0; font-size: 26px; font-weight: 700; line-height: 1.25; color: #ffffff;">\xA1Bienvenido!</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 32px 28px 32px;">
+              <p style="margin:0 0 16px 0; font-size: 18px; line-height: 1.5; color: #0f172a;">Hola <strong>${name}</strong>,</p>
+              <p style="margin:0 0 20px 0; font-size: 16px; line-height: 1.65; color: #475569;">
+                Gracias por unirte. Tu cuenta ya est\xE1 activa y puedes empezar a usar la plataforma cuando quieras.
+              </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                ${ctaRow}
+                <tr>
+                  <td style="padding-top: 28px; border-top: 1px solid #e2e8f0;">
+                    <p style="margin:0; font-size: 14px; line-height: 1.6; color: #64748b;">
+                      Si no creaste esta cuenta, puedes ignorar este mensaje.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px 32px 28px 32px; background: #f8fafc;">
+              <p style="margin:0; font-size: 13px; line-height: 1.5; color: #94a3b8; text-align: center;">
+                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Kadesh \xB7 Equipo de soporte
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+function buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList) {
+  const rows = [
+    ["ID de usuario", userId],
+    ["Nombre", userName],
+    ["Email", userEmail],
+    ["Campos actualizados", fieldsList]
+  ];
+  const tableRows = rows.map(
+    ([label, value]) => `
+          <tr>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #334155; font-size: 13px; font-weight: 600; color: #94a3b8; width: 38%; vertical-align: top;">${escapeHtml(label)}</td>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #334155; font-size: 14px; color: #e2e8f0; vertical-align: top;">${escapeHtml(value)}</td>
+          </tr>`
+  ).join("");
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+</head>
+<body style="margin:0; padding:0; background-color:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#0f172a; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background: #1e293b; border-radius: 14px; overflow: hidden; border: 1px solid #334155;">
+          <tr>
+            <td style="padding: 22px 24px; border-bottom: 1px solid #334155;">
+              <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; background: rgba(255,140,66,0.2); color: ${BRAND_ORANGE}; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Alerta admin</span>
+              <h1 style="margin: 12px 0 0 0; font-size: 20px; font-weight: 700; color: #f8fafc;">Datos bancarios actualizados</h1>
+              <p style="margin: 8px 0 0 0; font-size: 14px; line-height: 1.5; color: #94a3b8;">Un usuario guard\xF3 cambios en banco, CLABE o tarjeta. Revisa el registro en el Admin de Keystone.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                ${tableRows}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px 24px 24px 24px;">
+              <p style="margin:0; font-size: 12px; color: #64748b; line-height: 1.5;">Este mensaje se gener\xF3 autom\xE1ticamente. No respondas a este correo.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+async function sendUserWelcomeEmail({
+  to,
+  displayName
+}) {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendUserWelcomeEmail: sin email destino.");
+    return;
+  }
+  const subject = "Bienvenido a Kadesh";
+  const appUrl = "https://negocios.kadesh.com.mx/auth/login";
+  const html = buildWelcomeEmailHtml(displayName, appUrl);
+  await sendEmail({ to: trimmedTo, subject, html });
 }
 async function sendAdminUserBankDetailsUpdatedEmail({
   userId,
@@ -441,20 +580,8 @@ async function sendAdminUserBankDetailsUpdatedEmail({
   }
   const fieldsList = fieldsUpdated.join(", ");
   const subject = "[Kadesh] Usuario actualiz\xF3 datos bancarios";
-  const html = `
-    <p>Un usuario actualiz\xF3 informaci\xF3n bancaria en el sistema.</p>
-    <ul>
-      <li><strong>ID:</strong> ${escapeHtml(userId)}</li>
-      <li><strong>Nombre:</strong> ${escapeHtml(userName)}</li>
-      <li><strong>Email:</strong> ${escapeHtml(userEmail)}</li>
-      <li><strong>Campos tocados:</strong> ${escapeHtml(fieldsList)}</li>
-    </ul>
-    <p>Revisa el detalle en el Admin de Keystone (Usuario).</p>
-  `;
+  const html = buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList);
   await sendEmail({ to: recipients, subject, html });
-}
-function escapeHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 async function sendNewPostEmail({
   postTitle,
@@ -742,6 +869,23 @@ var stripeCustomerHook = {
     return resolvedData;
   }
 };
+var userWelcomeEmailHook = {
+  afterOperation: async (args) => {
+    const { listKey, operation, item } = args;
+    if (listKey !== "User" || operation !== "create" || !item) return;
+    const email = item.email;
+    if (!email || String(email).trim() === "") return;
+    const displayName = [item.name, item.lastName].filter(Boolean).join(" ").trim() || "ah\xED";
+    try {
+      await sendUserWelcomeEmail({
+        to: String(email),
+        displayName
+      });
+    } catch (err) {
+      console.error("Error enviando correo de bienvenida:", err);
+    }
+  }
+};
 var userBankDetailsNotificationHook = {
   afterOperation: async (args) => {
     const { listKey, operation, inputData, item } = args;
@@ -815,6 +959,7 @@ var User_default = (0, import_core7.list)({
     resolveInput,
     afterOperation: async (args) => {
       await userBlogSubscriptionHook.afterOperation(args);
+      await userWelcomeEmailHook.afterOperation(args);
       await userBankDetailsNotificationHook.afterOperation(args);
     }
   },

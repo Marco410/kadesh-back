@@ -16,6 +16,7 @@ import {
   userNameHook,
   userRoleHook,
   userBlogSubscriptionHook,
+  userWelcomeEmailHook,
   userBankDetailsNotificationHook,
   stripeCustomerHook,
   userReferralHook,
@@ -45,6 +46,7 @@ export default list({
     resolveInput,
     afterOperation: async (args: any) => {
       await userBlogSubscriptionHook.afterOperation(args);
+      await userWelcomeEmailHook.afterOperation(args);
       await userBankDetailsNotificationHook.afterOperation(args);
     },
   },
