@@ -907,8 +907,8 @@ model User {
   salesPersonVerified                      Boolean                  @default(false)
   salesComission                           Int?                     @default(10)
   bank                                     String                   @default("")
-  clabe                                    String                   @default("")
-  cardNumber                               String                   @default("")
+  clabe                                    String?
+  cardNumber                               String?
   stripeCustomerId                         String?
   saasPaymentMethods                       SaasPaymentMethod[]      @relation("SaasPaymentMethod_user")
   saasPayments                             SaasPayment[]            @relation("SaasPayment_user")

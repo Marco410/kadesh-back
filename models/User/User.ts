@@ -182,11 +182,13 @@ export default list({
       ui: { description: "Nombre del banco" },
     }),
     clabe: text({
+      db: { isNullable: true },
       ui: {
         listView: { fieldMode: "hidden" },
       },
     }),
     cardNumber: text({
+      db: { isNullable: true },
       ui: {
         listView: { fieldMode: "hidden" },
       },

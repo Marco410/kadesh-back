@@ -4628,8 +4628,8 @@ input UserWhereInput {
   salesPersonVerified: BooleanFilter
   salesComission: IntNullableFilter
   bank: StringFilter
-  clabe: StringFilter
-  cardNumber: StringFilter
+  clabe: StringNullableFilter
+  cardNumber: StringNullableFilter
   stripeCustomerId: StringNullableFilter
   saasPaymentMethods: SaasPaymentMethodManyRelationFilter
   saasPayments: SaasPaymentManyRelationFilter

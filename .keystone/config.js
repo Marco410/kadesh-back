@@ -1095,11 +1095,13 @@ var User_default = (0, import_core7.list)({
       ui: { description: "Nombre del banco" }
     }),
     clabe: (0, import_fields7.text)({
+      db: { isNullable: true },
       ui: {
         listView: { fieldMode: "hidden" }
       }
     }),
     cardNumber: (0, import_fields7.text)({
+      db: { isNullable: true },
       ui: {
         listView: { fieldMode: "hidden" }
       }
