@@ -52,8 +52,8 @@ async function ensureStatusForLeadAssignment(
   }
 }
 
-const MIN_RATING = 3.7;
-const MIN_REVIEWS = 15;
+const MIN_RATING = 0;
+const MIN_REVIEWS = 0;
 const DEFAULT_MAX_RESULTS = 60;
 
 type SyncLeadsResult = {
@@ -463,11 +463,9 @@ const resolver = {
               (c) => c.id === company.id,
             );
             if (alreadyAssignedToThisCompany) {
-              // Ya asignado a esta company: no volver a asignar ni sumar a la cuota
               continue;
             }
             alreadyInDb++;
-            // Asignar a la company solo si aún no está asignado a esta; actualizar/crear TechStatusBusinessLead
             try {
               const leadId = (lead as { id: string }).id;
               await context.sudo().query.TechBusinessLead.updateOne({

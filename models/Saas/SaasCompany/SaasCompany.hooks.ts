@@ -44,9 +44,9 @@ export const saasCompanySubscriptionHook = {
       }
 
       const today = new Date().toISOString().slice(0, 10);
-      const oneMonthFromNow = new Date();
-      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-      const periodEnd = oneMonthFromNow.toISOString().slice(0, 10);
+      const fifteenDaysFromNow = new Date();
+      fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
+      const periodEnd = fifteenDaysFromNow.toISOString().slice(0, 10);
 
       await context.sudo().query.SaasCompanySubscription.createOne({
         data: {

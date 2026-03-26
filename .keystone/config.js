@@ -3492,9 +3492,9 @@ var saasCompanySubscriptionHook = {
         return;
       }
       const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-      const oneMonthFromNow = /* @__PURE__ */ new Date();
-      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-      const periodEnd = oneMonthFromNow.toISOString().slice(0, 10);
+      const fifteenDaysFromNow = /* @__PURE__ */ new Date();
+      fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
+      const periodEnd = fifteenDaysFromNow.toISOString().slice(0, 10);
       await context.sudo().query.SaasCompanySubscription.createOne({
         data: {
           company: { connect: { id: item.id } },
@@ -5277,8 +5277,8 @@ async function ensureStatusForLeadAssignment(context, leadId, companyId, userId,
     });
   }
 }
-var MIN_RATING = 3.7;
-var MIN_REVIEWS = 15;
+var MIN_RATING = 0;
+var MIN_REVIEWS = 0;
 var DEFAULT_MAX_RESULTS = 60;
 async function logSyncLeadsResult(context, userId, companyId, input, result) {
   if (!userId) return;
@@ -7220,7 +7220,7 @@ async function getStripeSubscription(subscriptionId) {
 }
 
 // graphql/customs/queries/saas/subscriptionStatus.ts
-var TRIAL_MONTHS_FREE_PLAN = 1;
+var TRIAL_DAYS_FREE_PLAN = 7;
 function stripeStatusToLocal(stripeStatus) {
   if (!stripeStatus) return SUBSCRIPTION_STATUS.CANCELLED;
   const s = stripeStatus.toLowerCase();
@@ -7360,7 +7360,8 @@ var resolver13 = {
       }
     } else if (isFreePlan && sub.activatedAt) {
       const [y, m, d] = sub.activatedAt.split("-").map(Number);
-      const trialEnd = new Date(y, m - 1 + TRIAL_MONTHS_FREE_PLAN, d);
+      const trialEnd = new Date(y, m - 1, d);
+      trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS_FREE_PLAN);
       const trialEndStr = trialEnd.toISOString().slice(0, 10);
       const now = /* @__PURE__ */ new Date();
       const todayStr = now.toISOString().slice(0, 10);

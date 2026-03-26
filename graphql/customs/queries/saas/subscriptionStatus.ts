@@ -2,7 +2,7 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscription/constants";
 import { getStripeSubscription } from "../../../../utils/saas/stripeSubscription";
 
-const TRIAL_MONTHS_FREE_PLAN = 1;
+const TRIAL_DAYS_FREE_PLAN = 7;
 
 /** Map Stripe subscription status to our SUBSCRIPTION_STATUS */
 function stripeStatusToLocal(stripeStatus: string | null): string {
@@ -190,7 +190,8 @@ const resolver = {
       }
     } else if (isFreePlan && sub.activatedAt) {
       const [y, m, d] = sub.activatedAt.split("-").map(Number);
-      const trialEnd = new Date(y, m - 1 + TRIAL_MONTHS_FREE_PLAN, d);
+      const trialEnd = new Date(y, m - 1, d);
+      trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS_FREE_PLAN);
       const trialEndStr = trialEnd.toISOString().slice(0, 10);
       const now = new Date();
       const todayStr = now.toISOString().slice(0, 10);
