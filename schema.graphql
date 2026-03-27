@@ -2543,8 +2543,21 @@ type SaasCompany {
   projectsCount(where: SaasProjectWhereInput! = {}): Int
   leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
   leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
+  quotations(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
+  quotationsCount(where: SaasQuotationWhereInput! = {}): Int
+  logo: FileFieldOutput
+  onboardingMainOffer: String
+  onboardingIdealCustomer: String
+  onboardingAvgTicketValue: String
+  onboardingSalesPain: String
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+type FileFieldOutput {
+  filename: String!
+  filesize: Int!
+  url: String!
 }
 
 input SaasCompanyWhereUniqueInput {
@@ -2567,6 +2580,11 @@ input SaasCompanyWhereInput {
   techFiles: TechFileManyRelationFilter
   projects: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
+  quotations: SaasQuotationManyRelationFilter
+  onboardingMainOffer: StringNullableFilter
+  onboardingIdealCustomer: StringNullableFilter
+  onboardingAvgTicketValue: StringNullableFilter
+  onboardingSalesPain: StringNullableFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2613,10 +2631,20 @@ input TechLeadSyncLogManyRelationFilter {
   none: TechLeadSyncLogWhereInput
 }
 
+input SaasQuotationManyRelationFilter {
+  every: SaasQuotationWhereInput
+  some: SaasQuotationWhereInput
+  none: SaasQuotationWhereInput
+}
+
 input SaasCompanyOrderByInput {
   id: OrderDirection
   name: OrderDirection
   subscriptionStartedAt: OrderDirection
+  onboardingMainOffer: OrderDirection
+  onboardingIdealCustomer: OrderDirection
+  onboardingAvgTicketValue: OrderDirection
+  onboardingSalesPain: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2634,6 +2662,12 @@ input SaasCompanyUpdateInput {
   techFiles: TechFileRelateToManyForUpdateInput
   projects: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
+  quotations: SaasQuotationRelateToManyForUpdateInput
+  logo: FileFieldInput
+  onboardingMainOffer: String
+  onboardingIdealCustomer: String
+  onboardingAvgTicketValue: String
+  onboardingSalesPain: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2693,6 +2727,17 @@ input TechLeadSyncLogRelateToManyForUpdateInput {
   connect: [TechLeadSyncLogWhereUniqueInput!]
 }
 
+input SaasQuotationRelateToManyForUpdateInput {
+  disconnect: [SaasQuotationWhereUniqueInput!]
+  set: [SaasQuotationWhereUniqueInput!]
+  create: [SaasQuotationCreateInput!]
+  connect: [SaasQuotationWhereUniqueInput!]
+}
+
+input FileFieldInput {
+  upload: Upload!
+}
+
 input SaasCompanyUpdateArgs {
   where: SaasCompanyWhereUniqueInput!
   data: SaasCompanyUpdateInput!
@@ -2711,6 +2756,12 @@ input SaasCompanyCreateInput {
   techFiles: TechFileRelateToManyForCreateInput
   projects: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
+  quotations: SaasQuotationRelateToManyForCreateInput
+  logo: FileFieldInput
+  onboardingMainOffer: String
+  onboardingIdealCustomer: String
+  onboardingAvgTicketValue: String
+  onboardingSalesPain: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2753,6 +2804,11 @@ input SaasProjectRelateToManyForCreateInput {
 input TechLeadSyncLogRelateToManyForCreateInput {
   create: [TechLeadSyncLogCreateInput!]
   connect: [TechLeadSyncLogWhereUniqueInput!]
+}
+
+input SaasQuotationRelateToManyForCreateInput {
+  create: [SaasQuotationCreateInput!]
+  connect: [SaasQuotationWhereUniqueInput!]
 }
 
 type SaasCompanyMonthlyLeadSync {
@@ -3318,6 +3374,8 @@ type SaasProject {
   company: SaasCompany
   businessLead: TechBusinessLead
   proposal: TechProposal
+  quotations(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
+  quotationsCount(where: SaasQuotationWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3343,6 +3401,7 @@ input SaasProjectWhereInput {
   company: SaasCompanyWhereInput
   businessLead: TechBusinessLeadWhereInput
   proposal: TechProposalWhereInput
+  quotations: SaasQuotationManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3372,6 +3431,7 @@ input SaasProjectUpdateInput {
   company: SaasCompanyRelateToOneForUpdateInput
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
   proposal: TechProposalRelateToOneForUpdateInput
+  quotations: SaasQuotationRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3405,6 +3465,7 @@ input SaasProjectCreateInput {
   company: SaasCompanyRelateToOneForCreateInput
   businessLead: TechBusinessLeadRelateToOneForCreateInput
   proposal: TechProposalRelateToOneForCreateInput
+  quotations: SaasQuotationRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3417,6 +3478,265 @@ input TechBusinessLeadRelateToOneForCreateInput {
 input TechProposalRelateToOneForCreateInput {
   create: TechProposalCreateInput
   connect: TechProposalWhereUniqueInput
+}
+
+type SaasQuotation {
+  id: ID!
+  company: SaasCompany
+  lead: TechBusinessLead
+  project: SaasProject
+  quotationNumber: String
+  status: String
+  currency: String
+  exchangeRate: Float
+  subtotal: Float
+  discountTotal: Float
+  taxTotal: Float
+  total: Float
+  validUntil: CalendarDay
+  sentAt: DateTime
+  acceptedAt: DateTime
+  notes: String
+  terms: String
+  createdBy: User
+  assignedSeller: User
+  pdfFileOrUrl: String
+  quotationProducts(where: SaasQuotationProductWhereInput! = {}, orderBy: [SaasQuotationProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationProductWhereUniqueInput): [SaasQuotationProduct!]
+  quotationProductsCount(where: SaasQuotationProductWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasQuotationWhereUniqueInput {
+  id: ID
+}
+
+input SaasQuotationWhereInput {
+  AND: [SaasQuotationWhereInput!]
+  OR: [SaasQuotationWhereInput!]
+  NOT: [SaasQuotationWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  lead: TechBusinessLeadWhereInput
+  project: SaasProjectWhereInput
+  quotationNumber: StringFilter
+  status: StringNullableFilter
+  currency: StringFilter
+  exchangeRate: FloatNullableFilter
+  subtotal: FloatNullableFilter
+  discountTotal: FloatNullableFilter
+  taxTotal: FloatNullableFilter
+  total: FloatNullableFilter
+  validUntil: CalendarDayNullableFilter
+  sentAt: DateTimeNullableFilter
+  acceptedAt: DateTimeNullableFilter
+  notes: StringNullableFilter
+  terms: StringNullableFilter
+  createdBy: UserWhereInput
+  assignedSeller: UserWhereInput
+  pdfFileOrUrl: StringNullableFilter
+  quotationProducts: SaasQuotationProductManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasQuotationProductManyRelationFilter {
+  every: SaasQuotationProductWhereInput
+  some: SaasQuotationProductWhereInput
+  none: SaasQuotationProductWhereInput
+}
+
+input SaasQuotationOrderByInput {
+  id: OrderDirection
+  quotationNumber: OrderDirection
+  status: OrderDirection
+  currency: OrderDirection
+  exchangeRate: OrderDirection
+  subtotal: OrderDirection
+  discountTotal: OrderDirection
+  taxTotal: OrderDirection
+  total: OrderDirection
+  validUntil: OrderDirection
+  sentAt: OrderDirection
+  acceptedAt: OrderDirection
+  notes: OrderDirection
+  terms: OrderDirection
+  pdfFileOrUrl: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasQuotationUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  lead: TechBusinessLeadRelateToOneForUpdateInput
+  project: SaasProjectRelateToOneForUpdateInput
+  quotationNumber: String
+  status: String
+  currency: String
+  exchangeRate: Float
+  subtotal: Float
+  discountTotal: Float
+  taxTotal: Float
+  total: Float
+  validUntil: CalendarDay
+  sentAt: DateTime
+  acceptedAt: DateTime
+  notes: String
+  terms: String
+  createdBy: UserRelateToOneForUpdateInput
+  assignedSeller: UserRelateToOneForUpdateInput
+  pdfFileOrUrl: String
+  quotationProducts: SaasQuotationProductRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasProjectRelateToOneForUpdateInput {
+  create: SaasProjectCreateInput
+  connect: SaasProjectWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasQuotationProductRelateToManyForUpdateInput {
+  disconnect: [SaasQuotationProductWhereUniqueInput!]
+  set: [SaasQuotationProductWhereUniqueInput!]
+  create: [SaasQuotationProductCreateInput!]
+  connect: [SaasQuotationProductWhereUniqueInput!]
+}
+
+input SaasQuotationUpdateArgs {
+  where: SaasQuotationWhereUniqueInput!
+  data: SaasQuotationUpdateInput!
+}
+
+input SaasQuotationCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  lead: TechBusinessLeadRelateToOneForCreateInput
+  project: SaasProjectRelateToOneForCreateInput
+  quotationNumber: String
+  status: String
+  currency: String
+  exchangeRate: Float
+  subtotal: Float
+  discountTotal: Float
+  taxTotal: Float
+  total: Float
+  validUntil: CalendarDay
+  sentAt: DateTime
+  acceptedAt: DateTime
+  notes: String
+  terms: String
+  createdBy: UserRelateToOneForCreateInput
+  assignedSeller: UserRelateToOneForCreateInput
+  pdfFileOrUrl: String
+  quotationProducts: SaasQuotationProductRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasProjectRelateToOneForCreateInput {
+  create: SaasProjectCreateInput
+  connect: SaasProjectWhereUniqueInput
+}
+
+input SaasQuotationProductRelateToManyForCreateInput {
+  create: [SaasQuotationProductCreateInput!]
+  connect: [SaasQuotationProductWhereUniqueInput!]
+}
+
+type SaasQuotationProduct {
+  id: ID!
+  quotation: SaasQuotation
+  description: String
+  quantity: Float
+  unitPrice: Float
+  discountType: String
+  discountValue: Float
+  taxRate: Float
+  lineSubtotal: Float
+  lineTotal: Float
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasQuotationProductWhereUniqueInput {
+  id: ID
+}
+
+input SaasQuotationProductWhereInput {
+  AND: [SaasQuotationProductWhereInput!]
+  OR: [SaasQuotationProductWhereInput!]
+  NOT: [SaasQuotationProductWhereInput!]
+  id: IDFilter
+  quotation: SaasQuotationWhereInput
+  description: StringFilter
+  quantity: FloatNullableFilter
+  unitPrice: FloatNullableFilter
+  discountType: StringNullableFilter
+  discountValue: FloatNullableFilter
+  taxRate: FloatNullableFilter
+  lineSubtotal: FloatNullableFilter
+  lineTotal: FloatNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasQuotationProductOrderByInput {
+  id: OrderDirection
+  description: OrderDirection
+  quantity: OrderDirection
+  unitPrice: OrderDirection
+  discountType: OrderDirection
+  discountValue: OrderDirection
+  taxRate: OrderDirection
+  lineSubtotal: OrderDirection
+  lineTotal: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasQuotationProductUpdateInput {
+  quotation: SaasQuotationRelateToOneForUpdateInput
+  description: String
+  quantity: Float
+  unitPrice: Float
+  discountType: String
+  discountValue: Float
+  taxRate: Float
+  lineSubtotal: Float
+  lineTotal: Float
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasQuotationRelateToOneForUpdateInput {
+  create: SaasQuotationCreateInput
+  connect: SaasQuotationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasQuotationProductUpdateArgs {
+  where: SaasQuotationProductWhereUniqueInput!
+  data: SaasQuotationProductUpdateInput!
+}
+
+input SaasQuotationProductCreateInput {
+  quotation: SaasQuotationRelateToOneForCreateInput
+  description: String
+  quantity: Float
+  unitPrice: Float
+  discountType: String
+  discountValue: Float
+  taxRate: Float
+  lineSubtotal: Float
+  lineTotal: Float
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasQuotationRelateToOneForCreateInput {
+  create: SaasQuotationCreateInput
+  connect: SaasQuotationWhereUniqueInput
 }
 
 type SaasReferralCommission {
@@ -3792,6 +4112,8 @@ type TechBusinessLead {
   salesPersonCount(where: UserWhereInput! = {}): Int
   saasCompany(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
   saasCompanyCount(where: SaasCompanyWhereInput! = {}): Int
+  quotations(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
+  quotationsCount(where: SaasQuotationWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3840,6 +4162,7 @@ input TechBusinessLeadWhereInput {
   googlePlaceId: StringNullableFilter
   salesPerson: UserManyRelationFilter
   saasCompany: SaasCompanyManyRelationFilter
+  quotations: SaasQuotationManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3930,6 +4253,7 @@ input TechBusinessLeadUpdateInput {
   googlePlaceId: String
   salesPerson: UserRelateToManyForUpdateInput
   saasCompany: SaasCompanyRelateToManyForUpdateInput
+  quotations: SaasQuotationRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3995,6 +4319,7 @@ input TechBusinessLeadCreateInput {
   googlePlaceId: String
   salesPerson: UserRelateToManyForCreateInput
   saasCompany: SaasCompanyRelateToManyForCreateInput
+  quotations: SaasQuotationRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -4023,12 +4348,6 @@ type TechFile {
   company: SaasCompany
   createdAt: DateTime
   updatedAt: DateTime
-}
-
-type FileFieldOutput {
-  filename: String!
-  filesize: Int!
-  url: String!
 }
 
 input TechFileWhereUniqueInput {
@@ -4065,10 +4384,6 @@ input TechFileUpdateInput {
   company: SaasCompanyRelateToOneForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
-}
-
-input FileFieldInput {
-  upload: Upload!
 }
 
 input TechFileUpdateArgs {
@@ -4329,12 +4644,6 @@ input TechProposalUpdateInput {
   updatedAt: DateTime
 }
 
-input SaasProjectRelateToOneForUpdateInput {
-  create: SaasProjectCreateInput
-  connect: SaasProjectWhereUniqueInput
-  disconnect: Boolean
-}
-
 input TechProposalUpdateArgs {
   where: TechProposalWhereUniqueInput!
   data: TechProposalUpdateInput!
@@ -4354,11 +4663,6 @@ input TechProposalCreateInput {
   project: SaasProjectRelateToOneForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
-}
-
-input SaasProjectRelateToOneForCreateInput {
-  create: SaasProjectCreateInput
-  connect: SaasProjectWhereUniqueInput
 }
 
 type TechSalesActivity {
@@ -4566,6 +4870,10 @@ type User {
   projectsResponsibleCount(where: SaasProjectWhereInput! = {}): Int
   leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
   leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
+  quotationsCreated(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
+  quotationsCreatedCount(where: SaasQuotationWhereInput! = {}): Int
+  quotationsAssignedSeller(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
+  quotationsAssignedSellerCount(where: SaasQuotationWhereInput! = {}): Int
   profileImage: ImageFieldOutput
   birthday: CalendarDay
   age: String
@@ -4622,6 +4930,8 @@ input UserWhereInput {
   proposals: TechProposalManyRelationFilter
   projectsResponsible: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
+  quotationsCreated: SaasQuotationManyRelationFilter
+  quotationsAssignedSeller: SaasQuotationManyRelationFilter
   birthday: CalendarDayNullableFilter
   smsRegistrationId: StringFilter
   verified: BooleanFilter
@@ -4702,6 +5012,8 @@ input UserUpdateInput {
   proposals: TechProposalRelateToManyForUpdateInput
   projectsResponsible: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
+  quotationsCreated: SaasQuotationRelateToManyForUpdateInput
+  quotationsAssignedSeller: SaasQuotationRelateToManyForUpdateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -4765,6 +5077,8 @@ input UserCreateInput {
   proposals: TechProposalRelateToManyForCreateInput
   projectsResponsible: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
+  quotationsCreated: SaasQuotationRelateToManyForCreateInput
+  quotationsAssignedSeller: SaasQuotationRelateToManyForCreateInput
   profileImage: ImageFieldInput
   birthday: CalendarDay
   smsRegistrationId: String
@@ -5068,6 +5382,18 @@ type Mutation {
   updateSaasProjects(data: [SaasProjectUpdateArgs!]!): [SaasProject]
   deleteSaasProject(where: SaasProjectWhereUniqueInput!): SaasProject
   deleteSaasProjects(where: [SaasProjectWhereUniqueInput!]!): [SaasProject]
+  createSaasQuotation(data: SaasQuotationCreateInput!): SaasQuotation
+  createSaasQuotations(data: [SaasQuotationCreateInput!]!): [SaasQuotation]
+  updateSaasQuotation(where: SaasQuotationWhereUniqueInput!, data: SaasQuotationUpdateInput!): SaasQuotation
+  updateSaasQuotations(data: [SaasQuotationUpdateArgs!]!): [SaasQuotation]
+  deleteSaasQuotation(where: SaasQuotationWhereUniqueInput!): SaasQuotation
+  deleteSaasQuotations(where: [SaasQuotationWhereUniqueInput!]!): [SaasQuotation]
+  createSaasQuotationProduct(data: SaasQuotationProductCreateInput!): SaasQuotationProduct
+  createSaasQuotationProducts(data: [SaasQuotationProductCreateInput!]!): [SaasQuotationProduct]
+  updateSaasQuotationProduct(where: SaasQuotationProductWhereUniqueInput!, data: SaasQuotationProductUpdateInput!): SaasQuotationProduct
+  updateSaasQuotationProducts(data: [SaasQuotationProductUpdateArgs!]!): [SaasQuotationProduct]
+  deleteSaasQuotationProduct(where: SaasQuotationProductWhereUniqueInput!): SaasQuotationProduct
+  deleteSaasQuotationProducts(where: [SaasQuotationProductWhereUniqueInput!]!): [SaasQuotationProduct]
   createSaasReferralCommission(data: SaasReferralCommissionCreateInput!): SaasReferralCommission
   createSaasReferralCommissions(data: [SaasReferralCommissionCreateInput!]!): [SaasReferralCommission]
   updateSaasReferralCommission(where: SaasReferralCommissionWhereUniqueInput!, data: SaasReferralCommissionUpdateInput!): SaasReferralCommission
@@ -5301,6 +5627,12 @@ type Query {
   saasProject(where: SaasProjectWhereUniqueInput!): SaasProject
   saasProjects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
   saasProjectsCount(where: SaasProjectWhereInput! = {}): Int
+  saasQuotation(where: SaasQuotationWhereUniqueInput!): SaasQuotation
+  saasQuotations(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
+  saasQuotationsCount(where: SaasQuotationWhereInput! = {}): Int
+  saasQuotationProduct(where: SaasQuotationProductWhereUniqueInput!): SaasQuotationProduct
+  saasQuotationProducts(where: SaasQuotationProductWhereInput! = {}, orderBy: [SaasQuotationProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationProductWhereUniqueInput): [SaasQuotationProduct!]
+  saasQuotationProductsCount(where: SaasQuotationProductWhereInput! = {}): Int
   saasReferralCommission(where: SaasReferralCommissionWhereUniqueInput!): SaasReferralCommission
   saasReferralCommissions(where: SaasReferralCommissionWhereInput! = {}, orderBy: [SaasReferralCommissionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasReferralCommissionWhereUniqueInput): [SaasReferralCommission!]
   saasReferralCommissionsCount(where: SaasReferralCommissionWhereInput! = {}): Int

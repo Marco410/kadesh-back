@@ -48,6 +48,8 @@ import SaasCompanySubscription from "./Saas/SaasCompanySubscription/SaasCompanyS
 import SaasPaymentMethod from "./Saas/SaasPaymentMethod/SaasPaymentMethod";
 import SaasPayment from "./Saas/SaasPayment/SaasPayment";
 import SaasProject from "./Saas/Project/SaasProject";
+import SaasQuotation from "./Saas/Quotation/SaasQuotation";
+import SaasQuotationProduct from "./Saas/Quotation/Product/SaasQuotationProduct";
 import SaasReferralCommission from "./Saas/SaasReferralCommission/SaasReferralCommission";
 
 export default {
@@ -87,6 +89,8 @@ export default {
   SaasPaymentMethod,
   SaasPlan,
   SaasProject,
+  SaasQuotation,
+  SaasQuotationProduct,
   SaasReferralCommission,
   Schedule,
   SocialMedia,

@@ -134,6 +134,11 @@ export default list({
       many: true,
       ui: { description: "Empresa a la que pertenece el lead" },
     }),
+    quotations: relationship({
+      ref: "SaasQuotation.lead",
+      many: true,
+      ui: { description: "Cotizaciones ligadas a este lead" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

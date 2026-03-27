@@ -5,6 +5,7 @@ import {
   calendarDay,
   relationship,
   json,
+  file,
 } from "@keystone-6/core/fields";
 import { saasCompanyAccess } from "./SaasCompany.access";
 import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
@@ -96,6 +97,51 @@ export default list({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronización de leads" },
+    }),
+    quotations: relationship({
+      ref: "SaasQuotation.company",
+      many: true,
+      ui: { description: "Cotizaciones de la empresa" },
+    }),
+    logo: file({
+      storage: "s3_company_logo",
+      ui: { description: "Logo de la empresa" },
+    }),
+    /** Onboarding — Pregunta 1 (Qué): oferta principal en 1–2 oraciones; contexto de industria y vocabulario para la IA. */
+    onboardingMainOffer: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description:
+          'Pregunta de oro 1 — El "Qué": ¿En una o dos oraciones, qué servicio o producto principal vendes?',
+      },
+    }),
+    /** Onboarding — Pregunta 2 (Quién): cliente ideal / ICP; cruza con GOOGLE_PLACE_CATEGORIES. */
+    onboardingIdealCustomer: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description:
+          'Pregunta de oro 2 — El "Quién": ¿Quién es el cliente que más te compra o con el que prefieres trabajar? (ej. clínicas dentales, constructoras).',
+      },
+    }),
+    /** Onboarding — Pregunta 3 (Cuánto): ticket promedio o valor que generas/ahorras; base para ROI en copy de la IA. */
+    onboardingAvgTicketValue: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description:
+          'Pregunta de oro 3 — El "Cuánto": ¿Cuál es el precio promedio de tu servicio, o cuánto dinero le haces ganar o ahorrar a tus clientes?',
+      },
+    }),
+    /** Onboarding — Pregunta 4 (Cómo): adquisición actual y dolor al vender; cuello de botella para guiones y seguimiento. */
+    onboardingSalesPain: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description:
+          'Pregunta de oro 4 — El "Cómo": ¿Cómo consigues clientes hoy y qué es lo que más te cuesta al vender?',
+      },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

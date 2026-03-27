@@ -151,6 +151,22 @@ export default list({
       many: true,
       ui: { description: "Logs de sincronización de leads (mapa)" },
     }),
+    quotationsCreated: relationship({
+      ref: "SaasQuotation.createdBy",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Cotizaciones creadas por este usuario",
+      },
+    }),
+    quotationsAssignedSeller: relationship({
+      ref: "SaasQuotation.assignedSeller",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Cotizaciones donde actúa como vendedor asignado",
+      },
+    }),
     profileImage: image({ storage: "s3_profile" }),
     birthday: calendarDay(),
     age: virtual({

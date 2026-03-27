@@ -474,6 +474,13 @@ model SaasCompany {
   techFiles                           TechFile[]                   @relation("TechFile_company")
   projects                            SaasProject[]                @relation("SaasProject_company")
   leadSyncLogs                        TechLeadSyncLog[]            @relation("TechLeadSyncLog_company")
+  quotations                          SaasQuotation[]              @relation("SaasQuotation_company")
+  logo_filesize                       Int?
+  logo_filename                       String?
+  onboardingMainOffer                 String?
+  onboardingIdealCustomer             String?
+  onboardingAvgTicketValue            String?
+  onboardingSalesPain                 String?
   createdAt                           DateTime?                    @default(now())
   updatedAt                           DateTime?                    @updatedAt
   from_SaasReferralCommission_company SaasReferralCommission[]     @relation("SaasReferralCommission_company")
@@ -611,6 +618,7 @@ model SaasProject {
   businessLeadId   String?           @map("businessLead")
   proposal         TechProposal?     @relation("SaasProject_proposal", fields: [proposalId], references: [id])
   proposalId       String?           @unique @map("proposal")
+  quotations       SaasQuotation[]   @relation("SaasQuotation_project")
   createdAt        DateTime?         @default(now())
   updatedAt        DateTime?         @updatedAt
 
@@ -620,6 +628,63 @@ model SaasProject {
   @@index([status])
   @@index([companyId])
   @@index([businessLeadId])
+}
+
+model SaasQuotation {
+  id                String                 @id @default(cuid())
+  company           SaasCompany?           @relation("SaasQuotation_company", fields: [companyId], references: [id])
+  companyId         String?                @map("company")
+  lead              TechBusinessLead?      @relation("SaasQuotation_lead", fields: [leadId], references: [id])
+  leadId            String?                @map("lead")
+  project           SaasProject?           @relation("SaasQuotation_project", fields: [projectId], references: [id])
+  projectId         String?                @map("project")
+  quotationNumber   String                 @default("")
+  status            String?                @default("draft")
+  currency          String                 @default("MXN")
+  exchangeRate      Float?                 @default(1)
+  subtotal          Float?                 @default(0)
+  discountTotal     Float?                 @default(0)
+  taxTotal          Float?                 @default(0)
+  total             Float?                 @default(0)
+  validUntil        DateTime?              @postgresql.Date
+  sentAt            DateTime?
+  acceptedAt        DateTime?
+  notes             String?
+  terms             String?
+  createdBy         User?                  @relation("SaasQuotation_createdBy", fields: [createdById], references: [id])
+  createdById       String?                @map("createdBy")
+  assignedSeller    User?                  @relation("SaasQuotation_assignedSeller", fields: [assignedSellerId], references: [id])
+  assignedSellerId  String?                @map("assignedSeller")
+  pdfFileOrUrl      String?
+  quotationProducts SaasQuotationProduct[] @relation("SaasQuotationProduct_quotation")
+  createdAt         DateTime?              @default(now())
+  updatedAt         DateTime?              @updatedAt
+
+  @@index([companyId])
+  @@index([leadId])
+  @@index([projectId])
+  @@index([quotationNumber])
+  @@index([status])
+  @@index([createdById])
+  @@index([assignedSellerId])
+}
+
+model SaasQuotationProduct {
+  id            String         @id @default(cuid())
+  quotation     SaasQuotation? @relation("SaasQuotationProduct_quotation", fields: [quotationId], references: [id])
+  quotationId   String?        @map("quotation")
+  description   String         @default("")
+  quantity      Float?         @default(1)
+  unitPrice     Float?         @default(0)
+  discountType  String?        @default("none")
+  discountValue Float?         @default(0)
+  taxRate       Float?         @default(0)
+  lineSubtotal  Float?         @default(0)
+  lineTotal     Float?         @default(0)
+  createdAt     DateTime?      @default(now())
+  updatedAt     DateTime?      @updatedAt
+
+  @@index([quotationId])
 }
 
 model SaasReferralCommission {
@@ -732,6 +797,7 @@ model TechBusinessLead {
   googlePlaceId        String?                  @unique
   salesPerson          User[]                   @relation("TechBusinessLead_salesPerson")
   saasCompany          SaasCompany[]            @relation("SaasCompany_leads")
+  quotations           SaasQuotation[]          @relation("SaasQuotation_lead")
   createdAt            DateTime?                @default(now())
   updatedAt            DateTime?                @updatedAt
 
@@ -896,6 +962,8 @@ model User {
   proposals                                TechProposal[]           @relation("TechProposal_assignedSeller")
   projectsResponsible                      SaasProject[]            @relation("SaasProject_responsible")
   leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
+  quotationsCreated                        SaasQuotation[]          @relation("SaasQuotation_createdBy")
+  quotationsAssignedSeller                 SaasQuotation[]          @relation("SaasQuotation_assignedSeller")
   profileImage_id                          String?
   profileImage_filesize                    Int?
   profileImage_width                       Int?

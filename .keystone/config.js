@@ -1065,6 +1065,22 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads (mapa)" }
     }),
+    quotationsCreated: (0, import_fields7.relationship)({
+      ref: "SaasQuotation.createdBy",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Cotizaciones creadas por este usuario"
+      }
+    }),
+    quotationsAssignedSeller: (0, import_fields7.relationship)({
+      ref: "SaasQuotation.assignedSeller",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Cotizaciones donde act\xFAa como vendedor asignado"
+      }
+    }),
     profileImage: (0, import_fields7.image)({ storage: "s3_profile" }),
     birthday: (0, import_fields7.calendarDay)(),
     age: (0, import_fields7.virtual)({
@@ -2326,9 +2342,9 @@ var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text41) {
+function sanitizeUrl2(text43) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text41.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text43.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -2794,6 +2810,11 @@ var TechBusinessLead_default = (0, import_core37.list)({
       ref: "SaasCompany.leads",
       many: true,
       ui: { description: "Empresa a la que pertenece el lead" }
+    }),
+    quotations: (0, import_fields37.relationship)({
+      ref: "SaasQuotation.lead",
+      many: true,
+      ui: { description: "Cotizaciones ligadas a este lead" }
     }),
     createdAt: (0, import_fields37.timestamp)({
       defaultValue: { kind: "now" },
@@ -3610,6 +3631,47 @@ var SaasCompany_default = (0, import_core44.list)({
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
+    quotations: (0, import_fields44.relationship)({
+      ref: "SaasQuotation.company",
+      many: true,
+      ui: { description: "Cotizaciones de la empresa" }
+    }),
+    logo: (0, import_fields44.file)({
+      storage: "s3_company_logo",
+      ui: { description: "Logo de la empresa" }
+    }),
+    /** Onboarding — Pregunta 1 (Qué): oferta principal en 1–2 oraciones; contexto de industria y vocabulario para la IA. */
+    onboardingMainOffer: (0, import_fields44.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
+      }
+    }),
+    /** Onboarding — Pregunta 2 (Quién): cliente ideal / ICP; cruza con GOOGLE_PLACE_CATEGORIES. */
+    onboardingIdealCustomer: (0, import_fields44.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
+      }
+    }),
+    /** Onboarding — Pregunta 3 (Cuánto): ticket promedio o valor que generas/ahorras; base para ROI en copy de la IA. */
+    onboardingAvgTicketValue: (0, import_fields44.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
+      }
+    }),
+    /** Onboarding — Pregunta 4 (Cómo): adquisición actual y dolor al vender; cuello de botella para guiones y seguimiento. */
+    onboardingSalesPain: (0, import_fields44.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
+      }
+    }),
     createdAt: (0, import_fields44.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -4296,6 +4358,11 @@ var SaasProject_default = (0, import_core50.list)({
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
+    quotations: (0, import_fields50.relationship)({
+      ref: "SaasQuotation.project",
+      many: true,
+      ui: { description: "Cotizaciones asociadas a este proyecto" }
+    }),
     createdAt: (0, import_fields50.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -4313,10 +4380,507 @@ var SaasProject_default = (0, import_core50.list)({
   }
 });
 
-// models/Saas/SaasReferralCommission/SaasReferralCommission.ts
+// models/Saas/Quotation/SaasQuotation.ts
 var import_core51 = require("@keystone-6/core");
 var import_fields51 = require("@keystone-6/core/fields");
-var SaasReferralCommission_default = (0, import_core51.list)({
+
+// models/Saas/Quotation/SaasQuotation.access.ts
+var getCompanyId4 = (session2) => session2?.data?.company?.id;
+var quotationAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId4(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      const companyId = getCompanyId4(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => {
+      const companyId = getCompanyId4(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    delete: ({ session: session2 }) => {
+      const companyId = getCompanyId4(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// models/Saas/Quotation/SaasQuotation.constants.ts
+var QUOTATION_STATUS = {
+  DRAFT: "draft",
+  SENT: "sent",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected",
+  EXPIRED: "expired"
+};
+var QUOTATION_STATUS_OPTIONS = [
+  { label: "Borrador", value: QUOTATION_STATUS.DRAFT },
+  { label: "Enviada", value: QUOTATION_STATUS.SENT },
+  { label: "Aceptada", value: QUOTATION_STATUS.ACCEPTED },
+  { label: "Rechazada", value: QUOTATION_STATUS.REJECTED },
+  { label: "Expirada", value: QUOTATION_STATUS.EXPIRED }
+];
+var QUOTATION_DISCOUNT_TYPE = {
+  NONE: "none",
+  PERCENT: "percent",
+  AMOUNT: "amount"
+};
+var QUOTATION_DISCOUNT_TYPE_OPTIONS = [
+  { label: "Sin descuento", value: QUOTATION_DISCOUNT_TYPE.NONE },
+  { label: "Porcentaje", value: QUOTATION_DISCOUNT_TYPE.PERCENT },
+  { label: "Monto fijo", value: QUOTATION_DISCOUNT_TYPE.AMOUNT }
+];
+
+// models/Saas/Quotation/SaasQuotation.hooks.ts
+async function nextQuotationNumber(context, companyId) {
+  const year = (/* @__PURE__ */ new Date()).getFullYear();
+  const prefix = `Q-${year}-`;
+  const rows = await context.sudo().query.SaasQuotation.findMany({
+    where: { company: { id: { equals: companyId } } },
+    orderBy: [{ createdAt: "desc" }],
+    take: 500,
+    query: "quotationNumber"
+  });
+  let max = 0;
+  for (const r of rows) {
+    const qn = r.quotationNumber;
+    if (qn?.startsWith(prefix)) {
+      const part = qn.slice(prefix.length);
+      const n = parseInt(part, 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  }
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+}
+var quotationHooks = {
+  resolveInput: async ({
+    operation,
+    resolvedData,
+    context
+  }) => {
+    if (operation !== "create") return resolvedData;
+    const connect = resolvedData.company;
+    const companyId = connect?.connect?.id;
+    if (!companyId) return resolvedData;
+    if (!resolvedData.quotationNumber || String(resolvedData.quotationNumber).trim() === "") {
+      resolvedData.quotationNumber = await nextQuotationNumber(context, companyId);
+    }
+    const session2 = context.session;
+    const userId = session2?.data?.id;
+    if (userId && !resolvedData.createdBy) {
+      resolvedData.createdBy = { connect: { id: userId } };
+    }
+    if (!resolvedData.status) {
+      resolvedData.status = QUOTATION_STATUS.DRAFT;
+    }
+    return resolvedData;
+  }
+};
+
+// models/Saas/Quotation/SaasQuotation.ts
+var SaasQuotation_default = (0, import_core51.list)({
+  access: quotationAccess,
+  hooks: quotationHooks,
+  ui: {
+    labelField: "quotationNumber",
+    listView: {
+      initialColumns: [
+        "quotationNumber",
+        "status",
+        "company",
+        "total",
+        "currency",
+        "validUntil",
+        "createdBy"
+      ]
+    }
+  },
+  fields: {
+    company: (0, import_fields51.relationship)({
+      ref: "SaasCompany.quotations",
+      many: false,
+      ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
+    }),
+    lead: (0, import_fields51.relationship)({
+      ref: "TechBusinessLead.quotations",
+      many: false,
+      ui: { description: "Lead asociado (opcional)" }
+    }),
+    project: (0, import_fields51.relationship)({
+      ref: "SaasProject.quotations",
+      many: false,
+      ui: { description: "Proyecto asociado (opcional)" }
+    }),
+    quotationNumber: (0, import_fields51.text)({
+      isIndexed: true,
+      validation: { isRequired: true },
+      ui: {
+        description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
+      }
+    }),
+    status: (0, import_fields51.select)({
+      type: "string",
+      options: [...QUOTATION_STATUS_OPTIONS],
+      defaultValue: QUOTATION_STATUS.DRAFT,
+      isIndexed: true,
+      ui: { description: "Estado de la cotizaci\xF3n" }
+    }),
+    currency: (0, import_fields51.text)({
+      defaultValue: "MXN",
+      ui: { description: "Moneda (ISO o etiqueta interna)" }
+    }),
+    exchangeRate: (0, import_fields51.float)({
+      defaultValue: 1,
+      ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
+    }),
+    subtotal: (0, import_fields51.float)({
+      defaultValue: 0,
+      ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
+    }),
+    discountTotal: (0, import_fields51.float)({
+      defaultValue: 0,
+      ui: { description: "Total descuentos en l\xEDneas" }
+    }),
+    taxTotal: (0, import_fields51.float)({
+      defaultValue: 0,
+      ui: { description: "Total impuestos" }
+    }),
+    total: (0, import_fields51.float)({
+      defaultValue: 0,
+      ui: { description: "Total a pagar" }
+    }),
+    validUntil: (0, import_fields51.calendarDay)({
+      db: { isNullable: true },
+      ui: { description: "Vigencia de la cotizaci\xF3n" }
+    }),
+    sentAt: (0, import_fields51.timestamp)({
+      db: { isNullable: true },
+      ui: { description: "Fecha de env\xEDo al cliente" }
+    }),
+    acceptedAt: (0, import_fields51.timestamp)({
+      db: { isNullable: true },
+      ui: { description: "Fecha de aceptaci\xF3n" }
+    }),
+    notes: (0, import_fields51.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
+    }),
+    terms: (0, import_fields51.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
+      }
+    }),
+    createdBy: (0, import_fields51.relationship)({
+      ref: "User.quotationsCreated",
+      many: false,
+      ui: { description: "Usuario que cre\xF3 el registro" }
+    }),
+    assignedSeller: (0, import_fields51.relationship)({
+      ref: "User.quotationsAssignedSeller",
+      many: false,
+      ui: { description: "Vendedor asignado" }
+    }),
+    pdfFileOrUrl: (0, import_fields51.text)({
+      db: { isNullable: true },
+      ui: { description: "URL o clave del PDF generado (opcional)" }
+    }),
+    quotationProducts: (0, import_fields51.relationship)({
+      ref: "SaasQuotationProduct.quotation",
+      many: true,
+      ui: { description: "Conceptos / partidas" }
+    }),
+    createdAt: (0, import_fields51.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields51.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/Quotation/Product/SaasQuotationProduct.ts
+var import_core52 = require("@keystone-6/core");
+var import_fields52 = require("@keystone-6/core/fields");
+
+// models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
+var getCompanyId5 = (session2) => session2?.data?.company?.id;
+var quotationProductAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId5(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      const companyId = getCompanyId5(session2);
+      if (!companyId) return false;
+      return { quotation: { company: { id: { equals: companyId } } } };
+    },
+    update: ({ session: session2 }) => {
+      const companyId = getCompanyId5(session2);
+      if (!companyId) return false;
+      return { quotation: { company: { id: { equals: companyId } } } };
+    },
+    delete: ({ session: session2 }) => {
+      const companyId = getCompanyId5(session2);
+      if (!companyId) return false;
+      return { quotation: { company: { id: { equals: companyId } } } };
+    }
+  }
+};
+
+// models/Saas/Quotation/quotationLineMath.ts
+function roundMoney(n) {
+  return Math.round(n * 100) / 100;
+}
+function computeLineAmounts(args) {
+  const qty = args.quantity ?? 0;
+  const price = args.unitPrice ?? 0;
+  const gross = qty * price;
+  let discount = 0;
+  if (args.discountType === QUOTATION_DISCOUNT_TYPE.PERCENT) {
+    discount = gross * ((args.discountValue ?? 0) / 100);
+  } else if (args.discountType === QUOTATION_DISCOUNT_TYPE.AMOUNT) {
+    discount = Math.min(args.discountValue ?? 0, gross);
+  }
+  const lineSubtotal = roundMoney(gross - discount);
+  const lineTax = roundMoney(lineSubtotal * ((args.taxRate ?? 0) / 100));
+  const lineTotal = roundMoney(lineSubtotal + lineTax);
+  return { lineDiscount: roundMoney(discount), lineSubtotal, lineTax, lineTotal };
+}
+
+// models/Saas/Quotation/Product/SaasQuotationProduct.hooks.ts
+var pendingRecalcKey = "__saasQuotationRecalcAfterDelete";
+var previousQuoteRecalcKey = "__saasQuotationRecalcPreviousQuoteId";
+function resolvedDataUpdatesQuote(resolvedData) {
+  return !!resolvedData && Object.prototype.hasOwnProperty.call(resolvedData, "quotation");
+}
+function getQuoteIdFromResolved(resolvedData, item) {
+  const fromConnect = resolvedData.quotation?.connect?.id;
+  if (fromConnect) return fromConnect;
+  if (item?.quoteId) return String(item.quoteId);
+  return null;
+}
+async function recalculateQuotationTotals(context, quotationId) {
+  const lines = await context.sudo().query.SaasQuotationProduct.findMany({
+    where: { quotation: { id: { equals: quotationId } } },
+    query: "quantity unitPrice discountType discountValue taxRate"
+  });
+  let discountTotal = 0;
+  let subtotal = 0;
+  let total = 0;
+  for (const line of lines) {
+    const amounts = computeLineAmounts({
+      quantity: line.quantity ?? 0,
+      unitPrice: line.unitPrice ?? 0,
+      discountType: line.discountType ?? QUOTATION_DISCOUNT_TYPE.NONE,
+      discountValue: line.discountValue ?? 0,
+      taxRate: line.taxRate ?? 0
+    });
+    discountTotal += amounts.lineDiscount;
+    subtotal += amounts.lineSubtotal;
+    total += amounts.lineTotal;
+  }
+  discountTotal = roundMoney(discountTotal);
+  subtotal = roundMoney(subtotal);
+  const taxTotal = roundMoney(total - subtotal);
+  total = roundMoney(total);
+  await context.sudo().query.SaasQuotation.updateOne({
+    where: { id: quotationId },
+    data: {
+      subtotal,
+      discountTotal,
+      taxTotal,
+      total
+    }
+  });
+}
+var quotationProductHooks = {
+  beforeOperation: async ({
+    operation,
+    item,
+    context,
+    resolvedData
+  }) => {
+    const ctx = context;
+    if (operation === "update" && item?.id && resolvedDataUpdatesQuote(resolvedData)) {
+      const row = await context.sudo().query.SaasQuotationProduct.findOne({
+        where: { id: item.id },
+        query: "quotation { id }"
+      });
+      const prev = row?.quotation?.id;
+      if (prev) ctx[previousQuoteRecalcKey] = prev;
+    }
+    if (operation !== "delete" || !item?.id) return;
+    const rowDel = await context.sudo().query.SaasQuotationProduct.findOne({
+      where: { id: item.id },
+      query: "quotation { id }"
+    });
+    const qid = rowDel?.quotation?.id;
+    if (qid) {
+      ctx[pendingRecalcKey] = qid;
+    }
+  },
+  resolveInput: async ({
+    operation,
+    resolvedData,
+    item
+  }) => {
+    if (operation === "delete") return resolvedData;
+    const quantity = resolvedData.quantity !== void 0 ? Number(resolvedData.quantity) : item?.quantity ?? 0;
+    const unitPrice = resolvedData.unitPrice !== void 0 ? Number(resolvedData.unitPrice) : item?.unitPrice ?? 0;
+    const discountType = String(
+      resolvedData.discountType ?? item?.discountType ?? QUOTATION_DISCOUNT_TYPE.NONE
+    );
+    const discountValue = resolvedData.discountValue !== void 0 ? Number(resolvedData.discountValue) : item?.discountValue ?? 0;
+    const taxRate = resolvedData.taxRate !== void 0 ? Number(resolvedData.taxRate) : item?.taxRate ?? 0;
+    const { lineSubtotal, lineTotal } = computeLineAmounts({
+      quantity,
+      unitPrice,
+      discountType,
+      discountValue,
+      taxRate
+    });
+    resolvedData.lineSubtotal = lineSubtotal;
+    resolvedData.lineTotal = lineTotal;
+    return resolvedData;
+  },
+  afterOperation: async ({
+    listKey,
+    operation,
+    item,
+    context,
+    resolvedData
+  }) => {
+    if (listKey !== "SaasQuotationProduct") return;
+    if (operation !== "create" && operation !== "update" && operation !== "delete") {
+      return;
+    }
+    let quoteId = null;
+    if (operation === "delete") {
+      const ctx2 = context;
+      quoteId = ctx2[pendingRecalcKey] ?? null;
+      delete ctx2[pendingRecalcKey];
+    } else {
+      quoteId = item?.quoteId ? String(item.quoteId) : null;
+      if (!quoteId && resolvedData) {
+        quoteId = getQuoteIdFromResolved(resolvedData, item ?? null);
+      }
+    }
+    const ctx = context;
+    const previousQuoteId = ctx[previousQuoteRecalcKey];
+    delete ctx[previousQuoteRecalcKey];
+    const quoteIds = /* @__PURE__ */ new Set();
+    if (quoteId) quoteIds.add(quoteId);
+    if (previousQuoteId && previousQuoteId !== quoteId) {
+      quoteIds.add(previousQuoteId);
+    }
+    if (quoteIds.size === 0) return;
+    try {
+      for (const id of quoteIds) {
+        await recalculateQuotationTotals(context, id);
+      }
+    } catch (e) {
+      console.error("Error recalculating quotation totals:", e);
+    }
+  }
+};
+
+// models/Saas/Quotation/Product/SaasQuotationProduct.ts
+var SaasQuotationProduct_default = (0, import_core52.list)({
+  access: quotationProductAccess,
+  hooks: quotationProductHooks,
+  ui: {
+    listView: {
+      initialColumns: ["quotation", "description", "quantity", "unitPrice", "lineTotal"]
+    }
+  },
+  fields: {
+    quotation: (0, import_fields52.relationship)({
+      ref: "SaasQuotation.quotationProducts",
+      many: false,
+      ui: { description: "Cotizaci\xF3n" }
+    }),
+    description: (0, import_fields52.text)({
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Concepto: servicio, producto, horas, paquete, etc."
+      }
+    }),
+    quantity: (0, import_fields52.float)({
+      defaultValue: 1,
+      ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
+    }),
+    unitPrice: (0, import_fields52.float)({
+      defaultValue: 0,
+      ui: { description: "Precio unitario" }
+    }),
+    discountType: (0, import_fields52.select)({
+      type: "string",
+      options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
+      defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
+      ui: { description: "Tipo de descuento en la l\xEDnea" }
+    }),
+    discountValue: (0, import_fields52.float)({
+      defaultValue: 0,
+      ui: {
+        description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
+      }
+    }),
+    taxRate: (0, import_fields52.float)({
+      defaultValue: 0,
+      ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
+    }),
+    lineSubtotal: (0, import_fields52.float)({
+      defaultValue: 0,
+      ui: {
+        description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
+      }
+    }),
+    lineTotal: (0, import_fields52.float)({
+      defaultValue: 0,
+      ui: { description: "Total l\xEDnea con impuesto" }
+    }),
+    createdAt: (0, import_fields52.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields52.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/SaasReferralCommission/SaasReferralCommission.ts
+var import_core53 = require("@keystone-6/core");
+var import_fields53 = require("@keystone-6/core/fields");
+var SaasReferralCommission_default = (0, import_core53.list)({
   access: () => true,
   ui: {
     listView: {
@@ -4335,27 +4899,27 @@ var SaasReferralCommission_default = (0, import_core51.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields51.relationship)({
+    referrer: (0, import_fields53.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields51.relationship)({
+    referredUser: (0, import_fields53.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields51.relationship)({
+    company: (0, import_fields53.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields51.relationship)({
+    subscription: (0, import_fields53.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields51.relationship)({
+    plan: (0, import_fields53.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields51.select)({
+    type: (0, import_fields53.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -4363,30 +4927,30 @@ var SaasReferralCommission_default = (0, import_core51.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields51.float)({
+    percentage: (0, import_fields53.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields51.float)({
+    amount: (0, import_fields53.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields51.text)({
+    currency: (0, import_fields53.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields51.float)({
+    periodIndex: (0, import_fields53.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields51.calendarDay)({
+    periodStart: (0, import_fields53.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields51.calendarDay)({
+    periodEnd: (0, import_fields53.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields51.select)({
+    status: (0, import_fields53.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -4397,18 +4961,18 @@ var SaasReferralCommission_default = (0, import_core51.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields51.text)({
+    notes: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields51.timestamp)({
+    createdAt: (0, import_fields53.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields51.timestamp)({
+    updatedAt: (0, import_fields53.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -4456,6 +5020,8 @@ var schema_default = {
   SaasPaymentMethod: SaasPaymentMethod_default,
   SaasPlan: SaasPlan_default,
   SaasProject: SaasProject_default,
+  SaasQuotation: SaasQuotation_default,
+  SaasQuotationProduct: SaasQuotationProduct_default,
   SaasReferralCommission: SaasReferralCommission_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
@@ -4474,7 +5040,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core52 = require("@keystone-6/core");
+var import_core54 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -5159,8 +5725,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text41 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text41}`;
+  const text43 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text43}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -5767,8 +6333,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text41 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text41}`;
+  const text43 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text43}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -7483,7 +8049,8 @@ var storage = {
     s3_animals: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", signed: { expiry: 3600 } },
     s3_pets: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", signed: { expiry: 3600 } },
     s3_ads: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", signed: { expiry: 3600 } },
-    s3_tech_files: { kind: "s3", type: "file", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/tech-files/" : "tech-files/", signed: { expiry: 3600 } }
+    s3_tech_files: { kind: "s3", type: "file", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/tech-files/" : "tech-files/", signed: { expiry: 3600 } },
+    s3_company_logo: { kind: "s3", type: "file", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/company-logo/" : "company-logo/", signed: { expiry: 3600 } }
   } : {
     s3_files: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
     s3_categories: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
@@ -7492,11 +8059,12 @@ var storage = {
     s3_animals: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
     s3_pets: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
     s3_ads: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-    s3_tech_files: { kind: "local", type: "file", serverRoute: { path: "/files" }, storagePath: "public/files" }
+    s3_tech_files: { kind: "local", type: "file", serverRoute: { path: "/files" }, storagePath: "public/files" },
+    s3_company_logo: { kind: "local", type: "file", serverRoute: { path: "/images" }, storagePath: "public/images" }
   }
 };
 var keystone_default = withAuth(
-  (0, import_core52.config)({
+  (0, import_core54.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
