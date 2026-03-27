@@ -1,8 +1,8 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscription/constants";
 import { getStripeSubscription } from "../../../../utils/saas/stripeSubscription";
+import { TRIAL_DAYS_FREE_PLAN } from "../../../../utils/constants/constants";
 
-const TRIAL_DAYS_FREE_PLAN = 7;
 
 /** Map Stripe subscription status to our SUBSCRIPTION_STATUS */
 function stripeStatusToLocal(stripeStatus: string | null): string {

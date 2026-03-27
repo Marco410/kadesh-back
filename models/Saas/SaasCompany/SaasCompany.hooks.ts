@@ -1,5 +1,6 @@
 import { SUBSCRIPTION_STATUS } from "../SaasCompanySubscription/constants";
 import { Role } from "../../Role/constants";
+import { TRIAL_DAYS_FREE_PLAN } from "../../../utils/constants/constants";
 
 /** On SaasCompany create: assign free plan (cost = 0), create a SaasCompanySubscription, and assign Admin (Company) role to the creator. */
 export const saasCompanySubscriptionHook = {
@@ -44,9 +45,9 @@ export const saasCompanySubscriptionHook = {
       }
 
       const today = new Date().toISOString().slice(0, 10);
-      const fifteenDaysFromNow = new Date();
-      fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
-      const periodEnd = fifteenDaysFromNow.toISOString().slice(0, 10);
+      const trialDaysFromNow = new Date();
+      trialDaysFromNow.setDate(trialDaysFromNow.getDate() + TRIAL_DAYS_FREE_PLAN);
+      const periodEnd = trialDaysFromNow.toISOString().slice(0, 10);
 
       await context.sudo().query.SaasCompanySubscription.createOne({
         data: {

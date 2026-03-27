@@ -1,3 +1,6 @@
+export const TRIAL_DAYS_FREE_PLAN = 7;
+
+
 export enum dayOfWeek {
   DOM = "Domingo",
   LUN = "Lunes",
