@@ -62,6 +62,7 @@ export default list({
       ui: { description: "Estado del proyecto" },
     }),
     urlData: text({
+      db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" },
     }),
     company: relationship({

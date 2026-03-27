@@ -60,6 +60,7 @@ var access = {
 var access_default = access;
 
 // utils/constants/constants.ts
+var TRIAL_DAYS_FREE_PLAN = 7;
 var ANIMAL_TYPE_OPTIONS = [
   { label: "Perro", value: "dog" /* DOG */ },
   { label: "Gato", value: "cat" /* CAT */ },
@@ -3492,9 +3493,9 @@ var saasCompanySubscriptionHook = {
         return;
       }
       const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-      const fifteenDaysFromNow = /* @__PURE__ */ new Date();
-      fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
-      const periodEnd = fifteenDaysFromNow.toISOString().slice(0, 10);
+      const trialDaysFromNow = /* @__PURE__ */ new Date();
+      trialDaysFromNow.setDate(trialDaysFromNow.getDate() + TRIAL_DAYS_FREE_PLAN);
+      const periodEnd = trialDaysFromNow.toISOString().slice(0, 10);
       await context.sudo().query.SaasCompanySubscription.createOne({
         data: {
           company: { connect: { id: item.id } },
@@ -4273,6 +4274,7 @@ var SaasProject_default = (0, import_core50.list)({
       ui: { description: "Estado del proyecto" }
     }),
     urlData: (0, import_fields50.text)({
+      db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
     company: (0, import_fields50.relationship)({
@@ -7220,7 +7222,6 @@ async function getStripeSubscription(subscriptionId) {
 }
 
 // graphql/customs/queries/saas/subscriptionStatus.ts
-var TRIAL_DAYS_FREE_PLAN = 7;
 function stripeStatusToLocal(stripeStatus) {
   if (!stripeStatus) return SUBSCRIPTION_STATUS.CANCELLED;
   const s = stripeStatus.toLowerCase();

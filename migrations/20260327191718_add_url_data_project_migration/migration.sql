@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "SaasProject" ALTER COLUMN "urlData" DROP NOT NULL,
+ALTER COLUMN "urlData" DROP DEFAULT;

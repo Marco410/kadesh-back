@@ -604,7 +604,7 @@ model SaasProject {
   estimatedEndDate DateTime?         @postgresql.Date
   description      String            @default("")
   status           String?           @default("Pendiente")
-  urlData          String            @default("")
+  urlData          String?
   company          SaasCompany?      @relation("SaasProject_company", fields: [companyId], references: [id])
   companyId        String?           @map("company")
   businessLead     TechBusinessLead? @relation("SaasProject_businessLead", fields: [businessLeadId], references: [id])

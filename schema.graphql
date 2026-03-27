@@ -3339,7 +3339,7 @@ input SaasProjectWhereInput {
   estimatedEndDate: CalendarDayNullableFilter
   description: StringFilter
   status: StringNullableFilter
-  urlData: StringFilter
+  urlData: StringNullableFilter
   company: SaasCompanyWhereInput
   businessLead: TechBusinessLeadWhereInput
   proposal: TechProposalWhereInput
