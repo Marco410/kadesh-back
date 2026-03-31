@@ -3529,6 +3529,7 @@ type SaasQuotation {
   quotationProducts(where: SaasQuotationProductWhereInput! = {}, orderBy: [SaasQuotationProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationProductWhereUniqueInput): [SaasQuotationProduct!]
   quotationProductsCount(where: SaasQuotationProductWhereInput! = {}): Int
   showDiscount: Boolean
+  showNotes: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3563,6 +3564,7 @@ input SaasQuotationWhereInput {
   pdfFileOrUrl: StringNullableFilter
   quotationProducts: SaasQuotationProductManyRelationFilter
   showDiscount: BooleanFilter
+  showNotes: BooleanFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3590,6 +3592,7 @@ input SaasQuotationOrderByInput {
   terms: OrderDirection
   pdfFileOrUrl: OrderDirection
   showDiscount: OrderDirection
+  showNotes: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -3616,6 +3619,7 @@ input SaasQuotationUpdateInput {
   pdfFileOrUrl: String
   quotationProducts: SaasQuotationProductRelateToManyForUpdateInput
   showDiscount: Boolean
+  showNotes: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3660,6 +3664,7 @@ input SaasQuotationCreateInput {
   pdfFileOrUrl: String
   quotationProducts: SaasQuotationProductRelateToManyForCreateInput
   showDiscount: Boolean
+  showNotes: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -4878,6 +4883,8 @@ type User {
   username: String
   referralCode: String
   email: String
+  businessEmail: String
+  businessPhone: String
   password: PasswordState
   phone: String
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
@@ -4943,10 +4950,12 @@ input UserWhereInput {
   id: IDFilter
   name: StringFilter
   lastName: StringFilter
-  secondLastName: StringFilter
+  secondLastName: StringNullableFilter
   username: StringFilter
   referralCode: StringFilter
   email: StringFilter
+  businessEmail: StringNullableFilter
+  businessPhone: StringNullableFilter
   password: PasswordFilter
   phone: StringFilter
   roles: RoleManyRelationFilter
@@ -5008,6 +5017,8 @@ input UserOrderByInput {
   username: OrderDirection
   referralCode: OrderDirection
   email: OrderDirection
+  businessEmail: OrderDirection
+  businessPhone: OrderDirection
   phone: OrderDirection
   birthday: OrderDirection
   smsRegistrationId: OrderDirection
@@ -5029,6 +5040,8 @@ input UserUpdateInput {
   username: String
   referralCode: String
   email: String
+  businessEmail: String
+  businessPhone: String
   password: String
   phone: String
   roles: RoleRelateToManyForUpdateInput
@@ -5094,6 +5107,8 @@ input UserCreateInput {
   username: String
   referralCode: String
   email: String
+  businessEmail: String
+  businessPhone: String
   password: String
   phone: String
   roles: RoleRelateToManyForCreateInput

@@ -133,6 +133,10 @@ export default list({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotización" },
     }),
+    showNotes: checkbox({
+      defaultValue: true,
+      ui: { description: "Mostrar notas en la cotización" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

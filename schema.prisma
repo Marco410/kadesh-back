@@ -663,6 +663,7 @@ model SaasQuotation {
   pdfFileOrUrl      String?
   quotationProducts SaasQuotationProduct[] @relation("SaasQuotationProduct_quotation")
   showDiscount      Boolean                @default(true)
+  showNotes         Boolean                @default(true)
   createdAt         DateTime?              @default(now())
   updatedAt         DateTime?              @updatedAt
 
@@ -949,10 +950,12 @@ model User {
   id                                       String                   @id @default(cuid())
   name                                     String                   @default("")
   lastName                                 String                   @default("")
-  secondLastName                           String                   @default("")
+  secondLastName                           String?
   username                                 String                   @unique @default("")
   referralCode                             String                   @unique @default("")
   email                                    String                   @unique @default("")
+  businessEmail                            String?
+  businessPhone                            String?
   password                                 String?
   phone                                    String                   @default("")
   roles                                    Role[]                   @relation("Role_users")

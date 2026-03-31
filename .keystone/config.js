@@ -983,7 +983,9 @@ var User_default = (0, import_core7.list)({
   fields: {
     name: (0, import_fields7.text)({ validation: { isRequired: true } }),
     lastName: (0, import_fields7.text)(),
-    secondLastName: (0, import_fields7.text)(),
+    secondLastName: (0, import_fields7.text)({
+      db: { isNullable: true }
+    }),
     username: (0, import_fields7.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
@@ -999,6 +1001,18 @@ var User_default = (0, import_core7.list)({
     email: (0, import_fields7.text)({
       isIndexed: "unique",
       hooks: emailHooks
+    }),
+    businessEmail: (0, import_fields7.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Correo electr\xF3nico de la empresa"
+      }
+    }),
+    businessPhone: (0, import_fields7.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Tel\xE9fono de la empresa"
+      }
     }),
     password: (0, import_fields7.password)({
       validation: { isRequired: false },
@@ -4654,6 +4668,10 @@ var SaasQuotation_default = (0, import_core51.list)({
     showDiscount: (0, import_fields51.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
+    }),
+    showNotes: (0, import_fields51.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
     createdAt: (0, import_fields51.timestamp)({
       defaultValue: { kind: "now" },

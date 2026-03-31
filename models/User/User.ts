@@ -69,7 +69,9 @@ export default list({
   fields: {
     name: text({ validation: { isRequired: true } }),
     lastName: text(),
-    secondLastName: text(),
+    secondLastName: text({
+      db: { isNullable: true },
+    }),
     username: text({
       isIndexed: "unique",
       validation: { isRequired: true },
@@ -85,6 +87,18 @@ export default list({
     email: text({
       isIndexed: "unique",
       hooks: emailHooks,
+    }),
+    businessEmail: text({
+      db: { isNullable: true },
+      ui: {
+        description: "Correo electrónico de la empresa",
+      },
+    }),
+    businessPhone: text({
+      db: { isNullable: true },
+      ui: {
+        description: "Teléfono de la empresa",
+      },
     }),
     password: password({
       validation: { isRequired: false },
