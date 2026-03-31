@@ -5,6 +5,8 @@ import {
   calendarDay,
   relationship,
   json,
+  file,
+  checkbox,
 } from "@keystone-6/core/fields";
 import { saasCompanyAccess } from "./SaasCompany.access";
 import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
@@ -97,6 +99,81 @@ export default list({
       many: true,
       ui: { description: "Logs de sincronización de leads" },
     }),
+    quotations: relationship({
+      ref: "SaasQuotation.company",
+      many: true,
+      ui: { description: "Cotizaciones de la empresa" },
+    }),
+    logo: file({
+      storage: "s3_company_logo",
+      ui: { description: "Logo de la empresa" },
+    }),
+    onboardingMainOffer: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description:
+          'Pregunta de oro 1 — El "Qué": ¿En una o dos oraciones, qué servicio o producto principal vendes?',
+      },
+    }),
+    onboardingIdealCustomer: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description:
+          'Pregunta de oro 2 — El "Quién": ¿Quién es el cliente que más te compra o con el que prefieres trabajar? (ej. clínicas dentales, constructoras).',
+      },
+    }),
+    onboardingAvgTicketValue: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description:
+          'Pregunta de oro 3 — El "Cuánto": ¿Cuál es el precio promedio de tu servicio, o cuánto dinero le haces ganar o ahorrar a tus clientes?',
+      },
+    }),
+    onboardingSalesPain: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description:
+          'Pregunta de oro 4 — El "Cómo": ¿Cómo consigues clientes hoy y qué es lo que más te cuesta al vender?',
+      },
+    }),
+    termsQuotation: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Términos y condiciones de la cotización",
+      },
+    }),
+    colorPrimary: text({
+      db: { isNullable: true },
+      defaultValue: "#F7945E",
+      ui: {
+        description: "Color primario de la empresa",
+      },
+    }),
+    colorSecondary: text({
+      db: { isNullable: true },
+      defaultValue: "#E07C3A",
+      ui: {
+        description: "Color secundario de la empresa",
+      },
+    }),
+    contactEmail: text({
+      db: { isNullable: true },
+      ui: {
+        description: "Correo electrónico de contacto de la empresa",
+      },
+    }),
+    contactPhone: text({
+      db: { isNullable: true },
+      ui: {
+        description: "Teléfono de contacto de la empresa",
+      },
+    }),
+  
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

@@ -85,6 +85,11 @@ export default list({
         description: "Propuesta comprada que originó este proyecto (opcional)",
       },
     }),
+    quotations: relationship({
+      ref: "SaasQuotation.project",
+      many: true,
+      ui: { description: "Cotizaciones asociadas a este proyecto" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {
