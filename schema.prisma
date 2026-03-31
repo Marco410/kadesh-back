@@ -481,6 +481,11 @@ model SaasCompany {
   onboardingIdealCustomer             String?
   onboardingAvgTicketValue            String?
   onboardingSalesPain                 String?
+  termsQuotation                      String?
+  colorPrimary                        String?                      @default("#F7945E")
+  colorSecondary                      String?                      @default("#E07C3A")
+  contactEmail                        String?
+  contactPhone                        String?
   createdAt                           DateTime?                    @default(now())
   updatedAt                           DateTime?                    @updatedAt
   from_SaasReferralCommission_company SaasReferralCommission[]     @relation("SaasReferralCommission_company")
@@ -657,6 +662,7 @@ model SaasQuotation {
   assignedSellerId  String?                @map("assignedSeller")
   pdfFileOrUrl      String?
   quotationProducts SaasQuotationProduct[] @relation("SaasQuotationProduct_quotation")
+  showDiscount      Boolean                @default(true)
   createdAt         DateTime?              @default(now())
   updatedAt         DateTime?              @updatedAt
 

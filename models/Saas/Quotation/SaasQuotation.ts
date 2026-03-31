@@ -6,6 +6,7 @@ import {
   calendarDay,
   select,
   relationship,
+  checkbox,
 } from "@keystone-6/core/fields";
 import { quotationAccess } from "./SaasQuotation.access";
 import { quotationHooks } from "./SaasQuotation.hooks";
@@ -127,6 +128,10 @@ export default list({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" },
+    }),
+    showDiscount: checkbox({
+      defaultValue: true,
+      ui: { description: "Mostrar descuento en la cotización" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

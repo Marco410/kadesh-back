@@ -2550,6 +2550,11 @@ type SaasCompany {
   onboardingIdealCustomer: String
   onboardingAvgTicketValue: String
   onboardingSalesPain: String
+  termsQuotation: String
+  colorPrimary: String
+  colorSecondary: String
+  contactEmail: String
+  contactPhone: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2585,6 +2590,11 @@ input SaasCompanyWhereInput {
   onboardingIdealCustomer: StringNullableFilter
   onboardingAvgTicketValue: StringNullableFilter
   onboardingSalesPain: StringNullableFilter
+  termsQuotation: StringNullableFilter
+  colorPrimary: StringNullableFilter
+  colorSecondary: StringNullableFilter
+  contactEmail: StringNullableFilter
+  contactPhone: StringNullableFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2645,6 +2655,11 @@ input SaasCompanyOrderByInput {
   onboardingIdealCustomer: OrderDirection
   onboardingAvgTicketValue: OrderDirection
   onboardingSalesPain: OrderDirection
+  termsQuotation: OrderDirection
+  colorPrimary: OrderDirection
+  colorSecondary: OrderDirection
+  contactEmail: OrderDirection
+  contactPhone: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2668,6 +2683,11 @@ input SaasCompanyUpdateInput {
   onboardingIdealCustomer: String
   onboardingAvgTicketValue: String
   onboardingSalesPain: String
+  termsQuotation: String
+  colorPrimary: String
+  colorSecondary: String
+  contactEmail: String
+  contactPhone: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2762,6 +2782,11 @@ input SaasCompanyCreateInput {
   onboardingIdealCustomer: String
   onboardingAvgTicketValue: String
   onboardingSalesPain: String
+  termsQuotation: String
+  colorPrimary: String
+  colorSecondary: String
+  contactEmail: String
+  contactPhone: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3503,6 +3528,7 @@ type SaasQuotation {
   pdfFileOrUrl: String
   quotationProducts(where: SaasQuotationProductWhereInput! = {}, orderBy: [SaasQuotationProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationProductWhereUniqueInput): [SaasQuotationProduct!]
   quotationProductsCount(where: SaasQuotationProductWhereInput! = {}): Int
+  showDiscount: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3536,6 +3562,7 @@ input SaasQuotationWhereInput {
   assignedSeller: UserWhereInput
   pdfFileOrUrl: StringNullableFilter
   quotationProducts: SaasQuotationProductManyRelationFilter
+  showDiscount: BooleanFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3562,6 +3589,7 @@ input SaasQuotationOrderByInput {
   notes: OrderDirection
   terms: OrderDirection
   pdfFileOrUrl: OrderDirection
+  showDiscount: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -3587,6 +3615,7 @@ input SaasQuotationUpdateInput {
   assignedSeller: UserRelateToOneForUpdateInput
   pdfFileOrUrl: String
   quotationProducts: SaasQuotationProductRelateToManyForUpdateInput
+  showDiscount: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3630,6 +3659,7 @@ input SaasQuotationCreateInput {
   assignedSeller: UserRelateToOneForCreateInput
   pdfFileOrUrl: String
   quotationProducts: SaasQuotationProductRelateToManyForCreateInput
+  showDiscount: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }

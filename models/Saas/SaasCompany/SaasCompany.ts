@@ -6,6 +6,7 @@ import {
   relationship,
   json,
   file,
+  checkbox,
 } from "@keystone-6/core/fields";
 import { saasCompanyAccess } from "./SaasCompany.access";
 import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
@@ -107,7 +108,6 @@ export default list({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" },
     }),
-    /** Onboarding — Pregunta 1 (Qué): oferta principal en 1–2 oraciones; contexto de industria y vocabulario para la IA. */
     onboardingMainOffer: text({
       db: { isNullable: true },
       ui: {
@@ -116,7 +116,6 @@ export default list({
           'Pregunta de oro 1 — El "Qué": ¿En una o dos oraciones, qué servicio o producto principal vendes?',
       },
     }),
-    /** Onboarding — Pregunta 2 (Quién): cliente ideal / ICP; cruza con GOOGLE_PLACE_CATEGORIES. */
     onboardingIdealCustomer: text({
       db: { isNullable: true },
       ui: {
@@ -125,7 +124,6 @@ export default list({
           'Pregunta de oro 2 — El "Quién": ¿Quién es el cliente que más te compra o con el que prefieres trabajar? (ej. clínicas dentales, constructoras).',
       },
     }),
-    /** Onboarding — Pregunta 3 (Cuánto): ticket promedio o valor que generas/ahorras; base para ROI en copy de la IA. */
     onboardingAvgTicketValue: text({
       db: { isNullable: true },
       ui: {
@@ -134,7 +132,6 @@ export default list({
           'Pregunta de oro 3 — El "Cuánto": ¿Cuál es el precio promedio de tu servicio, o cuánto dinero le haces ganar o ahorrar a tus clientes?',
       },
     }),
-    /** Onboarding — Pregunta 4 (Cómo): adquisición actual y dolor al vender; cuello de botella para guiones y seguimiento. */
     onboardingSalesPain: text({
       db: { isNullable: true },
       ui: {
@@ -143,6 +140,40 @@ export default list({
           'Pregunta de oro 4 — El "Cómo": ¿Cómo consigues clientes hoy y qué es lo que más te cuesta al vender?',
       },
     }),
+    termsQuotation: text({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Términos y condiciones de la cotización",
+      },
+    }),
+    colorPrimary: text({
+      db: { isNullable: true },
+      defaultValue: "#F7945E",
+      ui: {
+        description: "Color primario de la empresa",
+      },
+    }),
+    colorSecondary: text({
+      db: { isNullable: true },
+      defaultValue: "#E07C3A",
+      ui: {
+        description: "Color secundario de la empresa",
+      },
+    }),
+    contactEmail: text({
+      db: { isNullable: true },
+      ui: {
+        description: "Correo electrónico de contacto de la empresa",
+      },
+    }),
+    contactPhone: text({
+      db: { isNullable: true },
+      ui: {
+        description: "Teléfono de contacto de la empresa",
+      },
+    }),
+  
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

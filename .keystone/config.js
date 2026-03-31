@@ -3640,7 +3640,6 @@ var SaasCompany_default = (0, import_core44.list)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    /** Onboarding — Pregunta 1 (Qué): oferta principal en 1–2 oraciones; contexto de industria y vocabulario para la IA. */
     onboardingMainOffer: (0, import_fields44.text)({
       db: { isNullable: true },
       ui: {
@@ -3648,7 +3647,6 @@ var SaasCompany_default = (0, import_core44.list)({
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    /** Onboarding — Pregunta 2 (Quién): cliente ideal / ICP; cruza con GOOGLE_PLACE_CATEGORIES. */
     onboardingIdealCustomer: (0, import_fields44.text)({
       db: { isNullable: true },
       ui: {
@@ -3656,7 +3654,6 @@ var SaasCompany_default = (0, import_core44.list)({
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    /** Onboarding — Pregunta 3 (Cuánto): ticket promedio o valor que generas/ahorras; base para ROI en copy de la IA. */
     onboardingAvgTicketValue: (0, import_fields44.text)({
       db: { isNullable: true },
       ui: {
@@ -3664,12 +3661,44 @@ var SaasCompany_default = (0, import_core44.list)({
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    /** Onboarding — Pregunta 4 (Cómo): adquisición actual y dolor al vender; cuello de botella para guiones y seguimiento. */
     onboardingSalesPain: (0, import_fields44.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
+      }
+    }),
+    termsQuotation: (0, import_fields44.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
+      }
+    }),
+    colorPrimary: (0, import_fields44.text)({
+      db: { isNullable: true },
+      defaultValue: "#F7945E",
+      ui: {
+        description: "Color primario de la empresa"
+      }
+    }),
+    colorSecondary: (0, import_fields44.text)({
+      db: { isNullable: true },
+      defaultValue: "#E07C3A",
+      ui: {
+        description: "Color secundario de la empresa"
+      }
+    }),
+    contactEmail: (0, import_fields44.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Correo electr\xF3nico de contacto de la empresa"
+      }
+    }),
+    contactPhone: (0, import_fields44.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
     createdAt: (0, import_fields44.timestamp)({
@@ -4459,27 +4488,51 @@ async function nextQuotationNumber(context, companyId) {
   }
   return `${prefix}${String(max + 1).padStart(4, "0")}`;
 }
+function applyStatusTimestamps(operation, resolvedData, item) {
+  if (operation === "create") {
+    const status = String(resolvedData.status ?? "");
+    if (status === QUOTATION_STATUS.SENT) {
+      resolvedData.sentAt = (/* @__PURE__ */ new Date()).toISOString();
+    }
+    if (status === QUOTATION_STATUS.ACCEPTED) {
+      resolvedData.acceptedAt = (/* @__PURE__ */ new Date()).toISOString();
+    }
+    return;
+  }
+  if (operation !== "update" || !item) return;
+  const previousStatus = item.status ?? void 0;
+  const nextStatus = resolvedData.status !== void 0 ? String(resolvedData.status) : previousStatus;
+  if (nextStatus === QUOTATION_STATUS.SENT && previousStatus !== QUOTATION_STATUS.SENT) {
+    resolvedData.sentAt = (/* @__PURE__ */ new Date()).toISOString();
+  }
+  if (nextStatus === QUOTATION_STATUS.ACCEPTED && previousStatus !== QUOTATION_STATUS.ACCEPTED) {
+    resolvedData.acceptedAt = (/* @__PURE__ */ new Date()).toISOString();
+  }
+}
 var quotationHooks = {
   resolveInput: async ({
     operation,
     resolvedData,
-    context
+    context,
+    item
   }) => {
-    if (operation !== "create") return resolvedData;
-    const connect = resolvedData.company;
-    const companyId = connect?.connect?.id;
-    if (!companyId) return resolvedData;
-    if (!resolvedData.quotationNumber || String(resolvedData.quotationNumber).trim() === "") {
-      resolvedData.quotationNumber = await nextQuotationNumber(context, companyId);
+    if (operation === "create") {
+      const connect = resolvedData.company;
+      const companyId = connect?.connect?.id;
+      if (!companyId) return resolvedData;
+      if (!resolvedData.quotationNumber || String(resolvedData.quotationNumber).trim() === "") {
+        resolvedData.quotationNumber = await nextQuotationNumber(context, companyId);
+      }
+      const session2 = context.session;
+      const userId = session2?.data?.id;
+      if (userId && !resolvedData.createdBy) {
+        resolvedData.createdBy = { connect: { id: userId } };
+      }
+      if (!resolvedData.status) {
+        resolvedData.status = QUOTATION_STATUS.DRAFT;
+      }
     }
-    const session2 = context.session;
-    const userId = session2?.data?.id;
-    if (userId && !resolvedData.createdBy) {
-      resolvedData.createdBy = { connect: { id: userId } };
-    }
-    if (!resolvedData.status) {
-      resolvedData.status = QUOTATION_STATUS.DRAFT;
-    }
+    applyStatusTimestamps(operation, resolvedData, item ?? null);
     return resolvedData;
   }
 };
@@ -4597,6 +4650,10 @@ var SaasQuotation_default = (0, import_core51.list)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
+    }),
+    showDiscount: (0, import_fields51.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
     createdAt: (0, import_fields51.timestamp)({
       defaultValue: { kind: "now" },
