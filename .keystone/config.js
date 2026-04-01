@@ -5889,6 +5889,38 @@ async function getPlaceDetails2(placeId, apiKey) {
   return data.result;
 }
 
+// utils/saas/freePlanTrial.ts
+function toLocalYmd(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+function parseYmdAsLocalDate(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const localDate = new Date(y, m - 1, d);
+  if (Number.isNaN(localDate.getTime())) return null;
+  return localDate;
+}
+function getFreePlanTrialInfo(activatedAt) {
+  if (!activatedAt) {
+    return { trialEnd: null, isExpired: false };
+  }
+  const activatedAtDate = parseYmdAsLocalDate(activatedAt);
+  if (!activatedAtDate) {
+    return { trialEnd: null, isExpired: false };
+  }
+  const trialEndDate = new Date(activatedAtDate);
+  trialEndDate.setDate(trialEndDate.getDate() + TRIAL_DAYS_FREE_PLAN);
+  const trialEnd = toLocalYmd(trialEndDate);
+  const today = toLocalYmd(/* @__PURE__ */ new Date());
+  return {
+    trialEnd,
+    isExpired: trialEnd < today
+  };
+}
+
 // graphql/customs/mutations/syncLeadsFront.ts
 async function ensureStatusForLeadAssignment(context, leadId, companyId, userId, opportunityLevel = "Media") {
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
@@ -6035,10 +6067,8 @@ var resolver6 = {
     const sub = activeSubscription;
     const isFreePlan = sub.planCost != null && sub.planCost <= 0;
     if (isFreePlan && sub.activatedAt) {
-      const [subYear, subMonth] = sub.activatedAt.split("-").map(Number);
-      const currentMonthStart = year * 12 + month;
-      const subMonthStart = subYear * 12 + subMonth;
-      if (currentMonthStart > subMonthStart) {
+      const { isExpired } = getFreePlanTrialInfo(sub.activatedAt);
+      if (isExpired) {
         const result = {
           success: false,
           message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.",
@@ -8001,13 +8031,13 @@ var resolver13 = {
         }
       }
     } else if (isFreePlan && sub.activatedAt) {
-      const [y, m, d] = sub.activatedAt.split("-").map(Number);
-      const trialEnd = new Date(y, m - 1, d);
-      trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS_FREE_PLAN);
-      const trialEndStr = trialEnd.toISOString().slice(0, 10);
-      const now = /* @__PURE__ */ new Date();
-      const todayStr = now.toISOString().slice(0, 10);
-      if (trialEndStr < todayStr) {
+      const { trialEnd: trialEndStr, isExpired } = getFreePlanTrialInfo(
+        sub.activatedAt
+      );
+      if (!trialEndStr) {
+        periodEnd = null;
+        subscriptionActive = false;
+      } else if (isExpired) {
         newStatus = SUBSCRIPTION_STATUS.PAST_DUE;
         await context.sudo().query.SaasCompanySubscription.updateOne({
           where: { id: sub.id },

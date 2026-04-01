@@ -6,6 +6,7 @@ import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_
 import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";
 import { getOrCreateMonthlyRecord } from "../../../utils/helpers/tech/monthly_record";
 import { getPlaceDetails } from "../../../utils/helpers/tech/place_details";
+import { getFreePlanTrialInfo } from "../../../utils/saas/freePlanTrial";
 
 /**
  * syncLeadsFront: asigna TechBusinessLead a la SaasCompany del usuario.
@@ -217,10 +218,8 @@ const resolver = {
     };
     const isFreePlan = sub.planCost != null && sub.planCost <= 0;
     if (isFreePlan && sub.activatedAt) {
-      const [subYear, subMonth] = sub.activatedAt.split("-").map(Number);
-      const currentMonthStart = year * 12 + month;
-      const subMonthStart = subYear * 12 + subMonth;
-      if (currentMonthStart > subMonthStart) {
+      const { isExpired } = getFreePlanTrialInfo(sub.activatedAt);
+      if (isExpired) {
         const result = {
           success: false,
           message:

@@ -1,7 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscription/constants";
 import { getStripeSubscription } from "../../../../utils/saas/stripeSubscription";
-import { TRIAL_DAYS_FREE_PLAN } from "../../../../utils/constants/constants";
+import { getFreePlanTrialInfo } from "../../../../utils/saas/freePlanTrial";
 
 
 /** Map Stripe subscription status to our SUBSCRIPTION_STATUS */
@@ -189,14 +189,14 @@ const resolver = {
         }
       }
     } else if (isFreePlan && sub.activatedAt) {
-      const [y, m, d] = sub.activatedAt.split("-").map(Number);
-      const trialEnd = new Date(y, m - 1, d);
-      trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS_FREE_PLAN);
-      const trialEndStr = trialEnd.toISOString().slice(0, 10);
-      const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
+      const { trialEnd: trialEndStr, isExpired } = getFreePlanTrialInfo(
+        sub.activatedAt,
+      );
 
-      if (trialEndStr < todayStr) {
+      if (!trialEndStr) {
+        periodEnd = null;
+        subscriptionActive = false;
+      } else if (isExpired) {
         newStatus = SUBSCRIPTION_STATUS.PAST_DUE;
         await context.sudo().query.SaasCompanySubscription.updateOne({
           where: { id: sub.id },
