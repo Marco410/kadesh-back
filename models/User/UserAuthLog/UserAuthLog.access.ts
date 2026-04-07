@@ -9,7 +9,7 @@ import { Role } from "../../Role/constants";
 export const userAuthLogAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
-    create: () => false,
+    create: () => true,
     update: () => false,
     delete: ({ session }: any) => hasRole(session, [Role.ADMIN]),
   },

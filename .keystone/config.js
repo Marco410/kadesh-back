@@ -1222,7 +1222,7 @@ var hasRole = (session2, allowedRoles) => {
 var userAuthLogAccess = {
   operation: {
     query: () => true,
-    create: () => false,
+    create: () => true,
     update: () => false,
     delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
