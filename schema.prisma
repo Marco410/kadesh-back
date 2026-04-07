@@ -474,6 +474,7 @@ model SaasCompany {
   techFiles                           TechFile[]                   @relation("TechFile_company")
   projects                            SaasProject[]                @relation("SaasProject_company")
   leadSyncLogs                        TechLeadSyncLog[]            @relation("TechLeadSyncLog_company")
+  saasSubscriptionLogs                SaasSubscriptionLog[]        @relation("SaasSubscriptionLog_company")
   quotations                          SaasQuotation[]              @relation("SaasQuotation_company")
   logo_filesize                       Int?
   logo_filename                       String?
@@ -528,6 +529,7 @@ model SaasCompanySubscription {
   saasPayments                             SaasPayment[]            @relation("SaasPayment_subscription")
   plan                                     SaasPlan?                @relation("SaasCompanySubscription_plan", fields: [planId], references: [id])
   planId                                   String?                  @map("plan")
+  saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_createdSubscription")
   createdAt                                DateTime?                @default(now())
   updatedAt                                DateTime?                @updatedAt
   from_SaasReferralCommission_subscription SaasReferralCommission[] @relation("SaasReferralCommission_subscription")
@@ -599,6 +601,7 @@ model SaasPlan {
   stripeProductId                  String?
   companies                        SaasCompany[]             @relation("SaasCompany_plan")
   subscriptions                    SaasCompanySubscription[] @relation("SaasCompanySubscription_plan")
+  saasSubscriptionLogs             SaasSubscriptionLog[]     @relation("SaasSubscriptionLog_plan")
   createdAt                        DateTime?                 @default(now())
   updatedAt                        DateTime?                 @updatedAt
   from_SaasReferralCommission_plan SaasReferralCommission[]  @relation("SaasReferralCommission_plan")
@@ -723,6 +726,37 @@ model SaasReferralCommission {
   @@index([companyId])
   @@index([subscriptionId])
   @@index([planId])
+}
+
+model SaasSubscriptionLog {
+  id                       String                   @id @default(cuid())
+  user                     User?                    @relation("SaasSubscriptionLog_user", fields: [userId], references: [id])
+  userId                   String?                  @map("user")
+  company                  SaasCompany?             @relation("SaasSubscriptionLog_company", fields: [companyId], references: [id])
+  companyId                String?                  @map("company")
+  plan                     SaasPlan?                @relation("SaasSubscriptionLog_plan", fields: [planId], references: [id])
+  planId                   String?                  @map("plan")
+  createdSubscription      SaasCompanySubscription? @relation("SaasSubscriptionLog_createdSubscription", fields: [createdSubscriptionId], references: [id])
+  createdSubscriptionId    String?                  @map("createdSubscription")
+  success                  Boolean                  @default(false)
+  step                     String                   @default("")
+  message                  String                   @default("")
+  responseSnapshot         Json?
+  emailMasked              String                   @default("")
+  planIdRequested          String                   @default("")
+  totalSubmitted           String                   @default("")
+  paymentMethodIdSubmitted String                   @default("")
+  paymentTypeSubmitted     String                   @default("")
+  durationMs               Int?
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?
+  createdAt                DateTime?                @default(now())
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([planId])
+  @@index([createdSubscriptionId])
+  @@index([step])
 }
 
 model Schedule {
@@ -971,6 +1005,7 @@ model User {
   proposals                                TechProposal[]           @relation("TechProposal_assignedSeller")
   projectsResponsible                      SaasProject[]            @relation("SaasProject_responsible")
   leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
+  saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_user")
   quotationsCreated                        SaasQuotation[]          @relation("SaasQuotation_createdBy")
   quotationsAssignedSeller                 SaasQuotation[]          @relation("SaasQuotation_assignedSeller")
   profileImage_id                          String?

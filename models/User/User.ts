@@ -165,6 +165,11 @@ export default list({
       many: true,
       ui: { description: "Logs de sincronización de leads (mapa)" },
     }),
+    saasSubscriptionLogs: relationship({
+      ref: "SaasSubscriptionLog.user",
+      many: true,
+      ui: { description: "Logs de intentos de suscripción SaaS" },
+    }),
     quotationsCreated: relationship({
       ref: "SaasQuotation.createdBy",
       many: true,

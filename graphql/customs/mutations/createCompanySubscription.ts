@@ -2,6 +2,8 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import Stripe from "../../../utils/intregrations/stripe";
 import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscription/constants";
 import { PLAN_FREQUENCY } from "../../../models/Saas/SaasPlan/constants";
+import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../models/Saas/SaasSubscriptionLog/constants";
+import { writeSaasSubscriptionLog } from "../../../utils/saas/saasSubscriptionLogWrite";
 
 const typeDefs = `
   input CreateCompanySubscriptionInput {
@@ -82,14 +84,61 @@ const resolver = {
   ) => {
     let stripeSubscriptionId: string | undefined;
 
+    const startedAt = Date.now();
+    const logInput = {
+      planId: input.planId,
+      email: input.email,
+      total: input.total,
+      paymentMethodId: input.paymentMethodId,
+      paymentType: input.paymentType,
+      notes: input.notes ?? null,
+    };
+    let logUserId: string | undefined;
+    let logCompanyId: string | undefined;
+    let logPlanId: string | undefined;
+
+    const finish = async (
+      step: string,
+      result: {
+        success: boolean;
+        message: string;
+        subscriptionId: string | null;
+        paymentId: string | null;
+      },
+      opts?: {
+        createdSubscriptionId?: string | null;
+        stripeCustomerId?: string | null;
+        stripeSubscriptionId?: string | null;
+        extra?: Record<string, unknown>;
+      },
+    ) => {
+      await writeSaasSubscriptionLog(context, {
+        startedAt,
+        input: logInput,
+        step,
+        success: result.success,
+        message: result.message,
+        subscriptionId: result.subscriptionId,
+        paymentId: result.paymentId,
+        userId: logUserId ?? null,
+        companyId: logCompanyId ?? null,
+        planId: logPlanId ?? null,
+        createdSubscriptionId: opts?.createdSubscriptionId ?? null,
+        stripeCustomerId: opts?.stripeCustomerId ?? null,
+        stripeSubscriptionId: opts?.stripeSubscriptionId ?? null,
+        extra: opts?.extra,
+      });
+      return result;
+    };
+
     try {
       if (!process.env.STRIPE_SECRET_KEY) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,
           message: "STRIPE_SECRET_KEY no configurada",
           subscriptionId: null,
           paymentId: null,
-        };
+        });
       }
 
       // 1. Find user by email (with stripeCustomerId and company)
@@ -113,13 +162,15 @@ const resolver = {
       } | null;
 
       if (!user) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
           success: false,
           message: "Usuario no encontrado con ese email",
           subscriptionId: null,
           paymentId: null,
-        };
+        });
       }
+
+      logUserId = user.id;
 
       // 2. Ensure user has Stripe customer ID
       if (!user.stripeCustomerId) {
@@ -137,13 +188,15 @@ const resolver = {
 
       const company = user.company;
       if (!company?.id) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
           success: false,
           message: "Tu usuario no tiene una empresa asignada",
           subscriptionId: null,
           paymentId: null,
-        };
+        });
       }
+
+      logCompanyId = company.id;
 
       // 3. Resolve plan (input.planId or company.plan) — must have stripePriceId (recurring in Stripe)
       let plan: (PlanRecord & {
@@ -159,23 +212,25 @@ const resolver = {
         plan = planRecord as typeof plan;
       }
       if (!plan?.id) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_PLAN_RESOLVED, {
           success: false,
           message: "Indica un plan (planId) o asigna un plan a la empresa",
           subscriptionId: null,
           paymentId: null,
-        };
+        });
       }
+
+      logPlanId = plan.id;
 
       const stripePriceId = plan.stripePriceId ?? null;
       if (!stripePriceId || typeof stripePriceId !== "string") {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
           success: false,
           message:
             "El plan no tiene un Stripe Price ID configurado. Crea un Price recurrente en Stripe y asigna stripePriceId al plan.",
           subscriptionId: null,
           paymentId: null,
-        };
+        });
       }
 
       const planCost = plan.cost ?? 0;
@@ -183,12 +238,21 @@ const resolver = {
       const roundedTotalFront = parseFloat(Number(input.total).toFixed(2));
       const difference = Math.abs(roundedTotalFront - roundedTotalBack);
       if (difference > 0.01) {
-        return {
-          success: false,
-          message: `El total no coincide con el plan. Esperado: ${roundedTotalBack}, recibido: ${roundedTotalFront}. Recarga la página e intenta de nuevo.`,
-          subscriptionId: null,
-          paymentId: null,
-        };
+        return await finish(
+          SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH,
+          {
+            success: false,
+            message: `El total no coincide con el plan. Esperado: ${roundedTotalBack}, recibido: ${roundedTotalFront}. Recarga la página e intenta de nuevo.`,
+            subscriptionId: null,
+            paymentId: null,
+          },
+          {
+            extra: {
+              expectedTotal: roundedTotalBack,
+              receivedTotal: roundedTotalFront,
+            },
+          },
+        );
       }
 
       // 4. Get SaasPaymentMethod
@@ -198,12 +262,12 @@ const resolver = {
       })) as { id: string; stripePaymentMethodId: string | null } | null;
 
       if (!paymentMethod?.stripePaymentMethodId) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
           success: false,
           message: "Método de pago no encontrado",
           subscriptionId: null,
           paymentId: null,
-        };
+        });
       }
 
       // 5. Attach payment method to customer and set as default (required for subscription first charge)
@@ -418,12 +482,21 @@ const resolver = {
         data: { plan: { connect: { id: plan.id } } },
       });
 
-      return {
-        success: true,
-        message: "Suscripción creada correctamente. El cobro recurrente usará el método de pago guardado.",
-        subscriptionId: subscriptionId ?? null,
-        paymentId: null,
-      };
+      return await finish(
+        SAAS_SUBSCRIPTION_LOG_STEP.SUCCESS,
+        {
+          success: true,
+          message:
+            "Suscripción creada correctamente. El cobro recurrente usará el método de pago guardado.",
+          subscriptionId: subscriptionId ?? null,
+          paymentId: null,
+        },
+        {
+          createdSubscriptionId: subscriptionId ?? null,
+          stripeCustomerId: user.stripeCustomerId ?? null,
+          stripeSubscriptionId: stripeSubscriptionId ?? null,
+        },
+      );
     } catch (e: unknown) {
       if (stripeSubscriptionId) {
         try {
@@ -432,6 +505,22 @@ const resolver = {
       }
       const message =
         e instanceof Error ? e.message : "Error de comunicación con el servidor. Intenta de nuevo.";
+      await writeSaasSubscriptionLog(context, {
+        startedAt,
+        input: logInput,
+        step: SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR,
+        success: false,
+        message,
+        subscriptionId: null,
+        paymentId: null,
+        userId: logUserId ?? null,
+        companyId: logCompanyId ?? null,
+        planId: logPlanId ?? null,
+        stripeSubscriptionId: stripeSubscriptionId ?? null,
+        extra: {
+          errorName: e instanceof Error ? e.name : "unknown",
+        },
+      });
       return {
         success: false,
         message,

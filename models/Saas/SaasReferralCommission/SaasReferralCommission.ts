@@ -7,9 +7,10 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
+import { saasReferralCommissionAccess } from "./SaasReferralCommission.access";
 
 export default list({
-  access: () => true,
+  access: saasReferralCommissionAccess,
   ui: {
     listView: {
       initialColumns: [

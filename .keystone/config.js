@@ -1079,6 +1079,11 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads (mapa)" }
     }),
+    saasSubscriptionLogs: (0, import_fields7.relationship)({
+      ref: "SaasSubscriptionLog.user",
+      many: true,
+      ui: { description: "Logs de intentos de suscripci\xF3n SaaS" }
+    }),
     quotationsCreated: (0, import_fields7.relationship)({
       ref: "SaasQuotation.createdBy",
       many: true,
@@ -2356,9 +2361,9 @@ var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text43) {
+function sanitizeUrl2(text44) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text43.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text44.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -3459,17 +3464,37 @@ var import_core44 = require("@keystone-6/core");
 var import_fields44 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
+var getCompanyId3 = (session2) => session2?.data?.company?.id;
 var saasCompanyAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
     update: () => true,
-    delete: () => true
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId3(session2);
+      if (!companyId) return false;
+      return { id: { equals: companyId } };
+    },
+    update: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId3(session2);
+      if (!companyId) return false;
+      return { id: { equals: companyId } };
+    },
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      return false;
+    }
   }
 };
 
@@ -3644,6 +3669,11 @@ var SaasCompany_default = (0, import_core44.list)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
+    }),
+    saasSubscriptionLogs: (0, import_fields44.relationship)({
+      ref: "SaasSubscriptionLog.company",
+      many: true,
+      ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
     quotations: (0, import_fields44.relationship)({
       ref: "SaasQuotation.company",
@@ -3871,6 +3901,11 @@ var SaasPlan_default = (0, import_core45.list)({
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
+    saasSubscriptionLogs: (0, import_fields45.relationship)({
+      ref: "SaasSubscriptionLog.plan",
+      many: true,
+      ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
+    }),
     createdAt: (0, import_fields45.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -3893,17 +3928,39 @@ var import_core46 = require("@keystone-6/core");
 var import_fields46 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
+var getCompanyId4 = (session2) => session2?.data?.company?.id;
 var saasCompanyMonthlyLeadSyncAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId4(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId4(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId4(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId4(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
   }
 };
 
@@ -3951,17 +4008,39 @@ var import_core47 = require("@keystone-6/core");
 var import_fields47 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
+var getCompanyId5 = (session2) => session2?.data?.company?.id;
 var saasCompanySubscriptionAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId5(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId5(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId5(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId5(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
   }
 };
 
@@ -4057,6 +4136,11 @@ var SaasCompanySubscription_default = (0, import_core47.list)({
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
+    saasSubscriptionLogs: (0, import_fields47.relationship)({
+      ref: "SaasSubscriptionLog.createdSubscription",
+      many: true,
+      ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
+    }),
     createdAt: (0, import_fields47.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -4079,17 +4163,31 @@ var import_core48 = require("@keystone-6/core");
 var import_fields48 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
+var getCompanyId6 = (session2) => session2?.data?.company?.id;
+var getUserId = (session2) => session2?.data?.id;
+function paymentMethodFilter(session2) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const userId = getUserId(session2);
+  if (!userId) return false;
+  const companyId = getCompanyId6(session2);
+  if (companyId) {
+    return { user: { company: { id: { equals: companyId } } } };
+  }
+  return { user: { id: { equals: userId } } };
+}
 var saasPaymentMethodAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => paymentMethodFilter(session2),
+    update: ({ session: session2 }) => paymentMethodFilter(session2),
+    delete: ({ session: session2 }) => paymentMethodFilter(session2)
   }
 };
 
@@ -4175,17 +4273,31 @@ var import_core49 = require("@keystone-6/core");
 var import_fields49 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
+var getCompanyId7 = (session2) => session2?.data?.company?.id;
+var getUserId2 = (session2) => session2?.data?.id;
+function paymentFilter(session2) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const userId = getUserId2(session2);
+  if (!userId) return false;
+  const companyId = getCompanyId7(session2);
+  if (companyId) {
+    return { user: { company: { id: { equals: companyId } } } };
+  }
+  return { user: { id: { equals: userId } } };
+}
 var saasPaymentAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId2(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => paymentFilter(session2),
+    update: ({ session: session2 }) => paymentFilter(session2),
+    delete: ({ session: session2 }) => paymentFilter(session2)
   }
 };
 
@@ -4287,27 +4399,27 @@ var import_core50 = require("@keystone-6/core");
 var import_fields50 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
-var getCompanyId3 = (session2) => session2?.data?.company?.id;
+var getCompanyId8 = (session2) => session2?.data?.company?.id;
 var projectAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId3(session2),
+    create: ({ session: session2 }) => !!getCompanyId8(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId3(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId3(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId3(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4428,27 +4540,27 @@ var import_core51 = require("@keystone-6/core");
 var import_fields51 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
-var getCompanyId4 = (session2) => session2?.data?.company?.id;
+var getCompanyId9 = (session2) => session2?.data?.company?.id;
 var quotationAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId4(session2),
+    create: ({ session: session2 }) => !!getCompanyId9(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4695,27 +4807,27 @@ var import_core52 = require("@keystone-6/core");
 var import_fields52 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
-var getCompanyId5 = (session2) => session2?.data?.company?.id;
+var getCompanyId10 = (session2) => session2?.data?.company?.id;
 var quotationProductAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId5(session2),
+    create: ({ session: session2 }) => !!getCompanyId10(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     }
@@ -4955,8 +5067,49 @@ var SaasQuotationProduct_default = (0, import_core52.list)({
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
 var import_core53 = require("@keystone-6/core");
 var import_fields53 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
+var getCompanyId11 = (session2) => session2?.data?.company?.id;
+var getUserId3 = (session2) => session2?.data?.id;
+function referralCommissionFilter(session2) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const userId = getUserId3(session2);
+  if (!userId) return false;
+  const companyId = getCompanyId11(session2);
+  const orClause = [
+    { referrer: { id: { equals: userId } } },
+    { referredUser: { id: { equals: userId } } }
+  ];
+  if (companyId) {
+    orClause.push({ company: { id: { equals: companyId } } });
+  }
+  return { OR: orClause };
+}
+var saasReferralCommissionAccess = {
+  operation: {
+    query: () => true,
+    /** Las comisiones las genera el backend; solo admin crea/edita desde Admin si hace falta */
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: () => true,
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
+  },
+  filter: {
+    query: ({ session: session2 }) => referralCommissionFilter(session2),
+    update: ({ session: session2 }) => referralCommissionFilter(session2),
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      return false;
+    }
+  }
+};
+
+// models/Saas/SaasReferralCommission/SaasReferralCommission.ts
 var SaasReferralCommission_default = (0, import_core53.list)({
-  access: () => true,
+  access: saasReferralCommissionAccess,
   ui: {
     listView: {
       initialColumns: [
@@ -5057,6 +5210,127 @@ var SaasReferralCommission_default = (0, import_core53.list)({
   }
 });
 
+// models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
+var import_core54 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
+var getCompanyId12 = (session2) => session2?.data?.company?.id;
+var saasSubscriptionLogAccess = {
+  operation: {
+    query: () => true,
+    create: () => false,
+    update: () => false,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId12(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: () => false,
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId12(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
+var SaasSubscriptionLog_default = (0, import_core54.list)({
+  access: saasSubscriptionLogAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "createdAt",
+        "success",
+        "step",
+        "emailMasked",
+        "company",
+        "message"
+      ]
+    }
+  },
+  fields: {
+    user: (0, import_fields54.relationship)({
+      ref: "User.saasSubscriptionLogs",
+      many: false,
+      ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
+    }),
+    company: (0, import_fields54.relationship)({
+      ref: "SaasCompany.saasSubscriptionLogs",
+      many: false,
+      ui: { description: "Empresa del usuario" }
+    }),
+    plan: (0, import_fields54.relationship)({
+      ref: "SaasPlan.saasSubscriptionLogs",
+      many: false,
+      ui: { description: "Plan solicitado (si se resolvi\xF3)" }
+    }),
+    createdSubscription: (0, import_fields54.relationship)({
+      ref: "SaasCompanySubscription.saasSubscriptionLogs",
+      many: false,
+      ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
+    }),
+    success: (0, import_fields54.checkbox)({
+      defaultValue: false,
+      ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
+    }),
+    /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
+    step: (0, import_fields54.text)({
+      isIndexed: true,
+      ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
+    }),
+    /** Mismo mensaje que recibió el cliente en GraphQL */
+    message: (0, import_fields54.text)({
+      ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
+    }),
+    /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
+    responseSnapshot: (0, import_fields54.json)({
+      ui: { description: "Snapshot del resultado devuelto al cliente" }
+    }),
+    emailMasked: (0, import_fields54.text)({
+      ui: { description: "Email del intento (enmascarado)" }
+    }),
+    planIdRequested: (0, import_fields54.text)({
+      ui: { description: "planId enviado en el input" }
+    }),
+    totalSubmitted: (0, import_fields54.text)({
+      ui: { description: "total enviado por el cliente" }
+    }),
+    paymentMethodIdSubmitted: (0, import_fields54.text)({
+      ui: { description: "ID interno del m\xE9todo de pago" }
+    }),
+    paymentTypeSubmitted: (0, import_fields54.text)({
+      ui: { description: "paymentType del input" }
+    }),
+    durationMs: (0, import_fields54.integer)({
+      db: { isNullable: true },
+      ui: { description: "Duraci\xF3n del intento en ms" }
+    }),
+    stripeCustomerId: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: { description: "Stripe customer id al finalizar (si aplica)" }
+    }),
+    stripeSubscriptionId: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: { description: "Stripe subscription id al finalizar (si aplica)" }
+    }),
+    createdAt: (0, import_fields54.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { description: "Momento del intento" }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   Ad: Ad_default,
@@ -5098,6 +5372,7 @@ var schema_default = {
   SaasQuotation: SaasQuotation_default,
   SaasQuotationProduct: SaasQuotationProduct_default,
   SaasReferralCommission: SaasReferralCommission_default,
+  SaasSubscriptionLog: SaasSubscriptionLog_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
   SystemRelease: SystemRelease_default,
@@ -5115,7 +5390,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core54 = require("@keystone-6/core");
+var import_core55 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -5800,8 +6075,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text43 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text43}`;
+  const text44 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text44}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -6438,8 +6713,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text43 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text43}`;
+  const text44 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text44}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -6616,6 +6891,64 @@ var resolver7 = {
 };
 var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
 
+// models/Saas/SaasSubscriptionLog/constants.ts
+var SAAS_SUBSCRIPTION_LOG_STEP = {
+  STRIPE_KEY_MISSING: "STRIPE_KEY_MISSING",
+  USER_NOT_FOUND: "USER_NOT_FOUND",
+  NO_COMPANY: "NO_COMPANY",
+  NO_PLAN_RESOLVED: "NO_PLAN_RESOLVED",
+  NO_STRIPE_PRICE_ID: "NO_STRIPE_PRICE_ID",
+  TOTAL_MISMATCH: "TOTAL_MISMATCH",
+  PAYMENT_METHOD_NOT_FOUND: "PAYMENT_METHOD_NOT_FOUND",
+  SUCCESS: "SUCCESS",
+  STRIPE_OR_SERVER_ERROR: "STRIPE_OR_SERVER_ERROR"
+};
+
+// utils/saas/saasSubscriptionLogWrite.ts
+function maskEmail(email) {
+  const trimmed = email.trim();
+  const at = trimmed.indexOf("@");
+  if (at <= 0) return "***";
+  const local = trimmed.slice(0, at);
+  const domain = trimmed.slice(at + 1);
+  if (!domain) return "***";
+  if (local.length <= 2) return `**@${domain}`;
+  return `${local[0]}***${local.slice(-1)}@${domain}`;
+}
+async function writeSaasSubscriptionLog(context, params) {
+  try {
+    const durationMs = Date.now() - params.startedAt;
+    const responseSnapshot = {
+      success: params.success,
+      message: params.message,
+      subscriptionId: params.subscriptionId,
+      paymentId: params.paymentId,
+      ...params.extra ?? {}
+    };
+    await context.sudo().query.SaasSubscriptionLog.createOne({
+      data: {
+        ...params.userId ? { user: { connect: { id: params.userId } } } : {},
+        ...params.companyId ? { company: { connect: { id: params.companyId } } } : {},
+        ...params.planId ? { plan: { connect: { id: params.planId } } } : {},
+        ...params.createdSubscriptionId ? { createdSubscription: { connect: { id: params.createdSubscriptionId } } } : {},
+        success: params.success,
+        step: params.step,
+        message: params.message,
+        responseSnapshot,
+        emailMasked: maskEmail(params.input.email),
+        planIdRequested: params.input.planId,
+        totalSubmitted: params.input.total,
+        paymentMethodIdSubmitted: params.input.paymentMethodId,
+        paymentTypeSubmitted: params.input.paymentType,
+        durationMs,
+        stripeCustomerId: params.stripeCustomerId ?? null,
+        stripeSubscriptionId: params.stripeSubscriptionId ?? null
+      }
+    });
+  } catch {
+  }
+}
+
 // graphql/customs/mutations/createCompanySubscription.ts
 var typeDefs8 = `
   input CreateCompanySubscriptionInput {
@@ -6659,27 +6992,59 @@ var resolver8 = {
     input
   }, context) => {
     let stripeSubscriptionId;
+    const startedAt = Date.now();
+    const logInput = {
+      planId: input.planId,
+      email: input.email,
+      total: input.total,
+      paymentMethodId: input.paymentMethodId,
+      paymentType: input.paymentType,
+      notes: input.notes ?? null
+    };
+    let logUserId;
+    let logCompanyId;
+    let logPlanId;
+    const finish = async (step, result, opts) => {
+      await writeSaasSubscriptionLog(context, {
+        startedAt,
+        input: logInput,
+        step,
+        success: result.success,
+        message: result.message,
+        subscriptionId: result.subscriptionId,
+        paymentId: result.paymentId,
+        userId: logUserId ?? null,
+        companyId: logCompanyId ?? null,
+        planId: logPlanId ?? null,
+        createdSubscriptionId: opts?.createdSubscriptionId ?? null,
+        stripeCustomerId: opts?.stripeCustomerId ?? null,
+        stripeSubscriptionId: opts?.stripeSubscriptionId ?? null,
+        extra: opts?.extra
+      });
+      return result;
+    };
     try {
       if (!process.env.STRIPE_SECRET_KEY) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,
           message: "STRIPE_SECRET_KEY no configurada",
           subscriptionId: null,
           paymentId: null
-        };
+        });
       }
       const user = await context.sudo().query.User.findOne({
         where: { email: input.email.trim() },
         query: "id name email stripeCustomerId referredBy { id } company { id plan { id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId referralUpfrontCommissionPct referralRecurringCommissionPct } }"
       });
       if (!user) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
           success: false,
           message: "Usuario no encontrado con ese email",
           subscriptionId: null,
           paymentId: null
-        };
+        });
       }
+      logUserId = user.id;
       if (!user.stripeCustomerId) {
         const stripeCustomer = await stripe_default.customers.create({
           email: user.email ?? input.email,
@@ -6694,13 +7059,14 @@ var resolver8 = {
       }
       const company = user.company;
       if (!company?.id) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
           success: false,
           message: "Tu usuario no tiene una empresa asignada",
           subscriptionId: null,
           paymentId: null
-        };
+        });
       }
+      logCompanyId = company.id;
       let plan = company.plan ?? null;
       if (input.planId) {
         const planRecord = await context.sudo().query.SaasPlan.findOne({
@@ -6710,45 +7076,55 @@ var resolver8 = {
         plan = planRecord;
       }
       if (!plan?.id) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_PLAN_RESOLVED, {
           success: false,
           message: "Indica un plan (planId) o asigna un plan a la empresa",
           subscriptionId: null,
           paymentId: null
-        };
+        });
       }
+      logPlanId = plan.id;
       const stripePriceId = plan.stripePriceId ?? null;
       if (!stripePriceId || typeof stripePriceId !== "string") {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
           success: false,
           message: "El plan no tiene un Stripe Price ID configurado. Crea un Price recurrente en Stripe y asigna stripePriceId al plan.",
           subscriptionId: null,
           paymentId: null
-        };
+        });
       }
       const planCost = plan.cost ?? 0;
       const roundedTotalBack = parseFloat(Number(planCost).toFixed(2));
       const roundedTotalFront = parseFloat(Number(input.total).toFixed(2));
       const difference = Math.abs(roundedTotalFront - roundedTotalBack);
       if (difference > 0.01) {
-        return {
-          success: false,
-          message: `El total no coincide con el plan. Esperado: ${roundedTotalBack}, recibido: ${roundedTotalFront}. Recarga la p\xE1gina e intenta de nuevo.`,
-          subscriptionId: null,
-          paymentId: null
-        };
+        return await finish(
+          SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH,
+          {
+            success: false,
+            message: `El total no coincide con el plan. Esperado: ${roundedTotalBack}, recibido: ${roundedTotalFront}. Recarga la p\xE1gina e intenta de nuevo.`,
+            subscriptionId: null,
+            paymentId: null
+          },
+          {
+            extra: {
+              expectedTotal: roundedTotalBack,
+              receivedTotal: roundedTotalFront
+            }
+          }
+        );
       }
       const paymentMethod = await context.sudo().query.SaasPaymentMethod.findOne({
         where: { id: input.paymentMethodId },
         query: "id stripePaymentMethodId"
       });
       if (!paymentMethod?.stripePaymentMethodId) {
-        return {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
           success: false,
           message: "M\xE9todo de pago no encontrado",
           subscriptionId: null,
           paymentId: null
-        };
+        });
       }
       try {
         await stripe_default.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
@@ -6918,12 +7294,20 @@ var resolver8 = {
         where: { id: company.id },
         data: { plan: { connect: { id: plan.id } } }
       });
-      return {
-        success: true,
-        message: "Suscripci\xF3n creada correctamente. El cobro recurrente usar\xE1 el m\xE9todo de pago guardado.",
-        subscriptionId: subscriptionId ?? null,
-        paymentId: null
-      };
+      return await finish(
+        SAAS_SUBSCRIPTION_LOG_STEP.SUCCESS,
+        {
+          success: true,
+          message: "Suscripci\xF3n creada correctamente. El cobro recurrente usar\xE1 el m\xE9todo de pago guardado.",
+          subscriptionId: subscriptionId ?? null,
+          paymentId: null
+        },
+        {
+          createdSubscriptionId: subscriptionId ?? null,
+          stripeCustomerId: user.stripeCustomerId ?? null,
+          stripeSubscriptionId: stripeSubscriptionId ?? null
+        }
+      );
     } catch (e) {
       if (stripeSubscriptionId) {
         try {
@@ -6932,6 +7316,22 @@ var resolver8 = {
         }
       }
       const message = e instanceof Error ? e.message : "Error de comunicaci\xF3n con el servidor. Intenta de nuevo.";
+      await writeSaasSubscriptionLog(context, {
+        startedAt,
+        input: logInput,
+        step: SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR,
+        success: false,
+        message,
+        subscriptionId: null,
+        paymentId: null,
+        userId: logUserId ?? null,
+        companyId: logCompanyId ?? null,
+        planId: logPlanId ?? null,
+        stripeSubscriptionId: stripeSubscriptionId ?? null,
+        extra: {
+          errorName: e instanceof Error ? e.name : "unknown"
+        }
+      });
       return {
         success: false,
         message,
@@ -8198,7 +8598,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core54.config)({
+  (0, import_core55.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`
