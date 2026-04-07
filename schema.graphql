@@ -2543,6 +2543,8 @@ type SaasCompany {
   projectsCount(where: SaasProjectWhereInput! = {}): Int
   leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
   leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
+  saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
+  saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
   quotations(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
   quotationsCount(where: SaasQuotationWhereInput! = {}): Int
   logo: FileFieldOutput
@@ -2585,6 +2587,7 @@ input SaasCompanyWhereInput {
   techFiles: TechFileManyRelationFilter
   projects: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
+  saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   quotations: SaasQuotationManyRelationFilter
   onboardingMainOffer: StringNullableFilter
   onboardingIdealCustomer: StringNullableFilter
@@ -2641,6 +2644,12 @@ input TechLeadSyncLogManyRelationFilter {
   none: TechLeadSyncLogWhereInput
 }
 
+input SaasSubscriptionLogManyRelationFilter {
+  every: SaasSubscriptionLogWhereInput
+  some: SaasSubscriptionLogWhereInput
+  none: SaasSubscriptionLogWhereInput
+}
+
 input SaasQuotationManyRelationFilter {
   every: SaasQuotationWhereInput
   some: SaasQuotationWhereInput
@@ -2677,6 +2686,7 @@ input SaasCompanyUpdateInput {
   techFiles: TechFileRelateToManyForUpdateInput
   projects: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
+  saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
   quotations: SaasQuotationRelateToManyForUpdateInput
   logo: FileFieldInput
   onboardingMainOffer: String
@@ -2747,6 +2757,13 @@ input TechLeadSyncLogRelateToManyForUpdateInput {
   connect: [TechLeadSyncLogWhereUniqueInput!]
 }
 
+input SaasSubscriptionLogRelateToManyForUpdateInput {
+  disconnect: [SaasSubscriptionLogWhereUniqueInput!]
+  set: [SaasSubscriptionLogWhereUniqueInput!]
+  create: [SaasSubscriptionLogCreateInput!]
+  connect: [SaasSubscriptionLogWhereUniqueInput!]
+}
+
 input SaasQuotationRelateToManyForUpdateInput {
   disconnect: [SaasQuotationWhereUniqueInput!]
   set: [SaasQuotationWhereUniqueInput!]
@@ -2776,6 +2793,7 @@ input SaasCompanyCreateInput {
   techFiles: TechFileRelateToManyForCreateInput
   projects: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
+  saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
   quotations: SaasQuotationRelateToManyForCreateInput
   logo: FileFieldInput
   onboardingMainOffer: String
@@ -2829,6 +2847,11 @@ input SaasProjectRelateToManyForCreateInput {
 input TechLeadSyncLogRelateToManyForCreateInput {
   create: [TechLeadSyncLogCreateInput!]
   connect: [TechLeadSyncLogWhereUniqueInput!]
+}
+
+input SaasSubscriptionLogRelateToManyForCreateInput {
+  create: [SaasSubscriptionLogCreateInput!]
+  connect: [SaasSubscriptionLogWhereUniqueInput!]
 }
 
 input SaasQuotationRelateToManyForCreateInput {
@@ -2924,6 +2947,8 @@ type SaasCompanySubscription {
   saasPayments(where: SaasPaymentWhereInput! = {}, orderBy: [SaasPaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentWhereUniqueInput): [SaasPayment!]
   saasPaymentsCount(where: SaasPaymentWhereInput! = {}): Int
   plan: SaasPlan
+  saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
+  saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2951,6 +2976,7 @@ input SaasCompanySubscriptionWhereInput {
   stripeCustomerId: StringNullableFilter
   saasPayments: SaasPaymentManyRelationFilter
   plan: SaasPlanWhereInput
+  saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3005,6 +3031,7 @@ input SaasCompanySubscriptionUpdateInput {
   stripeCustomerId: String
   saasPayments: SaasPaymentRelateToManyForUpdateInput
   plan: SaasPlanRelateToOneForUpdateInput
+  saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3037,6 +3064,7 @@ input SaasCompanySubscriptionCreateInput {
   stripeCustomerId: String
   saasPayments: SaasPaymentRelateToManyForCreateInput
   plan: SaasPlanRelateToOneForCreateInput
+  saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3274,6 +3302,8 @@ type SaasPlan {
   companiesCount(where: SaasCompanyWhereInput! = {}): Int
   subscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
   subscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
+  saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
+  saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3302,6 +3332,7 @@ input SaasPlanWhereInput {
   stripeProductId: StringNullableFilter
   companies: SaasCompanyManyRelationFilter
   subscriptions: SaasCompanySubscriptionManyRelationFilter
+  saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3345,6 +3376,7 @@ input SaasPlanUpdateInput {
   stripeProductId: String
   companies: SaasCompanyRelateToManyForUpdateInput
   subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
+  saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3377,6 +3409,7 @@ input SaasPlanCreateInput {
   stripeProductId: String
   companies: SaasCompanyRelateToManyForCreateInput
   subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
+  saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3877,6 +3910,115 @@ input SaasReferralCommissionCreateInput {
   notes: String
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+type SaasSubscriptionLog {
+  id: ID!
+  user: User
+  company: SaasCompany
+  plan: SaasPlan
+  createdSubscription: SaasCompanySubscription
+  success: Boolean
+  step: String
+  message: String
+  responseSnapshot: JSON
+  emailMasked: String
+  planIdRequested: String
+  totalSubmitted: String
+  paymentMethodIdSubmitted: String
+  paymentTypeSubmitted: String
+  durationMs: Int
+  stripeCustomerId: String
+  stripeSubscriptionId: String
+  createdAt: DateTime
+}
+
+input SaasSubscriptionLogWhereUniqueInput {
+  id: ID
+}
+
+input SaasSubscriptionLogWhereInput {
+  AND: [SaasSubscriptionLogWhereInput!]
+  OR: [SaasSubscriptionLogWhereInput!]
+  NOT: [SaasSubscriptionLogWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  company: SaasCompanyWhereInput
+  plan: SaasPlanWhereInput
+  createdSubscription: SaasCompanySubscriptionWhereInput
+  success: BooleanFilter
+  step: StringFilter
+  message: StringFilter
+  emailMasked: StringFilter
+  planIdRequested: StringFilter
+  totalSubmitted: StringFilter
+  paymentMethodIdSubmitted: StringFilter
+  paymentTypeSubmitted: StringFilter
+  durationMs: IntNullableFilter
+  stripeCustomerId: StringNullableFilter
+  stripeSubscriptionId: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input SaasSubscriptionLogOrderByInput {
+  id: OrderDirection
+  success: OrderDirection
+  step: OrderDirection
+  message: OrderDirection
+  emailMasked: OrderDirection
+  planIdRequested: OrderDirection
+  totalSubmitted: OrderDirection
+  paymentMethodIdSubmitted: OrderDirection
+  paymentTypeSubmitted: OrderDirection
+  durationMs: OrderDirection
+  stripeCustomerId: OrderDirection
+  stripeSubscriptionId: OrderDirection
+  createdAt: OrderDirection
+}
+
+input SaasSubscriptionLogUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  company: SaasCompanyRelateToOneForUpdateInput
+  plan: SaasPlanRelateToOneForUpdateInput
+  createdSubscription: SaasCompanySubscriptionRelateToOneForUpdateInput
+  success: Boolean
+  step: String
+  message: String
+  responseSnapshot: JSON
+  emailMasked: String
+  planIdRequested: String
+  totalSubmitted: String
+  paymentMethodIdSubmitted: String
+  paymentTypeSubmitted: String
+  durationMs: Int
+  stripeCustomerId: String
+  stripeSubscriptionId: String
+  createdAt: DateTime
+}
+
+input SaasSubscriptionLogUpdateArgs {
+  where: SaasSubscriptionLogWhereUniqueInput!
+  data: SaasSubscriptionLogUpdateInput!
+}
+
+input SaasSubscriptionLogCreateInput {
+  user: UserRelateToOneForCreateInput
+  company: SaasCompanyRelateToOneForCreateInput
+  plan: SaasPlanRelateToOneForCreateInput
+  createdSubscription: SaasCompanySubscriptionRelateToOneForCreateInput
+  success: Boolean
+  step: String
+  message: String
+  responseSnapshot: JSON
+  emailMasked: String
+  planIdRequested: String
+  totalSubmitted: String
+  paymentMethodIdSubmitted: String
+  paymentTypeSubmitted: String
+  durationMs: Int
+  stripeCustomerId: String
+  stripeSubscriptionId: String
+  createdAt: DateTime
 }
 
 type Schedule {
@@ -4907,6 +5049,8 @@ type User {
   projectsResponsibleCount(where: SaasProjectWhereInput! = {}): Int
   leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
   leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
+  saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
+  saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
   quotationsCreated(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
   quotationsCreatedCount(where: SaasQuotationWhereInput! = {}): Int
   quotationsAssignedSeller(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
@@ -4969,6 +5113,7 @@ input UserWhereInput {
   proposals: TechProposalManyRelationFilter
   projectsResponsible: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
+  saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   quotationsCreated: SaasQuotationManyRelationFilter
   quotationsAssignedSeller: SaasQuotationManyRelationFilter
   birthday: CalendarDayNullableFilter
@@ -5055,6 +5200,7 @@ input UserUpdateInput {
   proposals: TechProposalRelateToManyForUpdateInput
   projectsResponsible: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
+  saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
   quotationsCreated: SaasQuotationRelateToManyForUpdateInput
   quotationsAssignedSeller: SaasQuotationRelateToManyForUpdateInput
   profileImage: ImageFieldInput
@@ -5122,6 +5268,7 @@ input UserCreateInput {
   proposals: TechProposalRelateToManyForCreateInput
   projectsResponsible: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
+  saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
   quotationsCreated: SaasQuotationRelateToManyForCreateInput
   quotationsAssignedSeller: SaasQuotationRelateToManyForCreateInput
   profileImage: ImageFieldInput
@@ -5445,6 +5592,12 @@ type Mutation {
   updateSaasReferralCommissions(data: [SaasReferralCommissionUpdateArgs!]!): [SaasReferralCommission]
   deleteSaasReferralCommission(where: SaasReferralCommissionWhereUniqueInput!): SaasReferralCommission
   deleteSaasReferralCommissions(where: [SaasReferralCommissionWhereUniqueInput!]!): [SaasReferralCommission]
+  createSaasSubscriptionLog(data: SaasSubscriptionLogCreateInput!): SaasSubscriptionLog
+  createSaasSubscriptionLogs(data: [SaasSubscriptionLogCreateInput!]!): [SaasSubscriptionLog]
+  updateSaasSubscriptionLog(where: SaasSubscriptionLogWhereUniqueInput!, data: SaasSubscriptionLogUpdateInput!): SaasSubscriptionLog
+  updateSaasSubscriptionLogs(data: [SaasSubscriptionLogUpdateArgs!]!): [SaasSubscriptionLog]
+  deleteSaasSubscriptionLog(where: SaasSubscriptionLogWhereUniqueInput!): SaasSubscriptionLog
+  deleteSaasSubscriptionLogs(where: [SaasSubscriptionLogWhereUniqueInput!]!): [SaasSubscriptionLog]
   createSchedule(data: ScheduleCreateInput!): Schedule
   createSchedules(data: [ScheduleCreateInput!]!): [Schedule]
   updateSchedule(where: ScheduleWhereUniqueInput!, data: ScheduleUpdateInput!): Schedule
@@ -5681,6 +5834,9 @@ type Query {
   saasReferralCommission(where: SaasReferralCommissionWhereUniqueInput!): SaasReferralCommission
   saasReferralCommissions(where: SaasReferralCommissionWhereInput! = {}, orderBy: [SaasReferralCommissionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasReferralCommissionWhereUniqueInput): [SaasReferralCommission!]
   saasReferralCommissionsCount(where: SaasReferralCommissionWhereInput! = {}): Int
+  saasSubscriptionLog(where: SaasSubscriptionLogWhereUniqueInput!): SaasSubscriptionLog
+  saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
+  saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
   schedule(where: ScheduleWhereUniqueInput!): Schedule
   schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
   schedulesCount(where: ScheduleWhereInput! = {}): Int

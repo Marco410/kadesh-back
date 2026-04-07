@@ -99,6 +99,11 @@ export default list({
       many: true,
       ui: { description: "Logs de sincronización de leads" },
     }),
+    saasSubscriptionLogs: relationship({
+      ref: "SaasSubscriptionLog.company",
+      many: true,
+      ui: { description: "Logs de intentos de contratación de plan" },
+    }),
     quotations: relationship({
       ref: "SaasQuotation.company",
       many: true,

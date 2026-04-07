@@ -51,6 +51,7 @@ import SaasProject from "./Saas/Project/SaasProject";
 import SaasQuotation from "./Saas/Quotation/SaasQuotation";
 import SaasQuotationProduct from "./Saas/Quotation/Product/SaasQuotationProduct";
 import SaasReferralCommission from "./Saas/SaasReferralCommission/SaasReferralCommission";
+import SaasSubscriptionLog from "./Saas/SaasSubscriptionLog/SaasSubscriptionLog";
 
 export default {
   Ad,
@@ -92,6 +93,7 @@ export default {
   SaasQuotation,
   SaasQuotationProduct,
   SaasReferralCommission,
+  SaasSubscriptionLog,
   Schedule,
   SocialMedia,
   SystemRelease,

@@ -124,6 +124,11 @@ export default list({
       many: true,
       ui: { description: "Subscriptions for this plan" },
     }),
+    saasSubscriptionLogs: relationship({
+      ref: "SaasSubscriptionLog.plan",
+      many: true,
+      ui: { description: "Logs de intentos de suscripción a este plan" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

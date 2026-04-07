@@ -105,6 +105,11 @@ export default list({
         description: "Subscription plan (defines cost, frequency, lead limit)",
       },
     }),
+    saasSubscriptionLogs: relationship({
+      ref: "SaasSubscriptionLog.createdSubscription",
+      many: true,
+      ui: { description: "Logs de creación que generaron o referencian esta suscripción" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {
