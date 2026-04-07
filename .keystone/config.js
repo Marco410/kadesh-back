@@ -6781,6 +6781,22 @@ var resolver8 = {
           where: { id: prev.id },
           data: { status: SUBSCRIPTION_STATUS.CANCELLED }
         });
+        const pendingCommissions = await context.sudo().query.SaasReferralCommission.findMany({
+          where: {
+            subscription: { id: { equals: prev.id } },
+            status: { equals: "PENDING" }
+          },
+          query: "id"
+        });
+        for (const commission of pendingCommissions) {
+          await context.sudo().query.SaasReferralCommission.updateOne({
+            where: { id: commission.id },
+            data: {
+              status: "CANCELLED",
+              notes: "Comisi\xF3n cancelada por cambio de plan: la suscripci\xF3n fue cancelada."
+            }
+          });
+        }
       }
       const stripeSubscription = await createStripeSubscription({
         customerId: user.stripeCustomerId,

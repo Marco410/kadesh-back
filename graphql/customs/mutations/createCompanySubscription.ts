@@ -243,6 +243,30 @@ const resolver = {
           where: { id: prev.id },
           data: { status: SUBSCRIPTION_STATUS.CANCELLED },
         });
+
+
+        // Cancel all pending referral commissions tied to the previous subscription.
+        // This is required for "change of plan" flows because subscriptionStatus only checks the latest ACTIVE/TRIALING subscription.
+        const pendingCommissions =
+          await context.sudo().query.SaasReferralCommission.findMany({
+            where: {
+              subscription: { id: { equals: prev.id } },
+              status: { equals: "PENDING" },
+            },
+            query: "id",
+          });
+
+
+        for (const commission of pendingCommissions as { id: string }[]) {
+          await context.sudo().query.SaasReferralCommission.updateOne({
+            where: { id: commission.id },
+            data: {
+              status: "CANCELLED",
+              notes:
+                "Comisión cancelada por cambio de plan: la suscripción fue cancelada.",
+            },
+          });
+        }
       }
 
       // 7. Create Stripe Subscription (uses plan.stripePriceId — recurring; first invoice charged now)
