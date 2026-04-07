@@ -6781,6 +6781,22 @@ var resolver8 = {
           where: { id: prev.id },
           data: { status: SUBSCRIPTION_STATUS.CANCELLED }
         });
+        const pendingCommissions = await context.sudo().query.SaasReferralCommission.findMany({
+          where: {
+            subscription: { id: { equals: prev.id } },
+            status: { equals: "PENDING" }
+          },
+          query: "id"
+        });
+        for (const commission of pendingCommissions) {
+          await context.sudo().query.SaasReferralCommission.updateOne({
+            where: { id: commission.id },
+            data: {
+              status: "CANCELLED",
+              notes: "Comisi\xF3n cancelada por cambio de plan: la suscripci\xF3n fue cancelada."
+            }
+          });
+        }
       }
       const stripeSubscription = await createStripeSubscription({
         customerId: user.stripeCustomerId,
@@ -6792,15 +6808,28 @@ var resolver8 = {
       const subStatus = stripeSubscription.status ?? "active";
       const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
       let periodEnd;
+      let periodEndSource = "today_missing_end";
       if (stripeSubscription.current_period_end && typeof stripeSubscription.current_period_end === "number") {
         periodEnd = new Date(stripeSubscription.current_period_end * 1e3).toISOString().slice(0, 10);
+        periodEndSource = "stripe";
       } else {
         periodEnd = today;
       }
+      let fallbackBranch = null;
       if (periodEnd <= today) {
         const [y, m, day] = today.split("-").map(Number);
         const d = new Date(y, m - 1, day);
-        d.setMonth(d.getMonth() + 1);
+        const freq = (plan.frequency ?? "").toLowerCase();
+        if (freq === PLAN_FREQUENCY.ANNUAL) {
+          d.setFullYear(d.getFullYear() + 1);
+          fallbackBranch = "annual";
+        } else if (freq === PLAN_FREQUENCY.WEEKLY) {
+          d.setDate(d.getDate() + 7);
+          fallbackBranch = "weekly";
+        } else {
+          d.setMonth(d.getMonth() + 1);
+          fallbackBranch = "monthly_default";
+        }
         periodEnd = d.toISOString().slice(0, 10);
       }
       const subscription = await context.sudo().query.SaasCompanySubscription.createOne({
