@@ -1006,6 +1006,7 @@ model User {
   projectsResponsible                      SaasProject[]            @relation("SaasProject_responsible")
   leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
   saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_user")
+  authLogs                                 UserAuthLog[]            @relation("UserAuthLog_user")
   quotationsCreated                        SaasQuotation[]          @relation("SaasQuotation_createdBy")
   quotationsAssignedSeller                 SaasQuotation[]          @relation("SaasQuotation_assignedSeller")
   profileImage_id                          String?
@@ -1050,6 +1051,23 @@ model User {
 
   @@index([referredById])
   @@index([companyId])
+}
+
+model UserAuthLog {
+  id               String    @id @default(cuid())
+  user             User?     @relation("UserAuthLog_user", fields: [userId], references: [id])
+  userId           String?   @map("user")
+  source           String?
+  step             String    @default("")
+  success          Boolean   @default(false)
+  message          String    @default("")
+  emailMasked      String    @default("")
+  responseSnapshot Json?
+  durationMs       Int?
+  createdAt        DateTime? @default(now())
+
+  @@index([userId])
+  @@index([step])
 }
 
 model WishList {

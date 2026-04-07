@@ -170,6 +170,11 @@ export default list({
       many: true,
       ui: { description: "Logs de intentos de suscripción SaaS" },
     }),
+    authLogs: relationship({
+      ref: "UserAuthLog.user",
+      many: true,
+      ui: { description: "Registro de login / registro (customAuth, registerUser)" },
+    }),
     quotationsCreated: relationship({
       ref: "SaasQuotation.createdBy",
       many: true,

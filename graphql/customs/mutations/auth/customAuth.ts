@@ -2,6 +2,11 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 import { checkUserName } from "../../../../models/User/User.hooks";
+import {
+  USER_AUTH_LOG_SOURCE,
+  USER_AUTH_LOG_STEP,
+} from "../../../../models/User/UserAuthLog/constants";
+import { writeUserAuthLog } from "../../../../utils/auth/userAuthLogWrite";
 
 const typeDefs = `
   type customAuthType {
@@ -28,58 +33,99 @@ const resolver = {
     },
     context: KeystoneContext,
   ) => {
-    const lastLoginAt = new Date().toISOString();
-    let userFound = await context.sudo().query.User.findOne({
-      query:
-        "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
-      where: {
-        email,
-      },
-    });
+    const startedAt = Date.now();
+    const emailTrimmed = email.trim();
 
-    if (!userFound) {
-      userFound = await context.db.User.createOne({
-        data: {
-          email,
-          name,
-          lastName,
-          username: await checkUserName(name, lastName, context),
-          role: "user",
-          lastLoginAt,
-        },
-      });
-    } else {
-      userFound = await context.sudo().query.User.updateOne({
-        where: { id: userFound.id },
-        data: { lastLoginAt },
+    try {
+      const lastLoginAt = new Date().toISOString();
+      let isNewUser = false;
+      let userFound = await context.sudo().query.User.findOne({
         query:
           "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
-      });
-    }
-
-    let sessionSecret = process.env.SESSION_SECRET;
-    if (!sessionSecret) {
-      sessionSecret = randomBytes(32).toString("hex");
-    }
-
-    const sessionToken = jwt.sign(
-      {
-        data: {
-          id: userFound.id,
-          email: userFound.email,
+        where: {
+          email: emailTrimmed,
         },
-      },
-      sessionSecret,
-    );
+      });
 
-    return {
-      success: true,
-      message: "Success",
-      data: {
-        ...userFound,
-        sessionToken,
-      },
-    };
+      if (!userFound) {
+        isNewUser = true;
+        userFound = await context.db.User.createOne({
+          data: {
+            email: emailTrimmed,
+            name,
+            lastName,
+            username: await checkUserName(name, lastName, context),
+            role: "user",
+            lastLoginAt,
+          },
+        });
+      } else {
+        userFound = await context.sudo().query.User.updateOne({
+          where: { id: userFound.id },
+          data: { lastLoginAt },
+          query:
+            "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
+        });
+      }
+
+      let sessionSecret = process.env.SESSION_SECRET;
+      if (!sessionSecret) {
+        sessionSecret = randomBytes(32).toString("hex");
+      }
+
+      const sessionToken = jwt.sign(
+        {
+          data: {
+            id: userFound.id,
+            email: userFound.email,
+          },
+        },
+        sessionSecret,
+      );
+
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+        step: isNewUser
+          ? USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP
+          : USER_AUTH_LOG_STEP.CUSTOM_AUTH_LOGIN,
+        success: true,
+        message: "Success",
+        email: emailTrimmed,
+        userId: userFound.id,
+        responseSnapshot: {
+          success: true,
+          message: "Success",
+          userId: userFound.id,
+          isNewUser,
+        },
+      });
+
+      return {
+        success: true,
+        message: "Success",
+        data: {
+          ...userFound,
+          sessionToken,
+        },
+      };
+    } catch (e: unknown) {
+      const message =
+        e instanceof Error ? e.message : "Error de autenticación.";
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+        success: false,
+        message,
+        email: emailTrimmed,
+        userId: null,
+        responseSnapshot: {
+          errorName: e instanceof Error ? e.name : "unknown",
+        },
+      });
+      throw e;
+    }
   },
 };
 

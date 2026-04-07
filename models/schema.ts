@@ -5,6 +5,7 @@ import AnimalFavorite from "./Animal/AnimalFavorite/AnimalFavorite";
 import AnimalLog from "./Animal/AnimalLog/AnimalLog";
 import AnimalComment from "./Animal/AnimalComment/AnimalComment";
 import User from "./User/User";
+import UserAuthLog from "./User/UserAuthLog/UserAuthLog";
 import AnimalBreed from "./Animal/AnimalBreed/AnimalBreed";
 import Pet from "./Pet/Pet";
 import PetMultimedia from "./Pet/PetMultimedia/PetMultimedia";
@@ -107,5 +108,6 @@ export default {
   TechStatusBusinessLead,
   TokenNotification,
   User,
+  UserAuthLog,
   WishList,
 };
