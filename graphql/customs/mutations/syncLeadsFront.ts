@@ -522,6 +522,7 @@ const resolver = {
             rating: details.rating ?? null,
             reviewCount: details.user_ratings_total ?? null,
             hasWebsite: !!details.website,
+            websiteUrl: details.website || "",
             source: "Google Maps",
             googlePlaceId: placeId,
             googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,

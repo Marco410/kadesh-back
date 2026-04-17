@@ -132,6 +132,11 @@ export default list({
       many: false,
       ui: { description: "Company/organization this user belongs to" },
     }),
+    workspaces: relationship({
+      ref: "SaasWorkspace.members",
+      many: true,
+      ui: { description: "Workspaces (áreas) a los que pertenece" },
+    }),
     blog_subscriptions: relationship({
       ref: "BlogSubscription.user",
       many: true,

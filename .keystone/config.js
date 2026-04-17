@@ -705,6 +705,7 @@ var ROLES = [
   { label: "User", value: "user" /* USER */ },
   { label: "Author", value: "author" /* AUTHOR */ },
   { label: "Admin (Company)", value: "admin_company" /* ADMIN_COMPANY */ },
+  { label: "User (Company)", value: "user_company" /* USER_COMPANY */ },
   { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
 ];
 
@@ -1045,6 +1046,11 @@ var User_default = (0, import_core7.list)({
       ref: "SaasCompany.users",
       many: false,
       ui: { description: "Company/organization this user belongs to" }
+    }),
+    workspaces: (0, import_fields7.relationship)({
+      ref: "SaasWorkspace.members",
+      many: true,
+      ui: { description: "Workspaces (\xE1reas) a los que pertenece" }
     }),
     blog_subscriptions: (0, import_fields7.relationship)({
       ref: "BlogSubscription.user",
@@ -2468,9 +2474,9 @@ var import_core33 = require("@keystone-6/core");
 var import_fields33 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text45) {
+function sanitizeUrl2(text47) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text45.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text47.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -3079,18 +3085,140 @@ var TechStatusBusinessLead_default = (0, import_core39.list)({
 var import_core40 = require("@keystone-6/core");
 var import_fields40 = require("@keystone-6/core/fields");
 
+// utils/access/crmWorkspaceScopedFilter.ts
+var getCompanyId = (session2) => session2?.data?.company?.id;
+var getUserId = (session2) => session2?.data?.id;
+function crmWorkspaceScopedWhere(session2) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const companyId = getCompanyId(session2);
+  const userId = getUserId(session2);
+  if (!companyId || !userId) {
+    return false;
+  }
+  return {
+    OR: [
+      {
+        AND: [
+          // Prisma-style: optional relation unset (legacy CRM rows)
+          { workspace: null },
+          {
+            businessLead: {
+              saasCompany: { some: { id: { equals: companyId } } }
+            }
+          }
+        ]
+      },
+      {
+        AND: [
+          {
+            workspace: {
+              members: { some: { id: { equals: userId } } }
+            }
+          },
+          {
+            workspace: {
+              company: { id: { equals: companyId } }
+            }
+          }
+        ]
+      }
+    ]
+  };
+}
+
 // models/Tech/FollowUpTask/TechFollowUpTask.access.ts
+var getCompanyId2 = (session2) => session2?.data?.company?.id;
 var followUpTaskAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => !!getCompanyId2(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2)
+  }
+};
+
+// utils/validation/validateTechStatusCrm.ts
+function getRelationshipConnectId(value) {
+  if (!value || typeof value !== "object") return void 0;
+  const c = value.connect;
+  return typeof c?.id === "string" ? c.id : void 0;
+}
+async function resolveWorkspaceIdForTechItem(context, listKey, item) {
+  if (item?.workspaceId) return item.workspaceId ?? void 0;
+  if (!item?.id) return void 0;
+  const sudo = context.sudo();
+  if (listKey === "TechFollowUpTask") {
+    const row2 = await sudo.query.TechFollowUpTask.findOne({
+      where: { id: item.id },
+      query: "workspace { id }"
+    });
+    return row2?.workspace?.id;
+  }
+  if (listKey === "TechProposal") {
+    const row2 = await sudo.query.TechProposal.findOne({
+      where: { id: item.id },
+      query: "workspace { id }"
+    });
+    return row2?.workspace?.id;
+  }
+  const row = await sudo.query.TechSalesActivity.findOne({
+    where: { id: item.id },
+    query: "workspace { id }"
+  });
+  return row?.workspace?.id;
+}
+async function validateTechStatusCrmInput(args) {
+  const { context, resolvedData, item, listKey, addValidationError } = args;
+  if (!("statusCrm" in resolvedData)) return;
+  const statusCrmId = getRelationshipConnectId(resolvedData.statusCrm);
+  if (!statusCrmId) return;
+  const workspaceIdFromInput = getRelationshipConnectId(
+    resolvedData.workspace
+  );
+  let workspaceId = workspaceIdFromInput ?? item?.workspaceId ?? await resolveWorkspaceIdForTechItem(context, listKey, item);
+  if (!workspaceId) {
+    addValidationError(
+      "Asigna un workspace antes de usar un estado CRM (statusCrm)."
+    );
+    return;
+  }
+  const status = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+    where: { id: statusCrmId },
+    query: "id workspace { id }"
+  });
+  if (!status) {
+    addValidationError("El estado CRM indicado no existe.");
+    return;
+  }
+  if (status.workspace?.id !== workspaceId) {
+    addValidationError(
+      "El estado CRM debe pertenecer al mismo workspace que el registro."
+    );
+  }
+}
+
+// models/Tech/FollowUpTask/TechFollowUpTask.hooks.ts
+var followUpTaskHooks = {
+  validateInput: async ({
+    context,
+    resolvedData,
+    item,
+    addValidationError
+  }) => {
+    await validateTechStatusCrmInput({
+      context,
+      resolvedData,
+      item,
+      listKey: "TechFollowUpTask",
+      addValidationError
+    });
   }
 };
 
@@ -3105,6 +3233,7 @@ var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
 }));
 var TechFollowUpTask_default = (0, import_core40.list)({
   access: followUpTaskAccess,
+  hooks: followUpTaskHooks,
   ui: {
     listView: {
       initialColumns: [
@@ -3141,7 +3270,21 @@ var TechFollowUpTask_default = (0, import_core40.list)({
       ref: "User.followUpTasks",
       many: false
     }),
+    workspace: (0, import_fields40.relationship)({
+      ref: "SaasWorkspace.followUpTasks",
+      many: false,
+      ui: { description: "Workspace a la que pertenece la tarea" }
+    }),
+    statusCrm: (0, import_fields40.relationship)({
+      ref: "SaasWorkspaceCrmStatus.followUpTasks",
+      many: false,
+      ui: { description: "Estado CRM din\xE1mico (workspace + tipo tarea)" }
+    }),
     notes: (0, import_fields40.text)({ ui: { displayMode: "textarea" } }),
+    hiddenInWorkspace: (0, import_fields40.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en el workspace" }
+    }),
     createdAt: (0, import_fields40.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -3164,22 +3307,37 @@ var import_core41 = require("@keystone-6/core");
 var import_fields41 = require("@keystone-6/core/fields");
 
 // models/Tech/Proposal/TechProposal.access.ts
+var getCompanyId3 = (session2) => session2?.data?.company?.id;
 var proposalAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => !!getCompanyId3(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2)
   }
 };
 
 // models/Tech/Proposal/TechProposal.hooks.ts
 var proposalHooks = {
+  validateInput: async ({
+    context,
+    resolvedData,
+    item,
+    addValidationError
+  }) => {
+    await validateTechStatusCrmInput({
+      context,
+      resolvedData,
+      item,
+      listKey: "TechProposal",
+      addValidationError
+    });
+  },
   afterOperation: async ({
     operation,
     item,
@@ -3266,10 +3424,24 @@ var TechProposal_default = (0, import_core41.list)({
       ref: "User.proposals",
       many: false
     }),
+    workspace: (0, import_fields41.relationship)({
+      ref: "SaasWorkspace.proposals",
+      many: false,
+      ui: { description: "Workspace a la que pertenece la propuesta" }
+    }),
+    statusCrm: (0, import_fields41.relationship)({
+      ref: "SaasWorkspaceCrmStatus.proposals",
+      many: false,
+      ui: { description: "Estado CRM din\xE1mico (workspace + tipo propuesta)" }
+    }),
     project: (0, import_fields41.relationship)({
       ref: "SaasProject.proposal",
       many: false,
       ui: { description: "Proyecto creado a partir de esta propuesta" }
+    }),
+    hiddenInWorkspace: (0, import_fields41.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en el workspace" }
     }),
     createdAt: (0, import_fields41.timestamp)({
       defaultValue: { kind: "now" },
@@ -3293,17 +3465,36 @@ var import_core42 = require("@keystone-6/core");
 var import_fields42 = require("@keystone-6/core/fields");
 
 // models/Tech/SalesActivity/TechSalesActivity.access.ts
+var getCompanyId4 = (session2) => session2?.data?.company?.id;
 var salesActivityAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => !!getCompanyId4(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2)
+  }
+};
+
+// models/Tech/SalesActivity/TechSalesActivity.hooks.ts
+var salesActivityHooks = {
+  validateInput: async ({
+    context,
+    resolvedData,
+    item,
+    addValidationError
+  }) => {
+    await validateTechStatusCrmInput({
+      context,
+      resolvedData,
+      item,
+      listKey: "TechSalesActivity",
+      addValidationError
+    });
   }
 };
 
@@ -3316,6 +3507,7 @@ var activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
 );
 var TechSalesActivity_default = (0, import_core42.list)({
   access: salesActivityAccess,
+  hooks: salesActivityHooks,
   ui: {
     listView: {
       initialColumns: [
@@ -3348,6 +3540,20 @@ var TechSalesActivity_default = (0, import_core42.list)({
       ref: "User.salesActivities",
       many: false
     }),
+    workspace: (0, import_fields42.relationship)({
+      ref: "SaasWorkspace.salesActivities",
+      many: false,
+      ui: { description: "Workspace a la que pertenece la actividad" }
+    }),
+    statusCrm: (0, import_fields42.relationship)({
+      ref: "SaasWorkspaceCrmStatus.salesActivities",
+      many: false,
+      ui: { description: "Estado CRM din\xE1mico (workspace + tipo actividad)" }
+    }),
+    hiddenInWorkspace: (0, import_fields42.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en el workspace" }
+    }),
     createdAt: (0, import_fields42.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -3363,27 +3569,27 @@ var import_core43 = require("@keystone-6/core");
 var import_fields43 = require("@keystone-6/core/fields");
 
 // models/Tech/TechFiles/TechFiles.access.ts
-var getCompanyId = (session2) => session2?.data?.company?.id;
+var getCompanyId5 = (session2) => session2?.data?.company?.id;
 var techFilesAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId(session2),
+    create: ({ session: session2 }) => !!getCompanyId5(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId(session2);
+      const companyId = getCompanyId5(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId(session2);
+      const companyId = getCompanyId5(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId(session2);
+      const companyId = getCompanyId5(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -3456,7 +3662,7 @@ var import_core44 = require("@keystone-6/core");
 var import_fields44 = require("@keystone-6/core/fields");
 
 // models/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
-var getCompanyId2 = (session2) => session2?.data?.company?.id;
+var getCompanyId6 = (session2) => session2?.data?.company?.id;
 var techLeadSyncLogAccess = {
   operation: {
     query: () => true,
@@ -3469,7 +3675,7 @@ var techLeadSyncLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId2(session2);
+      const companyId = getCompanyId6(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -3478,7 +3684,7 @@ var techLeadSyncLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId2(session2);
+      const companyId = getCompanyId6(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -3571,7 +3777,7 @@ var import_core45 = require("@keystone-6/core");
 var import_fields45 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
-var getCompanyId3 = (session2) => session2?.data?.company?.id;
+var getCompanyId7 = (session2) => session2?.data?.company?.id;
 var saasCompanyAccess = {
   operation: {
     query: () => true,
@@ -3584,7 +3790,7 @@ var saasCompanyAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId3(session2);
+      const companyId = getCompanyId7(session2);
       if (!companyId) return false;
       return { id: { equals: companyId } };
     },
@@ -3592,7 +3798,7 @@ var saasCompanyAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId3(session2);
+      const companyId = getCompanyId7(session2);
       if (!companyId) return false;
       return { id: { equals: companyId } };
     },
@@ -3721,6 +3927,11 @@ var SaasCompany_default = (0, import_core45.list)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
+    }),
+    workspaces: (0, import_fields45.relationship)({
+      ref: "SaasWorkspace.company",
+      many: true,
+      ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
     }),
     allowedGooglePlaceCategories: (0, import_fields45.json)({
       ui: {
@@ -4035,11 +4246,11 @@ var import_core47 = require("@keystone-6/core");
 var import_fields47 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
-var getCompanyId4 = (session2) => session2?.data?.company?.id;
+var getCompanyId8 = (session2) => session2?.data?.company?.id;
 var saasCompanyMonthlyLeadSyncAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId4(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId8(session2),
     update: () => true,
     delete: () => true
   },
@@ -4048,7 +4259,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4056,7 +4267,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4064,7 +4275,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4115,11 +4326,11 @@ var import_core48 = require("@keystone-6/core");
 var import_fields48 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
-var getCompanyId5 = (session2) => session2?.data?.company?.id;
+var getCompanyId9 = (session2) => session2?.data?.company?.id;
 var saasCompanySubscriptionAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId5(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId9(session2),
     update: () => true,
     delete: () => true
   },
@@ -4128,7 +4339,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4136,7 +4347,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4144,7 +4355,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4270,15 +4481,15 @@ var import_core49 = require("@keystone-6/core");
 var import_fields49 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
-var getCompanyId6 = (session2) => session2?.data?.company?.id;
-var getUserId = (session2) => session2?.data?.id;
+var getCompanyId10 = (session2) => session2?.data?.company?.id;
+var getUserId2 = (session2) => session2?.data?.id;
 function paymentMethodFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const userId = getUserId(session2);
+  const userId = getUserId2(session2);
   if (!userId) return false;
-  const companyId = getCompanyId6(session2);
+  const companyId = getCompanyId10(session2);
   if (companyId) {
     return { user: { company: { id: { equals: companyId } } } };
   }
@@ -4287,7 +4498,7 @@ function paymentMethodFilter(session2) {
 var saasPaymentMethodAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId2(session2),
     update: () => true,
     delete: () => true
   },
@@ -4380,15 +4591,15 @@ var import_core50 = require("@keystone-6/core");
 var import_fields50 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
-var getCompanyId7 = (session2) => session2?.data?.company?.id;
-var getUserId2 = (session2) => session2?.data?.id;
+var getCompanyId11 = (session2) => session2?.data?.company?.id;
+var getUserId3 = (session2) => session2?.data?.id;
 function paymentFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const userId = getUserId2(session2);
+  const userId = getUserId3(session2);
   if (!userId) return false;
-  const companyId = getCompanyId7(session2);
+  const companyId = getCompanyId11(session2);
   if (companyId) {
     return { user: { company: { id: { equals: companyId } } } };
   }
@@ -4397,7 +4608,7 @@ function paymentFilter(session2) {
 var saasPaymentAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId2(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId3(session2),
     update: () => true,
     delete: () => true
   },
@@ -4506,27 +4717,27 @@ var import_core51 = require("@keystone-6/core");
 var import_fields51 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
-var getCompanyId8 = (session2) => session2?.data?.company?.id;
+var getCompanyId12 = (session2) => session2?.data?.company?.id;
 var projectAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId8(session2),
+    create: ({ session: session2 }) => !!getCompanyId12(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId8(session2);
+      const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId8(session2);
+      const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId8(session2);
+      const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4647,27 +4858,27 @@ var import_core52 = require("@keystone-6/core");
 var import_fields52 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
-var getCompanyId9 = (session2) => session2?.data?.company?.id;
+var getCompanyId13 = (session2) => session2?.data?.company?.id;
 var quotationAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId9(session2),
+    create: ({ session: session2 }) => !!getCompanyId13(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId9(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId9(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId9(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4914,27 +5125,27 @@ var import_core53 = require("@keystone-6/core");
 var import_fields53 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
-var getCompanyId10 = (session2) => session2?.data?.company?.id;
+var getCompanyId14 = (session2) => session2?.data?.company?.id;
 var quotationProductAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId10(session2),
+    create: ({ session: session2 }) => !!getCompanyId14(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId10(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId10(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId10(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     }
@@ -5176,15 +5387,15 @@ var import_core54 = require("@keystone-6/core");
 var import_fields54 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
-var getCompanyId11 = (session2) => session2?.data?.company?.id;
-var getUserId3 = (session2) => session2?.data?.id;
+var getCompanyId15 = (session2) => session2?.data?.company?.id;
+var getUserId4 = (session2) => session2?.data?.id;
 function referralCommissionFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const userId = getUserId3(session2);
+  const userId = getUserId4(session2);
   if (!userId) return false;
-  const companyId = getCompanyId11(session2);
+  const companyId = getCompanyId15(session2);
   const orClause = [
     { referrer: { id: { equals: userId } } },
     { referredUser: { id: { equals: userId } } }
@@ -5322,7 +5533,7 @@ var import_core55 = require("@keystone-6/core");
 var import_fields55 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
-var getCompanyId12 = (session2) => session2?.data?.company?.id;
+var getCompanyId16 = (session2) => session2?.data?.company?.id;
 var saasSubscriptionLogAccess = {
   operation: {
     query: () => true,
@@ -5335,7 +5546,7 @@ var saasSubscriptionLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId12(session2);
+      const companyId = getCompanyId16(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -5344,7 +5555,7 @@ var saasSubscriptionLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId12(session2);
+      const companyId = getCompanyId16(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -5438,6 +5649,471 @@ var SaasSubscriptionLog_default = (0, import_core55.list)({
   }
 });
 
+// models/Saas/SaasWorkspace/SaasWorkspace.ts
+var import_core56 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasWorkspace/SaasWorkspace.access.ts
+var getCompanyId17 = (session2) => session2?.data?.company?.id;
+var saasWorkspaceAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId17(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId17(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId17(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId17(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// models/Saas/SaasWorkspace/SaasWorkspace.hooks.ts
+var DEFAULT_SEED_ROWS = [
+  {
+    key: "TODO",
+    name: "Por Hacer",
+    color: "#6B7280",
+    order: 1,
+    isDefault: true
+  },
+  {
+    key: "IN_PROGRESS",
+    name: "En progreso",
+    color: "#2563EB",
+    order: 2,
+    isDefault: false
+  },
+  {
+    key: "COMPLETED",
+    name: "Completado",
+    color: "#22C55E",
+    order: 3,
+    isDefault: false
+  },
+  {
+    key: "CANCELLED",
+    name: "Cancelado",
+    color: "#EF4444",
+    order: 4,
+    isDefault: false
+  }
+];
+var saasWorkspaceSeedCrmStatusesHook = {
+  afterOperation: async ({ operation, item, context }) => {
+    if (operation !== "create" || !item?.id) return;
+    const sudo = context.sudo();
+    try {
+      for (const row of DEFAULT_SEED_ROWS) {
+        await sudo.db.SaasWorkspaceCrmStatus.createOne({
+          data: {
+            workspace: { connect: { id: item.id } },
+            name: row.name,
+            color: row.color,
+            key: row.key,
+            order: row.order,
+            isDefault: row.isDefault,
+            isArchived: false
+          }
+        });
+      }
+    } catch (e) {
+      console.error(
+        "Error creando estados CRM por defecto para SaasWorkspace:",
+        e
+      );
+    }
+  }
+};
+
+// models/Saas/SaasWorkspace/SaasWorkspace.ts
+var SaasWorkspace_default = (0, import_core56.list)({
+  access: saasWorkspaceAccess,
+  hooks: {
+    afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
+  },
+  ui: {
+    listView: {
+      initialColumns: ["name", "company", "members"]
+    }
+  },
+  fields: {
+    name: (0, import_fields56.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
+    }),
+    showActivities: (0, import_fields56.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar actividades de CRM en este workspace" }
+    }),
+    showProposals: (0, import_fields56.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar propuestas de CRM en este workspace" }
+    }),
+    showFollowUpTasks: (0, import_fields56.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
+    }),
+    company: (0, import_fields56.relationship)({
+      ref: "SaasCompany.workspaces",
+      many: false,
+      ui: { description: "Empresa (tenant) a la que pertenece" }
+    }),
+    members: (0, import_fields56.relationship)({
+      ref: "User.workspaces",
+      many: true,
+      ui: { description: "Usuarios con acceso a este workspace" }
+    }),
+    salesActivities: (0, import_fields56.relationship)({
+      ref: "TechSalesActivity.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Actividades de CRM" }
+    }),
+    proposals: (0, import_fields56.relationship)({
+      ref: "TechProposal.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Propuestas de CRM" }
+    }),
+    followUpTasks: (0, import_fields56.relationship)({
+      ref: "TechFollowUpTask.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
+    }),
+    crmStatuses: (0, import_fields56.relationship)({
+      ref: "SaasWorkspaceCrmStatus.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
+    })
+  }
+});
+
+// models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
+var getCompanyId18 = (session2) => session2?.data?.company?.id;
+var companyWorkspaceFilter = (companyId) => ({
+  workspace: { company: { id: { equals: companyId } } }
+});
+var saasWorkspaceCrmStatusAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId18(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId18(session2);
+      if (!companyId) return false;
+      return companyWorkspaceFilter(companyId);
+    },
+    update: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId18(session2);
+      if (!companyId) return false;
+      return companyWorkspaceFilter(companyId);
+    },
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId18(session2);
+      if (!companyId) return false;
+      return companyWorkspaceFilter(companyId);
+    }
+  }
+};
+
+// utils/validation/crmStatusCrmHexColor.ts
+var CRM_STATUS_HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
+function isValidCrmStatusHexColor(color) {
+  return CRM_STATUS_HEX_COLOR_REGEX.test(color.trim());
+}
+
+// models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.hooks.ts
+async function reassignRelatedToDefaultStatusCrm(context, fromStatusId, workspaceId) {
+  const sudo = context.sudo();
+  const [defaultRow] = await sudo.query.SaasWorkspaceCrmStatus.findMany({
+    where: {
+      workspace: { id: { equals: workspaceId } },
+      isDefault: { equals: true }
+    },
+    take: 1,
+    query: "id"
+  });
+  let targetId = defaultRow?.id;
+  if (!targetId) {
+    const [fallback] = await sudo.query.SaasWorkspaceCrmStatus.findMany({
+      where: {
+        workspace: { id: { equals: workspaceId } },
+        id: { not: { equals: fromStatusId } }
+      },
+      orderBy: [{ order: "asc" }],
+      take: 1,
+      query: "id"
+    });
+    targetId = fallback?.id;
+  }
+  if (!targetId) {
+    throw new Error(
+      "No hay otro estado CRM en este workspace; no se puede eliminar este estado hasta crear otro o marcar uno como predeterminado."
+    );
+  }
+  const taskRows = await sudo.query.TechFollowUpTask.findMany({
+    where: { statusCrm: { id: { equals: fromStatusId } } },
+    query: "id"
+  });
+  for (const row of taskRows) {
+    await sudo.db.TechFollowUpTask.updateOne({
+      where: { id: row.id },
+      data: { statusCrm: { connect: { id: targetId } } }
+    });
+  }
+  const proposalRows = await sudo.query.TechProposal.findMany({
+    where: { statusCrm: { id: { equals: fromStatusId } } },
+    query: "id"
+  });
+  for (const row of proposalRows) {
+    await sudo.db.TechProposal.updateOne({
+      where: { id: row.id },
+      data: { statusCrm: { connect: { id: targetId } } }
+    });
+  }
+  const activityRows = await sudo.query.TechSalesActivity.findMany({
+    where: { statusCrm: { id: { equals: fromStatusId } } },
+    query: "id"
+  });
+  for (const row of activityRows) {
+    await sudo.db.TechSalesActivity.updateOne({
+      where: { id: row.id },
+      data: { statusCrm: { connect: { id: targetId } } }
+    });
+  }
+}
+async function clearOtherDefaults(args) {
+  const { context, workspaceId, exceptId } = args;
+  const sudo = context.sudo();
+  const others = await sudo.query.SaasWorkspaceCrmStatus.findMany({
+    where: {
+      workspace: { id: { equals: workspaceId } },
+      id: { not: { equals: exceptId } }
+    },
+    query: "id"
+  });
+  for (const row of others) {
+    await sudo.db.SaasWorkspaceCrmStatus.updateOne({
+      where: { id: row.id },
+      data: { isDefault: false }
+    });
+  }
+}
+var saasWorkspaceCrmStatusHooks = {
+  validateDelete: async ({ item, context, addValidationError }) => {
+    if (!item?.id) return;
+    const row = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+      where: { id: item.id },
+      query: "id isDefault"
+    });
+    if (row?.isDefault === true) {
+      addValidationError(
+        "No puedes eliminar el estado CRM por defecto. Marca otro estado como predeterminado (isDefault) antes de eliminar este."
+      );
+    }
+  },
+  beforeOperation: async ({ operation, item, context }) => {
+    if (operation !== "delete" || !item?.id) return;
+    const deleting = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+      where: { id: item.id },
+      query: "id isDefault workspace { id }"
+    });
+    if (!deleting) {
+      return;
+    }
+    if (deleting.isDefault === true) {
+      throw new Error(
+        "No puedes eliminar el estado CRM por defecto. Marca otro estado como predeterminado (isDefault) antes de eliminar este."
+      );
+    }
+    const workspaceId = deleting.workspace?.id;
+    if (!workspaceId) {
+      return;
+    }
+    await reassignRelatedToDefaultStatusCrm(context, deleting.id, workspaceId);
+  },
+  validateInput: async ({
+    operation,
+    resolvedData,
+    context,
+    addValidationError,
+    item
+  }) => {
+    if (resolvedData?.color !== void 0 && resolvedData.color !== null) {
+      const color = String(resolvedData.color).trim();
+      if (!isValidCrmStatusHexColor(color)) {
+        addValidationError(
+          'El color debe ser un hex v\xE1lido de 6 d\xEDgitos (ej. "#2563EB").'
+        );
+      }
+    }
+    if (operation === "create") {
+      const workspaceConnectId = typeof resolvedData?.workspace?.connect?.id === "string" ? resolvedData.workspace.connect.id : void 0;
+      const key = typeof resolvedData?.key === "string" ? resolvedData.key : void 0;
+      if (workspaceConnectId && key) {
+        const dup = await context.sudo().query.SaasWorkspaceCrmStatus.findMany({
+          where: {
+            workspace: { id: { equals: workspaceConnectId } },
+            key: { equals: key }
+          },
+          take: 1,
+          query: "id"
+        });
+        if (dup.length > 0) {
+          addValidationError(
+            "Ya existe un estado CRM con esa clave (key) para este workspace."
+          );
+        }
+      }
+    }
+    if (operation === "update" && resolvedData?.key !== void 0) {
+      const full = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+        where: { id: item?.id },
+        query: "id workspace { id } key"
+      });
+      if (full?.workspace?.id) {
+        const dup = await context.sudo().query.SaasWorkspaceCrmStatus.findMany({
+          where: {
+            workspace: { id: { equals: full.workspace.id } },
+            key: { equals: String(resolvedData.key) },
+            id: { not: { equals: item.id } }
+          },
+          take: 1,
+          query: "id"
+        });
+        if (dup.length > 0) {
+          addValidationError(
+            "Ya existe un estado CRM con esa clave (key) para este workspace."
+          );
+        }
+      }
+    }
+  },
+  afterOperation: async ({
+    operation,
+    item,
+    resolvedData,
+    context
+  }) => {
+    if (operation !== "create" && operation !== "update" || !item?.id) {
+      return;
+    }
+    if (resolvedData?.isDefault !== true) return;
+    const full = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+      where: { id: item.id },
+      query: "id workspace { id }"
+    });
+    if (!full?.workspace?.id) return;
+    await clearOtherDefaults({
+      context,
+      workspaceId: full.workspace.id,
+      exceptId: item.id
+    });
+  }
+};
+
+// models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
+var SaasWorkspaceCrmStatus_default = (0, import_core57.list)({
+  access: saasWorkspaceCrmStatusAccess,
+  hooks: saasWorkspaceCrmStatusHooks,
+  ui: {
+    listView: {
+      initialColumns: ["name", "key", "color", "order", "workspace"]
+    }
+  },
+  fields: {
+    workspace: (0, import_fields57.relationship)({
+      ref: "SaasWorkspace.crmStatuses",
+      many: false,
+      ui: { description: "Workspace al que pertenece este estado" }
+    }),
+    name: (0, import_fields57.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Nombre visible (p. ej. Kanban)" }
+    }),
+    color: (0, import_fields57.text)({
+      validation: { isRequired: true },
+      ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
+    }),
+    key: (0, import_fields57.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
+      }
+    }),
+    order: (0, import_fields57.integer)({
+      defaultValue: 0,
+      isIndexed: true,
+      ui: { description: "Orden en la UI (menor primero)" }
+    }),
+    isDefault: (0, import_fields57.checkbox)({
+      defaultValue: false,
+      ui: {
+        description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
+      }
+    }),
+    isArchived: (0, import_fields57.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en selectores sin borrar historial" }
+    }),
+    followUpTasks: (0, import_fields57.relationship)({
+      ref: "TechFollowUpTask.statusCrm",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    proposals: (0, import_fields57.relationship)({
+      ref: "TechProposal.statusCrm",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    salesActivities: (0, import_fields57.relationship)({
+      ref: "TechSalesActivity.statusCrm",
+      many: true,
+      ui: { hideCreate: true }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   Ad: Ad_default,
@@ -5480,6 +6156,8 @@ var schema_default = {
   SaasQuotationProduct: SaasQuotationProduct_default,
   SaasReferralCommission: SaasReferralCommission_default,
   SaasSubscriptionLog: SaasSubscriptionLog_default,
+  SaasWorkspace: SaasWorkspace_default,
+  SaasWorkspaceCrmStatus: SaasWorkspaceCrmStatus_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
   SystemRelease: SystemRelease_default,
@@ -5498,7 +6176,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core56 = require("@keystone-6/core");
+var import_core58 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -6296,8 +6974,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text45 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text45}`;
+  const text47 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text47}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -6812,6 +7490,7 @@ var resolver6 = {
             rating: details.rating ?? null,
             reviewCount: details.user_ratings_total ?? null,
             hasWebsite: !!details.website,
+            websiteUrl: details.website || "",
             source: "Google Maps",
             googlePlaceId: placeId,
             googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
@@ -6934,8 +7613,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text45 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text45}`;
+  const text47 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text47}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -8819,7 +9498,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core56.config)({
+  (0, import_core58.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

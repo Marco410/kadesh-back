@@ -1,10 +1,25 @@
 import { PROPOSAL_STATUS } from "../crm/constants";
 import { PIPELINE_STATUS } from "../crm/constants";
+import { validateTechStatusCrmInput } from "../../../utils/validation/validateTechStatusCrm";
 
 /**
  * Cuando una propuesta pasa a "Aceptada", marcar el BusinessLead como "Cerrado Ganado".
  */
 export const proposalHooks = {
+  validateInput: async ({
+    context,
+    resolvedData,
+    item,
+    addValidationError,
+  }: any) => {
+    await validateTechStatusCrmInput({
+      context,
+      resolvedData,
+      item,
+      listKey: "TechProposal",
+      addValidationError,
+    });
+  },
   afterOperation: async ({
     operation,
     item,

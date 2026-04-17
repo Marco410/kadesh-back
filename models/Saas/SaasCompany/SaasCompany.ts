@@ -41,6 +41,11 @@ export default list({
       many: true,
       ui: { description: "Users belonging to this company" },
     }),
+    workspaces: relationship({
+      ref: "SaasWorkspace.company",
+      many: true,
+      ui: { description: "Espacios de trabajo (áreas) de la empresa" },
+    }),
 
     allowedGooglePlaceCategories: json({
       ui: {
