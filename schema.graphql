@@ -5091,8 +5091,11 @@ input TechProposalCreateInput {
 
 type TechSalesActivity {
   id: ID!
+  title: String
   type: String
   activityDate: DateTime
+  dueDate: CalendarDay
+  priority: String
   result: String
   comments: String
   businessLead: TechBusinessLead
@@ -5112,8 +5115,11 @@ input TechSalesActivityWhereInput {
   OR: [TechSalesActivityWhereInput!]
   NOT: [TechSalesActivityWhereInput!]
   id: IDFilter
+  title: StringFilter
   type: StringFilter
   activityDate: DateTimeFilter
+  dueDate: CalendarDayNullableFilter
+  priority: StringNullableFilter
   result: StringFilter
   comments: StringFilter
   businessLead: TechBusinessLeadWhereInput
@@ -5126,8 +5132,11 @@ input TechSalesActivityWhereInput {
 
 input TechSalesActivityOrderByInput {
   id: OrderDirection
+  title: OrderDirection
   type: OrderDirection
   activityDate: OrderDirection
+  dueDate: OrderDirection
+  priority: OrderDirection
   result: OrderDirection
   comments: OrderDirection
   hiddenInWorkspace: OrderDirection
@@ -5135,8 +5144,11 @@ input TechSalesActivityOrderByInput {
 }
 
 input TechSalesActivityUpdateInput {
+  title: String
   type: String
   activityDate: DateTime
+  dueDate: CalendarDay
+  priority: String
   result: String
   comments: String
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
@@ -5153,8 +5165,11 @@ input TechSalesActivityUpdateArgs {
 }
 
 input TechSalesActivityCreateInput {
+  title: String
   type: String
   activityDate: DateTime
+  dueDate: CalendarDay
+  priority: String
   result: String
   comments: String
   businessLead: TechBusinessLeadRelateToOneForCreateInput

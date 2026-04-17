@@ -2792,7 +2792,8 @@ var SALES_ACTIVITY_TYPE = {
   LLAMADA: "Llamada",
   WHATSAPP: "WhatsApp",
   EMAIL: "Email",
-  REUNION: "Reuni\xF3n"
+  REUNION: "Reuni\xF3n",
+  OTRA: "Otra"
 };
 var PROPOSAL_STATUS = {
   ENVIADA: "Enviada",
@@ -3505,6 +3506,10 @@ var activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
     value: v
   })
 );
+var priorityOptions2 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
 var TechSalesActivity_default = (0, import_core42.list)({
   access: salesActivityAccess,
   hooks: salesActivityHooks,
@@ -3513,13 +3518,18 @@ var TechSalesActivity_default = (0, import_core42.list)({
       initialColumns: [
         "type",
         "activityDate",
+        "dueDate",
+        "priority",
         "result",
         "businessLead",
-        "assignedSeller"
+        "responsible"
       ]
     }
   },
   fields: {
+    title: (0, import_fields42.text)({
+      ui: { description: "T\xEDtulo de la actividad" }
+    }),
     type: (0, import_fields42.select)({
       type: "string",
       options: activityTypeOptions,
@@ -3529,6 +3539,16 @@ var TechSalesActivity_default = (0, import_core42.list)({
     activityDate: (0, import_fields42.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
+    }),
+    dueDate: (0, import_fields42.calendarDay)({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "Deadline for this activity" }
+    }),
+    priority: (0, import_fields42.select)({
+      type: "string",
+      options: priorityOptions2,
+      defaultValue: TASK_PRIORITY.MEDIA
     }),
     result: (0, import_fields42.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
     comments: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
@@ -3854,6 +3874,15 @@ var saasCompanySubscriptionHook = {
           }
         }
       }
+      await context.sudo().query.SaasWorkspace.createOne({
+        data: {
+          name: "Ventas",
+          company: { connect: { id: item.id } },
+          ...createdByUserId && {
+            members: { connect: [{ id: createdByUserId }] }
+          }
+        }
+      });
       const [freePlan] = await context.sudo().query.SaasPlan.findMany({
         where: { cost: { equals: 0 } },
         take: 1,

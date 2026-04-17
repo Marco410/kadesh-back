@@ -2,7 +2,7 @@ import { SUBSCRIPTION_STATUS } from "../SaasCompanySubscription/constants";
 import { Role } from "../../Role/constants";
 import { TRIAL_DAYS_FREE_PLAN } from "../../../utils/constants/constants";
 
-/** On SaasCompany create: assign free plan (cost = 0), create a SaasCompanySubscription, and assign Admin (Company) role to the creator. */
+/** On SaasCompany create: default "Ventas" workspace, assign free plan (cost = 0), SaasCompanySubscription, and Admin (Company) role to the creator. */
 export const saasCompanySubscriptionHook = {
   afterOperation: async ({ operation, item, context }: any) => {
     if (operation !== "create" || !item?.id) return;
@@ -30,6 +30,17 @@ export const saasCompanySubscriptionHook = {
           }
         }
       }
+
+      await context.sudo().query.SaasWorkspace.createOne({
+        data: {
+          name: "Ventas",
+          company: { connect: { id: item.id } },
+          ...(createdByUserId && {
+            members: { connect: [{ id: createdByUserId }] },
+          }),
+        },
+      });
+
       const [freePlan] = await context.sudo().query.SaasPlan.findMany({
         where: { cost: { equals: 0 } },
         take: 1,

@@ -987,8 +987,11 @@ model TechProposal {
 
 model TechSalesActivity {
   id                String                  @id @default(cuid())
+  title             String                  @default("")
   type              String
   activityDate      DateTime                @default(now())
+  dueDate           DateTime?               @postgresql.Date
+  priority          String?                 @default("Media")
   result            String                  @default("")
   comments          String                  @default("")
   businessLead      TechBusinessLead?       @relation("TechSalesActivity_businessLead", fields: [businessLeadId], references: [id])
@@ -1003,6 +1006,7 @@ model TechSalesActivity {
   createdAt         DateTime?               @default(now())
 
   @@index([type])
+  @@index([dueDate])
   @@index([businessLeadId])
   @@index([assignedSellerId])
   @@index([workspaceId])

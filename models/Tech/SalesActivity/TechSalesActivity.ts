@@ -1,7 +1,14 @@
 import { list } from "@keystone-6/core";
-import { text, timestamp, select, relationship, checkbox } from "@keystone-6/core/fields";
+import {
+  text,
+  timestamp,
+  select,
+  relationship,
+  checkbox,
+  calendarDay,
+} from "@keystone-6/core/fields";
 import { salesActivityAccess } from "./TechSalesActivity.access";
-import { SALES_ACTIVITY_TYPE } from "../crm/constants";
+import { SALES_ACTIVITY_TYPE, TASK_PRIORITY } from "../crm/constants";
 import { salesActivityHooks } from "./TechSalesActivity.hooks";
 
 const activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
@@ -10,6 +17,10 @@ const activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
     value: v,
   }),
 );
+const priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
+  label: v,
+  value: v,
+}));
 
 export default list({
   access: salesActivityAccess,
@@ -19,13 +30,18 @@ export default list({
       initialColumns: [
         "type",
         "activityDate",
+        "dueDate",
+        "priority",
         "result",
         "businessLead",
-        "assignedSeller",
+        "responsible",
       ],
     },
   },
   fields: {
+    title: text({
+      ui: { description: "Título de la actividad" },
+    }),
     type: select({
       type: "string",
       options: activityTypeOptions,
@@ -35,6 +51,16 @@ export default list({
     activityDate: timestamp({
       defaultValue: { kind: "now" },
       validation: { isRequired: true },
+    }),
+    dueDate: calendarDay({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "Deadline for this activity" },
+    }),
+    priority: select({
+      type: "string",
+      options: priorityOptions,
+      defaultValue: TASK_PRIORITY.MEDIA,
     }),
     result: text({ ui: { description: "Resultado de la interacción" } }),
     comments: text({ ui: { displayMode: "textarea" } }),
