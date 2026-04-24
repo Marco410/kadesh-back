@@ -11,8 +11,7 @@ const getCompanyId = (session: any) => session?.data?.company?.id;
 export const saasCompanySubscriptionAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
-    create: ({ session }: any) =>
-      hasRole(session, [Role.ADMIN]) || !!getCompanyId(session),
+    create: ({ session }: any) => !!getCompanyId(session),
     update: () => true,
     delete: () => true,
   },
