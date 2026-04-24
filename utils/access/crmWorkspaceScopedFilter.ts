@@ -6,7 +6,7 @@ const getCompanyId = (session: any) =>
 const getUserId = (session: any) => session?.data?.id as string | undefined;
 
 /**
- * Items CRM (actividad, propuesta, follow-up) visibles si:
+ * Items CRM (actividad de venta, tarea de workspace, propuesta, follow-up) visibles si:
  * - sin workspace y el lead pertenece a la empresa del usuario, o
  * - con workspace donde el usuario es miembro y el workspace es de su empresa.
  */

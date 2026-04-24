@@ -40,6 +40,7 @@ import TechStatusBusinessLead from "./Tech/StatusBusinessLead/TechStatusBusiness
 import TechFollowUpTask from "./Tech/FollowUpTask/TechFollowUpTask";
 import TechProposal from "./Tech/Proposal/TechProposal";
 import TechSalesActivity from "./Tech/SalesActivity/TechSalesActivity";
+import TechTask from "./Tech/Task/TechTask";
 import TechFile from "./Tech/TechFiles/TechFiles";
 import TechLeadSyncLog from "./Tech/LeadSyncLog/TechLeadSyncLog";
 import SaasCompany from "./Saas/SaasCompany/SaasCompany";
@@ -109,6 +110,7 @@ export default {
   TechFollowUpTask,
   TechProposal,
   TechSalesActivity,
+  TechTask,
   TechStatusBusinessLead,
   TokenNotification,
   User,

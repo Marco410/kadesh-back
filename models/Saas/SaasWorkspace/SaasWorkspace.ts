@@ -31,6 +31,10 @@ export default list({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" },
     }),
+    showTasks: checkbox({
+      defaultValue: true,
+      ui: { description: "Mostrar tareas de workspace en este workspace" },
+    }),
     company: relationship({
       ref: "SaasCompany.workspaces",
       many: false,
@@ -45,6 +49,11 @@ export default list({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" },
+    }),
+    tasks: relationship({
+      ref: "TechTask.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de workspace (CRM)" },
     }),
     proposals: relationship({
       ref: "TechProposal.workspace",

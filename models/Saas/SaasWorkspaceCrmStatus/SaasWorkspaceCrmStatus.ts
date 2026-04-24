@@ -70,5 +70,10 @@ export default list({
       many: true,
       ui: { hideCreate: true },
     }),
+    tasks: relationship({
+      ref: "TechTask.statusCrm",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de workspace en este estado" },
+    }),
   },
 });

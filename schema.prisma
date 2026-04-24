@@ -766,10 +766,12 @@ model SaasWorkspace {
   showActivities    Boolean                  @default(true)
   showProposals     Boolean                  @default(true)
   showFollowUpTasks Boolean                  @default(true)
+  showTasks         Boolean                  @default(true)
   company           SaasCompany?             @relation("SaasWorkspace_company", fields: [companyId], references: [id])
   companyId         String?                  @map("company")
   members           User[]                   @relation("SaasWorkspace_members")
   salesActivities   TechSalesActivity[]      @relation("TechSalesActivity_workspace")
+  tasks             TechTask[]               @relation("TechTask_workspace")
   proposals         TechProposal[]           @relation("TechProposal_workspace")
   followUpTasks     TechFollowUpTask[]       @relation("TechFollowUpTask_workspace")
   crmStatuses       SaasWorkspaceCrmStatus[] @relation("SaasWorkspaceCrmStatus_workspace")
@@ -791,6 +793,7 @@ model SaasWorkspaceCrmStatus {
   followUpTasks   TechFollowUpTask[]  @relation("TechFollowUpTask_statusCrm")
   proposals       TechProposal[]      @relation("TechProposal_statusCrm")
   salesActivities TechSalesActivity[] @relation("TechSalesActivity_statusCrm")
+  tasks           TechTask[]          @relation("TechTask_statusCrm")
 
   @@index([workspaceId])
   @@index([name])
@@ -870,6 +873,7 @@ model TechBusinessLead {
   topReview5           String                   @default("")
   websitePromptContent String                   @default("")
   activities           TechSalesActivity[]      @relation("TechSalesActivity_businessLead")
+  tasks                TechTask[]               @relation("TechTask_businessLead")
   proposals            TechProposal[]           @relation("TechProposal_businessLead")
   projects             SaasProject[]            @relation("SaasProject_businessLead")
   followUpTasks        TechFollowUpTask[]       @relation("TechFollowUpTask_businessLead")
@@ -1013,6 +1017,32 @@ model TechSalesActivity {
   @@index([statusCrmId])
 }
 
+model TechTask {
+  id                String                  @id @default(cuid())
+  title             String                  @default("")
+  startDate         DateTime                @default(now())
+  dueDate           DateTime?
+  priority          String?                 @default("Media")
+  result            String                  @default("")
+  comments          String                  @default("")
+  businessLead      TechBusinessLead?       @relation("TechTask_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId    String?                 @map("businessLead")
+  responsible       User?                   @relation("TechTask_responsible", fields: [responsibleId], references: [id])
+  responsibleId     String?                 @map("responsible")
+  workspace         SaasWorkspace?          @relation("TechTask_workspace", fields: [workspaceId], references: [id])
+  workspaceId       String?                 @map("workspace")
+  statusCrm         SaasWorkspaceCrmStatus? @relation("TechTask_statusCrm", fields: [statusCrmId], references: [id])
+  statusCrmId       String?                 @map("statusCrm")
+  hiddenInWorkspace Boolean                 @default(false)
+  createdAt         DateTime?               @default(now())
+
+  @@index([dueDate])
+  @@index([businessLeadId])
+  @@index([responsibleId])
+  @@index([workspaceId])
+  @@index([statusCrmId])
+}
+
 model TechStatusBusinessLead {
   id               String            @id @default(cuid())
   businessLead     TechBusinessLead? @relation("TechStatusBusinessLead_businessLead", fields: [businessLeadId], references: [id])
@@ -1066,6 +1096,7 @@ model User {
   blog_subscriptions                       BlogSubscription[]       @relation("BlogSubscription_user")
   businessLeadsAssigned                    TechBusinessLead[]       @relation("TechBusinessLead_salesPerson")
   salesActivities                          TechSalesActivity[]      @relation("TechSalesActivity_assignedSeller")
+  tasksResponsible                         TechTask[]               @relation("TechTask_responsible")
   followUpTasks                            TechFollowUpTask[]       @relation("TechFollowUpTask_assignedSeller")
   proposals                                TechProposal[]           @relation("TechProposal_assignedSeller")
   projectsResponsible                      SaasProject[]            @relation("SaasProject_responsible")

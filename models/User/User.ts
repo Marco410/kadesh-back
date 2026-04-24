@@ -150,6 +150,11 @@ export default list({
       many: true,
       ui: { hideCreate: true },
     }),
+    tasksResponsible: relationship({
+      ref: "TechTask.responsible",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de workspace asignadas" },
+    }),
     followUpTasks: relationship({
       ref: "TechFollowUpTask.assignedSeller",
       many: true,

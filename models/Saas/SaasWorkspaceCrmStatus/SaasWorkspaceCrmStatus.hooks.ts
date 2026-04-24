@@ -69,6 +69,17 @@ async function reassignRelatedToDefaultStatusCrm(
       data: { statusCrm: { connect: { id: targetId } } },
     });
   }
+
+  const workspaceTaskRows = await sudo.query.TechTask.findMany({
+    where: { statusCrm: { id: { equals: fromStatusId } } },
+    query: "id",
+  });
+  for (const row of workspaceTaskRows) {
+    await sudo.db.TechTask.updateOne({
+      where: { id: row.id },
+      data: { statusCrm: { connect: { id: targetId } } },
+    });
+  }
 }
 
 async function clearOtherDefaults(args: {

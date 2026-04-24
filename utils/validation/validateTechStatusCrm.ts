@@ -3,7 +3,7 @@ type ConnectPayload = { connect?: { id?: string } };
 type TechCrmListKey =
   | "TechFollowUpTask"
   | "TechProposal"
-  | "TechSalesActivity";
+  | "TechSalesActivity" | "TechTask";
 
 function getRelationshipConnectId(
   value: unknown,
@@ -30,6 +30,13 @@ async function resolveWorkspaceIdForTechItem(
   }
   if (listKey === "TechProposal") {
     const row = await sudo.query.TechProposal.findOne({
+      where: { id: item.id },
+      query: "workspace { id }",
+    });
+    return row?.workspace?.id;
+  }
+  if (listKey === "TechTask") {
+    const row = await sudo.query.TechTask.findOne({
       where: { id: item.id },
       query: "workspace { id }",
     });
