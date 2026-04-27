@@ -75,6 +75,10 @@ export default list({
         description: "Estado CRM dinámico (workspace + tipo de tarea)",
       },
     }),
+    createdBy: relationship({
+      ref: "User.createdByTasks",
+      many: false,
+    }),
     hiddenInWorkspace: checkbox({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" },

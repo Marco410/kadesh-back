@@ -942,6 +942,8 @@ model TechFollowUpTask {
   businessLeadId    String?                 @map("businessLead")
   assignedSeller    User?                   @relation("TechFollowUpTask_assignedSeller", fields: [assignedSellerId], references: [id])
   assignedSellerId  String?                 @map("assignedSeller")
+  createdBy         User?                   @relation("TechFollowUpTask_createdBy", fields: [createdById], references: [id])
+  createdById       String?                 @map("createdBy")
   workspace         SaasWorkspace?          @relation("TechFollowUpTask_workspace", fields: [workspaceId], references: [id])
   workspaceId       String?                 @map("workspace")
   statusCrm         SaasWorkspaceCrmStatus? @relation("TechFollowUpTask_statusCrm", fields: [statusCrmId], references: [id])
@@ -955,6 +957,7 @@ model TechFollowUpTask {
   @@index([status])
   @@index([businessLeadId])
   @@index([assignedSellerId])
+  @@index([createdById])
   @@index([workspaceId])
   @@index([statusCrmId])
 }
@@ -973,6 +976,8 @@ model TechProposal {
   businessLeadId    String?                 @map("businessLead")
   assignedSeller    User?                   @relation("TechProposal_assignedSeller", fields: [assignedSellerId], references: [id])
   assignedSellerId  String?                 @map("assignedSeller")
+  createdBy         User?                   @relation("TechProposal_createdBy", fields: [createdById], references: [id])
+  createdById       String?                 @map("createdBy")
   workspace         SaasWorkspace?          @relation("TechProposal_workspace", fields: [workspaceId], references: [id])
   workspaceId       String?                 @map("workspace")
   statusCrm         SaasWorkspaceCrmStatus? @relation("TechProposal_statusCrm", fields: [statusCrmId], references: [id])
@@ -985,6 +990,7 @@ model TechProposal {
   @@index([status])
   @@index([businessLeadId])
   @@index([assignedSellerId])
+  @@index([createdById])
   @@index([workspaceId])
   @@index([statusCrmId])
 }
@@ -1002,6 +1008,8 @@ model TechSalesActivity {
   businessLeadId    String?                 @map("businessLead")
   assignedSeller    User?                   @relation("TechSalesActivity_assignedSeller", fields: [assignedSellerId], references: [id])
   assignedSellerId  String?                 @map("assignedSeller")
+  createdBy         User?                   @relation("TechSalesActivity_createdBy", fields: [createdById], references: [id])
+  createdById       String?                 @map("createdBy")
   workspace         SaasWorkspace?          @relation("TechSalesActivity_workspace", fields: [workspaceId], references: [id])
   workspaceId       String?                 @map("workspace")
   statusCrm         SaasWorkspaceCrmStatus? @relation("TechSalesActivity_statusCrm", fields: [statusCrmId], references: [id])
@@ -1013,6 +1021,7 @@ model TechSalesActivity {
   @@index([dueDate])
   @@index([businessLeadId])
   @@index([assignedSellerId])
+  @@index([createdById])
   @@index([workspaceId])
   @@index([statusCrmId])
 }
@@ -1033,6 +1042,8 @@ model TechTask {
   workspaceId       String?                 @map("workspace")
   statusCrm         SaasWorkspaceCrmStatus? @relation("TechTask_statusCrm", fields: [statusCrmId], references: [id])
   statusCrmId       String?                 @map("statusCrm")
+  createdBy         User?                   @relation("TechTask_createdBy", fields: [createdById], references: [id])
+  createdById       String?                 @map("createdBy")
   hiddenInWorkspace Boolean                 @default(false)
   createdAt         DateTime?               @default(now())
 
@@ -1041,6 +1052,7 @@ model TechTask {
   @@index([responsibleId])
   @@index([workspaceId])
   @@index([statusCrmId])
+  @@index([createdById])
 }
 
 model TechStatusBusinessLead {
@@ -1096,9 +1108,13 @@ model User {
   blog_subscriptions                       BlogSubscription[]       @relation("BlogSubscription_user")
   businessLeadsAssigned                    TechBusinessLead[]       @relation("TechBusinessLead_salesPerson")
   salesActivities                          TechSalesActivity[]      @relation("TechSalesActivity_assignedSeller")
+  createdBySalesActivities                 TechSalesActivity[]      @relation("TechSalesActivity_createdBy")
   tasksResponsible                         TechTask[]               @relation("TechTask_responsible")
+  createdByTasks                           TechTask[]               @relation("TechTask_createdBy")
   followUpTasks                            TechFollowUpTask[]       @relation("TechFollowUpTask_assignedSeller")
+  createdByFollowUpTasks                   TechFollowUpTask[]       @relation("TechFollowUpTask_createdBy")
   proposals                                TechProposal[]           @relation("TechProposal_assignedSeller")
+  createdByProposals                       TechProposal[]           @relation("TechProposal_createdBy")
   projectsResponsible                      SaasProject[]            @relation("SaasProject_responsible")
   leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
   saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_user")

@@ -59,6 +59,10 @@ export default list({
       ref: "User.followUpTasks",
       many: false,
     }),
+    createdBy: relationship({
+      ref: "User.createdByFollowUpTasks",
+      many: false,
+    }),
     workspace: relationship({
       ref: "SaasWorkspace.followUpTasks",
       many: false,

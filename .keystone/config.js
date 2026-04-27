@@ -1065,18 +1065,38 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { hideCreate: true }
     }),
+    createdBySalesActivities: (0, import_fields7.relationship)({
+      ref: "TechSalesActivity.createdBy",
+      many: true,
+      ui: { hideCreate: true }
+    }),
     tasksResponsible: (0, import_fields7.relationship)({
       ref: "TechTask.responsible",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace asignadas" }
+    }),
+    createdByTasks: (0, import_fields7.relationship)({
+      ref: "TechTask.createdBy",
+      many: true,
+      ui: { hideCreate: true }
     }),
     followUpTasks: (0, import_fields7.relationship)({
       ref: "TechFollowUpTask.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
+    createdByFollowUpTasks: (0, import_fields7.relationship)({
+      ref: "TechFollowUpTask.createdBy",
+      many: true,
+      ui: { hideCreate: true }
+    }),
     proposals: (0, import_fields7.relationship)({
       ref: "TechProposal.assignedSeller",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    createdByProposals: (0, import_fields7.relationship)({
+      ref: "TechProposal.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
@@ -3288,6 +3308,10 @@ var TechFollowUpTask_default = (0, import_core40.list)({
       ref: "User.followUpTasks",
       many: false
     }),
+    createdBy: (0, import_fields40.relationship)({
+      ref: "User.createdByFollowUpTasks",
+      many: false
+    }),
     workspace: (0, import_fields40.relationship)({
       ref: "SaasWorkspace.followUpTasks",
       many: false,
@@ -3442,6 +3466,10 @@ var TechProposal_default = (0, import_core41.list)({
       ref: "User.proposals",
       many: false
     }),
+    createdBy: (0, import_fields41.relationship)({
+      ref: "User.createdByProposals",
+      many: false
+    }),
     workspace: (0, import_fields41.relationship)({
       ref: "SaasWorkspace.proposals",
       many: false,
@@ -3577,6 +3605,10 @@ var TechSalesActivity_default = (0, import_core42.list)({
       ref: "User.salesActivities",
       many: false
     }),
+    createdBy: (0, import_fields42.relationship)({
+      ref: "User.createdBySalesActivities",
+      many: false
+    }),
     workspace: (0, import_fields42.relationship)({
       ref: "SaasWorkspace.salesActivities",
       many: false,
@@ -3702,6 +3734,10 @@ var TechTask_default = (0, import_core43.list)({
       ui: {
         description: "Estado CRM din\xE1mico (workspace + tipo de tarea)"
       }
+    }),
+    createdBy: (0, import_fields43.relationship)({
+      ref: "User.createdByTasks",
+      many: false
     }),
     hiddenInWorkspace: (0, import_fields43.checkbox)({
       defaultValue: false,

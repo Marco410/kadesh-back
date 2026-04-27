@@ -65,6 +65,10 @@ export default list({
       ref: "User.proposals",
       many: false,
     }),
+    createdBy: relationship({
+      ref: "User.createdByProposals",
+      many: false,
+    }),
     workspace: relationship({
       ref: "SaasWorkspace.proposals",
       many: false,

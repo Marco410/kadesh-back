@@ -72,6 +72,10 @@ export default list({
       ref: "User.salesActivities",
       many: false,
     }),
+    createdBy: relationship({
+      ref: "User.createdBySalesActivities",
+      many: false,
+    }),
     workspace: relationship({
       ref: "SaasWorkspace.salesActivities",
       many: false,

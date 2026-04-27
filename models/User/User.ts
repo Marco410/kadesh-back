@@ -150,18 +150,38 @@ export default list({
       many: true,
       ui: { hideCreate: true },
     }),
+    createdBySalesActivities: relationship({
+      ref: "TechSalesActivity.createdBy",
+      many: true,
+      ui: { hideCreate: true },
+    }),
     tasksResponsible: relationship({
       ref: "TechTask.responsible",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace asignadas" },
+    }),
+    createdByTasks: relationship({
+      ref: "TechTask.createdBy",
+      many: true,
+      ui: { hideCreate: true },
     }),
     followUpTasks: relationship({
       ref: "TechFollowUpTask.assignedSeller",
       many: true,
       ui: { hideCreate: true },
     }),
+    createdByFollowUpTasks: relationship({
+      ref: "TechFollowUpTask.createdBy",
+      many: true,
+      ui: { hideCreate: true },
+    }),
     proposals: relationship({
       ref: "TechProposal.assignedSeller",
+      many: true,
+      ui: { hideCreate: true },
+    }),
+    createdByProposals: relationship({
+      ref: "TechProposal.createdBy",
       many: true,
       ui: { hideCreate: true },
     }),
