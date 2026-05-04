@@ -3,7 +3,7 @@ import { crmWorkspaceScopedWhere } from "../../../utils/access/crmWorkspaceScope
 
 const getCompanyId = (session: any) => session?.data?.company?.id;
 
-export const proposalAccess: ListAccessControl<any> = {
+export const techTaskAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
     create: ({ session }: any) => !!getCompanyId(session),
@@ -12,10 +12,10 @@ export const proposalAccess: ListAccessControl<any> = {
   },
   filter: {
     query: ({ session }: any) =>
-      crmWorkspaceScopedWhere(session, { assigneeField: "assignedSeller" }),
+      crmWorkspaceScopedWhere(session, { assigneeField: "responsible" }),
     update: ({ session }: any) =>
-      crmWorkspaceScopedWhere(session, { assigneeField: "assignedSeller" }),
+      crmWorkspaceScopedWhere(session, { assigneeField: "responsible" }),
     delete: ({ session }: any) =>
-      crmWorkspaceScopedWhere(session, { assigneeField: "assignedSeller" }),
+      crmWorkspaceScopedWhere(session, { assigneeField: "responsible" }),
   },
 };

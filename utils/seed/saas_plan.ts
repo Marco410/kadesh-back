@@ -20,6 +20,7 @@ const planFeaturesStarter = getPlanFeatures({
   upload_files: false,
   projects: false,
   quotations: false,
+  workspaces: false,
 });
 
 const planFeaturesPro = getPlanFeatures({
@@ -38,6 +39,7 @@ const planFeaturesPro = getPlanFeatures({
   upload_files: false,
   projects: false,
   quotations: false,
+  workspaces: false,
 });
 
 const planFeaturesAgency = getPlanFeatures();
@@ -116,6 +118,18 @@ export async function createSaasPlan(
     referralRecurringCommissionPct: 10,
   });
 
+  await upsertPlan(context, "Starter Anual", {
+    name: "Starter Anual",
+    cost: 7990,
+    frequency: PLAN_FREQUENCY.ANNUAL,
+    leadLimit: 400,
+    stripePriceId: "price_1TJJW4QB4ei9YzRVzb83K81Q",
+    stripeProductId: "prod_U7AkUsHqLHpNrL",
+    planFeatures: planFeaturesStarter,
+    referralUpfrontCommissionPct: 15,
+    referralRecurringCommissionPct: 0,
+  });
+
   await upsertPlan(context, "Pro", {
     name: "Pro",
     cost: 1699,
@@ -124,6 +138,19 @@ export async function createSaasPlan(
     planFeatures: planFeaturesPro,
     bestSeller: true,
     stripePriceId: "price_1TBQ3EQB4ei9YzRVldT380Jw",
+    stripeProductId: "prod_U7M6geL01RYWf5",
+    referralUpfrontCommissionPct: 20,
+    referralRecurringCommissionPct: 10,
+  });
+
+  await upsertPlan(context, "Pro Anual", {
+    name: "Pro Anual",
+    cost: 16990,
+    frequency: PLAN_FREQUENCY.ANNUAL,
+    leadLimit: 1500,
+    planFeatures: planFeaturesPro,
+    bestSeller: true,
+    stripePriceId: "price_1TJLRaQB4ei9YzRVir7xmiRC",
     stripeProductId: "prod_U7M6geL01RYWf5",
     referralUpfrontCommissionPct: 20,
     referralRecurringCommissionPct: 10,
@@ -141,6 +168,18 @@ export async function createSaasPlan(
     referralRecurringCommissionPct: 10,
   });
 
-  console.log("✅ SaasPlan seeding complete.");
+  await upsertPlan(context, "Agencia Anual", {
+    name: "Agencia Anual",
+    cost: 34990,
+    frequency: PLAN_FREQUENCY.ANNUAL,
+    leadLimit: 5000,
+    planFeatures: planFeaturesAgency,
+    stripePriceId: "price_1TJJQTQB4ei9YzRVq1JX8F13",
+    stripeProductId: "prod_U7N3RIsVzkxTB1",
+    referralUpfrontCommissionPct: 15,
+    referralRecurringCommissionPct: 0,
+  });
+
+  console.log("✅ SaasPlans seeding complete.");
   return freeId;
 }

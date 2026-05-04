@@ -705,6 +705,7 @@ var ROLES = [
   { label: "User", value: "user" /* USER */ },
   { label: "Author", value: "author" /* AUTHOR */ },
   { label: "Admin (Company)", value: "admin_company" /* ADMIN_COMPANY */ },
+  { label: "User (Company)", value: "user_company" /* USER_COMPANY */ },
   { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
 ];
 
@@ -1046,6 +1047,11 @@ var User_default = (0, import_core7.list)({
       many: false,
       ui: { description: "Company/organization this user belongs to" }
     }),
+    workspaces: (0, import_fields7.relationship)({
+      ref: "SaasWorkspace.members",
+      many: true,
+      ui: { description: "Workspaces (\xE1reas) a los que pertenece" }
+    }),
     blog_subscriptions: (0, import_fields7.relationship)({
       ref: "BlogSubscription.user",
       many: true
@@ -1059,13 +1065,38 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { hideCreate: true }
     }),
+    createdBySalesActivities: (0, import_fields7.relationship)({
+      ref: "TechSalesActivity.createdBy",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    tasksResponsible: (0, import_fields7.relationship)({
+      ref: "TechTask.responsible",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de workspace asignadas" }
+    }),
+    createdByTasks: (0, import_fields7.relationship)({
+      ref: "TechTask.createdBy",
+      many: true,
+      ui: { hideCreate: true }
+    }),
     followUpTasks: (0, import_fields7.relationship)({
       ref: "TechFollowUpTask.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
+    createdByFollowUpTasks: (0, import_fields7.relationship)({
+      ref: "TechFollowUpTask.createdBy",
+      many: true,
+      ui: { hideCreate: true }
+    }),
     proposals: (0, import_fields7.relationship)({
       ref: "TechProposal.assignedSeller",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    createdByProposals: (0, import_fields7.relationship)({
+      ref: "TechProposal.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
@@ -2468,9 +2499,9 @@ var import_core33 = require("@keystone-6/core");
 var import_fields33 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text45) {
+function sanitizeUrl2(text48) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text45.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text48.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -2786,7 +2817,8 @@ var SALES_ACTIVITY_TYPE = {
   LLAMADA: "Llamada",
   WHATSAPP: "WhatsApp",
   EMAIL: "Email",
-  REUNION: "Reuni\xF3n"
+  REUNION: "Reuni\xF3n",
+  OTRA: "Otra"
 };
 var PROPOSAL_STATUS = {
   ENVIADA: "Enviada",
@@ -2899,6 +2931,11 @@ var TechBusinessLead_default = (0, import_core38.list)({
       ref: "TechSalesActivity.businessLead",
       many: true,
       ui: { hideCreate: true }
+    }),
+    tasks: (0, import_fields38.relationship)({
+      ref: "TechTask.businessLead",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de workspace ligadas al lead" }
     }),
     proposals: (0, import_fields38.relationship)({
       ref: "TechProposal.businessLead",
@@ -3079,18 +3116,146 @@ var TechStatusBusinessLead_default = (0, import_core39.list)({
 var import_core40 = require("@keystone-6/core");
 var import_fields40 = require("@keystone-6/core/fields");
 
+// utils/access/crmWorkspaceScopedFilter.ts
+var getCompanyId = (session2) => session2?.data?.company?.id;
+var getUserId = (session2) => session2?.data?.id;
+function companyScopedOr(companyId) {
+  return {
+    OR: [
+      {
+        businessLead: {
+          saasCompany: { some: { id: { equals: companyId } } }
+        }
+      },
+      {
+        workspace: {
+          company: { id: { equals: companyId } }
+        }
+      }
+    ]
+  };
+}
+function crmWorkspaceScopedWhere(session2, options) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const companyId = getCompanyId(session2);
+  const userId = getUserId(session2);
+  const assigneeKey = options.assigneeField;
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    if (!companyId) return false;
+    return companyScopedOr(companyId);
+  }
+  if (hasRole(session2, ["user_company" /* USER_COMPANY */])) {
+    if (!companyId || !userId) return false;
+    return {
+      AND: [
+        { [assigneeKey]: { id: { equals: userId } } },
+        companyScopedOr(companyId)
+      ]
+    };
+  }
+  return false;
+}
+
 // models/Tech/FollowUpTask/TechFollowUpTask.access.ts
+var getCompanyId2 = (session2) => session2?.data?.company?.id;
 var followUpTaskAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => !!getCompanyId2(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" })
+  }
+};
+
+// utils/validation/validateTechStatusCrm.ts
+function getRelationshipConnectId(value) {
+  if (!value || typeof value !== "object") return void 0;
+  const c = value.connect;
+  return typeof c?.id === "string" ? c.id : void 0;
+}
+async function resolveWorkspaceIdForTechItem(context, listKey, item) {
+  if (item?.workspaceId) return item.workspaceId ?? void 0;
+  if (!item?.id) return void 0;
+  const sudo = context.sudo();
+  if (listKey === "TechFollowUpTask") {
+    const row2 = await sudo.query.TechFollowUpTask.findOne({
+      where: { id: item.id },
+      query: "workspace { id }"
+    });
+    return row2?.workspace?.id;
+  }
+  if (listKey === "TechProposal") {
+    const row2 = await sudo.query.TechProposal.findOne({
+      where: { id: item.id },
+      query: "workspace { id }"
+    });
+    return row2?.workspace?.id;
+  }
+  if (listKey === "TechTask") {
+    const row2 = await sudo.query.TechTask.findOne({
+      where: { id: item.id },
+      query: "workspace { id }"
+    });
+    return row2?.workspace?.id;
+  }
+  const row = await sudo.query.TechSalesActivity.findOne({
+    where: { id: item.id },
+    query: "workspace { id }"
+  });
+  return row?.workspace?.id;
+}
+async function validateTechStatusCrmInput(args) {
+  const { context, resolvedData, item, listKey, addValidationError } = args;
+  if (!("statusCrm" in resolvedData)) return;
+  const statusCrmId = getRelationshipConnectId(resolvedData.statusCrm);
+  if (!statusCrmId) return;
+  const workspaceIdFromInput = getRelationshipConnectId(
+    resolvedData.workspace
+  );
+  let workspaceId = workspaceIdFromInput ?? item?.workspaceId ?? await resolveWorkspaceIdForTechItem(context, listKey, item);
+  if (!workspaceId) {
+    addValidationError(
+      "Asigna un workspace antes de usar un estado CRM (statusCrm)."
+    );
+    return;
+  }
+  const status = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+    where: { id: statusCrmId },
+    query: "id workspace { id }"
+  });
+  if (!status) {
+    addValidationError("El estado CRM indicado no existe.");
+    return;
+  }
+  if (status.workspace?.id !== workspaceId) {
+    addValidationError(
+      "El estado CRM debe pertenecer al mismo workspace que el registro."
+    );
+  }
+}
+
+// models/Tech/FollowUpTask/TechFollowUpTask.hooks.ts
+var followUpTaskHooks = {
+  validateInput: async ({
+    context,
+    resolvedData,
+    item,
+    addValidationError
+  }) => {
+    await validateTechStatusCrmInput({
+      context,
+      resolvedData,
+      item,
+      listKey: "TechFollowUpTask",
+      addValidationError
+    });
   }
 };
 
@@ -3105,6 +3270,7 @@ var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
 }));
 var TechFollowUpTask_default = (0, import_core40.list)({
   access: followUpTaskAccess,
+  hooks: followUpTaskHooks,
   ui: {
     listView: {
       initialColumns: [
@@ -3141,7 +3307,25 @@ var TechFollowUpTask_default = (0, import_core40.list)({
       ref: "User.followUpTasks",
       many: false
     }),
+    createdBy: (0, import_fields40.relationship)({
+      ref: "User.createdByFollowUpTasks",
+      many: false
+    }),
+    workspace: (0, import_fields40.relationship)({
+      ref: "SaasWorkspace.followUpTasks",
+      many: false,
+      ui: { description: "Workspace a la que pertenece la tarea" }
+    }),
+    statusCrm: (0, import_fields40.relationship)({
+      ref: "SaasWorkspaceCrmStatus.followUpTasks",
+      many: false,
+      ui: { description: "Estado CRM din\xE1mico (workspace + tipo tarea)" }
+    }),
     notes: (0, import_fields40.text)({ ui: { displayMode: "textarea" } }),
+    hiddenInWorkspace: (0, import_fields40.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en el workspace" }
+    }),
     createdAt: (0, import_fields40.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -3164,22 +3348,37 @@ var import_core41 = require("@keystone-6/core");
 var import_fields41 = require("@keystone-6/core/fields");
 
 // models/Tech/Proposal/TechProposal.access.ts
+var getCompanyId3 = (session2) => session2?.data?.company?.id;
 var proposalAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => !!getCompanyId3(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" })
   }
 };
 
 // models/Tech/Proposal/TechProposal.hooks.ts
 var proposalHooks = {
+  validateInput: async ({
+    context,
+    resolvedData,
+    item,
+    addValidationError
+  }) => {
+    await validateTechStatusCrmInput({
+      context,
+      resolvedData,
+      item,
+      listKey: "TechProposal",
+      addValidationError
+    });
+  },
   afterOperation: async ({
     operation,
     item,
@@ -3266,10 +3465,28 @@ var TechProposal_default = (0, import_core41.list)({
       ref: "User.proposals",
       many: false
     }),
+    createdBy: (0, import_fields41.relationship)({
+      ref: "User.createdByProposals",
+      many: false
+    }),
+    workspace: (0, import_fields41.relationship)({
+      ref: "SaasWorkspace.proposals",
+      many: false,
+      ui: { description: "Workspace a la que pertenece la propuesta" }
+    }),
+    statusCrm: (0, import_fields41.relationship)({
+      ref: "SaasWorkspaceCrmStatus.proposals",
+      many: false,
+      ui: { description: "Estado CRM din\xE1mico (workspace + tipo propuesta)" }
+    }),
     project: (0, import_fields41.relationship)({
       ref: "SaasProject.proposal",
       many: false,
       ui: { description: "Proyecto creado a partir de esta propuesta" }
+    }),
+    hiddenInWorkspace: (0, import_fields41.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en el workspace" }
     }),
     createdAt: (0, import_fields41.timestamp)({
       defaultValue: { kind: "now" },
@@ -3293,17 +3510,36 @@ var import_core42 = require("@keystone-6/core");
 var import_fields42 = require("@keystone-6/core/fields");
 
 // models/Tech/SalesActivity/TechSalesActivity.access.ts
+var getCompanyId4 = (session2) => session2?.data?.company?.id;
 var salesActivityAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => !!getCompanyId4(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" })
+  }
+};
+
+// models/Tech/SalesActivity/TechSalesActivity.hooks.ts
+var salesActivityHooks = {
+  validateInput: async ({
+    context,
+    resolvedData,
+    item,
+    addValidationError
+  }) => {
+    await validateTechStatusCrmInput({
+      context,
+      resolvedData,
+      item,
+      listKey: "TechSalesActivity",
+      addValidationError
+    });
   }
 };
 
@@ -3314,20 +3550,30 @@ var activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
     value: v
   })
 );
+var priorityOptions2 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
 var TechSalesActivity_default = (0, import_core42.list)({
   access: salesActivityAccess,
+  hooks: salesActivityHooks,
   ui: {
     listView: {
       initialColumns: [
         "type",
         "activityDate",
+        "dueDate",
+        "priority",
         "result",
         "businessLead",
-        "assignedSeller"
+        "responsible"
       ]
     }
   },
   fields: {
+    title: (0, import_fields42.text)({
+      ui: { description: "T\xEDtulo de la actividad" }
+    }),
     type: (0, import_fields42.select)({
       type: "string",
       options: activityTypeOptions,
@@ -3337,6 +3583,16 @@ var TechSalesActivity_default = (0, import_core42.list)({
     activityDate: (0, import_fields42.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
+    }),
+    dueDate: (0, import_fields42.calendarDay)({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "Deadline for this activity" }
+    }),
+    priority: (0, import_fields42.select)({
+      type: "string",
+      options: priorityOptions2,
+      defaultValue: TASK_PRIORITY.MEDIA
     }),
     result: (0, import_fields42.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
     comments: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
@@ -3348,6 +3604,24 @@ var TechSalesActivity_default = (0, import_core42.list)({
       ref: "User.salesActivities",
       many: false
     }),
+    createdBy: (0, import_fields42.relationship)({
+      ref: "User.createdBySalesActivities",
+      many: false
+    }),
+    workspace: (0, import_fields42.relationship)({
+      ref: "SaasWorkspace.salesActivities",
+      many: false,
+      ui: { description: "Workspace a la que pertenece la actividad" }
+    }),
+    statusCrm: (0, import_fields42.relationship)({
+      ref: "SaasWorkspaceCrmStatus.salesActivities",
+      many: false,
+      ui: { description: "Estado CRM din\xE1mico (workspace + tipo actividad)" }
+    }),
+    hiddenInWorkspace: (0, import_fields42.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en el workspace" }
+    }),
     createdAt: (0, import_fields42.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -3358,32 +3632,152 @@ var TechSalesActivity_default = (0, import_core42.list)({
   }
 });
 
-// models/Tech/TechFiles/TechFiles.ts
+// models/Tech/Task/TechTask.ts
 var import_core43 = require("@keystone-6/core");
 var import_fields43 = require("@keystone-6/core/fields");
 
+// models/Tech/Task/TechTask.access.ts
+var getCompanyId5 = (session2) => session2?.data?.company?.id;
+var techTaskAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId5(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "responsible" }),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "responsible" }),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "responsible" })
+  }
+};
+
+// models/Tech/Task/TechTask.hooks.ts
+var techTaskHooks = {
+  validateInput: async ({
+    context,
+    resolvedData,
+    item,
+    addValidationError
+  }) => {
+    await validateTechStatusCrmInput({
+      context,
+      resolvedData,
+      item,
+      listKey: "TechTask",
+      addValidationError
+    });
+  }
+};
+
+// models/Tech/Task/TechTask.ts
+var priorityOptions3 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
+  label: v,
+  value: v
+}));
+var TechTask_default = (0, import_core43.list)({
+  access: techTaskAccess,
+  hooks: techTaskHooks,
+  ui: {
+    listView: {
+      initialColumns: [
+        "type",
+        "startDate",
+        "dueDate",
+        "priority",
+        "result",
+        "businessLead",
+        "responsible"
+      ]
+    }
+  },
+  fields: {
+    title: (0, import_fields43.text)({
+      ui: { description: "T\xEDtulo de la tarea" }
+    }),
+    startDate: (0, import_fields43.timestamp)({
+      defaultValue: { kind: "now" },
+      validation: { isRequired: true },
+      ui: { description: "Fecha de la tarea (programada o realizada)" }
+    }),
+    dueDate: (0, import_fields43.timestamp)({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "Fecha l\xEDmite de la tarea" }
+    }),
+    priority: (0, import_fields43.select)({
+      type: "string",
+      options: priorityOptions3,
+      defaultValue: TASK_PRIORITY.MEDIA
+    }),
+    result: (0, import_fields43.text)({
+      ui: { description: "Resultado o cierre de la tarea" }
+    }),
+    comments: (0, import_fields43.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields43.relationship)({
+      ref: "TechBusinessLead.tasks",
+      many: false
+    }),
+    responsible: (0, import_fields43.relationship)({
+      ref: "User.tasksResponsible",
+      many: false
+    }),
+    workspace: (0, import_fields43.relationship)({
+      ref: "SaasWorkspace.tasks",
+      many: false,
+      ui: { description: "Workspace al que pertenece esta tarea" }
+    }),
+    statusCrm: (0, import_fields43.relationship)({
+      ref: "SaasWorkspaceCrmStatus.tasks",
+      many: false,
+      ui: {
+        description: "Estado CRM din\xE1mico (workspace + tipo de tarea)"
+      }
+    }),
+    createdBy: (0, import_fields43.relationship)({
+      ref: "User.createdByTasks",
+      many: false
+    }),
+    hiddenInWorkspace: (0, import_fields43.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en el workspace" }
+    }),
+    createdAt: (0, import_fields43.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Tech/TechFiles/TechFiles.ts
+var import_core44 = require("@keystone-6/core");
+var import_fields44 = require("@keystone-6/core/fields");
+
 // models/Tech/TechFiles/TechFiles.access.ts
-var getCompanyId = (session2) => session2?.data?.company?.id;
+var getCompanyId6 = (session2) => session2?.data?.company?.id;
 var techFilesAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId(session2),
+    create: ({ session: session2 }) => !!getCompanyId6(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId(session2);
+      const companyId = getCompanyId6(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId(session2);
+      const companyId = getCompanyId6(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId(session2);
+      const companyId = getCompanyId6(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -3398,7 +3792,7 @@ var CATEGORY_OPTIONS = [
   { label: "Speech / Guion", value: "speech_script" },
   { label: "Otro", value: "other" }
 ];
-var TechFiles_default = (0, import_core43.list)({
+var TechFiles_default = (0, import_core44.list)({
   access: techFilesAccess,
   ui: {
     listView: {
@@ -3406,18 +3800,18 @@ var TechFiles_default = (0, import_core43.list)({
     }
   },
   fields: {
-    title: (0, import_fields43.text)({
+    title: (0, import_fields44.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del archivo o recurso" }
     }),
-    description: (0, import_fields43.text)({
+    description: (0, import_fields44.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n opcional del contenido"
       }
     }),
-    category: (0, import_fields43.select)({
+    category: (0, import_fields44.select)({
       type: "string",
       options: [...CATEGORY_OPTIONS],
       defaultValue: "otro",
@@ -3426,22 +3820,22 @@ var TechFiles_default = (0, import_core43.list)({
         description: "Tipo de material (proceso, t\xE9cnica, cierre, speech, etc.)"
       }
     }),
-    file: (0, import_fields43.file)({
+    file: (0, import_fields44.file)({
       storage: "s3_tech_files",
       ui: { description: "Archivo (PDF, DOC, etc.)" }
     }),
-    company: (0, import_fields43.relationship)({
+    company: (0, import_fields44.relationship)({
       ref: "SaasCompany.techFiles",
       many: false
     }),
-    createdAt: (0, import_fields43.timestamp)({
+    createdAt: (0, import_fields44.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields43.timestamp)({
+    updatedAt: (0, import_fields44.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -3452,11 +3846,11 @@ var TechFiles_default = (0, import_core43.list)({
 });
 
 // models/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var import_core44 = require("@keystone-6/core");
-var import_fields44 = require("@keystone-6/core/fields");
+var import_core45 = require("@keystone-6/core");
+var import_fields45 = require("@keystone-6/core/fields");
 
 // models/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
-var getCompanyId2 = (session2) => session2?.data?.company?.id;
+var getCompanyId7 = (session2) => session2?.data?.company?.id;
 var techLeadSyncLogAccess = {
   operation: {
     query: () => true,
@@ -3469,7 +3863,7 @@ var techLeadSyncLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId2(session2);
+      const companyId = getCompanyId7(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -3478,7 +3872,7 @@ var techLeadSyncLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId2(session2);
+      const companyId = getCompanyId7(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -3486,7 +3880,7 @@ var techLeadSyncLogAccess = {
 };
 
 // models/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var TechLeadSyncLog_default = (0, import_core44.list)({
+var TechLeadSyncLog_default = (0, import_core45.list)({
   access: techLeadSyncLogAccess,
   ui: {
     listView: {
@@ -3503,63 +3897,63 @@ var TechLeadSyncLog_default = (0, import_core44.list)({
     }
   },
   fields: {
-    user: (0, import_fields44.relationship)({
+    user: (0, import_fields45.relationship)({
       ref: "User.leadSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 la sincronizaci\xF3n" }
     }),
-    company: (0, import_fields44.relationship)({
+    company: (0, import_fields45.relationship)({
       ref: "SaasCompany.leadSyncLogs",
       many: false,
       ui: { description: "Empresa" }
     }),
-    success: (0, import_fields44.checkbox)({
+    success: (0, import_fields45.checkbox)({
       defaultValue: false,
       ui: { description: "Si la operaci\xF3n fue exitosa" }
     }),
-    message: (0, import_fields44.text)({
+    message: (0, import_fields45.text)({
       ui: { description: "Mensaje de resultado" }
     }),
-    created: (0, import_fields44.integer)({
+    created: (0, import_fields45.integer)({
       defaultValue: 0,
       ui: { description: "Leads creados desde Google" }
     }),
-    alreadyInDb: (0, import_fields44.integer)({
+    alreadyInDb: (0, import_fields45.integer)({
       defaultValue: 0,
       ui: { description: "Leads ya en BD asignados a la company" }
     }),
-    skippedLowRating: (0, import_fields44.integer)({
+    skippedLowRating: (0, import_fields45.integer)({
       defaultValue: 0,
       ui: { description: "Leads omitidos por rating/rese\xF1as bajas" }
     }),
-    syncedLeadsCount: (0, import_fields44.integer)({
+    syncedLeadsCount: (0, import_fields45.integer)({
       defaultValue: 0,
       ui: { description: "Total de leads asignados en esta ejecuci\xF3n" }
     }),
-    syncedCount: (0, import_fields44.integer)({
+    syncedCount: (0, import_fields45.integer)({
       db: { isNullable: true },
       ui: { description: "Cuota usada este mes (total)" }
     }),
-    leadLimit: (0, import_fields44.integer)({
+    leadLimit: (0, import_fields45.integer)({
       db: { isNullable: true },
       ui: { description: "L\xEDmite de leads del plan" }
     }),
-    lat: (0, import_fields44.float)({
+    lat: (0, import_fields45.float)({
       db: { isNullable: true },
       ui: { description: "Latitud del centro de b\xFAsqueda" }
     }),
-    lng: (0, import_fields44.float)({
+    lng: (0, import_fields45.float)({
       db: { isNullable: true },
       ui: { description: "Longitud del centro de b\xFAsqueda" }
     }),
-    radius: (0, import_fields44.float)({
+    radius: (0, import_fields45.float)({
       db: { isNullable: true },
       ui: { description: "Radio de b\xFAsqueda (km)" }
     }),
-    category: (0, import_fields44.text)({
+    category: (0, import_fields45.text)({
       ui: { description: "Categor\xEDa buscada" }
     }),
-    createdAt: (0, import_fields44.timestamp)({
+    createdAt: (0, import_fields45.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Fecha y hora de la ejecuci\xF3n" }
     })
@@ -3567,11 +3961,11 @@ var TechLeadSyncLog_default = (0, import_core44.list)({
 });
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var import_core45 = require("@keystone-6/core");
-var import_fields45 = require("@keystone-6/core/fields");
+var import_core46 = require("@keystone-6/core");
+var import_fields46 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
-var getCompanyId3 = (session2) => session2?.data?.company?.id;
+var getCompanyId8 = (session2) => session2?.data?.company?.id;
 var saasCompanyAccess = {
   operation: {
     query: () => true,
@@ -3584,7 +3978,7 @@ var saasCompanyAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId3(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { id: { equals: companyId } };
     },
@@ -3592,7 +3986,7 @@ var saasCompanyAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId3(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { id: { equals: companyId } };
     },
@@ -3648,6 +4042,15 @@ var saasCompanySubscriptionHook = {
           }
         }
       }
+      await context.sudo().query.SaasWorkspace.createOne({
+        data: {
+          name: "Ventas",
+          company: { connect: { id: item.id } },
+          ...createdByUserId && {
+            members: { connect: [{ id: createdByUserId }] }
+          }
+        }
+      });
       const [freePlan] = await context.sudo().query.SaasPlan.findMany({
         where: { cost: { equals: 0 } },
         take: 1,
@@ -3692,7 +4095,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core45.list)({
+var SaasCompany_default = (0, import_core46.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -3711,155 +4114,160 @@ var SaasCompany_default = (0, import_core45.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields45.text)({
+    name: (0, import_fields46.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields45.relationship)({
+    users: (0, import_fields46.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields45.json)({
+    workspaces: (0, import_fields46.relationship)({
+      ref: "SaasWorkspace.company",
+      many: true,
+      ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
+    }),
+    allowedGooglePlaceCategories: (0, import_fields46.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields45.relationship)({
+    leads: (0, import_fields46.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields45.relationship)({
+    plan: (0, import_fields46.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields45.calendarDay)({
+    subscriptionStartedAt: (0, import_fields46.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields45.relationship)({
+    subscriptions: (0, import_fields46.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields45.relationship)({
+    techStatusBusinessLeads: (0, import_fields46.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields45.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields46.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (for quota enforcement)" }
     }),
-    techFiles: (0, import_fields45.relationship)({
+    techFiles: (0, import_fields46.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields45.relationship)({
+    projects: (0, import_fields46.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    leadSyncLogs: (0, import_fields45.relationship)({
+    leadSyncLogs: (0, import_fields46.relationship)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
-    saasSubscriptionLogs: (0, import_fields45.relationship)({
+    saasSubscriptionLogs: (0, import_fields46.relationship)({
       ref: "SaasSubscriptionLog.company",
       many: true,
       ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
-    quotations: (0, import_fields45.relationship)({
+    quotations: (0, import_fields46.relationship)({
       ref: "SaasQuotation.company",
       many: true,
       ui: { description: "Cotizaciones de la empresa" }
     }),
-    logo: (0, import_fields45.file)({
+    logo: (0, import_fields46.file)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    onboardingMainOffer: (0, import_fields45.text)({
+    onboardingMainOffer: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    onboardingIdealCustomer: (0, import_fields45.text)({
+    onboardingIdealCustomer: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    onboardingAvgTicketValue: (0, import_fields45.text)({
+    onboardingAvgTicketValue: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    onboardingSalesPain: (0, import_fields45.text)({
+    onboardingSalesPain: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
       }
     }),
-    termsQuotation: (0, import_fields45.text)({
+    termsQuotation: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
       }
     }),
-    colorPrimary: (0, import_fields45.text)({
+    colorPrimary: (0, import_fields46.text)({
       db: { isNullable: true },
       defaultValue: "#F7945E",
       ui: {
         description: "Color primario de la empresa"
       }
     }),
-    colorSecondary: (0, import_fields45.text)({
+    colorSecondary: (0, import_fields46.text)({
       db: { isNullable: true },
       defaultValue: "#E07C3A",
       ui: {
         description: "Color secundario de la empresa"
       }
     }),
-    contactEmail: (0, import_fields45.text)({
+    contactEmail: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de contacto de la empresa"
       }
     }),
-    contactPhone: (0, import_fields45.text)({
+    contactPhone: (0, import_fields46.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
-    createdAt: (0, import_fields45.timestamp)({
+    createdAt: (0, import_fields46.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields45.timestamp)({
+    updatedAt: (0, import_fields46.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -3870,8 +4278,8 @@ var SaasCompany_default = (0, import_core45.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core46 = require("@keystone-6/core");
-var import_fields46 = require("@keystone-6/core/fields");
+var import_core47 = require("@keystone-6/core");
+var import_fields47 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -3901,7 +4309,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core46.list)({
+var SaasPlan_default = (0, import_core47.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -3919,39 +4327,39 @@ var SaasPlan_default = (0, import_core46.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields46.text)({
+    name: (0, import_fields47.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields46.float)({
+    cost: (0, import_fields47.float)({
       ui: { description: "Plan cost per billing period" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
-    referralUpfrontCommissionPct: (0, import_fields46.float)({
+    referralUpfrontCommissionPct: (0, import_fields47.float)({
       ui: {
         description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
       }
     }),
     /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
-    referralRecurringCommissionPct: (0, import_fields46.float)({
+    referralRecurringCommissionPct: (0, import_fields47.float)({
       ui: {
         description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
       }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields46.select)({
+    frequency: (0, import_fields47.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields46.text)({
+    currency: (0, import_fields47.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields46.integer)({
+    leadLimit: (0, import_fields47.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -3962,28 +4370,28 @@ var SaasPlan_default = (0, import_core46.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields46.json)({
+    planFeatures: (0, import_fields47.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields46.relationship)({
+    saasPayments: (0, import_fields47.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields46.checkbox)({
+    active: (0, import_fields47.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields46.checkbox)({
+    bestSeller: (0, import_fields47.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields46.text)({
+    stripePriceId: (0, import_fields47.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -3991,36 +4399,36 @@ var SaasPlan_default = (0, import_core46.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields46.text)({
+    stripeProductId: (0, import_fields47.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
     /** Companies currently on this plan */
-    companies: (0, import_fields46.relationship)({
+    companies: (0, import_fields47.relationship)({
       ref: "SaasCompany.plan",
       many: true,
       ui: { description: "Companies on this plan" }
     }),
-    subscriptions: (0, import_fields46.relationship)({
+    subscriptions: (0, import_fields47.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
-    saasSubscriptionLogs: (0, import_fields46.relationship)({
+    saasSubscriptionLogs: (0, import_fields47.relationship)({
       ref: "SaasSubscriptionLog.plan",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
     }),
-    createdAt: (0, import_fields46.timestamp)({
+    createdAt: (0, import_fields47.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields46.timestamp)({
+    updatedAt: (0, import_fields47.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -4031,15 +4439,15 @@ var SaasPlan_default = (0, import_core46.list)({
 });
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var import_core47 = require("@keystone-6/core");
-var import_fields47 = require("@keystone-6/core/fields");
+var import_core48 = require("@keystone-6/core");
+var import_fields48 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
-var getCompanyId4 = (session2) => session2?.data?.company?.id;
+var getCompanyId9 = (session2) => session2?.data?.company?.id;
 var saasCompanyMonthlyLeadSyncAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId4(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId9(session2),
     update: () => true,
     delete: () => true
   },
@@ -4048,7 +4456,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4056,7 +4464,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4064,7 +4472,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId4(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4072,7 +4480,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
 };
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core47.list)({
+var SaasCompanyMonthlyLeadSync_default = (0, import_core48.list)({
   access: saasCompanyMonthlyLeadSyncAccess,
   ui: {
     listView: {
@@ -4080,30 +4488,30 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core47.list)({
     }
   },
   fields: {
-    company: (0, import_fields47.relationship)({
+    company: (0, import_fields48.relationship)({
       ref: "SaasCompany.monthlyLeadSyncRecords",
       many: false
     }),
-    year: (0, import_fields47.integer)({
+    year: (0, import_fields48.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the sync period" }
     }),
-    month: (0, import_fields47.integer)({
+    month: (0, import_fields48.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the sync period (1-12)" }
     }),
     /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields47.integer)({
+    syncedCount: (0, import_fields48.integer)({
       defaultValue: 0,
       ui: { description: "Number of leads synced this month (for quota tracking)" }
     }),
-    createdAt: (0, import_fields47.timestamp)({
+    createdAt: (0, import_fields48.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields47.timestamp)({
+    updatedAt: (0, import_fields48.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -4111,15 +4519,15 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core47.list)({
 });
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var import_core48 = require("@keystone-6/core");
-var import_fields48 = require("@keystone-6/core/fields");
+var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
-var getCompanyId5 = (session2) => session2?.data?.company?.id;
+var getCompanyId10 = (session2) => session2?.data?.company?.id;
 var saasCompanySubscriptionAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId5(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId10(session2),
     update: () => true,
     delete: () => true
   },
@@ -4128,7 +4536,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4136,7 +4544,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4144,7 +4552,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId5(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4152,7 +4560,7 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core48.list)({
+var SaasCompanySubscription_default = (0, import_core49.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -4170,92 +4578,92 @@ var SaasCompanySubscription_default = (0, import_core48.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields48.relationship)({
+    company: (0, import_fields49.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields48.text)({
+    planName: (0, import_fields49.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields48.float)({
+    planCost: (0, import_fields49.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields48.text)({
+    planFrequency: (0, import_fields49.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields48.integer)({
+    planLeadLimit: (0, import_fields49.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields48.text)({
+    planStripePriceId: (0, import_fields49.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields48.text)({
+    planCurrency: (0, import_fields49.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields48.json)({
+    planFeatures: (0, import_fields49.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields48.select)({
+    status: (0, import_fields49.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields48.calendarDay)({
+    activatedAt: (0, import_fields49.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields48.calendarDay)({
+    currentPeriodEnd: (0, import_fields49.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields48.text)({
+    stripeSubscriptionId: (0, import_fields49.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields48.text)({
+    stripeCustomerId: (0, import_fields49.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields48.relationship)({
+    saasPayments: (0, import_fields49.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields48.relationship)({
+    plan: (0, import_fields49.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    saasSubscriptionLogs: (0, import_fields48.relationship)({
+    saasSubscriptionLogs: (0, import_fields49.relationship)({
       ref: "SaasSubscriptionLog.createdSubscription",
       many: true,
       ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
     }),
-    createdAt: (0, import_fields48.timestamp)({
+    createdAt: (0, import_fields49.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields48.timestamp)({
+    updatedAt: (0, import_fields49.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -4266,19 +4674,19 @@ var SaasCompanySubscription_default = (0, import_core48.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core49 = require("@keystone-6/core");
-var import_fields49 = require("@keystone-6/core/fields");
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
-var getCompanyId6 = (session2) => session2?.data?.company?.id;
-var getUserId = (session2) => session2?.data?.id;
+var getCompanyId11 = (session2) => session2?.data?.company?.id;
+var getUserId2 = (session2) => session2?.data?.id;
 function paymentMethodFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const userId = getUserId(session2);
+  const userId = getUserId2(session2);
   if (!userId) return false;
-  const companyId = getCompanyId6(session2);
+  const companyId = getCompanyId11(session2);
   if (companyId) {
     return { user: { company: { id: { equals: companyId } } } };
   }
@@ -4287,7 +4695,7 @@ function paymentMethodFilter(session2) {
 var saasPaymentMethodAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId2(session2),
     update: () => true,
     delete: () => true
   },
@@ -4299,7 +4707,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core49.list)({
+var SaasPaymentMethod_default = (0, import_core50.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -4314,61 +4722,61 @@ var SaasPaymentMethod_default = (0, import_core49.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields49.relationship)({
+    user: (0, import_fields50.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields49.text)({
+    cardType: (0, import_fields50.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields49.text)({
+    lastFourDigits: (0, import_fields50.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields49.text)({
+    expMonth: (0, import_fields50.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields49.text)({
+    expYear: (0, import_fields50.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields49.text)({
+    stripeProcessorId: (0, import_fields50.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields49.text)({
+    stripePaymentMethodId: (0, import_fields50.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields49.text)({
+    address: (0, import_fields50.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields49.text)({
+    postalCode: (0, import_fields50.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields49.text)({
+    ownerName: (0, import_fields50.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields49.text)({
+    country: (0, import_fields50.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields49.relationship)({
+    saasPayments: (0, import_fields50.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields49.timestamp)({
+    createdAt: (0, import_fields50.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields49.timestamp)({
+    updatedAt: (0, import_fields50.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -4376,19 +4784,19 @@ var SaasPaymentMethod_default = (0, import_core49.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core50 = require("@keystone-6/core");
-var import_fields50 = require("@keystone-6/core/fields");
+var import_core51 = require("@keystone-6/core");
+var import_fields51 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
-var getCompanyId7 = (session2) => session2?.data?.company?.id;
-var getUserId2 = (session2) => session2?.data?.id;
+var getCompanyId12 = (session2) => session2?.data?.company?.id;
+var getUserId3 = (session2) => session2?.data?.id;
 function paymentFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const userId = getUserId2(session2);
+  const userId = getUserId3(session2);
   if (!userId) return false;
-  const companyId = getCompanyId7(session2);
+  const companyId = getCompanyId12(session2);
   if (companyId) {
     return { user: { company: { id: { equals: companyId } } } };
   }
@@ -4397,7 +4805,7 @@ function paymentFilter(session2) {
 var saasPaymentAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId2(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId3(session2),
     update: () => true,
     delete: () => true
   },
@@ -4409,7 +4817,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core50.list)({
+var SaasPayment_default = (0, import_core51.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -4427,30 +4835,30 @@ var SaasPayment_default = (0, import_core50.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields50.relationship)({
+    user: (0, import_fields51.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields50.text)({
+    paymentMethodType: (0, import_fields51.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields50.relationship)({
+    paymentMethod: (0, import_fields51.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields50.decimal)({
+    amount: (0, import_fields51.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields50.select)({
+    status: (0, import_fields51.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -4463,38 +4871,38 @@ var SaasPayment_default = (0, import_core50.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields50.text)({
+    processorStripeChargeId: (0, import_fields51.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields50.text)({
+    stripeErrorMessage: (0, import_fields51.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields50.text)({
+    notes: (0, import_fields51.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields50.relationship)({
+    plan: (0, import_fields51.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields50.relationship)({
+    subscription: (0, import_fields51.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields50.timestamp)({
+    createdAt: (0, import_fields51.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields50.timestamp)({
+    updatedAt: (0, import_fields51.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -4502,31 +4910,31 @@ var SaasPayment_default = (0, import_core50.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core51 = require("@keystone-6/core");
-var import_fields51 = require("@keystone-6/core/fields");
+var import_core52 = require("@keystone-6/core");
+var import_fields52 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
-var getCompanyId8 = (session2) => session2?.data?.company?.id;
+var getCompanyId13 = (session2) => session2?.data?.company?.id;
 var projectAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId8(session2),
+    create: ({ session: session2 }) => !!getCompanyId13(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId8(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId8(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId8(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4546,7 +4954,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core51.list)({
+var SaasProject_default = (0, import_core52.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -4561,78 +4969,78 @@ var SaasProject_default = (0, import_core51.list)({
     }
   },
   fields: {
-    name: (0, import_fields51.text)({
+    name: (0, import_fields52.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields51.text)({
+    serviceType: (0, import_fields52.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields51.relationship)({
+    responsible: (0, import_fields52.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields51.calendarDay)({
+    startDate: (0, import_fields52.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields51.calendarDay)({
+    estimatedEndDate: (0, import_fields52.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields51.text)({
+    description: (0, import_fields52.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields51.select)({
+    status: (0, import_fields52.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields51.text)({
+    urlData: (0, import_fields52.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields51.relationship)({
+    company: (0, import_fields52.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields51.relationship)({
+    businessLead: (0, import_fields52.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields51.relationship)({
+    proposal: (0, import_fields52.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields51.relationship)({
+    quotations: (0, import_fields52.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields51.timestamp)({
+    createdAt: (0, import_fields52.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields51.timestamp)({
+    updatedAt: (0, import_fields52.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -4643,31 +5051,31 @@ var SaasProject_default = (0, import_core51.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core52 = require("@keystone-6/core");
-var import_fields52 = require("@keystone-6/core/fields");
+var import_core53 = require("@keystone-6/core");
+var import_fields53 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
-var getCompanyId9 = (session2) => session2?.data?.company?.id;
+var getCompanyId14 = (session2) => session2?.data?.company?.id;
 var quotationAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId9(session2),
+    create: ({ session: session2 }) => !!getCompanyId14(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId9(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId9(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId9(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4771,7 +5179,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core52.list)({
+var SaasQuotation_default = (0, import_core53.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -4789,117 +5197,117 @@ var SaasQuotation_default = (0, import_core52.list)({
     }
   },
   fields: {
-    company: (0, import_fields52.relationship)({
+    company: (0, import_fields53.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields52.relationship)({
+    lead: (0, import_fields53.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields52.relationship)({
+    project: (0, import_fields53.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields52.text)({
+    quotationNumber: (0, import_fields53.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields52.select)({
+    status: (0, import_fields53.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields52.text)({
+    currency: (0, import_fields53.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields52.float)({
+    exchangeRate: (0, import_fields53.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields52.float)({
+    subtotal: (0, import_fields53.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields52.float)({
+    discountTotal: (0, import_fields53.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields52.float)({
+    taxTotal: (0, import_fields53.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields52.float)({
+    total: (0, import_fields53.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields52.calendarDay)({
+    validUntil: (0, import_fields53.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields52.timestamp)({
+    sentAt: (0, import_fields53.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields52.timestamp)({
+    acceptedAt: (0, import_fields53.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields52.text)({
+    notes: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields52.text)({
+    terms: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields52.relationship)({
+    createdBy: (0, import_fields53.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields52.relationship)({
+    assignedSeller: (0, import_fields53.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields52.text)({
+    pdfFileOrUrl: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields52.relationship)({
+    quotationProducts: (0, import_fields53.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields52.checkbox)({
+    showDiscount: (0, import_fields53.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields52.checkbox)({
+    showNotes: (0, import_fields53.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields52.timestamp)({
+    createdAt: (0, import_fields53.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields52.timestamp)({
+    updatedAt: (0, import_fields53.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -4910,31 +5318,31 @@ var SaasQuotation_default = (0, import_core52.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core53 = require("@keystone-6/core");
-var import_fields53 = require("@keystone-6/core/fields");
+var import_core54 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
-var getCompanyId10 = (session2) => session2?.data?.company?.id;
+var getCompanyId15 = (session2) => session2?.data?.company?.id;
 var quotationProductAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId10(session2),
+    create: ({ session: session2 }) => !!getCompanyId15(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId10(session2);
+      const companyId = getCompanyId15(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId10(session2);
+      const companyId = getCompanyId15(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId10(session2);
+      const companyId = getCompanyId15(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     }
@@ -5099,7 +5507,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core53.list)({
+var SaasQuotationProduct_default = (0, import_core54.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -5108,60 +5516,60 @@ var SaasQuotationProduct_default = (0, import_core53.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields53.relationship)({
+    quotation: (0, import_fields54.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields53.text)({
+    description: (0, import_fields54.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields53.float)({
+    quantity: (0, import_fields54.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields53.float)({
+    unitPrice: (0, import_fields54.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields53.select)({
+    discountType: (0, import_fields54.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields53.float)({
+    discountValue: (0, import_fields54.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields53.float)({
+    taxRate: (0, import_fields54.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields53.float)({
+    lineSubtotal: (0, import_fields54.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields53.float)({
+    lineTotal: (0, import_fields54.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields53.timestamp)({
+    createdAt: (0, import_fields54.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields53.timestamp)({
+    updatedAt: (0, import_fields54.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5172,19 +5580,19 @@ var SaasQuotationProduct_default = (0, import_core53.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core54 = require("@keystone-6/core");
-var import_fields54 = require("@keystone-6/core/fields");
+var import_core55 = require("@keystone-6/core");
+var import_fields55 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
-var getCompanyId11 = (session2) => session2?.data?.company?.id;
-var getUserId3 = (session2) => session2?.data?.id;
+var getCompanyId16 = (session2) => session2?.data?.company?.id;
+var getUserId4 = (session2) => session2?.data?.id;
 function referralCommissionFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const userId = getUserId3(session2);
+  const userId = getUserId4(session2);
   if (!userId) return false;
-  const companyId = getCompanyId11(session2);
+  const companyId = getCompanyId16(session2);
   const orClause = [
     { referrer: { id: { equals: userId } } },
     { referredUser: { id: { equals: userId } } }
@@ -5215,7 +5623,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core54.list)({
+var SaasReferralCommission_default = (0, import_core55.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -5234,27 +5642,27 @@ var SaasReferralCommission_default = (0, import_core54.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields54.relationship)({
+    referrer: (0, import_fields55.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields54.relationship)({
+    referredUser: (0, import_fields55.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields54.relationship)({
+    company: (0, import_fields55.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields54.relationship)({
+    subscription: (0, import_fields55.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields54.relationship)({
+    plan: (0, import_fields55.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields54.select)({
+    type: (0, import_fields55.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -5262,30 +5670,30 @@ var SaasReferralCommission_default = (0, import_core54.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields54.float)({
+    percentage: (0, import_fields55.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields54.float)({
+    amount: (0, import_fields55.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields54.text)({
+    currency: (0, import_fields55.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields54.float)({
+    periodIndex: (0, import_fields55.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields54.calendarDay)({
+    periodStart: (0, import_fields55.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields54.calendarDay)({
+    periodEnd: (0, import_fields55.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields54.select)({
+    status: (0, import_fields55.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -5296,18 +5704,18 @@ var SaasReferralCommission_default = (0, import_core54.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields54.text)({
+    notes: (0, import_fields55.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields54.timestamp)({
+    createdAt: (0, import_fields55.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields54.timestamp)({
+    updatedAt: (0, import_fields55.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5318,11 +5726,11 @@ var SaasReferralCommission_default = (0, import_core54.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core55 = require("@keystone-6/core");
-var import_fields55 = require("@keystone-6/core/fields");
+var import_core56 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
-var getCompanyId12 = (session2) => session2?.data?.company?.id;
+var getCompanyId17 = (session2) => session2?.data?.company?.id;
 var saasSubscriptionLogAccess = {
   operation: {
     query: () => true,
@@ -5335,7 +5743,7 @@ var saasSubscriptionLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId12(session2);
+      const companyId = getCompanyId17(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -5344,7 +5752,7 @@ var saasSubscriptionLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId12(session2);
+      const companyId = getCompanyId17(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -5352,7 +5760,7 @@ var saasSubscriptionLogAccess = {
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core55.list)({
+var SaasSubscriptionLog_default = (0, import_core56.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -5367,73 +5775,551 @@ var SaasSubscriptionLog_default = (0, import_core55.list)({
     }
   },
   fields: {
-    user: (0, import_fields55.relationship)({
+    user: (0, import_fields56.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields55.relationship)({
+    company: (0, import_fields56.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields55.relationship)({
+    plan: (0, import_fields56.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields55.relationship)({
+    createdSubscription: (0, import_fields56.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields55.checkbox)({
+    success: (0, import_fields56.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields55.text)({
+    step: (0, import_fields56.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields55.text)({
+    message: (0, import_fields56.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields55.json)({
+    responseSnapshot: (0, import_fields56.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields55.text)({
+    emailMasked: (0, import_fields56.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields55.text)({
+    planIdRequested: (0, import_fields56.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields55.text)({
+    totalSubmitted: (0, import_fields56.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields55.text)({
+    paymentMethodIdSubmitted: (0, import_fields56.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields55.text)({
+    paymentTypeSubmitted: (0, import_fields56.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields55.integer)({
+    durationMs: (0, import_fields56.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields55.text)({
+    stripeCustomerId: (0, import_fields56.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields55.text)({
+    stripeSubscriptionId: (0, import_fields56.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields55.timestamp)({
+    createdAt: (0, import_fields56.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
+    })
+  }
+});
+
+// models/Saas/SaasWorkspace/SaasWorkspace.ts
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasWorkspace/SaasWorkspace.access.ts
+var getCompanyId18 = (session2) => session2?.data?.company?.id;
+var getUserId5 = (session2) => session2?.data?.id;
+function workspaceFilter(session2) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const companyId = getCompanyId18(session2);
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    if (!companyId) return false;
+    return { company: { id: { equals: companyId } } };
+  }
+  const userId = getUserId5(session2);
+  if (!userId) return false;
+  return { members: { some: { id: { equals: userId } } } };
+}
+var saasWorkspaceAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId18(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => workspaceFilter(session2),
+    update: ({ session: session2 }) => workspaceFilter(session2),
+    delete: ({ session: session2 }) => workspaceFilter(session2)
+  }
+};
+
+// models/Saas/SaasWorkspace/SaasWorkspace.hooks.ts
+var DEFAULT_SEED_ROWS = [
+  {
+    key: "TODO",
+    name: "Por Hacer",
+    color: "#6B7280",
+    order: 1,
+    isDefault: true
+  },
+  {
+    key: "IN_PROGRESS",
+    name: "En progreso",
+    color: "#2563EB",
+    order: 2,
+    isDefault: false
+  },
+  {
+    key: "COMPLETED",
+    name: "Completado",
+    color: "#22C55E",
+    order: 3,
+    isDefault: false
+  },
+  {
+    key: "CANCELLED",
+    name: "Cancelado",
+    color: "#EF4444",
+    order: 4,
+    isDefault: false
+  }
+];
+var saasWorkspaceSeedCrmStatusesHook = {
+  afterOperation: async ({ operation, item, context }) => {
+    if (operation !== "create" || !item?.id) return;
+    const sudo = context.sudo();
+    try {
+      for (const row of DEFAULT_SEED_ROWS) {
+        await sudo.db.SaasWorkspaceCrmStatus.createOne({
+          data: {
+            workspace: { connect: { id: item.id } },
+            name: row.name,
+            color: row.color,
+            key: row.key,
+            order: row.order,
+            isDefault: row.isDefault,
+            isArchived: false
+          }
+        });
+      }
+    } catch (e) {
+      console.error(
+        "Error creando estados CRM por defecto para SaasWorkspace:",
+        e
+      );
+    }
+  }
+};
+
+// models/Saas/SaasWorkspace/SaasWorkspace.ts
+var SaasWorkspace_default = (0, import_core57.list)({
+  access: saasWorkspaceAccess,
+  hooks: {
+    afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
+  },
+  ui: {
+    listView: {
+      initialColumns: ["name", "company", "members"]
+    }
+  },
+  fields: {
+    name: (0, import_fields57.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
+    }),
+    showActivities: (0, import_fields57.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar actividades de CRM en este workspace" }
+    }),
+    showProposals: (0, import_fields57.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar propuestas de CRM en este workspace" }
+    }),
+    showFollowUpTasks: (0, import_fields57.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
+    }),
+    showTasks: (0, import_fields57.checkbox)({
+      defaultValue: true,
+      ui: { description: "Mostrar tareas de workspace en este workspace" }
+    }),
+    company: (0, import_fields57.relationship)({
+      ref: "SaasCompany.workspaces",
+      many: false,
+      ui: { description: "Empresa (tenant) a la que pertenece" }
+    }),
+    members: (0, import_fields57.relationship)({
+      ref: "User.workspaces",
+      many: true,
+      ui: { description: "Usuarios con acceso a este workspace" }
+    }),
+    salesActivities: (0, import_fields57.relationship)({
+      ref: "TechSalesActivity.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Actividades de CRM" }
+    }),
+    tasks: (0, import_fields57.relationship)({
+      ref: "TechTask.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
+    }),
+    proposals: (0, import_fields57.relationship)({
+      ref: "TechProposal.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Propuestas de CRM" }
+    }),
+    followUpTasks: (0, import_fields57.relationship)({
+      ref: "TechFollowUpTask.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
+    }),
+    crmStatuses: (0, import_fields57.relationship)({
+      ref: "SaasWorkspaceCrmStatus.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
+    })
+  }
+});
+
+// models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
+var import_core58 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
+var getCompanyId19 = (session2) => session2?.data?.company?.id;
+var getUserId6 = (session2) => session2?.data?.id;
+var companyWorkspaceFilter = (companyId) => ({
+  workspace: { company: { id: { equals: companyId } } }
+});
+var memberWorkspaceFilter = (userId) => ({
+  workspace: { members: { some: { id: { equals: userId } } } }
+});
+function workspaceCrmStatusFilter(session2) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const companyId = getCompanyId19(session2);
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    if (!companyId) return false;
+    return companyWorkspaceFilter(companyId);
+  }
+  const userId = getUserId6(session2);
+  if (!userId) return false;
+  return memberWorkspaceFilter(userId);
+}
+var saasWorkspaceCrmStatusAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId19(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => workspaceCrmStatusFilter(session2),
+    update: ({ session: session2 }) => workspaceCrmStatusFilter(session2),
+    delete: ({ session: session2 }) => workspaceCrmStatusFilter(session2)
+  }
+};
+
+// utils/validation/crmStatusCrmHexColor.ts
+var CRM_STATUS_HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
+function isValidCrmStatusHexColor(color) {
+  return CRM_STATUS_HEX_COLOR_REGEX.test(color.trim());
+}
+
+// models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.hooks.ts
+async function reassignRelatedToDefaultStatusCrm(context, fromStatusId, workspaceId) {
+  const sudo = context.sudo();
+  const [defaultRow] = await sudo.query.SaasWorkspaceCrmStatus.findMany({
+    where: {
+      workspace: { id: { equals: workspaceId } },
+      isDefault: { equals: true }
+    },
+    take: 1,
+    query: "id"
+  });
+  let targetId = defaultRow?.id;
+  if (!targetId) {
+    const [fallback] = await sudo.query.SaasWorkspaceCrmStatus.findMany({
+      where: {
+        workspace: { id: { equals: workspaceId } },
+        id: { not: { equals: fromStatusId } }
+      },
+      orderBy: [{ order: "asc" }],
+      take: 1,
+      query: "id"
+    });
+    targetId = fallback?.id;
+  }
+  if (!targetId) {
+    throw new Error(
+      "No hay otro estado CRM en este workspace; no se puede eliminar este estado hasta crear otro o marcar uno como predeterminado."
+    );
+  }
+  const taskRows = await sudo.query.TechFollowUpTask.findMany({
+    where: { statusCrm: { id: { equals: fromStatusId } } },
+    query: "id"
+  });
+  for (const row of taskRows) {
+    await sudo.db.TechFollowUpTask.updateOne({
+      where: { id: row.id },
+      data: { statusCrm: { connect: { id: targetId } } }
+    });
+  }
+  const proposalRows = await sudo.query.TechProposal.findMany({
+    where: { statusCrm: { id: { equals: fromStatusId } } },
+    query: "id"
+  });
+  for (const row of proposalRows) {
+    await sudo.db.TechProposal.updateOne({
+      where: { id: row.id },
+      data: { statusCrm: { connect: { id: targetId } } }
+    });
+  }
+  const activityRows = await sudo.query.TechSalesActivity.findMany({
+    where: { statusCrm: { id: { equals: fromStatusId } } },
+    query: "id"
+  });
+  for (const row of activityRows) {
+    await sudo.db.TechSalesActivity.updateOne({
+      where: { id: row.id },
+      data: { statusCrm: { connect: { id: targetId } } }
+    });
+  }
+  const workspaceTaskRows = await sudo.query.TechTask.findMany({
+    where: { statusCrm: { id: { equals: fromStatusId } } },
+    query: "id"
+  });
+  for (const row of workspaceTaskRows) {
+    await sudo.db.TechTask.updateOne({
+      where: { id: row.id },
+      data: { statusCrm: { connect: { id: targetId } } }
+    });
+  }
+}
+async function clearOtherDefaults(args) {
+  const { context, workspaceId, exceptId } = args;
+  const sudo = context.sudo();
+  const others = await sudo.query.SaasWorkspaceCrmStatus.findMany({
+    where: {
+      workspace: { id: { equals: workspaceId } },
+      id: { not: { equals: exceptId } }
+    },
+    query: "id"
+  });
+  for (const row of others) {
+    await sudo.db.SaasWorkspaceCrmStatus.updateOne({
+      where: { id: row.id },
+      data: { isDefault: false }
+    });
+  }
+}
+var saasWorkspaceCrmStatusHooks = {
+  validateDelete: async ({ item, context, addValidationError }) => {
+    if (!item?.id) return;
+    const row = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+      where: { id: item.id },
+      query: "id isDefault"
+    });
+    if (row?.isDefault === true) {
+      addValidationError(
+        "No puedes eliminar el estado CRM por defecto. Marca otro estado como predeterminado (isDefault) antes de eliminar este."
+      );
+    }
+  },
+  beforeOperation: async ({ operation, item, context }) => {
+    if (operation !== "delete" || !item?.id) return;
+    const deleting = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+      where: { id: item.id },
+      query: "id isDefault workspace { id }"
+    });
+    if (!deleting) {
+      return;
+    }
+    if (deleting.isDefault === true) {
+      throw new Error(
+        "No puedes eliminar el estado CRM por defecto. Marca otro estado como predeterminado (isDefault) antes de eliminar este."
+      );
+    }
+    const workspaceId = deleting.workspace?.id;
+    if (!workspaceId) {
+      return;
+    }
+    await reassignRelatedToDefaultStatusCrm(context, deleting.id, workspaceId);
+  },
+  validateInput: async ({
+    operation,
+    resolvedData,
+    context,
+    addValidationError,
+    item
+  }) => {
+    if (resolvedData?.color !== void 0 && resolvedData.color !== null) {
+      const color = String(resolvedData.color).trim();
+      if (!isValidCrmStatusHexColor(color)) {
+        addValidationError(
+          'El color debe ser un hex v\xE1lido de 6 d\xEDgitos (ej. "#2563EB").'
+        );
+      }
+    }
+    if (operation === "create") {
+      const workspaceConnectId = typeof resolvedData?.workspace?.connect?.id === "string" ? resolvedData.workspace.connect.id : void 0;
+      const key = typeof resolvedData?.key === "string" ? resolvedData.key : void 0;
+      if (workspaceConnectId && key) {
+        const dup = await context.sudo().query.SaasWorkspaceCrmStatus.findMany({
+          where: {
+            workspace: { id: { equals: workspaceConnectId } },
+            key: { equals: key }
+          },
+          take: 1,
+          query: "id"
+        });
+        if (dup.length > 0) {
+          addValidationError(
+            "Ya existe un estado CRM con esa clave (key) para este workspace."
+          );
+        }
+      }
+    }
+    if (operation === "update" && resolvedData?.key !== void 0) {
+      const full = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+        where: { id: item?.id },
+        query: "id workspace { id } key"
+      });
+      if (full?.workspace?.id) {
+        const dup = await context.sudo().query.SaasWorkspaceCrmStatus.findMany({
+          where: {
+            workspace: { id: { equals: full.workspace.id } },
+            key: { equals: String(resolvedData.key) },
+            id: { not: { equals: item.id } }
+          },
+          take: 1,
+          query: "id"
+        });
+        if (dup.length > 0) {
+          addValidationError(
+            "Ya existe un estado CRM con esa clave (key) para este workspace."
+          );
+        }
+      }
+    }
+  },
+  afterOperation: async ({
+    operation,
+    item,
+    resolvedData,
+    context
+  }) => {
+    if (operation !== "create" && operation !== "update" || !item?.id) {
+      return;
+    }
+    if (resolvedData?.isDefault !== true) return;
+    const full = await context.sudo().query.SaasWorkspaceCrmStatus.findOne({
+      where: { id: item.id },
+      query: "id workspace { id }"
+    });
+    if (!full?.workspace?.id) return;
+    await clearOtherDefaults({
+      context,
+      workspaceId: full.workspace.id,
+      exceptId: item.id
+    });
+  }
+};
+
+// models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
+var SaasWorkspaceCrmStatus_default = (0, import_core58.list)({
+  access: saasWorkspaceCrmStatusAccess,
+  hooks: saasWorkspaceCrmStatusHooks,
+  ui: {
+    listView: {
+      initialColumns: ["name", "key", "color", "order", "workspace"]
+    }
+  },
+  fields: {
+    workspace: (0, import_fields58.relationship)({
+      ref: "SaasWorkspace.crmStatuses",
+      many: false,
+      ui: { description: "Workspace al que pertenece este estado" }
+    }),
+    name: (0, import_fields58.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Nombre visible (p. ej. Kanban)" }
+    }),
+    color: (0, import_fields58.text)({
+      validation: { isRequired: true },
+      ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
+    }),
+    key: (0, import_fields58.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
+      }
+    }),
+    order: (0, import_fields58.integer)({
+      defaultValue: 0,
+      isIndexed: true,
+      ui: { description: "Orden en la UI (menor primero)" }
+    }),
+    isDefault: (0, import_fields58.checkbox)({
+      defaultValue: false,
+      ui: {
+        description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
+      }
+    }),
+    isArchived: (0, import_fields58.checkbox)({
+      defaultValue: false,
+      ui: { description: "Ocultar en selectores sin borrar historial" }
+    }),
+    followUpTasks: (0, import_fields58.relationship)({
+      ref: "TechFollowUpTask.statusCrm",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    proposals: (0, import_fields58.relationship)({
+      ref: "TechProposal.statusCrm",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    salesActivities: (0, import_fields58.relationship)({
+      ref: "TechSalesActivity.statusCrm",
+      many: true,
+      ui: { hideCreate: true }
+    }),
+    tasks: (0, import_fields58.relationship)({
+      ref: "TechTask.statusCrm",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
     })
   }
 });
@@ -5480,6 +6366,8 @@ var schema_default = {
   SaasQuotationProduct: SaasQuotationProduct_default,
   SaasReferralCommission: SaasReferralCommission_default,
   SaasSubscriptionLog: SaasSubscriptionLog_default,
+  SaasWorkspace: SaasWorkspace_default,
+  SaasWorkspaceCrmStatus: SaasWorkspaceCrmStatus_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
   SystemRelease: SystemRelease_default,
@@ -5490,6 +6378,7 @@ var schema_default = {
   TechFollowUpTask: TechFollowUpTask_default,
   TechProposal: TechProposal_default,
   TechSalesActivity: TechSalesActivity_default,
+  TechTask: TechTask_default,
   TechStatusBusinessLead: TechStatusBusinessLead_default,
   TokenNotification: TokenNotification_default,
   User: User_default,
@@ -5498,7 +6387,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core56 = require("@keystone-6/core");
+var import_core59 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -6296,8 +7185,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text45 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text45}`;
+  const text48 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text48}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -6812,6 +7701,7 @@ var resolver6 = {
             rating: details.rating ?? null,
             reviewCount: details.user_ratings_total ?? null,
             hasWebsite: !!details.website,
+            websiteUrl: details.website || "",
             source: "Google Maps",
             googlePlaceId: placeId,
             googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
@@ -6934,8 +7824,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text45 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text45}`;
+  const text48 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text48}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -8819,7 +9709,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core56.config)({
+  (0, import_core59.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`

@@ -13,5 +13,6 @@
   {"key": "calendar_crm", "name": "Gestión de calendario", "description": "Vista unificada de todas tus citas, tareas y propuestas para organizar tu semana."},
   {"key": "upload_files", "name": "Subir archivos", "description": "Sube archivos para tus vendedores como procesos, técnicas, cierres, speech, etc."},
   {"key": "projects", "name": "Crear proyectos", "description": "Crea, dale seguimiento y controla tus proyectos de ventas cerradas de tus clientes."},
-  {"key": "quotations", "name": "Crear cotizaciones", "description": "Crea tus cotizaciones para tus clientes."}
+  {"key": "quotations", "name": "Crear cotizaciones", "description": "Crea tus cotizaciones para tus clientes."},
+  {"key": "workspaces", "name": "Espacios de trabajo", "description": "Crea y administra espacios de trabajo para organizar tu negocio, sus leads, actividades, propuestas y tareas de CRM."}
 ]

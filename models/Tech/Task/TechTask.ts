@@ -5,31 +5,25 @@ import {
   select,
   relationship,
   checkbox,
-  calendarDay,
 } from "@keystone-6/core/fields";
-import { salesActivityAccess } from "./TechSalesActivity.access";
-import { SALES_ACTIVITY_TYPE, TASK_PRIORITY } from "../crm/constants";
-import { salesActivityHooks } from "./TechSalesActivity.hooks";
+import { techTaskAccess } from "./TechTask.access";
+import {  TASK_PRIORITY } from "../crm/constants";
+import { techTaskHooks } from "./TechTask.hooks";
 
-const activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
-  ([k, v]) => ({
-    label: v,
-    value: v,
-  }),
-);
+
 const priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v,
 }));
 
 export default list({
-  access: salesActivityAccess,
-  hooks: salesActivityHooks,
+  access: techTaskAccess,
+  hooks: techTaskHooks,
   ui: {
     listView: {
       initialColumns: [
         "type",
-        "activityDate",
+        "startDate",
         "dueDate",
         "priority",
         "result",
@@ -40,51 +34,50 @@ export default list({
   },
   fields: {
     title: text({
-      ui: { description: "Título de la actividad" },
+      ui: { description: "Título de la tarea" },
     }),
-    type: select({
-      type: "string",
-      options: activityTypeOptions,
-      validation: { isRequired: true },
-      isIndexed: true,
-    }),
-    activityDate: timestamp({
+    startDate: timestamp({
       defaultValue: { kind: "now" },
       validation: { isRequired: true },
+      ui: { description: "Fecha de la tarea (programada o realizada)" },
     }),
-    dueDate: calendarDay({
+    dueDate: timestamp({
       db: { isNullable: true },
       isIndexed: true,
-      ui: { description: "Deadline for this activity" },
+      ui: { description: "Fecha límite de la tarea" },
     }),
     priority: select({
       type: "string",
       options: priorityOptions,
       defaultValue: TASK_PRIORITY.MEDIA,
     }),
-    result: text({ ui: { description: "Resultado de la interacción" } }),
+    result: text({
+      ui: { description: "Resultado o cierre de la tarea" },
+    }),
     comments: text({ ui: { displayMode: "textarea" } }),
     businessLead: relationship({
-      ref: "TechBusinessLead.activities",
+      ref: "TechBusinessLead.tasks",
       many: false,
     }),
-    assignedSeller: relationship({
-      ref: "User.salesActivities",
-      many: false,
-    }),
-    createdBy: relationship({
-      ref: "User.createdBySalesActivities",
+    responsible: relationship({
+      ref: "User.tasksResponsible",
       many: false,
     }),
     workspace: relationship({
-      ref: "SaasWorkspace.salesActivities",
+      ref: "SaasWorkspace.tasks",
       many: false,
-      ui: { description: "Workspace a la que pertenece la actividad" },
+      ui: { description: "Workspace al que pertenece esta tarea" },
     }),
     statusCrm: relationship({
-      ref: "SaasWorkspaceCrmStatus.salesActivities",
+      ref: "SaasWorkspaceCrmStatus.tasks",
       many: false,
-      ui: { description: "Estado CRM dinámico (workspace + tipo actividad)" },
+      ui: {
+        description: "Estado CRM dinámico (workspace + tipo de tarea)",
+      },
+    }),
+    createdBy: relationship({
+      ref: "User.createdByTasks",
+      many: false,
     }),
     hiddenInWorkspace: checkbox({
       defaultValue: false,

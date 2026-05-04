@@ -34,6 +34,7 @@ export const SALES_ACTIVITY_TYPE = {
   WHATSAPP: "WhatsApp",
   EMAIL: "Email",
   REUNION: "Reunión",
+  OTRA: "Otra",
 } as const;
 
 export const PROPOSAL_STATUS = {

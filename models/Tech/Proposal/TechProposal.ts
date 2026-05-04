@@ -65,10 +65,28 @@ export default list({
       ref: "User.proposals",
       many: false,
     }),
+    createdBy: relationship({
+      ref: "User.createdByProposals",
+      many: false,
+    }),
+    workspace: relationship({
+      ref: "SaasWorkspace.proposals",
+      many: false,
+      ui: { description: "Workspace a la que pertenece la propuesta" },
+    }),
+    statusCrm: relationship({
+      ref: "SaasWorkspaceCrmStatus.proposals",
+      many: false,
+      ui: { description: "Estado CRM dinámico (workspace + tipo propuesta)" },
+    }),
     project: relationship({
       ref: "SaasProject.proposal",
       many: false,
       ui: { description: "Proyecto creado a partir de esta propuesta" },
+    }),
+    hiddenInWorkspace: checkbox({
+      defaultValue: false,
+      ui: { description: "Ocultar en el workspace" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

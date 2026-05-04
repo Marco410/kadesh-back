@@ -1,16 +1,21 @@
 import { ListAccessControl } from "@keystone-6/core/types";
+import { crmWorkspaceScopedWhere } from "../../../utils/access/crmWorkspaceScopedFilter";
 
-/** Acceso abierto: sin restricciones por rol. */
+const getCompanyId = (session: any) => session?.data?.company?.id;
+
 export const followUpTaskAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session }: any) => !!getCompanyId(session),
     update: () => true,
     delete: () => true,
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true,
+    query: ({ session }: any) =>
+      crmWorkspaceScopedWhere(session, { assigneeField: "assignedSeller" }),
+    update: ({ session }: any) =>
+      crmWorkspaceScopedWhere(session, { assigneeField: "assignedSeller" }),
+    delete: ({ session }: any) =>
+      crmWorkspaceScopedWhere(session, { assigneeField: "assignedSeller" }),
   },
 };

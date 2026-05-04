@@ -97,6 +97,11 @@ export default list({
       many: true,
       ui: { hideCreate: true },
     }),
+    tasks: relationship({
+      ref: "TechTask.businessLead",
+      many: true,
+      ui: { hideCreate: true, description: "Tareas de workspace ligadas al lead" },
+    }),
     proposals: relationship({
       ref: "TechProposal.businessLead",
       many: true,

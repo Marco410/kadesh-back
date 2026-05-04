@@ -463,6 +463,7 @@ model SaasCompany {
   id                                  String                       @id @default(cuid())
   name                                String                       @default("")
   users                               User[]                       @relation("User_company")
+  workspaces                          SaasWorkspace[]              @relation("SaasWorkspace_company")
   allowedGooglePlaceCategories        Json?
   leads                               TechBusinessLead[]           @relation("SaasCompany_leads")
   plan                                SaasPlan?                    @relation("SaasCompany_plan", fields: [planId], references: [id])
@@ -759,6 +760,47 @@ model SaasSubscriptionLog {
   @@index([step])
 }
 
+model SaasWorkspace {
+  id                String                   @id @default(cuid())
+  name              String                   @default("")
+  showActivities    Boolean                  @default(true)
+  showProposals     Boolean                  @default(true)
+  showFollowUpTasks Boolean                  @default(true)
+  showTasks         Boolean                  @default(true)
+  company           SaasCompany?             @relation("SaasWorkspace_company", fields: [companyId], references: [id])
+  companyId         String?                  @map("company")
+  members           User[]                   @relation("SaasWorkspace_members")
+  salesActivities   TechSalesActivity[]      @relation("TechSalesActivity_workspace")
+  tasks             TechTask[]               @relation("TechTask_workspace")
+  proposals         TechProposal[]           @relation("TechProposal_workspace")
+  followUpTasks     TechFollowUpTask[]       @relation("TechFollowUpTask_workspace")
+  crmStatuses       SaasWorkspaceCrmStatus[] @relation("SaasWorkspaceCrmStatus_workspace")
+
+  @@index([name])
+  @@index([companyId])
+}
+
+model SaasWorkspaceCrmStatus {
+  id              String              @id @default(cuid())
+  workspace       SaasWorkspace?      @relation("SaasWorkspaceCrmStatus_workspace", fields: [workspaceId], references: [id])
+  workspaceId     String?             @map("workspace")
+  name            String              @default("")
+  color           String              @default("")
+  key             String              @default("")
+  order           Int?                @default(0)
+  isDefault       Boolean             @default(false)
+  isArchived      Boolean             @default(false)
+  followUpTasks   TechFollowUpTask[]  @relation("TechFollowUpTask_statusCrm")
+  proposals       TechProposal[]      @relation("TechProposal_statusCrm")
+  salesActivities TechSalesActivity[] @relation("TechSalesActivity_statusCrm")
+  tasks           TechTask[]          @relation("TechTask_statusCrm")
+
+  @@index([workspaceId])
+  @@index([name])
+  @@index([key])
+  @@index([order])
+}
+
 model Schedule {
   id          String    @id @default(cuid())
   day         String
@@ -831,6 +873,7 @@ model TechBusinessLead {
   topReview5           String                   @default("")
   websitePromptContent String                   @default("")
   activities           TechSalesActivity[]      @relation("TechSalesActivity_businessLead")
+  tasks                TechTask[]               @relation("TechTask_businessLead")
   proposals            TechProposal[]           @relation("TechProposal_businessLead")
   projects             SaasProject[]            @relation("SaasProject_businessLead")
   followUpTasks        TechFollowUpTask[]       @relation("TechFollowUpTask_businessLead")
@@ -891,62 +934,125 @@ model TechLeadSyncLog {
 }
 
 model TechFollowUpTask {
-  id               String            @id @default(cuid())
-  scheduledDate    DateTime          @postgresql.Date
-  status           String?           @default("Pendiente")
-  priority         String?           @default("Media")
-  businessLead     TechBusinessLead? @relation("TechFollowUpTask_businessLead", fields: [businessLeadId], references: [id])
-  businessLeadId   String?           @map("businessLead")
-  assignedSeller   User?             @relation("TechFollowUpTask_assignedSeller", fields: [assignedSellerId], references: [id])
-  assignedSellerId String?           @map("assignedSeller")
-  notes            String            @default("")
-  createdAt        DateTime?         @default(now())
-  updatedAt        DateTime?         @updatedAt
+  id                String                  @id @default(cuid())
+  scheduledDate     DateTime                @postgresql.Date
+  status            String?                 @default("Pendiente")
+  priority          String?                 @default("Media")
+  businessLead      TechBusinessLead?       @relation("TechFollowUpTask_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId    String?                 @map("businessLead")
+  assignedSeller    User?                   @relation("TechFollowUpTask_assignedSeller", fields: [assignedSellerId], references: [id])
+  assignedSellerId  String?                 @map("assignedSeller")
+  createdBy         User?                   @relation("TechFollowUpTask_createdBy", fields: [createdById], references: [id])
+  createdById       String?                 @map("createdBy")
+  workspace         SaasWorkspace?          @relation("TechFollowUpTask_workspace", fields: [workspaceId], references: [id])
+  workspaceId       String?                 @map("workspace")
+  statusCrm         SaasWorkspaceCrmStatus? @relation("TechFollowUpTask_statusCrm", fields: [statusCrmId], references: [id])
+  statusCrmId       String?                 @map("statusCrm")
+  notes             String                  @default("")
+  hiddenInWorkspace Boolean                 @default(false)
+  createdAt         DateTime?               @default(now())
+  updatedAt         DateTime?               @updatedAt
 
   @@index([scheduledDate])
   @@index([status])
   @@index([businessLeadId])
   @@index([assignedSellerId])
+  @@index([createdById])
+  @@index([workspaceId])
+  @@index([statusCrmId])
 }
 
 model TechProposal {
-  id               String            @id @default(cuid())
-  sentDate         DateTime          @postgresql.Date
-  amount           Float?
-  status           String?           @default("Enviada")
-  fileOrUrl        String            @default("")
-  approved         Boolean           @default(false)
-  paid             Boolean           @default(false)
-  product          String            @default("")
-  notes            String            @default("")
-  businessLead     TechBusinessLead? @relation("TechProposal_businessLead", fields: [businessLeadId], references: [id])
-  businessLeadId   String?           @map("businessLead")
-  assignedSeller   User?             @relation("TechProposal_assignedSeller", fields: [assignedSellerId], references: [id])
-  assignedSellerId String?           @map("assignedSeller")
-  project          SaasProject?      @relation("SaasProject_proposal")
-  createdAt        DateTime?         @default(now())
-  updatedAt        DateTime?         @updatedAt
+  id                String                  @id @default(cuid())
+  sentDate          DateTime                @postgresql.Date
+  amount            Float?
+  status            String?                 @default("Enviada")
+  fileOrUrl         String                  @default("")
+  approved          Boolean                 @default(false)
+  paid              Boolean                 @default(false)
+  product           String                  @default("")
+  notes             String                  @default("")
+  businessLead      TechBusinessLead?       @relation("TechProposal_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId    String?                 @map("businessLead")
+  assignedSeller    User?                   @relation("TechProposal_assignedSeller", fields: [assignedSellerId], references: [id])
+  assignedSellerId  String?                 @map("assignedSeller")
+  createdBy         User?                   @relation("TechProposal_createdBy", fields: [createdById], references: [id])
+  createdById       String?                 @map("createdBy")
+  workspace         SaasWorkspace?          @relation("TechProposal_workspace", fields: [workspaceId], references: [id])
+  workspaceId       String?                 @map("workspace")
+  statusCrm         SaasWorkspaceCrmStatus? @relation("TechProposal_statusCrm", fields: [statusCrmId], references: [id])
+  statusCrmId       String?                 @map("statusCrm")
+  project           SaasProject?            @relation("SaasProject_proposal")
+  hiddenInWorkspace Boolean                 @default(false)
+  createdAt         DateTime?               @default(now())
+  updatedAt         DateTime?               @updatedAt
 
   @@index([status])
   @@index([businessLeadId])
   @@index([assignedSellerId])
+  @@index([createdById])
+  @@index([workspaceId])
+  @@index([statusCrmId])
 }
 
 model TechSalesActivity {
-  id               String            @id @default(cuid())
-  type             String
-  activityDate     DateTime          @default(now())
-  result           String            @default("")
-  comments         String            @default("")
-  businessLead     TechBusinessLead? @relation("TechSalesActivity_businessLead", fields: [businessLeadId], references: [id])
-  businessLeadId   String?           @map("businessLead")
-  assignedSeller   User?             @relation("TechSalesActivity_assignedSeller", fields: [assignedSellerId], references: [id])
-  assignedSellerId String?           @map("assignedSeller")
-  createdAt        DateTime?         @default(now())
+  id                String                  @id @default(cuid())
+  title             String                  @default("")
+  type              String
+  activityDate      DateTime                @default(now())
+  dueDate           DateTime?               @postgresql.Date
+  priority          String?                 @default("Media")
+  result            String                  @default("")
+  comments          String                  @default("")
+  businessLead      TechBusinessLead?       @relation("TechSalesActivity_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId    String?                 @map("businessLead")
+  assignedSeller    User?                   @relation("TechSalesActivity_assignedSeller", fields: [assignedSellerId], references: [id])
+  assignedSellerId  String?                 @map("assignedSeller")
+  createdBy         User?                   @relation("TechSalesActivity_createdBy", fields: [createdById], references: [id])
+  createdById       String?                 @map("createdBy")
+  workspace         SaasWorkspace?          @relation("TechSalesActivity_workspace", fields: [workspaceId], references: [id])
+  workspaceId       String?                 @map("workspace")
+  statusCrm         SaasWorkspaceCrmStatus? @relation("TechSalesActivity_statusCrm", fields: [statusCrmId], references: [id])
+  statusCrmId       String?                 @map("statusCrm")
+  hiddenInWorkspace Boolean                 @default(false)
+  createdAt         DateTime?               @default(now())
 
   @@index([type])
+  @@index([dueDate])
   @@index([businessLeadId])
   @@index([assignedSellerId])
+  @@index([createdById])
+  @@index([workspaceId])
+  @@index([statusCrmId])
+}
+
+model TechTask {
+  id                String                  @id @default(cuid())
+  title             String                  @default("")
+  startDate         DateTime                @default(now())
+  dueDate           DateTime?
+  priority          String?                 @default("Media")
+  result            String                  @default("")
+  comments          String                  @default("")
+  businessLead      TechBusinessLead?       @relation("TechTask_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId    String?                 @map("businessLead")
+  responsible       User?                   @relation("TechTask_responsible", fields: [responsibleId], references: [id])
+  responsibleId     String?                 @map("responsible")
+  workspace         SaasWorkspace?          @relation("TechTask_workspace", fields: [workspaceId], references: [id])
+  workspaceId       String?                 @map("workspace")
+  statusCrm         SaasWorkspaceCrmStatus? @relation("TechTask_statusCrm", fields: [statusCrmId], references: [id])
+  statusCrmId       String?                 @map("statusCrm")
+  createdBy         User?                   @relation("TechTask_createdBy", fields: [createdById], references: [id])
+  createdById       String?                 @map("createdBy")
+  hiddenInWorkspace Boolean                 @default(false)
+  createdAt         DateTime?               @default(now())
+
+  @@index([dueDate])
+  @@index([businessLeadId])
+  @@index([responsibleId])
+  @@index([workspaceId])
+  @@index([statusCrmId])
+  @@index([createdById])
 }
 
 model TechStatusBusinessLead {
@@ -998,11 +1104,17 @@ model User {
   referrals                                User[]                   @relation("User_referredBy")
   company                                  SaasCompany?             @relation("User_company", fields: [companyId], references: [id])
   companyId                                String?                  @map("company")
+  workspaces                               SaasWorkspace[]          @relation("SaasWorkspace_members")
   blog_subscriptions                       BlogSubscription[]       @relation("BlogSubscription_user")
   businessLeadsAssigned                    TechBusinessLead[]       @relation("TechBusinessLead_salesPerson")
   salesActivities                          TechSalesActivity[]      @relation("TechSalesActivity_assignedSeller")
+  createdBySalesActivities                 TechSalesActivity[]      @relation("TechSalesActivity_createdBy")
+  tasksResponsible                         TechTask[]               @relation("TechTask_responsible")
+  createdByTasks                           TechTask[]               @relation("TechTask_createdBy")
   followUpTasks                            TechFollowUpTask[]       @relation("TechFollowUpTask_assignedSeller")
+  createdByFollowUpTasks                   TechFollowUpTask[]       @relation("TechFollowUpTask_createdBy")
   proposals                                TechProposal[]           @relation("TechProposal_assignedSeller")
+  createdByProposals                       TechProposal[]           @relation("TechProposal_createdBy")
   projectsResponsible                      SaasProject[]            @relation("SaasProject_responsible")
   leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
   saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_user")

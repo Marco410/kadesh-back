@@ -2526,6 +2526,8 @@ type SaasCompany {
   name: String
   users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   usersCount(where: UserWhereInput! = {}): Int
+  workspaces(where: SaasWorkspaceWhereInput! = {}, orderBy: [SaasWorkspaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasWorkspaceWhereUniqueInput): [SaasWorkspace!]
+  workspacesCount(where: SaasWorkspaceWhereInput! = {}): Int
   allowedGooglePlaceCategories: JSON
   leads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
   leadsCount(where: TechBusinessLeadWhereInput! = {}): Int
@@ -2578,6 +2580,7 @@ input SaasCompanyWhereInput {
   id: IDFilter
   name: StringFilter
   users: UserManyRelationFilter
+  workspaces: SaasWorkspaceManyRelationFilter
   leads: TechBusinessLeadManyRelationFilter
   plan: SaasPlanWhereInput
   subscriptionStartedAt: CalendarDayNullableFilter
@@ -2600,6 +2603,12 @@ input SaasCompanyWhereInput {
   contactPhone: StringNullableFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
+}
+
+input SaasWorkspaceManyRelationFilter {
+  every: SaasWorkspaceWhereInput
+  some: SaasWorkspaceWhereInput
+  none: SaasWorkspaceWhereInput
 }
 
 input TechBusinessLeadManyRelationFilter {
@@ -2676,6 +2685,7 @@ input SaasCompanyOrderByInput {
 input SaasCompanyUpdateInput {
   name: String
   users: UserRelateToManyForUpdateInput
+  workspaces: SaasWorkspaceRelateToManyForUpdateInput
   allowedGooglePlaceCategories: JSON
   leads: TechBusinessLeadRelateToManyForUpdateInput
   plan: SaasPlanRelateToOneForUpdateInput
@@ -2700,6 +2710,13 @@ input SaasCompanyUpdateInput {
   contactPhone: String
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasWorkspaceRelateToManyForUpdateInput {
+  disconnect: [SaasWorkspaceWhereUniqueInput!]
+  set: [SaasWorkspaceWhereUniqueInput!]
+  create: [SaasWorkspaceCreateInput!]
+  connect: [SaasWorkspaceWhereUniqueInput!]
 }
 
 input TechBusinessLeadRelateToManyForUpdateInput {
@@ -2783,6 +2800,7 @@ input SaasCompanyUpdateArgs {
 input SaasCompanyCreateInput {
   name: String
   users: UserRelateToManyForCreateInput
+  workspaces: SaasWorkspaceRelateToManyForCreateInput
   allowedGooglePlaceCategories: JSON
   leads: TechBusinessLeadRelateToManyForCreateInput
   plan: SaasPlanRelateToOneForCreateInput
@@ -2807,6 +2825,11 @@ input SaasCompanyCreateInput {
   contactPhone: String
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasWorkspaceRelateToManyForCreateInput {
+  create: [SaasWorkspaceCreateInput!]
+  connect: [SaasWorkspaceWhereUniqueInput!]
 }
 
 input TechBusinessLeadRelateToManyForCreateInput {
@@ -4021,6 +4044,280 @@ input SaasSubscriptionLogCreateInput {
   createdAt: DateTime
 }
 
+type SaasWorkspace {
+  id: ID!
+  name: String
+  showActivities: Boolean
+  showProposals: Boolean
+  showFollowUpTasks: Boolean
+  showTasks: Boolean
+  company: SaasCompany
+  members(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
+  membersCount(where: UserWhereInput! = {}): Int
+  salesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
+  salesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  tasks(where: TechTaskWhereInput! = {}, orderBy: [TechTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechTaskWhereUniqueInput): [TechTask!]
+  tasksCount(where: TechTaskWhereInput! = {}): Int
+  proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
+  proposalsCount(where: TechProposalWhereInput! = {}): Int
+  followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
+  followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
+  crmStatuses(where: SaasWorkspaceCrmStatusWhereInput! = {}, orderBy: [SaasWorkspaceCrmStatusOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasWorkspaceCrmStatusWhereUniqueInput): [SaasWorkspaceCrmStatus!]
+  crmStatusesCount(where: SaasWorkspaceCrmStatusWhereInput! = {}): Int
+}
+
+input SaasWorkspaceWhereUniqueInput {
+  id: ID
+}
+
+input SaasWorkspaceWhereInput {
+  AND: [SaasWorkspaceWhereInput!]
+  OR: [SaasWorkspaceWhereInput!]
+  NOT: [SaasWorkspaceWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  showActivities: BooleanFilter
+  showProposals: BooleanFilter
+  showFollowUpTasks: BooleanFilter
+  showTasks: BooleanFilter
+  company: SaasCompanyWhereInput
+  members: UserManyRelationFilter
+  salesActivities: TechSalesActivityManyRelationFilter
+  tasks: TechTaskManyRelationFilter
+  proposals: TechProposalManyRelationFilter
+  followUpTasks: TechFollowUpTaskManyRelationFilter
+  crmStatuses: SaasWorkspaceCrmStatusManyRelationFilter
+}
+
+input TechSalesActivityManyRelationFilter {
+  every: TechSalesActivityWhereInput
+  some: TechSalesActivityWhereInput
+  none: TechSalesActivityWhereInput
+}
+
+input TechTaskManyRelationFilter {
+  every: TechTaskWhereInput
+  some: TechTaskWhereInput
+  none: TechTaskWhereInput
+}
+
+input TechProposalManyRelationFilter {
+  every: TechProposalWhereInput
+  some: TechProposalWhereInput
+  none: TechProposalWhereInput
+}
+
+input TechFollowUpTaskManyRelationFilter {
+  every: TechFollowUpTaskWhereInput
+  some: TechFollowUpTaskWhereInput
+  none: TechFollowUpTaskWhereInput
+}
+
+input SaasWorkspaceCrmStatusManyRelationFilter {
+  every: SaasWorkspaceCrmStatusWhereInput
+  some: SaasWorkspaceCrmStatusWhereInput
+  none: SaasWorkspaceCrmStatusWhereInput
+}
+
+input SaasWorkspaceOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  showActivities: OrderDirection
+  showProposals: OrderDirection
+  showFollowUpTasks: OrderDirection
+  showTasks: OrderDirection
+}
+
+input SaasWorkspaceUpdateInput {
+  name: String
+  showActivities: Boolean
+  showProposals: Boolean
+  showFollowUpTasks: Boolean
+  showTasks: Boolean
+  company: SaasCompanyRelateToOneForUpdateInput
+  members: UserRelateToManyForUpdateInput
+  salesActivities: TechSalesActivityRelateToManyForUpdateInput
+  tasks: TechTaskRelateToManyForUpdateInput
+  proposals: TechProposalRelateToManyForUpdateInput
+  followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
+  crmStatuses: SaasWorkspaceCrmStatusRelateToManyForUpdateInput
+}
+
+input TechSalesActivityRelateToManyForUpdateInput {
+  disconnect: [TechSalesActivityWhereUniqueInput!]
+  set: [TechSalesActivityWhereUniqueInput!]
+  create: [TechSalesActivityCreateInput!]
+  connect: [TechSalesActivityWhereUniqueInput!]
+}
+
+input TechTaskRelateToManyForUpdateInput {
+  disconnect: [TechTaskWhereUniqueInput!]
+  set: [TechTaskWhereUniqueInput!]
+  create: [TechTaskCreateInput!]
+  connect: [TechTaskWhereUniqueInput!]
+}
+
+input TechProposalRelateToManyForUpdateInput {
+  disconnect: [TechProposalWhereUniqueInput!]
+  set: [TechProposalWhereUniqueInput!]
+  create: [TechProposalCreateInput!]
+  connect: [TechProposalWhereUniqueInput!]
+}
+
+input TechFollowUpTaskRelateToManyForUpdateInput {
+  disconnect: [TechFollowUpTaskWhereUniqueInput!]
+  set: [TechFollowUpTaskWhereUniqueInput!]
+  create: [TechFollowUpTaskCreateInput!]
+  connect: [TechFollowUpTaskWhereUniqueInput!]
+}
+
+input SaasWorkspaceCrmStatusRelateToManyForUpdateInput {
+  disconnect: [SaasWorkspaceCrmStatusWhereUniqueInput!]
+  set: [SaasWorkspaceCrmStatusWhereUniqueInput!]
+  create: [SaasWorkspaceCrmStatusCreateInput!]
+  connect: [SaasWorkspaceCrmStatusWhereUniqueInput!]
+}
+
+input SaasWorkspaceUpdateArgs {
+  where: SaasWorkspaceWhereUniqueInput!
+  data: SaasWorkspaceUpdateInput!
+}
+
+input SaasWorkspaceCreateInput {
+  name: String
+  showActivities: Boolean
+  showProposals: Boolean
+  showFollowUpTasks: Boolean
+  showTasks: Boolean
+  company: SaasCompanyRelateToOneForCreateInput
+  members: UserRelateToManyForCreateInput
+  salesActivities: TechSalesActivityRelateToManyForCreateInput
+  tasks: TechTaskRelateToManyForCreateInput
+  proposals: TechProposalRelateToManyForCreateInput
+  followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
+  crmStatuses: SaasWorkspaceCrmStatusRelateToManyForCreateInput
+}
+
+input TechSalesActivityRelateToManyForCreateInput {
+  create: [TechSalesActivityCreateInput!]
+  connect: [TechSalesActivityWhereUniqueInput!]
+}
+
+input TechTaskRelateToManyForCreateInput {
+  create: [TechTaskCreateInput!]
+  connect: [TechTaskWhereUniqueInput!]
+}
+
+input TechProposalRelateToManyForCreateInput {
+  create: [TechProposalCreateInput!]
+  connect: [TechProposalWhereUniqueInput!]
+}
+
+input TechFollowUpTaskRelateToManyForCreateInput {
+  create: [TechFollowUpTaskCreateInput!]
+  connect: [TechFollowUpTaskWhereUniqueInput!]
+}
+
+input SaasWorkspaceCrmStatusRelateToManyForCreateInput {
+  create: [SaasWorkspaceCrmStatusCreateInput!]
+  connect: [SaasWorkspaceCrmStatusWhereUniqueInput!]
+}
+
+type SaasWorkspaceCrmStatus {
+  id: ID!
+  workspace: SaasWorkspace
+  name: String
+  color: String
+  key: String
+  order: Int
+  isDefault: Boolean
+  isArchived: Boolean
+  followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
+  followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
+  proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
+  proposalsCount(where: TechProposalWhereInput! = {}): Int
+  salesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
+  salesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  tasks(where: TechTaskWhereInput! = {}, orderBy: [TechTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechTaskWhereUniqueInput): [TechTask!]
+  tasksCount(where: TechTaskWhereInput! = {}): Int
+}
+
+input SaasWorkspaceCrmStatusWhereUniqueInput {
+  id: ID
+}
+
+input SaasWorkspaceCrmStatusWhereInput {
+  AND: [SaasWorkspaceCrmStatusWhereInput!]
+  OR: [SaasWorkspaceCrmStatusWhereInput!]
+  NOT: [SaasWorkspaceCrmStatusWhereInput!]
+  id: IDFilter
+  workspace: SaasWorkspaceWhereInput
+  name: StringFilter
+  color: StringFilter
+  key: StringFilter
+  order: IntNullableFilter
+  isDefault: BooleanFilter
+  isArchived: BooleanFilter
+  followUpTasks: TechFollowUpTaskManyRelationFilter
+  proposals: TechProposalManyRelationFilter
+  salesActivities: TechSalesActivityManyRelationFilter
+  tasks: TechTaskManyRelationFilter
+}
+
+input SaasWorkspaceCrmStatusOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  color: OrderDirection
+  key: OrderDirection
+  order: OrderDirection
+  isDefault: OrderDirection
+  isArchived: OrderDirection
+}
+
+input SaasWorkspaceCrmStatusUpdateInput {
+  workspace: SaasWorkspaceRelateToOneForUpdateInput
+  name: String
+  color: String
+  key: String
+  order: Int
+  isDefault: Boolean
+  isArchived: Boolean
+  followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
+  proposals: TechProposalRelateToManyForUpdateInput
+  salesActivities: TechSalesActivityRelateToManyForUpdateInput
+  tasks: TechTaskRelateToManyForUpdateInput
+}
+
+input SaasWorkspaceRelateToOneForUpdateInput {
+  create: SaasWorkspaceCreateInput
+  connect: SaasWorkspaceWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasWorkspaceCrmStatusUpdateArgs {
+  where: SaasWorkspaceCrmStatusWhereUniqueInput!
+  data: SaasWorkspaceCrmStatusUpdateInput!
+}
+
+input SaasWorkspaceCrmStatusCreateInput {
+  workspace: SaasWorkspaceRelateToOneForCreateInput
+  name: String
+  color: String
+  key: String
+  order: Int
+  isDefault: Boolean
+  isArchived: Boolean
+  followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
+  proposals: TechProposalRelateToManyForCreateInput
+  salesActivities: TechSalesActivityRelateToManyForCreateInput
+  tasks: TechTaskRelateToManyForCreateInput
+}
+
+input SaasWorkspaceRelateToOneForCreateInput {
+  create: SaasWorkspaceCreateInput
+  connect: SaasWorkspaceWhereUniqueInput
+}
+
 type Schedule {
   id: ID!
   day: String
@@ -4277,6 +4574,8 @@ type TechBusinessLead {
   websitePromptContent: String
   activities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
   activitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  tasks(where: TechTaskWhereInput! = {}, orderBy: [TechTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechTaskWhereUniqueInput): [TechTask!]
+  tasksCount(where: TechTaskWhereInput! = {}): Int
   proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
   proposalsCount(where: TechProposalWhereInput! = {}): Int
   projects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
@@ -4332,6 +4631,7 @@ input TechBusinessLeadWhereInput {
   topReview5: StringFilter
   websitePromptContent: StringFilter
   activities: TechSalesActivityManyRelationFilter
+  tasks: TechTaskManyRelationFilter
   proposals: TechProposalManyRelationFilter
   projects: SaasProjectManyRelationFilter
   followUpTasks: TechFollowUpTaskManyRelationFilter
@@ -4342,24 +4642,6 @@ input TechBusinessLeadWhereInput {
   quotations: SaasQuotationManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
-}
-
-input TechSalesActivityManyRelationFilter {
-  every: TechSalesActivityWhereInput
-  some: TechSalesActivityWhereInput
-  none: TechSalesActivityWhereInput
-}
-
-input TechProposalManyRelationFilter {
-  every: TechProposalWhereInput
-  some: TechProposalWhereInput
-  none: TechProposalWhereInput
-}
-
-input TechFollowUpTaskManyRelationFilter {
-  every: TechFollowUpTaskWhereInput
-  some: TechFollowUpTaskWhereInput
-  none: TechFollowUpTaskWhereInput
 }
 
 input TechBusinessLeadOrderByInput {
@@ -4423,6 +4705,7 @@ input TechBusinessLeadUpdateInput {
   topReview5: String
   websitePromptContent: String
   activities: TechSalesActivityRelateToManyForUpdateInput
+  tasks: TechTaskRelateToManyForUpdateInput
   proposals: TechProposalRelateToManyForUpdateInput
   projects: SaasProjectRelateToManyForUpdateInput
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
@@ -4433,27 +4716,6 @@ input TechBusinessLeadUpdateInput {
   quotations: SaasQuotationRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
-}
-
-input TechSalesActivityRelateToManyForUpdateInput {
-  disconnect: [TechSalesActivityWhereUniqueInput!]
-  set: [TechSalesActivityWhereUniqueInput!]
-  create: [TechSalesActivityCreateInput!]
-  connect: [TechSalesActivityWhereUniqueInput!]
-}
-
-input TechProposalRelateToManyForUpdateInput {
-  disconnect: [TechProposalWhereUniqueInput!]
-  set: [TechProposalWhereUniqueInput!]
-  create: [TechProposalCreateInput!]
-  connect: [TechProposalWhereUniqueInput!]
-}
-
-input TechFollowUpTaskRelateToManyForUpdateInput {
-  disconnect: [TechFollowUpTaskWhereUniqueInput!]
-  set: [TechFollowUpTaskWhereUniqueInput!]
-  create: [TechFollowUpTaskCreateInput!]
-  connect: [TechFollowUpTaskWhereUniqueInput!]
 }
 
 input TechBusinessLeadUpdateArgs {
@@ -4489,6 +4751,7 @@ input TechBusinessLeadCreateInput {
   topReview5: String
   websitePromptContent: String
   activities: TechSalesActivityRelateToManyForCreateInput
+  tasks: TechTaskRelateToManyForCreateInput
   proposals: TechProposalRelateToManyForCreateInput
   projects: SaasProjectRelateToManyForCreateInput
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
@@ -4499,21 +4762,6 @@ input TechBusinessLeadCreateInput {
   quotations: SaasQuotationRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
-}
-
-input TechSalesActivityRelateToManyForCreateInput {
-  create: [TechSalesActivityCreateInput!]
-  connect: [TechSalesActivityWhereUniqueInput!]
-}
-
-input TechProposalRelateToManyForCreateInput {
-  create: [TechProposalCreateInput!]
-  connect: [TechProposalWhereUniqueInput!]
-}
-
-input TechFollowUpTaskRelateToManyForCreateInput {
-  create: [TechFollowUpTaskCreateInput!]
-  connect: [TechFollowUpTaskWhereUniqueInput!]
 }
 
 type TechFile {
@@ -4688,7 +4936,11 @@ type TechFollowUpTask {
   priority: String
   businessLead: TechBusinessLead
   assignedSeller: User
+  createdBy: User
+  workspace: SaasWorkspace
+  statusCrm: SaasWorkspaceCrmStatus
   notes: String
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -4707,7 +4959,11 @@ input TechFollowUpTaskWhereInput {
   priority: StringNullableFilter
   businessLead: TechBusinessLeadWhereInput
   assignedSeller: UserWhereInput
+  createdBy: UserWhereInput
+  workspace: SaasWorkspaceWhereInput
+  statusCrm: SaasWorkspaceCrmStatusWhereInput
   notes: StringFilter
+  hiddenInWorkspace: BooleanFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -4718,6 +4974,7 @@ input TechFollowUpTaskOrderByInput {
   status: OrderDirection
   priority: OrderDirection
   notes: OrderDirection
+  hiddenInWorkspace: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -4728,9 +4985,19 @@ input TechFollowUpTaskUpdateInput {
   priority: String
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
   assignedSeller: UserRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  workspace: SaasWorkspaceRelateToOneForUpdateInput
+  statusCrm: SaasWorkspaceCrmStatusRelateToOneForUpdateInput
   notes: String
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasWorkspaceCrmStatusRelateToOneForUpdateInput {
+  create: SaasWorkspaceCrmStatusCreateInput
+  connect: SaasWorkspaceCrmStatusWhereUniqueInput
+  disconnect: Boolean
 }
 
 input TechFollowUpTaskUpdateArgs {
@@ -4744,9 +5011,18 @@ input TechFollowUpTaskCreateInput {
   priority: String
   businessLead: TechBusinessLeadRelateToOneForCreateInput
   assignedSeller: UserRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  workspace: SaasWorkspaceRelateToOneForCreateInput
+  statusCrm: SaasWorkspaceCrmStatusRelateToOneForCreateInput
   notes: String
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input SaasWorkspaceCrmStatusRelateToOneForCreateInput {
+  create: SaasWorkspaceCrmStatusCreateInput
+  connect: SaasWorkspaceCrmStatusWhereUniqueInput
 }
 
 type TechProposal {
@@ -4761,7 +5037,11 @@ type TechProposal {
   notes: String
   businessLead: TechBusinessLead
   assignedSeller: User
+  createdBy: User
+  workspace: SaasWorkspace
+  statusCrm: SaasWorkspaceCrmStatus
   project: SaasProject
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -4786,7 +5066,11 @@ input TechProposalWhereInput {
   notes: StringFilter
   businessLead: TechBusinessLeadWhereInput
   assignedSeller: UserWhereInput
+  createdBy: UserWhereInput
+  workspace: SaasWorkspaceWhereInput
+  statusCrm: SaasWorkspaceCrmStatusWhereInput
   project: SaasProjectWhereInput
+  hiddenInWorkspace: BooleanFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -4801,6 +5085,7 @@ input TechProposalOrderByInput {
   paid: OrderDirection
   product: OrderDirection
   notes: OrderDirection
+  hiddenInWorkspace: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -4816,7 +5101,11 @@ input TechProposalUpdateInput {
   notes: String
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
   assignedSeller: UserRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  workspace: SaasWorkspaceRelateToOneForUpdateInput
+  statusCrm: SaasWorkspaceCrmStatusRelateToOneForUpdateInput
   project: SaasProjectRelateToOneForUpdateInput
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -4837,19 +5126,30 @@ input TechProposalCreateInput {
   notes: String
   businessLead: TechBusinessLeadRelateToOneForCreateInput
   assignedSeller: UserRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  workspace: SaasWorkspaceRelateToOneForCreateInput
+  statusCrm: SaasWorkspaceCrmStatusRelateToOneForCreateInput
   project: SaasProjectRelateToOneForCreateInput
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
   updatedAt: DateTime
 }
 
 type TechSalesActivity {
   id: ID!
+  title: String
   type: String
   activityDate: DateTime
+  dueDate: CalendarDay
+  priority: String
   result: String
   comments: String
   businessLead: TechBusinessLead
   assignedSeller: User
+  createdBy: User
+  workspace: SaasWorkspace
+  statusCrm: SaasWorkspaceCrmStatus
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
 
@@ -4862,31 +5162,49 @@ input TechSalesActivityWhereInput {
   OR: [TechSalesActivityWhereInput!]
   NOT: [TechSalesActivityWhereInput!]
   id: IDFilter
+  title: StringFilter
   type: StringFilter
   activityDate: DateTimeFilter
+  dueDate: CalendarDayNullableFilter
+  priority: StringNullableFilter
   result: StringFilter
   comments: StringFilter
   businessLead: TechBusinessLeadWhereInput
   assignedSeller: UserWhereInput
+  createdBy: UserWhereInput
+  workspace: SaasWorkspaceWhereInput
+  statusCrm: SaasWorkspaceCrmStatusWhereInput
+  hiddenInWorkspace: BooleanFilter
   createdAt: DateTimeNullableFilter
 }
 
 input TechSalesActivityOrderByInput {
   id: OrderDirection
+  title: OrderDirection
   type: OrderDirection
   activityDate: OrderDirection
+  dueDate: OrderDirection
+  priority: OrderDirection
   result: OrderDirection
   comments: OrderDirection
+  hiddenInWorkspace: OrderDirection
   createdAt: OrderDirection
 }
 
 input TechSalesActivityUpdateInput {
+  title: String
   type: String
   activityDate: DateTime
+  dueDate: CalendarDay
+  priority: String
   result: String
   comments: String
   businessLead: TechBusinessLeadRelateToOneForUpdateInput
   assignedSeller: UserRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  workspace: SaasWorkspaceRelateToOneForUpdateInput
+  statusCrm: SaasWorkspaceCrmStatusRelateToOneForUpdateInput
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
 
@@ -4896,12 +5214,109 @@ input TechSalesActivityUpdateArgs {
 }
 
 input TechSalesActivityCreateInput {
+  title: String
   type: String
   activityDate: DateTime
+  dueDate: CalendarDay
+  priority: String
   result: String
   comments: String
   businessLead: TechBusinessLeadRelateToOneForCreateInput
   assignedSeller: UserRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  workspace: SaasWorkspaceRelateToOneForCreateInput
+  statusCrm: SaasWorkspaceCrmStatusRelateToOneForCreateInput
+  hiddenInWorkspace: Boolean
+  createdAt: DateTime
+}
+
+type TechTask {
+  id: ID!
+  title: String
+  startDate: DateTime
+  dueDate: DateTime
+  priority: String
+  result: String
+  comments: String
+  businessLead: TechBusinessLead
+  responsible: User
+  workspace: SaasWorkspace
+  statusCrm: SaasWorkspaceCrmStatus
+  createdBy: User
+  hiddenInWorkspace: Boolean
+  createdAt: DateTime
+}
+
+input TechTaskWhereUniqueInput {
+  id: ID
+}
+
+input TechTaskWhereInput {
+  AND: [TechTaskWhereInput!]
+  OR: [TechTaskWhereInput!]
+  NOT: [TechTaskWhereInput!]
+  id: IDFilter
+  title: StringFilter
+  startDate: DateTimeFilter
+  dueDate: DateTimeNullableFilter
+  priority: StringNullableFilter
+  result: StringFilter
+  comments: StringFilter
+  businessLead: TechBusinessLeadWhereInput
+  responsible: UserWhereInput
+  workspace: SaasWorkspaceWhereInput
+  statusCrm: SaasWorkspaceCrmStatusWhereInput
+  createdBy: UserWhereInput
+  hiddenInWorkspace: BooleanFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input TechTaskOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  startDate: OrderDirection
+  dueDate: OrderDirection
+  priority: OrderDirection
+  result: OrderDirection
+  comments: OrderDirection
+  hiddenInWorkspace: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TechTaskUpdateInput {
+  title: String
+  startDate: DateTime
+  dueDate: DateTime
+  priority: String
+  result: String
+  comments: String
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  responsible: UserRelateToOneForUpdateInput
+  workspace: SaasWorkspaceRelateToOneForUpdateInput
+  statusCrm: SaasWorkspaceCrmStatusRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  hiddenInWorkspace: Boolean
+  createdAt: DateTime
+}
+
+input TechTaskUpdateArgs {
+  where: TechTaskWhereUniqueInput!
+  data: TechTaskUpdateInput!
+}
+
+input TechTaskCreateInput {
+  title: String
+  startDate: DateTime
+  dueDate: DateTime
+  priority: String
+  result: String
+  comments: String
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  responsible: UserRelateToOneForCreateInput
+  workspace: SaasWorkspaceRelateToOneForCreateInput
+  statusCrm: SaasWorkspaceCrmStatusRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
 
@@ -5035,16 +5450,28 @@ type User {
   referrals(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   referralsCount(where: UserWhereInput! = {}): Int
   company: SaasCompany
+  workspaces(where: SaasWorkspaceWhereInput! = {}, orderBy: [SaasWorkspaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasWorkspaceWhereUniqueInput): [SaasWorkspace!]
+  workspacesCount(where: SaasWorkspaceWhereInput! = {}): Int
   blog_subscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
   blog_subscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
   businessLeadsAssigned(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
   businessLeadsAssignedCount(where: TechBusinessLeadWhereInput! = {}): Int
   salesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
   salesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  createdBySalesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
+  createdBySalesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  tasksResponsible(where: TechTaskWhereInput! = {}, orderBy: [TechTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechTaskWhereUniqueInput): [TechTask!]
+  tasksResponsibleCount(where: TechTaskWhereInput! = {}): Int
+  createdByTasks(where: TechTaskWhereInput! = {}, orderBy: [TechTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechTaskWhereUniqueInput): [TechTask!]
+  createdByTasksCount(where: TechTaskWhereInput! = {}): Int
   followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
+  createdByFollowUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
+  createdByFollowUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
   proposalsCount(where: TechProposalWhereInput! = {}): Int
+  createdByProposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
+  createdByProposalsCount(where: TechProposalWhereInput! = {}): Int
   projectsResponsible(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
   projectsResponsibleCount(where: SaasProjectWhereInput! = {}): Int
   leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
@@ -5108,11 +5535,17 @@ input UserWhereInput {
   referredBy: UserWhereInput
   referrals: UserManyRelationFilter
   company: SaasCompanyWhereInput
+  workspaces: SaasWorkspaceManyRelationFilter
   blog_subscriptions: BlogSubscriptionManyRelationFilter
   businessLeadsAssigned: TechBusinessLeadManyRelationFilter
   salesActivities: TechSalesActivityManyRelationFilter
+  createdBySalesActivities: TechSalesActivityManyRelationFilter
+  tasksResponsible: TechTaskManyRelationFilter
+  createdByTasks: TechTaskManyRelationFilter
   followUpTasks: TechFollowUpTaskManyRelationFilter
+  createdByFollowUpTasks: TechFollowUpTaskManyRelationFilter
   proposals: TechProposalManyRelationFilter
+  createdByProposals: TechProposalManyRelationFilter
   projectsResponsible: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
   saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
@@ -5202,11 +5635,17 @@ input UserUpdateInput {
   referredBy: UserRelateToOneForUpdateInput
   referrals: UserRelateToManyForUpdateInput
   company: SaasCompanyRelateToOneForUpdateInput
+  workspaces: SaasWorkspaceRelateToManyForUpdateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForUpdateInput
   businessLeadsAssigned: TechBusinessLeadRelateToManyForUpdateInput
   salesActivities: TechSalesActivityRelateToManyForUpdateInput
+  createdBySalesActivities: TechSalesActivityRelateToManyForUpdateInput
+  tasksResponsible: TechTaskRelateToManyForUpdateInput
+  createdByTasks: TechTaskRelateToManyForUpdateInput
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
+  createdByFollowUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   proposals: TechProposalRelateToManyForUpdateInput
+  createdByProposals: TechProposalRelateToManyForUpdateInput
   projectsResponsible: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
@@ -5278,11 +5717,17 @@ input UserCreateInput {
   referredBy: UserRelateToOneForCreateInput
   referrals: UserRelateToManyForCreateInput
   company: SaasCompanyRelateToOneForCreateInput
+  workspaces: SaasWorkspaceRelateToManyForCreateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForCreateInput
   businessLeadsAssigned: TechBusinessLeadRelateToManyForCreateInput
   salesActivities: TechSalesActivityRelateToManyForCreateInput
+  createdBySalesActivities: TechSalesActivityRelateToManyForCreateInput
+  tasksResponsible: TechTaskRelateToManyForCreateInput
+  createdByTasks: TechTaskRelateToManyForCreateInput
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
+  createdByFollowUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   proposals: TechProposalRelateToManyForCreateInput
+  createdByProposals: TechProposalRelateToManyForCreateInput
   projectsResponsible: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
@@ -5693,6 +6138,18 @@ type Mutation {
   updateSaasSubscriptionLogs(data: [SaasSubscriptionLogUpdateArgs!]!): [SaasSubscriptionLog]
   deleteSaasSubscriptionLog(where: SaasSubscriptionLogWhereUniqueInput!): SaasSubscriptionLog
   deleteSaasSubscriptionLogs(where: [SaasSubscriptionLogWhereUniqueInput!]!): [SaasSubscriptionLog]
+  createSaasWorkspace(data: SaasWorkspaceCreateInput!): SaasWorkspace
+  createSaasWorkspaces(data: [SaasWorkspaceCreateInput!]!): [SaasWorkspace]
+  updateSaasWorkspace(where: SaasWorkspaceWhereUniqueInput!, data: SaasWorkspaceUpdateInput!): SaasWorkspace
+  updateSaasWorkspaces(data: [SaasWorkspaceUpdateArgs!]!): [SaasWorkspace]
+  deleteSaasWorkspace(where: SaasWorkspaceWhereUniqueInput!): SaasWorkspace
+  deleteSaasWorkspaces(where: [SaasWorkspaceWhereUniqueInput!]!): [SaasWorkspace]
+  createSaasWorkspaceCrmStatus(data: SaasWorkspaceCrmStatusCreateInput!): SaasWorkspaceCrmStatus
+  createSaasWorkspaceCrmStatuses(data: [SaasWorkspaceCrmStatusCreateInput!]!): [SaasWorkspaceCrmStatus]
+  updateSaasWorkspaceCrmStatus(where: SaasWorkspaceCrmStatusWhereUniqueInput!, data: SaasWorkspaceCrmStatusUpdateInput!): SaasWorkspaceCrmStatus
+  updateSaasWorkspaceCrmStatuses(data: [SaasWorkspaceCrmStatusUpdateArgs!]!): [SaasWorkspaceCrmStatus]
+  deleteSaasWorkspaceCrmStatus(where: SaasWorkspaceCrmStatusWhereUniqueInput!): SaasWorkspaceCrmStatus
+  deleteSaasWorkspaceCrmStatuses(where: [SaasWorkspaceCrmStatusWhereUniqueInput!]!): [SaasWorkspaceCrmStatus]
   createSchedule(data: ScheduleCreateInput!): Schedule
   createSchedules(data: [ScheduleCreateInput!]!): [Schedule]
   updateSchedule(where: ScheduleWhereUniqueInput!, data: ScheduleUpdateInput!): Schedule
@@ -5753,6 +6210,12 @@ type Mutation {
   updateTechSalesActivities(data: [TechSalesActivityUpdateArgs!]!): [TechSalesActivity]
   deleteTechSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
   deleteTechSalesActivities(where: [TechSalesActivityWhereUniqueInput!]!): [TechSalesActivity]
+  createTechTask(data: TechTaskCreateInput!): TechTask
+  createTechTasks(data: [TechTaskCreateInput!]!): [TechTask]
+  updateTechTask(where: TechTaskWhereUniqueInput!, data: TechTaskUpdateInput!): TechTask
+  updateTechTasks(data: [TechTaskUpdateArgs!]!): [TechTask]
+  deleteTechTask(where: TechTaskWhereUniqueInput!): TechTask
+  deleteTechTasks(where: [TechTaskWhereUniqueInput!]!): [TechTask]
   createTechStatusBusinessLead(data: TechStatusBusinessLeadCreateInput!): TechStatusBusinessLead
   createTechStatusBusinessLeads(data: [TechStatusBusinessLeadCreateInput!]!): [TechStatusBusinessLead]
   updateTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!, data: TechStatusBusinessLeadUpdateInput!): TechStatusBusinessLead
@@ -5938,6 +6401,12 @@ type Query {
   saasSubscriptionLog(where: SaasSubscriptionLogWhereUniqueInput!): SaasSubscriptionLog
   saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
   saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
+  saasWorkspace(where: SaasWorkspaceWhereUniqueInput!): SaasWorkspace
+  saasWorkspaces(where: SaasWorkspaceWhereInput! = {}, orderBy: [SaasWorkspaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasWorkspaceWhereUniqueInput): [SaasWorkspace!]
+  saasWorkspacesCount(where: SaasWorkspaceWhereInput! = {}): Int
+  saasWorkspaceCrmStatus(where: SaasWorkspaceCrmStatusWhereUniqueInput!): SaasWorkspaceCrmStatus
+  saasWorkspaceCrmStatuses(where: SaasWorkspaceCrmStatusWhereInput! = {}, orderBy: [SaasWorkspaceCrmStatusOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasWorkspaceCrmStatusWhereUniqueInput): [SaasWorkspaceCrmStatus!]
+  saasWorkspaceCrmStatusesCount(where: SaasWorkspaceCrmStatusWhereInput! = {}): Int
   schedule(where: ScheduleWhereUniqueInput!): Schedule
   schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
   schedulesCount(where: ScheduleWhereInput! = {}): Int
@@ -5968,6 +6437,9 @@ type Query {
   techSalesActivity(where: TechSalesActivityWhereUniqueInput!): TechSalesActivity
   techSalesActivities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
   techSalesActivitiesCount(where: TechSalesActivityWhereInput! = {}): Int
+  techTask(where: TechTaskWhereUniqueInput!): TechTask
+  techTasks(where: TechTaskWhereInput! = {}, orderBy: [TechTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechTaskWhereUniqueInput): [TechTask!]
+  techTasksCount(where: TechTaskWhereInput! = {}): Int
   techStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
   techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
   techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
