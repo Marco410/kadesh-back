@@ -3119,44 +3119,43 @@ var import_fields40 = require("@keystone-6/core/fields");
 // utils/access/crmWorkspaceScopedFilter.ts
 var getCompanyId = (session2) => session2?.data?.company?.id;
 var getUserId = (session2) => session2?.data?.id;
-function crmWorkspaceScopedWhere(session2) {
+function companyScopedOr(companyId) {
+  return {
+    OR: [
+      {
+        businessLead: {
+          saasCompany: { some: { id: { equals: companyId } } }
+        }
+      },
+      {
+        workspace: {
+          company: { id: { equals: companyId } }
+        }
+      }
+    ]
+  };
+}
+function crmWorkspaceScopedWhere(session2, options) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
   const companyId = getCompanyId(session2);
   const userId = getUserId(session2);
-  if (!companyId || !userId) {
-    return false;
+  const assigneeKey = options.assigneeField;
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    if (!companyId) return false;
+    return companyScopedOr(companyId);
   }
-  return {
-    OR: [
-      {
-        AND: [
-          // Prisma-style: optional relation unset (legacy CRM rows)
-          { workspace: null },
-          {
-            businessLead: {
-              saasCompany: { some: { id: { equals: companyId } } }
-            }
-          }
-        ]
-      },
-      {
-        AND: [
-          {
-            workspace: {
-              members: { some: { id: { equals: userId } } }
-            }
-          },
-          {
-            workspace: {
-              company: { id: { equals: companyId } }
-            }
-          }
-        ]
-      }
-    ]
-  };
+  if (hasRole(session2, ["user_company" /* USER_COMPANY */])) {
+    if (!companyId || !userId) return false;
+    return {
+      AND: [
+        { [assigneeKey]: { id: { equals: userId } } },
+        companyScopedOr(companyId)
+      ]
+    };
+  }
+  return false;
 }
 
 // models/Tech/FollowUpTask/TechFollowUpTask.access.ts
@@ -3169,9 +3168,9 @@ var followUpTaskAccess = {
     delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
-    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
-    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2)
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" })
   }
 };
 
@@ -3358,9 +3357,9 @@ var proposalAccess = {
     delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
-    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
-    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2)
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" })
   }
 };
 
@@ -3520,9 +3519,9 @@ var salesActivityAccess = {
     delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
-    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
-    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2)
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" }),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "assignedSeller" })
   }
 };
 
@@ -3647,9 +3646,9 @@ var techTaskAccess = {
     delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
-    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2),
-    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2)
+    query: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "responsible" }),
+    update: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "responsible" }),
+    delete: ({ session: session2 }) => crmWorkspaceScopedWhere(session2, { assigneeField: "responsible" })
   }
 };
 
@@ -5853,6 +5852,20 @@ var import_fields57 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId18 = (session2) => session2?.data?.company?.id;
+var getUserId5 = (session2) => session2?.data?.id;
+function workspaceFilter(session2) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const companyId = getCompanyId18(session2);
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    if (!companyId) return false;
+    return { company: { id: { equals: companyId } } };
+  }
+  const userId = getUserId5(session2);
+  if (!userId) return false;
+  return { members: { some: { id: { equals: userId } } } };
+}
 var saasWorkspaceAccess = {
   operation: {
     query: () => true,
@@ -5861,30 +5874,9 @@ var saasWorkspaceAccess = {
     delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId18(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId18(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId18(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    query: ({ session: session2 }) => workspaceFilter(session2),
+    update: ({ session: session2 }) => workspaceFilter(session2),
+    delete: ({ session: session2 }) => workspaceFilter(session2)
   }
 };
 
@@ -6023,9 +6015,26 @@ var import_fields58 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
 var getCompanyId19 = (session2) => session2?.data?.company?.id;
+var getUserId6 = (session2) => session2?.data?.id;
 var companyWorkspaceFilter = (companyId) => ({
   workspace: { company: { id: { equals: companyId } } }
 });
+var memberWorkspaceFilter = (userId) => ({
+  workspace: { members: { some: { id: { equals: userId } } } }
+});
+function workspaceCrmStatusFilter(session2) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) {
+    return true;
+  }
+  const companyId = getCompanyId19(session2);
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    if (!companyId) return false;
+    return companyWorkspaceFilter(companyId);
+  }
+  const userId = getUserId6(session2);
+  if (!userId) return false;
+  return memberWorkspaceFilter(userId);
+}
 var saasWorkspaceCrmStatusAccess = {
   operation: {
     query: () => true,
@@ -6034,30 +6043,9 @@ var saasWorkspaceCrmStatusAccess = {
     delete: () => true
   },
   filter: {
-    query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId19(session2);
-      if (!companyId) return false;
-      return companyWorkspaceFilter(companyId);
-    },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId19(session2);
-      if (!companyId) return false;
-      return companyWorkspaceFilter(companyId);
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId19(session2);
-      if (!companyId) return false;
-      return companyWorkspaceFilter(companyId);
-    }
+    query: ({ session: session2 }) => workspaceCrmStatusFilter(session2),
+    update: ({ session: session2 }) => workspaceCrmStatusFilter(session2),
+    delete: ({ session: session2 }) => workspaceCrmStatusFilter(session2)
   }
 };
 
