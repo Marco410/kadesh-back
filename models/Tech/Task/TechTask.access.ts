@@ -11,8 +11,11 @@ export const techTaskAccess: ListAccessControl<any> = {
     delete: () => true,
   },
   filter: {
-    query: ({ session }: any) => crmWorkspaceScopedWhere(session),
-    update: ({ session }: any) => crmWorkspaceScopedWhere(session),
-    delete: ({ session }: any) => crmWorkspaceScopedWhere(session),
+    query: ({ session }: any) =>
+      crmWorkspaceScopedWhere(session, { assigneeField: "responsible" }),
+    update: ({ session }: any) =>
+      crmWorkspaceScopedWhere(session, { assigneeField: "responsible" }),
+    delete: ({ session }: any) =>
+      crmWorkspaceScopedWhere(session, { assigneeField: "responsible" }),
   },
 };
