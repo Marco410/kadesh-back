@@ -3146,7 +3146,7 @@ function crmWorkspaceScopedWhere(session2, options) {
     if (!companyId) return false;
     return companyScopedOr(companyId);
   }
-  if (hasRole(session2, ["user_company" /* USER_COMPANY */])) {
+  if (hasRole(session2, ["user_company" /* USER_COMPANY */, "vendedor" /* VENDEDOR */])) {
     if (!companyId || !userId) return false;
     return {
       AND: [
@@ -3969,7 +3969,7 @@ var getCompanyId8 = (session2) => session2?.data?.company?.id;
 var saasCompanyAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    create: ({ session: session2 }) => true,
     update: () => true,
     delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
@@ -4527,7 +4527,7 @@ var getCompanyId10 = (session2) => session2?.data?.company?.id;
 var saasCompanySubscriptionAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId10(session2),
+    create: ({ session: session2 }) => !!getCompanyId10(session2),
     update: () => true,
     delete: () => true
   },

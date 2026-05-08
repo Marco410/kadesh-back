@@ -52,7 +52,7 @@ export function crmWorkspaceScopedWhere(
     return companyScopedOr(companyId);
   }
 
-  if (hasRole(session, [Role.USER_COMPANY])) {
+  if (hasRole(session, [Role.USER_COMPANY, Role.VENDEDOR])) {
     if (!companyId || !userId) return false;
     return {
       AND: [
