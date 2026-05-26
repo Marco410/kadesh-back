@@ -4,7 +4,8 @@ export type SaasSubscriptionLogInputFields = {
   planId: string;
   email: string;
   total: string;
-  paymentMethodId: string;
+  /** Omit or null when checkout uses Payment Element + stripeSubscriptionId only */
+  paymentMethodId?: string | null;
   paymentType: string;
   notes?: string | null;
 };
@@ -66,7 +67,7 @@ export async function writeSaasSubscriptionLog(
         emailMasked: maskEmail(params.input.email),
         planIdRequested: params.input.planId,
         totalSubmitted: params.input.total,
-        paymentMethodIdSubmitted: params.input.paymentMethodId,
+        paymentMethodIdSubmitted: params.input.paymentMethodId ?? "",
         paymentTypeSubmitted: params.input.paymentType,
         durationMs,
         stripeCustomerId: params.stripeCustomerId ?? null,

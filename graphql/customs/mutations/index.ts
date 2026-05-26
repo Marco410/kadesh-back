@@ -6,6 +6,7 @@ import importPetPlace from "./importPetPlace";
 import syncLeadsFront from "./syncLeadsFront";
 import syncBusinessLeadsFromGoogle from "./syncBusinessLeadsFromGoogle";
 import createCompanySubscription from "./createCompanySubscription";
+import beginCompanySubscription from "./beginCompanySubscription";
 import addOwnLead from "./addOwnLead";
 
 const customMutation = {
@@ -18,6 +19,7 @@ const customMutation = {
     ${syncBusinessLeadsFromGoogle.typeDefs}
     ${syncLeadsFront.typeDefs}
     ${createCompanySubscription.typeDefs}
+    ${beginCompanySubscription.typeDefs}
     ${addOwnLead.typeDefs}
   `,
   definitions: `
@@ -29,6 +31,7 @@ const customMutation = {
     ${syncBusinessLeadsFromGoogle.definition}
     ${syncLeadsFront.definition}
     ${createCompanySubscription.definition}
+    ${beginCompanySubscription.definition}
     ${addOwnLead.definition}
   `,
   resolvers: {
@@ -40,6 +43,7 @@ const customMutation = {
     ...syncBusinessLeadsFromGoogle.resolver,
     ...syncLeadsFront.resolver,
     ...createCompanySubscription.resolver,
+    ...beginCompanySubscription.resolver,
     ...addOwnLead.resolver,
   },
   extraResolvers: {

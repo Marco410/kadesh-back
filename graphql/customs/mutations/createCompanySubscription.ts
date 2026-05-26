@@ -1,4 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import type StripeType from "stripe";
 import Stripe from "../../../utils/intregrations/stripe";
 import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscription/constants";
 import { PLAN_FREQUENCY } from "../../../models/Saas/SaasPlan/constants";
@@ -11,10 +12,12 @@ const typeDefs = `
     notes: String
     nameCard: String!
     email: String!
-    paymentMethodId: String!
+    paymentMethodId: String
     total: String!
     paymentType: String!
     noDuplicatePaymentMethod: Boolean
+    stripeSubscriptionId: String
+    stripePaymentIntentId: String
   }
 
   type CreateCompanySubscriptionResult {
@@ -63,6 +66,88 @@ async function createStripeSubscription(params: {
   return subscription;
 }
 
+/** Extrae campos útiles de errores Stripe para SaasSubscriptionLog.responseSnapshot. */
+function serializeStripeError(err: unknown): Record<string, unknown> {
+  if (err && typeof err === "object" && "type" in err) {
+    const stripeErr = err as StripeType.StripeRawError & { requestId?: string };
+    return {
+      type: stripeErr.type ?? null,
+      code: stripeErr.code ?? null,
+      param: stripeErr.param ?? null,
+      message: stripeErr.message ?? null,
+      statusCode: stripeErr.statusCode ?? null,
+      requestId: stripeErr.requestId ?? null,
+    };
+  }
+  if (err instanceof Error) {
+    return { name: err.name, message: err.message };
+  }
+  return { message: String(err) };
+}
+
+function resolvePaymentMethodId(
+  paymentMethod: StripeType.PaymentIntent["payment_method"],
+): string | null {
+  if (typeof paymentMethod === "string") return paymentMethod;
+  if (paymentMethod && typeof paymentMethod === "object" && "id" in paymentMethod) {
+    return (paymentMethod as { id: string }).id;
+  }
+  return null;
+}
+
+function buildPaymentIntentSnapshot(pi: StripeType.PaymentIntent): Record<string, unknown> {
+  return {
+    id: pi.id,
+    status: pi.status,
+    amount: pi.amount,
+    currency: pi.currency,
+    customer: pi.customer ?? null,
+    setup_future_usage: pi.setup_future_usage ?? null,
+    paymentMethodId: resolvePaymentMethodId(pi.payment_method),
+    metadata: pi.metadata ?? {},
+  };
+}
+
+async function buildPaymentMethodSnapshot(
+  paymentMethodId: string,
+): Promise<Record<string, unknown>> {
+  try {
+    const pm = await Stripe.paymentMethods.retrieve(paymentMethodId);
+    return {
+      id: pm.id,
+      type: pm.type,
+      customer: pm.customer ?? null,
+      card: pm.card
+        ? {
+            brand: pm.card.brand,
+            last4: pm.card.last4,
+            exp_month: pm.card.exp_month,
+            exp_year: pm.card.exp_year,
+          }
+        : null,
+    };
+  } catch (retrieveErr: unknown) {
+    return {
+      id: paymentMethodId,
+      retrieveError: serializeStripeError(retrieveErr),
+    };
+  }
+}
+
+/** Primer periodo ya cobrado con MSI vía PaymentIntent; la suscripción inicia en trial hasta el siguiente ciclo. */
+function computeTrialEndUnix(frequency: string | null | undefined): number {
+  const d = new Date();
+  const f = (frequency ?? "").toLowerCase();
+  if (f === PLAN_FREQUENCY.ANNUAL) {
+    d.setFullYear(d.getFullYear() + 1);
+  } else if (f === PLAN_FREQUENCY.WEEKLY) {
+    d.setDate(d.getDate() + 7);
+  } else {
+    d.setMonth(d.getMonth() + 1);
+  }
+  return Math.floor(d.getTime() / 1000);
+}
+
 const resolver = {
   createCompanySubscription: async (
     _root: unknown,
@@ -74,15 +159,19 @@ const resolver = {
         notes?: string | null;
         nameCard: string;
         email: string;
-        paymentMethodId: string;
+        paymentMethodId?: string | null;
         total: string;
         paymentType: string;
         noDuplicatePaymentMethod?: boolean;
+        stripeSubscriptionId?: string | null;
+        stripePaymentIntentId?: string | null;
       };
     },
     context: KeystoneContext
   ) => {
     let stripeSubscriptionId: string | undefined;
+    let prepaidMsiSubscription: Awaited<ReturnType<typeof createStripeSubscription>> | null =
+      null;
 
     const startedAt = Date.now();
     const logInput = {
@@ -129,6 +218,29 @@ const resolver = {
         extra: opts?.extra,
       });
       return result;
+    };
+
+    /** Paso intermedio (no termina la mutación); útil para depurar MSI / attach. */
+    const writeTraceLog = async (
+      step: string,
+      message: string,
+      extra?: Record<string, unknown>,
+    ) => {
+      await writeSaasSubscriptionLog(context, {
+        startedAt,
+        input: logInput,
+        step,
+        success: true,
+        message,
+        subscriptionId: null,
+        paymentId: null,
+        userId: logUserId ?? null,
+        companyId: logCompanyId ?? null,
+        planId: logPlanId ?? null,
+        stripeCustomerId: null,
+        stripeSubscriptionId: stripeSubscriptionId ?? null,
+        extra,
+      });
     };
 
     try {
@@ -255,36 +367,365 @@ const resolver = {
         );
       }
 
-      // 4. Get SaasPaymentMethod
-      const paymentMethod = (await context.sudo().query.SaasPaymentMethod.findOne({
-        where: { id: input.paymentMethodId },
-        query: "id stripePaymentMethodId",
-      })) as { id: string; stripePaymentMethodId: string | null } | null;
+      const checkoutSubscriptionId = input.stripeSubscriptionId?.trim() || null;
+      const prepaidPaymentIntentId = input.stripePaymentIntentId?.trim() || null;
+      const checkoutPath = prepaidPaymentIntentId
+        ? "msi_prepaid_pi"
+        : checkoutSubscriptionId
+          ? "checkout_subscription"
+          : "legacy_payment_method";
+      let stripePaymentMethodId: string;
 
-      if (!paymentMethod?.stripePaymentMethodId) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
-          success: false,
-          message: "Método de pago no encontrado",
-          subscriptionId: null,
-          paymentId: null,
-        });
-      }
-
-      // 5. Attach payment method to customer and set as default (required for subscription first charge)
-      try {
-        await Stripe.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
-          customer: user.stripeCustomerId!,
-        });
-      } catch (attachErr: unknown) {
-        // already attached is ok
-        const msg = attachErr instanceof Error ? attachErr.message : String(attachErr);
-        if (!msg.toLowerCase().includes("already been attached")) throw attachErr;
-      }
-      await Stripe.customers.update(user.stripeCustomerId!, {
-        invoice_settings: {
-          default_payment_method: paymentMethod.stripePaymentMethodId,
-        },
+      await writeTraceLog("CREATE_SUBSCRIPTION_CHECKOUT_PATH", "Ruta de checkout resuelta", {
+        checkoutPath,
+        stripePaymentIntentId: prepaidPaymentIntentId,
+        stripeSubscriptionIdInput: checkoutSubscriptionId,
+        stripeCustomerId: user.stripeCustomerId ?? null,
       });
+
+      if (prepaidPaymentIntentId) {
+        const pi = await Stripe.paymentIntents.retrieve(prepaidPaymentIntentId, {
+          expand: ["payment_method"],
+        });
+
+        if (pi.status !== "succeeded") {
+          return await finish(
+            SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR,
+            {
+              success: false,
+              message:
+                "El pago no se completó. Verifica tu tarjeta e intenta de nuevo.",
+              subscriptionId: null,
+              paymentId: null,
+            },
+            {
+              stripeCustomerId: user.stripeCustomerId ?? null,
+              extra: {
+                checkoutPath,
+                paymentIntent: buildPaymentIntentSnapshot(pi),
+              },
+            },
+          );
+        }
+
+        if (
+          pi.metadata?.planId !== plan.id ||
+          pi.metadata?.companyId !== company.id
+        ) {
+          return await finish(
+            SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR,
+            {
+              success: false,
+              message: "El pago no coincide con el plan seleccionado.",
+              subscriptionId: null,
+              paymentId: null,
+            },
+            {
+              stripeCustomerId: user.stripeCustomerId ?? null,
+              extra: {
+                checkoutPath,
+                paymentIntent: buildPaymentIntentSnapshot(pi),
+                expectedPlanId: plan.id,
+                expectedCompanyId: company.id,
+              },
+            },
+          );
+        }
+
+        const expectedCents = Math.round(roundedTotalBack * 100);
+        if (
+          pi.amount !== expectedCents ||
+          (pi.currency ?? "").toLowerCase() !== "mxn"
+        ) {
+          return await finish(
+            SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH,
+            {
+              success: false,
+              message: "El monto pagado no coincide con el plan.",
+              subscriptionId: null,
+              paymentId: null,
+            },
+            {
+              stripeCustomerId: user.stripeCustomerId ?? null,
+              extra: {
+                checkoutPath,
+                paymentIntent: buildPaymentIntentSnapshot(pi),
+                expectedCents,
+              },
+            },
+          );
+        }
+
+        stripePaymentMethodId = resolvePaymentMethodId(pi.payment_method) ?? "";
+
+        if (!stripePaymentMethodId) {
+          return await finish(
+            SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND,
+            {
+              success: false,
+              message: "No se encontró el método de pago del cobro.",
+              subscriptionId: null,
+              paymentId: null,
+            },
+            {
+              stripeCustomerId: user.stripeCustomerId ?? null,
+              extra: {
+                checkoutPath,
+                paymentIntent: buildPaymentIntentSnapshot(pi),
+              },
+            },
+          );
+        }
+
+        const pmSnapshotBeforeAttach = await buildPaymentMethodSnapshot(
+          stripePaymentMethodId,
+        );
+
+        await writeTraceLog(
+          SAAS_SUBSCRIPTION_LOG_STEP.MSI_PI_VALIDATED,
+          "PaymentIntent MSI validado antes de adjuntar PM",
+          {
+            checkoutPath,
+            paymentIntent: buildPaymentIntentSnapshot(pi),
+            paymentMethod: pmSnapshotBeforeAttach,
+            targetStripeCustomerId: user.stripeCustomerId ?? null,
+            piCustomerMatchesUser:
+              pi.customer != null && pi.customer === user.stripeCustomerId,
+            pmAlreadyOnCustomer:
+              pmSnapshotBeforeAttach.customer != null &&
+              pmSnapshotBeforeAttach.customer === user.stripeCustomerId,
+          },
+        );
+
+        const pmCustomerId =
+          typeof pmSnapshotBeforeAttach.customer === "string"
+            ? pmSnapshotBeforeAttach.customer
+            : null;
+
+        if (pmCustomerId === user.stripeCustomerId) {
+          await writeTraceLog(
+            SAAS_SUBSCRIPTION_LOG_STEP.MSI_PM_ATTACH_SKIPPED_ALREADY_ATTACHED,
+            "PM ya pertenece al customer; se omite attach",
+            {
+              paymentMethodId: stripePaymentMethodId,
+              stripeCustomerId: user.stripeCustomerId,
+            },
+          );
+        } else {
+          await writeTraceLog(
+            SAAS_SUBSCRIPTION_LOG_STEP.MSI_PM_ATTACH_ATTEMPT,
+            "Intentando adjuntar PM al customer",
+            {
+              paymentMethodId: stripePaymentMethodId,
+              paymentMethod: pmSnapshotBeforeAttach,
+              stripeCustomerId: user.stripeCustomerId,
+              piCustomer: pi.customer ?? null,
+            },
+          );
+
+          try {
+            await Stripe.paymentMethods.attach(stripePaymentMethodId, {
+              customer: user.stripeCustomerId!,
+            });
+          } catch (attachErr: unknown) {
+            const stripeError = serializeStripeError(attachErr);
+            const msg =
+              attachErr instanceof Error ? attachErr.message : String(attachErr);
+            const alreadyAttached = msg
+              .toLowerCase()
+              .includes("already been attached");
+
+            if (!alreadyAttached) {
+              await writeSaasSubscriptionLog(context, {
+                startedAt,
+                input: logInput,
+                step: SAAS_SUBSCRIPTION_LOG_STEP.MSI_PM_ATTACH_FAILED,
+                success: false,
+                message: msg,
+                subscriptionId: null,
+                paymentId: null,
+                userId: logUserId ?? null,
+                companyId: logCompanyId ?? null,
+                planId: logPlanId ?? null,
+                stripeCustomerId: user.stripeCustomerId ?? null,
+                extra: {
+                  checkoutPath,
+                  stripeError,
+                  paymentIntent: buildPaymentIntentSnapshot(pi),
+                  paymentMethod: await buildPaymentMethodSnapshot(stripePaymentMethodId),
+                  hint:
+                    "Si code indica PM no reusable: el PI debió crearse con customer + setup_future_usage=off_session (beginCompanySubscription).",
+                },
+              });
+              throw attachErr;
+            }
+
+            await writeTraceLog(
+              SAAS_SUBSCRIPTION_LOG_STEP.MSI_PM_ATTACH_SKIPPED_ALREADY_ATTACHED,
+              "Attach devolvió already attached; se continúa",
+              { stripeError, paymentMethodId: stripePaymentMethodId },
+            );
+          }
+        }
+
+        await Stripe.customers.update(user.stripeCustomerId!, {
+          invoice_settings: {
+            default_payment_method: stripePaymentMethodId,
+          },
+        });
+
+        const trialEnd = computeTrialEndUnix(plan.frequency);
+        await writeTraceLog(
+          "MSI_SUBSCRIPTION_CREATE_ATTEMPT",
+          "Creando suscripción Stripe con trial tras MSI",
+          {
+            stripeCustomerId: user.stripeCustomerId,
+            stripePriceId,
+            defaultPaymentMethodId: stripePaymentMethodId,
+            trialEnd,
+          },
+        );
+
+        try {
+          prepaidMsiSubscription = await Stripe.subscriptions.create({
+            customer: user.stripeCustomerId!,
+            items: [{ price: stripePriceId }],
+            default_payment_method: stripePaymentMethodId,
+            trial_end: trialEnd,
+            metadata: { companyId: company.id, planId: plan.id },
+          });
+        } catch (subErr: unknown) {
+          const subMessage =
+            subErr instanceof Error ? subErr.message : String(subErr);
+          await writeSaasSubscriptionLog(context, {
+            startedAt,
+            input: logInput,
+            step: SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR,
+            success: false,
+            message: subMessage,
+            subscriptionId: null,
+            paymentId: null,
+            userId: logUserId ?? null,
+            companyId: logCompanyId ?? null,
+            planId: logPlanId ?? null,
+            stripeCustomerId: user.stripeCustomerId ?? null,
+            extra: {
+              checkoutPath,
+              phase: "subscriptions.create_after_msi",
+              stripeError: serializeStripeError(subErr),
+              defaultPaymentMethodId: stripePaymentMethodId,
+              trialEnd,
+            },
+          });
+          throw subErr;
+        }
+
+        stripeSubscriptionId = prepaidMsiSubscription.id;
+
+        await writeTraceLog(
+          SAAS_SUBSCRIPTION_LOG_STEP.MSI_SUBSCRIPTION_CREATED,
+          "Suscripción Stripe creada tras MSI",
+          {
+            stripeSubscriptionId: prepaidMsiSubscription.id,
+            status: prepaidMsiSubscription.status,
+            trialEnd: prepaidMsiSubscription.trial_end ?? null,
+          },
+        );
+      } else if (checkoutSubscriptionId) {
+        const existingStripeSub = await Stripe.subscriptions.retrieve(
+          checkoutSubscriptionId,
+          { expand: ["default_payment_method"] },
+        );
+
+        if (
+          existingStripeSub.metadata?.companyId !== company.id ||
+          existingStripeSub.metadata?.planId !== plan.id
+        ) {
+          return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR, {
+            success: false,
+            message: "La suscripción de pago no coincide con el plan seleccionado.",
+            subscriptionId: null,
+            paymentId: null,
+          });
+        }
+
+        const subStatus = existingStripeSub.status;
+        if (subStatus !== "active" && subStatus !== "trialing") {
+          return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR, {
+            success: false,
+            message:
+              "El pago no se completó. Verifica tu tarjeta e intenta de nuevo.",
+            subscriptionId: null,
+            paymentId: null,
+          });
+        }
+
+        const defaultPm = existingStripeSub.default_payment_method;
+        if (typeof defaultPm === "string") {
+          stripePaymentMethodId = defaultPm;
+        } else if (
+          defaultPm &&
+          typeof defaultPm === "object" &&
+          "id" in defaultPm &&
+          typeof (defaultPm as { id: unknown }).id === "string"
+        ) {
+          stripePaymentMethodId = (defaultPm as { id: string }).id;
+        } else {
+          stripePaymentMethodId = "";
+        }
+
+        if (!stripePaymentMethodId) {
+          return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
+            success: false,
+            message: "No se encontró el método de pago de la suscripción.",
+            subscriptionId: null,
+            paymentId: null,
+          });
+        }
+
+        stripeSubscriptionId = existingStripeSub.id;
+      } else {
+        if (!input.paymentMethodId) {
+          return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
+            success: false,
+            message: "Método de pago requerido",
+            subscriptionId: null,
+            paymentId: null,
+          });
+        }
+
+        // 4. Get SaasPaymentMethod (legacy CardElement flow)
+        const paymentMethod = (await context.sudo().query.SaasPaymentMethod.findOne({
+          where: { id: input.paymentMethodId },
+          query: "id stripePaymentMethodId",
+        })) as { id: string; stripePaymentMethodId: string | null } | null;
+
+        if (!paymentMethod?.stripePaymentMethodId) {
+          return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
+            success: false,
+            message: "Método de pago no encontrado",
+            subscriptionId: null,
+            paymentId: null,
+          });
+        }
+
+        stripePaymentMethodId = paymentMethod.stripePaymentMethodId;
+
+        // 5. Attach payment method to customer and set as default (required for subscription first charge)
+        try {
+          await Stripe.paymentMethods.attach(stripePaymentMethodId, {
+            customer: user.stripeCustomerId!,
+          });
+        } catch (attachErr: unknown) {
+          const msg = attachErr instanceof Error ? attachErr.message : String(attachErr);
+          if (!msg.toLowerCase().includes("already been attached")) throw attachErr;
+        }
+        await Stripe.customers.update(user.stripeCustomerId!, {
+          invoice_settings: {
+            default_payment_method: stripePaymentMethodId,
+          },
+        });
+      }
 
       // 6. Cancel any existing active or trialing subscription for this company (change of plan)
       const existingSubs = await context.sudo().query.SaasCompanySubscription.findMany({
@@ -300,6 +741,12 @@ const resolver = {
         (sub) => sub.planCost != null && sub.planCost > 0,
       );
       for (const prev of existingSubs) {
+        if (
+          checkoutSubscriptionId &&
+          prev.stripeSubscriptionId === checkoutSubscriptionId
+        ) {
+          continue;
+        }
         if (prev.stripeSubscriptionId) {
           await Stripe.subscriptions.cancel(prev.stripeSubscriptionId);
         }
@@ -333,15 +780,23 @@ const resolver = {
         }
       }
 
-      // 7. Create Stripe Subscription (uses plan.stripePriceId — recurring; first invoice charged now)
-      const stripeSubscription = await createStripeSubscription({
-        customerId: user.stripeCustomerId!,
-        priceId: stripePriceId,
-        defaultPaymentMethodId: paymentMethod.stripePaymentMethodId,
-        metadata: { companyId: company.id, planId: plan.id },
-      });
-
-      stripeSubscriptionId = stripeSubscription.id;
+      // 7. Create Stripe Subscription (legacy), MSI prepago, o reutilizar checkout incompleto
+      let stripeSubscription: Awaited<ReturnType<typeof createStripeSubscription>>;
+      if (prepaidMsiSubscription) {
+        stripeSubscription = prepaidMsiSubscription;
+      } else if (checkoutSubscriptionId && stripeSubscriptionId) {
+        stripeSubscription = await Stripe.subscriptions.retrieve(stripeSubscriptionId, {
+          expand: ["latest_invoice"],
+        });
+      } else {
+        stripeSubscription = await createStripeSubscription({
+          customerId: user.stripeCustomerId!,
+          priceId: stripePriceId,
+          defaultPaymentMethodId: stripePaymentMethodId,
+          metadata: { companyId: company.id, planId: plan.id },
+        });
+        stripeSubscriptionId = stripeSubscription.id;
+      }
       const subStatus = (stripeSubscription.status as string) ?? "active";
       const today = new Date().toISOString().slice(0, 10);
 
@@ -519,6 +974,15 @@ const resolver = {
         stripeSubscriptionId: stripeSubscriptionId ?? null,
         extra: {
           errorName: e instanceof Error ? e.name : "unknown",
+          stripeError: serializeStripeError(e),
+          checkoutPath:
+            input.stripePaymentIntentId?.trim()
+              ? "msi_prepaid_pi"
+              : input.stripeSubscriptionId?.trim()
+                ? "checkout_subscription"
+                : "legacy_payment_method",
+          stripePaymentIntentId: input.stripePaymentIntentId?.trim() ?? null,
+          stripeSubscriptionIdInput: input.stripeSubscriptionId?.trim() ?? null,
         },
       });
       return {

@@ -6254,6 +6254,7 @@ type Mutation {
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
+  beginCompanySubscription(input: BeginCompanySubscriptionInput!): BeginCompanySubscriptionResult!
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
@@ -6679,10 +6680,12 @@ input CreateCompanySubscriptionInput {
   notes: String
   nameCard: String!
   email: String!
-  paymentMethodId: String!
+  paymentMethodId: String
   total: String!
   paymentType: String!
   noDuplicatePaymentMethod: Boolean
+  stripeSubscriptionId: String
+  stripePaymentIntentId: String
 }
 
 type CreateCompanySubscriptionResult {
@@ -6690,6 +6693,20 @@ type CreateCompanySubscriptionResult {
   message: String!
   subscriptionId: String
   paymentId: String
+}
+
+input BeginCompanySubscriptionInput {
+  planId: ID!
+  email: String!
+  total: String!
+}
+
+type BeginCompanySubscriptionResult {
+  success: Boolean!
+  message: String!
+  clientSecret: String
+  stripeSubscriptionId: String
+  stripePaymentIntentId: String
 }
 
 input AddOwnLeadInput {
