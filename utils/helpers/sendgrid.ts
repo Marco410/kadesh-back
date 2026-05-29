@@ -1,51 +1,6 @@
-import sgMail from "@sendgrid/mail";
+import { sendEmail } from "../intregrations/smtpMail";
 
-/**
- * Initialize SendGrid with API key from environment variables
- */
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-}
-
-/**
- * Send an email using SendGrid
- */
-export async function sendEmail({
-  to,
-  subject,
-  html,
-  from = process.env.SENDGRID_FROM_EMAIL || "noreply@kadesh.com",
-}: {
-  to: string | string[];
-  subject: string;
-  html: string;
-  from?: string;
-}): Promise<void> {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.warn("SENDGRID_API_KEY is not configured. Email not sent.");
-    return;
-  }
-
-  try {
-    const msg = {
-      to: Array.isArray(to) ? to : [to],
-      from,
-      subject,
-      html,
-    };
-
-    await sgMail.send(msg);
-    console.log(
-      `Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`,
-    );
-  } catch (error: any) {
-    console.error("Error sending email:", error);
-    if (error.response) {
-      console.error("SendGrid error response:", error.response.body);
-    }
-    throw error;
-  }
-}
+export { sendEmail };
 
 function escapeHtml(s: string): string {
   return s
@@ -59,7 +14,9 @@ const BRAND_ORANGE = "#FF8C42";
 const BRAND_ORANGE_DARK = "#E6732E";
 
 function parseAdminNotificationEmails(): string[] {
-  const raw = process.env.SENDGRID_FROM_EMAIL?.trim();
+  const raw =
+    process.env.SMTP_ADMIN_NOTIFICATION_EMAILS?.trim() ||
+    process.env.SENDGRID_FROM_EMAIL?.trim();
   if (!raw) return [];
   return raw
     .split(",")
@@ -203,7 +160,7 @@ function buildBankAlertEmailHtml(
 
 /**
  * Correo de bienvenida al registrarse (create User).
- * Requiere SENDGRID_API_KEY y email válido del usuario.
+ * Requiere SMTP_* configurado y email válido del usuario.
  */
 export async function sendUserWelcomeEmail({
   to,
@@ -222,12 +179,12 @@ export async function sendUserWelcomeEmail({
   const appUrl = "https://negocios.kadesh.com.mx/auth/login";
   const html = buildWelcomeEmailHtml(displayName, appUrl);
 
-  await sendEmail({ to: trimmedTo, subject, html });
+  await sendEmail({ to: trimmedTo, subject, html, fromName: "Kadesh" });
 }
 
 /**
  * Notifica al admin cuando un usuario actualiza banco, CLABE o número de tarjeta.
- * Configura SENDGRID_FROM_EMAIL (coma para varios) y SENDGRID_API_KEY.
+ * Configura SMTP_ADMIN_NOTIFICATION_EMAILS (coma para varios) y SMTP_*.
  */
 export async function sendAdminUserBankDetailsUpdatedEmail({
   userId,
@@ -243,7 +200,7 @@ export async function sendAdminUserBankDetailsUpdatedEmail({
   const recipients = parseAdminNotificationEmails();
   if (recipients.length === 0) {
     console.warn(
-      "SENDGRID_FROM_EMAIL no configurado. No se envía aviso de datos bancarios.",
+      "SMTP_ADMIN_NOTIFICATION_EMAILS no configurado. No se envía aviso de datos bancarios.",
     );
     return;
   }
@@ -252,7 +209,7 @@ export async function sendAdminUserBankDetailsUpdatedEmail({
   const subject = "[Kadesh] Usuario actualizó datos bancarios";
   const html = buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList);
 
-  await sendEmail({ to: recipients, subject, html });
+  await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
 }
 
 /**

@@ -6,3 +6,5 @@ config/.env.dev
 .DS_Store
 .keystone/config.js.map
 .keystone/config.js
+.keystone/config.js
+.keystone/config.js.map
