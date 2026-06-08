@@ -39,6 +39,9 @@ export default list({
     cost: float({
       ui: { description: "Plan cost per billing period" },
     }),
+    costOld: float({
+      ui: { description: "Plan cost original" },
+    }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
     referralUpfrontCommissionPct: float({
       ui: {

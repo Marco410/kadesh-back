@@ -3309,6 +3309,7 @@ type SaasPlan {
   id: ID!
   name: String
   cost: Float
+  costOld: Float
   referralUpfrontCommissionPct: Float
   referralRecurringCommissionPct: Float
   frequency: String
@@ -3343,6 +3344,7 @@ input SaasPlanWhereInput {
   id: IDFilter
   name: StringFilter
   cost: FloatNullableFilter
+  costOld: FloatNullableFilter
   referralUpfrontCommissionPct: FloatNullableFilter
   referralRecurringCommissionPct: FloatNullableFilter
   frequency: StringNullableFilter
@@ -3370,6 +3372,7 @@ input SaasPlanOrderByInput {
   id: OrderDirection
   name: OrderDirection
   cost: OrderDirection
+  costOld: OrderDirection
   referralUpfrontCommissionPct: OrderDirection
   referralRecurringCommissionPct: OrderDirection
   frequency: OrderDirection
@@ -3386,6 +3389,7 @@ input SaasPlanOrderByInput {
 input SaasPlanUpdateInput {
   name: String
   cost: Float
+  costOld: Float
   referralUpfrontCommissionPct: Float
   referralRecurringCommissionPct: Float
   frequency: String
@@ -3419,6 +3423,7 @@ input SaasPlanUpdateArgs {
 input SaasPlanCreateInput {
   name: String
   cost: Float
+  costOld: Float
   referralUpfrontCommissionPct: Float
   referralRecurringCommissionPct: Float
   frequency: String

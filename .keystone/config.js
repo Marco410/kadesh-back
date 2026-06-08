@@ -388,47 +388,125 @@ function genUniqueLink(link) {
   return link.toLowerCase().replace(/ñ/g, "n").replace(/\s+/g, ".");
 }
 
-// utils/helpers/sendgrid.ts
-var import_mail = __toESM(require("@sendgrid/mail"));
-if (process.env.SENDGRID_API_KEY) {
-  import_mail.default.setApiKey(process.env.SENDGRID_API_KEY);
+// utils/intregrations/smtpMail.ts
+var import_nodemailer = __toESM(require("nodemailer"));
+var PLACEHOLDER_PASS = /* @__PURE__ */ new Set(["<tu_password>", "your_smtp_password", "changeme"]);
+function smtpEnv() {
+  return {
+    host: process.env.SMTP_HOST?.trim(),
+    port: Number(process.env.SMTP_PORT ?? "465"),
+    secure: process.env.SMTP_SECURE?.trim().toLowerCase() !== "false" && Number(process.env.SMTP_PORT ?? "465") === 465,
+    user: process.env.SMTP_USER?.trim(),
+    pass: process.env.SMTP_PASS?.trim(),
+    from: process.env.SMTP_FROM?.trim()?.split(",")[0]?.trim() || process.env.SMTP_USER?.trim()
+  };
+}
+function isPlaceholderPassword(pass) {
+  if (!pass) return true;
+  const lower = pass.toLowerCase();
+  return PLACEHOLDER_PASS.has(lower) || lower.includes("your_smtp") || lower.includes("<tu_");
+}
+function isSmtpConfigured() {
+  const { host, user, pass, from } = smtpEnv();
+  return Boolean(host && user && pass && from && !isPlaceholderPassword(pass));
+}
+var transporter = null;
+var transporterKey = null;
+function getTransporter() {
+  const { host, port, secure, user, pass } = smtpEnv();
+  if (!host || !user || !pass) {
+    throw new Error("[smtp] SMTP_HOST, SMTP_USER y SMTP_PASS son obligatorios");
+  }
+  if (isPlaceholderPassword(pass)) {
+    throw new Error(
+      "[smtp] SMTP_PASS sigue siendo un placeholder. Pon la contrase\xF1a real del buz\xF3n en config/.env.dev (usa comillas si tiene %, &, etc.)."
+    );
+  }
+  const key = `${host}:${port}:${secure}:${user}`;
+  if (transporter && transporterKey === key) {
+    return transporter;
+  }
+  transporter = import_nodemailer.default.createTransport({
+    host,
+    port: Number.isFinite(port) ? port : 465,
+    secure,
+    auth: { user, pass }
+  });
+  transporterKey = key;
+  return transporter;
+}
+function formatMailFrom(displayName, address) {
+  const email = address.trim();
+  const name = displayName?.trim();
+  if (!name) {
+    return email;
+  }
+  const escaped = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${escaped}" <${email}>`;
+}
+function resolveFromAddress(from, fromName) {
+  const address = from?.trim() || smtpEnv().from;
+  if (!address) {
+    return void 0;
+  }
+  const name = fromName?.trim() || process.env.SMTP_FROM_NAME?.trim();
+  return formatMailFrom(name, address);
+}
+function smtpAuthHint(err) {
+  const code = err?.code;
+  const responseCode = err?.responseCode;
+  if (code === "EAUTH" || responseCode === 535) {
+    const { user } = smtpEnv();
+    return `Revisa SMTP_USER (${user ?? "?"}) y SMTP_PASS en config/.env.dev \u2014 la contrase\xF1a debe ir entre comillas si tiene caracteres especiales (%, &, #). Reinicia pnpm dev tras cambiar el .env.`;
+  }
+  return void 0;
 }
 async function sendEmail({
   to,
   subject,
   html,
-  from = process.env.SENDGRID_FROM_EMAIL || "noreply@kadesh.com"
+  from,
+  fromName
 }) {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.warn("SENDGRID_API_KEY is not configured. Email not sent.");
+  const resolvedFrom = resolveFromAddress(from, fromName);
+  if (!isSmtpConfigured()) {
+    console.warn("[smtp] SMTP no configurado o SMTP_PASS es placeholder. Correo no enviado.");
+    return;
+  }
+  if (!resolvedFrom) {
+    console.warn("[smtp] SMTP_FROM no configurado. Correo no enviado.");
+    return;
+  }
+  const recipients = (Array.isArray(to) ? to : [to]).map((e) => e.trim()).filter(Boolean);
+  if (recipients.length === 0) {
+    console.warn("[smtp] Sin destinatarios v\xE1lidos.");
     return;
   }
   try {
-    const msg = {
-      to: Array.isArray(to) ? to : [to],
-      from,
+    await getTransporter().sendMail({
+      from: resolvedFrom,
+      to: recipients.join(", "),
       subject,
       html
-    };
-    await import_mail.default.send(msg);
-    console.log(
-      `Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`
-    );
-  } catch (error) {
-    console.error("Error sending email:", error);
-    if (error.response) {
-      console.error("SendGrid error response:", error.response.body);
+    });
+  } catch (err) {
+    const hint = smtpAuthHint(err);
+    console.error("[smtp] Error al enviar correo:", err);
+    if (hint) {
+      console.error(`[smtp] ${hint}`);
     }
-    throw error;
+    throw err;
   }
 }
+
+// utils/helpers/sendgrid.ts
 function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 var BRAND_ORANGE = "#FF8C42";
 var BRAND_ORANGE_DARK = "#E6732E";
 function parseAdminNotificationEmails() {
-  const raw = process.env.SENDGRID_FROM_EMAIL?.trim();
+  const raw = process.env.SMTP_ADMIN_NOTIFICATION_EMAILS?.trim() || process.env.SENDGRID_FROM_EMAIL?.trim();
   if (!raw) return [];
   return raw.split(",").map((e) => e.trim()).filter(Boolean);
 }
@@ -564,7 +642,7 @@ async function sendUserWelcomeEmail({
   const subject = "Bienvenido a Kadesh";
   const appUrl = "https://negocios.kadesh.com.mx/auth/login";
   const html = buildWelcomeEmailHtml(displayName, appUrl);
-  await sendEmail({ to: trimmedTo, subject, html });
+  await sendEmail({ to: trimmedTo, subject, html, fromName: "Kadesh" });
 }
 async function sendAdminUserBankDetailsUpdatedEmail({
   userId,
@@ -575,14 +653,14 @@ async function sendAdminUserBankDetailsUpdatedEmail({
   const recipients = parseAdminNotificationEmails();
   if (recipients.length === 0) {
     console.warn(
-      "SENDGRID_FROM_EMAIL no configurado. No se env\xEDa aviso de datos bancarios."
+      "SMTP_ADMIN_NOTIFICATION_EMAILS no configurado. No se env\xEDa aviso de datos bancarios."
     );
     return;
   }
   const fieldsList = fieldsUpdated.join(", ");
   const subject = "[Kadesh] Usuario actualiz\xF3 datos bancarios";
   const html = buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList);
-  await sendEmail({ to: recipients, subject, html });
+  await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
 }
 async function sendNewPostEmail({
   postTitle,
@@ -4335,6 +4413,9 @@ var SaasPlan_default = (0, import_core47.list)({
     /** Price amount (in plan currency) */
     cost: (0, import_fields47.float)({
       ui: { description: "Plan cost per billing period" }
+    }),
+    costOld: (0, import_fields47.float)({
+      ui: { description: "Plan cost original" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
     referralUpfrontCommissionPct: (0, import_fields47.float)({

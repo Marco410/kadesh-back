@@ -589,6 +589,7 @@ model SaasPlan {
   id                               String                    @id @default(cuid())
   name                             String                    @default("")
   cost                             Float?
+  costOld                          Float?
   referralUpfrontCommissionPct     Float?
   referralRecurringCommissionPct   Float?
   frequency                        String?
