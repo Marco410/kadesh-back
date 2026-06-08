@@ -4550,33 +4550,65 @@ input TagCreateInput {
 
 type TechBusinessLead {
   id: ID!
-  businessName: String
-  category: String
-  phone: String
+  firstName: String
+  lastName: String
+  fullName: String
   email: String
-  address: String
+  personalEmail: String
+  mobileNumber: String
+  phone: String
+  jobTitle: String
+  headline: String
+  linkedin: String
+  seniorityLevel: String
+  functionalLevel: String
   city: String
   state: String
   country: String
-  rating: Float
-  lat: Float
-  lng: Float
-  reviewCount: Int
+  businessName: String
+  industry: String
+  category: String
+  companySize: Int
+  companyDescription: String
+  companyDomain: String
+  companyPhone: String
+  companyLinkedin: String
+  companyLinkedinUid: String
+  companyFoundedYear: String
+  companyAnnualRevenue: String
+  companyAnnualRevenueClean: String
+  companyTotalFunding: String
+  companyTotalFundingClean: String
+  keywords: String
+  companyTechnologies: String
+  companyStreetAddress: String
+  companyFullAddress: String
+  companyCity: String
+  companyState: String
+  companyCountry: String
+  companyPostalCode: String
+  address: String
   hasWebsite: Boolean
   websiteUrl: String
   source: String
-  status(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
-  statusCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   instagram: String
   facebook: String
   xTwitter: String
   tiktok: String
+  rating: Float
+  lat: Float
+  lng: Float
+  reviewCount: Int
+  googleMapsUrl: String
+  googlePlaceId: String
   topReview1: String
   topReview2: String
   topReview3: String
   topReview4: String
   topReview5: String
   websitePromptContent: String
+  status(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
+  statusCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   activities(where: TechSalesActivityWhereInput! = {}, orderBy: [TechSalesActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechSalesActivityWhereUniqueInput): [TechSalesActivity!]
   activitiesCount(where: TechSalesActivityWhereInput! = {}): Int
   tasks(where: TechTaskWhereInput! = {}, orderBy: [TechTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechTaskWhereUniqueInput): [TechTask!]
@@ -4587,8 +4619,6 @@ type TechBusinessLead {
   projectsCount(where: SaasProjectWhereInput! = {}): Int
   followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
-  googleMapsUrl: String
-  googlePlaceId: String
   salesPerson(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   salesPersonCount(where: UserWhereInput! = {}): Int
   saasCompany(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
@@ -4601,6 +4631,8 @@ type TechBusinessLead {
 
 input TechBusinessLeadWhereUniqueInput {
   id: ID
+  linkedin: String
+  companyLinkedinUid: String
   googlePlaceId: String
 }
 
@@ -4609,39 +4641,69 @@ input TechBusinessLeadWhereInput {
   OR: [TechBusinessLeadWhereInput!]
   NOT: [TechBusinessLeadWhereInput!]
   id: IDFilter
-  businessName: StringFilter
-  category: StringFilter
-  phone: StringFilter
+  firstName: StringFilter
+  lastName: StringFilter
+  fullName: StringFilter
   email: StringFilter
-  address: StringFilter
+  personalEmail: StringFilter
+  mobileNumber: StringFilter
+  phone: StringFilter
+  jobTitle: StringFilter
+  headline: StringFilter
+  linkedin: StringNullableFilter
+  seniorityLevel: StringFilter
+  functionalLevel: StringFilter
   city: StringFilter
   state: StringFilter
   country: StringFilter
-  rating: FloatNullableFilter
-  lat: FloatNullableFilter
-  lng: FloatNullableFilter
-  reviewCount: IntNullableFilter
+  businessName: StringFilter
+  industry: StringFilter
+  category: StringFilter
+  companySize: IntNullableFilter
+  companyDescription: StringFilter
+  companyDomain: StringFilter
+  companyPhone: StringFilter
+  companyLinkedin: StringFilter
+  companyLinkedinUid: StringNullableFilter
+  companyFoundedYear: StringFilter
+  companyAnnualRevenue: StringFilter
+  companyAnnualRevenueClean: StringFilter
+  companyTotalFunding: StringFilter
+  companyTotalFundingClean: StringFilter
+  keywords: StringFilter
+  companyTechnologies: StringFilter
+  companyStreetAddress: StringFilter
+  companyFullAddress: StringFilter
+  companyCity: StringFilter
+  companyState: StringFilter
+  companyCountry: StringFilter
+  companyPostalCode: StringFilter
+  address: StringFilter
   hasWebsite: BooleanFilter
   websiteUrl: StringFilter
   source: StringNullableFilter
-  status: TechStatusBusinessLeadManyRelationFilter
   instagram: StringFilter
   facebook: StringFilter
   xTwitter: StringFilter
   tiktok: StringFilter
+  rating: FloatNullableFilter
+  lat: FloatNullableFilter
+  lng: FloatNullableFilter
+  reviewCount: IntNullableFilter
+  googleMapsUrl: StringFilter
+  googlePlaceId: StringNullableFilter
   topReview1: StringFilter
   topReview2: StringFilter
   topReview3: StringFilter
   topReview4: StringFilter
   topReview5: StringFilter
   websitePromptContent: StringFilter
+  status: TechStatusBusinessLeadManyRelationFilter
   activities: TechSalesActivityManyRelationFilter
   tasks: TechTaskManyRelationFilter
   proposals: TechProposalManyRelationFilter
   projects: SaasProjectManyRelationFilter
   followUpTasks: TechFollowUpTaskManyRelationFilter
-  googleMapsUrl: StringFilter
-  googlePlaceId: StringNullableFilter
   salesPerson: UserManyRelationFilter
   saasCompany: SaasCompanyManyRelationFilter
   quotations: SaasQuotationManyRelationFilter
@@ -4651,18 +4713,44 @@ input TechBusinessLeadWhereInput {
 
 input TechBusinessLeadOrderByInput {
   id: OrderDirection
-  businessName: OrderDirection
-  category: OrderDirection
-  phone: OrderDirection
+  firstName: OrderDirection
+  lastName: OrderDirection
+  fullName: OrderDirection
   email: OrderDirection
-  address: OrderDirection
+  personalEmail: OrderDirection
+  mobileNumber: OrderDirection
+  phone: OrderDirection
+  jobTitle: OrderDirection
+  headline: OrderDirection
+  linkedin: OrderDirection
+  seniorityLevel: OrderDirection
+  functionalLevel: OrderDirection
   city: OrderDirection
   state: OrderDirection
   country: OrderDirection
-  rating: OrderDirection
-  lat: OrderDirection
-  lng: OrderDirection
-  reviewCount: OrderDirection
+  businessName: OrderDirection
+  industry: OrderDirection
+  category: OrderDirection
+  companySize: OrderDirection
+  companyDescription: OrderDirection
+  companyDomain: OrderDirection
+  companyPhone: OrderDirection
+  companyLinkedin: OrderDirection
+  companyLinkedinUid: OrderDirection
+  companyFoundedYear: OrderDirection
+  companyAnnualRevenue: OrderDirection
+  companyAnnualRevenueClean: OrderDirection
+  companyTotalFunding: OrderDirection
+  companyTotalFundingClean: OrderDirection
+  keywords: OrderDirection
+  companyTechnologies: OrderDirection
+  companyStreetAddress: OrderDirection
+  companyFullAddress: OrderDirection
+  companyCity: OrderDirection
+  companyState: OrderDirection
+  companyCountry: OrderDirection
+  companyPostalCode: OrderDirection
+  address: OrderDirection
   hasWebsite: OrderDirection
   websiteUrl: OrderDirection
   source: OrderDirection
@@ -4670,52 +4758,86 @@ input TechBusinessLeadOrderByInput {
   facebook: OrderDirection
   xTwitter: OrderDirection
   tiktok: OrderDirection
+  rating: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  reviewCount: OrderDirection
+  googleMapsUrl: OrderDirection
+  googlePlaceId: OrderDirection
   topReview1: OrderDirection
   topReview2: OrderDirection
   topReview3: OrderDirection
   topReview4: OrderDirection
   topReview5: OrderDirection
   websitePromptContent: OrderDirection
-  googleMapsUrl: OrderDirection
-  googlePlaceId: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
 
 input TechBusinessLeadUpdateInput {
-  businessName: String
-  category: String
-  phone: String
+  firstName: String
+  lastName: String
+  fullName: String
   email: String
-  address: String
+  personalEmail: String
+  mobileNumber: String
+  phone: String
+  jobTitle: String
+  headline: String
+  linkedin: String
+  seniorityLevel: String
+  functionalLevel: String
   city: String
   state: String
   country: String
-  rating: Float
-  lat: Float
-  lng: Float
-  reviewCount: Int
+  businessName: String
+  industry: String
+  category: String
+  companySize: Int
+  companyDescription: String
+  companyDomain: String
+  companyPhone: String
+  companyLinkedin: String
+  companyLinkedinUid: String
+  companyFoundedYear: String
+  companyAnnualRevenue: String
+  companyAnnualRevenueClean: String
+  companyTotalFunding: String
+  companyTotalFundingClean: String
+  keywords: String
+  companyTechnologies: String
+  companyStreetAddress: String
+  companyFullAddress: String
+  companyCity: String
+  companyState: String
+  companyCountry: String
+  companyPostalCode: String
+  address: String
   hasWebsite: Boolean
   websiteUrl: String
   source: String
-  status: TechStatusBusinessLeadRelateToManyForUpdateInput
   instagram: String
   facebook: String
   xTwitter: String
   tiktok: String
+  rating: Float
+  lat: Float
+  lng: Float
+  reviewCount: Int
+  googleMapsUrl: String
+  googlePlaceId: String
   topReview1: String
   topReview2: String
   topReview3: String
   topReview4: String
   topReview5: String
   websitePromptContent: String
+  status: TechStatusBusinessLeadRelateToManyForUpdateInput
   activities: TechSalesActivityRelateToManyForUpdateInput
   tasks: TechTaskRelateToManyForUpdateInput
   proposals: TechProposalRelateToManyForUpdateInput
   projects: SaasProjectRelateToManyForUpdateInput
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
-  googleMapsUrl: String
-  googlePlaceId: String
   salesPerson: UserRelateToManyForUpdateInput
   saasCompany: SaasCompanyRelateToManyForUpdateInput
   quotations: SaasQuotationRelateToManyForUpdateInput
@@ -4729,39 +4851,69 @@ input TechBusinessLeadUpdateArgs {
 }
 
 input TechBusinessLeadCreateInput {
-  businessName: String
-  category: String
-  phone: String
+  firstName: String
+  lastName: String
+  fullName: String
   email: String
-  address: String
+  personalEmail: String
+  mobileNumber: String
+  phone: String
+  jobTitle: String
+  headline: String
+  linkedin: String
+  seniorityLevel: String
+  functionalLevel: String
   city: String
   state: String
   country: String
-  rating: Float
-  lat: Float
-  lng: Float
-  reviewCount: Int
+  businessName: String
+  industry: String
+  category: String
+  companySize: Int
+  companyDescription: String
+  companyDomain: String
+  companyPhone: String
+  companyLinkedin: String
+  companyLinkedinUid: String
+  companyFoundedYear: String
+  companyAnnualRevenue: String
+  companyAnnualRevenueClean: String
+  companyTotalFunding: String
+  companyTotalFundingClean: String
+  keywords: String
+  companyTechnologies: String
+  companyStreetAddress: String
+  companyFullAddress: String
+  companyCity: String
+  companyState: String
+  companyCountry: String
+  companyPostalCode: String
+  address: String
   hasWebsite: Boolean
   websiteUrl: String
   source: String
-  status: TechStatusBusinessLeadRelateToManyForCreateInput
   instagram: String
   facebook: String
   xTwitter: String
   tiktok: String
+  rating: Float
+  lat: Float
+  lng: Float
+  reviewCount: Int
+  googleMapsUrl: String
+  googlePlaceId: String
   topReview1: String
   topReview2: String
   topReview3: String
   topReview4: String
   topReview5: String
   websitePromptContent: String
+  status: TechStatusBusinessLeadRelateToManyForCreateInput
   activities: TechSalesActivityRelateToManyForCreateInput
   tasks: TechTaskRelateToManyForCreateInput
   proposals: TechProposalRelateToManyForCreateInput
   projects: SaasProjectRelateToManyForCreateInput
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
-  googleMapsUrl: String
-  googlePlaceId: String
   salesPerson: UserRelateToManyForCreateInput
   saasCompany: SaasCompanyRelateToManyForCreateInput
   quotations: SaasQuotationRelateToManyForCreateInput

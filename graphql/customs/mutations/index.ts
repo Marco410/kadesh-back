@@ -3,7 +3,7 @@ import authenticateUserWithGoogle from "./auth/authenticateUserWithGoogle";
 import registerUser from "./auth/registerUser";
 import importBusinessLeadFromGoogle from "./importBusinessLeadFromGoogle";
 import importPetPlace from "./importPetPlace";
-import syncLeadsFront from "./syncLeadsFront";
+import syncLeadsFront from "./leads/syncLeadsFront";
 import syncBusinessLeadsFromGoogle from "./syncBusinessLeadsFromGoogle";
 import createCompanySubscription from "./createCompanySubscription";
 import addOwnLead from "./addOwnLead";

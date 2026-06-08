@@ -21,53 +21,159 @@ export default list({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
-    labelField: "businessName",
+    labelField: "fullName",
     listView: {
       initialColumns: [
+        "fullName",
         "businessName",
-        "category",
-        "status",
+        "jobTitle",
+        "industry",
+        "email",
+        "source",
         "salesPerson",
       ],
     },
   },
   fields: {
-    businessName: text({
-      validation: { isRequired: true },
+    // --- Contacto (prospección LinkedIn / B2B) ---
+    firstName: text({ isIndexed: true }),
+    lastName: text({ isIndexed: true }),
+    fullName: text({
       isIndexed: true,
+      ui: { description: "Nombre completo del contacto" },
     }),
-    category: text({ isIndexed: true }),
-    phone: text(),
-    email: text(),
-    address: text(),
-    city: text({ isIndexed: true }),
-    state: text({ isIndexed: true }),
-    country: text({ isIndexed: true }),
-    rating: float(),
-    lat: float(),
-    lng: float(),
-    reviewCount: integer({ ui: { description: "Número de reseñas" } }),
+    email: text({
+      isIndexed: true,
+      ui: { description: "Email laboral del contacto" },
+    }),
+    personalEmail: text({ ui: { description: "Email personal del contacto" } }),
+    mobileNumber: text({ ui: { description: "Teléfono móvil del contacto" } }),
+    phone: text({ ui: { description: "Teléfono (legacy / Google Maps)" } }),
+    jobTitle: text({ isIndexed: true, ui: { description: "Puesto del contacto" } }),
+    headline: text({
+      ui: {
+        displayMode: "textarea",
+        description: "Headline de LinkedIn del contacto",
+      },
+    }),
+    linkedin: text({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: { description: "URL de LinkedIn del contacto" },
+    }),
+    seniorityLevel: text({
+      isIndexed: true,
+      ui: { description: "Nivel de seniority (owner, founder, etc.)" },
+    }),
+    functionalLevel: text({
+      ui: { description: "Nivel funcional (c_suite, product_management, etc.)" },
+    }),
+    // Ubicación del contacto
+    city: text({ isIndexed: true, ui: { description: "Ciudad del contacto" } }),
+    state: text({ isIndexed: true, ui: { description: "Estado del contacto" } }),
+    country: text({ isIndexed: true, ui: { description: "País del contacto" } }),
+
+    // --- Empresa ---
+    businessName: text({
+      isIndexed: true,
+      ui: { description: "Nombre de la empresa (company_name)" },
+    }),
+    industry: text({
+      isIndexed: true,
+      ui: { description: "Industria de la empresa" },
+    }),
+    category: text({
+      isIndexed: true,
+      ui: { description: "Categoría (Google Maps / legacy)" },
+    }),
+    companySize: integer({ ui: { description: "Tamaño de la empresa (empleados)" } }),
+    companyDescription: text({
+      ui: {
+        displayMode: "textarea",
+        description: "Descripción de la empresa",
+      },
+    }),
+    companyDomain: text({ ui: { description: "Dominio web de la empresa" } }),
+    companyPhone: text({ ui: { description: "Teléfono de la empresa" } }),
+    companyLinkedin: text({ ui: { description: "URL de LinkedIn de la empresa" } }),
+    companyLinkedinUid: text({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "UID de LinkedIn de la empresa (deduplicación)",
+      },
+    }),
+    companyFoundedYear: text({ ui: { description: "Año de fundación de la empresa" } }),
+    companyAnnualRevenue: text({
+      ui: { description: "Ingresos anuales (valor numérico en texto)" },
+    }),
+    companyAnnualRevenueClean: text({
+      ui: { description: "Ingresos anuales (formato legible, ej. 1M, 33.8B)" },
+    }),
+    companyTotalFunding: text({ ui: { description: "Financiamiento total" } }),
+    companyTotalFundingClean: text({
+      ui: { description: "Financiamiento total (formato legible)" },
+    }),
+    keywords: text({
+      ui: {
+        displayMode: "textarea",
+        description: "Keywords / tags de la empresa",
+      },
+    }),
+    companyTechnologies: text({
+      ui: {
+        displayMode: "textarea",
+        description: "Tecnologías que usa la empresa",
+      },
+    }),
+    // Ubicación de la empresa
+    companyStreetAddress: text({ ui: { description: "Calle de la empresa" } }),
+    companyFullAddress: text({
+      ui: { description: "Dirección completa de la empresa" },
+    }),
+    companyCity: text({ isIndexed: true, ui: { description: "Ciudad de la empresa" } }),
+    companyState: text({ isIndexed: true, ui: { description: "Estado de la empresa" } }),
+    companyCountry: text({ isIndexed: true, ui: { description: "País de la empresa" } }),
+    companyPostalCode: text({ ui: { description: "Código postal de la empresa" } }),
+    address: text({ ui: { description: "Dirección (legacy / Google Maps)" } }),
+
+    // --- Web y fuente ---
     hasWebsite: checkbox({
       defaultValue: false,
       ui: { description: "Tiene sitio web" },
     }),
-    websiteUrl: text(),
+    websiteUrl: text({ ui: { description: "Sitio web de la empresa (company_website)" } }),
     source: select({
       type: "string",
       options: sourceOptions,
-      defaultValue: "Google Maps",
+      defaultValue: LEAD_SOURCE.GOOGLE_MAPS,
       ui: { description: "Fuente del lead" },
     }),
-    status: relationship({
-      ref: "TechStatusBusinessLead.businessLead",
-      many: true,
-      ui: { description: "Estado y datos variables del lead" },
-    }),
+
+    // --- Redes sociales ---
     instagram: text({ ui: { description: "Usuario o URL de Instagram" } }),
     facebook: text({ ui: { description: "URL de Facebook" } }),
     xTwitter: text({ ui: { description: "Usuario o URL de X (Twitter)" } }),
     tiktok: text({ ui: { description: "Usuario o URL de TikTok" } }),
-    // Reseñas de Google (máx. 5 positivas) para uso en prompt de IA
+
+    // --- Google Maps (legacy) ---
+    rating: float(),
+    lat: float(),
+    lng: float(),
+    reviewCount: integer({ ui: { description: "Número de reseñas" } }),
+    googleMapsUrl: text({
+      ui: { description: "URL de Google Maps del negocio" },
+    }),
+    googlePlaceId: text({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+      },
+    }),
     topReview1: text({
       ui: { displayMode: "textarea", description: "Mejor reseña 1 (Google)" },
     }),
@@ -83,15 +189,20 @@ export default list({
     topReview5: text({
       ui: { displayMode: "textarea", description: "Mejor reseña 5 (Google)" },
     }),
-    // Prompt listo para copiar y usar en vibe coding / IA (info del negocio + reseñas)
     websitePromptContent: text({
       ui: {
         displayMode: "textarea",
         description:
-          "Prompt listo para IA: crear sitio web con la info del negocio y las 5 reseñas positivas de Google. Copiar y pegar en tu herramienta de vibe coding.",
+          "Prompt listo para IA: crear sitio web con la info del negocio y las 5 reseñas positivas de Google.",
       },
     }),
-    // Relaciones inversas
+
+    // --- CRM ---
+    status: relationship({
+      ref: "TechStatusBusinessLead.businessLead",
+      many: true,
+      ui: { description: "Estado y datos variables del lead" },
+    }),
     activities: relationship({
       ref: "TechSalesActivity.businessLead",
       many: true,
@@ -116,18 +227,6 @@ export default list({
       ref: "TechFollowUpTask.businessLead",
       many: true,
       ui: { hideCreate: true },
-    }),
-    googleMapsUrl: text({
-      ui: { description: "URL de Google Maps del negocio" },
-    }),
-    // Para importación desde Google (opcional)
-    googlePlaceId: text({
-      isIndexed: "unique",
-      db: { isNullable: true },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "hidden" },
-      },
     }),
     salesPerson: relationship({
       ref: "User.businessLeadsAssigned",

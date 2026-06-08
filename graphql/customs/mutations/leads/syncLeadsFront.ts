@@ -1,12 +1,12 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
-import { haversineDistance } from "../../../utils/helpers/calculate_distances";
-import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscription/constants";
-import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_text";
-import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";
-import { getOrCreateMonthlyRecord } from "../../../utils/helpers/tech/monthly_record";
-import { getPlaceDetails } from "../../../utils/helpers/tech/place_details";
-import { getFreePlanTrialInfo } from "../../../utils/saas/freePlanTrial";
+import { PIPELINE_STATUS } from "../../../../models/Tech/crm/constants";
+import { haversineDistance } from "../../../../utils/helpers/calculate_distances";
+import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscription/constants";
+import { buildReviewsAndPrompt } from "../../../../utils/helpers/tech/build_prompt_text";
+import { parseAddressComponents } from "../../../../utils/helpers/tech/parse_address";
+import { getOrCreateMonthlyRecord } from "../../../../utils/helpers/tech/monthly_record";
+import { getPlaceDetails } from "../../../../utils/helpers/tech/place_details";
+import { getFreePlanTrialInfo } from "../../../../utils/saas/freePlanTrial";
 
 /**
  * syncLeadsFront: asigna TechBusinessLead a la SaasCompany del usuario.

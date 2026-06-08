@@ -60,6 +60,7 @@ export const TASK_PRIORITY = {
 
 export const LEAD_SOURCE = {
   GOOGLE_MAPS: "Google Maps",
+  LINKEDIN: "LinkedIn",
   REFERIDO: "Referido",
   WEB: "Web",
   SOCIAL_MEDIA: "Redes Sociales",

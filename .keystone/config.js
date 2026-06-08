@@ -2858,14 +2858,28 @@ var businessLeadAccess = {
 };
 
 // models/Tech/BusinessLead/TechBusinessLead.hooks.ts
+function resolveFullName(data) {
+  if (data.fullName?.trim()) return data.fullName.trim();
+  const fromParts = [data.firstName, data.lastName].filter((part) => part?.trim()).join(" ").trim();
+  if (fromParts) return fromParts;
+  if (data.businessName?.trim()) return data.businessName.trim();
+  return data.fullName;
+}
+function resolveHasWebsite(data) {
+  if (data.hasWebsite != null) return data.hasWebsite;
+  if (data.websiteUrl?.trim()) return true;
+  return void 0;
+}
 var businessLeadHooks = {
-  afterOperation: async ({
-    operation,
-    item,
-    resolvedData,
-    context,
-    listKey
-  }) => {
+  resolveInput: async ({ resolvedData }) => {
+    const fullName = resolveFullName(resolvedData);
+    const hasWebsite = resolveHasWebsite(resolvedData);
+    return {
+      ...fullName != null && { fullName },
+      ...hasWebsite != null && { hasWebsite }
+    };
+  },
+  afterOperation: async () => {
   }
 };
 
@@ -2918,6 +2932,7 @@ var TASK_PRIORITY = {
 };
 var LEAD_SOURCE = {
   GOOGLE_MAPS: "Google Maps",
+  LINKEDIN: "LinkedIn",
   REFERIDO: "Referido",
   WEB: "Web",
   SOCIAL_MEDIA: "Redes Sociales",
@@ -2935,53 +2950,155 @@ var TechBusinessLead_default = (0, import_core38.list)({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
-    labelField: "businessName",
+    labelField: "fullName",
     listView: {
       initialColumns: [
+        "fullName",
         "businessName",
-        "category",
-        "status",
+        "jobTitle",
+        "industry",
+        "email",
+        "source",
         "salesPerson"
       ]
     }
   },
   fields: {
-    businessName: (0, import_fields38.text)({
-      validation: { isRequired: true },
-      isIndexed: true
+    // --- Contacto (prospección LinkedIn / B2B) ---
+    firstName: (0, import_fields38.text)({ isIndexed: true }),
+    lastName: (0, import_fields38.text)({ isIndexed: true }),
+    fullName: (0, import_fields38.text)({
+      isIndexed: true,
+      ui: { description: "Nombre completo del contacto" }
     }),
-    category: (0, import_fields38.text)({ isIndexed: true }),
-    phone: (0, import_fields38.text)(),
-    email: (0, import_fields38.text)(),
-    address: (0, import_fields38.text)(),
-    city: (0, import_fields38.text)({ isIndexed: true }),
-    state: (0, import_fields38.text)({ isIndexed: true }),
-    country: (0, import_fields38.text)({ isIndexed: true }),
-    rating: (0, import_fields38.float)(),
-    lat: (0, import_fields38.float)(),
-    lng: (0, import_fields38.float)(),
-    reviewCount: (0, import_fields38.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
+    email: (0, import_fields38.text)({
+      isIndexed: true,
+      ui: { description: "Email laboral del contacto" }
+    }),
+    personalEmail: (0, import_fields38.text)({ ui: { description: "Email personal del contacto" } }),
+    mobileNumber: (0, import_fields38.text)({ ui: { description: "Tel\xE9fono m\xF3vil del contacto" } }),
+    phone: (0, import_fields38.text)({ ui: { description: "Tel\xE9fono (legacy / Google Maps)" } }),
+    jobTitle: (0, import_fields38.text)({ isIndexed: true, ui: { description: "Puesto del contacto" } }),
+    headline: (0, import_fields38.text)({
+      ui: {
+        displayMode: "textarea",
+        description: "Headline de LinkedIn del contacto"
+      }
+    }),
+    linkedin: (0, import_fields38.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: { description: "URL de LinkedIn del contacto" }
+    }),
+    seniorityLevel: (0, import_fields38.text)({
+      isIndexed: true,
+      ui: { description: "Nivel de seniority (owner, founder, etc.)" }
+    }),
+    functionalLevel: (0, import_fields38.text)({
+      ui: { description: "Nivel funcional (c_suite, product_management, etc.)" }
+    }),
+    // Ubicación del contacto
+    city: (0, import_fields38.text)({ isIndexed: true, ui: { description: "Ciudad del contacto" } }),
+    state: (0, import_fields38.text)({ isIndexed: true, ui: { description: "Estado del contacto" } }),
+    country: (0, import_fields38.text)({ isIndexed: true, ui: { description: "Pa\xEDs del contacto" } }),
+    // --- Empresa ---
+    businessName: (0, import_fields38.text)({
+      isIndexed: true,
+      ui: { description: "Nombre de la empresa (company_name)" }
+    }),
+    industry: (0, import_fields38.text)({
+      isIndexed: true,
+      ui: { description: "Industria de la empresa" }
+    }),
+    category: (0, import_fields38.text)({
+      isIndexed: true,
+      ui: { description: "Categor\xEDa (Google Maps / legacy)" }
+    }),
+    companySize: (0, import_fields38.integer)({ ui: { description: "Tama\xF1o de la empresa (empleados)" } }),
+    companyDescription: (0, import_fields38.text)({
+      ui: {
+        displayMode: "textarea",
+        description: "Descripci\xF3n de la empresa"
+      }
+    }),
+    companyDomain: (0, import_fields38.text)({ ui: { description: "Dominio web de la empresa" } }),
+    companyPhone: (0, import_fields38.text)({ ui: { description: "Tel\xE9fono de la empresa" } }),
+    companyLinkedin: (0, import_fields38.text)({ ui: { description: "URL de LinkedIn de la empresa" } }),
+    companyLinkedinUid: (0, import_fields38.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "UID de LinkedIn de la empresa (deduplicaci\xF3n)"
+      }
+    }),
+    companyFoundedYear: (0, import_fields38.text)({ ui: { description: "A\xF1o de fundaci\xF3n de la empresa" } }),
+    companyAnnualRevenue: (0, import_fields38.text)({
+      ui: { description: "Ingresos anuales (valor num\xE9rico en texto)" }
+    }),
+    companyAnnualRevenueClean: (0, import_fields38.text)({
+      ui: { description: "Ingresos anuales (formato legible, ej. 1M, 33.8B)" }
+    }),
+    companyTotalFunding: (0, import_fields38.text)({ ui: { description: "Financiamiento total" } }),
+    companyTotalFundingClean: (0, import_fields38.text)({
+      ui: { description: "Financiamiento total (formato legible)" }
+    }),
+    keywords: (0, import_fields38.text)({
+      ui: {
+        displayMode: "textarea",
+        description: "Keywords / tags de la empresa"
+      }
+    }),
+    companyTechnologies: (0, import_fields38.text)({
+      ui: {
+        displayMode: "textarea",
+        description: "Tecnolog\xEDas que usa la empresa"
+      }
+    }),
+    // Ubicación de la empresa
+    companyStreetAddress: (0, import_fields38.text)({ ui: { description: "Calle de la empresa" } }),
+    companyFullAddress: (0, import_fields38.text)({
+      ui: { description: "Direcci\xF3n completa de la empresa" }
+    }),
+    companyCity: (0, import_fields38.text)({ isIndexed: true, ui: { description: "Ciudad de la empresa" } }),
+    companyState: (0, import_fields38.text)({ isIndexed: true, ui: { description: "Estado de la empresa" } }),
+    companyCountry: (0, import_fields38.text)({ isIndexed: true, ui: { description: "Pa\xEDs de la empresa" } }),
+    companyPostalCode: (0, import_fields38.text)({ ui: { description: "C\xF3digo postal de la empresa" } }),
+    address: (0, import_fields38.text)({ ui: { description: "Direcci\xF3n (legacy / Google Maps)" } }),
+    // --- Web y fuente ---
     hasWebsite: (0, import_fields38.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene sitio web" }
     }),
-    websiteUrl: (0, import_fields38.text)(),
+    websiteUrl: (0, import_fields38.text)({ ui: { description: "Sitio web de la empresa (company_website)" } }),
     source: (0, import_fields38.select)({
       type: "string",
       options: sourceOptions,
-      defaultValue: "Google Maps",
+      defaultValue: LEAD_SOURCE.GOOGLE_MAPS,
       ui: { description: "Fuente del lead" }
     }),
-    status: (0, import_fields38.relationship)({
-      ref: "TechStatusBusinessLead.businessLead",
-      many: true,
-      ui: { description: "Estado y datos variables del lead" }
-    }),
+    // --- Redes sociales ---
     instagram: (0, import_fields38.text)({ ui: { description: "Usuario o URL de Instagram" } }),
     facebook: (0, import_fields38.text)({ ui: { description: "URL de Facebook" } }),
     xTwitter: (0, import_fields38.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
     tiktok: (0, import_fields38.text)({ ui: { description: "Usuario o URL de TikTok" } }),
-    // Reseñas de Google (máx. 5 positivas) para uso en prompt de IA
+    // --- Google Maps (legacy) ---
+    rating: (0, import_fields38.float)(),
+    lat: (0, import_fields38.float)(),
+    lng: (0, import_fields38.float)(),
+    reviewCount: (0, import_fields38.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
+    googleMapsUrl: (0, import_fields38.text)({
+      ui: { description: "URL de Google Maps del negocio" }
+    }),
+    googlePlaceId: (0, import_fields38.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" }
+      }
+    }),
     topReview1: (0, import_fields38.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 1 (Google)" }
     }),
@@ -2997,14 +3114,18 @@ var TechBusinessLead_default = (0, import_core38.list)({
     topReview5: (0, import_fields38.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 5 (Google)" }
     }),
-    // Prompt listo para copiar y usar en vibe coding / IA (info del negocio + reseñas)
     websitePromptContent: (0, import_fields38.text)({
       ui: {
         displayMode: "textarea",
-        description: "Prompt listo para IA: crear sitio web con la info del negocio y las 5 rese\xF1as positivas de Google. Copiar y pegar en tu herramienta de vibe coding."
+        description: "Prompt listo para IA: crear sitio web con la info del negocio y las 5 rese\xF1as positivas de Google."
       }
     }),
-    // Relaciones inversas
+    // --- CRM ---
+    status: (0, import_fields38.relationship)({
+      ref: "TechStatusBusinessLead.businessLead",
+      many: true,
+      ui: { description: "Estado y datos variables del lead" }
+    }),
     activities: (0, import_fields38.relationship)({
       ref: "TechSalesActivity.businessLead",
       many: true,
@@ -3029,18 +3150,6 @@ var TechBusinessLead_default = (0, import_core38.list)({
       ref: "TechFollowUpTask.businessLead",
       many: true,
       ui: { hideCreate: true }
-    }),
-    googleMapsUrl: (0, import_fields38.text)({
-      ui: { description: "URL de Google Maps del negocio" }
-    }),
-    // Para importación desde Google (opcional)
-    googlePlaceId: (0, import_fields38.text)({
-      isIndexed: "unique",
-      db: { isNullable: true },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "hidden" }
-      }
     }),
     salesPerson: (0, import_fields38.relationship)({
       ref: "User.businessLeadsAssigned",
@@ -7387,7 +7496,7 @@ function getFreePlanTrialInfo(activatedAt) {
   };
 }
 
-// graphql/customs/mutations/syncLeadsFront.ts
+// graphql/customs/mutations/leads/syncLeadsFront.ts
 async function ensureStatusForLeadAssignment(context, leadId, companyId, userId, opportunityLevel = "Media") {
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
     where: {
