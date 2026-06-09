@@ -430,7 +430,10 @@ function getTransporter() {
     host,
     port: Number.isFinite(port) ? port : 465,
     secure,
-    auth: { user, pass }
+    auth: { user, pass },
+    connectionTimeout: 15e3,
+    greetingTimeout: 1e4,
+    socketTimeout: 3e4
   });
   transporterKey = key;
   return transporter;
@@ -1918,11 +1921,12 @@ function matchesProduct(product, hasCompany) {
 }
 async function getReleaseRecipients(context, product) {
   const users = await context.sudo().query.User.findMany({
-    query: "id name lastName email company { id }"
+    query: "id name lastName email company { id } userTest"
   });
   const seen = /* @__PURE__ */ new Set();
   const recipients = [];
   for (const user of users) {
+    if (user.userTest === true) continue;
     const email = user.email?.trim();
     if (!email || seen.has(email.toLowerCase())) continue;
     const hasCompany = Boolean(user.company?.id);
@@ -1937,6 +1941,43 @@ async function getReleaseRecipients(context, product) {
 }
 function isPublishedRelease(release) {
   return release?.isPublished === true;
+}
+var EMAIL_SEND_TIMEOUT_MS = 3e4;
+function formatSendError(err) {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return String(err);
+}
+async function sendReleaseEmailWithTimeout(recipient, release, product, appUrl) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(
+        new Error(
+          `Timeout (${EMAIL_SEND_TIMEOUT_MS}ms) al enviar a ${recipient.email}`
+        )
+      );
+    }, EMAIL_SEND_TIMEOUT_MS);
+  });
+  try {
+    await Promise.race([
+      sendSystemReleaseEmail({
+        to: recipient.email,
+        displayName: recipient.displayName,
+        version: release.version ?? "",
+        title: release.title ?? null,
+        body: release.body ?? null,
+        product,
+        appUrl
+      }),
+      timeout
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
 }
 async function notifyUsersForRelease(context, release) {
   if (!isPublishedRelease(release)) {
@@ -1956,27 +1997,20 @@ async function notifyUsersForRelease(context, release) {
   }
   const appUrl = process.env.FRONTEND_URL?.trim() || "https://kadesh.com.mx/auth/login";
   let sent = 0;
+  let failed = 0;
   for (const recipient of recipients) {
     try {
-      await sendSystemReleaseEmail({
-        to: recipient.email,
-        displayName: recipient.displayName,
-        version: release.version ?? "",
-        title: release.title ?? null,
-        body: release.body ?? null,
-        product,
-        appUrl
-      });
+      await sendReleaseEmailWithTimeout(recipient, release, product, appUrl);
       sent++;
     } catch (err) {
+      failed++;
       console.error(
-        `[SystemRelease] Error al enviar release a ${recipient.email}:`,
-        err
+        `[SystemRelease] No se pudo enviar release a ${recipient.email}: ${formatSendError(err)}`
       );
     }
   }
   console.log(
-    `[SystemRelease] Correos de release ${release.version ?? release.id} enviados a ${sent}/${recipients.length} usuarios.`
+    `[SystemRelease] Release ${release.version ?? release.id}: ${sent} enviados, ${failed} fallidos, ${recipients.length} destinatarios.`
   );
 }
 var systemReleaseEmailHook = {
@@ -1987,26 +2021,25 @@ var systemReleaseEmailHook = {
     if (item.isPublished !== true) {
       return;
     }
-    try {
-      const release = await context.sudo().query.SystemRelease.findOne({
-        where: { id: item.id },
-        query: "id version product title body isPublished"
-      });
-      if (!release || !isPublishedRelease(release)) {
-        return;
+    void (async () => {
+      try {
+        const release = await context.sudo().query.SystemRelease.findOne({
+          where: { id: item.id },
+          query: "id version product title body isPublished"
+        });
+        if (!release || !isPublishedRelease(release)) {
+          return;
+        }
+        await notifyUsersForRelease(context, release);
+      } catch (error) {
+        console.error(
+          "[SystemRelease] Error en hook de correo:",
+          formatSendError(error)
+        );
       }
-      await notifyUsersForRelease(context, release);
-    } catch (error) {
-      console.error("[SystemRelease] Error en hook de correo:", error);
-    }
+    })();
   }
 };
-
-var SYSTEM_RELEASE_PRODUCT_OPTIONS = [
-  { label: "Pet", value: SYSTEM_RELEASE_PRODUCT.PET },
-  { label: "SaaS", value: SYSTEM_RELEASE_PRODUCT.SAAS },
-  { label: "Ambas", value: SYSTEM_RELEASE_PRODUCT.ALL }
-];
 
 // models/SystemRelease/SystemRelease.ts
 var SystemRelease_default = (0, import_core17.list)({
@@ -10153,6 +10186,116 @@ var resolver11 = {
 };
 var purchaseCredits_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
 
+// graphql/customs/mutations/sendTestEmail.ts
+var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function smtpDiagnostics() {
+  const host = process.env.SMTP_HOST?.trim() || null;
+  const portRaw = process.env.SMTP_PORT?.trim();
+  const port = portRaw ? Number(portRaw) : 465;
+  return {
+    host,
+    port: Number.isFinite(port) ? port : null,
+    configured: isSmtpConfigured()
+  };
+}
+function formatSmtpError(err) {
+  if (!(err instanceof Error)) {
+    return String(err);
+  }
+  const code = err.code;
+  return code ? `${err.message} (${code})` : err.message;
+}
+function buildTestEmailHtml() {
+  const sentAt = (/* @__PURE__ */ new Date()).toISOString();
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5;">
+      <h2 style="margin: 0 0 12px 0; color: #FF8C42;">Correo de prueba \u2014 Kadesh</h2>
+      <p style="margin: 0 0 8px 0;">Si ves este mensaje, el env\xEDo SMTP desde el backend funcion\xF3 correctamente.</p>
+      <p style="margin: 0; font-size: 13px; color: #64748b;">Enviado: ${sentAt}</p>
+    </div>
+  `;
+}
+var typeDefs12 = `
+  type SendTestEmailResult {
+    success: Boolean!
+    message: String!
+    recipient: String
+    smtpHost: String
+    smtpPort: Int
+    smtpConfigured: Boolean!
+  }
+
+  type Mutation {
+    sendTestEmail(email: String!): SendTestEmailResult!
+  }
+`;
+var definition12 = `
+  sendTestEmail(email: String!): SendTestEmailResult!
+`;
+var resolver12 = {
+  sendTestEmail: async (_root, { email }, context) => {
+    const session2 = context.session;
+    const diagnostics = smtpDiagnostics();
+    if (!hasRole(session2, ["admin" /* ADMIN */])) {
+      return {
+        success: false,
+        message: "Solo administradores pueden enviar correos de prueba",
+        recipient: null,
+        smtpHost: diagnostics.host,
+        smtpPort: diagnostics.port,
+        smtpConfigured: diagnostics.configured
+      };
+    }
+    const recipient = email?.trim();
+    if (!recipient || !EMAIL_REGEX.test(recipient)) {
+      return {
+        success: false,
+        message: "Proporciona un correo electr\xF3nico v\xE1lido",
+        recipient: recipient || null,
+        smtpHost: diagnostics.host,
+        smtpPort: diagnostics.port,
+        smtpConfigured: diagnostics.configured
+      };
+    }
+    if (!diagnostics.configured) {
+      return {
+        success: false,
+        message: "SMTP no configurado. Revisa SMTP_HOST, SMTP_USER, SMTP_PASS y SMTP_FROM en las variables de entorno.",
+        recipient,
+        smtpHost: diagnostics.host,
+        smtpPort: diagnostics.port,
+        smtpConfigured: false
+      };
+    }
+    try {
+      await sendEmail({
+        to: recipient,
+        subject: "Prueba SMTP \u2014 Kadesh",
+        html: buildTestEmailHtml(),
+        fromName: process.env.SMTP_FROM_NAME?.trim() || "Kadesh"
+      });
+      return {
+        success: true,
+        message: `Correo de prueba enviado a ${recipient}`,
+        recipient,
+        smtpHost: diagnostics.host,
+        smtpPort: diagnostics.port,
+        smtpConfigured: true
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: formatSmtpError(err),
+        recipient,
+        smtpHost: diagnostics.host,
+        smtpPort: diagnostics.port,
+        smtpConfigured: true
+      };
+    }
+  }
+};
+var sendTestEmail_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -10167,6 +10310,7 @@ var customMutation = {
     ${addOwnLead_default.typeDefs}
     ${remainingCredits_default.typeDefs}
     ${purchaseCredits_default.typeDefs}
+    ${sendTestEmail_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -10180,6 +10324,7 @@ var customMutation = {
     ${addOwnLead_default.definition}
     ${remainingCredits_default.definition}
     ${purchaseCredits_default.definition}
+    ${sendTestEmail_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -10192,7 +10337,8 @@ var customMutation = {
     ...createCompanySubscription_default.resolver,
     ...addOwnLead_default.resolver,
     ...remainingCredits_default.resolver,
-    ...purchaseCredits_default.resolver
+    ...purchaseCredits_default.resolver,
+    ...sendTestEmail_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -10203,7 +10349,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs12 = `
+var typeDefs13 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -10260,7 +10406,7 @@ var typeDefs12 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition12 = `
+var definition13 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -10310,7 +10456,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver12 = {
+var resolver13 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -10464,7 +10610,7 @@ var resolver12 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
+var nearbyAnimals_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -10732,7 +10878,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs13 = `
+var typeDefs14 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -10790,10 +10936,10 @@ var typeDefs13 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition13 = `
+var definition14 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver13 = {
+var resolver14 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -10875,10 +11021,10 @@ var resolver13 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs14 = `
+var typeDefs15 = `
   type StripeCard {
     brand: String
     country: String
@@ -10912,10 +11058,10 @@ var typeDefs14 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition14 = `
+var definition15 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver14 = {
+var resolver15 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -10951,7 +11097,7 @@ var resolver14 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
+var stripePaymentMethods_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -11004,7 +11150,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs15 = `
+var typeDefs16 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -11032,10 +11178,10 @@ var typeDefs15 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition15 = `
+var definition16 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver15 = {
+var resolver16 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -11167,7 +11313,7 @@ var resolver15 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
+var subscriptionStatus_default = { typeDefs: typeDefs16, definition: definition16, resolver: resolver16 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

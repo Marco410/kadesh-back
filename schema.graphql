@@ -6614,6 +6614,7 @@ type Mutation {
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   remainingCredits(companyId: ID): RemainingCreditsResult!
   purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
+  sendTestEmail(email: String!): SendTestEmailResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String): User
@@ -7121,6 +7122,15 @@ type PurchaseCreditsResult {
   creditsAdded: Int
   newCreditsTotal: Int
   subscriptionId: String
+}
+
+type SendTestEmailResult {
+  success: Boolean!
+  message: String!
+  recipient: String
+  smtpHost: String
+  smtpPort: Int
+  smtpConfigured: Boolean!
 }
 
 type AnimalMultimediaImage {

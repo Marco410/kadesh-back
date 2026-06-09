@@ -9,6 +9,7 @@ import createCompanySubscription from "./createCompanySubscription";
 import addOwnLead from "./addOwnLead";
 import remainingCredits from "./subcription/remainingCredits";
 import purchaseCredits from "./credits/purchaseCredits";
+import sendTestEmail from "./sendTestEmail";
 
 const customMutation = {
   typeDefs: `
@@ -23,6 +24,7 @@ const customMutation = {
     ${addOwnLead.typeDefs}
     ${remainingCredits.typeDefs}
     ${purchaseCredits.typeDefs}
+    ${sendTestEmail.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -36,6 +38,7 @@ const customMutation = {
     ${addOwnLead.definition}
     ${remainingCredits.definition}
     ${purchaseCredits.definition}
+    ${sendTestEmail.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -49,6 +52,7 @@ const customMutation = {
     ...addOwnLead.resolver,
     ...remainingCredits.resolver,
     ...purchaseCredits.resolver,
+    ...sendTestEmail.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
