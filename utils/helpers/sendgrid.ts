@@ -1,4 +1,8 @@
 import { sendEmail } from "../intregrations/smtpMail";
+import {
+  SYSTEM_RELEASE_PRODUCT,
+  type SystemReleaseProduct,
+} from "../../models/SystemRelease/constants";
 
 export { sendEmail };
 
@@ -338,4 +342,140 @@ export async function sendNewPostEmail({
       html,
     });
   }
+}
+
+function formatReleaseBodyHtml(body: string | null | undefined): string {
+  if (!body?.trim()) {
+    return "";
+  }
+
+  return escapeHtml(body.trim())
+    .replace(/\n{2,}/g, "</p><p style=\"margin:0 0 12px 0;font-size:15px;line-height:1.65;color:#475569;\">")
+    .replace(/\n/g, "<br>");
+}
+
+function releaseProductLabel(product: SystemReleaseProduct): string {
+  if (product === SYSTEM_RELEASE_PRODUCT.PET) return "Pet";
+  if (product === SYSTEM_RELEASE_PRODUCT.SAAS) return "Negocios";
+  return "Kadesh";
+}
+
+function buildSystemReleaseEmailHtml(params: {
+  displayName: string;
+  version: string;
+  title: string | null;
+  bodyHtml: string;
+  product: SystemReleaseProduct;
+  appUrl: string;
+}): string {
+  const name = escapeHtml(params.displayName || "ahí");
+  const version = escapeHtml(params.version || "—");
+  const title = params.title?.trim()
+    ? escapeHtml(params.title.trim())
+    : "Nueva actualización disponible";
+  const productLabel = releaseProductLabel(params.product);
+  const bodySection = params.bodyHtml
+    ? `<div style="margin:20px 0 0 0;padding:16px 18px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+        <p style="margin:0 0 8px 0;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#64748b;">Novedades</p>
+        <p style="margin:0;font-size:15px;line-height:1.65;color:#475569;">${params.bodyHtml}</p>
+      </div>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_ORANGE_DARK} 100%);padding:28px 32px;">
+              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.9);">${escapeHtml(productLabel)} · v${version}</p>
+              <h1 style="margin:8px 0 0 0;font-size:24px;font-weight:700;line-height:1.25;color:#ffffff;">${title}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 32px 28px 32px;">
+              <p style="margin:0 0 16px 0;font-size:18px;line-height:1.5;color:#0f172a;">Hola <strong>${name}</strong>,</p>
+              <p style="margin:0;font-size:16px;line-height:1.65;color:#475569;">
+                Publicamos una nueva versión de la plataforma con mejoras y cambios que te pueden interesar.
+              </p>
+              ${bodySection}
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0 0;">
+                <tr>
+                  <td style="border-radius:8px;background:${BRAND_ORANGE};">
+                    <a href="${escapeHtml(params.appUrl)}" target="_blank" rel="noopener noreferrer"
+                      style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;">
+                      Ir a la plataforma
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 28px 32px;background:#f8fafc;">
+              <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;text-align:center;">
+                © ${new Date().getFullYear()} Kadesh · Actualización ${version}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Correo de novedades al crear un SystemRelease publicado.
+ * Se envía un correo individual por destinatario.
+ */
+export async function sendSystemReleaseEmail({
+  to,
+  displayName,
+  version,
+  title,
+  body,
+  product,
+  appUrl,
+}: {
+  to: string;
+  displayName: string;
+  version: string;
+  title: string | null;
+  body: string | null;
+  product: SystemReleaseProduct;
+  appUrl: string;
+}): Promise<void> {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendSystemReleaseEmail: sin email destino.");
+    return;
+  }
+
+  const subjectTitle = title?.trim() || `Actualización v${version}`;
+  const subject = `Novedades en Kadesh: ${subjectTitle}`;
+  const html = buildSystemReleaseEmailHtml({
+    displayName,
+    version,
+    title,
+    bodyHtml: formatReleaseBodyHtml(body),
+    product,
+    appUrl,
+  });
+
+  await sendEmail({
+    to: trimmedTo,
+    subject,
+    html,
+    fromName: "Kadesh",
+  });
 }
