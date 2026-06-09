@@ -389,80 +389,59 @@ function genUniqueLink(link) {
 }
 
 // utils/intregrations/smtpMail.ts
-var import_nodemailer = __toESM(require("nodemailer"));
+var MAILTRAP_SEND_URL = process.env.MAILTRAP_SEND_URL?.trim() || "https://send.api.mailtrap.io/api/send";
 var PLACEHOLDER_PASS = /* @__PURE__ */ new Set(["<tu_password>", "your_smtp_password", "changeme"]);
-function smtpEnv() {
+function mailEnv() {
   return {
-    host: process.env.SMTP_HOST?.trim(),
-    port: Number(process.env.SMTP_PORT ?? "465"),
-    secure: process.env.SMTP_SECURE?.trim().toLowerCase() !== "false" && Number(process.env.SMTP_PORT ?? "465") === 465,
-    user: process.env.SMTP_USER?.trim(),
-    pass: process.env.SMTP_PASS?.trim(),
-    from: process.env.SMTP_FROM?.trim()?.split(",")[0]?.trim() || process.env.SMTP_USER?.trim()
+    apiToken: process.env.MAILTRAP_API_TOKEN?.trim() || process.env.SMTP_PASS?.trim(),
+    from: process.env.SMTP_FROM?.trim()?.split(",")[0]?.trim(),
+    fromName: process.env.SMTP_FROM_NAME?.trim()
   };
 }
-function isPlaceholderPassword(pass) {
-  if (!pass) return true;
-  const lower = pass.toLowerCase();
+function isPlaceholderToken(token) {
+  if (!token) return true;
+  const lower = token.toLowerCase();
   return PLACEHOLDER_PASS.has(lower) || lower.includes("your_smtp") || lower.includes("<tu_");
 }
 function isSmtpConfigured() {
-  const { host, user, pass, from } = smtpEnv();
-  return Boolean(host && user && pass && from && !isPlaceholderPassword(pass));
+  const { apiToken, from } = mailEnv();
+  return Boolean(apiToken && from && !isPlaceholderToken(apiToken));
 }
-var transporter = null;
-var transporterKey = null;
-function getTransporter() {
-  const { host, port, secure, user, pass } = smtpEnv();
-  if (!host || !user || !pass) {
-    throw new Error("[smtp] SMTP_HOST, SMTP_USER y SMTP_PASS son obligatorios");
-  }
-  if (isPlaceholderPassword(pass)) {
-    throw new Error(
-      "[smtp] SMTP_PASS sigue siendo un placeholder. Pon la contrase\xF1a real del buz\xF3n en config/.env.dev (usa comillas si tiene %, &, etc.)."
-    );
-  }
-  const key = `${host}:${port}:${secure}:${user}`;
-  if (transporter && transporterKey === key) {
-    return transporter;
-  }
-  transporter = import_nodemailer.default.createTransport({
-    host,
-    port: Number.isFinite(port) ? port : 465,
-    secure,
-    auth: { user, pass },
-    connectionTimeout: 15e3,
-    greetingTimeout: 1e4,
-    socketTimeout: 3e4
-  });
-  transporterKey = key;
-  return transporter;
-}
-function formatMailFrom(displayName, address) {
-  const email = address.trim();
-  const name = displayName?.trim();
-  if (!name) {
-    return email;
-  }
-  const escaped = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  return `"${escaped}" <${email}>`;
-}
-function resolveFromAddress(from, fromName) {
-  const address = from?.trim() || smtpEnv().from;
+function resolveFrom(from, fromName) {
+  const address = from?.trim() || mailEnv().from;
   if (!address) {
     return void 0;
   }
-  const name = fromName?.trim() || process.env.SMTP_FROM_NAME?.trim();
-  return formatMailFrom(name, address);
+  const name = fromName?.trim() || mailEnv().fromName;
+  return { email: address, name: name || void 0 };
 }
-function smtpAuthHint(err) {
-  const code = err?.code;
-  const responseCode = err?.responseCode;
-  if (code === "EAUTH" || responseCode === 535) {
-    const { user } = smtpEnv();
-    return `Revisa SMTP_USER (${user ?? "?"}) y SMTP_PASS en config/.env.dev \u2014 la contrase\xF1a debe ir entre comillas si tiene caracteres especiales (%, &, #). Reinicia pnpm dev tras cambiar el .env.`;
+async function sendViaMailtrapApi(payload) {
+  const { apiToken } = mailEnv();
+  if (!apiToken) {
+    throw new Error("[mail] MAILTRAP_API_TOKEN o SMTP_PASS es obligatorio");
   }
-  return void 0;
+  const response = await fetch(MAILTRAP_SEND_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiToken}`,
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  const bodyText = await response.text();
+  let body = null;
+  if (bodyText) {
+    try {
+      body = JSON.parse(bodyText);
+    } catch {
+      body = null;
+    }
+  }
+  if (!response.ok) {
+    const detail = body?.errors?.join("; ") || body?.message || bodyText || `HTTP ${response.status}`;
+    throw new Error(`[mail] Mailtrap API error: ${detail}`);
+  }
 }
 async function sendEmail({
   to,
@@ -471,33 +450,31 @@ async function sendEmail({
   from,
   fromName
 }) {
-  const resolvedFrom = resolveFromAddress(from, fromName);
+  const resolvedFrom = resolveFrom(from, fromName);
   if (!isSmtpConfigured()) {
-    console.warn("[smtp] SMTP no configurado o SMTP_PASS es placeholder. Correo no enviado.");
+    console.warn(
+      "[mail] Mailtrap no configurado. Define MAILTRAP_API_TOKEN (o SMTP_PASS) y SMTP_FROM."
+    );
     return;
   }
   if (!resolvedFrom) {
-    console.warn("[smtp] SMTP_FROM no configurado. Correo no enviado.");
+    console.warn("[mail] SMTP_FROM no configurado. Correo no enviado.");
     return;
   }
   const recipients = (Array.isArray(to) ? to : [to]).map((e) => e.trim()).filter(Boolean);
   if (recipients.length === 0) {
-    console.warn("[smtp] Sin destinatarios v\xE1lidos.");
+    console.warn("[mail] Sin destinatarios v\xE1lidos.");
     return;
   }
   try {
-    await getTransporter().sendMail({
+    await sendViaMailtrapApi({
       from: resolvedFrom,
-      to: recipients.join(", "),
+      to: recipients.map((email) => ({ email })),
       subject,
       html
     });
   } catch (err) {
-    const hint = smtpAuthHint(err);
-    console.error("[smtp] Error al enviar correo:", err);
-    if (hint) {
-      console.error(`[smtp] ${hint}`);
-    }
+    console.error("[mail] Error al enviar correo:", err);
     throw err;
   }
 }
@@ -1985,7 +1962,7 @@ async function notifyUsersForRelease(context, release) {
   }
   if (!isSmtpConfigured()) {
     console.warn(
-      "[SystemRelease] SMTP no configurado. No se env\xEDan correos de release."
+      "[SystemRelease] Mailtrap no configurado. No se env\xEDan correos de release."
     );
     return;
   }
@@ -10188,13 +10165,10 @@ var purchaseCredits_default = { typeDefs: typeDefs11, definition: definition11, 
 
 // graphql/customs/mutations/sendTestEmail.ts
 var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-function smtpDiagnostics() {
-  const host = process.env.SMTP_HOST?.trim() || null;
-  const portRaw = process.env.SMTP_PORT?.trim();
-  const port = portRaw ? Number(portRaw) : 465;
+function mailDiagnostics() {
   return {
-    host,
-    port: Number.isFinite(port) ? port : null,
+    host: "send.api.mailtrap.io",
+    port: null,
     configured: isSmtpConfigured()
   };
 }
@@ -10210,7 +10184,7 @@ function buildTestEmailHtml() {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5;">
       <h2 style="margin: 0 0 12px 0; color: #FF8C42;">Correo de prueba \u2014 Kadesh</h2>
-      <p style="margin: 0 0 8px 0;">Si ves este mensaje, el env\xEDo SMTP desde el backend funcion\xF3 correctamente.</p>
+      <p style="margin: 0 0 8px 0;">Si ves este mensaje, el env\xEDo v\xEDa Mailtrap API desde el backend funcion\xF3 correctamente.</p>
       <p style="margin: 0; font-size: 13px; color: #64748b;">Enviado: ${sentAt}</p>
     </div>
   `;
@@ -10235,7 +10209,7 @@ var definition12 = `
 var resolver12 = {
   sendTestEmail: async (_root, { email }, context) => {
     const session2 = context.session;
-    const diagnostics = smtpDiagnostics();
+    const diagnostics = mailDiagnostics();
     if (!hasRole(session2, ["admin" /* ADMIN */])) {
       return {
         success: false,
@@ -10260,7 +10234,7 @@ var resolver12 = {
     if (!diagnostics.configured) {
       return {
         success: false,
-        message: "SMTP no configurado. Revisa SMTP_HOST, SMTP_USER, SMTP_PASS y SMTP_FROM en las variables de entorno.",
+        message: "Mailtrap no configurado. Revisa MAILTRAP_API_TOKEN (o SMTP_PASS) y SMTP_FROM en las variables de entorno.",
         recipient,
         smtpHost: diagnostics.host,
         smtpPort: diagnostics.port,
@@ -10270,7 +10244,7 @@ var resolver12 = {
     try {
       await sendEmail({
         to: recipient,
-        subject: "Prueba SMTP \u2014 Kadesh",
+        subject: "Prueba Mailtrap \u2014 Kadesh",
         html: buildTestEmailHtml(),
         fromName: process.env.SMTP_FROM_NAME?.trim() || "Kadesh"
       });

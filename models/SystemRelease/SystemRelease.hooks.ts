@@ -133,7 +133,7 @@ async function notifyUsersForRelease(
 
   if (!isSmtpConfigured()) {
     console.warn(
-      "[SystemRelease] SMTP no configurado. No se envían correos de release.",
+      "[SystemRelease] Mailtrap no configurado. No se envían correos de release.",
     );
     return;
   }

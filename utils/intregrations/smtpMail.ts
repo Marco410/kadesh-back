@@ -1,64 +1,26 @@
-import nodemailer, { type Transporter } from "nodemailer";
+const MAILTRAP_SEND_URL =
+  process.env.MAILTRAP_SEND_URL?.trim() || "https://send.api.mailtrap.io/api/send";
 
 const PLACEHOLDER_PASS = new Set(["<tu_password>", "your_smtp_password", "changeme"]);
 
-function smtpEnv() {
+function mailEnv() {
   return {
-    host: process.env.SMTP_HOST?.trim(),
-    port: Number(process.env.SMTP_PORT ?? "465"),
-    secure:
-      process.env.SMTP_SECURE?.trim().toLowerCase() !== "false" &&
-      Number(process.env.SMTP_PORT ?? "465") === 465,
-    user: process.env.SMTP_USER?.trim(),
-    pass: process.env.SMTP_PASS?.trim(),
-    from: process.env.SMTP_FROM?.trim()?.split(",")[0]?.trim() || process.env.SMTP_USER?.trim(),
+    apiToken:
+      process.env.MAILTRAP_API_TOKEN?.trim() || process.env.SMTP_PASS?.trim(),
+    from: process.env.SMTP_FROM?.trim()?.split(",")[0]?.trim(),
+    fromName: process.env.SMTP_FROM_NAME?.trim(),
   };
 }
 
-function isPlaceholderPassword(pass: string | undefined): boolean {
-  if (!pass) return true;
-  const lower = pass.toLowerCase();
+function isPlaceholderToken(token: string | undefined): boolean {
+  if (!token) return true;
+  const lower = token.toLowerCase();
   return PLACEHOLDER_PASS.has(lower) || lower.includes("your_smtp") || lower.includes("<tu_");
 }
 
 export function isSmtpConfigured(): boolean {
-  const { host, user, pass, from } = smtpEnv();
-  return Boolean(host && user && pass && from && !isPlaceholderPassword(pass));
-}
-
-let transporter: Transporter | null = null;
-let transporterKey: string | null = null;
-
-function getTransporter(): Transporter {
-  const { host, port, secure, user, pass } = smtpEnv();
-
-  if (!host || !user || !pass) {
-    throw new Error("[smtp] SMTP_HOST, SMTP_USER y SMTP_PASS son obligatorios");
-  }
-
-  if (isPlaceholderPassword(pass)) {
-    throw new Error(
-      "[smtp] SMTP_PASS sigue siendo un placeholder. Pon la contraseña real del buzón en config/.env.dev (usa comillas si tiene %, &, etc.).",
-    );
-  }
-
-  const key = `${host}:${port}:${secure}:${user}`;
-  if (transporter && transporterKey === key) {
-    return transporter;
-  }
-
-  transporter = nodemailer.createTransport({
-    host,
-    port: Number.isFinite(port) ? port : 465,
-    secure,
-    auth: { user, pass },
-    connectionTimeout: 15_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 30_000,
-  });
-  transporterKey = key;
-
-  return transporter;
+  const { apiToken, from } = mailEnv();
+  return Boolean(apiToken && from && !isPlaceholderToken(apiToken));
 }
 
 /** RFC 5322 From with display name (shown as sender in Gmail, Apple Mail, etc.). */
@@ -72,31 +34,68 @@ export function formatMailFrom(displayName: string | undefined, address: string)
   return `"${escaped}" <${email}>`;
 }
 
-function resolveFromAddress(
+function resolveFrom(
   from?: string,
   fromName?: string,
-): string | undefined {
-  const address = from?.trim() || smtpEnv().from;
+): { email: string; name?: string } | undefined {
+  const address = from?.trim() || mailEnv().from;
   if (!address) {
     return undefined;
   }
-  const name = fromName?.trim() || process.env.SMTP_FROM_NAME?.trim();
-  return formatMailFrom(name, address);
+  const name = fromName?.trim() || mailEnv().fromName;
+  return { email: address, name: name || undefined };
 }
 
-function smtpAuthHint(err: unknown): string | undefined {
-  const code = (err as { code?: string })?.code;
-  const responseCode = (err as { responseCode?: number })?.responseCode;
-  if (code === "EAUTH" || responseCode === 535) {
-    const { user } = smtpEnv();
-    return `Revisa SMTP_USER (${user ?? "?"}) y SMTP_PASS en config/.env.dev — la contraseña debe ir entre comillas si tiene caracteres especiales (%, &, #). Reinicia pnpm dev tras cambiar el .env.`;
+type MailtrapSendResponse = {
+  success?: boolean;
+  message?: string;
+  errors?: string[];
+};
+
+async function sendViaMailtrapApi(payload: {
+  from: { email: string; name?: string };
+  to: { email: string }[];
+  subject: string;
+  html: string;
+}): Promise<void> {
+  const { apiToken } = mailEnv();
+  if (!apiToken) {
+    throw new Error("[mail] MAILTRAP_API_TOKEN o SMTP_PASS es obligatorio");
   }
-  return undefined;
+
+  const response = await fetch(MAILTRAP_SEND_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiToken}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const bodyText = await response.text();
+  let body: MailtrapSendResponse | null = null;
+  if (bodyText) {
+    try {
+      body = JSON.parse(bodyText) as MailtrapSendResponse;
+    } catch {
+      body = null;
+    }
+  }
+
+  if (!response.ok) {
+    const detail =
+      body?.errors?.join("; ") ||
+      body?.message ||
+      bodyText ||
+      `HTTP ${response.status}`;
+    throw new Error(`[mail] Mailtrap API error: ${detail}`);
+  }
 }
 
 /**
- * Sends an email via the Lnkap SMTP server.
- * Requires SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM (or SMTP_USER as from).
+ * Sends a transactional email via Mailtrap Send API (HTTPS).
+ * Requires MAILTRAP_API_TOKEN (or SMTP_PASS) and SMTP_FROM.
  */
 export async function sendEmail({
   to,
@@ -108,42 +107,40 @@ export async function sendEmail({
   to: string | string[];
   subject: string;
   html: string;
-  /** SMTP envelope address (defaults to SMTP_FROM / SMTP_USER). */
+  /** Sender address (defaults to SMTP_FROM). */
   from?: string;
-  /** Display name in the inbox (e.g. "Verificación Lnkap"). Overrides SMTP_FROM_NAME. */
+  /** Display name in the inbox. Overrides SMTP_FROM_NAME. */
   fromName?: string;
 }): Promise<void> {
-  const resolvedFrom = resolveFromAddress(from, fromName);
+  const resolvedFrom = resolveFrom(from, fromName);
 
   if (!isSmtpConfigured()) {
-    console.warn("[smtp] SMTP no configurado o SMTP_PASS es placeholder. Correo no enviado.");
+    console.warn(
+      "[mail] Mailtrap no configurado. Define MAILTRAP_API_TOKEN (o SMTP_PASS) y SMTP_FROM.",
+    );
     return;
   }
 
   if (!resolvedFrom) {
-    console.warn("[smtp] SMTP_FROM no configurado. Correo no enviado.");
+    console.warn("[mail] SMTP_FROM no configurado. Correo no enviado.");
     return;
   }
 
   const recipients = (Array.isArray(to) ? to : [to]).map((e) => e.trim()).filter(Boolean);
   if (recipients.length === 0) {
-    console.warn("[smtp] Sin destinatarios válidos.");
+    console.warn("[mail] Sin destinatarios válidos.");
     return;
   }
 
   try {
-    await getTransporter().sendMail({
+    await sendViaMailtrapApi({
       from: resolvedFrom,
-      to: recipients.join(", "),
+      to: recipients.map((email) => ({ email })),
       subject,
       html,
     });
   } catch (err: unknown) {
-    const hint = smtpAuthHint(err);
-    console.error("[smtp] Error al enviar correo:", err);
-    if (hint) {
-      console.error(`[smtp] ${hint}`);
-    }
+    console.error("[mail] Error al enviar correo:", err);
     throw err;
   }
 }

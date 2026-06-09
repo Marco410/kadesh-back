@@ -15,7 +15,7 @@ export function CustomNavigation({
       <ListNavItems lists={lists} />
       <NavItem href="/import-veterinary">Importar Veterinarias</NavItem>
       <NavItem href="/import-business-leads">Importar Negocios</NavItem>
-      <NavItem href="/send-test-email">Probar SMTP</NavItem>
+      <NavItem href="/send-test-email">Probar correo</NavItem>
     </NavigationContainer>
   );
 }

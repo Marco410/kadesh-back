@@ -164,7 +164,7 @@ function buildBankAlertEmailHtml(
 
 /**
  * Correo de bienvenida al registrarse (create User).
- * Requiere SMTP_* configurado y email válido del usuario.
+ * Requiere Mailtrap API (MAILTRAP_API_TOKEN o SMTP_PASS) y SMTP_FROM configurados.
  */
 export async function sendUserWelcomeEmail({
   to,
@@ -188,7 +188,7 @@ export async function sendUserWelcomeEmail({
 
 /**
  * Notifica al admin cuando un usuario actualiza banco, CLABE o número de tarjeta.
- * Configura SMTP_ADMIN_NOTIFICATION_EMAILS (coma para varios) y SMTP_*.
+ * Configura SMTP_ADMIN_NOTIFICATION_EMAILS (coma para varios) y Mailtrap API.
  */
 export async function sendAdminUserBankDetailsUpdatedEmail({
   userId,

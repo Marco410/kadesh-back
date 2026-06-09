@@ -75,7 +75,7 @@ export default function SendTestEmailPage() {
   };
 
   return (
-    <PageContainer header={<Heading type="h3">Probar envío SMTP</Heading>}>
+    <PageContainer header={<Heading type="h3">Probar envío de correo</Heading>}>
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "20px" }}>
         <div
           style={{
@@ -99,7 +99,7 @@ export default function SendTestEmailPage() {
           </h2>
           <p style={{ marginBottom: 16, color: "#4a5568", lineHeight: 1.5 }}>
             Solo administradores pueden usar esta herramienta. Envía un correo de
-            prueba para validar la configuración SMTP del entorno (local o
+            prueba vía Mailtrap Send API (HTTPS) para validar el entorno (local o
             Railway).
           </p>
 
@@ -187,11 +187,8 @@ export default function SendTestEmailPage() {
               }}
             >
               <li>Destinatario: {result.recipient ?? "—"}</li>
-              <li>SMTP configurado: {result.smtpConfigured ? "Sí" : "No"}</li>
-              <li>
-                Host: {result.smtpHost ?? "—"}
-                {result.smtpPort != null ? `:${result.smtpPort}` : ""}
-              </li>
+              <li>Mailtrap configurado: {result.smtpConfigured ? "Sí" : "No"}</li>
+              <li>API: {result.smtpHost ?? "—"} (HTTPS)</li>
             </ul>
           </div>
         )}
