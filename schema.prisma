@@ -472,6 +472,9 @@ model SaasCompany {
   subscriptions                       SaasCompanySubscription[]    @relation("SaasCompanySubscription_company")
   techStatusBusinessLeads             TechStatusBusinessLead[]     @relation("TechStatusBusinessLead_saasCompany")
   monthlyLeadSyncRecords              SaasCompanyMonthlyLeadSync[] @relation("SaasCompanyMonthlyLeadSync_company")
+  purchasedBonusCredits               Int?                         @default(0)
+  creditPeriods                       SaasCompanyCreditPeriod[]    @relation("SaasCompanyCreditPeriod_company")
+  creditLedgerEntries                 SaasCompanyCreditLedger[]    @relation("SaasCompanyCreditLedger_company")
   techFiles                           TechFile[]                   @relation("TechFile_company")
   projects                            SaasProject[]                @relation("SaasProject_company")
   leadSyncLogs                        TechLeadSyncLog[]            @relation("TechLeadSyncLog_company")
@@ -511,30 +514,72 @@ model SaasCompanyMonthlyLeadSync {
   @@index([month])
 }
 
+model SaasCompanyCreditPeriod {
+  id             String                    @id @default(cuid())
+  company        SaasCompany?              @relation("SaasCompanyCreditPeriod_company", fields: [companyId], references: [id])
+  companyId      String?                   @map("company")
+  subscription   SaasCompanySubscription?  @relation("SaasCompanyCreditPeriod_subscription", fields: [subscriptionId], references: [id])
+  subscriptionId String?                   @map("subscription")
+  periodKey      String                    @unique @default("")
+  year           Int
+  month          Int
+  planAllowance  Int?                      @default(0)
+  bonusAllowance Int?                      @default(0)
+  used           Int?                      @default(0)
+  ledgerEntries  SaasCompanyCreditLedger[] @relation("SaasCompanyCreditLedger_period")
+  createdAt      DateTime?                 @default(now())
+  updatedAt      DateTime?                 @updatedAt
+
+  @@index([companyId])
+  @@index([subscriptionId])
+  @@index([year])
+  @@index([month])
+}
+
+model SaasCompanyCreditLedger {
+  id            String                   @id @default(cuid())
+  company       SaasCompany?             @relation("SaasCompanyCreditLedger_company", fields: [companyId], references: [id])
+  companyId     String?                  @map("company")
+  period        SaasCompanyCreditPeriod? @relation("SaasCompanyCreditLedger_period", fields: [periodId], references: [id])
+  periodId      String?                  @map("period")
+  type          String
+  amount        Int
+  balanceAfter  Int?
+  referenceType String?
+  referenceId   String?
+  notes         String?
+  metadata      Json?
+  createdAt     DateTime?                @default(now())
+
+  @@index([companyId])
+  @@index([periodId])
+}
+
 model SaasCompanySubscription {
-  id                                       String                   @id @default(cuid())
-  company                                  SaasCompany?             @relation("SaasCompanySubscription_company", fields: [companyId], references: [id])
-  companyId                                String?                  @map("company")
-  planName                                 String                   @default("")
+  id                                       String                    @id @default(cuid())
+  company                                  SaasCompany?              @relation("SaasCompanySubscription_company", fields: [companyId], references: [id])
+  companyId                                String?                   @map("company")
+  planName                                 String                    @default("")
   planCost                                 Float?
-  planFrequency                            String                   @default("")
+  planFrequency                            String                    @default("")
   planLeadLimit                            Int?
-  newCreditsAdded                          Int?                     @default(0)
-  planStripePriceId                        String                   @default("")
-  planCurrency                             String                   @default("")
+  newCreditsAdded                          Int?                      @default(0)
+  planStripePriceId                        String                    @default("")
+  planCurrency                             String                    @default("")
   planFeatures                             Json?
-  status                                   String?                  @default("active")
-  activatedAt                              DateTime?                @postgresql.Date
-  currentPeriodEnd                         DateTime?                @postgresql.Date
+  status                                   String?                   @default("active")
+  activatedAt                              DateTime?                 @postgresql.Date
+  currentPeriodEnd                         DateTime?                 @postgresql.Date
   stripeSubscriptionId                     String?
   stripeCustomerId                         String?
-  saasPayments                             SaasPayment[]            @relation("SaasPayment_subscription")
-  plan                                     SaasPlan?                @relation("SaasCompanySubscription_plan", fields: [planId], references: [id])
-  planId                                   String?                  @map("plan")
-  saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_createdSubscription")
-  createdAt                                DateTime?                @default(now())
-  updatedAt                                DateTime?                @updatedAt
-  from_SaasReferralCommission_subscription SaasReferralCommission[] @relation("SaasReferralCommission_subscription")
+  saasPayments                             SaasPayment[]             @relation("SaasPayment_subscription")
+  creditPeriods                            SaasCompanyCreditPeriod[] @relation("SaasCompanyCreditPeriod_subscription")
+  plan                                     SaasPlan?                 @relation("SaasCompanySubscription_plan", fields: [planId], references: [id])
+  planId                                   String?                   @map("plan")
+  saasSubscriptionLogs                     SaasSubscriptionLog[]     @relation("SaasSubscriptionLog_createdSubscription")
+  createdAt                                DateTime?                 @default(now())
+  updatedAt                                DateTime?                 @updatedAt
+  from_SaasReferralCommission_subscription SaasReferralCommission[]  @relation("SaasReferralCommission_subscription")
 
   @@index([companyId])
   @@index([planId])

@@ -5,6 +5,7 @@ import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../../models/Saas/SaasSubscrip
 import { writeSaasSubscriptionLog } from "../../../../utils/saas/saasSubscriptionLogWrite";
 import { getFreePlanTrialInfo } from "../../../../utils/saas/freePlanTrial";
 import { getRemainingCredits } from "../../../../utils/helpers/tech/remaining_credits";
+import { grantPurchaseCredits } from "../../../../utils/saas/companyCredits";
 
 const typeDefs = `
   input PurchaseCreditsInput {
@@ -413,17 +414,6 @@ const resolver = {
         );
       }
 
-      const currentExtraCredits = sub.newCreditsAdded ?? 0;
-      const extraCreditsStored = currentExtraCredits + creditsToAdd;
-
-      await context.sudo().query.SaasCompanySubscription.updateOne({
-        where: { id: sub.id },
-        data: { newCreditsAdded: extraCreditsStored },
-      });
-
-      const credits = await getRemainingCredits(context, company.id);
-      const newCreditsTotal = credits.remainingQuota;
-
       const payment = await context.sudo().query.SaasPayment.createOne({
         data: {
           user: { connect: { id: user.id } },
@@ -440,6 +430,20 @@ const resolver = {
       });
 
       const paymentId = (payment as { id: string }).id;
+
+      await grantPurchaseCredits(context, {
+        companyId: company.id,
+        subscriptionId: sub.id,
+        amount: creditsToAdd,
+        paymentId,
+        notes:
+          input.notes ??
+          `Compra de créditos: ${creditPackage.name ?? creditPackage.id} (+${creditsToAdd})`,
+      });
+
+      const credits = await getRemainingCredits(context, company.id);
+      const newCreditsTotal = credits.remainingQuota;
+      const extraCreditsStored = credits.extraCredits;
 
       return await finish(
         SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_SUCCESS,

@@ -102,6 +102,11 @@ export default list({
       many: true,
       ui: { description: "Payments for this subscription" },
     }),
+    creditPeriods: relationship({
+      ref: "SaasCompanyCreditPeriod.subscription",
+      many: true,
+      ui: { description: "Credit periods linked to this subscription" },
+    }),
     /** Subscription plan for this company */
     plan: relationship({
       ref: "SaasPlan.subscriptions",

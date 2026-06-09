@@ -47,6 +47,8 @@ import SaasCompany from "./Saas/SaasCompany/SaasCompany";
 import SaasPlan from "./Saas/SaasPlan/SaasPlan";
 import SaasCredit from "./Saas/SaasCredit/SaasCredit";
 import SaasCompanyMonthlyLeadSync from "./Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync";
+import SaasCompanyCreditPeriod from "./Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod";
+import SaasCompanyCreditLedger from "./Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger";
 import SaasCompanySubscription from "./Saas/SaasCompanySubscription/SaasCompanySubscription";
 import SaasPaymentMethod from "./Saas/SaasPaymentMethod/SaasPaymentMethod";
 import SaasPayment from "./Saas/SaasPayment/SaasPayment";
@@ -90,6 +92,8 @@ export default {
   Role,
   SaasCompany,
   SaasCompanyMonthlyLeadSync,
+  SaasCompanyCreditPeriod,
+  SaasCompanyCreditLedger,
   SaasCompanySubscription,
   SaasPayment,
   SaasPaymentMethod,

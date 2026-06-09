@@ -4,6 +4,7 @@ import { haversineDistance } from "../../../utils/helpers/calculate_distances";
 import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_text";
 import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";
 import { getRemainingCredits } from "../../../utils/helpers/tech/remaining_credits";
+import { consumeCompanyCredits } from "../../../utils/saas/companyCredits";
 import { getPlaceDetails } from "../../../utils/helpers/tech/place_details";
 
 /**
@@ -183,7 +184,7 @@ const resolver = {
     }
 
     const credits = await getRemainingCredits(context, company.id);
-    const { remainingQuota, syncedCount, leadLimit, recordId } = credits;
+    const { remainingQuota, syncedCount, leadLimit } = credits;
     const companyLabel = company?.name ?? "la empresa";
 
     if (credits.blockingReason === "no_subscription") {
@@ -316,13 +317,27 @@ const resolver = {
         assignedFromDb++;
       } catch (_) {}
     }
-    let currentSyncedCount = syncedCount + assignedFromDb;
     let syncedThisRequest = assignedFromDb;
+    let currentSyncedCount = syncedCount;
     if (assignedFromDb > 0) {
-      await context.sudo().query.SaasCompanyMonthlyLeadSync.updateOne({
-        where: { id: recordId },
-        data: { syncedCount: currentSyncedCount },
+      const consumeResult = await consumeCompanyCredits(context, {
+        companyId: company.id,
+        amount: assignedFromDb,
+        referenceType: "sync",
+        notes: "Leads asignados desde BD",
       });
+      if (!consumeResult.success) {
+        const result = {
+          success: false,
+          message: `Cuota mensual alcanzada (${consumeResult.syncedCount}/${consumeResult.leadLimit} leads).`,
+          ...emptyResult,
+          syncedCount: consumeResult.syncedCount,
+          leadLimit: consumeResult.leadLimit,
+        };
+        await logSyncLeadsResult(context, userId, company.id, input, result);
+        return result;
+      }
+      currentSyncedCount = consumeResult.syncedCount;
     }
 
     // Si ya alcanzamos maxResults o la cuota, devolver (mismo pool de leads para cualquier company)
@@ -537,11 +552,17 @@ const resolver = {
         (leadLimit === null || currentSyncedCount < leadLimit)
       );
 
-      if (syncedThisRequest > 0) {
-        await context.sudo().query.SaasCompanyMonthlyLeadSync.updateOne({
-          where: { id: recordId },
-          data: { syncedCount: currentSyncedCount },
+      const googleSynced = syncedThisRequest - assignedFromDb;
+      if (googleSynced > 0) {
+        const consumeResult = await consumeCompanyCredits(context, {
+          companyId: company.id,
+          amount: googleSynced,
+          referenceType: "sync",
+          notes: "Leads sincronizados desde Google Maps",
         });
+        if (consumeResult.success) {
+          currentSyncedCount = consumeResult.syncedCount;
+        }
       }
 
       const result = {

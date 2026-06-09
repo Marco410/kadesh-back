@@ -2539,6 +2539,11 @@ type SaasCompany {
   techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   monthlyLeadSyncRecords(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
   monthlyLeadSyncRecordsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
+  purchasedBonusCredits: Int
+  creditPeriods(where: SaasCompanyCreditPeriodWhereInput! = {}, orderBy: [SaasCompanyCreditPeriodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyCreditPeriodWhereUniqueInput): [SaasCompanyCreditPeriod!]
+  creditPeriodsCount(where: SaasCompanyCreditPeriodWhereInput! = {}): Int
+  creditLedgerEntries(where: SaasCompanyCreditLedgerWhereInput! = {}, orderBy: [SaasCompanyCreditLedgerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyCreditLedgerWhereUniqueInput): [SaasCompanyCreditLedger!]
+  creditLedgerEntriesCount(where: SaasCompanyCreditLedgerWhereInput! = {}): Int
   techFiles(where: TechFileWhereInput! = {}, orderBy: [TechFileOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFileWhereUniqueInput): [TechFile!]
   techFilesCount(where: TechFileWhereInput! = {}): Int
   projects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
@@ -2587,6 +2592,9 @@ input SaasCompanyWhereInput {
   subscriptions: SaasCompanySubscriptionManyRelationFilter
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncManyRelationFilter
+  purchasedBonusCredits: IntNullableFilter
+  creditPeriods: SaasCompanyCreditPeriodManyRelationFilter
+  creditLedgerEntries: SaasCompanyCreditLedgerManyRelationFilter
   techFiles: TechFileManyRelationFilter
   projects: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
@@ -2635,6 +2643,18 @@ input SaasCompanyMonthlyLeadSyncManyRelationFilter {
   none: SaasCompanyMonthlyLeadSyncWhereInput
 }
 
+input SaasCompanyCreditPeriodManyRelationFilter {
+  every: SaasCompanyCreditPeriodWhereInput
+  some: SaasCompanyCreditPeriodWhereInput
+  none: SaasCompanyCreditPeriodWhereInput
+}
+
+input SaasCompanyCreditLedgerManyRelationFilter {
+  every: SaasCompanyCreditLedgerWhereInput
+  some: SaasCompanyCreditLedgerWhereInput
+  none: SaasCompanyCreditLedgerWhereInput
+}
+
 input TechFileManyRelationFilter {
   every: TechFileWhereInput
   some: TechFileWhereInput
@@ -2669,6 +2689,7 @@ input SaasCompanyOrderByInput {
   id: OrderDirection
   name: OrderDirection
   subscriptionStartedAt: OrderDirection
+  purchasedBonusCredits: OrderDirection
   onboardingMainOffer: OrderDirection
   onboardingIdealCustomer: OrderDirection
   onboardingAvgTicketValue: OrderDirection
@@ -2693,6 +2714,9 @@ input SaasCompanyUpdateInput {
   subscriptions: SaasCompanySubscriptionRelateToManyForUpdateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput
+  purchasedBonusCredits: Int
+  creditPeriods: SaasCompanyCreditPeriodRelateToManyForUpdateInput
+  creditLedgerEntries: SaasCompanyCreditLedgerRelateToManyForUpdateInput
   techFiles: TechFileRelateToManyForUpdateInput
   projects: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
@@ -2753,6 +2777,20 @@ input SaasCompanyMonthlyLeadSyncRelateToManyForUpdateInput {
   connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
 }
 
+input SaasCompanyCreditPeriodRelateToManyForUpdateInput {
+  disconnect: [SaasCompanyCreditPeriodWhereUniqueInput!]
+  set: [SaasCompanyCreditPeriodWhereUniqueInput!]
+  create: [SaasCompanyCreditPeriodCreateInput!]
+  connect: [SaasCompanyCreditPeriodWhereUniqueInput!]
+}
+
+input SaasCompanyCreditLedgerRelateToManyForUpdateInput {
+  disconnect: [SaasCompanyCreditLedgerWhereUniqueInput!]
+  set: [SaasCompanyCreditLedgerWhereUniqueInput!]
+  create: [SaasCompanyCreditLedgerCreateInput!]
+  connect: [SaasCompanyCreditLedgerWhereUniqueInput!]
+}
+
 input TechFileRelateToManyForUpdateInput {
   disconnect: [TechFileWhereUniqueInput!]
   set: [TechFileWhereUniqueInput!]
@@ -2808,6 +2846,9 @@ input SaasCompanyCreateInput {
   subscriptions: SaasCompanySubscriptionRelateToManyForCreateInput
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   monthlyLeadSyncRecords: SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput
+  purchasedBonusCredits: Int
+  creditPeriods: SaasCompanyCreditPeriodRelateToManyForCreateInput
+  creditLedgerEntries: SaasCompanyCreditLedgerRelateToManyForCreateInput
   techFiles: TechFileRelateToManyForCreateInput
   projects: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
@@ -2855,6 +2896,16 @@ input TechStatusBusinessLeadRelateToManyForCreateInput {
 input SaasCompanyMonthlyLeadSyncRelateToManyForCreateInput {
   create: [SaasCompanyMonthlyLeadSyncCreateInput!]
   connect: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]
+}
+
+input SaasCompanyCreditPeriodRelateToManyForCreateInput {
+  create: [SaasCompanyCreditPeriodCreateInput!]
+  connect: [SaasCompanyCreditPeriodWhereUniqueInput!]
+}
+
+input SaasCompanyCreditLedgerRelateToManyForCreateInput {
+  create: [SaasCompanyCreditLedgerCreateInput!]
+  connect: [SaasCompanyCreditLedgerWhereUniqueInput!]
 }
 
 input TechFileRelateToManyForCreateInput {
@@ -2952,6 +3003,188 @@ input SaasCompanyRelateToOneForCreateInput {
   connect: SaasCompanyWhereUniqueInput
 }
 
+type SaasCompanyCreditPeriod {
+  id: ID!
+  company: SaasCompany
+  subscription: SaasCompanySubscription
+  periodKey: String
+  year: Int
+  month: Int
+  planAllowance: Int
+  bonusAllowance: Int
+  used: Int
+  ledgerEntries(where: SaasCompanyCreditLedgerWhereInput! = {}, orderBy: [SaasCompanyCreditLedgerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyCreditLedgerWhereUniqueInput): [SaasCompanyCreditLedger!]
+  ledgerEntriesCount(where: SaasCompanyCreditLedgerWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyCreditPeriodWhereUniqueInput {
+  id: ID
+  periodKey: String
+}
+
+input SaasCompanyCreditPeriodWhereInput {
+  AND: [SaasCompanyCreditPeriodWhereInput!]
+  OR: [SaasCompanyCreditPeriodWhereInput!]
+  NOT: [SaasCompanyCreditPeriodWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  subscription: SaasCompanySubscriptionWhereInput
+  periodKey: StringFilter
+  year: IntFilter
+  month: IntFilter
+  planAllowance: IntNullableFilter
+  bonusAllowance: IntNullableFilter
+  used: IntNullableFilter
+  ledgerEntries: SaasCompanyCreditLedgerManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyCreditPeriodOrderByInput {
+  id: OrderDirection
+  periodKey: OrderDirection
+  year: OrderDirection
+  month: OrderDirection
+  planAllowance: OrderDirection
+  bonusAllowance: OrderDirection
+  used: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCompanyCreditPeriodUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  subscription: SaasCompanySubscriptionRelateToOneForUpdateInput
+  periodKey: String
+  year: Int
+  month: Int
+  planAllowance: Int
+  bonusAllowance: Int
+  used: Int
+  ledgerEntries: SaasCompanyCreditLedgerRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanySubscriptionRelateToOneForUpdateInput {
+  create: SaasCompanySubscriptionCreateInput
+  connect: SaasCompanySubscriptionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasCompanyCreditPeriodUpdateArgs {
+  where: SaasCompanyCreditPeriodWhereUniqueInput!
+  data: SaasCompanyCreditPeriodUpdateInput!
+}
+
+input SaasCompanyCreditPeriodCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  subscription: SaasCompanySubscriptionRelateToOneForCreateInput
+  periodKey: String
+  year: Int
+  month: Int
+  planAllowance: Int
+  bonusAllowance: Int
+  used: Int
+  ledgerEntries: SaasCompanyCreditLedgerRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanySubscriptionRelateToOneForCreateInput {
+  create: SaasCompanySubscriptionCreateInput
+  connect: SaasCompanySubscriptionWhereUniqueInput
+}
+
+type SaasCompanyCreditLedger {
+  id: ID!
+  company: SaasCompany
+  period: SaasCompanyCreditPeriod
+  type: String
+  amount: Int
+  balanceAfter: Int
+  referenceType: String
+  referenceId: String
+  notes: String
+  metadata: JSON
+  createdAt: DateTime
+}
+
+input SaasCompanyCreditLedgerWhereUniqueInput {
+  id: ID
+}
+
+input SaasCompanyCreditLedgerWhereInput {
+  AND: [SaasCompanyCreditLedgerWhereInput!]
+  OR: [SaasCompanyCreditLedgerWhereInput!]
+  NOT: [SaasCompanyCreditLedgerWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  period: SaasCompanyCreditPeriodWhereInput
+  type: StringFilter
+  amount: IntFilter
+  balanceAfter: IntNullableFilter
+  referenceType: StringNullableFilter
+  referenceId: StringNullableFilter
+  notes: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input SaasCompanyCreditLedgerOrderByInput {
+  id: OrderDirection
+  type: OrderDirection
+  amount: OrderDirection
+  balanceAfter: OrderDirection
+  referenceType: OrderDirection
+  referenceId: OrderDirection
+  notes: OrderDirection
+  createdAt: OrderDirection
+}
+
+input SaasCompanyCreditLedgerUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  period: SaasCompanyCreditPeriodRelateToOneForUpdateInput
+  type: String
+  amount: Int
+  balanceAfter: Int
+  referenceType: String
+  referenceId: String
+  notes: String
+  metadata: JSON
+  createdAt: DateTime
+}
+
+input SaasCompanyCreditPeriodRelateToOneForUpdateInput {
+  create: SaasCompanyCreditPeriodCreateInput
+  connect: SaasCompanyCreditPeriodWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SaasCompanyCreditLedgerUpdateArgs {
+  where: SaasCompanyCreditLedgerWhereUniqueInput!
+  data: SaasCompanyCreditLedgerUpdateInput!
+}
+
+input SaasCompanyCreditLedgerCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  period: SaasCompanyCreditPeriodRelateToOneForCreateInput
+  type: String
+  amount: Int
+  balanceAfter: Int
+  referenceType: String
+  referenceId: String
+  notes: String
+  metadata: JSON
+  createdAt: DateTime
+}
+
+input SaasCompanyCreditPeriodRelateToOneForCreateInput {
+  create: SaasCompanyCreditPeriodCreateInput
+  connect: SaasCompanyCreditPeriodWhereUniqueInput
+}
+
 type SaasCompanySubscription {
   id: ID!
   company: SaasCompany
@@ -2970,6 +3203,8 @@ type SaasCompanySubscription {
   stripeCustomerId: String
   saasPayments(where: SaasPaymentWhereInput! = {}, orderBy: [SaasPaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPaymentWhereUniqueInput): [SaasPayment!]
   saasPaymentsCount(where: SaasPaymentWhereInput! = {}): Int
+  creditPeriods(where: SaasCompanyCreditPeriodWhereInput! = {}, orderBy: [SaasCompanyCreditPeriodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyCreditPeriodWhereUniqueInput): [SaasCompanyCreditPeriod!]
+  creditPeriodsCount(where: SaasCompanyCreditPeriodWhereInput! = {}): Int
   plan: SaasPlan
   saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
   saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
@@ -3000,6 +3235,7 @@ input SaasCompanySubscriptionWhereInput {
   stripeSubscriptionId: StringNullableFilter
   stripeCustomerId: StringNullableFilter
   saasPayments: SaasPaymentManyRelationFilter
+  creditPeriods: SaasCompanyCreditPeriodManyRelationFilter
   plan: SaasPlanWhereInput
   saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   createdAt: DateTimeNullableFilter
@@ -3057,6 +3293,7 @@ input SaasCompanySubscriptionUpdateInput {
   stripeSubscriptionId: String
   stripeCustomerId: String
   saasPayments: SaasPaymentRelateToManyForUpdateInput
+  creditPeriods: SaasCompanyCreditPeriodRelateToManyForUpdateInput
   plan: SaasPlanRelateToOneForUpdateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
   createdAt: DateTime
@@ -3091,6 +3328,7 @@ input SaasCompanySubscriptionCreateInput {
   stripeSubscriptionId: String
   stripeCustomerId: String
   saasPayments: SaasPaymentRelateToManyForCreateInput
+  creditPeriods: SaasCompanyCreditPeriodRelateToManyForCreateInput
   plan: SaasPlanRelateToOneForCreateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
   createdAt: DateTime
@@ -3174,12 +3412,6 @@ input SaasPaymentMethodRelateToOneForUpdateInput {
   disconnect: Boolean
 }
 
-input SaasCompanySubscriptionRelateToOneForUpdateInput {
-  create: SaasCompanySubscriptionCreateInput
-  connect: SaasCompanySubscriptionWhereUniqueInput
-  disconnect: Boolean
-}
-
 input SaasPaymentUpdateArgs {
   where: SaasPaymentWhereUniqueInput!
   data: SaasPaymentUpdateInput!
@@ -3203,11 +3435,6 @@ input SaasPaymentCreateInput {
 input SaasPaymentMethodRelateToOneForCreateInput {
   create: SaasPaymentMethodCreateInput
   connect: SaasPaymentMethodWhereUniqueInput
-}
-
-input SaasCompanySubscriptionRelateToOneForCreateInput {
-  create: SaasCompanySubscriptionCreateInput
-  connect: SaasCompanySubscriptionWhereUniqueInput
 }
 
 type SaasPaymentMethod {
@@ -6191,6 +6418,18 @@ type Mutation {
   updateSaasCompanyMonthlyLeadSyncs(data: [SaasCompanyMonthlyLeadSyncUpdateArgs!]!): [SaasCompanyMonthlyLeadSync]
   deleteSaasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
   deleteSaasCompanyMonthlyLeadSyncs(where: [SaasCompanyMonthlyLeadSyncWhereUniqueInput!]!): [SaasCompanyMonthlyLeadSync]
+  createSaasCompanyCreditPeriod(data: SaasCompanyCreditPeriodCreateInput!): SaasCompanyCreditPeriod
+  createSaasCompanyCreditPeriods(data: [SaasCompanyCreditPeriodCreateInput!]!): [SaasCompanyCreditPeriod]
+  updateSaasCompanyCreditPeriod(where: SaasCompanyCreditPeriodWhereUniqueInput!, data: SaasCompanyCreditPeriodUpdateInput!): SaasCompanyCreditPeriod
+  updateSaasCompanyCreditPeriods(data: [SaasCompanyCreditPeriodUpdateArgs!]!): [SaasCompanyCreditPeriod]
+  deleteSaasCompanyCreditPeriod(where: SaasCompanyCreditPeriodWhereUniqueInput!): SaasCompanyCreditPeriod
+  deleteSaasCompanyCreditPeriods(where: [SaasCompanyCreditPeriodWhereUniqueInput!]!): [SaasCompanyCreditPeriod]
+  createSaasCompanyCreditLedger(data: SaasCompanyCreditLedgerCreateInput!): SaasCompanyCreditLedger
+  createSaasCompanyCreditLedgers(data: [SaasCompanyCreditLedgerCreateInput!]!): [SaasCompanyCreditLedger]
+  updateSaasCompanyCreditLedger(where: SaasCompanyCreditLedgerWhereUniqueInput!, data: SaasCompanyCreditLedgerUpdateInput!): SaasCompanyCreditLedger
+  updateSaasCompanyCreditLedgers(data: [SaasCompanyCreditLedgerUpdateArgs!]!): [SaasCompanyCreditLedger]
+  deleteSaasCompanyCreditLedger(where: SaasCompanyCreditLedgerWhereUniqueInput!): SaasCompanyCreditLedger
+  deleteSaasCompanyCreditLedgers(where: [SaasCompanyCreditLedgerWhereUniqueInput!]!): [SaasCompanyCreditLedger]
   createSaasCompanySubscription(data: SaasCompanySubscriptionCreateInput!): SaasCompanySubscription
   createSaasCompanySubscriptions(data: [SaasCompanySubscriptionCreateInput!]!): [SaasCompanySubscription]
   updateSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!, data: SaasCompanySubscriptionUpdateInput!): SaasCompanySubscription
@@ -6489,6 +6728,12 @@ type Query {
   saasCompanyMonthlyLeadSync(where: SaasCompanyMonthlyLeadSyncWhereUniqueInput!): SaasCompanyMonthlyLeadSync
   saasCompanyMonthlyLeadSyncs(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}, orderBy: [SaasCompanyMonthlyLeadSyncOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyMonthlyLeadSyncWhereUniqueInput): [SaasCompanyMonthlyLeadSync!]
   saasCompanyMonthlyLeadSyncsCount(where: SaasCompanyMonthlyLeadSyncWhereInput! = {}): Int
+  saasCompanyCreditPeriod(where: SaasCompanyCreditPeriodWhereUniqueInput!): SaasCompanyCreditPeriod
+  saasCompanyCreditPeriods(where: SaasCompanyCreditPeriodWhereInput! = {}, orderBy: [SaasCompanyCreditPeriodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyCreditPeriodWhereUniqueInput): [SaasCompanyCreditPeriod!]
+  saasCompanyCreditPeriodsCount(where: SaasCompanyCreditPeriodWhereInput! = {}): Int
+  saasCompanyCreditLedger(where: SaasCompanyCreditLedgerWhereUniqueInput!): SaasCompanyCreditLedger
+  saasCompanyCreditLedgers(where: SaasCompanyCreditLedgerWhereInput! = {}, orderBy: [SaasCompanyCreditLedgerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyCreditLedgerWhereUniqueInput): [SaasCompanyCreditLedger!]
+  saasCompanyCreditLedgersCount(where: SaasCompanyCreditLedgerWhereInput! = {}): Int
   saasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
   saasCompanySubscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
   saasCompanySubscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int

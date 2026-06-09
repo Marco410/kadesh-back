@@ -4,6 +4,7 @@ import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscriptio
 import { PLAN_FREQUENCY } from "../../../models/Saas/SaasPlan/constants";
 import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../models/Saas/SaasSubscriptionLog/constants";
 import { writeSaasSubscriptionLog } from "../../../utils/saas/saasSubscriptionLogWrite";
+import { grantPlanCreditsOnSubscription } from "../../../utils/saas/companyCredits";
 
 const typeDefs = `
   input CreateCompanySubscriptionInput {
@@ -444,6 +445,14 @@ const resolver = {
           query: "id",
         });
         paymentId = (payment as { id: string }).id;
+      }
+
+      if (subscriptionId) {
+        await grantPlanCreditsOnSubscription(context, {
+          companyId: company.id,
+          subscriptionId,
+          planLeadLimit: plan.leadLimit ?? 0,
+        });
       }
 
       // 9.1. Generate referral commissions only for the first subscription (no previous active/trialing)
