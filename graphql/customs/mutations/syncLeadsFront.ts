@@ -1,12 +1,10 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
 import { haversineDistance } from "../../../utils/helpers/calculate_distances";
-import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscription/constants";
 import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_text";
 import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";
-import { getOrCreateMonthlyRecord } from "../../../utils/helpers/tech/monthly_record";
+import { getRemainingCredits } from "../../../utils/helpers/tech/remaining_credits";
 import { getPlaceDetails } from "../../../utils/helpers/tech/place_details";
-import { getFreePlanTrialInfo } from "../../../utils/saas/freePlanTrial";
 
 /**
  * syncLeadsFront: asigna TechBusinessLead a la SaasCompany del usuario.
@@ -184,20 +182,11 @@ const resolver = {
       return result;
     }
 
-    // Resolver límite desde la suscripción activa o en prueba (snapshot del plan contratado), no del plan actual
-    const [activeSubscription] = await context
-      .sudo()
-      .query.SaasCompanySubscription.findMany({
-        where: {
-          company: { id: { equals: company.id } },
-          status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] },
-        },
-        orderBy: [{ activatedAt: "desc" }],
-        take: 1,
-        query: "id planLeadLimit planCost activatedAt",
-      });
+    const credits = await getRemainingCredits(context, company.id);
+    const { remainingQuota, syncedCount, leadLimit, recordId } = credits;
+    const companyLabel = company?.name ?? "la empresa";
 
-    if (!activeSubscription) {
+    if (credits.blockingReason === "no_subscription") {
       const result = {
         success: false,
         message: `"${company?.name ?? "La empresa"}" no tiene una suscripción activa. Contrata o activa una suscripción para sincronizar leads.`,
@@ -207,37 +196,22 @@ const resolver = {
       return result;
     }
 
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-
-    const sub = activeSubscription as {
-      planLeadLimit: number | null;
-      planCost?: number | null;
-      activatedAt?: string | null;
-    };
-    const isFreePlan = sub.planCost != null && sub.planCost <= 0;
-    if (isFreePlan && sub.activatedAt) {
-      const { isExpired } = getFreePlanTrialInfo(sub.activatedAt);
-      if (isExpired) {
-        const result = {
-          success: false,
-          message:
-            "Tu plan gratuito ha terminado. Contrata o activa una suscripción para poder obtener más clientes.",
-          ...emptyResult,
-          leadLimit: 0,
-        };
-        await logSyncLeadsResult(context, userId, company.id, input, result);
-        return result;
-      }
-    }
-
-    const leadLimit = sub.planLeadLimit ?? null;
-
-    if (leadLimit === null) {
+    if (credits.blockingReason === "free_plan_expired") {
       const result = {
         success: false,
-        message: `La suscripción activa de "${company?.name ?? "la empresa"}" no tiene límite de leads configurado.`,
+        message:
+          "Tu plan gratuito ha terminado. Contrata o activa una suscripción para poder obtener más clientes.",
+        ...emptyResult,
+        leadLimit: 0,
+      };
+      await logSyncLeadsResult(context, userId, company.id, input, result);
+      return result;
+    }
+
+    if (credits.blockingReason === "no_lead_limit") {
+      const result = {
+        success: false,
+        message: `La suscripción activa de "${companyLabel}" no tiene límite de leads configurado.`,
         ...emptyResult,
         leadLimit,
       };
@@ -245,10 +219,10 @@ const resolver = {
       return result;
     }
 
-    if (leadLimit < 1) {
+    if (credits.blockingReason === "lead_limit_too_low") {
       const result = {
         success: false,
-        message: `La suscripción activa de "${company?.name ?? "la empresa"}" no permite sincronizar leads.`,
+        message: `La suscripción activa de "${companyLabel}" no permite sincronizar leads.`,
         ...emptyResult,
         leadLimit,
       };
@@ -256,15 +230,6 @@ const resolver = {
       return result;
     }
 
-    const { id: recordId, syncedCount } = await getOrCreateMonthlyRecord(
-      context,
-      company.id,
-      year,
-      month,
-    );
-
-    // leadLimit viene de la suscripción activa (ya validado arriba)
-    const remainingQuota = Math.max(0, leadLimit - syncedCount);
     if (remainingQuota === 0) {
       const result = {
         success: false,

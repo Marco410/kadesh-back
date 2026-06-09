@@ -2959,6 +2959,7 @@ type SaasCompanySubscription {
   planCost: Float
   planFrequency: String
   planLeadLimit: Int
+  newCreditsAdded: Int
   planStripePriceId: String
   planCurrency: String
   planFeatures: JSON
@@ -2990,6 +2991,7 @@ input SaasCompanySubscriptionWhereInput {
   planCost: FloatNullableFilter
   planFrequency: StringFilter
   planLeadLimit: IntNullableFilter
+  newCreditsAdded: IntNullableFilter
   planStripePriceId: StringFilter
   planCurrency: StringFilter
   status: StringNullableFilter
@@ -3027,6 +3029,7 @@ input SaasCompanySubscriptionOrderByInput {
   planCost: OrderDirection
   planFrequency: OrderDirection
   planLeadLimit: OrderDirection
+  newCreditsAdded: OrderDirection
   planStripePriceId: OrderDirection
   planCurrency: OrderDirection
   status: OrderDirection
@@ -3044,6 +3047,7 @@ input SaasCompanySubscriptionUpdateInput {
   planCost: Float
   planFrequency: String
   planLeadLimit: Int
+  newCreditsAdded: Int
   planStripePriceId: String
   planCurrency: String
   planFeatures: JSON
@@ -3077,6 +3081,7 @@ input SaasCompanySubscriptionCreateInput {
   planCost: Float
   planFrequency: String
   planLeadLimit: Int
+  newCreditsAdded: Int
   planStripePriceId: String
   planCurrency: String
   planFeatures: JSON
@@ -3445,6 +3450,103 @@ input SaasPlanCreateInput {
 input SaasCompanyRelateToManyForCreateInput {
   create: [SaasCompanyCreateInput!]
   connect: [SaasCompanyWhereUniqueInput!]
+}
+
+type SaasCredit {
+  id: ID!
+  slug: String
+  name: String
+  cost: Float
+  costOld: Float
+  frequency: String
+  currency: String
+  creditsToAdd: Int
+  active: Boolean
+  bestSeller: Boolean
+  stripePriceId: String
+  stripeProductId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCreditWhereUniqueInput {
+  id: ID
+  slug: String
+  stripePriceId: String
+}
+
+input SaasCreditWhereInput {
+  AND: [SaasCreditWhereInput!]
+  OR: [SaasCreditWhereInput!]
+  NOT: [SaasCreditWhereInput!]
+  id: IDFilter
+  slug: StringFilter
+  name: StringFilter
+  cost: FloatNullableFilter
+  costOld: FloatNullableFilter
+  frequency: StringNullableFilter
+  currency: StringFilter
+  creditsToAdd: IntFilter
+  active: BooleanFilter
+  bestSeller: BooleanFilter
+  stripePriceId: StringNullableFilter
+  stripeProductId: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCreditOrderByInput {
+  id: OrderDirection
+  slug: OrderDirection
+  name: OrderDirection
+  cost: OrderDirection
+  costOld: OrderDirection
+  frequency: OrderDirection
+  currency: OrderDirection
+  creditsToAdd: OrderDirection
+  active: OrderDirection
+  bestSeller: OrderDirection
+  stripePriceId: OrderDirection
+  stripeProductId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCreditUpdateInput {
+  slug: String
+  name: String
+  cost: Float
+  costOld: Float
+  frequency: String
+  currency: String
+  creditsToAdd: Int
+  active: Boolean
+  bestSeller: Boolean
+  stripePriceId: String
+  stripeProductId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCreditUpdateArgs {
+  where: SaasCreditWhereUniqueInput!
+  data: SaasCreditUpdateInput!
+}
+
+input SaasCreditCreateInput {
+  slug: String
+  name: String
+  cost: Float
+  costOld: Float
+  frequency: String
+  currency: String
+  creditsToAdd: Int
+  active: Boolean
+  bestSeller: Boolean
+  stripePriceId: String
+  stripeProductId: String
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type SaasProject {
@@ -6113,6 +6215,12 @@ type Mutation {
   updateSaasPlans(data: [SaasPlanUpdateArgs!]!): [SaasPlan]
   deleteSaasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
   deleteSaasPlans(where: [SaasPlanWhereUniqueInput!]!): [SaasPlan]
+  createSaasCredit(data: SaasCreditCreateInput!): SaasCredit
+  createSaasCredits(data: [SaasCreditCreateInput!]!): [SaasCredit]
+  updateSaasCredit(where: SaasCreditWhereUniqueInput!, data: SaasCreditUpdateInput!): SaasCredit
+  updateSaasCredits(data: [SaasCreditUpdateArgs!]!): [SaasCredit]
+  deleteSaasCredit(where: SaasCreditWhereUniqueInput!): SaasCredit
+  deleteSaasCredits(where: [SaasCreditWhereUniqueInput!]!): [SaasCredit]
   createSaasProject(data: SaasProjectCreateInput!): SaasProject
   createSaasProjects(data: [SaasProjectCreateInput!]!): [SaasProject]
   updateSaasProject(where: SaasProjectWhereUniqueInput!, data: SaasProjectUpdateInput!): SaasProject
@@ -6260,6 +6368,8 @@ type Mutation {
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
+  remainingCredits(companyId: ID): RemainingCreditsResult!
+  purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String): User
@@ -6391,6 +6501,9 @@ type Query {
   saasPlan(where: SaasPlanWhereUniqueInput!): SaasPlan
   saasPlans(where: SaasPlanWhereInput! = {}, orderBy: [SaasPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasPlanWhereUniqueInput): [SaasPlan!]
   saasPlansCount(where: SaasPlanWhereInput! = {}): Int
+  saasCredit(where: SaasCreditWhereUniqueInput!): SaasCredit
+  saasCredits(where: SaasCreditWhereInput! = {}, orderBy: [SaasCreditOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCreditWhereUniqueInput): [SaasCredit!]
+  saasCreditsCount(where: SaasCreditWhereInput! = {}): Int
   saasProject(where: SaasProjectWhereUniqueInput!): SaasProject
   saasProjects(where: SaasProjectWhereInput! = {}, orderBy: [SaasProjectOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasProjectWhereUniqueInput): [SaasProject!]
   saasProjectsCount(where: SaasProjectWhereInput! = {}): Int
@@ -6727,6 +6840,37 @@ type AddOwnLeadResult {
   success: Boolean!
   message: String!
   leadId: String
+}
+
+type RemainingCreditsResult {
+  success: Boolean!
+  message: String
+  remainingQuota: Int!
+  syncedCount: Int!
+  leadLimit: Int
+  planLeadLimit: Int
+  extraCredits: Int!
+  year: Int!
+  month: Int!
+}
+
+input PurchaseCreditsInput {
+  creditPackageId: ID!
+  notes: String
+  nameCard: String!
+  email: String!
+  paymentMethodId: String!
+  total: String!
+  paymentType: String!
+}
+
+type PurchaseCreditsResult {
+  success: Boolean!
+  message: String!
+  paymentId: String
+  creditsAdded: Int
+  newCreditsTotal: Int
+  subscriptionId: String
 }
 
 type AnimalMultimediaImage {

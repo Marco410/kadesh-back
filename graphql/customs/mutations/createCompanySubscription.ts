@@ -63,6 +63,35 @@ async function createStripeSubscription(params: {
   return subscription;
 }
 
+function getProcessorStripeIdFromSubscription(subscription: {
+  id: string;
+  latest_invoice?:
+    | string
+    | {
+        id?: string;
+        payment_intent?: string | { id: string };
+        charge?: string | { id: string };
+      }
+    | null;
+}): string {
+  const latestInvoice = subscription.latest_invoice;
+  if (!latestInvoice || typeof latestInvoice !== "object") {
+    return subscription.id;
+  }
+  const invoice = latestInvoice;
+  if (invoice.payment_intent) {
+    return typeof invoice.payment_intent === "string"
+      ? invoice.payment_intent
+      : invoice.payment_intent.id;
+  }
+  if (invoice.charge) {
+    return typeof invoice.charge === "string"
+      ? invoice.charge
+      : invoice.charge.id;
+  }
+  return invoice.id ?? subscription.id;
+}
+
 const resolver = {
   createCompanySubscription: async (
     _root: unknown,
@@ -396,6 +425,27 @@ const resolver = {
       });
       const subscriptionId = (subscription as { id: string } | null)?.id;
 
+      let paymentId: string | null = null;
+      if (subscriptionId) {
+        const payment = await context.sudo().query.SaasPayment.createOne({
+          data: {
+            user: { connect: { id: user.id } },
+            paymentMethod: { connect: { id: paymentMethod.id } },
+            amount: String(planCost),
+            status: "succeeded",
+            processorStripeChargeId:
+              getProcessorStripeIdFromSubscription(stripeSubscription),
+            plan: { connect: { id: plan.id } },
+            subscription: { connect: { id: subscriptionId } },
+            notes:
+              input.notes ??
+              `Suscripción: ${plan.name ?? plan.id}`,
+          },
+          query: "id",
+        });
+        paymentId = (payment as { id: string }).id;
+      }
+
       // 9.1. Generate referral commissions only for the first subscription (no previous active/trialing)
       const referrer = user.referredBy;
       const upfrontPct = plan.referralUpfrontCommissionPct ?? 0;
@@ -489,7 +539,7 @@ const resolver = {
           message:
             "Suscripción creada correctamente. El cobro recurrente usará el método de pago guardado.",
           subscriptionId: subscriptionId ?? null,
-          paymentId: null,
+          paymentId,
         },
         {
           createdSubscriptionId: subscriptionId ?? null,

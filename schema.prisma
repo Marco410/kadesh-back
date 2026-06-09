@@ -519,6 +519,7 @@ model SaasCompanySubscription {
   planCost                                 Float?
   planFrequency                            String                   @default("")
   planLeadLimit                            Int?
+  newCreditsAdded                          Int?                     @default(0)
   planStripePriceId                        String                   @default("")
   planCurrency                             String                   @default("")
   planFeatures                             Json?
@@ -609,6 +610,23 @@ model SaasPlan {
   from_SaasReferralCommission_plan SaasReferralCommission[]  @relation("SaasReferralCommission_plan")
 
   @@index([name])
+}
+
+model SaasCredit {
+  id              String    @id @default(cuid())
+  slug            String    @unique @default("")
+  name            String    @default("")
+  cost            Float?
+  costOld         Float?
+  frequency       String?   @default("once")
+  currency        String    @default("mxn")
+  creditsToAdd    Int
+  active          Boolean   @default(true)
+  bestSeller      Boolean   @default(false)
+  stripePriceId   String?   @unique
+  stripeProductId String?
+  createdAt       DateTime? @default(now())
+  updatedAt       DateTime? @updatedAt
 }
 
 model SaasProject {

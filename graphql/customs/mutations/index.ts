@@ -7,6 +7,8 @@ import syncLeadsFront from "./syncLeadsFront";
 import syncBusinessLeadsFromGoogle from "./syncBusinessLeadsFromGoogle";
 import createCompanySubscription from "./createCompanySubscription";
 import addOwnLead from "./addOwnLead";
+import remainingCredits from "./subcription/remainingCredits";
+import purchaseCredits from "./credits/purchaseCredits";
 
 const customMutation = {
   typeDefs: `
@@ -19,6 +21,8 @@ const customMutation = {
     ${syncLeadsFront.typeDefs}
     ${createCompanySubscription.typeDefs}
     ${addOwnLead.typeDefs}
+    ${remainingCredits.typeDefs}
+    ${purchaseCredits.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -30,6 +34,8 @@ const customMutation = {
     ${syncLeadsFront.definition}
     ${createCompanySubscription.definition}
     ${addOwnLead.definition}
+    ${remainingCredits.definition}
+    ${purchaseCredits.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -41,6 +47,8 @@ const customMutation = {
     ...syncLeadsFront.resolver,
     ...createCompanySubscription.resolver,
     ...addOwnLead.resolver,
+    ...remainingCredits.resolver,
+    ...purchaseCredits.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
