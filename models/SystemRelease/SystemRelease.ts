@@ -7,9 +7,13 @@ import {
 } from "@keystone-6/core/fields";
 import { systemReleaseAccess } from "./systemRelease.access";
 import { SYSTEM_RELEASE_PRODUCT_OPTIONS } from "./constants";
+import { systemReleaseEmailHook } from "./SystemRelease.hooks";
 
 export default list({
   access: systemReleaseAccess,
+  hooks: {
+    afterOperation: systemReleaseEmailHook.afterOperation,
+  },
   ui: {
     labelField: "version",
     listView: {
