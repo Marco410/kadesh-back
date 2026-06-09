@@ -243,6 +243,7 @@ export default list({
     }),
     smsRegistrationId: text(),
     verified: checkbox(),
+    userTest: checkbox(),
     salesPersonVerified: checkbox(),
     salesComission: integer({
       ui: { description: "Comisión de ventas (en porcentaje)" },

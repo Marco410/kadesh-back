@@ -1236,6 +1236,7 @@ var User_default = (0, import_core7.list)({
     }),
     smsRegistrationId: (0, import_fields7.text)(),
     verified: (0, import_fields7.checkbox)(),
+    userTest: (0, import_fields7.checkbox)(),
     salesPersonVerified: (0, import_fields7.checkbox)(),
     salesComission: (0, import_fields7.integer)({
       ui: { description: "Comisi\xF3n de ventas (en porcentaje)" },
@@ -1797,6 +1798,7 @@ var SYSTEM_RELEASE_PRODUCT = {
   SAAS: "saas",
   ALL: "all"
 };
+
 var SYSTEM_RELEASE_PRODUCT_OPTIONS = [
   { label: "Pet", value: SYSTEM_RELEASE_PRODUCT.PET },
   { label: "SaaS", value: SYSTEM_RELEASE_PRODUCT.SAAS },

@@ -1193,6 +1193,7 @@ model User {
   birthday                                 DateTime?                @postgresql.Date
   smsRegistrationId                        String                   @default("")
   verified                                 Boolean                  @default(false)
+  userTest                                 Boolean                  @default(false)
   salesPersonVerified                      Boolean                  @default(false)
   salesComission                           Int?                     @default(10)
   bank                                     String                   @default("")

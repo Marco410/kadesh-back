@@ -5823,6 +5823,7 @@ type User {
   age: String
   smsRegistrationId: String
   verified: Boolean
+  userTest: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
   bank: String
@@ -5889,6 +5890,7 @@ input UserWhereInput {
   birthday: CalendarDayNullableFilter
   smsRegistrationId: StringFilter
   verified: BooleanFilter
+  userTest: BooleanFilter
   salesPersonVerified: BooleanFilter
   salesComission: IntNullableFilter
   bank: StringFilter
@@ -5944,6 +5946,7 @@ input UserOrderByInput {
   birthday: OrderDirection
   smsRegistrationId: OrderDirection
   verified: OrderDirection
+  userTest: OrderDirection
   salesPersonVerified: OrderDirection
   salesComission: OrderDirection
   bank: OrderDirection
@@ -5990,6 +5993,7 @@ input UserUpdateInput {
   birthday: CalendarDay
   smsRegistrationId: String
   verified: Boolean
+  userTest: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
   bank: String
@@ -6072,6 +6076,7 @@ input UserCreateInput {
   birthday: CalendarDay
   smsRegistrationId: String
   verified: Boolean
+  userTest: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
   bank: String
