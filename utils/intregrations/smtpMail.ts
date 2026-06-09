@@ -52,6 +52,9 @@ function getTransporter(): Transporter {
     port: Number.isFinite(port) ? port : 465,
     secure,
     auth: { user, pass },
+    connectionTimeout: 15_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 30_000,
   });
   transporterKey = key;
 
