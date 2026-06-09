@@ -499,6 +499,18 @@ async function sendEmail({
   }
 }
 
+// models/SystemRelease/constants.ts
+var SYSTEM_RELEASE_PRODUCT = {
+  PET: "pet",
+  SAAS: "saas",
+  ALL: "all"
+};
+var SYSTEM_RELEASE_PRODUCT_OPTIONS = [
+  { label: "Pet", value: SYSTEM_RELEASE_PRODUCT.PET },
+  { label: "SaaS", value: SYSTEM_RELEASE_PRODUCT.SAAS },
+  { label: "Ambas", value: SYSTEM_RELEASE_PRODUCT.ALL }
+];
+
 // utils/helpers/sendgrid.ts
 function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -775,6 +787,109 @@ async function sendNewPostEmail({
       html
     });
   }
+}
+function formatReleaseBodyHtml(body) {
+  if (!body?.trim()) {
+    return "";
+  }
+  return escapeHtml(body.trim()).replace(/\n{2,}/g, '</p><p style="margin:0 0 12px 0;font-size:15px;line-height:1.65;color:#475569;">').replace(/\n/g, "<br>");
+}
+function releaseProductLabel(product) {
+  if (product === SYSTEM_RELEASE_PRODUCT.PET) return "Pet";
+  if (product === SYSTEM_RELEASE_PRODUCT.SAAS) return "Negocios";
+  return "Kadesh";
+}
+function buildSystemReleaseEmailHtml(params) {
+  const name = escapeHtml(params.displayName || "ah\xED");
+  const version = escapeHtml(params.version || "\u2014");
+  const title = params.title?.trim() ? escapeHtml(params.title.trim()) : "Nueva actualizaci\xF3n disponible";
+  const productLabel = releaseProductLabel(params.product);
+  const bodySection = params.bodyHtml ? `<div style="margin:20px 0 0 0;padding:16px 18px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+        <p style="margin:0 0 8px 0;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#64748b;">Novedades</p>
+        <p style="margin:0;font-size:15px;line-height:1.65;color:#475569;">${params.bodyHtml}</p>
+      </div>` : "";
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_ORANGE_DARK} 100%);padding:28px 32px;">
+              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.9);">${escapeHtml(productLabel)} \xB7 v${version}</p>
+              <h1 style="margin:8px 0 0 0;font-size:24px;font-weight:700;line-height:1.25;color:#ffffff;">${title}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 32px 28px 32px;">
+              <p style="margin:0 0 16px 0;font-size:18px;line-height:1.5;color:#0f172a;">Hola <strong>${name}</strong>,</p>
+              <p style="margin:0;font-size:16px;line-height:1.65;color:#475569;">
+                Publicamos una nueva versi\xF3n de la plataforma con mejoras y cambios que te pueden interesar.
+              </p>
+              ${bodySection}
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0 0;">
+                <tr>
+                  <td style="border-radius:8px;background:${BRAND_ORANGE};">
+                    <a href="${escapeHtml(params.appUrl)}" target="_blank" rel="noopener noreferrer"
+                      style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;">
+                      Ir a la plataforma
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 28px 32px;background:#f8fafc;">
+              <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;text-align:center;">
+                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Kadesh \xB7 Actualizaci\xF3n ${version}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+async function sendSystemReleaseEmail({
+  to,
+  displayName,
+  version,
+  title,
+  body,
+  product,
+  appUrl
+}) {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendSystemReleaseEmail: sin email destino.");
+    return;
+  }
+  const subjectTitle = title?.trim() || `Actualizaci\xF3n v${version}`;
+  const subject = `Novedades en Kadesh: ${subjectTitle}`;
+  const html = buildSystemReleaseEmailHtml({
+    displayName,
+    version,
+    title,
+    bodyHtml: formatReleaseBodyHtml(body),
+    product,
+    appUrl
+  });
+  await sendEmail({
+    to: trimmedTo,
+    subject,
+    html,
+    fromName: "Kadesh"
+  });
 }
 
 // models/Role/constants.ts
@@ -1792,11 +1907,99 @@ var systemReleaseAccess = {
   }
 };
 
-// models/SystemRelease/constants.ts
-var SYSTEM_RELEASE_PRODUCT = {
-  PET: "pet",
-  SAAS: "saas",
-  ALL: "all"
+// models/SystemRelease/SystemRelease.hooks.ts
+function buildDisplayName(user) {
+  return [user.name, user.lastName].filter(Boolean).join(" ").trim() || "ah\xED";
+}
+function matchesProduct(product, hasCompany) {
+  if (product === SYSTEM_RELEASE_PRODUCT.SAAS) return hasCompany;
+  if (product === SYSTEM_RELEASE_PRODUCT.PET) return !hasCompany;
+  return true;
+}
+async function getReleaseRecipients(context, product) {
+  const users = await context.sudo().query.User.findMany({
+    query: "id name lastName email company { id }"
+  });
+  const seen = /* @__PURE__ */ new Set();
+  const recipients = [];
+  for (const user of users) {
+    const email = user.email?.trim();
+    if (!email || seen.has(email.toLowerCase())) continue;
+    const hasCompany = Boolean(user.company?.id);
+    if (!matchesProduct(product, hasCompany)) continue;
+    seen.add(email.toLowerCase());
+    recipients.push({
+      email,
+      displayName: buildDisplayName(user)
+    });
+  }
+  return recipients;
+}
+function isPublishedRelease(release) {
+  return release?.isPublished === true;
+}
+async function notifyUsersForRelease(context, release) {
+  if (!isPublishedRelease(release)) {
+    return;
+  }
+  if (!isSmtpConfigured()) {
+    console.warn(
+      "[SystemRelease] SMTP no configurado. No se env\xEDan correos de release."
+    );
+    return;
+  }
+  const product = release.product ?? SYSTEM_RELEASE_PRODUCT.ALL;
+  const recipients = await getReleaseRecipients(context, product);
+  if (recipients.length === 0) {
+    console.log("[SystemRelease] Sin destinatarios con email v\xE1lido.");
+    return;
+  }
+  const appUrl = process.env.FRONTEND_URL?.trim() || "https://kadesh.com.mx/auth/login";
+  let sent = 0;
+  for (const recipient of recipients) {
+    try {
+      await sendSystemReleaseEmail({
+        to: recipient.email,
+        displayName: recipient.displayName,
+        version: release.version ?? "",
+        title: release.title ?? null,
+        body: release.body ?? null,
+        product,
+        appUrl
+      });
+      sent++;
+    } catch (err) {
+      console.error(
+        `[SystemRelease] Error al enviar release a ${recipient.email}:`,
+        err
+      );
+    }
+  }
+  console.log(
+    `[SystemRelease] Correos de release ${release.version ?? release.id} enviados a ${sent}/${recipients.length} usuarios.`
+  );
+}
+var systemReleaseEmailHook = {
+  afterOperation: async ({ operation, item, context }) => {
+    if (operation !== "create" || !item?.id) {
+      return;
+    }
+    if (item.isPublished !== true) {
+      return;
+    }
+    try {
+      const release = await context.sudo().query.SystemRelease.findOne({
+        where: { id: item.id },
+        query: "id version product title body isPublished"
+      });
+      if (!release || !isPublishedRelease(release)) {
+        return;
+      }
+      await notifyUsersForRelease(context, release);
+    } catch (error) {
+      console.error("[SystemRelease] Error en hook de correo:", error);
+    }
+  }
 };
 
 var SYSTEM_RELEASE_PRODUCT_OPTIONS = [
@@ -1808,6 +2011,9 @@ var SYSTEM_RELEASE_PRODUCT_OPTIONS = [
 // models/SystemRelease/SystemRelease.ts
 var SystemRelease_default = (0, import_core17.list)({
   access: systemReleaseAccess,
+  hooks: {
+    afterOperation: systemReleaseEmailHook.afterOperation
+  },
   ui: {
     labelField: "version",
     listView: {
