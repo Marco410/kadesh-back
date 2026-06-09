@@ -41,7 +41,7 @@ async function getReleaseRecipients(
   product: SystemReleaseProduct,
 ): Promise<UserRecipient[]> {
   const users = await context.sudo().query.User.findMany({
-    query: "id name lastName email company { id }",
+    query: "id name lastName email company { id } userTest",
   });
 
   const seen = new Set<string>();
@@ -52,7 +52,10 @@ async function getReleaseRecipients(
     lastName?: string | null;
     email?: string | null;
     company?: { id: string } | null;
+    userTest?: boolean | null;
   }[]) {
+    if (user.userTest === true) continue;
+
     const email = user.email?.trim();
     if (!email || seen.has(email.toLowerCase())) continue;
 
