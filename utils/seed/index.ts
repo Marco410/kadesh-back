@@ -7,6 +7,7 @@ import { createPetPlaceTypes } from "./pet_place_types";
 import { createPetPlaceService } from "./veterinary_services";
 import { createSaasCompany } from "./saas_company";
 import { createSaasPlan } from "./saas_plan";
+import { createSaasCreditPackages } from "./saas_credits";
 
 async function createRoles(context: KeystoneContext) {
   for (const role of ROLES) {
@@ -33,5 +34,6 @@ export default async function seed(context: KeystoneContext) {
 
   await createVeterinary(context, userID, services);
   const planId = await createSaasPlan(context);
+  await createSaasCreditPackages(context);
   await createSaasCompany(context, planId);
 }

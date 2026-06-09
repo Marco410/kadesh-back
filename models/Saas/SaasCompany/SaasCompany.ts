@@ -7,6 +7,7 @@ import {
   json,
   file,
   checkbox,
+  integer,
 } from "@keystone-6/core/fields";
 import { saasCompanyAccess } from "./SaasCompany.access";
 import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
@@ -87,7 +88,25 @@ export default list({
     monthlyLeadSyncRecords: relationship({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
-      ui: { description: "Per-month lead sync usage (for quota enforcement)" },
+      ui: { description: "Per-month lead sync usage (legacy quota tracking)" },
+    }),
+    /** Cumulative purchased bonus credits (permanent monthly top-up) */
+    purchasedBonusCredits: integer({
+      defaultValue: 0,
+      ui: {
+        description:
+          "Total extra credits purchased; added to the monthly allowance each period",
+      },
+    }),
+    creditPeriods: relationship({
+      ref: "SaasCompanyCreditPeriod.company",
+      many: true,
+      ui: { description: "Monthly credit periods for this company" },
+    }),
+    creditLedgerEntries: relationship({
+      ref: "SaasCompanyCreditLedger.company",
+      many: true,
+      ui: { description: "Credit grant/consume ledger for this company" },
     }),
     techFiles: relationship({
       ref: "TechFile.company",

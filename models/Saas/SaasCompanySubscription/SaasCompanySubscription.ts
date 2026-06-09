@@ -52,6 +52,11 @@ export default list({
     planLeadLimit: integer({
       ui: { description: "Lead limit as contracted (snapshot)" },
     }),
+    /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
+    newCreditsAdded: integer({
+      defaultValue: 0,
+      ui: { description: "Extra credits purchased and added to this subscription" },
+    }),
     /** Snapshot: Stripe Price ID at time of contract */
     planStripePriceId: text({
       ui: { description: "Stripe Price ID as contracted (snapshot)" },
@@ -96,6 +101,11 @@ export default list({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" },
+    }),
+    creditPeriods: relationship({
+      ref: "SaasCompanyCreditPeriod.subscription",
+      many: true,
+      ui: { description: "Credit periods linked to this subscription" },
     }),
     /** Subscription plan for this company */
     plan: relationship({

@@ -4,6 +4,7 @@ import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscriptio
 import { PLAN_FREQUENCY } from "../../../models/Saas/SaasPlan/constants";
 import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../models/Saas/SaasSubscriptionLog/constants";
 import { writeSaasSubscriptionLog } from "../../../utils/saas/saasSubscriptionLogWrite";
+import { grantPlanCreditsOnSubscription } from "../../../utils/saas/companyCredits";
 
 const typeDefs = `
   input CreateCompanySubscriptionInput {
@@ -61,6 +62,35 @@ async function createStripeSubscription(params: {
     expand: ["latest_invoice"],
   });
   return subscription;
+}
+
+function getProcessorStripeIdFromSubscription(subscription: {
+  id: string;
+  latest_invoice?:
+    | string
+    | {
+        id?: string;
+        payment_intent?: string | { id: string };
+        charge?: string | { id: string };
+      }
+    | null;
+}): string {
+  const latestInvoice = subscription.latest_invoice;
+  if (!latestInvoice || typeof latestInvoice !== "object") {
+    return subscription.id;
+  }
+  const invoice = latestInvoice;
+  if (invoice.payment_intent) {
+    return typeof invoice.payment_intent === "string"
+      ? invoice.payment_intent
+      : invoice.payment_intent.id;
+  }
+  if (invoice.charge) {
+    return typeof invoice.charge === "string"
+      ? invoice.charge
+      : invoice.charge.id;
+  }
+  return invoice.id ?? subscription.id;
 }
 
 const resolver = {
@@ -396,6 +426,35 @@ const resolver = {
       });
       const subscriptionId = (subscription as { id: string } | null)?.id;
 
+      let paymentId: string | null = null;
+      if (subscriptionId) {
+        const payment = await context.sudo().query.SaasPayment.createOne({
+          data: {
+            user: { connect: { id: user.id } },
+            paymentMethod: { connect: { id: paymentMethod.id } },
+            amount: String(planCost),
+            status: "succeeded",
+            processorStripeChargeId:
+              getProcessorStripeIdFromSubscription(stripeSubscription),
+            plan: { connect: { id: plan.id } },
+            subscription: { connect: { id: subscriptionId } },
+            notes:
+              input.notes ??
+              `Suscripción: ${plan.name ?? plan.id}`,
+          },
+          query: "id",
+        });
+        paymentId = (payment as { id: string }).id;
+      }
+
+      if (subscriptionId) {
+        await grantPlanCreditsOnSubscription(context, {
+          companyId: company.id,
+          subscriptionId,
+          planLeadLimit: plan.leadLimit ?? 0,
+        });
+      }
+
       // 9.1. Generate referral commissions only for the first subscription (no previous active/trialing)
       const referrer = user.referredBy;
       const upfrontPct = plan.referralUpfrontCommissionPct ?? 0;
@@ -489,7 +548,7 @@ const resolver = {
           message:
             "Suscripción creada correctamente. El cobro recurrente usará el método de pago guardado.",
           subscriptionId: subscriptionId ?? null,
-          paymentId: null,
+          paymentId,
         },
         {
           createdSubscriptionId: subscriptionId ?? null,
