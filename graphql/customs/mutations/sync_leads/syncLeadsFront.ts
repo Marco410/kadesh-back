@@ -1,11 +1,11 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
-import { haversineDistance } from "../../../utils/helpers/calculate_distances";
-import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_text";
-import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";
-import { getRemainingCredits } from "../../../utils/helpers/tech/remaining_credits";
-import { consumeCompanyCredits } from "../../../utils/saas/companyCredits";
-import { getPlaceDetails } from "../../../utils/helpers/tech/place_details";
+import { PIPELINE_STATUS } from "../../../../models/Tech/crm/constants";
+import { haversineDistance } from "../../../../utils/helpers/calculate_distances";
+import { buildReviewsAndPrompt } from "../../../../utils/helpers/tech/build_prompt_text";
+import { parseAddressComponents } from "../../../../utils/helpers/tech/parse_address";
+import { getRemainingCredits } from "../../../../utils/helpers/tech/remaining_credits";
+import { consumeCompanyCredits } from "../../../../utils/saas/companyCredits";
+import { getPlaceDetails } from "../../../../utils/helpers/tech/place_details";
 
 /**
  * syncLeadsFront: asigna TechBusinessLead a la SaasCompany del usuario.

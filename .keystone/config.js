@@ -8336,7 +8336,7 @@ async function getPlaceDetails2(placeId, apiKey) {
   return data.result;
 }
 
-// graphql/customs/mutations/syncLeadsFront.ts
+// graphql/customs/mutations/sync_leads/syncLeadsFront.ts
 async function ensureStatusForLeadAssignment(context, leadId, companyId, userId, opportunityLevel = "Media") {
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
     where: {
@@ -8800,6 +8800,165 @@ var resolver6 = {
 };
 var syncLeadsFront_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
 
+// graphql/customs/mutations/sync_leads/syncLeadsLinkedin.ts
+var APIFY_LEADS_FINDER_ACTOR = "code_crafter~leads-finder";
+var APIFY_RUN_SYNC_DATASET_ITEMS_URL = `https://api.apify.com/v2/actors/${APIFY_LEADS_FINDER_ACTOR}/run-sync-get-dataset-items`;
+var DEFAULT_LINKEDIN_LEAD_FILTERS = {
+  company_industry: ["information technology & services"],
+  company_keywords: ["gym"],
+  contact_city: ["Morelia"],
+  contact_job_title: ["software"],
+  contact_location: ["mexico"],
+  email_status: ["validated", "not_validated", "unknown"],
+  fetch_count: 10,
+  functional_level: ["c_suite"],
+  min_revenue: "100K",
+  seniority_level: ["founder"],
+  size: ["1-10"]
+};
+function buildApifyPayload(input) {
+  if (input?.filters && typeof input.filters === "object") {
+    return {
+      ...DEFAULT_LINKEDIN_LEAD_FILTERS,
+      ...input.filters
+    };
+  }
+  const {
+    company_industry,
+    company_keywords,
+    contact_city,
+    contact_job_title,
+    contact_location,
+    email_status,
+    fetch_count,
+    functional_level,
+    min_revenue,
+    seniority_level,
+    size,
+    file_name
+  } = input ?? {};
+  const overrides = {
+    ...company_industry !== void 0 && { company_industry },
+    ...company_keywords !== void 0 && { company_keywords },
+    ...contact_city !== void 0 && { contact_city },
+    ...contact_job_title !== void 0 && { contact_job_title },
+    ...contact_location !== void 0 && { contact_location },
+    ...email_status !== void 0 && { email_status },
+    ...fetch_count !== void 0 && { fetch_count },
+    ...functional_level !== void 0 && { functional_level },
+    ...min_revenue !== void 0 && { min_revenue },
+    ...seniority_level !== void 0 && { seniority_level },
+    ...size !== void 0 && { size },
+    ...file_name !== void 0 && { file_name }
+  };
+  return {
+    ...DEFAULT_LINKEDIN_LEAD_FILTERS,
+    ...overrides
+  };
+}
+async function fetchLeadsFromApify(filters) {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) {
+    throw new Error(
+      "APIFY_API_TOKEN no est\xE1 configurado. Agr\xE9galo en config/.env.dev"
+    );
+  }
+  const url = `${APIFY_RUN_SYNC_DATASET_ITEMS_URL}?token=${encodeURIComponent(token)}&format=json`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(filters)
+  });
+  const rawText = await response.text();
+  let items = null;
+  try {
+    items = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    items = rawText;
+  }
+  if (!response.ok) {
+    const detail = typeof items === "object" && items !== null ? JSON.stringify(items) : rawText;
+    throw new Error(
+      `Apify respondi\xF3 ${response.status}: ${detail || response.statusText}`
+    );
+  }
+  return { items, rawText, status: response.status };
+}
+var typeDefs7 = `
+  input SyncLeadsLinkedinInput {
+    company_industry: [String!]
+    company_keywords: [String!]
+    contact_city: [String!]
+    contact_job_title: [String!]
+    contact_location: [String!]
+    email_status: [String!]
+    fetch_count: Int
+    functional_level: [String!]
+    min_revenue: String
+    seniority_level: [String!]
+    size: [String!]
+    file_name: String
+    filters: JSON
+  }
+
+  type SyncLeadsLinkedinResult {
+    success: Boolean!
+    message: String!
+    filtersUsed: JSON!
+    itemsCount: Int!
+    items: JSON
+    rawResponse: JSON
+  }
+
+  type Mutation {
+    syncLeadsLinkedin(input: SyncLeadsLinkedinInput): SyncLeadsLinkedinResult!
+  }
+`;
+var definition7 = `
+  syncLeadsLinkedin(input: SyncLeadsLinkedinInput): SyncLeadsLinkedinResult!
+`;
+var resolver7 = {
+  syncLeadsLinkedin: async (_root, { input }, context) => {
+    const session2 = context.session;
+    const userId = session2?.data?.id;
+    if (!userId) {
+      return {
+        success: false,
+        message: "Debes iniciar sesi\xF3n para sincronizar leads",
+        filtersUsed: DEFAULT_LINKEDIN_LEAD_FILTERS,
+        itemsCount: 0,
+        items: null,
+        rawResponse: null
+      };
+    }
+    const filtersUsed = buildApifyPayload(input);
+    try {
+      const { items, status } = await fetchLeadsFromApify(filtersUsed);
+      const itemsArray = Array.isArray(items) ? items : items ? [items] : [];
+      return {
+        success: true,
+        message: `Apify respondi\xF3 ${status}. Se recibieron ${itemsArray.length} leads.`,
+        filtersUsed,
+        itemsCount: itemsArray.length,
+        items,
+        rawResponse: items
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Error al consultar Apify",
+        filtersUsed,
+        itemsCount: 0,
+        items: null,
+        rawResponse: null
+      };
+    }
+  }
+};
+var syncLeadsLinkedin_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
+
 // graphql/customs/mutations/syncBusinessLeadsFromGoogle.ts
 async function getVerifiedSalesPersonIds2(context) {
   const users = await context.sudo().query.User.findMany({
@@ -8814,7 +8973,7 @@ async function getVerifiedSalesPersonIds2(context) {
 var MIN_RATING2 = 4;
 var MIN_REVIEWS2 = 20;
 var DEFAULT_MAX_RESULTS2 = 60;
-var typeDefs7 = `
+var typeDefs8 = `
   input SyncBusinessLeadsFromGoogleInput {
     lat: Float!
     lng: Float!
@@ -8836,7 +8995,7 @@ var typeDefs7 = `
     syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   }
 `;
-var definition7 = `
+var definition8 = `
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
 `;
 var PROMPT_PREFIX2 = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
@@ -8892,7 +9051,7 @@ function parseAddressComponents3(components) {
   }
   return { city, state, country };
 }
-var resolver7 = {
+var resolver8 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
@@ -9028,7 +9187,7 @@ var resolver7 = {
     }
   }
 };
-var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
+var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
 
 // models/Saas/SaasSubscriptionLog/constants.ts
 var SAAS_SUBSCRIPTION_LOG_STEP = {
@@ -9093,7 +9252,7 @@ async function writeSaasSubscriptionLog(context, params) {
 }
 
 // graphql/customs/mutations/createCompanySubscription.ts
-var typeDefs8 = `
+var typeDefs9 = `
   input CreateCompanySubscriptionInput {
     planId: ID!
     notes: String
@@ -9116,7 +9275,7 @@ var typeDefs8 = `
     createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
   }
 `;
-var definition8 = `
+var definition9 = `
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
 `;
 async function createStripeSubscription(params) {
@@ -9144,7 +9303,7 @@ function getProcessorStripeIdFromSubscription(subscription) {
   }
   return invoice.id ?? subscription.id;
 }
-var resolver8 = {
+var resolver9 = {
   createCompanySubscription: async (_root, {
     input
   }, context) => {
@@ -9522,7 +9681,7 @@ var resolver8 = {
     }
   }
 };
-var createCompanySubscription_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
+var createCompanySubscription_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
 
 // graphql/customs/mutations/addOwnLead.ts
 var ADD_OWN_LEADS_FEATURE_KEY = "add_own_leads";
@@ -9530,7 +9689,7 @@ function subscriptionHasFeature(planFeatures, featureKey) {
   if (!Array.isArray(planFeatures)) return false;
   return planFeatures.some((f) => f.key === featureKey);
 }
-var typeDefs9 = `
+var typeDefs10 = `
   input AddOwnLeadInput {
     businessName: String!
     category: String
@@ -9567,10 +9726,10 @@ var typeDefs9 = `
     addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   }
 `;
-var definition9 = `
+var definition10 = `
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
 `;
-var resolver9 = {
+var resolver10 = {
   addOwnLead: async (_root, {
     input
   }, context) => {
@@ -9676,7 +9835,7 @@ var resolver9 = {
     }
   }
 };
-var addOwnLead_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
+var addOwnLead_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
 
 // graphql/customs/mutations/subcription/remainingCredits.ts
 var BLOCKING_MESSAGES = {
@@ -9685,7 +9844,7 @@ var BLOCKING_MESSAGES = {
   no_lead_limit: "La suscripci\xF3n activa no tiene l\xEDmite de leads configurado.",
   lead_limit_too_low: "La suscripci\xF3n activa no permite sincronizar leads o te has excedido el l\xEDmite de leads."
 };
-var typeDefs10 = `
+var typeDefs11 = `
   type RemainingCreditsResult {
     success: Boolean!
     message: String
@@ -9702,10 +9861,10 @@ var typeDefs10 = `
     remainingCredits(companyId: ID): RemainingCreditsResult!
   }
 `;
-var definition10 = `
+var definition11 = `
   remainingCredits(companyId: ID): RemainingCreditsResult!
 `;
-var resolver10 = {
+var resolver11 = {
   remainingCredits: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -9768,10 +9927,10 @@ var resolver10 = {
     };
   }
 };
-var remainingCredits_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
+var remainingCredits_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
 
 // graphql/customs/mutations/credits/purchaseCredits.ts
-var typeDefs11 = `
+var typeDefs12 = `
   input PurchaseCreditsInput {
     creditPackageId: ID!
     notes: String
@@ -9795,7 +9954,7 @@ var typeDefs11 = `
     purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
   }
 `;
-var definition11 = `
+var definition12 = `
   purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
 `;
 async function createStripeOneTimePayment(params) {
@@ -9814,7 +9973,7 @@ async function createStripeOneTimePayment(params) {
   });
   return paymentIntent;
 }
-var resolver11 = {
+var resolver12 = {
   purchaseCredits: async (_root, {
     input
   }, context) => {
@@ -10161,7 +10320,7 @@ var resolver11 = {
     }
   }
 };
-var purchaseCredits_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
+var purchaseCredits_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
 
 // graphql/customs/mutations/sendTestEmail.ts
 var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -10189,7 +10348,7 @@ function buildTestEmailHtml() {
     </div>
   `;
 }
-var typeDefs12 = `
+var typeDefs13 = `
   type SendTestEmailResult {
     success: Boolean!
     message: String!
@@ -10203,10 +10362,10 @@ var typeDefs12 = `
     sendTestEmail(email: String!): SendTestEmailResult!
   }
 `;
-var definition12 = `
+var definition13 = `
   sendTestEmail(email: String!): SendTestEmailResult!
 `;
-var resolver12 = {
+var resolver13 = {
   sendTestEmail: async (_root, { email }, context) => {
     const session2 = context.session;
     const diagnostics = mailDiagnostics();
@@ -10268,7 +10427,7 @@ var resolver12 = {
     }
   }
 };
-var sendTestEmail_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
+var sendTestEmail_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -10280,6 +10439,7 @@ var customMutation = {
     ${importBusinessLeadFromGoogle_default.typeDefs}
     ${syncBusinessLeadsFromGoogle_default.typeDefs}
     ${syncLeadsFront_default.typeDefs}
+    ${syncLeadsLinkedin_default.typeDefs}
     ${createCompanySubscription_default.typeDefs}
     ${addOwnLead_default.typeDefs}
     ${remainingCredits_default.typeDefs}
@@ -10294,6 +10454,7 @@ var customMutation = {
     ${importBusinessLeadFromGoogle_default.definition}
     ${syncBusinessLeadsFromGoogle_default.definition}
     ${syncLeadsFront_default.definition}
+    ${syncLeadsLinkedin_default.definition}
     ${createCompanySubscription_default.definition}
     ${addOwnLead_default.definition}
     ${remainingCredits_default.definition}
@@ -10308,6 +10469,7 @@ var customMutation = {
     ...importBusinessLeadFromGoogle_default.resolver,
     ...syncBusinessLeadsFromGoogle_default.resolver,
     ...syncLeadsFront_default.resolver,
+    ...syncLeadsLinkedin_default.resolver,
     ...createCompanySubscription_default.resolver,
     ...addOwnLead_default.resolver,
     ...remainingCredits_default.resolver,
@@ -10323,7 +10485,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs13 = `
+var typeDefs14 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -10380,7 +10542,7 @@ var typeDefs13 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition13 = `
+var definition14 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -10430,7 +10592,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver13 = {
+var resolver14 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -10584,7 +10746,7 @@ var resolver13 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+var nearbyAnimals_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -10852,7 +11014,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs14 = `
+var typeDefs15 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -10910,10 +11072,10 @@ var typeDefs14 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition14 = `
+var definition15 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver14 = {
+var resolver15 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -10995,10 +11157,10 @@ var resolver14 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs15 = `
+var typeDefs16 = `
   type StripeCard {
     brand: String
     country: String
@@ -11032,10 +11194,10 @@ var typeDefs15 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition15 = `
+var definition16 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver15 = {
+var resolver16 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -11071,7 +11233,7 @@ var resolver15 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
+var stripePaymentMethods_default = { typeDefs: typeDefs16, definition: definition16, resolver: resolver16 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -11124,7 +11286,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs16 = `
+var typeDefs17 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -11152,10 +11314,10 @@ var typeDefs16 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition16 = `
+var definition17 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver16 = {
+var resolver17 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -11287,7 +11449,7 @@ var resolver16 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs16, definition: definition16, resolver: resolver16 };
+var subscriptionStatus_default = { typeDefs: typeDefs17, definition: definition17, resolver: resolver17 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

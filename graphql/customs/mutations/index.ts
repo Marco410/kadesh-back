@@ -3,7 +3,8 @@ import authenticateUserWithGoogle from "./auth/authenticateUserWithGoogle";
 import registerUser from "./auth/registerUser";
 import importBusinessLeadFromGoogle from "./importBusinessLeadFromGoogle";
 import importPetPlace from "./importPetPlace";
-import syncLeadsFront from "./syncLeadsFront";
+import syncLeadsFront from "./sync_leads/syncLeadsFront";
+import syncLeadsLinkedin from "./sync_leads/syncLeadsLinkedin";
 import syncBusinessLeadsFromGoogle from "./syncBusinessLeadsFromGoogle";
 import createCompanySubscription from "./createCompanySubscription";
 import addOwnLead from "./addOwnLead";
@@ -20,6 +21,7 @@ const customMutation = {
     ${importBusinessLeadFromGoogle.typeDefs}
     ${syncBusinessLeadsFromGoogle.typeDefs}
     ${syncLeadsFront.typeDefs}
+    ${syncLeadsLinkedin.typeDefs}
     ${createCompanySubscription.typeDefs}
     ${addOwnLead.typeDefs}
     ${remainingCredits.typeDefs}
@@ -34,6 +36,7 @@ const customMutation = {
     ${importBusinessLeadFromGoogle.definition}
     ${syncBusinessLeadsFromGoogle.definition}
     ${syncLeadsFront.definition}
+    ${syncLeadsLinkedin.definition}
     ${createCompanySubscription.definition}
     ${addOwnLead.definition}
     ${remainingCredits.definition}
@@ -48,6 +51,7 @@ const customMutation = {
     ...importBusinessLeadFromGoogle.resolver,
     ...syncBusinessLeadsFromGoogle.resolver,
     ...syncLeadsFront.resolver,
+    ...syncLeadsLinkedin.resolver,
     ...createCompanySubscription.resolver,
     ...addOwnLead.resolver,
     ...remainingCredits.resolver,

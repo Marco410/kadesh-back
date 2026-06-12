@@ -6610,6 +6610,7 @@ type Mutation {
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
+  syncLeadsLinkedin(input: SyncLeadsLinkedinInput): SyncLeadsLinkedinResult!
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   remainingCredits(companyId: ID): RemainingCreditsResult!
@@ -7041,6 +7042,31 @@ type SyncLeadsFrontResult {
   syncedLeadsCount: Int!
   syncedCount: Int
   leadLimit: Int
+}
+
+input SyncLeadsLinkedinInput {
+  company_industry: [String!]
+  company_keywords: [String!]
+  contact_city: [String!]
+  contact_job_title: [String!]
+  contact_location: [String!]
+  email_status: [String!]
+  fetch_count: Int
+  functional_level: [String!]
+  min_revenue: String
+  seniority_level: [String!]
+  size: [String!]
+  file_name: String
+  filters: JSON
+}
+
+type SyncLeadsLinkedinResult {
+  success: Boolean!
+  message: String!
+  filtersUsed: JSON!
+  itemsCount: Int!
+  items: JSON
+  rawResponse: JSON
 }
 
 input CreateCompanySubscriptionInput {
