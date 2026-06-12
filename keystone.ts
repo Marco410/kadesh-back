@@ -67,6 +67,7 @@ export default withAuth(
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
+      prismaClientPath: "node_modules/.prisma/client",
     },
     ui:{
       isAccessAllowed: (context) => !!context.session?.data,

@@ -3,5 +3,5 @@
 Run
 
 ```
-yarn dev
+pnpm dev
 ```

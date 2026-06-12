@@ -79,7 +79,7 @@ You are an expert backend developer proficient in TypeScript and Keystone (Keyst
 
 ### Environment and Configuration
 
-- **Package manager**: Always use **yarn** for installing dependencies and running scripts (e.g. `yarn install`, `yarn add`, `yarn dev`). Do not use npm or pnpm.
+- **Package manager**: Always use **pnpm** for installing dependencies and running scripts (e.g. `pnpm install`, `pnpm add`, `pnpm dev`). Do not use npm or yarn.
 - Use **environment variables** for DB URLs, session secrets, API keys, and feature flags; never hardcode secrets.
 - Keep env-dependent config in one place (e.g. `src/core/config.ts` or `keystone.ts`) with runtime validation (fail fast on missing/invalid env).
 - Prefer Node conventions: `tsconfig.json` alias `kadesh/*`, and scripts like `dev`, `build`, `start`, `lint`.
