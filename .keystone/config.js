@@ -8437,6 +8437,16 @@ var resolver6 = {
     };
     const session2 = context.session;
     const userId = session2?.data?.id;
+    console.log("[syncLeadsFront] START", {
+      userId: userId ?? null,
+      lat: input?.lat,
+      lng: input?.lng,
+      radius: input?.radius,
+      category: input?.category,
+      maxResults: input?.maxResults
+    });
+    fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "pre-fix", hypothesisId: "D", location: "syncLeadsFront.ts:entry", message: "syncLeadsFront called", data: { hasUserId: !!userId, lat: input?.lat, lng: input?.lng, radius: input?.radius, category: input?.category, maxResults: input?.maxResults }, timestamp: Date.now() }) }).catch(() => {
+    });
     if (!userId) {
       return {
         success: false,
@@ -8523,6 +8533,14 @@ var resolver6 = {
       radius: radiusKm,
       category: inputCategory
     } = input;
+    console.log("[syncLeadsFront] DB search", {
+      category: inputCategory,
+      centerLat,
+      centerLng,
+      radiusKm,
+      maxResults,
+      remainingQuota
+    });
     const candidates = await context.sudo().query.TechBusinessLead.findMany({
       where: {
         category: { equals: inputCategory }
@@ -8569,6 +8587,14 @@ var resolver6 = {
     }
     let syncedThisRequest = assignedFromDb;
     let currentSyncedCount = syncedCount;
+    console.log("[syncLeadsFront] after DB assign", {
+      candidatesInCategory: candidates.length,
+      existingIdsInRadius: existingIds.length,
+      assignedFromDb,
+      syncedCount,
+      leadLimit,
+      remainingQuota
+    });
     if (assignedFromDb > 0) {
       const consumeResult = await consumeCompanyCredits(context, {
         companyId: company.id,
@@ -8633,143 +8659,227 @@ var resolver6 = {
     let created = 0;
     let alreadyInDb = assignedFromDb;
     let skippedLowRating = 0;
-    let nextPageToken;
+    console.log("[syncLeadsFront] GOOGLE Nearby Search prep", {
+      lat,
+      lng,
+      radius,
+      radiusMeters,
+      category,
+      keyword,
+      hasApiKey: !!apiKey,
+      assignedFromDb,
+      syncedThisRequest,
+      maxResults
+    });
+    fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "credits+pages", location: "syncLeadsFront.ts:beforeGoogle", message: "About to collect Google Nearby pages first", data: { lat, lng, radius, radiusMeters, category, keyword, assignedFromDb, syncedThisRequest, maxResults }, timestamp: Date.now() }) }).catch(() => {
+    });
+    let googleCreditsCharged = false;
+    const chargeGoogleCreditsIfNeeded = async () => {
+      const googleSynced = syncedThisRequest - assignedFromDb;
+      if (googleCreditsCharged || googleSynced < 1) return;
+      googleCreditsCharged = true;
+      console.log("[syncLeadsFront] charging credits", {
+        googleSynced,
+        created,
+        alreadyInDb,
+        syncedThisRequest,
+        assignedFromDb
+      });
+      fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "credits", location: "syncLeadsFront.ts:chargeCredits", message: "Consuming credits for Google-synced leads", data: { googleSynced, created, alreadyInDb, syncedThisRequest, assignedFromDb }, timestamp: Date.now() }) }).catch(() => {
+      });
+      const consumeResult = await consumeCompanyCredits(context, {
+        companyId: company.id,
+        amount: googleSynced,
+        referenceType: "sync",
+        notes: "Leads sincronizados desde Google Maps"
+      });
+      if (consumeResult.success) {
+        currentSyncedCount = consumeResult.syncedCount;
+      } else {
+        console.warn("[syncLeadsFront] credit consume failed", {
+          googleSynced,
+          syncedCount: consumeResult.syncedCount,
+          leadLimit: consumeResult.leadLimit
+        });
+      }
+    };
     try {
-      do {
-        let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
-        if (nextPageToken) {
-          url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${encodeURIComponent(nextPageToken)}&key=${apiKey}`;
-          await new Promise((r) => setTimeout(r, 2e3));
+      const PAGE_TOKEN_DELAY_MS = 2e3;
+      const MAX_NEARBY_PAGES = 3;
+      const nearbyPlaces = [];
+      const seenPlaceIds = /* @__PURE__ */ new Set();
+      let pageToken;
+      let firstPageError = null;
+      for (let page = 0; page < MAX_NEARBY_PAGES && nearbyPlaces.length < maxResults; page++) {
+        if (pageToken) {
+          await new Promise((r) => setTimeout(r, PAGE_TOKEN_DELAY_MS));
         }
+        const url = pageToken ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${apiKey}` : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
+        const urlForLog = url.replace(/key=[^&]+/, "key=REDACTED");
+        console.log("[syncLeadsFront] GOOGLE page fetch", {
+          page: page + 1,
+          hasPageToken: !!pageToken,
+          collectedSoFar: nearbyPlaces.length,
+          url: urlForLog
+        });
+        fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "pages-first", location: "syncLeadsFront.ts:pageFetch", message: "Fetching nearby page before details", data: { page: page + 1, hasPageToken: !!pageToken, collectedSoFar: nearbyPlaces.length }, timestamp: Date.now() }) }).catch(() => {
+        });
         const res = await fetch(url);
         const data = await res.json();
+        console.log("[syncLeadsFront] GOOGLE page response", {
+          page: page + 1,
+          googleStatus: data?.status,
+          resultsCount: Array.isArray(data?.results) ? data.results.length : 0,
+          hasNextPageToken: !!data?.next_page_token
+        });
+        fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "pages-first", location: "syncLeadsFront.ts:pageResponse", message: "Nearby page response", data: { page: page + 1, googleStatus: data?.status, resultsCount: Array.isArray(data?.results) ? data.results.length : 0, hasNextPageToken: !!data?.next_page_token }, timestamp: Date.now() }) }).catch(() => {
+        });
         if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-          const result2 = {
-            success: false,
-            message: data.error_message || data.status,
-            created,
-            alreadyInDb,
-            skippedLowRating,
-            syncedLeadsCount: syncedThisRequest,
-            syncedCount: currentSyncedCount,
-            leadLimit
-          };
-          await logSyncLeadsResult(context, userId, company.id, input, result2);
-          return result2;
-        }
-        const results = data.results || [];
-        for (const place of results) {
-          if (syncedThisRequest >= maxResults) break;
-          if (leadLimit !== null && currentSyncedCount >= leadLimit) break;
-          const placeId = place.place_id;
-          const placeRating = place.rating ?? 0;
-          const userRatingsTotal = place.user_ratings_total ?? 0;
-          let lead = await context.sudo().query.TechBusinessLead.findOne({
-            where: { googlePlaceId: placeId },
-            query: "id saasCompany { id }"
-          });
-          if (lead) {
-            const leadCompanies = lead.saasCompany ?? [];
-            const alreadyAssignedToThisCompany = leadCompanies.some(
-              (c) => c.id === company.id
-            );
-            if (alreadyAssignedToThisCompany) {
-              continue;
-            }
-            alreadyInDb++;
-            try {
-              const leadId = lead.id;
-              await context.sudo().query.TechBusinessLead.updateOne({
-                where: { id: leadId },
-                data: { saasCompany: { connect: { id: company.id } } }
-              });
-              const level = placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
-              await ensureStatusForLeadAssignment(
-                context,
-                leadId,
-                company.id,
-                userId,
-                level
-              );
-              syncedThisRequest++;
-              currentSyncedCount++;
-            } catch (_) {
-            }
-            continue;
+          if (page === 0) {
+            firstPageError = data.error_message || data.status || "INVALID_REQUEST";
+            break;
           }
-          if (placeRating < minRating || userRatingsTotal < minReviews) {
-            skippedLowRating++;
-            continue;
-          }
-          const details = await getPlaceDetails2(placeId, apiKey);
-          if (!details) continue;
-          const {
-            city: parsedCity,
-            state,
-            country
-          } = parseAddressComponents2(details.address_components || []);
-          const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
-            details,
-            category
+          console.warn(
+            "[syncLeadsFront] stopping pagination (keeping prior pages)",
+            { page: page + 1, googleStatus: data.status }
           );
-          const leadData = {
-            businessName: details.name,
-            category,
-            phone: details.formatted_phone_number || details.international_phone_number || "",
-            address: details.formatted_address || "",
-            city: parsedCity || "",
-            state: state || "",
-            country: country || "",
-            rating: details.rating ?? null,
-            reviewCount: details.user_ratings_total ?? null,
-            hasWebsite: !!details.website,
-            websiteUrl: details.website || "",
-            source: "Google Maps",
-            googlePlaceId: placeId,
-            googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
-            topReview1: topReviews[0] || null,
-            topReview2: topReviews[1] || null,
-            topReview3: topReviews[2] || null,
-            topReview4: topReviews[3] || null,
-            topReview5: topReviews[4] || null,
-            websitePromptContent,
-            saasCompany: { connect: { id: company.id } },
-            lat: details.geometry?.location?.lat ?? null,
-            lng: details.geometry?.location?.lng ?? null
-          };
+          break;
+        }
+        for (const place of data.results || []) {
+          if (!place?.place_id || seenPlaceIds.has(place.place_id)) continue;
+          seenPlaceIds.add(place.place_id);
+          nearbyPlaces.push(place);
+          if (nearbyPlaces.length >= maxResults) break;
+        }
+        pageToken = data.next_page_token;
+        if (!pageToken) break;
+      }
+      if (firstPageError && nearbyPlaces.length === 0) {
+        const result2 = {
+          success: false,
+          message: firstPageError,
+          created,
+          alreadyInDb,
+          skippedLowRating,
+          syncedLeadsCount: syncedThisRequest,
+          syncedCount: currentSyncedCount,
+          leadLimit
+        };
+        await logSyncLeadsResult(context, userId, company.id, input, result2);
+        return result2;
+      }
+      console.log("[syncLeadsFront] GOOGLE places collected", {
+        total: nearbyPlaces.length
+      });
+      for (const place of nearbyPlaces) {
+        if (syncedThisRequest >= maxResults) break;
+        if (leadLimit !== null && currentSyncedCount >= leadLimit) break;
+        const placeId = place.place_id;
+        const placeRating = place.rating ?? 0;
+        const userRatingsTotal = place.user_ratings_total ?? 0;
+        let lead = await context.sudo().query.TechBusinessLead.findOne({
+          where: { googlePlaceId: placeId },
+          query: "id saasCompany { id }"
+        });
+        if (lead) {
+          const leadCompanies = lead.saasCompany ?? [];
+          const alreadyAssignedToThisCompany = leadCompanies.some(
+            (c) => c.id === company.id
+          );
+          if (alreadyAssignedToThisCompany) {
+            continue;
+          }
+          alreadyInDb++;
           try {
-            const newLead = await context.sudo().query.TechBusinessLead.createOne({
-              data: leadData
+            const leadId = lead.id;
+            await context.sudo().query.TechBusinessLead.updateOne({
+              where: { id: leadId },
+              data: { saasCompany: { connect: { id: company.id } } }
             });
-            await context.sudo().query.TechStatusBusinessLead.createOne({
-              data: {
-                businessLead: { connect: { id: newLead.id } },
-                saasCompany: { connect: { id: company.id } },
-                salesPerson: { connect: { id: userId } },
-                pipelineStatus: PIPELINE_STATUS.DETECTADO,
-                opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja"
-              }
-            });
-            created++;
+            const level = placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
+            await ensureStatusForLeadAssignment(
+              context,
+              leadId,
+              company.id,
+              userId,
+              level
+            );
             syncedThisRequest++;
             currentSyncedCount++;
           } catch (_) {
           }
+          continue;
         }
-        nextPageToken = data.next_page_token;
-      } while (nextPageToken && syncedThisRequest < maxResults && (leadLimit === null || currentSyncedCount < leadLimit));
-      const googleSynced = syncedThisRequest - assignedFromDb;
-      if (googleSynced > 0) {
-        const consumeResult = await consumeCompanyCredits(context, {
-          companyId: company.id,
-          amount: googleSynced,
-          referenceType: "sync",
-          notes: "Leads sincronizados desde Google Maps"
+        if (placeRating < minRating || userRatingsTotal < minReviews) {
+          skippedLowRating++;
+          continue;
+        }
+        console.log("[syncLeadsFront] getPlaceDetails", {
+          placeId,
+          placeRating,
+          userRatingsTotal
         });
-        if (consumeResult.success) {
-          currentSyncedCount = consumeResult.syncedCount;
+        const details = await getPlaceDetails2(placeId, apiKey);
+        if (!details) {
+          console.warn("[syncLeadsFront] getPlaceDetails returned null", {
+            placeId
+          });
+          continue;
+        }
+        const {
+          city: parsedCity,
+          state,
+          country
+        } = parseAddressComponents2(details.address_components || []);
+        const { topReviews, websitePromptContent } = buildReviewsAndPrompt(
+          details,
+          category
+        );
+        const leadData = {
+          businessName: details.name,
+          category,
+          phone: details.formatted_phone_number || details.international_phone_number || "",
+          address: details.formatted_address || "",
+          city: parsedCity || "",
+          state: state || "",
+          country: country || "",
+          rating: details.rating ?? null,
+          reviewCount: details.user_ratings_total ?? null,
+          hasWebsite: !!details.website,
+          websiteUrl: details.website || "",
+          source: "Google Maps",
+          googlePlaceId: placeId,
+          googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
+          topReview1: topReviews[0] || null,
+          topReview2: topReviews[1] || null,
+          topReview3: topReviews[2] || null,
+          topReview4: topReviews[3] || null,
+          topReview5: topReviews[4] || null,
+          websitePromptContent,
+          saasCompany: { connect: { id: company.id } },
+          lat: details.geometry?.location?.lat ?? null,
+          lng: details.geometry?.location?.lng ?? null
+        };
+        try {
+          const newLead = await context.sudo().query.TechBusinessLead.createOne({
+            data: leadData
+          });
+          await context.sudo().query.TechStatusBusinessLead.createOne({
+            data: {
+              businessLead: { connect: { id: newLead.id } },
+              saasCompany: { connect: { id: company.id } },
+              salesPerson: { connect: { id: userId } },
+              pipelineStatus: PIPELINE_STATUS.DETECTADO,
+              opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja"
+            }
+          });
+          created++;
+          syncedThisRequest++;
+          currentSyncedCount++;
+        } catch (_) {
         }
       }
+      await chargeGoogleCreditsIfNeeded();
       const result = {
         success: true,
         message: `Sincronizaci\xF3n completada. Leads asignados a tu empresa: ${syncedThisRequest} ${leadLimit !== null ? ` Cuota: ${currentSyncedCount}/${leadLimit} este mes.` : ""}`,
@@ -8783,6 +8893,8 @@ var resolver6 = {
       await logSyncLeadsResult(context, userId, company.id, input, result);
       return result;
     } catch (err) {
+      console.error("[syncLeadsFront] EXCEPTION in Google sync", err);
+      await chargeGoogleCreditsIfNeeded();
       const result = {
         success: false,
         message: err instanceof Error ? err.message : "Error en sincronizaci\xF3n",
