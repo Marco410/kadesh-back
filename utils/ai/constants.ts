@@ -36,7 +36,22 @@ export const AI_FEATURE = {
   DAILY_DIGEST: "daily_digest",
   MONTHLY_NARRATIVE: "monthly_narrative",
   FILE_ANALYSIS: "file_analysis",
+  PROFILE_PLAYBOOK: "profile_playbook",
 } as const;
+
+/**
+ * Cupos Gemini 3.5 Flash Lite (tier gratuito / key de plataforma).
+ * Solo modalidad managed. Por usuario, por empresa y a toda la plataforma.
+ */
+export const AI_RATE_LIMIT = {
+  rpm: 15,
+  tpmInput: 250_000,
+  rpd: 500,
+  windowMs: 60_000,
+  dayMs: 24 * 60 * 60 * 1000,
+} as const;
+
+export const AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
 export type AiFeature = (typeof AI_FEATURE)[keyof typeof AI_FEATURE];
 

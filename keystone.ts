@@ -3,6 +3,7 @@ import lists from "./models/schema";
 import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
 import extendGraphqlSchema from "./graphql/extendedSchema";
+import { isPlatformAdmin } from "./utils/access/tenant";
 
 // Setup environment variables
 const path = require("path");
@@ -207,7 +208,7 @@ export default withAuth(
       prismaClientPath: "node_modules/.prisma/client",
     },
     ui: {
-      isAccessAllowed: (context) => !!context.session?.data,
+      isAccessAllowed: (context) => isPlatformAdmin(context.session),
     },
     server: {
       cors: true,

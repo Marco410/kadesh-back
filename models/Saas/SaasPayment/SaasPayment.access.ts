@@ -1,21 +1,16 @@
 import { ListAccessControl } from "@keystone-6/core/types";
-import { hasRole } from "../../../auth/permissions";
-import { Role } from "../../Role/constants";
+import {
+  getSessionUserId,
+  isPlatformAdmin,
+} from "../../../utils/access/tenant";
 
-const getCompanyId = (session: any) => session?.data?.company?.id;
-const getUserId = (session: any) => session?.data?.id as string | undefined;
-
-/** Pagos del usuario o de alguien de la misma empresa; admin ve todo. */
+/** Pagos: solo los del usuario, o admin de plataforma. */
 function paymentFilter(session: any) {
-  if (hasRole(session, [Role.ADMIN])) {
+  if (isPlatformAdmin(session)) {
     return true;
   }
-  const userId = getUserId(session);
+  const userId = getSessionUserId(session);
   if (!userId) return false;
-  const companyId = getCompanyId(session);
-  if (companyId) {
-    return { user: { company: { id: { equals: companyId } } } };
-  }
   return { user: { id: { equals: userId } } };
 }
 
@@ -23,7 +18,7 @@ export const saasPaymentAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
     create: ({ session }: any) =>
-      hasRole(session, [Role.ADMIN]) || !!getUserId(session),
+      isPlatformAdmin(session) || !!getSessionUserId(session),
     update: () => true,
     delete: () => true,
   },

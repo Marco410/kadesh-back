@@ -6,6 +6,7 @@ import { decrypt } from "../helpers/encryption";
 import {
   AI_BILLING_MODE,
   AI_PROVIDER,
+  AI_RATE_LIMIT_ERROR_PREFIX,
   type AiBillingMode,
   type AiProviderKey,
 } from "./constants";
@@ -14,16 +15,19 @@ import {
   AiNotConfiguredError,
   AiPlatformNotConfiguredError,
   AiProviderError,
+  AiRateLimitError,
 } from "./errors";
 import { anthropicAdapter } from "./providers/anthropic";
 import { geminiAdapter } from "./providers/gemini";
 import { openaiAdapter } from "./providers/openai";
 import {
   estimateCreditsForPrompt,
+  estimateTokensFromText,
   tokensToCredits,
   type TokenUsage,
 } from "./tokenCredits";
 import { persistAiCallLog } from "./callLog";
+import { assertAiRateLimit } from "./rateLimit";
 import {
   toGuardedUserPrompt,
   withPromptInjectionGuard,
@@ -35,6 +39,7 @@ export {
   AI_BILLING_MODE,
   AI_PROVIDER,
   AI_FEATURE,
+  AI_RATE_LIMIT,
   DEFAULT_AI_MODELS,
 } from "./constants";
 export type { AiBillingMode, AiProviderKey, AiFeature } from "./constants";
@@ -43,6 +48,7 @@ export {
   AiNotConfiguredError,
   AiPlatformNotConfiguredError,
   AiProviderError,
+  AiRateLimitError,
 } from "./errors";
 export {
   BILLABLE_TOKENS_PER_CREDIT,
@@ -258,6 +264,16 @@ export async function callCompanyAi(
     const adapter = getAiProviderAdapter(provider);
     model = modelOverride || company.aiModel?.trim() || adapter.defaultModel;
 
+    await assertAiRateLimit({
+      context: params.context,
+      companyId: params.companyId,
+      userId,
+      billingMode,
+      upcomingInputTokens:
+        estimateTokensFromText(systemPrompt) +
+        estimateTokensFromText(userPrompt),
+    });
+
     const completion = await adapter.complete({
       apiKey,
       model,
@@ -322,7 +338,11 @@ export async function callCompanyAi(
       billed: shouldBill,
       success: false,
       errorMessage:
-        err instanceof Error ? err.message : "Error desconocido al llamar a la IA",
+        err instanceof AiRateLimitError
+          ? `${AI_RATE_LIMIT_ERROR_PREFIX}: ${err.message}`
+          : err instanceof Error
+            ? err.message
+            : "Error desconocido al llamar a la IA",
       durationMs: Date.now() - startedAt,
     });
     throw err;

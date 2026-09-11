@@ -6920,9 +6920,11 @@ type Mutation {
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+  generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
+  generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
-  registerUser(data: UserCreateInput!, referrerCode: String): User
+  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -7138,6 +7140,8 @@ type Query {
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   dailyDigest(companyId: ID!): DailyDigestResult!
+  aiPlaybook(companyId: ID!): DailyDigestResult!
+  aiPlaybook(companyId: ID!): DailyDigestResult!
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   StripePaymentMethods(email: String!): StripePaymentMethodsType

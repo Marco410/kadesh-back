@@ -1,31 +1,37 @@
 import { ListAccessControl } from "@keystone-6/core/types";
-
-const getCompanyId = (session: any) => session?.data?.company?.id;
+import {
+  getSessionCompanyId,
+  isPlatformAdmin,
+  isSignedIn,
+} from "../../../utils/access/tenant";
 
 /**
- * TechFiles: solo se ven/editan/borran los archivos que pertenecen a la SaasCompany del usuario.
- * Crear solo si el usuario tiene company.
+ * TechFiles: solo se ven/editan/borran los archivos de la SaasCompany del usuario.
  */
 export const techFilesAccess: ListAccessControl<any> = {
   operation: {
-    query: () => true,
-    create: ({ session }: any) => !!getCompanyId(session),
-    update: () => true,
-    delete: () => true,
+    query: ({ session }: any) => isSignedIn(session),
+    create: ({ session }: any) =>
+      isPlatformAdmin(session) || !!getSessionCompanyId(session),
+    update: ({ session }: any) => isSignedIn(session),
+    delete: ({ session }: any) => isSignedIn(session),
   },
   filter: {
     query: ({ session }: any) => {
-      const companyId = getCompanyId(session);
+      if (isPlatformAdmin(session)) return true;
+      const companyId = getSessionCompanyId(session);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session }: any) => {
-      const companyId = getCompanyId(session);
+      if (isPlatformAdmin(session)) return true;
+      const companyId = getSessionCompanyId(session);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session }: any) => {
-      const companyId = getCompanyId(session);
+      if (isPlatformAdmin(session)) return true;
+      const companyId = getSessionCompanyId(session);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },

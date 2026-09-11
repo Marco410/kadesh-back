@@ -37,3 +37,14 @@ export class AiPlatformNotConfiguredError extends Error {
     this.name = "AiPlatformNotConfiguredError";
   }
 }
+
+export class AiRateLimitError extends Error {
+  readonly code = "AI_RATE_LIMIT";
+  readonly retryAfterSec: number;
+
+  constructor(message: string, retryAfterSec = 60) {
+    super(message);
+    this.name = "AiRateLimitError";
+    this.retryAfterSec = retryAfterSec;
+  }
+}

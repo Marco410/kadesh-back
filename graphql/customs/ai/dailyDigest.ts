@@ -8,6 +8,7 @@ import {
   AiNotConfiguredError,
   AiPlatformNotConfiguredError,
   AiProviderError,
+  AiRateLimitError,
 } from "../../../utils/ai";
 import {
   DAILY_DIGEST_FEATURE_PROMPT,
@@ -22,6 +23,13 @@ import {
   type DigestAction,
   type DigestInsightPayload,
 } from "../../../utils/ai/dailyDigest";
+import {
+  fallbackPlaybookActions,
+  findProfilePlaybook,
+  playbookUserPrompt,
+  PROFILE_PLAYBOOK_FEATURE_PROMPT,
+  saveProfilePlaybook,
+} from "../../../utils/ai/playbook";
 import {
   canUseCompanyAi,
   denyCompanyAiUseMessage,
@@ -52,19 +60,23 @@ const typeDefs = `
 
   type Query {
     dailyDigest(companyId: ID!): DailyDigestResult!
+    aiPlaybook(companyId: ID!): DailyDigestResult!
   }
 
   type Mutation {
     generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+    generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
   }
 `;
 
 const queryDefinition = `
   dailyDigest(companyId: ID!): DailyDigestResult!
+  aiPlaybook(companyId: ID!): DailyDigestResult!
 `;
 
 const mutationDefinition = `
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+  generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
 `;
 
 function toResult(
@@ -89,7 +101,8 @@ function friendlyAiError(err: unknown): string {
   if (
     err instanceof AiNotConfiguredError ||
     err instanceof AiInsufficientCreditsError ||
-    err instanceof AiPlatformNotConfiguredError
+    err instanceof AiPlatformNotConfiguredError ||
+    err instanceof AiRateLimitError
   ) {
     return err.message;
   }
@@ -165,6 +178,29 @@ const queryResolver = {
       insight: toDigestInsightPayload(existing),
     });
   },
+  aiPlaybook: async (
+    _root: unknown,
+    { companyId }: { companyId: string },
+    context: KeystoneContext,
+  ) => {
+    const session = context.session;
+    if (!canUseCompanyAi(session, companyId)) {
+      return toResult(false, denyCompanyAiUseMessage(session));
+    }
+
+    const existing = await findProfilePlaybook(context, companyId);
+    if (!existing) {
+      return toResult(true, "Aún no hay recomendaciones de perfil", {
+        cached: false,
+        insight: null,
+      });
+    }
+
+    return toResult(true, "Recomendaciones de perfil", {
+      cached: true,
+      insight: toDigestInsightPayload(existing),
+    });
+  },
 };
 
 const mutationResolver = {
@@ -226,6 +262,73 @@ const mutationResolver = {
       });
 
       return toResult(true, "Listo. Estos son tus 3 siguientes pasos de hoy.", {
+        cached: false,
+        creditsCharged: result.creditsCharged,
+        insight: toDigestInsightPayload(saved),
+      });
+    } catch (err) {
+      return toResult(false, friendlyAiError(err));
+    }
+  },
+  generateAiPlaybook: async (
+    _root: unknown,
+    { companyId, force }: { companyId: string; force?: boolean | null },
+    context: KeystoneContext,
+  ) => {
+    const session = context.session;
+    if (!canUseCompanyAi(session, companyId)) {
+      return toResult(false, denyCompanyAiUseMessage(session));
+    }
+
+    const existing = await findProfilePlaybook(context, companyId);
+    if (existing && !force) {
+      return toResult(true, "Ya tenías recomendaciones. Úsalas o regenera.", {
+        cached: true,
+        creditsCharged: 0,
+        insight: toDigestInsightPayload(existing),
+      });
+    }
+
+    try {
+      const company = (await context.sudo().query.SaasCompany.findOne({
+        where: { id: companyId },
+        query:
+          "id name onboardingMainOffer onboardingIdealCustomer onboardingAvgTicketValue onboardingSalesPain allowedGooglePlaceCategories",
+      })) as {
+        name?: string | null;
+        onboardingMainOffer?: string | null;
+        onboardingIdealCustomer?: string | null;
+        onboardingAvgTicketValue?: string | null;
+        onboardingSalesPain?: string | null;
+        allowedGooglePlaceCategories?: unknown;
+      } | null;
+
+      const userPrompt = playbookUserPrompt(company ?? {});
+      const result = await callCompanyAi({
+        context,
+        companyId,
+        featurePrompt: PROFILE_PLAYBOOK_FEATURE_PROMPT,
+        userPrompt,
+        feature: AI_FEATURE.PROFILE_PLAYBOOK,
+        bill: true,
+        maxTokens: 900,
+      });
+
+      let actions = parseDigestActions(result.text);
+      if (actions.length < 3) {
+        actions = [...actions, ...fallbackPlaybookActions(userPrompt)].slice(
+          0,
+          4,
+        );
+      }
+
+      const saved = await saveProfilePlaybook(context, {
+        companyId,
+        actions: actions.slice(0, 4),
+        existingId: existing?.id,
+      });
+
+      return toResult(true, "Listo. Estas recomendaciones salen de tu perfil.", {
         cached: false,
         creditsCharged: result.creditsCharged,
         insight: toDigestInsightPayload(saved),

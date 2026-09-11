@@ -7,7 +7,7 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
-import { techAiCallLogAccess } from "./TechAiCallLog.access";
+import { techAiCallLogAccess, aiCallLogPromptFieldAccess } from "./TechAiCallLog.access";
 import {
   AI_BILLING_MODE_OPTIONS,
   AI_PROVIDER_OPTIONS,
@@ -68,6 +68,7 @@ export default list({
     }),
     featurePrompt: text({
       db: { isNullable: true },
+      access: aiCallLogPromptFieldAccess,
       ui: {
         displayMode: "textarea",
         description: "Instrucción de la feature (parte del system prompt)",
@@ -75,6 +76,7 @@ export default list({
     }),
     systemPrompt: text({
       db: { isNullable: true },
+      access: aiCallLogPromptFieldAccess,
       ui: {
         displayMode: "textarea",
         description: "System prompt completo enviado al proveedor (Cerebro + feature)",
@@ -82,6 +84,7 @@ export default list({
     }),
     userPrompt: text({
       db: { isNullable: true },
+      access: aiCallLogPromptFieldAccess,
       ui: {
         displayMode: "textarea",
         description: "Prompt de usuario enviado al proveedor",
@@ -89,6 +92,7 @@ export default list({
     }),
     response: text({
       db: { isNullable: true },
+      access: aiCallLogPromptFieldAccess,
       ui: {
         displayMode: "textarea",
         description: "Texto que devolvió la IA",

@@ -8,12 +8,10 @@ import {
   AiNotConfiguredError,
   AiPlatformNotConfiguredError,
   AiProviderError,
+  AiRateLimitError,
 } from "../../../../utils/ai";
 import { encrypt, maskApiKey } from "../../../../utils/helpers/encryption";
-import {
-  canManageCompanyAi,
-  denyCompanyAiAccessMessage,
-} from "./access";
+import { canManageCompanyAi, denyCompanyAiAccessMessage } from "./access";
 
 const typeDefs = `
   input UpdateCompanyAiSettingsInput {
@@ -90,7 +88,8 @@ function friendlyAiError(err: unknown): string {
   if (
     err instanceof AiNotConfiguredError ||
     err instanceof AiInsufficientCreditsError ||
-    err instanceof AiPlatformNotConfiguredError
+    err instanceof AiPlatformNotConfiguredError ||
+    err instanceof AiRateLimitError
   ) {
     return err.message;
   }
@@ -215,7 +214,7 @@ const resolver = {
     }
 
     try {
-      const result = await callCompanyAi({
+      await callCompanyAi({
         context,
         companyId,
         featurePrompt:
@@ -227,7 +226,7 @@ const resolver = {
       });
       return {
         success: true,
-        message: `Conexión OK con ${result.provider} (${result.model}).`,
+        message: "Conexión OK con Kadesh AI",
       };
     } catch (err) {
       return {

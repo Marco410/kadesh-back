@@ -8,6 +8,7 @@ import {
   virtual,
 } from "@keystone-6/core/fields";
 import { statusBusinessLeadAccess } from "./TechStatusBusinessLead.access";
+import { statusBusinessLeadHooks } from "./TechStatusBusinessLead.hooks";
 import {
   PIPELINE_STATUS,
   OPPORTUNITY_LEVEL,
@@ -25,6 +26,7 @@ const opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
 
 export default list({
   access: statusBusinessLeadAccess,
+  hooks: { resolveInput: statusBusinessLeadHooks.resolveInput },
   ui: {
     listView: {
       initialColumns: [

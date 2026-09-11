@@ -10,7 +10,7 @@ import {
   integer,
   select,
 } from "@keystone-6/core/fields";
-import { saasCompanyAccess } from "./SaasCompany.access";
+import { saasCompanyAccess, aiApiKeyPreviewFieldAccess } from "./SaasCompany.access";
 import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
 import {
   AI_BILLING_MODE,
@@ -225,10 +225,7 @@ export default list({
     }),
     aiApiKeyPreview: text({
       db: { isNullable: true },
-      access: {
-        create: () => false,
-        update: () => false,
-      },
+      access: aiApiKeyPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)",
       },

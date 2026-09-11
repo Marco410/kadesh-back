@@ -1,6 +1,12 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
 import { Role } from "../../../models/Role/constants";
+import {
+  denyOtherCompanyMessage,
+  getSessionUserId,
+  isSignedIn,
+  resolveAuthorizedCompanyId,
+} from "../../../utils/access/tenant";
 
 const typeDefs = `
   input ImportBusinessLeadFromGoogleInput {
@@ -48,6 +54,32 @@ function parseAddressComponents(
   return { city, state, country };
 }
 
+async function ensureStatusForImport(
+  context: KeystoneContext,
+  leadId: string,
+  companyId: string,
+  sellerId: string | null,
+) {
+  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
+    where: {
+      businessLead: { id: { equals: leadId } },
+      saasCompany: { id: { equals: companyId } },
+    },
+    take: 1,
+    query: "id",
+  });
+  if (existing) return;
+  await context.sudo().query.TechStatusBusinessLead.createOne({
+    data: {
+      businessLead: { connect: { id: leadId } },
+      saasCompany: { connect: { id: companyId } },
+      ...(sellerId ? { salesPerson: { connect: { id: sellerId } } } : {}),
+      pipelineStatus: PIPELINE_STATUS.DETECTADO,
+      opportunityLevel: "Media",
+    },
+  });
+}
+
 const resolver = {
   importBusinessLeadFromGoogle: async (
     _root: unknown,
@@ -58,6 +90,23 @@ const resolver = {
     },
     context: KeystoneContext,
   ) => {
+    if (!isSignedIn(context.session)) {
+      return {
+        success: false,
+        message: "Debes iniciar sesión para importar un lead",
+        businessLeadId: null,
+      };
+    }
+
+    const companyId = resolveAuthorizedCompanyId(context.session);
+    if (!companyId) {
+      return {
+        success: false,
+        message: denyOtherCompanyMessage(),
+        businessLeadId: null,
+      };
+    }
+
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       return {
@@ -67,20 +116,50 @@ const resolver = {
       };
     }
 
+    const userId = getSessionUserId(context.session);
+    let sellerId: string | null = input.assignedSellerId ?? userId;
+
+    if (input.assignedSellerId) {
+      const seller = (await context.sudo().query.User.findOne({
+        where: { id: input.assignedSellerId },
+        query: "id company { id }",
+      })) as { id: string; company?: { id: string } | null } | null;
+      if (!seller || seller.company?.id !== companyId) {
+        return {
+          success: false,
+          message: "El vendedor no pertenece a tu empresa",
+          businessLeadId: null,
+        };
+      }
+      sellerId = seller.id;
+    } else {
+      const verifiedSellerIds = await getVerifiedSalesPersonIds(
+        context,
+        companyId,
+      );
+      sellerId =
+        verifiedSellerIds[0] ?? userId;
+    }
+
     const existing = await context.sudo().query.TechBusinessLead.findOne({
       where: { googlePlaceId: input.placeId },
-      query: "id",
+      query: "id saasCompany { id }",
     });
     if (existing) {
+      await context.sudo().query.TechBusinessLead.updateOne({
+        where: { id: existing.id },
+        data: {
+          saasCompany: { connect: [{ id: companyId }] },
+          ...(sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}),
+        },
+      });
+      await ensureStatusForImport(context, existing.id, companyId, sellerId);
       return {
-        success: false,
-        message: "Este negocio ya fue importado como lead",
+        success: true,
+        message: "Lead asignado a tu empresa",
         businessLeadId: existing.id,
       };
     }
-
-    const verifiedSellerIds = await getVerifiedSalesPersonIds(context);
-
 
     const place = await getPlaceDetails(input.placeId, apiKey);
     if (!place) {
@@ -115,32 +194,18 @@ const resolver = {
       googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`,
       lat: place.geometry?.location?.lat ?? null,
       lng: place.geometry?.location?.lng ?? null,
+      saasCompany: { connect: [{ id: companyId }] },
     };
 
-    const sellerId = input.assignedSellerId
-      ? input.assignedSellerId
-      : verifiedSellerIds.length > 0
-        ? verifiedSellerIds[Math.floor(0 % verifiedSellerIds.length)]
-        : null;
     if (sellerId) {
-      data.salesPerson = { connect: { id: sellerId } };
-    }
-
-    if (input.assignedSellerId) {
-      data.salesPerson = { connect: { id: input.assignedSellerId } };
+      data.salesPerson = { connect: [{ id: sellerId }] };
     }
 
     try {
       const lead = await context.sudo().query.TechBusinessLead.createOne({
         data: data as any,
       });
-      await context.sudo().query.TechStatusBusinessLead.createOne({
-        data: {
-          businessLead: { connect: { id: lead.id } },
-          pipelineStatus: PIPELINE_STATUS.DETECTADO,
-          opportunityLevel: "Media",
-        },
-      });
+      await ensureStatusForImport(context, lead.id, companyId, sellerId);
       return {
         success: true,
         message: "Lead importado correctamente",
@@ -158,11 +223,13 @@ const resolver = {
 
 async function getVerifiedSalesPersonIds(
   context: KeystoneContext,
+  companyId: string,
 ): Promise<string[]> {
   const users = await context.sudo().query.User.findMany({
     where: {
       salesPersonVerified: { equals: true },
       roles: { some: { name: { equals: Role.VENDEDOR } } },
+      company: { id: { equals: companyId } },
     },
     query: "id",
   });

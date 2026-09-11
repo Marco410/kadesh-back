@@ -1,16 +1,23 @@
 import { ListAccessControl } from "@keystone-6/core/types";
+import { leadCompanyScopedWhere } from "../../../utils/access/leadScopedFilter";
+import {
+  getSessionCompanyId,
+  isPlatformAdmin,
+  isSignedIn,
+} from "../../../utils/access/tenant";
 
-/** Solo se ven/editan/borran los TechBusinessLead que pertenecen a la SaasCompany del usuario. */
+/** Solo se ven/editan/borran los leads de la SaasCompany del usuario. */
 export const businessLeadAccess: ListAccessControl<any> = {
   operation: {
-    query: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
+    query: ({ session }: any) => isSignedIn(session),
+    create: ({ session }: any) =>
+      isPlatformAdmin(session) || !!getSessionCompanyId(session),
+    update: ({ session }: any) => isSignedIn(session),
+    delete: ({ session }: any) => isSignedIn(session),
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true,
+    query: ({ session }: any) => leadCompanyScopedWhere(session),
+    update: ({ session }: any) => leadCompanyScopedWhere(session),
+    delete: ({ session }: any) => leadCompanyScopedWhere(session),
   },
 };

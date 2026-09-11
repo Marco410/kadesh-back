@@ -2,20 +2,7 @@ import { hasRole } from "../../../auth/permissions";
 import { Role } from "../../Role/constants";
 import { getSessionCompanyId } from "../../../utils/access/tenant";
 
-function stripTenantFromClient(
-  resolvedData: Record<string, unknown>,
-  key: string,
-) {
-  const next = { ...resolvedData };
-  delete next[key];
-  return next;
-}
-
-/**
- * El cliente no elige tenant: se fuerza la empresa de la sesión.
- * Admin de plataforma puede mandar saasCompany en el input.
- */
-export const businessLeadHooks = {
+export const statusBusinessLeadHooks = {
   resolveInput: async ({
     resolvedData,
     context,
@@ -29,11 +16,12 @@ export const businessLeadHooks = {
     if (operation === "create" && companyId) {
       return {
         ...resolvedData,
-        saasCompany: { connect: [{ id: companyId }] },
+        saasCompany: { connect: { id: companyId } },
       };
     }
 
-    return stripTenantFromClient(resolvedData, "saasCompany");
+    const next = { ...resolvedData };
+    delete next.saasCompany;
+    return next;
   },
-  afterOperation: async () => {},
 };

@@ -6,6 +6,12 @@ import {
 } from "../../utils/helpers/sendgrid";
 import { Role } from "../Role/constants";
 import Stripe from "../../utils/intregrations/stripe";
+import { hasRole } from "../../auth/permissions";
+import {
+  getSessionCompanyId,
+  isPlatformAdmin,
+  isSignedIn,
+} from "../../utils/access/tenant";
 
 const USER_BANK_NOTIFICATION_FIELDS = ["bank", "clabe", "cardNumber"] as const;
 
@@ -16,7 +22,7 @@ export const phoneHooks = {
       const pattern = /\+?\d{10,}(?:-?\d+)*$/;
       if (!pattern.test(phone) || (phone.length < 10 && phone.length !== 0)) {
         addValidationError(
-          "El teléfono debe ser de 10 dígitos y puros números"
+          "El teléfono debe ser de 10 dígitos y puros números",
         );
       }
     }
@@ -45,7 +51,7 @@ export const userNameHook = {
     if (item && resolvedData.username) {
       return resolvedData.username;
     }
-    
+
     if (item && !resolvedData.username) {
       return item.username;
     }
@@ -57,7 +63,7 @@ export const userNameHook = {
     if (!item && !resolvedData.username) {
       const name = resolvedData.name;
       const lastName = resolvedData.lastName || "";
-      
+
       if (name) {
         return checkUserName(name, lastName, context);
       }
@@ -67,64 +73,120 @@ export const userNameHook = {
   },
 };
 
-export async function checkUserName(name: string, lastName: string, context: KeystoneContext): Promise<string> {
-    if (!name) {
-      throw new Error("El nombre es requerido para generar el username");
-    }
+export async function checkUserName(
+  name: string,
+  lastName: string,
+  context: KeystoneContext,
+): Promise<string> {
+  if (!name) {
+    throw new Error("El nombre es requerido para generar el username");
+  }
 
-    const namePart = name.trim();
-    const lastNamePart = lastName ? lastName.trim() : "";
-    const fullName = lastNamePart ? `${namePart} ${lastNamePart}` : namePart;
-    let baseLink = genUniqueLink(fullName);
+  const namePart = name.trim();
+  const lastNamePart = lastName ? lastName.trim() : "";
+  const fullName = lastNamePart ? `${namePart} ${lastNamePart}` : namePart;
+  let baseLink = genUniqueLink(fullName);
 
-    if (!baseLink || baseLink === "") {
-      baseLink = "user";
-    }
+  if (!baseLink || baseLink === "") {
+    baseLink = "user";
+  }
 
-    let uniqueLink: string = baseLink;
+  let uniqueLink: string = baseLink;
 
-    let existingUser = await context.db.User.findOne({
+  let existingUser = await context.db.User.findOne({
+    where: { username: uniqueLink },
+  });
+
+  let counter = 1;
+  while (existingUser) {
+    const randomNum1 = Math.floor(Math.random() * 100).toString();
+    uniqueLink = `${baseLink}${randomNum1}`;
+    existingUser = await context.db.User.findOne({
       where: { username: uniqueLink },
     });
+    counter++;
+  }
 
-    let counter = 1;
-    while (existingUser) {
-      const randomNum1 = Math.floor(Math.random() * 100).toString();
-      uniqueLink = `${baseLink}${randomNum1}`;
-      existingUser = await context.db.User.findOne({
-        where: { username: uniqueLink },
-      });
-      counter++;
-    }
+  return uniqueLink;
+}
 
-    return uniqueLink;
-};
+function relationIds(value: unknown): string[] {
+  if (!value) return [];
+  const rows = Array.isArray(value) ? value : [value];
+  return rows
+    .map((row) =>
+      row && typeof row === "object" && "id" in row
+        ? String((row as { id: string }).id)
+        : "",
+    )
+    .filter(Boolean);
+}
 
 export const userRoleHook = {
   resolveInput: async ({ resolvedData, item, operation, context }: any) => {
-    if (operation === "create" && !item) {
-      const hasRoles = resolvedData.roles && (
-        (resolvedData.roles.connect && resolvedData.roles.connect.length > 0) ||
-        (resolvedData.roles.set && resolvedData.roles.set.length > 0) ||
-        (resolvedData.roles.create && resolvedData.roles.create.length > 0)
-      );
+    if (operation === "create" && !item && !isPlatformAdmin(context.session)) {
+      const sessionCompanyId = getSessionCompanyId(context.session);
+      if (sessionCompanyId && hasRole(context.session, [Role.ADMIN_COMPANY])) {
+        resolvedData.company = { connect: { id: sessionCompanyId } };
+      } else if (isSignedIn(context.session)) {
+        delete resolvedData.company;
+      }
+    }
 
+    if (isPlatformAdmin(context.session)) {
+      return resolvedData;
+    }
+
+    const roleInput = resolvedData.roles as
+      | {
+          connect?: { id: string }[] | { id: string };
+          set?: { id: string }[] | { id: string };
+          create?: unknown[];
+        }
+      | undefined;
+
+    if (roleInput?.create) {
+      delete roleInput.create;
+    }
+
+    const connectIds = [
+      ...relationIds(roleInput?.connect),
+      ...relationIds(roleInput?.set),
+    ];
+
+    if (connectIds.length > 0) {
+      const roles = (await context.sudo().query.Role.findMany({
+        where: { id: { in: connectIds } },
+        query: "id name",
+      })) as { id: string; name: string }[];
+      const allowed = roles.filter((role) => role.name !== Role.ADMIN);
+      if (allowed.length !== roles.length) {
+        resolvedData.roles = {
+          connect: allowed.map((role) => ({ id: role.id })),
+        };
+      }
+    }
+
+    if (operation === "create" && !item) {
+      const hasRoles =
+        relationIds(resolvedData.roles?.connect).length > 0 ||
+        relationIds(resolvedData.roles?.set).length > 0;
       if (!hasRoles) {
         try {
-          const userRole = await context.db.Role.findOne({
-            where: { name: Role.USER },
+          const [userRole] = await context.sudo().query.Role.findMany({
+            where: { name: { equals: Role.USER } },
+            take: 1,
+            query: "id",
           });
-
           if (userRole) {
-            resolvedData.roles = {
-              connect: [{ id: userRole.id }],
-            };
+            resolvedData.roles = { connect: [{ id: userRole.id }] };
           }
         } catch (error) {
           console.error("Error al asignar el role 'user':", error);
         }
       }
     }
+
     return resolvedData;
   },
 };
@@ -141,7 +203,7 @@ function generateReferralSuffix(length = 5): string {
 }
 
 async function generateUniqueReferralCode(
-  context: KeystoneContext
+  context: KeystoneContext,
 ): Promise<string> {
   while (true) {
     const candidate = "K" + generateReferralSuffix(5);
@@ -178,7 +240,7 @@ export const userReferralHook = {
 
       if (!pattern.test(code)) {
         throw new Error(
-          "El código de referido debe empezar con K y tener 5 caracteres alfanuméricos más (total 6)."
+          "El código de referido debe empezar con K y tener 5 caracteres alfanuméricos más (total 6).",
         );
       }
 
@@ -199,6 +261,7 @@ export const stripeCustomerHook = {
     operation: string;
   }) => {
     if (operation !== "create") return resolvedData;
+    delete resolvedData.stripeCustomerId;
     const email = resolvedData.email as string | undefined;
     if (!email || typeof email !== "string") return resolvedData;
     if (!process.env.STRIPE_SECRET_KEY) return resolvedData;
@@ -262,7 +325,8 @@ export const userBankDetailsNotificationHook = {
 
     const userId = String(item.id);
     const userName =
-      [item.name, item.lastName].filter(Boolean).join(" ").trim() || "(sin nombre)";
+      [item.name, item.lastName].filter(Boolean).join(" ").trim() ||
+      "(sin nombre)";
     const userEmail = item.email ?? "";
 
     try {
@@ -273,7 +337,10 @@ export const userBankDetailsNotificationHook = {
         fieldsUpdated: [...fieldsUpdated],
       });
     } catch (err) {
-      console.error("Error enviando aviso de actualización de datos bancarios:", err);
+      console.error(
+        "Error enviando aviso de actualización de datos bancarios:",
+        err,
+      );
     }
   },
 };
@@ -303,7 +370,10 @@ export const userBlogSubscriptionHook = {
           });
         }
       } catch (error) {
-        console.error("Error al crear suscripción de blog para el usuario:", error);
+        console.error(
+          "Error al crear suscripción de blog para el usuario:",
+          error,
+        );
       }
     }
   },

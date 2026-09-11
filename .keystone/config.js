@@ -886,6 +886,62 @@ var ROLES = [
 var Stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 var stripe_default = Stripe;
 
+// auth/permissions.ts
+function sessionRoleNames(session2) {
+  const names = [];
+  const roles = session2?.data?.roles;
+  if (Array.isArray(roles)) {
+    for (const r of roles) {
+      if (r && typeof r.name === "string" && r.name) {
+        names.push(r.name);
+      }
+    }
+  }
+  const single = session2?.data?.role;
+  if (typeof single === "string" && single) {
+    names.push(single);
+  }
+  return names;
+}
+var hasRole = (session2, allowedRoles) => {
+  if (!session2?.data) return false;
+  const allowed = /* @__PURE__ */ new Set([...allowedRoles, "admin" /* ADMIN */]);
+  return sessionRoleNames(session2).some((name) => allowed.has(name));
+};
+
+// utils/access/tenant.ts
+function getSessionUserId(session2) {
+  return session2?.data?.id ?? null;
+}
+function getSessionCompanyId(session2) {
+  return session2?.data?.company?.id ?? null;
+}
+function isSignedIn(session2) {
+  return !!getSessionUserId(session2);
+}
+function isPlatformAdmin(session2) {
+  return hasRole(session2, ["admin" /* ADMIN */]);
+}
+function isCompanyAdmin(session2) {
+  return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
+}
+function resolveAuthorizedCompanyId(session2, requestedCompanyId) {
+  if (!isSignedIn(session2)) return null;
+  if (isPlatformAdmin(session2)) {
+    const requested = requestedCompanyId?.trim();
+    return requested || getSessionCompanyId(session2);
+  }
+  const sessionCompanyId = getSessionCompanyId(session2);
+  if (!sessionCompanyId) return null;
+  if (requestedCompanyId && requestedCompanyId !== sessionCompanyId) {
+    return null;
+  }
+  return sessionCompanyId;
+}
+function denyOtherCompanyMessage() {
+  return "No puedes acceder a datos de otra empresa";
+}
+
 // models/User/User.hooks.ts
 var USER_BANK_NOTIFICATION_FIELDS = ["bank", "clabe", "cardNumber"];
 var emailHooks = {
@@ -947,19 +1003,57 @@ async function checkUserName(name, lastName, context) {
   }
   return uniqueLink;
 }
+function relationIds(value) {
+  if (!value) return [];
+  const rows = Array.isArray(value) ? value : [value];
+  return rows.map(
+    (row) => row && typeof row === "object" && "id" in row ? String(row.id) : ""
+  ).filter(Boolean);
+}
 var userRoleHook = {
   resolveInput: async ({ resolvedData, item, operation, context }) => {
+    if (operation === "create" && !item && !isPlatformAdmin(context.session)) {
+      const sessionCompanyId = getSessionCompanyId(context.session);
+      if (sessionCompanyId && hasRole(context.session, ["admin_company" /* ADMIN_COMPANY */])) {
+        resolvedData.company = { connect: { id: sessionCompanyId } };
+      } else if (isSignedIn(context.session)) {
+        delete resolvedData.company;
+      }
+    }
+    if (isPlatformAdmin(context.session)) {
+      return resolvedData;
+    }
+    const roleInput = resolvedData.roles;
+    if (roleInput?.create) {
+      delete roleInput.create;
+    }
+    const connectIds = [
+      ...relationIds(roleInput?.connect),
+      ...relationIds(roleInput?.set)
+    ];
+    if (connectIds.length > 0) {
+      const roles = await context.sudo().query.Role.findMany({
+        where: { id: { in: connectIds } },
+        query: "id name"
+      });
+      const allowed = roles.filter((role) => role.name !== "admin" /* ADMIN */);
+      if (allowed.length !== roles.length) {
+        resolvedData.roles = {
+          connect: allowed.map((role) => ({ id: role.id }))
+        };
+      }
+    }
     if (operation === "create" && !item) {
-      const hasRoles = resolvedData.roles && (resolvedData.roles.connect && resolvedData.roles.connect.length > 0 || resolvedData.roles.set && resolvedData.roles.set.length > 0 || resolvedData.roles.create && resolvedData.roles.create.length > 0);
+      const hasRoles = relationIds(resolvedData.roles?.connect).length > 0 || relationIds(resolvedData.roles?.set).length > 0;
       if (!hasRoles) {
         try {
-          const userRole = await context.db.Role.findOne({
-            where: { name: "user" /* USER */ }
+          const [userRole] = await context.sudo().query.Role.findMany({
+            where: { name: { equals: "user" /* USER */ } },
+            take: 1,
+            query: "id"
           });
           if (userRole) {
-            resolvedData.roles = {
-              connect: [{ id: userRole.id }]
-            };
+            resolvedData.roles = { connect: [{ id: userRole.id }] };
           }
         } catch (error) {
           console.error("Error al asignar el role 'user':", error);
@@ -1020,6 +1114,7 @@ var stripeCustomerHook = {
     operation
   }) => {
     if (operation !== "create") return resolvedData;
+    delete resolvedData.stripeCustomerId;
     const email = resolvedData.email;
     if (!email || typeof email !== "string") return resolvedData;
     if (!process.env.STRIPE_SECRET_KEY) return resolvedData;
@@ -1081,7 +1176,10 @@ var userBankDetailsNotificationHook = {
         fieldsUpdated: [...fieldsUpdated]
       });
     } catch (err) {
-      console.error("Error enviando aviso de actualizaci\xF3n de datos bancarios:", err);
+      console.error(
+        "Error enviando aviso de actualizaci\xF3n de datos bancarios:",
+        err
+      );
     }
   }
 };
@@ -1109,11 +1207,93 @@ var userBlogSubscriptionHook = {
           });
         }
       } catch (error) {
-        console.error("Error al crear suscripci\xF3n de blog para el usuario:", error);
+        console.error(
+          "Error al crear suscripci\xF3n de blog para el usuario:",
+          error
+        );
       }
     }
   }
 };
+
+// models/User/User.access.ts
+function userVisibleWhere(session2) {
+  if (isPlatformAdmin(session2)) return true;
+  const userId = getSessionUserId(session2);
+  if (!userId) return false;
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    const companyId = getSessionCompanyId(session2);
+    if (!companyId) return { id: { equals: userId } };
+    return {
+      OR: [
+        { id: { equals: userId } },
+        { company: { id: { equals: companyId } } }
+      ]
+    };
+  }
+  return { id: { equals: userId } };
+}
+function isSelf(session2, item) {
+  const userId = getSessionUserId(session2);
+  return !!userId && item?.id === userId;
+}
+var userAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: () => true,
+    update: ({ session: session2 }) => isSignedIn(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => userVisibleWhere(session2),
+    update: ({ session: session2 }) => userVisibleWhere(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2) ? true : false
+  }
+};
+var userRolesFieldAccess = {
+  read: ({ session: session2 }) => isSignedIn(session2),
+  create: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2),
+  update: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2)
+};
+function companyConnectId(inputData) {
+  const connect = inputData?.company?.connect;
+  if (!connect) return null;
+  if (typeof connect.id === "string") return connect.id;
+  if (Array.isArray(connect) && typeof connect[0]?.id === "string") {
+    return connect[0].id;
+  }
+  return null;
+}
+var userCompanyFieldAccess = {
+  read: ({ session: session2 }) => isSignedIn(session2),
+  create: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2),
+  update: async ({ session: session2, item, inputData, context }) => {
+    if (isPlatformAdmin(session2)) return true;
+    if (!isSelf(session2, item)) return false;
+    const connectId = companyConnectId(inputData);
+    if (!connectId) return false;
+    if (item.companyId === connectId) return true;
+    if (item.companyId) return false;
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: connectId },
+      query: "id users { id }"
+    });
+    if (!company) return false;
+    const others = (company.users ?? []).filter((u) => u.id !== item.id);
+    return others.length === 0;
+  }
+};
+var userSecretFieldAccess = {
+  read: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item),
+  create: () => true,
+  update: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item)
+};
+var userStripeFieldAccess = {
+  read: ({ session: session2 }) => isPlatformAdmin(session2),
+  create: () => true,
+  update: () => false
+};
+var User_access_default = userAccess;
 
 // models/User/User.ts
 async function resolveInput(args) {
@@ -1129,7 +1309,7 @@ async function resolveInput(args) {
   return afterReferral;
 }
 var User_default = (0, import_core7.list)({
-  access: access_default,
+  access: User_access_default,
   hooks: {
     resolveInput,
     afterOperation: async (args) => {
@@ -1199,7 +1379,8 @@ var User_default = (0, import_core7.list)({
     phone: (0, import_fields7.text)(),
     roles: (0, import_fields7.relationship)({
       ref: "Role.users",
-      many: true
+      many: true,
+      access: userRolesFieldAccess
     }),
     referredBy: (0, import_fields7.relationship)({
       ref: "User.referrals",
@@ -1218,6 +1399,7 @@ var User_default = (0, import_core7.list)({
     company: (0, import_fields7.relationship)({
       ref: "SaasCompany.users",
       many: false,
+      access: userCompanyFieldAccess,
       ui: { description: "Company/organization this user belongs to" }
     }),
     workspaces: (0, import_fields7.relationship)({
@@ -1348,26 +1530,30 @@ var User_default = (0, import_core7.list)({
       defaultValue: 10
     }),
     bank: (0, import_fields7.text)({
+      access: userSecretFieldAccess,
       ui: { description: "Nombre del banco" }
     }),
     clabe: (0, import_fields7.text)({
       db: { isNullable: true },
+      access: userSecretFieldAccess,
       ui: {
         listView: { fieldMode: "hidden" }
       }
     }),
     cardNumber: (0, import_fields7.text)({
       db: { isNullable: true },
+      access: userSecretFieldAccess,
       ui: {
         listView: { fieldMode: "hidden" }
       }
     }),
     stripeCustomerId: (0, import_fields7.text)({
       db: { isNullable: true },
+      access: userStripeFieldAccess,
       ui: {
         createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" },
-        itemView: { fieldMode: "read" },
+        listView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
         description: "Stripe Customer ID, created automatically on user signup"
       }
     }),
@@ -1409,29 +1595,6 @@ var User_default = (0, import_core7.list)({
 // models/User/UserAuthLog/UserAuthLog.ts
 var import_core8 = require("@keystone-6/core");
 var import_fields8 = require("@keystone-6/core/fields");
-
-// auth/permissions.ts
-function sessionRoleNames(session2) {
-  const names = [];
-  const roles = session2?.data?.roles;
-  if (Array.isArray(roles)) {
-    for (const r of roles) {
-      if (r && typeof r.name === "string" && r.name) {
-        names.push(r.name);
-      }
-    }
-  }
-  const single = session2?.data?.role;
-  if (typeof single === "string" && single) {
-    names.push(single);
-  }
-  return names;
-}
-var hasRole = (session2, allowedRoles) => {
-  if (!session2?.data) return false;
-  const allowed = /* @__PURE__ */ new Set([...allowedRoles, "admin" /* ADMIN */]);
-  return sessionRoleNames(session2).some((name) => allowed.has(name));
-};
 
 // models/User/UserAuthLog/UserAuthLog.access.ts
 var userAuthLogAccess = {
@@ -2924,8 +3087,30 @@ var BlogSubscription_default = (0, import_core34.list)({
 // models/Role/Role.ts
 var import_core35 = require("@keystone-6/core");
 var import_fields35 = require("@keystone-6/core/fields");
+
+// models/Role/Role.access.ts
+var roleAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => isSignedIn(session2) ? true : false,
+    update: ({ session: session2 }) => isPlatformAdmin(session2) ? true : false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2) ? true : false
+  }
+};
+var roleUsersFieldAccess = {
+  read: ({ session: session2 }) => isPlatformAdmin(session2),
+  create: ({ session: session2 }) => isPlatformAdmin(session2),
+  update: ({ session: session2 }) => isPlatformAdmin(session2)
+};
+
+// models/Role/Role.ts
 var Role_default = (0, import_core35.list)({
-  access: access_default,
+  access: roleAccess,
   fields: {
     name: (0, import_fields35.select)({
       options: ROLES,
@@ -2933,7 +3118,8 @@ var Role_default = (0, import_core35.list)({
     }),
     users: (0, import_fields35.relationship)({
       ref: "User.roles",
-      many: true
+      many: true,
+      access: roleUsersFieldAccess
     }),
     createdAt: (0, import_fields35.timestamp)({
       defaultValue: {
@@ -3070,30 +3256,110 @@ var ContactForm_default = (0, import_core37.list)({
 var import_core38 = require("@keystone-6/core");
 var import_fields38 = require("@keystone-6/core/fields");
 
+// utils/access/leadScopedFilter.ts
+function leadInCompany(companyId) {
+  return { saasCompany: { some: { id: { equals: companyId } } } };
+}
+function leadAssignedToUser(companyId, userId) {
+  return {
+    AND: [
+      leadInCompany(companyId),
+      {
+        OR: [
+          { salesPerson: { some: { id: { equals: userId } } } },
+          {
+            status: {
+              some: {
+                saasCompany: { id: { equals: companyId } },
+                salesPerson: { id: { equals: userId } }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  };
+}
+function leadCompanyScopedWhere(session2) {
+  if (isPlatformAdmin(session2)) return true;
+  const companyId = getSessionCompanyId(session2);
+  const userId = getSessionUserId(session2);
+  if (!companyId) return false;
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    return leadInCompany(companyId);
+  }
+  if (!userId) return false;
+  return leadAssignedToUser(companyId, userId);
+}
+function statusInCompany(companyId) {
+  return {
+    OR: [
+      { saasCompany: { id: { equals: companyId } } },
+      {
+        businessLead: {
+          saasCompany: { some: { id: { equals: companyId } } }
+        }
+      }
+    ]
+  };
+}
+function statusLeadCompanyScopedWhere(session2) {
+  if (isPlatformAdmin(session2)) return true;
+  const companyId = getSessionCompanyId(session2);
+  const userId = getSessionUserId(session2);
+  if (!companyId) return false;
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+    return statusInCompany(companyId);
+  }
+  if (!userId) return false;
+  return {
+    AND: [
+      statusInCompany(companyId),
+      { salesPerson: { id: { equals: userId } } }
+    ]
+  };
+}
+
 // models/Tech/BusinessLead/TechBusinessLead.access.ts
 var businessLeadAccess = {
   operation: {
-    query: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionCompanyId(session2),
+    update: ({ session: session2 }) => isSignedIn(session2),
+    delete: ({ session: session2 }) => isSignedIn(session2)
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => leadCompanyScopedWhere(session2),
+    update: ({ session: session2 }) => leadCompanyScopedWhere(session2),
+    delete: ({ session: session2 }) => leadCompanyScopedWhere(session2)
   }
 };
 
 // models/Tech/BusinessLead/TechBusinessLead.hooks.ts
+function stripTenantFromClient(resolvedData, key) {
+  const next = { ...resolvedData };
+  delete next[key];
+  return next;
+}
 var businessLeadHooks = {
-  afterOperation: async ({
-    operation,
-    item,
+  resolveInput: async ({
     resolvedData,
     context,
-    listKey
+    operation
   }) => {
+    if (hasRole(context.session, ["admin" /* ADMIN */])) {
+      return resolvedData;
+    }
+    const companyId = getSessionCompanyId(context.session);
+    if (operation === "create" && companyId) {
+      return {
+        ...resolvedData,
+        saasCompany: { connect: [{ id: companyId }] }
+      };
+    }
+    return stripTenantFromClient(resolvedData, "saasCompany");
+  },
+  afterOperation: async () => {
   }
 };
 
@@ -3309,15 +3575,38 @@ var import_fields39 = require("@keystone-6/core/fields");
 // models/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
 var statusBusinessLeadAccess = {
   operation: {
-    query: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionCompanyId(session2),
+    update: ({ session: session2 }) => isSignedIn(session2),
+    delete: ({ session: session2 }) => isSignedIn(session2)
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => statusLeadCompanyScopedWhere(session2),
+    update: ({ session: session2 }) => statusLeadCompanyScopedWhere(session2),
+    delete: ({ session: session2 }) => statusLeadCompanyScopedWhere(session2)
+  }
+};
+
+// models/Tech/StatusBusinessLead/TechStatusBusinessLead.hooks.ts
+var statusBusinessLeadHooks = {
+  resolveInput: async ({
+    resolvedData,
+    context,
+    operation
+  }) => {
+    if (hasRole(context.session, ["admin" /* ADMIN */])) {
+      return resolvedData;
+    }
+    const companyId = getSessionCompanyId(context.session);
+    if (operation === "create" && companyId) {
+      return {
+        ...resolvedData,
+        saasCompany: { connect: { id: companyId } }
+      };
+    }
+    const next = { ...resolvedData };
+    delete next.saasCompany;
+    return next;
   }
 };
 
@@ -3332,6 +3621,7 @@ var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
 }));
 var TechStatusBusinessLead_default = (0, import_core39.list)({
   access: statusBusinessLeadAccess,
+  hooks: { resolveInput: statusBusinessLeadHooks.resolveInput },
   ui: {
     listView: {
       initialColumns: [
@@ -4063,27 +4353,29 @@ var import_core44 = require("@keystone-6/core");
 var import_fields44 = require("@keystone-6/core/fields");
 
 // models/Tech/TechFiles/TechFiles.access.ts
-var getCompanyId6 = (session2) => session2?.data?.company?.id;
 var techFilesAccess = {
   operation: {
-    query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId6(session2),
-    update: () => true,
-    delete: () => true
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionCompanyId(session2),
+    update: ({ session: session2 }) => isSignedIn(session2),
+    delete: ({ session: session2 }) => isSignedIn(session2)
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId6(session2);
+      if (isPlatformAdmin(session2)) return true;
+      const companyId = getSessionCompanyId(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId6(session2);
+      if (isPlatformAdmin(session2)) return true;
+      const companyId = getSessionCompanyId(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId6(session2);
+      if (isPlatformAdmin(session2)) return true;
+      const companyId = getSessionCompanyId(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4100,6 +4392,21 @@ var CATEGORY_OPTIONS = [
 ];
 var TechFiles_default = (0, import_core44.list)({
   access: techFilesAccess,
+  hooks: {
+    resolveInput: async ({ resolvedData, context, operation }) => {
+      if (hasRole(context.session, ["admin" /* ADMIN */])) return resolvedData;
+      const companyId = getSessionCompanyId(context.session);
+      if (operation === "create" && companyId) {
+        return {
+          ...resolvedData,
+          company: { connect: { id: companyId } }
+        };
+      }
+      const next = { ...resolvedData };
+      delete next.company;
+      return next;
+    }
+  },
   ui: {
     listView: {
       initialColumns: ["title", "category", "company", "createdAt"]
@@ -4161,7 +4468,7 @@ var import_core45 = require("@keystone-6/core");
 var import_fields45 = require("@keystone-6/core/fields");
 
 // models/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
-var getCompanyId7 = (session2) => session2?.data?.company?.id;
+var getCompanyId6 = (session2) => session2?.data?.company?.id;
 var techLeadSyncLogAccess = {
   operation: {
     query: () => true,
@@ -4174,7 +4481,7 @@ var techLeadSyncLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId7(session2);
+      const companyId = getCompanyId6(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4183,7 +4490,7 @@ var techLeadSyncLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId7(session2);
+      const companyId = getCompanyId6(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4276,33 +4583,30 @@ var import_core46 = require("@keystone-6/core");
 var import_fields46 = require("@keystone-6/core/fields");
 
 // models/Tech/AiCallLog/TechAiCallLog.access.ts
-var getCompanyId8 = (session2) => session2?.data?.company?.id;
 var techAiCallLogAccess = {
   operation: {
-    query: () => true,
+    query: ({ session: session2 }) => isSignedIn(session2),
     create: () => false,
     update: () => false,
-    delete: () => true
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
   },
   filter: {
     query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
+      if (isPlatformAdmin(session2)) {
         return true;
       }
-      const companyId = getCompanyId8(session2);
+      const companyId = getSessionCompanyId(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: () => false,
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId8(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    delete: ({ session: session2 }) => isPlatformAdmin(session2) ? true : false
   }
+};
+var aiCallLogPromptFieldAccess = {
+  read: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2),
+  create: () => false,
+  update: () => false
 };
 
 // utils/ai/constants.ts
@@ -4333,8 +4637,17 @@ var AI_FEATURE = {
   CONNECTION_TEST: "connection_test",
   DAILY_DIGEST: "daily_digest",
   MONTHLY_NARRATIVE: "monthly_narrative",
-  FILE_ANALYSIS: "file_analysis"
+  FILE_ANALYSIS: "file_analysis",
+  PROFILE_PLAYBOOK: "profile_playbook"
 };
+var AI_RATE_LIMIT = {
+  rpm: 15,
+  tpmInput: 25e4,
+  rpd: 500,
+  windowMs: 6e4,
+  dayMs: 24 * 60 * 60 * 1e3
+};
+var AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
 // models/Tech/AiCallLog/TechAiCallLog.ts
 var TechAiCallLog_default = (0, import_core46.list)({
@@ -4391,6 +4704,7 @@ var TechAiCallLog_default = (0, import_core46.list)({
     }),
     featurePrompt: (0, import_fields46.text)({
       db: { isNullable: true },
+      access: aiCallLogPromptFieldAccess,
       ui: {
         displayMode: "textarea",
         description: "Instrucci\xF3n de la feature (parte del system prompt)"
@@ -4398,6 +4712,7 @@ var TechAiCallLog_default = (0, import_core46.list)({
     }),
     systemPrompt: (0, import_fields46.text)({
       db: { isNullable: true },
+      access: aiCallLogPromptFieldAccess,
       ui: {
         displayMode: "textarea",
         description: "System prompt completo enviado al proveedor (Cerebro + feature)"
@@ -4405,6 +4720,7 @@ var TechAiCallLog_default = (0, import_core46.list)({
     }),
     userPrompt: (0, import_fields46.text)({
       db: { isNullable: true },
+      access: aiCallLogPromptFieldAccess,
       ui: {
         displayMode: "textarea",
         description: "Prompt de usuario enviado al proveedor"
@@ -4412,6 +4728,7 @@ var TechAiCallLog_default = (0, import_core46.list)({
     }),
     response: (0, import_fields46.text)({
       db: { isNullable: true },
+      access: aiCallLogPromptFieldAccess,
       ui: {
         displayMode: "textarea",
         description: "Texto que devolvi\xF3 la IA"
@@ -4466,7 +4783,7 @@ var import_core47 = require("@keystone-6/core");
 var import_fields47 = require("@keystone-6/core/fields");
 
 // models/Tech/AiInsight/TechAiInsight.access.ts
-var getCompanyId9 = (session2) => session2?.data?.company?.id;
+var getCompanyId7 = (session2) => session2?.data?.company?.id;
 var techAiInsightAccess = {
   operation: {
     query: () => true,
@@ -4479,7 +4796,7 @@ var techAiInsightAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId9(session2);
+      const companyId = getCompanyId7(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -4488,7 +4805,7 @@ var techAiInsightAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId9(session2);
+      const companyId = getCompanyId7(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -4499,12 +4816,14 @@ var techAiInsightAccess = {
 var AI_INSIGHT_KIND = {
   DAILY_DIGEST: "daily_digest",
   MONTHLY_NARRATIVE: "monthly_narrative",
-  FILE_ANALYSIS: "file_analysis"
+  FILE_ANALYSIS: "file_analysis",
+  PROFILE_PLAYBOOK: "profile_playbook"
 };
 var AI_INSIGHT_KIND_OPTIONS = [
   { label: "Digest diario", value: AI_INSIGHT_KIND.DAILY_DIGEST },
   { label: "Narrativa mensual", value: AI_INSIGHT_KIND.MONTHLY_NARRATIVE },
-  { label: "An\xE1lisis de archivo", value: AI_INSIGHT_KIND.FILE_ANALYSIS }
+  { label: "An\xE1lisis de archivo", value: AI_INSIGHT_KIND.FILE_ANALYSIS },
+  { label: "Playbook de perfil", value: AI_INSIGHT_KIND.PROFILE_PLAYBOOK }
 ];
 
 // models/Tech/AiInsight/TechAiInsight.ts
@@ -4574,12 +4893,11 @@ var import_core48 = require("@keystone-6/core");
 var import_fields48 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
-var getCompanyId10 = (session2) => session2?.data?.company?.id;
 var saasCompanyAccess = {
   operation: {
-    query: () => true,
-    create: ({ session: session2 }) => true,
-    update: () => true,
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: ({ session: session2 }) => isSignedIn(session2),
+    update: ({ session: session2 }) => isSignedIn(session2),
     delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
@@ -4587,7 +4905,7 @@ var saasCompanyAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId10(session2);
+      const companyId = getSessionCompanyId(session2);
       if (!companyId) return false;
       return { id: { equals: companyId } };
     },
@@ -4595,7 +4913,7 @@ var saasCompanyAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId10(session2);
+      const companyId = getSessionCompanyId(session2);
       if (!companyId) return false;
       return { id: { equals: companyId } };
     },
@@ -4606,6 +4924,15 @@ var saasCompanyAccess = {
       return false;
     }
   }
+};
+var aiApiKeyPreviewFieldAccess = {
+  read: ({ session: session2, item }) => {
+    if (isPlatformAdmin(session2)) return true;
+    if (!isCompanyAdmin(session2)) return false;
+    return getSessionCompanyId(session2) === item?.id;
+  },
+  create: () => false,
+  update: () => false
 };
 
 // models/Saas/SaasCompanySubscription/constants.ts
@@ -4624,6 +4951,14 @@ var SUBSCRIPTION_STATUS_OPTIONS = [
   { label: "En prueba", value: SUBSCRIPTION_STATUS.TRIALING }
 ];
 
+// utils/access/attachUserToCompany.ts
+async function attachUserToCompany(context, userId, companyId) {
+  await context.sudo().prisma.user.update({
+    where: { id: userId },
+    data: { company: { connect: { id: companyId } } }
+  });
+}
+
 // models/Saas/SaasCompany/SaasCompany.hooks.ts
 var saasCompanySubscriptionHook = {
   afterOperation: async ({ operation, item, context }) => {
@@ -4632,21 +4967,30 @@ var saasCompanySubscriptionHook = {
       const session2 = context.session;
       const createdByUserId = session2?.data?.id;
       if (createdByUserId) {
+        const user = await context.sudo().query.User.findOne({
+          where: { id: createdByUserId },
+          query: "id company { id } roles { id }"
+        });
+        if (user && !user.company?.id) {
+          await attachUserToCompany(context, createdByUserId, item.id);
+        }
         const [adminCompanyRole] = await context.sudo().query.Role.findMany({
           where: { name: { equals: "admin_company" /* ADMIN_COMPANY */ } },
           take: 1,
           query: "id"
         });
         if (adminCompanyRole) {
-          const user = await context.sudo().query.User.findOne({
-            where: { id: createdByUserId },
-            query: "id roles { id }"
-          });
-          const alreadyHasRole = user?.roles?.some((r) => r.id === adminCompanyRole.id);
+          const alreadyHasRole = user?.roles?.some(
+            (r) => r.id === adminCompanyRole.id
+          );
           if (!alreadyHasRole) {
             await context.sudo().query.User.updateOne({
               where: { id: createdByUserId },
-              data: { roles: { connect: { id: adminCompanyRole.id } } }
+              data: {
+                roles: {
+                  connect: { id: adminCompanyRole.id }
+                }
+              }
             });
           }
         }
@@ -4673,7 +5017,9 @@ var saasCompanySubscriptionHook = {
       }
       const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
       const trialDaysFromNow = /* @__PURE__ */ new Date();
-      trialDaysFromNow.setDate(trialDaysFromNow.getDate() + TRIAL_DAYS_FREE_PLAN);
+      trialDaysFromNow.setDate(
+        trialDaysFromNow.getDate() + TRIAL_DAYS_FREE_PLAN
+      );
       const periodEnd = trialDaysFromNow.toISOString().slice(0, 10);
       await context.sudo().query.SaasCompanySubscription.createOne({
         data: {
@@ -4901,10 +5247,7 @@ var SaasCompany_default = (0, import_core48.list)({
     }),
     aiApiKeyPreview: (0, import_fields48.text)({
       db: { isNullable: true },
-      access: {
-        create: () => false,
-        update: () => false
-      },
+      access: aiApiKeyPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)"
       }
@@ -5250,11 +5593,11 @@ var import_core51 = require("@keystone-6/core");
 var import_fields51 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
-var getCompanyId11 = (session2) => session2?.data?.company?.id;
+var getCompanyId8 = (session2) => session2?.data?.company?.id;
 var saasCompanyMonthlyLeadSyncAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId11(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId8(session2),
     update: () => true,
     delete: () => true
   },
@@ -5263,7 +5606,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId11(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -5271,7 +5614,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId11(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -5279,7 +5622,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId11(session2);
+      const companyId = getCompanyId8(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -5330,30 +5673,30 @@ var import_core52 = require("@keystone-6/core");
 var import_fields52 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
-var getCompanyId12 = (session2) => session2?.data?.company?.id;
+var getCompanyId9 = (session2) => session2?.data?.company?.id;
 var companyCreditPeriodAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId12(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId9(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
       if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId12(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
       if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId12(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
       if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId12(session2);
+      const companyId = getCompanyId9(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -5445,30 +5788,30 @@ var import_core53 = require("@keystone-6/core");
 var import_fields53 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
-var getCompanyId13 = (session2) => session2?.data?.company?.id;
+var getCompanyId10 = (session2) => session2?.data?.company?.id;
 var companyCreditLedgerAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId13(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId10(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
       if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId13(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
       if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId13(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
       if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId13(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -5565,11 +5908,11 @@ var import_core54 = require("@keystone-6/core");
 var import_fields54 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
-var getCompanyId14 = (session2) => session2?.data?.company?.id;
+var getCompanyId11 = (session2) => session2?.data?.company?.id;
 var saasCompanySubscriptionAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId14(session2),
+    create: ({ session: session2 }) => !!getCompanyId11(session2),
     update: () => true,
     delete: () => true
   },
@@ -5578,7 +5921,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId14(session2);
+      const companyId = getCompanyId11(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -5586,7 +5929,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId14(session2);
+      const companyId = getCompanyId11(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -5594,7 +5937,7 @@ var saasCompanySubscriptionAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId14(session2);
+      const companyId = getCompanyId11(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -5730,24 +6073,18 @@ var import_core55 = require("@keystone-6/core");
 var import_fields55 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
-var getCompanyId15 = (session2) => session2?.data?.company?.id;
-var getUserId2 = (session2) => session2?.data?.id;
 function paymentMethodFilter(session2) {
-  if (hasRole(session2, ["admin" /* ADMIN */])) {
+  if (isPlatformAdmin(session2)) {
     return true;
   }
-  const userId = getUserId2(session2);
+  const userId = getSessionUserId(session2);
   if (!userId) return false;
-  const companyId = getCompanyId15(session2);
-  if (companyId) {
-    return { user: { company: { id: { equals: companyId } } } };
-  }
   return { user: { id: { equals: userId } } };
 }
 var saasPaymentMethodAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId2(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionUserId(session2),
     update: () => true,
     delete: () => true
   },
@@ -5840,24 +6177,18 @@ var import_core56 = require("@keystone-6/core");
 var import_fields56 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
-var getCompanyId16 = (session2) => session2?.data?.company?.id;
-var getUserId3 = (session2) => session2?.data?.id;
 function paymentFilter(session2) {
-  if (hasRole(session2, ["admin" /* ADMIN */])) {
+  if (isPlatformAdmin(session2)) {
     return true;
   }
-  const userId = getUserId3(session2);
+  const userId = getSessionUserId(session2);
   if (!userId) return false;
-  const companyId = getCompanyId16(session2);
-  if (companyId) {
-    return { user: { company: { id: { equals: companyId } } } };
-  }
   return { user: { id: { equals: userId } } };
 }
 var saasPaymentAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getUserId3(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionUserId(session2),
     update: () => true,
     delete: () => true
   },
@@ -5966,27 +6297,27 @@ var import_core57 = require("@keystone-6/core");
 var import_fields57 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
-var getCompanyId17 = (session2) => session2?.data?.company?.id;
+var getCompanyId12 = (session2) => session2?.data?.company?.id;
 var projectAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId17(session2),
+    create: ({ session: session2 }) => !!getCompanyId12(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId17(session2);
+      const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId17(session2);
+      const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId17(session2);
+      const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -6107,27 +6438,27 @@ var import_core58 = require("@keystone-6/core");
 var import_fields58 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
-var getCompanyId18 = (session2) => session2?.data?.company?.id;
+var getCompanyId13 = (session2) => session2?.data?.company?.id;
 var quotationAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId18(session2),
+    create: ({ session: session2 }) => !!getCompanyId13(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId18(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId18(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId18(session2);
+      const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -6374,27 +6705,27 @@ var import_core59 = require("@keystone-6/core");
 var import_fields59 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
-var getCompanyId19 = (session2) => session2?.data?.company?.id;
+var getCompanyId14 = (session2) => session2?.data?.company?.id;
 var quotationProductAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId19(session2),
+    create: ({ session: session2 }) => !!getCompanyId14(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId19(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId19(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId19(session2);
+      const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     }
@@ -6636,15 +6967,15 @@ var import_core60 = require("@keystone-6/core");
 var import_fields60 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
-var getCompanyId20 = (session2) => session2?.data?.company?.id;
-var getUserId4 = (session2) => session2?.data?.id;
+var getCompanyId15 = (session2) => session2?.data?.company?.id;
+var getUserId2 = (session2) => session2?.data?.id;
 function referralCommissionFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const userId = getUserId4(session2);
+  const userId = getUserId2(session2);
   if (!userId) return false;
-  const companyId = getCompanyId20(session2);
+  const companyId = getCompanyId15(session2);
   const orClause = [
     { referrer: { id: { equals: userId } } },
     { referredUser: { id: { equals: userId } } }
@@ -6782,7 +7113,7 @@ var import_core61 = require("@keystone-6/core");
 var import_fields61 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
-var getCompanyId21 = (session2) => session2?.data?.company?.id;
+var getCompanyId16 = (session2) => session2?.data?.company?.id;
 var saasSubscriptionLogAccess = {
   operation: {
     query: () => true,
@@ -6795,7 +7126,7 @@ var saasSubscriptionLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId21(session2);
+      const companyId = getCompanyId16(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -6804,7 +7135,7 @@ var saasSubscriptionLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId21(session2);
+      const companyId = getCompanyId16(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -6903,25 +7234,25 @@ var import_core62 = require("@keystone-6/core");
 var import_fields62 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
-var getCompanyId22 = (session2) => session2?.data?.company?.id;
-var getUserId5 = (session2) => session2?.data?.id;
+var getCompanyId17 = (session2) => session2?.data?.company?.id;
+var getUserId3 = (session2) => session2?.data?.id;
 function workspaceFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const companyId = getCompanyId22(session2);
+  const companyId = getCompanyId17(session2);
   if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
     if (!companyId) return false;
     return { company: { id: { equals: companyId } } };
   }
-  const userId = getUserId5(session2);
+  const userId = getUserId3(session2);
   if (!userId) return false;
   return { members: { some: { id: { equals: userId } } } };
 }
 var saasWorkspaceAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId22(session2),
+    create: ({ session: session2 }) => !!getCompanyId17(session2),
     update: () => true,
     delete: () => true
   },
@@ -7066,8 +7397,8 @@ var import_core63 = require("@keystone-6/core");
 var import_fields63 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
-var getCompanyId23 = (session2) => session2?.data?.company?.id;
-var getUserId6 = (session2) => session2?.data?.id;
+var getCompanyId18 = (session2) => session2?.data?.company?.id;
+var getUserId4 = (session2) => session2?.data?.id;
 var companyWorkspaceFilter = (companyId) => ({
   workspace: { company: { id: { equals: companyId } } }
 });
@@ -7078,19 +7409,19 @@ function workspaceCrmStatusFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const companyId = getCompanyId23(session2);
+  const companyId = getCompanyId18(session2);
   if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
     if (!companyId) return false;
     return companyWorkspaceFilter(companyId);
   }
-  const userId = getUserId6(session2);
+  const userId = getUserId4(session2);
   if (!userId) return false;
   return memberWorkspaceFilter(userId);
 }
 var saasWorkspaceCrmStatusAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId23(session2),
+    create: ({ session: session2 }) => !!getCompanyId18(session2),
     update: () => true,
     delete: () => true
   },
@@ -7462,18 +7793,13 @@ var { withAuth } = (0, import_auth.createAuth)({
   //   you can find out more at https://keystonejs.com/docs/guides/auth-and-access-control
   sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } createdAt company { id }",
   secretField: "password",
-  // WARNING: remove initFirstItem functionality in production
-  //   see https://keystonejs.com/docs/config/auth#init-first-item for more
-  initFirstItem: {
-    // if there are no items in the database, by configuring this field
-    //   you are asking the Keystone AdminUI to create a new user
-    //   providing inputs for these fields
-    fields: ["name", "lastName", "username", "email", "password", "roles"]
-    // it uses context.sudo() to do this, which bypasses any access control you might have
-    //   you shouldn't use this in production
-  }
+  ...process.env.NODE_ENV !== "production" ? {
+    initFirstItem: {
+      fields: ["name", "lastName", "username", "email", "password", "roles"]
+    }
+  } : {}
 });
-var sessionMaxAge = 60 * 60 * 24 * 365 * 100;
+var sessionMaxAge = 60 * 60 * 24 * 30;
 var session = (0, import_session.statelessSessions)({
   maxAge: sessionMaxAge,
   secret: sessionSecret
@@ -7779,17 +8105,33 @@ var resolver2 = {
 var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
 
 // graphql/customs/mutations/auth/registerUser.ts
+var SIGNUP_ROLE_NAMES = ["vendedor" /* VENDEDOR */, "admin_company" /* ADMIN_COMPANY */];
+async function findSignupRoleIds(context) {
+  const roles = await context.sudo().query.Role.findMany({
+    where: { name: { in: [...SIGNUP_ROLE_NAMES] } },
+    query: "id name"
+  });
+  return SIGNUP_ROLE_NAMES.map(
+    (name) => roles.find((role) => role.name === name)?.id
+  ).filter((id) => Boolean(id));
+}
 var typeDefs3 = ``;
 var definition3 = `
-  registerUser(data: UserCreateInput!, referrerCode: String): User
+  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
 `;
 var resolver3 = {
   registerUser: async (_root, {
     data,
-    referrerCode
+    referrerCode,
+    companyName
   }, context) => {
     const startedAt = Date.now();
     const emailStr = String(data?.email ?? "").trim();
+    const {
+      company: _ignoredCompany,
+      roles: _ignoredRoles,
+      ...safeUserData
+    } = data;
     let referredByConnect;
     if (referrerCode) {
       const referrer = await context.sudo().query.User.findOne({
@@ -7809,20 +8151,55 @@ var resolver3 = {
             referrerCode: referrerCode.toUpperCase()
           }
         });
-        throw new Error(
-          "El c\xF3digo de referido no pertenece a ning\xFAn usuario."
-        );
+        throw new Error("El c\xF3digo de referido no pertenece a ning\xFAn usuario.");
       }
       referredByConnect = { connect: { id: referrer.id } };
     }
     try {
+      const trimmedCompanyName = companyName?.trim() ?? "";
+      let companyId;
+      if (trimmedCompanyName) {
+        const company = await context.sudo().query.SaasCompany.createOne({
+          data: { name: trimmedCompanyName },
+          query: "id"
+        });
+        companyId = company.id;
+      }
+      const signupRoleIds = await findSignupRoleIds(context);
+      if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
+        throw new Error(
+          "No se pudieron asignar los roles de empresa. Contacta a soporte."
+        );
+      }
       const user = await context.sudo().query.User.createOne({
         data: {
-          ...data,
-          referredBy: referredByConnect
+          ...safeUserData,
+          referredBy: referredByConnect,
+          roles: { connect: signupRoleIds.map((id) => ({ id })) }
         },
         query: "id name lastName secondLastName email phone username referralCode referredBy { id }"
       });
+      if (companyId) {
+        await attachUserToCompany(
+          context,
+          user.id,
+          companyId
+        );
+        const workspaces = await context.sudo().query.SaasWorkspace.findMany({
+          where: { company: { id: { equals: companyId } } },
+          take: 1,
+          query: "id"
+        });
+        const workspaceId = workspaces[0]?.id;
+        if (workspaceId) {
+          await context.sudo().query.SaasWorkspace.updateOne({
+            where: { id: workspaceId },
+            data: {
+              members: { connect: [{ id: user.id }] }
+            }
+          });
+        }
+      }
       await writeUserAuthLog(context, {
         startedAt,
         source: USER_AUTH_LOG_SOURCE.REGISTER_USER,
@@ -7833,6 +8210,7 @@ var resolver3 = {
         userId: user.id,
         responseSnapshot: {
           userId: user.id,
+          companyId: companyId ?? null,
           referrerCode: referrerCode ? String(referrerCode).toUpperCase() : null
         }
       });
@@ -7897,10 +8275,45 @@ function parseAddressComponents(components) {
   }
   return { city, state, country };
 }
+async function ensureStatusForImport(context, leadId, companyId, sellerId) {
+  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
+    where: {
+      businessLead: { id: { equals: leadId } },
+      saasCompany: { id: { equals: companyId } }
+    },
+    take: 1,
+    query: "id"
+  });
+  if (existing) return;
+  await context.sudo().query.TechStatusBusinessLead.createOne({
+    data: {
+      businessLead: { connect: { id: leadId } },
+      saasCompany: { connect: { id: companyId } },
+      ...sellerId ? { salesPerson: { connect: { id: sellerId } } } : {},
+      pipelineStatus: PIPELINE_STATUS.DETECTADO,
+      opportunityLevel: "Media"
+    }
+  });
+}
 var resolver4 = {
   importBusinessLeadFromGoogle: async (_root, {
     input
   }, context) => {
+    if (!isSignedIn(context.session)) {
+      return {
+        success: false,
+        message: "Debes iniciar sesi\xF3n para importar un lead",
+        businessLeadId: null
+      };
+    }
+    const companyId = resolveAuthorizedCompanyId(context.session);
+    if (!companyId) {
+      return {
+        success: false,
+        message: denyOtherCompanyMessage(),
+        businessLeadId: null
+      };
+    }
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       return {
@@ -7909,18 +8322,47 @@ var resolver4 = {
         businessLeadId: null
       };
     }
+    const userId = getSessionUserId(context.session);
+    let sellerId = input.assignedSellerId ?? userId;
+    if (input.assignedSellerId) {
+      const seller = await context.sudo().query.User.findOne({
+        where: { id: input.assignedSellerId },
+        query: "id company { id }"
+      });
+      if (!seller || seller.company?.id !== companyId) {
+        return {
+          success: false,
+          message: "El vendedor no pertenece a tu empresa",
+          businessLeadId: null
+        };
+      }
+      sellerId = seller.id;
+    } else {
+      const verifiedSellerIds = await getVerifiedSalesPersonIds(
+        context,
+        companyId
+      );
+      sellerId = verifiedSellerIds[0] ?? userId;
+    }
     const existing = await context.sudo().query.TechBusinessLead.findOne({
       where: { googlePlaceId: input.placeId },
-      query: "id"
+      query: "id saasCompany { id }"
     });
     if (existing) {
+      await context.sudo().query.TechBusinessLead.updateOne({
+        where: { id: existing.id },
+        data: {
+          saasCompany: { connect: [{ id: companyId }] },
+          ...sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}
+        }
+      });
+      await ensureStatusForImport(context, existing.id, companyId, sellerId);
       return {
-        success: false,
-        message: "Este negocio ya fue importado como lead",
+        success: true,
+        message: "Lead asignado a tu empresa",
         businessLeadId: existing.id
       };
     }
-    const verifiedSellerIds = await getVerifiedSalesPersonIds(context);
     const place = await getPlaceDetails(input.placeId, apiKey);
     if (!place) {
       return {
@@ -7950,26 +8392,17 @@ var resolver4 = {
       googlePlaceId: input.placeId,
       googleMapsUrl: `https://www.google.com/maps/place/?q=place_id:${input.placeId}`,
       lat: place.geometry?.location?.lat ?? null,
-      lng: place.geometry?.location?.lng ?? null
+      lng: place.geometry?.location?.lng ?? null,
+      saasCompany: { connect: [{ id: companyId }] }
     };
-    const sellerId = input.assignedSellerId ? input.assignedSellerId : verifiedSellerIds.length > 0 ? verifiedSellerIds[Math.floor(0 % verifiedSellerIds.length)] : null;
     if (sellerId) {
-      data.salesPerson = { connect: { id: sellerId } };
-    }
-    if (input.assignedSellerId) {
-      data.salesPerson = { connect: { id: input.assignedSellerId } };
+      data.salesPerson = { connect: [{ id: sellerId }] };
     }
     try {
       const lead = await context.sudo().query.TechBusinessLead.createOne({
         data
       });
-      await context.sudo().query.TechStatusBusinessLead.createOne({
-        data: {
-          businessLead: { connect: { id: lead.id } },
-          pipelineStatus: PIPELINE_STATUS.DETECTADO,
-          opportunityLevel: "Media"
-        }
-      });
+      await ensureStatusForImport(context, lead.id, companyId, sellerId);
       return {
         success: true,
         message: "Lead importado correctamente",
@@ -7984,11 +8417,12 @@ var resolver4 = {
     }
   }
 };
-async function getVerifiedSalesPersonIds(context) {
+async function getVerifiedSalesPersonIds(context, companyId) {
   const users = await context.sudo().query.User.findMany({
     where: {
       salesPersonVerified: { equals: true },
-      roles: { some: { name: { equals: "vendedor" /* VENDEDOR */ } } }
+      roles: { some: { name: { equals: "vendedor" /* VENDEDOR */ } } },
+      company: { id: { equals: companyId } }
     },
     query: "id"
   });
@@ -10218,16 +10652,11 @@ var resolver10 = {
         month: (/* @__PURE__ */ new Date()).getMonth() + 1
       };
     }
-    const user = await context.sudo().query.User.findOne({
-      where: { id: userId },
-      query: "id company { id name }"
-    });
-    const userCompany = user?.company;
-    const companyIdToUse = companyId ?? userCompany?.id;
+    const companyIdToUse = resolveAuthorizedCompanyId(session2, companyId);
     if (!companyIdToUse) {
       return {
         success: false,
-        message: "No se encontr\xF3 un negocio asignado.",
+        message: companyId ? denyOtherCompanyMessage() : "No se encontr\xF3 un negocio asignado.",
         remainingQuota: 0,
         syncedCount: 0,
         leadLimit: null,
@@ -10848,6 +11277,15 @@ var AiPlatformNotConfiguredError = class extends Error {
     this.name = "AiPlatformNotConfiguredError";
   }
 };
+var AiRateLimitError = class extends Error {
+  code = "AI_RATE_LIMIT";
+  retryAfterSec;
+  constructor(message, retryAfterSec = 60) {
+    super(message);
+    this.name = "AiRateLimitError";
+    this.retryAfterSec = retryAfterSec;
+  }
+};
 
 // utils/ai/promptSafety.ts
 var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
@@ -11083,6 +11521,118 @@ async function persistAiCallLog(params) {
   }
 }
 
+// utils/ai/rateLimit.ts
+function notRateLimitedWhere() {
+  return {
+    OR: [
+      { errorMessage: { equals: null } },
+      { errorMessage: { not: { startsWith: AI_RATE_LIMIT_ERROR_PREFIX } } }
+    ]
+  };
+}
+async function aggregateUsage(context, where) {
+  const row = await context.sudo().prisma.techAiCallLog.aggregate({
+    where,
+    _count: { _all: true },
+    _sum: { inputTokens: true }
+  });
+  return {
+    count: row._count._all,
+    inputTokens: row._sum.inputTokens ?? 0
+  };
+}
+function retryAfterFromOldest(oldestCreatedAt, windowMs) {
+  if (!oldestCreatedAt) return Math.ceil(windowMs / 1e3);
+  const elapsed = Date.now() - oldestCreatedAt.getTime();
+  return Math.max(1, Math.ceil((windowMs - elapsed) / 1e3));
+}
+async function oldestInWindow(context, where) {
+  const rows = await context.sudo().prisma.techAiCallLog.findMany({
+    where,
+    orderBy: { createdAt: "asc" },
+    take: 1,
+    select: { createdAt: true }
+  });
+  return rows[0]?.createdAt ?? null;
+}
+function checkAgainstLimits(params) {
+  const { label, minute, dayCount, upcomingInputTokens, retryAfterSec } = params;
+  const wait = `Espera ${retryAfterSec} s y vuelve a intentar.`;
+  if (minute.count >= AI_RATE_LIMIT.rpm) {
+    throw new AiRateLimitError(
+      `Llegaste al m\xE1ximo de ${AI_RATE_LIMIT.rpm} solicitudes por minuto (${label}). ${wait}`,
+      retryAfterSec
+    );
+  }
+  if (minute.inputTokens + upcomingInputTokens > AI_RATE_LIMIT.tpmInput) {
+    throw new AiRateLimitError(
+      `Esta llamada supera el cupo de ${AI_RATE_LIMIT.tpmInput.toLocaleString("es-MX")} tokens de entrada por minuto (${label}). ${wait}`,
+      retryAfterSec
+    );
+  }
+  if (dayCount >= AI_RATE_LIMIT.rpd) {
+    throw new AiRateLimitError(
+      `Llegaste al m\xE1ximo de ${AI_RATE_LIMIT.rpd} solicitudes de IA por d\xEDa (${label}). Prueba ma\xF1ana o usa tu propia API key.`,
+      retryAfterSec
+    );
+  }
+}
+async function assertAiRateLimit(params) {
+  if (params.billingMode !== AI_BILLING_MODE.MANAGED) {
+    return;
+  }
+  const now = Date.now();
+  const minuteAgo = new Date(now - AI_RATE_LIMIT.windowMs);
+  const dayAgo = new Date(now - AI_RATE_LIMIT.dayMs);
+  const upcoming = Math.max(0, params.upcomingInputTokens);
+  const managed = { billingMode: AI_BILLING_MODE.MANAGED };
+  const scopes = [
+    {
+      label: "tu empresa",
+      where: { ...managed, companyId: params.companyId }
+    },
+    {
+      label: "IA administrada de Kadesh",
+      where: managed
+    }
+  ];
+  if (params.userId) {
+    scopes.unshift({
+      label: "tu usuario",
+      where: { ...managed, userId: params.userId }
+    });
+  }
+  for (const scope of scopes) {
+    const minuteWhere = {
+      AND: [
+        scope.where,
+        { createdAt: { gte: minuteAgo } },
+        notRateLimitedWhere()
+      ]
+    };
+    const dayWhere = {
+      AND: [
+        scope.where,
+        { createdAt: { gte: dayAgo } },
+        notRateLimitedWhere()
+      ]
+    };
+    const [minute, day] = await Promise.all([
+      aggregateUsage(params.context, minuteWhere),
+      aggregateUsage(params.context, dayWhere)
+    ]);
+    const oldest = await oldestInWindow(params.context, minuteWhere);
+    const retryAfterSec = retryAfterFromOldest(oldest, AI_RATE_LIMIT.windowMs);
+    checkAgainstLimits({
+      label: scope.label,
+      minute,
+      dayCount: day.count,
+      upcomingInputTokens: upcoming,
+      retryAfterSec
+    });
+  }
+}
+
 // utils/ai/index.ts
 var PROVIDERS = {
   anthropic: anthropicAdapter,
@@ -11206,6 +11756,13 @@ async function callCompanyAi(params) {
     }
     const adapter = getAiProviderAdapter(provider);
     model = modelOverride || company.aiModel?.trim() || adapter.defaultModel;
+    await assertAiRateLimit({
+      context: params.context,
+      companyId: params.companyId,
+      userId,
+      billingMode,
+      upcomingInputTokens: estimateTokensFromText(systemPrompt) + estimateTokensFromText(userPrompt)
+    });
     const completion = await adapter.complete({
       apiKey,
       model,
@@ -11266,7 +11823,7 @@ async function callCompanyAi(params) {
       systemPrompt,
       billed: shouldBill,
       success: false,
-      errorMessage: err instanceof Error ? err.message : "Error desconocido al llamar a la IA",
+      errorMessage: err instanceof AiRateLimitError ? `${AI_RATE_LIMIT_ERROR_PREFIX}: ${err.message}` : err instanceof Error ? err.message : "Error desconocido al llamar a la IA",
       durationMs: Date.now() - startedAt
     });
     throw err;
@@ -11274,18 +11831,15 @@ async function callCompanyAi(params) {
 }
 
 // graphql/customs/mutations/ai/access.ts
-function getSessionCompanyId(session2) {
-  return session2?.data?.company?.id ?? null;
-}
 function canManageCompanyAi(session2, companyId) {
-  if (!session2?.data) return false;
-  if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
   if (!hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) return false;
   return getSessionCompanyId(session2) === companyId;
 }
 function canUseCompanyAi(session2, companyId) {
-  if (!session2?.data) return false;
-  if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
   return getSessionCompanyId(session2) === companyId;
 }
 function denyCompanyAiAccessMessage(session2) {
@@ -11348,7 +11902,7 @@ function toResult(success, message, company) {
   };
 }
 function friendlyAiError(err) {
-  if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError) {
+  if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError || err instanceof AiRateLimitError) {
     return err.message;
   }
   if (err instanceof AiProviderError) {
@@ -11436,7 +11990,7 @@ var resolver13 = {
       };
     }
     try {
-      const result = await callCompanyAi({
+      await callCompanyAi({
         context,
         companyId,
         featurePrompt: "Responde solo con la palabra PONG. No agregues puntuaci\xF3n ni explicaci\xF3n.",
@@ -11447,7 +12001,7 @@ var resolver13 = {
       });
       return {
         success: true,
-        message: `Conexi\xF3n OK con ${result.provider} (${result.model}).`
+        message: "Conexi\xF3n OK con Kadesh AI"
       };
     } catch (err) {
       return {
@@ -11744,6 +12298,87 @@ async function gatherDailyDigestSnapshot(context, params) {
   };
 }
 
+// utils/ai/playbook.ts
+var PLAYBOOK_REFERENCE_KEY = "playbook";
+var INSIGHT_QUERY2 = "id referenceKey content structuredData generatedAt salesPerson { id }";
+var PROFILE_PLAYBOOK_FEATURE_PROMPT = `Vas a proponer exactamente 4 recomendaciones de venta para ESTA empresa, no un resumen del pipeline.
+Responde SOLO con JSON v\xE1lido, sin markdown, con esta forma:
+{"actions":[{"title":"...","detail":"..."}]}
+Cada title m\xE1ximo 80 caracteres. Cada detail 1 o 2 frases concretas, ancladas a lo que venden, a qui\xE9n se lo venden y c\xF3mo consiguen clientes.
+Prioriza: 1) c\xF3mo hablarle al cliente ideal, 2) d\xF3nde prospectar en su industria, 3) c\xF3mo calificar por ticket, 4) c\xF3mo atajar el dolor de adquisici\xF3n que ya describieron.
+No inventes datos que no est\xE9n en el contexto. Si falta informaci\xF3n de perfil, una de las recomendaciones debe pedir completar ese hueco.
+Tono de consultor comercial claro y accionable.`;
+function playbookUserPrompt(company) {
+  const categories = Array.isArray(company.allowedGooglePlaceCategories) ? company.allowedGooglePlaceCategories.filter(
+    (item) => typeof item === "string" && item.trim().length > 0
+  ) : [];
+  const line = (label, value) => `- ${label}: ${value?.trim() || "(sin definir)"}`;
+  return [
+    "Construye recomendaciones con este perfil de negocio:",
+    line("Empresa", company.name),
+    line("Qu\xE9 vende", company.onboardingMainOffer),
+    line("Cliente ideal", company.onboardingIdealCustomer),
+    line("Ticket / valor", company.onboardingAvgTicketValue),
+    line("C\xF3mo consigue clientes / dolor", company.onboardingSalesPain),
+    categories.length ? `- Nichos de extracci\xF3n: ${categories.join(", ")}` : "- Nichos de extracci\xF3n: (sin definir)"
+  ].join("\n");
+}
+function fallbackPlaybookActions(prompt) {
+  const missing = prompt.includes("(sin definir)");
+  return [
+    {
+      title: "Aclara a qui\xE9n le vendes",
+      detail: "Define el cliente ideal en el perfil para que la IA priorice leads que s\xED cierran, no solo los que aparecen en el mapa."
+    },
+    {
+      title: "Prospecta en tu industria, no en general",
+      detail: "Usa categor\xEDas de extracci\xF3n alineadas a lo que vendes. Un nicho estrecho rinde m\xE1s llamadas que un radio amplio."
+    },
+    {
+      title: "Califica por ticket desde el primer contacto",
+      detail: "Si ya tienes un ticket o valor, \xFAsalo para filtrar. No gastes seguimiento en quien no puede pagar tu oferta."
+    },
+    {
+      title: missing ? "Completa el contexto de tu negocio" : "Convierte tu dolor de adquisici\xF3n en un proceso",
+      detail: missing ? "Oferta, cliente ideal, ticket y c\xF3mo consigues clientes alimentan cada recomendaci\xF3n. Sin eso, la IA improvisa." : "Documenta el siguiente paso repetible (WhatsApp, llamada, demo) para no depender de la inspiraci\xF3n de cada vendedor."
+    }
+  ];
+}
+async function findProfilePlaybook(context, companyId) {
+  const rows = await context.sudo().query.TechAiInsight.findMany({
+    where: {
+      company: { id: { equals: companyId } },
+      kind: { equals: AI_INSIGHT_KIND.PROFILE_PLAYBOOK },
+      referenceKey: { equals: PLAYBOOK_REFERENCE_KEY }
+    },
+    take: 5,
+    orderBy: [{ generatedAt: "desc" }],
+    query: INSIGHT_QUERY2
+  });
+  return rows.find((row) => !row.salesPerson) ?? null;
+}
+async function saveProfilePlaybook(context, params) {
+  const data = {
+    kind: AI_INSIGHT_KIND.PROFILE_PLAYBOOK,
+    referenceKey: PLAYBOOK_REFERENCE_KEY,
+    content: formatActionsAsContent(params.actions),
+    structuredData: { actions: params.actions },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    company: { connect: { id: params.companyId } }
+  };
+  if (params.existingId) {
+    return await context.sudo().query.TechAiInsight.updateOne({
+      where: { id: params.existingId },
+      data,
+      query: INSIGHT_QUERY2
+    });
+  }
+  return await context.sudo().query.TechAiInsight.createOne({
+    data,
+    query: INSIGHT_QUERY2
+  });
+}
+
 // graphql/customs/ai/dailyDigest.ts
 var typeDefs14 = `
   type DailyDigestAction {
@@ -11769,17 +12404,21 @@ var typeDefs14 = `
 
   type Query {
     dailyDigest(companyId: ID!): DailyDigestResult!
+    aiPlaybook(companyId: ID!): DailyDigestResult!
   }
 
   type Mutation {
     generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+    generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
   }
 `;
 var queryDefinition = `
   dailyDigest(companyId: ID!): DailyDigestResult!
+  aiPlaybook(companyId: ID!): DailyDigestResult!
 `;
 var mutationDefinition = `
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+  generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
 `;
 function toResult2(success, message, extras) {
   return {
@@ -11791,7 +12430,7 @@ function toResult2(success, message, extras) {
   };
 }
 function friendlyAiError2(err) {
-  if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError) {
+  if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError || err instanceof AiRateLimitError) {
     return err.message;
   }
   if (err instanceof AiProviderError) {
@@ -11842,6 +12481,23 @@ var queryResolver = {
       });
     }
     return toResult2(true, "Resumen del d\xEDa", {
+      cached: true,
+      insight: toDigestInsightPayload(existing)
+    });
+  },
+  aiPlaybook: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    if (!canUseCompanyAi(session2, companyId)) {
+      return toResult2(false, denyCompanyAiUseMessage(session2));
+    }
+    const existing = await findProfilePlaybook(context, companyId);
+    if (!existing) {
+      return toResult2(true, "A\xFAn no hay recomendaciones de perfil", {
+        cached: false,
+        insight: null
+      });
+    }
+    return toResult2(true, "Recomendaciones de perfil", {
       cached: true,
       insight: toDigestInsightPayload(existing)
     });
@@ -11896,6 +12552,55 @@ var mutationResolver = {
         existingId: existing?.id
       });
       return toResult2(true, "Listo. Estos son tus 3 siguientes pasos de hoy.", {
+        cached: false,
+        creditsCharged: result.creditsCharged,
+        insight: toDigestInsightPayload(saved)
+      });
+    } catch (err) {
+      return toResult2(false, friendlyAiError2(err));
+    }
+  },
+  generateAiPlaybook: async (_root, { companyId, force }, context) => {
+    const session2 = context.session;
+    if (!canUseCompanyAi(session2, companyId)) {
+      return toResult2(false, denyCompanyAiUseMessage(session2));
+    }
+    const existing = await findProfilePlaybook(context, companyId);
+    if (existing && !force) {
+      return toResult2(true, "Ya ten\xEDas recomendaciones. \xDAsalas o regenera.", {
+        cached: true,
+        creditsCharged: 0,
+        insight: toDigestInsightPayload(existing)
+      });
+    }
+    try {
+      const company = await context.sudo().query.SaasCompany.findOne({
+        where: { id: companyId },
+        query: "id name onboardingMainOffer onboardingIdealCustomer onboardingAvgTicketValue onboardingSalesPain allowedGooglePlaceCategories"
+      });
+      const userPrompt = playbookUserPrompt(company ?? {});
+      const result = await callCompanyAi({
+        context,
+        companyId,
+        featurePrompt: PROFILE_PLAYBOOK_FEATURE_PROMPT,
+        userPrompt,
+        feature: AI_FEATURE.PROFILE_PLAYBOOK,
+        bill: true,
+        maxTokens: 900
+      });
+      let actions = parseDigestActions(result.text);
+      if (actions.length < 3) {
+        actions = [...actions, ...fallbackPlaybookActions(userPrompt)].slice(
+          0,
+          4
+        );
+      }
+      const saved = await saveProfilePlaybook(context, {
+        companyId,
+        actions: actions.slice(0, 4),
+        existingId: existing?.id
+      });
+      return toResult2(true, "Listo. Estas recomendaciones salen de tu perfil.", {
         cached: false,
         creditsCharged: result.creditsCharged,
         insight: toDigestInsightPayload(saved)
@@ -12817,16 +13522,11 @@ var resolver17 = {
         subscription: null
       };
     }
-    const user = await context.sudo().query.User.findOne({
-      where: { id: userId },
-      query: "id company { id name }"
-    });
-    const userCompany = user?.company;
-    const companyIdToUse = companyId ?? userCompany?.id;
+    const companyIdToUse = resolveAuthorizedCompanyId(session2, companyId);
     if (!companyIdToUse) {
       return {
         success: false,
-        message: "No se encontr\xF3 un negocio asignado.",
+        message: companyId ? denyOtherCompanyMessage() : "No se encontr\xF3 un negocio asignado.",
         daysUntilNextBilling: null,
         subscriptionActive: false,
         subscription: null
@@ -13163,7 +13863,7 @@ var keystone_default = withAuth(
       prismaClientPath: "node_modules/.prisma/client"
     },
     ui: {
-      isAccessAllowed: (context) => !!context.session?.data
+      isAccessAllowed: (context) => isPlatformAdmin(context.session)
     },
     server: {
       cors: true,
