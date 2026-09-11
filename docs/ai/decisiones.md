@@ -1,6 +1,6 @@
 # Decisiones de implementación
 
-Registro de decisiones tomadas al bajar el plan a código. Actualizar este archivo cada vez que el código se desvíe del plan original.
+Registro de desviaciones del plan de producto. El detalle operativo (cupos, env, access) vive junto al código: [`utils/ai/README.md`](../../utils/ai/README.md), [`graphql/customs/mutations/ai`](../../graphql/customs/mutations/ai/README.md), [`graphql/customs/ai`](../../graphql/customs/ai/README.md).
 
 ## 2026-09-10 — Una sola bolsa de créditos (corrige el plan original)
 
@@ -34,7 +34,7 @@ Si `aiModel` / `PLATFORM_AI_MODEL` está vacío:
 | --- | --- |
 | Anthropic | `claude-sonnet-4-5` |
 | OpenAI | `gpt-4o` |
-| Gemini | `gemini-2.5-flash` |
+| Gemini | `gemini-3.5-flash-lite` (luego fallback managed, ver más abajo) |
 
 ### Fetch crudo, cero SDKs
 
@@ -55,4 +55,12 @@ El plan decía “el vendedor abre Inicio”. En el dashboard, `admin_company` v
 **Decisión:** el digest de un admin de empresa (o admin de plataforma) se guarda con `salesPerson: null` (insight de empresa). El de un vendedor, con su usuario. Misma mutación, distinta clave de caché.
 
 Cualquier miembro de la empresa puede **generar** el digest; solo `admin_company` configura la API key / modalidad.
+
+## 2026-09-11 — Fallback de modelos Gemini (cupo gratis, `managed`)
+
+El nivel gratuito de Gemini es **por modelo** (RPM / TPM / RPD). Un solo modelo (p. ej. `gemini-3.5-flash-lite` 15/250K/500) se agota; otros siguen con cupo.
+
+**Decisión:** solo con `aiBillingMode: managed` y `PLATFORM_AI_PROVIDER=gemini`. Se recorre `MANAGED_GEMINI_FALLBACK` empezando por `PLATFORM_AI_MODEL` / `aiModel` si está en la lista. Si el cupo local de un modelo está lleno o Gemini responde 429/404/503 (o quota), se intenta el siguiente. BYOK no encadena ni rate-limita. Anthropic/OpenAI managed siguen con un cupo único.
+
+Default Gemini pasa a `gemini-3.5-flash-lite` (el mayor cupo del nivel gratis).
 

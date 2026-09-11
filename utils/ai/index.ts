@@ -7,6 +7,7 @@ import {
   AI_BILLING_MODE,
   AI_PROVIDER,
   AI_RATE_LIMIT_ERROR_PREFIX,
+  MANAGED_GEMINI_FALLBACK,
   type AiBillingMode,
   type AiProviderKey,
 } from "./constants";
@@ -27,19 +28,25 @@ import {
   type TokenUsage,
 } from "./tokenCredits";
 import { persistAiCallLog } from "./callLog";
-import { assertAiRateLimit } from "./rateLimit";
+import {
+  assertAiRateLimit,
+  assertManagedModelQuota,
+  getManagedGeminiChain,
+  isManagedFallbackError,
+} from "./rateLimit";
 import {
   toGuardedUserPrompt,
   withPromptInjectionGuard,
   wrapUntrustedData,
 } from "./promptSafety";
-import type { AiProviderAdapter } from "./types";
+import type { AiCompletionResult, AiProviderAdapter } from "./types";
 
 export {
   AI_BILLING_MODE,
   AI_PROVIDER,
   AI_FEATURE,
   AI_RATE_LIMIT,
+  MANAGED_GEMINI_FALLBACK,
   DEFAULT_AI_MODELS,
 } from "./constants";
 export type { AiBillingMode, AiProviderKey, AiFeature } from "./constants";
@@ -262,25 +269,74 @@ export async function callCompanyAi(
     }
 
     const adapter = getAiProviderAdapter(provider);
-    model = modelOverride || company.aiModel?.trim() || adapter.defaultModel;
+    const preferredModel =
+      modelOverride ||
+      company.aiModel?.trim() ||
+      (provider === AI_PROVIDER.GEMINI
+        ? MANAGED_GEMINI_FALLBACK[0].model
+        : adapter.defaultModel);
+    const upcomingInputTokens =
+      estimateTokensFromText(systemPrompt) +
+      estimateTokensFromText(userPrompt);
 
-    await assertAiRateLimit({
-      context: params.context,
-      companyId: params.companyId,
-      userId,
-      billingMode,
-      upcomingInputTokens:
-        estimateTokensFromText(systemPrompt) +
-        estimateTokensFromText(userPrompt),
-    });
+    let completion: AiCompletionResult | undefined;
+    const useGeminiFallback =
+      billingMode === AI_BILLING_MODE.MANAGED &&
+      provider === AI_PROVIDER.GEMINI;
 
-    const completion = await adapter.complete({
-      apiKey,
-      model,
-      systemPrompt,
-      userPrompt,
-      maxTokens: params.maxTokens,
-    });
+    if (useGeminiFallback) {
+      let lastError: unknown;
+      for (const quota of getManagedGeminiChain(preferredModel)) {
+        try {
+          await assertManagedModelQuota({
+            context: params.context,
+            companyId: params.companyId,
+            userId,
+            quota,
+            upcomingInputTokens,
+          });
+          completion = await adapter.complete({
+            apiKey,
+            model: quota.model,
+            systemPrompt,
+            userPrompt,
+            maxTokens: params.maxTokens,
+          });
+          model = quota.model;
+          break;
+        } catch (err) {
+          if (isManagedFallbackError(err)) {
+            lastError = err;
+            continue;
+          }
+          throw err;
+        }
+      }
+      if (!completion) {
+        if (lastError instanceof AiRateLimitError) throw lastError;
+        throw new AiRateLimitError(
+          lastError instanceof Error
+            ? `Ningún modelo de Gemini con cupo gratis respondió. Último error: ${lastError.message}`
+            : "Se agotó el cupo gratuito de todos los modelos de Gemini. Prueba más tarde o usa tu propia API key.",
+        );
+      }
+    } else {
+      model = preferredModel;
+      await assertAiRateLimit({
+        context: params.context,
+        companyId: params.companyId,
+        userId,
+        billingMode,
+        upcomingInputTokens,
+      });
+      completion = await adapter.complete({
+        apiKey,
+        model,
+        systemPrompt,
+        userPrompt,
+        maxTokens: params.maxTokens,
+      });
+    }
 
     let creditsCharged = 0;
     if (shouldBill) {

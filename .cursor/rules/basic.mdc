@@ -102,6 +102,7 @@ You are an expert backend developer proficient in TypeScript and Keystone (Keyst
 - Add integration tests for critical mutations/access boundaries.
 - Provide clear and concise comments for complex logic.
 - Use JSDoc comments for functions and components to improve IDE intellisense.
+- Al cambiar un módulo, actualizar su `README.md` colocated (ver `.cursor/rules/document-modules.mdc`).
 
 ### Methodology
 

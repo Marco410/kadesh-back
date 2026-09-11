@@ -12,6 +12,7 @@ import purchaseCredits from "./credits/purchaseCredits";
 import sendTestEmail from "./sendTestEmail";
 import updateCompanyAiSettings from "./ai/updateCompanyAiSettings";
 import dailyDigest from "../ai/dailyDigest";
+import companyBrief from "../ai/companyBrief";
 
 const customMutation = {
   typeDefs: `
@@ -29,6 +30,7 @@ const customMutation = {
     ${sendTestEmail.typeDefs}
     ${updateCompanyAiSettings.typeDefs}
     ${dailyDigest.typeDefs}
+    ${companyBrief.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -45,6 +47,7 @@ const customMutation = {
     ${sendTestEmail.definition}
     ${updateCompanyAiSettings.definition}
     ${dailyDigest.mutationDefinition}
+    ${companyBrief.mutationDefinition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -61,6 +64,7 @@ const customMutation = {
     ...sendTestEmail.resolver,
     ...updateCompanyAiSettings.resolver,
     ...dailyDigest.mutationResolver,
+    ...companyBrief.mutationResolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {

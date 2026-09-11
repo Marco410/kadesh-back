@@ -28,7 +28,7 @@ export const AI_PROVIDER_OPTIONS = [
 export const DEFAULT_AI_MODELS: Record<AiProviderKey, string> = {
   anthropic: "claude-sonnet-4-5",
   openai: "gpt-4o",
-  gemini: "gemini-2.5-flash",
+  gemini: "gemini-3.5-flash-lite",
 };
 
 export const AI_FEATURE = {
@@ -37,19 +37,36 @@ export const AI_FEATURE = {
   MONTHLY_NARRATIVE: "monthly_narrative",
   FILE_ANALYSIS: "file_analysis",
   PROFILE_PLAYBOOK: "profile_playbook",
+  COMPANY_BRIEF: "company_brief",
 } as const;
 
-/**
- * Cupos Gemini 3.5 Flash Lite (tier gratuito / key de plataforma).
- * Solo modalidad managed. Por usuario, por empresa y a toda la plataforma.
- */
 export const AI_RATE_LIMIT = {
-  rpm: 15,
-  tpmInput: 250_000,
-  rpd: 500,
   windowMs: 60_000,
   dayMs: 24 * 60 * 60 * 1000,
 } as const;
+
+export type ManagedGeminiQuota = {
+  model: string;
+  rpm: number;
+  tpmInput: number;
+  rpd: number;
+};
+
+/**
+ * Modelos de texto con cupo gratis (Gemini API, nivel gratuito).
+ * Si uno se agota (RPM/TPM/RPD o HTTP 429), se intenta el siguiente.
+ */
+export const MANAGED_GEMINI_FALLBACK: ManagedGeminiQuota[] = [
+  { model: "gemini-3.5-flash-lite", rpm: 15, tpmInput: 250_000, rpd: 500 },
+  { model: "gemini-3.1-flash-lite", rpm: 15, tpmInput: 250_000, rpd: 500 },
+  { model: "gemini-2.5-flash-lite", rpm: 10, tpmInput: 250_000, rpd: 20 },
+  { model: "gemini-2.5-flash", rpm: 5, tpmInput: 250_000, rpd: 20 },
+  { model: "gemini-3-flash", rpm: 5, tpmInput: 250_000, rpd: 20 },
+  { model: "gemini-3.5-flash", rpm: 5, tpmInput: 250_000, rpd: 20 },
+  { model: "gemini-3.6-flash", rpm: 5, tpmInput: 250_000, rpd: 20 },
+  { model: "gemini-3.7-flash", rpm: 5, tpmInput: 250_000, rpd: 20 },
+  { model: "gemini-3.8-flash", rpm: 5, tpmInput: 250_000, rpd: 20 },
+];
 
 export const AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 

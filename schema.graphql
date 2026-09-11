@@ -6919,12 +6919,12 @@ type Mutation {
   sendTestEmail(email: String!): SendTestEmailResult!
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
-  generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
-  generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
-  generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
+  generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+  generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
+  generateCompanyAiBrief(companyId: ID!, force: Boolean): CompanyAiBriefResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -7139,13 +7139,13 @@ type Query {
   wishListsCount(where: WishListWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
-  dailyDigest(companyId: ID!): DailyDigestResult!
-  aiPlaybook(companyId: ID!): DailyDigestResult!
-  aiPlaybook(companyId: ID!): DailyDigestResult!
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   StripePaymentMethods(email: String!): StripePaymentMethodsType
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
+  dailyDigest(companyId: ID!): DailyDigestResult!
+  aiPlaybook(companyId: ID!): DailyDigestResult!
+  companyAiBrief(companyId: ID!): CompanyAiBriefResult!
 }
 
 union AuthenticatedItem = User
@@ -7491,6 +7491,28 @@ type DailyDigestResult {
   cached: Boolean!
   creditsCharged: Int
   insight: DailyDigestInsight
+}
+
+type CompanyAiBriefPillar {
+  key: String!
+  title: String!
+  summary: String!
+  gaps: [String!]!
+}
+
+type CompanyAiBriefInsight {
+  id: ID!
+  generatedAt: String
+  sourceHash: String!
+  pillars: [CompanyAiBriefPillar!]!
+}
+
+type CompanyAiBriefResult {
+  success: Boolean!
+  message: String!
+  cached: Boolean!
+  creditsCharged: Int
+  insight: CompanyAiBriefInsight
 }
 
 type AnimalMultimediaImage {

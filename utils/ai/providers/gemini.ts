@@ -49,6 +49,7 @@ async function complete(params: AiCompletionParams): Promise<AiCompletionResult>
   if (!response.ok) {
     throw new AiProviderError(
       payload?.error?.message ?? `Gemini HTTP ${response.status}`,
+      response.status,
     );
   }
 

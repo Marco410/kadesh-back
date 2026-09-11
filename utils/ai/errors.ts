@@ -20,10 +20,12 @@ export class AiInsufficientCreditsError extends Error {
 
 export class AiProviderError extends Error {
   readonly code = "AI_PROVIDER_ERROR";
+  readonly status?: number;
 
-  constructor(message: string) {
+  constructor(message: string, status?: number) {
     super(message);
     this.name = "AiProviderError";
+    this.status = status;
   }
 }
 

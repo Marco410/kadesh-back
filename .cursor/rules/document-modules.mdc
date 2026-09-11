@@ -1,0 +1,48 @@
+---
+description: Documentar decisiones e invariantes en el README del módulo que se modifica, no solo en el chat ni en docs/ sueltos.
+alwaysApply: true
+---
+
+# Documentar en el módulo
+
+Al cambiar comportamiento, contratos o invariantes, **actualizar el `README.md` de esa carpeta en el mismo cambio**. El chat no cuenta como documentación.
+
+## Dónde
+
+- Un `README.md` en la carpeta del módulo (la que exporta la API pública): `utils/ai/`, `graphql/customs/mutations/ai/`, `models/<Name>/`, `utils/access/`, etc.
+- Si el módulo es nuevo, crear el README en el mismo cambio.
+- Si ya existe `docs/<dominio>/` (p. ej. `docs/ai/`), el README del código es la fuente operativa; en `docs/` solo un enlace y, si aplica, una línea en `decisiones.md`.
+
+No documentar artefactos generados (`.keystone/`, `schema.graphql` generado).
+
+## Qué sí
+
+Decisiones e invariantes que otro agente o humano necesita para no romper el módulo:
+
+- Por qué se eligió X (no el diff línea a línea)
+- Modalidades, cupos, fallbacks, env vars, access
+- Contratos GraphQL custom y errores que ve el cliente
+- Fecha + título corto en una sección **Decisiones** (más reciente abajo)
+
+## Qué no
+
+- Repeir el plan de producto entero
+- Logs de “cambié el nombre de una variable”
+- Secretos, keys, ni dumps de `.env`
+
+## Forma
+
+```markdown
+# Nombre del módulo
+
+Para qué existe. Cómo se usa desde fuera.
+
+## Invariantes
+- ...
+
+## Decisiones
+### YYYY-MM-DD — título
+Qué, por qué, qué no hacer.
+```
+
+Si el cambio toca varios módulos, un párrafo en cada README (no un essay solo en `docs/`).

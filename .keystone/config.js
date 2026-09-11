@@ -4631,22 +4631,31 @@ var AI_PROVIDER_OPTIONS = [
 var DEFAULT_AI_MODELS = {
   anthropic: "claude-sonnet-4-5",
   openai: "gpt-4o",
-  gemini: "gemini-2.5-flash"
+  gemini: "gemini-3.5-flash-lite"
 };
 var AI_FEATURE = {
   CONNECTION_TEST: "connection_test",
   DAILY_DIGEST: "daily_digest",
   MONTHLY_NARRATIVE: "monthly_narrative",
   FILE_ANALYSIS: "file_analysis",
-  PROFILE_PLAYBOOK: "profile_playbook"
+  PROFILE_PLAYBOOK: "profile_playbook",
+  COMPANY_BRIEF: "company_brief"
 };
 var AI_RATE_LIMIT = {
-  rpm: 15,
-  tpmInput: 25e4,
-  rpd: 500,
   windowMs: 6e4,
   dayMs: 24 * 60 * 60 * 1e3
 };
+var MANAGED_GEMINI_FALLBACK = [
+  { model: "gemini-3.5-flash-lite", rpm: 15, tpmInput: 25e4, rpd: 500 },
+  { model: "gemini-3.1-flash-lite", rpm: 15, tpmInput: 25e4, rpd: 500 },
+  { model: "gemini-2.5-flash-lite", rpm: 10, tpmInput: 25e4, rpd: 20 },
+  { model: "gemini-2.5-flash", rpm: 5, tpmInput: 25e4, rpd: 20 },
+  { model: "gemini-3-flash", rpm: 5, tpmInput: 25e4, rpd: 20 },
+  { model: "gemini-3.5-flash", rpm: 5, tpmInput: 25e4, rpd: 20 },
+  { model: "gemini-3.6-flash", rpm: 5, tpmInput: 25e4, rpd: 20 },
+  { model: "gemini-3.7-flash", rpm: 5, tpmInput: 25e4, rpd: 20 },
+  { model: "gemini-3.8-flash", rpm: 5, tpmInput: 25e4, rpd: 20 }
+];
 var AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
 // models/Tech/AiCallLog/TechAiCallLog.ts
@@ -4817,13 +4826,15 @@ var AI_INSIGHT_KIND = {
   DAILY_DIGEST: "daily_digest",
   MONTHLY_NARRATIVE: "monthly_narrative",
   FILE_ANALYSIS: "file_analysis",
-  PROFILE_PLAYBOOK: "profile_playbook"
+  PROFILE_PLAYBOOK: "profile_playbook",
+  COMPANY_BRIEF: "company_brief"
 };
 var AI_INSIGHT_KIND_OPTIONS = [
   { label: "Digest diario", value: AI_INSIGHT_KIND.DAILY_DIGEST },
   { label: "Narrativa mensual", value: AI_INSIGHT_KIND.MONTHLY_NARRATIVE },
   { label: "An\xE1lisis de archivo", value: AI_INSIGHT_KIND.FILE_ANALYSIS },
-  { label: "Playbook de perfil", value: AI_INSIGHT_KIND.PROFILE_PLAYBOOK }
+  { label: "Playbook de perfil", value: AI_INSIGHT_KIND.PROFILE_PLAYBOOK },
+  { label: "Brief de empresa", value: AI_INSIGHT_KIND.COMPANY_BRIEF }
 ];
 
 // models/Tech/AiInsight/TechAiInsight.ts
@@ -11265,9 +11276,11 @@ var AiInsufficientCreditsError = class extends Error {
 };
 var AiProviderError = class extends Error {
   code = "AI_PROVIDER_ERROR";
-  constructor(message) {
+  status;
+  constructor(message, status) {
     super(message);
     this.name = "AiProviderError";
+    this.status = status;
   }
 };
 var AiPlatformNotConfiguredError = class extends Error {
@@ -11372,7 +11385,8 @@ async function complete(params) {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new AiProviderError(
-      payload?.error?.message ?? `Anthropic HTTP ${response.status}`
+      payload?.error?.message ?? `Anthropic HTTP ${response.status}`,
+      response.status
     );
   }
   const text53 = payload?.content?.find((part) => part.type === "text")?.text;
@@ -11424,7 +11438,8 @@ async function complete2(params) {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new AiProviderError(
-      payload?.error?.message ?? `Gemini HTTP ${response.status}`
+      payload?.error?.message ?? `Gemini HTTP ${response.status}`,
+      response.status
     );
   }
   const text53 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
@@ -11468,7 +11483,8 @@ async function complete3(params) {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new AiProviderError(
-      payload?.error?.message ?? `OpenAI HTTP ${response.status}`
+      payload?.error?.message ?? `OpenAI HTTP ${response.status}`,
+      response.status
     );
   }
   const text53 = payload?.choices?.[0]?.message?.content?.trim();
@@ -11522,6 +11538,20 @@ async function persistAiCallLog(params) {
 }
 
 // utils/ai/rateLimit.ts
+function getManagedGeminiChain(preferred) {
+  const chain = [...MANAGED_GEMINI_FALLBACK];
+  const wanted = preferred?.trim();
+  if (!wanted) return chain;
+  const idx = chain.findIndex((item) => item.model === wanted);
+  if (idx === 0) return chain;
+  if (idx > 0) {
+    return [...chain.slice(idx), ...chain.slice(0, idx)];
+  }
+  return [
+    { model: wanted, rpm: 15, tpmInput: 25e4, rpd: 500 },
+    ...chain
+  ];
+}
 function notRateLimitedWhere() {
   return {
     OR: [
@@ -11555,82 +11585,116 @@ async function oldestInWindow(context, where) {
   });
   return rows[0]?.createdAt ?? null;
 }
-function checkAgainstLimits(params) {
-  const { label, minute, dayCount, upcomingInputTokens, retryAfterSec } = params;
+function quotaError(quota, label, kind, retryAfterSec) {
   const wait = `Espera ${retryAfterSec} s y vuelve a intentar.`;
-  if (minute.count >= AI_RATE_LIMIT.rpm) {
-    throw new AiRateLimitError(
-      `Llegaste al m\xE1ximo de ${AI_RATE_LIMIT.rpm} solicitudes por minuto (${label}). ${wait}`,
+  if (kind === "rpm") {
+    return new AiRateLimitError(
+      `${quota.model} lleg\xF3 a ${quota.rpm} solicitudes por minuto (${label}). ${wait}`,
       retryAfterSec
     );
   }
-  if (minute.inputTokens + upcomingInputTokens > AI_RATE_LIMIT.tpmInput) {
-    throw new AiRateLimitError(
-      `Esta llamada supera el cupo de ${AI_RATE_LIMIT.tpmInput.toLocaleString("es-MX")} tokens de entrada por minuto (${label}). ${wait}`,
+  if (kind === "tpm") {
+    return new AiRateLimitError(
+      `${quota.model} super\xF3 ${quota.tpmInput.toLocaleString("es-MX")} tokens de entrada por minuto (${label}). ${wait}`,
       retryAfterSec
     );
   }
-  if (dayCount >= AI_RATE_LIMIT.rpd) {
-    throw new AiRateLimitError(
-      `Llegaste al m\xE1ximo de ${AI_RATE_LIMIT.rpd} solicitudes de IA por d\xEDa (${label}). Prueba ma\xF1ana o usa tu propia API key.`,
-      retryAfterSec
-    );
+  return new AiRateLimitError(
+    `${quota.model} lleg\xF3 a ${quota.rpd} solicitudes por d\xEDa (${label}). ${wait}`,
+    retryAfterSec
+  );
+}
+async function assertQuotaForScope(params) {
+  const minuteAgo = new Date(Date.now() - AI_RATE_LIMIT.windowMs);
+  const dayAgo = new Date(Date.now() - AI_RATE_LIMIT.dayMs);
+  const minuteWhere = {
+    AND: [
+      params.where,
+      { createdAt: { gte: minuteAgo } },
+      notRateLimitedWhere()
+    ]
+  };
+  const dayWhere = {
+    AND: [
+      params.where,
+      { createdAt: { gte: dayAgo } },
+      notRateLimitedWhere()
+    ]
+  };
+  const [minute, day] = await Promise.all([
+    aggregateUsage(params.context, minuteWhere),
+    aggregateUsage(params.context, dayWhere)
+  ]);
+  const oldest = await oldestInWindow(params.context, minuteWhere);
+  const retryAfterSec = retryAfterFromOldest(oldest, AI_RATE_LIMIT.windowMs);
+  if (minute.count >= params.quota.rpm) {
+    throw quotaError(params.quota, params.label, "rpm", retryAfterSec);
   }
+  if (minute.inputTokens + params.upcomingInputTokens > params.quota.tpmInput) {
+    throw quotaError(params.quota, params.label, "tpm", retryAfterSec);
+  }
+  if (day.count >= params.quota.rpd) {
+    throw quotaError(params.quota, params.label, "rpd", retryAfterSec);
+  }
+}
+async function assertManagedModelQuota(params) {
+  const managedModel = {
+    billingMode: AI_BILLING_MODE.MANAGED,
+    ...params.quota.model !== "default" ? { model: params.quota.model } : {}
+  };
+  const upcoming = Math.max(0, params.upcomingInputTokens);
+  const scopes = [
+    ...params.userId ? [
+      {
+        label: "tu usuario",
+        where: { ...managedModel, userId: params.userId }
+      }
+    ] : [],
+    {
+      label: "tu empresa",
+      where: { ...managedModel, companyId: params.companyId }
+    },
+    {
+      label: "IA administrada de Kadesh",
+      where: managedModel
+    }
+  ];
+  for (const scope of scopes) {
+    await assertQuotaForScope({
+      context: params.context,
+      quota: params.quota,
+      label: scope.label,
+      where: scope.where,
+      upcomingInputTokens: upcoming
+    });
+  }
+}
+function isManagedFallbackError(err) {
+  if (err instanceof AiRateLimitError) return true;
+  if (!(err instanceof AiProviderError)) return false;
+  if (err.status === 429 || err.status === 404 || err.status === 503 || err.status === 500) {
+    return true;
+  }
+  const msg = err.message.toLowerCase();
+  return msg.includes("resource_exhausted") || msg.includes("resource exhausted") || msg.includes("quota") || msg.includes("rate limit") || msg.includes("not found") || msg.includes("unavailable");
 }
 async function assertAiRateLimit(params) {
   if (params.billingMode !== AI_BILLING_MODE.MANAGED) {
     return;
   }
-  const now = Date.now();
-  const minuteAgo = new Date(now - AI_RATE_LIMIT.windowMs);
-  const dayAgo = new Date(now - AI_RATE_LIMIT.dayMs);
-  const upcoming = Math.max(0, params.upcomingInputTokens);
-  const managed = { billingMode: AI_BILLING_MODE.MANAGED };
-  const scopes = [
-    {
-      label: "tu empresa",
-      where: { ...managed, companyId: params.companyId }
-    },
-    {
-      label: "IA administrada de Kadesh",
-      where: managed
-    }
-  ];
-  if (params.userId) {
-    scopes.unshift({
-      label: "tu usuario",
-      where: { ...managed, userId: params.userId }
-    });
-  }
-  for (const scope of scopes) {
-    const minuteWhere = {
-      AND: [
-        scope.where,
-        { createdAt: { gte: minuteAgo } },
-        notRateLimitedWhere()
-      ]
-    };
-    const dayWhere = {
-      AND: [
-        scope.where,
-        { createdAt: { gte: dayAgo } },
-        notRateLimitedWhere()
-      ]
-    };
-    const [minute, day] = await Promise.all([
-      aggregateUsage(params.context, minuteWhere),
-      aggregateUsage(params.context, dayWhere)
-    ]);
-    const oldest = await oldestInWindow(params.context, minuteWhere);
-    const retryAfterSec = retryAfterFromOldest(oldest, AI_RATE_LIMIT.windowMs);
-    checkAgainstLimits({
-      label: scope.label,
-      minute,
-      dayCount: day.count,
-      upcomingInputTokens: upcoming,
-      retryAfterSec
-    });
-  }
+  const quota = params.quota ?? {
+    model: "default",
+    rpm: 15,
+    tpmInput: 25e4,
+    rpd: 500
+  };
+  await assertManagedModelQuota({
+    context: params.context,
+    companyId: params.companyId,
+    userId: params.userId,
+    quota,
+    upcomingInputTokens: params.upcomingInputTokens
+  });
 }
 
 // utils/ai/index.ts
@@ -11755,21 +11819,61 @@ async function callCompanyAi(params) {
       throw new AiNotConfiguredError();
     }
     const adapter = getAiProviderAdapter(provider);
-    model = modelOverride || company.aiModel?.trim() || adapter.defaultModel;
-    await assertAiRateLimit({
-      context: params.context,
-      companyId: params.companyId,
-      userId,
-      billingMode,
-      upcomingInputTokens: estimateTokensFromText(systemPrompt) + estimateTokensFromText(userPrompt)
-    });
-    const completion = await adapter.complete({
-      apiKey,
-      model,
-      systemPrompt,
-      userPrompt,
-      maxTokens: params.maxTokens
-    });
+    const preferredModel = modelOverride || company.aiModel?.trim() || (provider === AI_PROVIDER.GEMINI ? MANAGED_GEMINI_FALLBACK[0].model : adapter.defaultModel);
+    const upcomingInputTokens = estimateTokensFromText(systemPrompt) + estimateTokensFromText(userPrompt);
+    let completion;
+    const useGeminiFallback = billingMode === AI_BILLING_MODE.MANAGED && provider === AI_PROVIDER.GEMINI;
+    if (useGeminiFallback) {
+      let lastError;
+      for (const quota of getManagedGeminiChain(preferredModel)) {
+        try {
+          await assertManagedModelQuota({
+            context: params.context,
+            companyId: params.companyId,
+            userId,
+            quota,
+            upcomingInputTokens
+          });
+          completion = await adapter.complete({
+            apiKey,
+            model: quota.model,
+            systemPrompt,
+            userPrompt,
+            maxTokens: params.maxTokens
+          });
+          model = quota.model;
+          break;
+        } catch (err) {
+          if (isManagedFallbackError(err)) {
+            lastError = err;
+            continue;
+          }
+          throw err;
+        }
+      }
+      if (!completion) {
+        if (lastError instanceof AiRateLimitError) throw lastError;
+        throw new AiRateLimitError(
+          lastError instanceof Error ? `Ning\xFAn modelo de Gemini con cupo gratis respondi\xF3. \xDAltimo error: ${lastError.message}` : "Se agot\xF3 el cupo gratuito de todos los modelos de Gemini. Prueba m\xE1s tarde o usa tu propia API key."
+        );
+      }
+    } else {
+      model = preferredModel;
+      await assertAiRateLimit({
+        context: params.context,
+        companyId: params.companyId,
+        userId,
+        billingMode,
+        upcomingInputTokens
+      });
+      completion = await adapter.complete({
+        apiKey,
+        model,
+        systemPrompt,
+        userPrompt,
+        maxTokens: params.maxTokens
+      });
+    }
     let creditsCharged = 0;
     if (shouldBill) {
       creditsCharged = tokensToCredits(completion.usage);
@@ -12401,16 +12505,6 @@ var typeDefs14 = `
     creditsCharged: Int
     insight: DailyDigestInsight
   }
-
-  type Query {
-    dailyDigest(companyId: ID!): DailyDigestResult!
-    aiPlaybook(companyId: ID!): DailyDigestResult!
-  }
-
-  type Mutation {
-    generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
-    generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
-  }
 `;
 var queryDefinition = `
   dailyDigest(companyId: ID!): DailyDigestResult!
@@ -12618,6 +12712,369 @@ var dailyDigest_default = {
   mutationResolver
 };
 
+// utils/ai/companyBrief.ts
+var COMPANY_BRIEF_REFERENCE_KEY = "company_brief";
+var INSIGHT_QUERY3 = "id referenceKey content structuredData generatedAt salesPerson { id }";
+var COMPANY_BRIEF_PILLAR_KEYS = [
+  "onboardingMainOffer",
+  "onboardingIdealCustomer",
+  "onboardingAvgTicketValue",
+  "onboardingSalesPain"
+];
+var PILLAR_META = {
+  onboardingMainOffer: {
+    title: 'El "Qu\xE9" \u2014 Oferta principal',
+    emptySummary: "Todav\xEDa no describiste qu\xE9 vendes.",
+    emptyGaps: [
+      "Qu\xE9 producto o servicio ofreces, en una frase",
+      "Qu\xE9 resultado concreto le das al cliente",
+      "Si es un SaaS, un servicio o un producto"
+    ]
+  },
+  onboardingIdealCustomer: {
+    title: 'El "Qui\xE9n" \u2014 Cliente ideal',
+    emptySummary: "Todav\xEDa no dijiste a qui\xE9n le vendes.",
+    emptyGaps: [
+      "Industria o tipo de empresa que s\xED te compra",
+      "Cargo de quien decide la compra",
+      "Tama\xF1o o geograf\xEDa del cliente ideal"
+    ]
+  },
+  onboardingAvgTicketValue: {
+    title: 'El "Cu\xE1nto" \u2014 Ticket o valor',
+    emptySummary: "Todav\xEDa no hay un ticket o valor de referencia.",
+    emptyGaps: [
+      "Precio o rango (y moneda)",
+      "Si es mensual, por proyecto o por resultado",
+      "Qu\xE9 incluye ese precio"
+    ]
+  },
+  onboardingSalesPain: {
+    title: 'El "C\xF3mo" \u2014 Adquisici\xF3n y dolores al vender',
+    emptySummary: "Todav\xEDa no contaste c\xF3mo consigues clientes ni qu\xE9 te cuesta vender.",
+    emptyGaps: [
+      "Canal con el que hoy llegan clientes (demo, referidos, fr\xEDo\u2026)",
+      "Qu\xE9 se traba m\xE1s al cerrar",
+      "Cu\xE1l es el siguiente paso despu\xE9s del primer contacto"
+    ]
+  }
+};
+function companyBriefSourceHash(company) {
+  return COMPANY_BRIEF_PILLAR_KEYS.map(
+    (key) => company[key]?.trim() ?? ""
+  ).join("\n---\n");
+}
+var COMPANY_BRIEF_FEATURE_PROMPT = `Resume lo que YA se sabe de ESTA empresa y se\xF1ala huecos concretos en cada pilar.
+Responde SOLO con JSON v\xE1lido, sin markdown:
+{"pillars":[{"key":"onboardingMainOffer","summary":"...","gaps":["..."]},{"key":"onboardingIdealCustomer","summary":"...","gaps":["..."]},{"key":"onboardingAvgTicketValue","summary":"...","gaps":["..."]},{"key":"onboardingSalesPain","summary":"...","gaps":["..."]}]}
+Reglas:
+- Exactamente esas 4 keys, en ese orden.
+- summary: 1 o 2 frases parafraseando SOLO lo que escribieron. Si est\xE1 vac\xEDo, di que a\xFAn no hay nada de ese punto. No inventes datos.
+- gaps: 1 a 3 puntos exactos que el usuario NO mencion\xF3 y deber\xEDa (diferenciador, geograf\xEDa, cargo que compra, moneda, canal, siguiente paso). Si el texto est\xE1 muy completo, 1 hueco fino o lista vac\xEDa.
+- Tono: ya conocemos el negocio por lo que van capturando. Nunca digas que esto se reenv\xEDa, se inyecta o alimenta cada llamada.`;
+function companyBriefUserPrompt(company) {
+  const line = (label, value) => `- ${label}: ${value?.trim() || "(sin definir)"}`;
+  return [
+    "Perfil de negocio a resumir:",
+    line("Empresa", company.name),
+    line('El "Qu\xE9" \u2014 Oferta principal', company.onboardingMainOffer),
+    line('El "Qui\xE9n" \u2014 Cliente ideal', company.onboardingIdealCustomer),
+    line('El "Cu\xE1nto" \u2014 Ticket o valor', company.onboardingAvgTicketValue),
+    line(
+      'El "C\xF3mo" \u2014 Adquisici\xF3n y dolores al vender',
+      company.onboardingSalesPain
+    )
+  ].join("\n");
+}
+function fallbackCompanyBriefPillars(company) {
+  return COMPANY_BRIEF_PILLAR_KEYS.map((key) => {
+    const meta = PILLAR_META[key];
+    const raw = company[key]?.trim() ?? "";
+    if (!raw) {
+      return {
+        key,
+        title: meta.title,
+        summary: meta.emptySummary,
+        gaps: meta.emptyGaps
+      };
+    }
+    const summary = raw.length > 220 ? `${raw.slice(0, 217).trim()}\u2026` : raw;
+    const gaps = raw.length < 80 ? meta.emptyGaps.slice(0, 2) : raw.length < 160 ? meta.emptyGaps.slice(0, 1) : [];
+    return { key, title: meta.title, summary, gaps };
+  });
+}
+function parseJsonObject(text53) {
+  const stripped = text53.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  const start = stripped.indexOf("{");
+  const end = stripped.lastIndexOf("}");
+  if (start === -1 || end === -1) return null;
+  try {
+    return JSON.parse(stripped.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+function parseCompanyBriefPillars(text53, company) {
+  const parsed = parseJsonObject(text53);
+  const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
+  const byKey = /* @__PURE__ */ new Map();
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item;
+    const key = String(row.key ?? "").trim();
+    const summary = String(row.summary ?? "").trim();
+    const gaps = Array.isArray(row.gaps) ? row.gaps.map((gap) => String(gap ?? "").trim()).filter(Boolean).slice(0, 3) : [];
+    if (!key || !summary) continue;
+    byKey.set(key, { summary, gaps });
+  }
+  const fallback = fallbackCompanyBriefPillars(company);
+  return fallback.map((pillar) => {
+    const fromAi = byKey.get(pillar.key);
+    if (!fromAi) return pillar;
+    return {
+      ...pillar,
+      summary: fromAi.summary,
+      gaps: fromAi.gaps
+    };
+  });
+}
+function pillarsFromStructuredData(data, company) {
+  if (!data || typeof data !== "object") return null;
+  const raw = data.pillars;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const fallback = fallbackCompanyBriefPillars(company);
+  const byKey = new Map(
+    raw.filter((item) => Boolean(item && typeof item === "object")).map((row) => [String(row.key ?? ""), row])
+  );
+  return fallback.map((pillar) => {
+    const row = byKey.get(pillar.key);
+    if (!row) return pillar;
+    const summary = String(row.summary ?? "").trim();
+    const gaps = Array.isArray(row.gaps) ? row.gaps.map((gap) => String(gap ?? "").trim()).filter(Boolean) : [];
+    return {
+      ...pillar,
+      summary: summary || pillar.summary,
+      gaps
+    };
+  });
+}
+function sourceHashFromStructuredData(data) {
+  if (!data || typeof data !== "object") return "";
+  return String(data.sourceHash ?? "");
+}
+function toCompanyBriefPayload(row, company) {
+  const pillars = pillarsFromStructuredData(row.structuredData, company) ?? fallbackCompanyBriefPillars(company);
+  return {
+    id: row.id,
+    generatedAt: row.generatedAt ?? null,
+    sourceHash: sourceHashFromStructuredData(row.structuredData),
+    pillars
+  };
+}
+function formatBriefAsContent(pillars) {
+  return pillars.map((pillar) => {
+    const gaps = pillar.gaps.length > 0 ? `
+Huecos: ${pillar.gaps.join("; ")}` : "";
+    return `${pillar.title}
+${pillar.summary}${gaps}`;
+  }).join("\n\n");
+}
+async function findCompanyBrief(context, companyId) {
+  const rows = await context.sudo().query.TechAiInsight.findMany({
+    where: {
+      company: { id: { equals: companyId } },
+      kind: { equals: AI_INSIGHT_KIND.COMPANY_BRIEF },
+      referenceKey: { equals: COMPANY_BRIEF_REFERENCE_KEY }
+    },
+    take: 5,
+    orderBy: [{ generatedAt: "desc" }],
+    query: INSIGHT_QUERY3
+  });
+  return rows.find((row) => !row.salesPerson) ?? null;
+}
+async function saveCompanyBrief(context, params) {
+  const data = {
+    kind: AI_INSIGHT_KIND.COMPANY_BRIEF,
+    referenceKey: COMPANY_BRIEF_REFERENCE_KEY,
+    content: formatBriefAsContent(params.pillars),
+    structuredData: {
+      sourceHash: params.sourceHash,
+      pillars: params.pillars
+    },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    company: { connect: { id: params.companyId } }
+  };
+  if (params.existingId) {
+    return await context.sudo().query.TechAiInsight.updateOne({
+      where: { id: params.existingId },
+      data,
+      query: INSIGHT_QUERY3
+    });
+  }
+  return await context.sudo().query.TechAiInsight.createOne({
+    data,
+    query: INSIGHT_QUERY3
+  });
+}
+
+// graphql/customs/ai/companyBrief.ts
+var typeDefs15 = `
+  type CompanyAiBriefPillar {
+    key: String!
+    title: String!
+    summary: String!
+    gaps: [String!]!
+  }
+
+  type CompanyAiBriefInsight {
+    id: ID!
+    generatedAt: String
+    sourceHash: String!
+    pillars: [CompanyAiBriefPillar!]!
+  }
+
+  type CompanyAiBriefResult {
+    success: Boolean!
+    message: String!
+    cached: Boolean!
+    creditsCharged: Int
+    insight: CompanyAiBriefInsight
+  }
+`;
+var queryDefinition2 = `
+  companyAiBrief(companyId: ID!): CompanyAiBriefResult!
+`;
+var mutationDefinition2 = `
+  generateCompanyAiBrief(companyId: ID!, force: Boolean): CompanyAiBriefResult!
+`;
+function toResult3(success, message, extras) {
+  return {
+    success,
+    message,
+    cached: extras?.cached ?? false,
+    creditsCharged: extras?.creditsCharged ?? null,
+    insight: extras?.insight ?? null
+  };
+}
+function friendlyAiError3(err) {
+  if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError || err instanceof AiRateLimitError) {
+    return err.message;
+  }
+  if (err instanceof AiProviderError) {
+    return `El proveedor rechaz\xF3 la llamada: ${err.message}`;
+  }
+  return err instanceof Error ? err.message : "No se pudo actualizar lo que Kadesh AI sabe de tu negocio";
+}
+async function loadCompany(context, companyId) {
+  return await context.sudo().query.SaasCompany.findOne({
+    where: { id: companyId },
+    query: "id name onboardingMainOffer onboardingIdealCustomer onboardingAvgTicketValue onboardingSalesPain"
+  });
+}
+var queryResolver2 = {
+  companyAiBrief: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    if (!canUseCompanyAi(session2, companyId)) {
+      return toResult3(false, denyCompanyAiUseMessage(session2));
+    }
+    const company = await loadCompany(context, companyId) ?? {};
+    const existing = await findCompanyBrief(context, companyId);
+    if (!existing) {
+      return toResult3(true, "A\xFAn no hay un resumen de tu negocio", {
+        cached: false,
+        insight: null
+      });
+    }
+    return toResult3(true, "Lo que Kadesh AI sabe de tu empresa", {
+      cached: true,
+      insight: toCompanyBriefPayload(existing, company)
+    });
+  }
+};
+var mutationResolver2 = {
+  generateCompanyAiBrief: async (_root, { companyId, force }, context) => {
+    const session2 = context.session;
+    if (!canUseCompanyAi(session2, companyId)) {
+      return toResult3(false, denyCompanyAiUseMessage(session2));
+    }
+    const company = await loadCompany(context, companyId) ?? {};
+    const sourceHash = companyBriefSourceHash(company);
+    const existing = await findCompanyBrief(context, companyId);
+    const existingHash = existing ? sourceHashFromStructuredData(existing.structuredData) : "";
+    if (existing && !force) {
+      return toResult3(true, "Ya hab\xEDa un resumen de tu negocio.", {
+        cached: true,
+        creditsCharged: 0,
+        insight: toCompanyBriefPayload(existing, company)
+      });
+    }
+    if (existing && force && existingHash === sourceHash) {
+      return toResult3(true, "El perfil no cambi\xF3. Seguimos con el mismo resumen.", {
+        cached: true,
+        creditsCharged: 0,
+        insight: toCompanyBriefPayload(existing, company)
+      });
+    }
+    const hasAnyProfile = Boolean(
+      company.onboardingMainOffer?.trim() || company.onboardingIdealCustomer?.trim() || company.onboardingAvgTicketValue?.trim() || company.onboardingSalesPain?.trim()
+    );
+    if (!hasAnyProfile) {
+      const pillars = fallbackCompanyBriefPillars(company);
+      const saved = await saveCompanyBrief(context, {
+        companyId,
+        pillars,
+        sourceHash,
+        existingId: existing?.id
+      });
+      return toResult3(true, "Completa los cuatro puntos para que Kadesh AI conozca tu negocio.", {
+        cached: false,
+        creditsCharged: 0,
+        insight: toCompanyBriefPayload(saved, company)
+      });
+    }
+    try {
+      const result = await callCompanyAi({
+        context,
+        companyId,
+        featurePrompt: COMPANY_BRIEF_FEATURE_PROMPT,
+        userPrompt: companyBriefUserPrompt(company),
+        feature: AI_FEATURE.COMPANY_BRIEF,
+        bill: true,
+        maxTokens: 900
+      });
+      let pillars = parseCompanyBriefPillars(result.text, company);
+      if (pillars.every((pillar) => !pillar.summary.trim())) {
+        pillars = fallbackCompanyBriefPillars(company);
+      }
+      const saved = await saveCompanyBrief(context, {
+        companyId,
+        pillars,
+        sourceHash,
+        existingId: existing?.id
+      });
+      return toResult3(true, "Listo. Esto es lo que Kadesh AI ya sabe de tu negocio.", {
+        cached: false,
+        creditsCharged: result.creditsCharged,
+        insight: toCompanyBriefPayload(saved, company)
+      });
+    } catch (err) {
+      if (existing) {
+        return toResult3(false, friendlyAiError3(err), {
+          insight: toCompanyBriefPayload(existing, company)
+        });
+      }
+      return toResult3(false, friendlyAiError3(err));
+    }
+  }
+};
+var companyBrief_default = {
+  typeDefs: typeDefs15,
+  queryDefinition: queryDefinition2,
+  mutationDefinition: mutationDefinition2,
+  queryResolver: queryResolver2,
+  mutationResolver: mutationResolver2
+};
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -12635,6 +13092,7 @@ var customMutation = {
     ${sendTestEmail_default.typeDefs}
     ${updateCompanyAiSettings_default.typeDefs}
     ${dailyDigest_default.typeDefs}
+    ${companyBrief_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -12651,6 +13109,7 @@ var customMutation = {
     ${sendTestEmail_default.definition}
     ${updateCompanyAiSettings_default.definition}
     ${dailyDigest_default.mutationDefinition}
+    ${companyBrief_default.mutationDefinition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -12666,7 +13125,8 @@ var customMutation = {
     ...purchaseCredits_default.resolver,
     ...sendTestEmail_default.resolver,
     ...updateCompanyAiSettings_default.resolver,
-    ...dailyDigest_default.mutationResolver
+    ...dailyDigest_default.mutationResolver,
+    ...companyBrief_default.mutationResolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -12677,7 +13137,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs15 = `
+var typeDefs16 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -12938,7 +13398,7 @@ var resolver14 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs15, definition: definition14, resolver: resolver14 };
+var nearbyAnimals_default = { typeDefs: typeDefs16, definition: definition14, resolver: resolver14 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -13206,7 +13666,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs16 = `
+var typeDefs17 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -13349,10 +13809,10 @@ var resolver15 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs16, definition: definition15, resolver: resolver15 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs17, definition: definition15, resolver: resolver15 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs17 = `
+var typeDefs18 = `
   type StripeCard {
     brand: String
     country: String
@@ -13425,7 +13885,7 @@ var resolver16 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs17, definition: definition16, resolver: resolver16 };
+var stripePaymentMethods_default = { typeDefs: typeDefs18, definition: definition16, resolver: resolver16 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -13478,7 +13938,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs18 = `
+var typeDefs19 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -13636,7 +14096,7 @@ var resolver17 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs18, definition: definition17, resolver: resolver17 };
+var subscriptionStatus_default = { typeDefs: typeDefs19, definition: definition17, resolver: resolver17 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -13652,13 +14112,15 @@ var customQuery = {
     ${stripePaymentMethods_default.definition}
     ${subscriptionStatus_default.definition}
     ${dailyDigest_default.queryDefinition}
+    ${companyBrief_default.queryDefinition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
     ...nearbyPetPlaces_default.resolver,
     ...stripePaymentMethods_default.resolver,
     ...subscriptionStatus_default.resolver,
-    ...dailyDigest_default.queryResolver
+    ...dailyDigest_default.queryResolver,
+    ...companyBrief_default.queryResolver
   }
 };
 var queries_default = customQuery;

@@ -57,16 +57,6 @@ const typeDefs = `
     creditsCharged: Int
     insight: DailyDigestInsight
   }
-
-  type Query {
-    dailyDigest(companyId: ID!): DailyDigestResult!
-    aiPlaybook(companyId: ID!): DailyDigestResult!
-  }
-
-  type Mutation {
-    generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
-    generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
-  }
 `;
 
 const queryDefinition = `
