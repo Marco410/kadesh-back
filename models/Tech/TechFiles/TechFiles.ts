@@ -52,6 +52,11 @@ export default list({
       ref: "SaasCompany.techFiles",
       many: false,
     }),
+    aiInsights: relationship({
+      ref: "TechAiInsight.relatedFile",
+      many: true,
+      ui: { description: "Análisis de IA ligados a este archivo" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

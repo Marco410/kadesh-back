@@ -50,6 +50,8 @@ Per-list conventions:
 
 **Admin UI customization** (`admin/`): `admin/config.ts` registers custom Admin UI React components (`admin/components/`) like `CustomNavigation` and `CustomLogo`, wired into `keystone.ts`'s `ui` config.
 
+**IA / Cerebro Kadesh** (`docs/ai/`): capa de IA a nivel `SaasCompany`. Cifrado en `utils/helpers/encryption.ts`, adapters en `utils/ai/`, mutaciones en `graphql/customs/mutations/ai/`. La IA managed consume los **mismos** créditos del periodo mensual (tokens → créditos, ver `docs/ai/precio-tokens.md`). Cada llamada queda en `TechAiCallLog`.
+
 ## Adding a new list
 
 1. Create `models/<Name>/<Name>.ts` exporting `list({ access, fields })` from `@keystone-6/core`.

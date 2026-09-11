@@ -195,6 +195,16 @@ export default list({
       many: true,
       ui: { description: "Logs de sincronización de leads (mapa)" },
     }),
+    aiCallLogs: relationship({
+      ref: "TechAiCallLog.user",
+      many: true,
+      ui: { description: "Llamadas a IA disparadas por este usuario" },
+    }),
+    aiInsights: relationship({
+      ref: "TechAiInsight.salesPerson",
+      many: true,
+      ui: { description: "Insights de IA de este vendedor (digest diario)" },
+    }),
     saasSubscriptionLogs: relationship({
       ref: "SaasSubscriptionLog.user",
       many: true,

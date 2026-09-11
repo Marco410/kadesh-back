@@ -2,6 +2,7 @@ import nearbyAnimals from "./nearbyAnimals";
 import nearbyPetPlaces from "./nearbyPetPlaces";
 import stripePaymentMethods from "./saas/stripePaymentMethods";
 import subscriptionStatus from "./saas/subscriptionStatus";
+import dailyDigest from "../ai/dailyDigest";
 
 const customQuery = {
   typeDefs: `
@@ -15,12 +16,14 @@ const customQuery = {
     ${nearbyPetPlaces.definition}
     ${stripePaymentMethods.definition}
     ${subscriptionStatus.definition}
+    ${dailyDigest.queryDefinition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
     ...nearbyPetPlaces.resolver,
     ...stripePaymentMethods.resolver,
     ...subscriptionStatus.resolver,
+    ...dailyDigest.queryResolver,
   },
 };
 

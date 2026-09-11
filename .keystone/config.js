@@ -1283,6 +1283,16 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads (mapa)" }
     }),
+    aiCallLogs: (0, import_fields7.relationship)({
+      ref: "TechAiCallLog.user",
+      many: true,
+      ui: { description: "Llamadas a IA disparadas por este usuario" }
+    }),
+    aiInsights: (0, import_fields7.relationship)({
+      ref: "TechAiInsight.salesPerson",
+      many: true,
+      ui: { description: "Insights de IA de este vendedor (digest diario)" }
+    }),
     saasSubscriptionLogs: (0, import_fields7.relationship)({
       ref: "SaasSubscriptionLog.user",
       many: true,
@@ -2795,9 +2805,9 @@ var import_core33 = require("@keystone-6/core");
 var import_fields33 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text51) {
+function sanitizeUrl2(text53) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text51.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text53.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -4124,6 +4134,11 @@ var TechFiles_default = (0, import_core44.list)({
       ref: "SaasCompany.techFiles",
       many: false
     }),
+    aiInsights: (0, import_fields44.relationship)({
+      ref: "TechAiInsight.relatedFile",
+      many: true,
+      ui: { description: "An\xE1lisis de IA ligados a este archivo" }
+    }),
     createdAt: (0, import_fields44.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
@@ -4256,12 +4271,310 @@ var TechLeadSyncLog_default = (0, import_core45.list)({
   }
 });
 
-// models/Saas/SaasCompany/SaasCompany.ts
+// models/Tech/AiCallLog/TechAiCallLog.ts
 var import_core46 = require("@keystone-6/core");
 var import_fields46 = require("@keystone-6/core/fields");
 
-// models/Saas/SaasCompany/SaasCompany.access.ts
+// models/Tech/AiCallLog/TechAiCallLog.access.ts
 var getCompanyId8 = (session2) => session2?.data?.company?.id;
+var techAiCallLogAccess = {
+  operation: {
+    query: () => true,
+    create: () => false,
+    update: () => false,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId8(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: () => false,
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId8(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// utils/ai/constants.ts
+var AI_BILLING_MODE = {
+  BYOK: "byok",
+  MANAGED: "managed"
+};
+var AI_BILLING_MODE_OPTIONS = [
+  { label: "API key propia (BYOK)", value: AI_BILLING_MODE.BYOK },
+  { label: "Administrado por Kadesh", value: AI_BILLING_MODE.MANAGED }
+];
+var AI_PROVIDER = {
+  ANTHROPIC: "anthropic",
+  OPENAI: "openai",
+  GEMINI: "gemini"
+};
+var AI_PROVIDER_OPTIONS = [
+  { label: "Claude (Anthropic)", value: AI_PROVIDER.ANTHROPIC },
+  { label: "OpenAI", value: AI_PROVIDER.OPENAI },
+  { label: "Gemini (Google)", value: AI_PROVIDER.GEMINI }
+];
+var DEFAULT_AI_MODELS = {
+  anthropic: "claude-sonnet-4-5",
+  openai: "gpt-4o",
+  gemini: "gemini-2.5-flash"
+};
+var AI_FEATURE = {
+  CONNECTION_TEST: "connection_test",
+  DAILY_DIGEST: "daily_digest",
+  MONTHLY_NARRATIVE: "monthly_narrative",
+  FILE_ANALYSIS: "file_analysis"
+};
+
+// models/Tech/AiCallLog/TechAiCallLog.ts
+var TechAiCallLog_default = (0, import_core46.list)({
+  access: techAiCallLogAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "createdAt",
+        "company",
+        "user",
+        "feature",
+        "provider",
+        "model",
+        "inputTokens",
+        "outputTokens",
+        "creditsCharged",
+        "success"
+      ]
+    }
+  },
+  fields: {
+    user: (0, import_fields46.relationship)({
+      ref: "User.aiCallLogs",
+      many: false,
+      ui: { description: "Usuario que dispar\xF3 la llamada" }
+    }),
+    company: (0, import_fields46.relationship)({
+      ref: "SaasCompany.aiCallLogs",
+      many: false,
+      ui: { description: "Empresa due\xF1a de Kadesh Urim AI" }
+    }),
+    feature: (0, import_fields46.text)({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: {
+        description: "Origen de la llamada (connection_test, daily_digest, monthly_narrative, file_analysis)"
+      }
+    }),
+    billingMode: (0, import_fields46.select)({
+      type: "string",
+      options: [...AI_BILLING_MODE_OPTIONS],
+      db: { isNullable: true },
+      ui: { description: "byok o managed al momento de la llamada" }
+    }),
+    provider: (0, import_fields46.select)({
+      type: "string",
+      options: [...AI_PROVIDER_OPTIONS],
+      db: { isNullable: true },
+      ui: { description: "Proveedor usado" }
+    }),
+    model: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: { description: "Modelo usado" }
+    }),
+    featurePrompt: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Instrucci\xF3n de la feature (parte del system prompt)"
+      }
+    }),
+    systemPrompt: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "System prompt completo enviado al proveedor (Cerebro + feature)"
+      }
+    }),
+    userPrompt: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Prompt de usuario enviado al proveedor"
+      }
+    }),
+    response: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Texto que devolvi\xF3 la IA"
+      }
+    }),
+    inputTokens: (0, import_fields46.integer)({
+      defaultValue: 0,
+      ui: { description: "Tokens de entrada reportados por el proveedor" }
+    }),
+    outputTokens: (0, import_fields46.integer)({
+      defaultValue: 0,
+      ui: { description: "Tokens de salida reportados por el proveedor" }
+    }),
+    billableTokens: (0, import_fields46.integer)({
+      defaultValue: 0,
+      ui: {
+        description: "Tokens equivalentes: input + output \xD7 5"
+      }
+    }),
+    creditsCharged: (0, import_fields46.integer)({
+      defaultValue: 0,
+      ui: { description: "Cr\xE9ditos debitados de la bolsa de la empresa" }
+    }),
+    billed: (0, import_fields46.checkbox)({
+      defaultValue: false,
+      ui: { description: "Si esta llamada deb\xEDa cobrar cr\xE9ditos (managed y no ping)" }
+    }),
+    success: (0, import_fields46.checkbox)({
+      defaultValue: false,
+      ui: { description: "Si el proveedor respondi\xF3 y se devolvi\xF3 texto" }
+    }),
+    errorMessage: (0, import_fields46.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Error si la llamada fall\xF3 (sin API keys)"
+      }
+    }),
+    durationMs: (0, import_fields46.integer)({
+      db: { isNullable: true },
+      ui: { description: "Duraci\xF3n total de callCompanyAi en ms" }
+    }),
+    createdAt: (0, import_fields46.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { description: "Momento de la llamada" }
+    })
+  }
+});
+
+// models/Tech/AiInsight/TechAiInsight.ts
+var import_core47 = require("@keystone-6/core");
+var import_fields47 = require("@keystone-6/core/fields");
+
+// models/Tech/AiInsight/TechAiInsight.access.ts
+var getCompanyId9 = (session2) => session2?.data?.company?.id;
+var techAiInsightAccess = {
+  operation: {
+    query: () => true,
+    create: () => false,
+    update: () => false,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId9(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: () => false,
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId9(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// models/Tech/AiInsight/constants.ts
+var AI_INSIGHT_KIND = {
+  DAILY_DIGEST: "daily_digest",
+  MONTHLY_NARRATIVE: "monthly_narrative",
+  FILE_ANALYSIS: "file_analysis"
+};
+var AI_INSIGHT_KIND_OPTIONS = [
+  { label: "Digest diario", value: AI_INSIGHT_KIND.DAILY_DIGEST },
+  { label: "Narrativa mensual", value: AI_INSIGHT_KIND.MONTHLY_NARRATIVE },
+  { label: "An\xE1lisis de archivo", value: AI_INSIGHT_KIND.FILE_ANALYSIS }
+];
+
+// models/Tech/AiInsight/TechAiInsight.ts
+var TechAiInsight_default = (0, import_core47.list)({
+  access: techAiInsightAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "generatedAt",
+        "kind",
+        "referenceKey",
+        "company",
+        "salesPerson"
+      ]
+    }
+  },
+  fields: {
+    company: (0, import_fields47.relationship)({
+      ref: "SaasCompany.aiInsights",
+      many: false,
+      ui: { description: "Empresa due\xF1a del insight" }
+    }),
+    salesPerson: (0, import_fields47.relationship)({
+      ref: "User.aiInsights",
+      many: false,
+      ui: {
+        description: "Vendedor due\xF1o del insight. Vac\xEDo = insight de empresa (admin / alcance global)"
+      }
+    }),
+    kind: (0, import_fields47.select)({
+      type: "string",
+      options: [...AI_INSIGHT_KIND_OPTIONS],
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Tipo de insight (digest, narrativa, archivo)" }
+    }),
+    referenceKey: (0, import_fields47.text)({
+      isIndexed: true,
+      ui: {
+        description: 'Clave de cach\xE9: "YYYY-MM-DD", "YYYY-MM" o id de archivo'
+      }
+    }),
+    content: (0, import_fields47.text)({
+      db: { isNullable: true },
+      ui: {
+        displayMode: "textarea",
+        description: "Texto legible del insight"
+      }
+    }),
+    structuredData: (0, import_fields47.json)({
+      ui: { description: "JSON de acciones / estructura (p. ej. 3 pasos)" }
+    }),
+    relatedFile: (0, import_fields47.relationship)({
+      ref: "TechFile.aiInsights",
+      many: false,
+      ui: { description: "Archivo analizado (Fase 4)" }
+    }),
+    generatedAt: (0, import_fields47.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { description: "Momento en que se gener\xF3 o regener\xF3" }
+    })
+  }
+});
+
+// models/Saas/SaasCompany/SaasCompany.ts
+var import_core48 = require("@keystone-6/core");
+var import_fields48 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompany/SaasCompany.access.ts
+var getCompanyId10 = (session2) => session2?.data?.company?.id;
 var saasCompanyAccess = {
   operation: {
     query: () => true,
@@ -4274,7 +4587,7 @@ var saasCompanyAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId8(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { id: { equals: companyId } };
     },
@@ -4282,7 +4595,7 @@ var saasCompanyAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId8(session2);
+      const companyId = getCompanyId10(session2);
       if (!companyId) return false;
       return { id: { equals: companyId } };
     },
@@ -4391,7 +4704,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core46.list)({
+var SaasCompany_default = (0, import_core48.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -4410,177 +4723,240 @@ var SaasCompany_default = (0, import_core46.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields46.text)({
+    name: (0, import_fields48.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields46.relationship)({
+    users: (0, import_fields48.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    workspaces: (0, import_fields46.relationship)({
+    workspaces: (0, import_fields48.relationship)({
       ref: "SaasWorkspace.company",
       many: true,
       ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields46.json)({
+    allowedGooglePlaceCategories: (0, import_fields48.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields46.relationship)({
+    leads: (0, import_fields48.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields46.relationship)({
+    plan: (0, import_fields48.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields46.calendarDay)({
+    subscriptionStartedAt: (0, import_fields48.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields46.relationship)({
+    subscriptions: (0, import_fields48.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields46.relationship)({
+    techStatusBusinessLeads: (0, import_fields48.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields46.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields48.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (legacy quota tracking)" }
     }),
     /** Cumulative purchased bonus credits (permanent monthly top-up) */
-    purchasedBonusCredits: (0, import_fields46.integer)({
+    purchasedBonusCredits: (0, import_fields48.integer)({
       defaultValue: 0,
       ui: {
         description: "Total extra credits purchased; added to the monthly allowance each period"
       }
     }),
-    creditPeriods: (0, import_fields46.relationship)({
+    creditPeriods: (0, import_fields48.relationship)({
       ref: "SaasCompanyCreditPeriod.company",
       many: true,
       ui: { description: "Monthly credit periods for this company" }
     }),
-    creditLedgerEntries: (0, import_fields46.relationship)({
+    creditLedgerEntries: (0, import_fields48.relationship)({
       ref: "SaasCompanyCreditLedger.company",
       many: true,
       ui: { description: "Credit grant/consume ledger for this company" }
     }),
-    techFiles: (0, import_fields46.relationship)({
+    techFiles: (0, import_fields48.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields46.relationship)({
+    projects: (0, import_fields48.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    leadSyncLogs: (0, import_fields46.relationship)({
+    leadSyncLogs: (0, import_fields48.relationship)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
-    saasSubscriptionLogs: (0, import_fields46.relationship)({
+    aiCallLogs: (0, import_fields48.relationship)({
+      ref: "TechAiCallLog.company",
+      many: true,
+      ui: { description: "Historial de llamadas a IA (prompts, tokens, cr\xE9ditos)" }
+    }),
+    aiInsights: (0, import_fields48.relationship)({
+      ref: "TechAiInsight.company",
+      many: true,
+      ui: { description: "Insights de IA (digest diario, narrativa, archivos)" }
+    }),
+    saasSubscriptionLogs: (0, import_fields48.relationship)({
       ref: "SaasSubscriptionLog.company",
       many: true,
       ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
-    quotations: (0, import_fields46.relationship)({
+    quotations: (0, import_fields48.relationship)({
       ref: "SaasQuotation.company",
       many: true,
       ui: { description: "Cotizaciones de la empresa" }
     }),
-    logo: (0, import_fields46.file)({
+    logo: (0, import_fields48.file)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    onboardingMainOffer: (0, import_fields46.text)({
+    onboardingMainOffer: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    onboardingIdealCustomer: (0, import_fields46.text)({
+    onboardingIdealCustomer: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    onboardingAvgTicketValue: (0, import_fields46.text)({
+    onboardingAvgTicketValue: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    onboardingSalesPain: (0, import_fields46.text)({
+    onboardingSalesPain: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
       }
     }),
-    termsQuotation: (0, import_fields46.text)({
+    aiBillingMode: (0, import_fields48.select)({
+      type: "string",
+      options: [...AI_BILLING_MODE_OPTIONS],
+      defaultValue: AI_BILLING_MODE.BYOK,
+      ui: {
+        description: "C\xF3mo paga la empresa la IA: API key propia (BYOK) o cr\xE9ditos administrados por Kadesh"
+      }
+    }),
+    aiProvider: (0, import_fields48.select)({
+      type: "string",
+      options: [...AI_PROVIDER_OPTIONS],
+      db: { isNullable: true },
+      ui: {
+        description: "Proveedor de IA en modalidad BYOK (Claude, OpenAI o Gemini)"
+      }
+    }),
+    aiModel: (0, import_fields48.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Override opcional del modelo. Vac\xEDo = default del proveedor."
+      }
+    }),
+    aiApiKeyEncrypted: (0, import_fields48.text)({
+      db: { isNullable: true },
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "API key cifrada (solo mutaciones custom v\xEDa sudo)"
+      }
+    }),
+    aiApiKeyPreview: (0, import_fields48.text)({
+      db: { isNullable: true },
+      access: {
+        create: () => false,
+        update: () => false
+      },
+      ui: {
+        description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)"
+      }
+    }),
+    aiKeyUpdatedAt: (0, import_fields48.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "\xDAltima vez que se guard\xF3 o borr\xF3 la API key de IA"
+      }
+    }),
+    termsQuotation: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
       }
     }),
-    colorPrimary: (0, import_fields46.text)({
+    colorPrimary: (0, import_fields48.text)({
       db: { isNullable: true },
       defaultValue: "#F7945E",
       ui: {
         description: "Color primario de la empresa"
       }
     }),
-    colorSecondary: (0, import_fields46.text)({
+    colorSecondary: (0, import_fields48.text)({
       db: { isNullable: true },
       defaultValue: "#E07C3A",
       ui: {
         description: "Color secundario de la empresa"
       }
     }),
-    contactEmail: (0, import_fields46.text)({
+    contactEmail: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de contacto de la empresa"
       }
     }),
-    contactPhone: (0, import_fields46.text)({
+    contactPhone: (0, import_fields48.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
-    createdAt: (0, import_fields46.timestamp)({
+    createdAt: (0, import_fields48.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields46.timestamp)({
+    updatedAt: (0, import_fields48.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -4591,8 +4967,8 @@ var SaasCompany_default = (0, import_core46.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core47 = require("@keystone-6/core");
-var import_fields47 = require("@keystone-6/core/fields");
+var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -4624,7 +5000,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core47.list)({
+var SaasPlan_default = (0, import_core49.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -4642,42 +5018,42 @@ var SaasPlan_default = (0, import_core47.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields47.text)({
+    name: (0, import_fields49.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields47.float)({
+    cost: (0, import_fields49.float)({
       ui: { description: "Plan cost per billing period" }
     }),
-    costOld: (0, import_fields47.float)({
+    costOld: (0, import_fields49.float)({
       ui: { description: "Plan cost original" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
-    referralUpfrontCommissionPct: (0, import_fields47.float)({
+    referralUpfrontCommissionPct: (0, import_fields49.float)({
       ui: {
         description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
       }
     }),
     /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
-    referralRecurringCommissionPct: (0, import_fields47.float)({
+    referralRecurringCommissionPct: (0, import_fields49.float)({
       ui: {
         description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
       }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields47.select)({
+    frequency: (0, import_fields49.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields47.text)({
+    currency: (0, import_fields49.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields47.integer)({
+    leadLimit: (0, import_fields49.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -4688,28 +5064,28 @@ var SaasPlan_default = (0, import_core47.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields47.json)({
+    planFeatures: (0, import_fields49.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields47.relationship)({
+    saasPayments: (0, import_fields49.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields47.checkbox)({
+    active: (0, import_fields49.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields47.checkbox)({
+    bestSeller: (0, import_fields49.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields47.text)({
+    stripePriceId: (0, import_fields49.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -4717,36 +5093,36 @@ var SaasPlan_default = (0, import_core47.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields47.text)({
+    stripeProductId: (0, import_fields49.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
     /** Companies currently on this plan */
-    companies: (0, import_fields47.relationship)({
+    companies: (0, import_fields49.relationship)({
       ref: "SaasCompany.plan",
       many: true,
       ui: { description: "Companies on this plan" }
     }),
-    subscriptions: (0, import_fields47.relationship)({
+    subscriptions: (0, import_fields49.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
-    saasSubscriptionLogs: (0, import_fields47.relationship)({
+    saasSubscriptionLogs: (0, import_fields49.relationship)({
       ref: "SaasSubscriptionLog.plan",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
     }),
-    createdAt: (0, import_fields47.timestamp)({
+    createdAt: (0, import_fields49.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields47.timestamp)({
+    updatedAt: (0, import_fields49.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -4757,8 +5133,8 @@ var SaasPlan_default = (0, import_core47.list)({
 });
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var import_core48 = require("@keystone-6/core");
-var import_fields48 = require("@keystone-6/core/fields");
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCredit/SaasCredit.access.ts
 var saasCreditAccess = {
@@ -4776,7 +5152,7 @@ var saasCreditAccess = {
 };
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var SaasCredit_default = (0, import_core48.list)({
+var SaasCredit_default = (0, import_core50.list)({
   access: saasCreditAccess,
   ui: {
     listView: {
@@ -4794,51 +5170,51 @@ var SaasCredit_default = (0, import_core48.list)({
   },
   fields: {
     /** Internal key for upsert/seed (e.g. "Recarga Básica") */
-    slug: (0, import_fields48.text)({
+    slug: (0, import_fields50.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
     }),
     /** Package display name shown in the app */
-    name: (0, import_fields48.text)({
+    name: (0, import_fields50.text)({
       validation: { isRequired: true },
       ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
     }),
     /** One-time price amount (in package currency) */
-    cost: (0, import_fields48.float)({
+    cost: (0, import_fields50.float)({
       ui: { description: "One-time package cost" }
     }),
-    costOld: (0, import_fields48.float)({
+    costOld: (0, import_fields50.float)({
       ui: { description: "Original price for strikethrough discount display" }
     }),
     /** Payment frequency (one-time for credit top-ups) */
-    frequency: (0, import_fields48.select)({
+    frequency: (0, import_fields50.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       defaultValue: "once",
       ui: { description: "Payment frequency (once for credit packages)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields48.text)({
+    currency: (0, import_fields50.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    /** Number of extra lead-sync credits added on purchase */
-    creditsToAdd: (0, import_fields48.integer)({
+    /** Number of extra credits added on purchase (leads sync or managed AI) */
+    creditsToAdd: (0, import_fields50.integer)({
       validation: { isRequired: true },
       ui: { description: "Credits added to the company on successful purchase" }
     }),
     /** Shown in app and available for purchase */
-    active: (0, import_fields48.checkbox)({
+    active: (0, import_fields50.checkbox)({
       defaultValue: true,
       ui: { description: "Package enabled in app (visible for purchase)" }
     }),
-    bestSeller: (0, import_fields48.checkbox)({
+    bestSeller: (0, import_fields50.checkbox)({
       defaultValue: false,
       ui: { description: "Highlight this package as best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
-    stripePriceId: (0, import_fields48.text)({
+    stripePriceId: (0, import_fields50.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -4846,206 +5222,11 @@ var SaasCredit_default = (0, import_core48.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields48.text)({
+    stripeProductId: (0, import_fields50.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
-    }),
-    createdAt: (0, import_fields48.timestamp)({
-      defaultValue: { kind: "now" },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
-    }),
-    updatedAt: (0, import_fields48.timestamp)({
-      db: { updatedAt: true },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var import_core49 = require("@keystone-6/core");
-var import_fields49 = require("@keystone-6/core/fields");
-
-// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
-var getCompanyId9 = (session2) => session2?.data?.company?.id;
-var saasCompanyMonthlyLeadSyncAccess = {
-  operation: {
-    query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId9(session2),
-    update: () => true,
-    delete: () => true
-  },
-  filter: {
-    query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId9(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId9(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId9(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
-  }
-};
-
-// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core49.list)({
-  access: saasCompanyMonthlyLeadSyncAccess,
-  ui: {
-    listView: {
-      initialColumns: ["company", "year", "month", "syncedCount"]
-    }
-  },
-  fields: {
-    company: (0, import_fields49.relationship)({
-      ref: "SaasCompany.monthlyLeadSyncRecords",
-      many: false
-    }),
-    year: (0, import_fields49.integer)({
-      validation: { isRequired: true },
-      isIndexed: true,
-      ui: { description: "Year of the sync period" }
-    }),
-    month: (0, import_fields49.integer)({
-      validation: { isRequired: true },
-      isIndexed: true,
-      ui: { description: "Month of the sync period (1-12)" }
-    }),
-    /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields49.integer)({
-      defaultValue: 0,
-      ui: { description: "Number of leads synced this month (for quota tracking)" }
-    }),
-    createdAt: (0, import_fields49.timestamp)({
-      defaultValue: { kind: "now" },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
-    }),
-    updatedAt: (0, import_fields49.timestamp)({
-      db: { updatedAt: true },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
-    })
-  }
-});
-
-// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var import_core50 = require("@keystone-6/core");
-var import_fields50 = require("@keystone-6/core/fields");
-
-// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
-var getCompanyId10 = (session2) => session2?.data?.company?.id;
-var companyCreditPeriodAccess = {
-  operation: {
-    query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId10(session2),
-    update: () => true,
-    delete: () => true
-  },
-  filter: {
-    query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId10(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId10(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId10(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
-  }
-};
-
-// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var SaasCompanyCreditPeriod_default = (0, import_core50.list)({
-  access: companyCreditPeriodAccess,
-  ui: {
-    listView: {
-      initialColumns: [
-        "company",
-        "year",
-        "month",
-        "planAllowance",
-        "bonusAllowance",
-        "used",
-        "periodKey"
-      ]
-    }
-  },
-  fields: {
-    company: (0, import_fields50.relationship)({
-      ref: "SaasCompany.creditPeriods",
-      many: false,
-      ui: { description: "Company that owns this credit period" }
-    }),
-    subscription: (0, import_fields50.relationship)({
-      ref: "SaasCompanySubscription.creditPeriods",
-      many: false,
-      ui: { description: "Active subscription when this period was created" }
-    }),
-    periodKey: (0, import_fields50.text)({
-      isIndexed: "unique",
-      validation: { isRequired: true },
-      ui: {
-        description: "Unique key: companyId:year:month"
-      }
-    }),
-    year: (0, import_fields50.integer)({
-      validation: { isRequired: true },
-      isIndexed: true,
-      ui: { description: "Year of the credit period" }
-    }),
-    month: (0, import_fields50.integer)({
-      validation: { isRequired: true },
-      isIndexed: true,
-      ui: { description: "Month of the credit period (1-12)" }
-    }),
-    planAllowance: (0, import_fields50.integer)({
-      defaultValue: 0,
-      ui: { description: "Monthly lead allowance from the active plan" }
-    }),
-    bonusAllowance: (0, import_fields50.integer)({
-      defaultValue: 0,
-      ui: {
-        description: "Extra purchased credits added to the monthly allowance for this period"
-      }
-    }),
-    used: (0, import_fields50.integer)({
-      defaultValue: 0,
-      ui: { description: "Credits consumed in this period" }
-    }),
-    ledgerEntries: (0, import_fields50.relationship)({
-      ref: "SaasCompanyCreditLedger.period",
-      many: true,
-      ui: { description: "Ledger movements for this period" }
     }),
     createdAt: (0, import_fields50.timestamp)({
       defaultValue: { kind: "now" },
@@ -5064,13 +5245,13 @@ var SaasCompanyCreditPeriod_default = (0, import_core50.list)({
   }
 });
 
-// models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
 var import_core51 = require("@keystone-6/core");
 var import_fields51 = require("@keystone-6/core/fields");
 
-// models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
 var getCompanyId11 = (session2) => session2?.data?.company?.id;
-var companyCreditLedgerAccess = {
+var saasCompanyMonthlyLeadSyncAccess = {
   operation: {
     query: () => true,
     create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId11(session2),
@@ -5079,19 +5260,25 @@ var companyCreditLedgerAccess = {
   },
   filter: {
     query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
       const companyId = getCompanyId11(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
       const companyId = getCompanyId11(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
       const companyId = getCompanyId11(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
@@ -5099,123 +5286,73 @@ var companyCreditLedgerAccess = {
   }
 };
 
-// models/Saas/SaasCompanyCreditLedger/constants.ts
-var COMPANY_CREDIT_LEDGER_TYPE = {
-  GRANT_PLAN: "GRANT_PLAN",
-  GRANT_PURCHASE: "GRANT_PURCHASE",
-  CONSUME_SYNC: "CONSUME_SYNC",
-  ADJUST: "ADJUST"
-};
-var COMPANY_CREDIT_LEDGER_TYPE_OPTIONS = [
-  { label: "Grant plan", value: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN },
-  { label: "Grant purchase", value: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE },
-  { label: "Consume sync", value: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC },
-  { label: "Adjust", value: COMPANY_CREDIT_LEDGER_TYPE.ADJUST }
-];
-
-// models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var SaasCompanyCreditLedger_default = (0, import_core51.list)({
-  access: companyCreditLedgerAccess,
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
+var SaasCompanyMonthlyLeadSync_default = (0, import_core51.list)({
+  access: saasCompanyMonthlyLeadSyncAccess,
   ui: {
     listView: {
-      initialColumns: [
-        "company",
-        "type",
-        "amount",
-        "balanceAfter",
-        "referenceType",
-        "referenceId",
-        "createdAt"
-      ]
+      initialColumns: ["company", "year", "month", "syncedCount"]
     }
   },
   fields: {
     company: (0, import_fields51.relationship)({
-      ref: "SaasCompany.creditLedgerEntries",
-      many: false,
-      ui: { description: "Company this ledger entry belongs to" }
+      ref: "SaasCompany.monthlyLeadSyncRecords",
+      many: false
     }),
-    period: (0, import_fields51.relationship)({
-      ref: "SaasCompanyCreditPeriod.ledgerEntries",
-      many: false,
-      ui: { description: "Credit period this entry affects" }
-    }),
-    type: (0, import_fields51.select)({
-      type: "string",
-      options: [...COMPANY_CREDIT_LEDGER_TYPE_OPTIONS],
+    year: (0, import_fields51.integer)({
       validation: { isRequired: true },
-      ui: { description: "Type of credit movement" }
+      isIndexed: true,
+      ui: { description: "Year of the sync period" }
     }),
-    amount: (0, import_fields51.integer)({
+    month: (0, import_fields51.integer)({
       validation: { isRequired: true },
-      ui: {
-        description: "Signed amount: positive = grant, negative = consume"
-      }
+      isIndexed: true,
+      ui: { description: "Month of the sync period (1-12)" }
     }),
-    balanceAfter: (0, import_fields51.integer)({
-      ui: { description: "Remaining credits after this movement" }
-    }),
-    referenceType: (0, import_fields51.text)({
-      db: { isNullable: true },
-      ui: {
-        description: "Reference entity type (subscription, payment, syncLog)"
-      }
-    }),
-    referenceId: (0, import_fields51.text)({
-      db: { isNullable: true },
-      ui: { description: "Reference entity ID" }
-    }),
-    notes: (0, import_fields51.text)({
-      db: { isNullable: true },
-      ui: { displayMode: "textarea", description: "Optional notes" }
-    }),
-    metadata: (0, import_fields51.json)({
-      ui: { description: "Optional extra context for this movement" }
+    /** Number of leads synced in this month for this company (used vs plan leadLimit) */
+    syncedCount: (0, import_fields51.integer)({
+      defaultValue: 0,
+      ui: { description: "Number of leads synced this month (for quota tracking)" }
     }),
     createdAt: (0, import_fields51.timestamp)({
       defaultValue: { kind: "now" },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    }),
+    updatedAt: (0, import_fields51.timestamp)({
+      db: { updatedAt: true },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
   }
 });
 
-// models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
+// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
 var import_core52 = require("@keystone-6/core");
 var import_fields52 = require("@keystone-6/core/fields");
 
-// models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
+// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
 var getCompanyId12 = (session2) => session2?.data?.company?.id;
-var saasCompanySubscriptionAccess = {
+var companyCreditPeriodAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId12(session2),
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId12(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
+      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
       const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
+      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
       const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
+      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
       const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
@@ -5223,112 +5360,68 @@ var saasCompanySubscriptionAccess = {
   }
 };
 
-// models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core52.list)({
-  access: saasCompanySubscriptionAccess,
+// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
+var SaasCompanyCreditPeriod_default = (0, import_core52.list)({
+  access: companyCreditPeriodAccess,
   ui: {
     listView: {
       initialColumns: [
         "company",
-        "planName",
-        "planCost",
-        "planLeadLimit",
-        "planFeatures",
-        "status",
-        "activatedAt",
-        "stripeSubscriptionId"
+        "year",
+        "month",
+        "planAllowance",
+        "bonusAllowance",
+        "used",
+        "periodKey"
       ]
     }
   },
   fields: {
-    /** Company that owns this subscription */
     company: (0, import_fields52.relationship)({
-      ref: "SaasCompany.subscriptions",
+      ref: "SaasCompany.creditPeriods",
       many: false,
-      ui: { description: "Company that paid for this subscription" }
+      ui: { description: "Company that owns this credit period" }
     }),
-    /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields52.text)({
-      ui: { description: "Plan name as contracted (snapshot)" }
+    subscription: (0, import_fields52.relationship)({
+      ref: "SaasCompanySubscription.creditPeriods",
+      many: false,
+      ui: { description: "Active subscription when this period was created" }
     }),
-    /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields52.float)({
-      ui: { description: "Plan cost as contracted (snapshot)" }
+    periodKey: (0, import_fields52.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: {
+        description: "Unique key: companyId:year:month"
+      }
     }),
-    /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields52.text)({
-      ui: { description: "Plan frequency as contracted (snapshot)" }
+    year: (0, import_fields52.integer)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Year of the credit period" }
     }),
-    /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields52.integer)({
-      ui: { description: "Lead limit as contracted (snapshot)" }
+    month: (0, import_fields52.integer)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Month of the credit period (1-12)" }
     }),
-    /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
-    newCreditsAdded: (0, import_fields52.integer)({
+    planAllowance: (0, import_fields52.integer)({
       defaultValue: 0,
-      ui: { description: "Extra credits purchased and added to this subscription" }
+      ui: { description: "Monthly lead allowance from the active plan" }
     }),
-    /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields52.text)({
-      ui: { description: "Stripe Price ID as contracted (snapshot)" }
-    }),
-    /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields52.text)({
-      ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
-    }),
-    planFeatures: (0, import_fields52.json)({
+    bonusAllowance: (0, import_fields52.integer)({
+      defaultValue: 0,
       ui: {
-        description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
+        description: "Extra purchased credits added to the monthly allowance for this period"
       }
     }),
-    /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields52.select)({
-      type: "string",
-      options: [...SUBSCRIPTION_STATUS_OPTIONS],
-      defaultValue: "active",
-      ui: { description: "Current subscription status" }
+    used: (0, import_fields52.integer)({
+      defaultValue: 0,
+      ui: { description: "Credits consumed in this period" }
     }),
-    /** Date when the subscription was activated */
-    activatedAt: (0, import_fields52.calendarDay)({
-      ui: { description: "Date when the subscription was activated" }
-    }),
-    /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields52.calendarDay)({
-      ui: { description: "End of current billing period" }
-    }),
-    /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields52.text)({
-      db: { isNullable: true },
-      ui: { description: "Stripe Subscription ID" }
-    }),
-    /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields52.text)({
-      db: { isNullable: true },
-      ui: { description: "Stripe Customer ID" }
-    }),
-    /** Payments associated with this subscription */
-    saasPayments: (0, import_fields52.relationship)({
-      ref: "SaasPayment.subscription",
+    ledgerEntries: (0, import_fields52.relationship)({
+      ref: "SaasCompanyCreditLedger.period",
       many: true,
-      ui: { description: "Payments for this subscription" }
-    }),
-    creditPeriods: (0, import_fields52.relationship)({
-      ref: "SaasCompanyCreditPeriod.subscription",
-      many: true,
-      ui: { description: "Credit periods linked to this subscription" }
-    }),
-    /** Subscription plan for this company */
-    plan: (0, import_fields52.relationship)({
-      ref: "SaasPlan.subscriptions",
-      many: false,
-      ui: {
-        description: "Subscription plan (defines cost, frequency, lead limit)"
-      }
-    }),
-    saasSubscriptionLogs: (0, import_fields52.relationship)({
-      ref: "SaasSubscriptionLog.createdSubscription",
-      many: true,
-      ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
+      ui: { description: "Ledger movements for this period" }
     }),
     createdAt: (0, import_fields52.timestamp)({
       defaultValue: { kind: "now" },
@@ -5347,12 +5440,297 @@ var SaasCompanySubscription_default = (0, import_core52.list)({
   }
 });
 
-// models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
+// models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
 var import_core53 = require("@keystone-6/core");
 var import_fields53 = require("@keystone-6/core/fields");
 
-// models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
+// models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
 var getCompanyId13 = (session2) => session2?.data?.company?.id;
+var companyCreditLedgerAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId13(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+      const companyId = getCompanyId13(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+      const companyId = getCompanyId13(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+      const companyId = getCompanyId13(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// models/Saas/SaasCompanyCreditLedger/constants.ts
+var COMPANY_CREDIT_LEDGER_TYPE = {
+  GRANT_PLAN: "GRANT_PLAN",
+  GRANT_PURCHASE: "GRANT_PURCHASE",
+  CONSUME_SYNC: "CONSUME_SYNC",
+  CONSUME_AI: "CONSUME_AI",
+  ADJUST: "ADJUST"
+};
+var COMPANY_CREDIT_LEDGER_TYPE_OPTIONS = [
+  { label: "Grant plan", value: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN },
+  { label: "Grant purchase", value: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE },
+  { label: "Consume sync", value: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC },
+  { label: "Consume AI", value: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI },
+  { label: "Adjust", value: COMPANY_CREDIT_LEDGER_TYPE.ADJUST }
+];
+
+// models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
+var SaasCompanyCreditLedger_default = (0, import_core53.list)({
+  access: companyCreditLedgerAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "company",
+        "type",
+        "amount",
+        "balanceAfter",
+        "referenceType",
+        "referenceId",
+        "createdAt"
+      ]
+    }
+  },
+  fields: {
+    company: (0, import_fields53.relationship)({
+      ref: "SaasCompany.creditLedgerEntries",
+      many: false,
+      ui: { description: "Company this ledger entry belongs to" }
+    }),
+    period: (0, import_fields53.relationship)({
+      ref: "SaasCompanyCreditPeriod.ledgerEntries",
+      many: false,
+      ui: { description: "Credit period this entry affects" }
+    }),
+    type: (0, import_fields53.select)({
+      type: "string",
+      options: [...COMPANY_CREDIT_LEDGER_TYPE_OPTIONS],
+      validation: { isRequired: true },
+      ui: { description: "Type of credit movement" }
+    }),
+    amount: (0, import_fields53.integer)({
+      validation: { isRequired: true },
+      ui: {
+        description: "Signed amount: positive = grant, negative = consume"
+      }
+    }),
+    balanceAfter: (0, import_fields53.integer)({
+      ui: { description: "Remaining credits after this movement" }
+    }),
+    referenceType: (0, import_fields53.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Reference entity type (subscription, payment, syncLog)"
+      }
+    }),
+    referenceId: (0, import_fields53.text)({
+      db: { isNullable: true },
+      ui: { description: "Reference entity ID" }
+    }),
+    notes: (0, import_fields53.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea", description: "Optional notes" }
+    }),
+    metadata: (0, import_fields53.json)({
+      ui: { description: "Optional extra context for this movement" }
+    }),
+    createdAt: (0, import_fields53.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
+var import_core54 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
+var getCompanyId14 = (session2) => session2?.data?.company?.id;
+var saasCompanySubscriptionAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => !!getCompanyId14(session2),
+    update: () => true,
+    delete: () => true
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId14(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId14(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    delete: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId14(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    }
+  }
+};
+
+// models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
+var SaasCompanySubscription_default = (0, import_core54.list)({
+  access: saasCompanySubscriptionAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "company",
+        "planName",
+        "planCost",
+        "planLeadLimit",
+        "planFeatures",
+        "status",
+        "activatedAt",
+        "stripeSubscriptionId"
+      ]
+    }
+  },
+  fields: {
+    /** Company that owns this subscription */
+    company: (0, import_fields54.relationship)({
+      ref: "SaasCompany.subscriptions",
+      many: false,
+      ui: { description: "Company that paid for this subscription" }
+    }),
+    /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
+    planName: (0, import_fields54.text)({
+      ui: { description: "Plan name as contracted (snapshot)" }
+    }),
+    /** Snapshot: plan cost at time of contract */
+    planCost: (0, import_fields54.float)({
+      ui: { description: "Plan cost as contracted (snapshot)" }
+    }),
+    /** Snapshot: billing frequency (weekly, monthly, annual) */
+    planFrequency: (0, import_fields54.text)({
+      ui: { description: "Plan frequency as contracted (snapshot)" }
+    }),
+    /** Snapshot: lead limit at time of contract */
+    planLeadLimit: (0, import_fields54.integer)({
+      ui: { description: "Lead limit as contracted (snapshot)" }
+    }),
+    /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
+    newCreditsAdded: (0, import_fields54.integer)({
+      defaultValue: 0,
+      ui: { description: "Extra credits purchased and added to this subscription" }
+    }),
+    /** Snapshot: Stripe Price ID at time of contract */
+    planStripePriceId: (0, import_fields54.text)({
+      ui: { description: "Stripe Price ID as contracted (snapshot)" }
+    }),
+    /** Snapshot: currency at time of contract */
+    planCurrency: (0, import_fields54.text)({
+      ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
+    }),
+    planFeatures: (0, import_fields54.json)({
+      ui: {
+        description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
+      }
+    }),
+    /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
+    status: (0, import_fields54.select)({
+      type: "string",
+      options: [...SUBSCRIPTION_STATUS_OPTIONS],
+      defaultValue: "active",
+      ui: { description: "Current subscription status" }
+    }),
+    /** Date when the subscription was activated */
+    activatedAt: (0, import_fields54.calendarDay)({
+      ui: { description: "Date when the subscription was activated" }
+    }),
+    /** End of current billing period (Stripe current_period_end) */
+    currentPeriodEnd: (0, import_fields54.calendarDay)({
+      ui: { description: "End of current billing period" }
+    }),
+    /** Stripe Subscription ID (e.g. sub_xxx) */
+    stripeSubscriptionId: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: { description: "Stripe Subscription ID" }
+    }),
+    /** Stripe Customer ID if needed (e.g. cus_xxx) */
+    stripeCustomerId: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: { description: "Stripe Customer ID" }
+    }),
+    /** Payments associated with this subscription */
+    saasPayments: (0, import_fields54.relationship)({
+      ref: "SaasPayment.subscription",
+      many: true,
+      ui: { description: "Payments for this subscription" }
+    }),
+    creditPeriods: (0, import_fields54.relationship)({
+      ref: "SaasCompanyCreditPeriod.subscription",
+      many: true,
+      ui: { description: "Credit periods linked to this subscription" }
+    }),
+    /** Subscription plan for this company */
+    plan: (0, import_fields54.relationship)({
+      ref: "SaasPlan.subscriptions",
+      many: false,
+      ui: {
+        description: "Subscription plan (defines cost, frequency, lead limit)"
+      }
+    }),
+    saasSubscriptionLogs: (0, import_fields54.relationship)({
+      ref: "SaasSubscriptionLog.createdSubscription",
+      many: true,
+      ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
+    }),
+    createdAt: (0, import_fields54.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields54.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
+var import_core55 = require("@keystone-6/core");
+var import_fields55 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
+var getCompanyId15 = (session2) => session2?.data?.company?.id;
 var getUserId2 = (session2) => session2?.data?.id;
 function paymentMethodFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
@@ -5360,7 +5738,7 @@ function paymentMethodFilter(session2) {
   }
   const userId = getUserId2(session2);
   if (!userId) return false;
-  const companyId = getCompanyId13(session2);
+  const companyId = getCompanyId15(session2);
   if (companyId) {
     return { user: { company: { id: { equals: companyId } } } };
   }
@@ -5381,7 +5759,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core53.list)({
+var SaasPaymentMethod_default = (0, import_core55.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -5396,61 +5774,61 @@ var SaasPaymentMethod_default = (0, import_core53.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields53.relationship)({
+    user: (0, import_fields55.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields53.text)({
+    cardType: (0, import_fields55.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields53.text)({
+    lastFourDigits: (0, import_fields55.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields53.text)({
+    expMonth: (0, import_fields55.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields53.text)({
+    expYear: (0, import_fields55.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields53.text)({
+    stripeProcessorId: (0, import_fields55.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields53.text)({
+    stripePaymentMethodId: (0, import_fields55.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields53.text)({
+    address: (0, import_fields55.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields53.text)({
+    postalCode: (0, import_fields55.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields53.text)({
+    ownerName: (0, import_fields55.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields53.text)({
+    country: (0, import_fields55.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields53.relationship)({
+    saasPayments: (0, import_fields55.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields53.timestamp)({
+    createdAt: (0, import_fields55.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields53.timestamp)({
+    updatedAt: (0, import_fields55.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -5458,11 +5836,11 @@ var SaasPaymentMethod_default = (0, import_core53.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core54 = require("@keystone-6/core");
-var import_fields54 = require("@keystone-6/core/fields");
+var import_core56 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
-var getCompanyId14 = (session2) => session2?.data?.company?.id;
+var getCompanyId16 = (session2) => session2?.data?.company?.id;
 var getUserId3 = (session2) => session2?.data?.id;
 function paymentFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
@@ -5470,7 +5848,7 @@ function paymentFilter(session2) {
   }
   const userId = getUserId3(session2);
   if (!userId) return false;
-  const companyId = getCompanyId14(session2);
+  const companyId = getCompanyId16(session2);
   if (companyId) {
     return { user: { company: { id: { equals: companyId } } } };
   }
@@ -5491,7 +5869,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core54.list)({
+var SaasPayment_default = (0, import_core56.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -5509,30 +5887,30 @@ var SaasPayment_default = (0, import_core54.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields54.relationship)({
+    user: (0, import_fields56.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields54.text)({
+    paymentMethodType: (0, import_fields56.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields54.relationship)({
+    paymentMethod: (0, import_fields56.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields54.decimal)({
+    amount: (0, import_fields56.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields54.select)({
+    status: (0, import_fields56.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -5545,38 +5923,38 @@ var SaasPayment_default = (0, import_core54.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields54.text)({
+    processorStripeChargeId: (0, import_fields56.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields54.text)({
+    stripeErrorMessage: (0, import_fields56.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields54.text)({
+    notes: (0, import_fields56.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields54.relationship)({
+    plan: (0, import_fields56.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields54.relationship)({
+    subscription: (0, import_fields56.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields54.timestamp)({
+    createdAt: (0, import_fields56.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields54.timestamp)({
+    updatedAt: (0, import_fields56.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -5584,31 +5962,31 @@ var SaasPayment_default = (0, import_core54.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core55 = require("@keystone-6/core");
-var import_fields55 = require("@keystone-6/core/fields");
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
-var getCompanyId15 = (session2) => session2?.data?.company?.id;
+var getCompanyId17 = (session2) => session2?.data?.company?.id;
 var projectAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId15(session2),
+    create: ({ session: session2 }) => !!getCompanyId17(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId15(session2);
+      const companyId = getCompanyId17(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId15(session2);
+      const companyId = getCompanyId17(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId15(session2);
+      const companyId = getCompanyId17(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -5628,7 +6006,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core55.list)({
+var SaasProject_default = (0, import_core57.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -5643,78 +6021,78 @@ var SaasProject_default = (0, import_core55.list)({
     }
   },
   fields: {
-    name: (0, import_fields55.text)({
+    name: (0, import_fields57.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields55.text)({
+    serviceType: (0, import_fields57.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields55.relationship)({
+    responsible: (0, import_fields57.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields55.calendarDay)({
+    startDate: (0, import_fields57.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields55.calendarDay)({
+    estimatedEndDate: (0, import_fields57.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields55.text)({
+    description: (0, import_fields57.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields55.select)({
+    status: (0, import_fields57.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields55.text)({
+    urlData: (0, import_fields57.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields55.relationship)({
+    company: (0, import_fields57.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields55.relationship)({
+    businessLead: (0, import_fields57.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields55.relationship)({
+    proposal: (0, import_fields57.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields55.relationship)({
+    quotations: (0, import_fields57.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields55.timestamp)({
+    createdAt: (0, import_fields57.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields55.timestamp)({
+    updatedAt: (0, import_fields57.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5725,31 +6103,31 @@ var SaasProject_default = (0, import_core55.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core56 = require("@keystone-6/core");
-var import_fields56 = require("@keystone-6/core/fields");
+var import_core58 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
-var getCompanyId16 = (session2) => session2?.data?.company?.id;
+var getCompanyId18 = (session2) => session2?.data?.company?.id;
 var quotationAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId16(session2),
+    create: ({ session: session2 }) => !!getCompanyId18(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId16(session2);
+      const companyId = getCompanyId18(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId16(session2);
+      const companyId = getCompanyId18(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId16(session2);
+      const companyId = getCompanyId18(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -5853,7 +6231,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core56.list)({
+var SaasQuotation_default = (0, import_core58.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -5871,117 +6249,117 @@ var SaasQuotation_default = (0, import_core56.list)({
     }
   },
   fields: {
-    company: (0, import_fields56.relationship)({
+    company: (0, import_fields58.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields56.relationship)({
+    lead: (0, import_fields58.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields56.relationship)({
+    project: (0, import_fields58.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields56.text)({
+    quotationNumber: (0, import_fields58.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields56.select)({
+    status: (0, import_fields58.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields56.text)({
+    currency: (0, import_fields58.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields56.float)({
+    exchangeRate: (0, import_fields58.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields56.float)({
+    subtotal: (0, import_fields58.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields56.float)({
+    discountTotal: (0, import_fields58.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields56.float)({
+    taxTotal: (0, import_fields58.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields56.float)({
+    total: (0, import_fields58.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields56.calendarDay)({
+    validUntil: (0, import_fields58.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields56.timestamp)({
+    sentAt: (0, import_fields58.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields56.timestamp)({
+    acceptedAt: (0, import_fields58.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields56.text)({
+    notes: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields56.text)({
+    terms: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields56.relationship)({
+    createdBy: (0, import_fields58.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields56.relationship)({
+    assignedSeller: (0, import_fields58.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields56.text)({
+    pdfFileOrUrl: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields56.relationship)({
+    quotationProducts: (0, import_fields58.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields56.checkbox)({
+    showDiscount: (0, import_fields58.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields56.checkbox)({
+    showNotes: (0, import_fields58.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields56.timestamp)({
+    createdAt: (0, import_fields58.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields56.timestamp)({
+    updatedAt: (0, import_fields58.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5992,31 +6370,31 @@ var SaasQuotation_default = (0, import_core56.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core57 = require("@keystone-6/core");
-var import_fields57 = require("@keystone-6/core/fields");
+var import_core59 = require("@keystone-6/core");
+var import_fields59 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
-var getCompanyId17 = (session2) => session2?.data?.company?.id;
+var getCompanyId19 = (session2) => session2?.data?.company?.id;
 var quotationProductAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId17(session2),
+    create: ({ session: session2 }) => !!getCompanyId19(session2),
     update: () => true,
     delete: () => true
   },
   filter: {
     query: ({ session: session2 }) => {
-      const companyId = getCompanyId17(session2);
+      const companyId = getCompanyId19(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     update: ({ session: session2 }) => {
-      const companyId = getCompanyId17(session2);
+      const companyId = getCompanyId19(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     },
     delete: ({ session: session2 }) => {
-      const companyId = getCompanyId17(session2);
+      const companyId = getCompanyId19(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
     }
@@ -6181,7 +6559,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core57.list)({
+var SaasQuotationProduct_default = (0, import_core59.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -6190,60 +6568,60 @@ var SaasQuotationProduct_default = (0, import_core57.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields57.relationship)({
+    quotation: (0, import_fields59.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields57.text)({
+    description: (0, import_fields59.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields57.float)({
+    quantity: (0, import_fields59.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields57.float)({
+    unitPrice: (0, import_fields59.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields57.select)({
+    discountType: (0, import_fields59.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields57.float)({
+    discountValue: (0, import_fields59.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields57.float)({
+    taxRate: (0, import_fields59.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields57.float)({
+    lineSubtotal: (0, import_fields59.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields57.float)({
+    lineTotal: (0, import_fields59.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields57.timestamp)({
+    createdAt: (0, import_fields59.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields57.timestamp)({
+    updatedAt: (0, import_fields59.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6254,11 +6632,11 @@ var SaasQuotationProduct_default = (0, import_core57.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core58 = require("@keystone-6/core");
-var import_fields58 = require("@keystone-6/core/fields");
+var import_core60 = require("@keystone-6/core");
+var import_fields60 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
-var getCompanyId18 = (session2) => session2?.data?.company?.id;
+var getCompanyId20 = (session2) => session2?.data?.company?.id;
 var getUserId4 = (session2) => session2?.data?.id;
 function referralCommissionFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
@@ -6266,7 +6644,7 @@ function referralCommissionFilter(session2) {
   }
   const userId = getUserId4(session2);
   if (!userId) return false;
-  const companyId = getCompanyId18(session2);
+  const companyId = getCompanyId20(session2);
   const orClause = [
     { referrer: { id: { equals: userId } } },
     { referredUser: { id: { equals: userId } } }
@@ -6297,7 +6675,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core58.list)({
+var SaasReferralCommission_default = (0, import_core60.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -6316,27 +6694,27 @@ var SaasReferralCommission_default = (0, import_core58.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields58.relationship)({
+    referrer: (0, import_fields60.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields58.relationship)({
+    referredUser: (0, import_fields60.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields58.relationship)({
+    company: (0, import_fields60.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields58.relationship)({
+    subscription: (0, import_fields60.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields58.relationship)({
+    plan: (0, import_fields60.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields58.select)({
+    type: (0, import_fields60.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -6344,30 +6722,30 @@ var SaasReferralCommission_default = (0, import_core58.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields58.float)({
+    percentage: (0, import_fields60.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields58.float)({
+    amount: (0, import_fields60.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields58.text)({
+    currency: (0, import_fields60.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields58.float)({
+    periodIndex: (0, import_fields60.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields58.calendarDay)({
+    periodStart: (0, import_fields60.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields58.calendarDay)({
+    periodEnd: (0, import_fields60.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields58.select)({
+    status: (0, import_fields60.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -6378,18 +6756,18 @@ var SaasReferralCommission_default = (0, import_core58.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields58.text)({
+    notes: (0, import_fields60.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields58.timestamp)({
+    createdAt: (0, import_fields60.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields58.timestamp)({
+    updatedAt: (0, import_fields60.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6400,11 +6778,11 @@ var SaasReferralCommission_default = (0, import_core58.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core59 = require("@keystone-6/core");
-var import_fields59 = require("@keystone-6/core/fields");
+var import_core61 = require("@keystone-6/core");
+var import_fields61 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
-var getCompanyId19 = (session2) => session2?.data?.company?.id;
+var getCompanyId21 = (session2) => session2?.data?.company?.id;
 var saasSubscriptionLogAccess = {
   operation: {
     query: () => true,
@@ -6417,7 +6795,7 @@ var saasSubscriptionLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId19(session2);
+      const companyId = getCompanyId21(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
@@ -6426,7 +6804,7 @@ var saasSubscriptionLogAccess = {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
       }
-      const companyId = getCompanyId19(session2);
+      const companyId = getCompanyId21(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     }
@@ -6434,7 +6812,7 @@ var saasSubscriptionLogAccess = {
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core59.list)({
+var SaasSubscriptionLog_default = (0, import_core61.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -6449,71 +6827,71 @@ var SaasSubscriptionLog_default = (0, import_core59.list)({
     }
   },
   fields: {
-    user: (0, import_fields59.relationship)({
+    user: (0, import_fields61.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields59.relationship)({
+    company: (0, import_fields61.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields59.relationship)({
+    plan: (0, import_fields61.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields59.relationship)({
+    createdSubscription: (0, import_fields61.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields59.checkbox)({
+    success: (0, import_fields61.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields59.text)({
+    step: (0, import_fields61.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields59.text)({
+    message: (0, import_fields61.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields59.json)({
+    responseSnapshot: (0, import_fields61.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields59.text)({
+    emailMasked: (0, import_fields61.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields59.text)({
+    planIdRequested: (0, import_fields61.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields59.text)({
+    totalSubmitted: (0, import_fields61.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields59.text)({
+    paymentMethodIdSubmitted: (0, import_fields61.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields59.text)({
+    paymentTypeSubmitted: (0, import_fields61.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields59.integer)({
+    durationMs: (0, import_fields61.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields59.text)({
+    stripeCustomerId: (0, import_fields61.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields59.text)({
+    stripeSubscriptionId: (0, import_fields61.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields59.timestamp)({
+    createdAt: (0, import_fields61.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
     })
@@ -6521,17 +6899,17 @@ var SaasSubscriptionLog_default = (0, import_core59.list)({
 });
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var import_core60 = require("@keystone-6/core");
-var import_fields60 = require("@keystone-6/core/fields");
+var import_core62 = require("@keystone-6/core");
+var import_fields62 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
-var getCompanyId20 = (session2) => session2?.data?.company?.id;
+var getCompanyId22 = (session2) => session2?.data?.company?.id;
 var getUserId5 = (session2) => session2?.data?.id;
 function workspaceFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const companyId = getCompanyId20(session2);
+  const companyId = getCompanyId22(session2);
   if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
     if (!companyId) return false;
     return { company: { id: { equals: companyId } } };
@@ -6543,7 +6921,7 @@ function workspaceFilter(session2) {
 var saasWorkspaceAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId20(session2),
+    create: ({ session: session2 }) => !!getCompanyId22(session2),
     update: () => true,
     delete: () => true
   },
@@ -6613,7 +6991,7 @@ var saasWorkspaceSeedCrmStatusesHook = {
 };
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var SaasWorkspace_default = (0, import_core60.list)({
+var SaasWorkspace_default = (0, import_core62.list)({
   access: saasWorkspaceAccess,
   hooks: {
     afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
@@ -6624,58 +7002,58 @@ var SaasWorkspace_default = (0, import_core60.list)({
     }
   },
   fields: {
-    name: (0, import_fields60.text)({
+    name: (0, import_fields62.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
     }),
-    showActivities: (0, import_fields60.checkbox)({
+    showActivities: (0, import_fields62.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar actividades de CRM en este workspace" }
     }),
-    showProposals: (0, import_fields60.checkbox)({
+    showProposals: (0, import_fields62.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar propuestas de CRM en este workspace" }
     }),
-    showFollowUpTasks: (0, import_fields60.checkbox)({
+    showFollowUpTasks: (0, import_fields62.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
     }),
-    showTasks: (0, import_fields60.checkbox)({
+    showTasks: (0, import_fields62.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de workspace en este workspace" }
     }),
-    company: (0, import_fields60.relationship)({
+    company: (0, import_fields62.relationship)({
       ref: "SaasCompany.workspaces",
       many: false,
       ui: { description: "Empresa (tenant) a la que pertenece" }
     }),
-    members: (0, import_fields60.relationship)({
+    members: (0, import_fields62.relationship)({
       ref: "User.workspaces",
       many: true,
       ui: { description: "Usuarios con acceso a este workspace" }
     }),
-    salesActivities: (0, import_fields60.relationship)({
+    salesActivities: (0, import_fields62.relationship)({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" }
     }),
-    tasks: (0, import_fields60.relationship)({
+    tasks: (0, import_fields62.relationship)({
       ref: "TechTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
     }),
-    proposals: (0, import_fields60.relationship)({
+    proposals: (0, import_fields62.relationship)({
       ref: "TechProposal.workspace",
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
-    followUpTasks: (0, import_fields60.relationship)({
+    followUpTasks: (0, import_fields62.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
     }),
-    crmStatuses: (0, import_fields60.relationship)({
+    crmStatuses: (0, import_fields62.relationship)({
       ref: "SaasWorkspaceCrmStatus.workspace",
       many: true,
       ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
@@ -6684,11 +7062,11 @@ var SaasWorkspace_default = (0, import_core60.list)({
 });
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var import_core61 = require("@keystone-6/core");
-var import_fields61 = require("@keystone-6/core/fields");
+var import_core63 = require("@keystone-6/core");
+var import_fields63 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
-var getCompanyId21 = (session2) => session2?.data?.company?.id;
+var getCompanyId23 = (session2) => session2?.data?.company?.id;
 var getUserId6 = (session2) => session2?.data?.id;
 var companyWorkspaceFilter = (companyId) => ({
   workspace: { company: { id: { equals: companyId } } }
@@ -6700,7 +7078,7 @@ function workspaceCrmStatusFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
   }
-  const companyId = getCompanyId21(session2);
+  const companyId = getCompanyId23(session2);
   if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
     if (!companyId) return false;
     return companyWorkspaceFilter(companyId);
@@ -6712,7 +7090,7 @@ function workspaceCrmStatusFilter(session2) {
 var saasWorkspaceCrmStatusAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId21(session2),
+    create: ({ session: session2 }) => !!getCompanyId23(session2),
     update: () => true,
     delete: () => true
   },
@@ -6930,7 +7308,7 @@ var saasWorkspaceCrmStatusHooks = {
 };
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var SaasWorkspaceCrmStatus_default = (0, import_core61.list)({
+var SaasWorkspaceCrmStatus_default = (0, import_core63.list)({
   access: saasWorkspaceCrmStatusAccess,
   hooks: saasWorkspaceCrmStatusHooks,
   ui: {
@@ -6939,58 +7317,58 @@ var SaasWorkspaceCrmStatus_default = (0, import_core61.list)({
     }
   },
   fields: {
-    workspace: (0, import_fields61.relationship)({
+    workspace: (0, import_fields63.relationship)({
       ref: "SaasWorkspace.crmStatuses",
       many: false,
       ui: { description: "Workspace al que pertenece este estado" }
     }),
-    name: (0, import_fields61.text)({
+    name: (0, import_fields63.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre visible (p. ej. Kanban)" }
     }),
-    color: (0, import_fields61.text)({
+    color: (0, import_fields63.text)({
       validation: { isRequired: true },
       ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
     }),
-    key: (0, import_fields61.text)({
+    key: (0, import_fields63.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
       }
     }),
-    order: (0, import_fields61.integer)({
+    order: (0, import_fields63.integer)({
       defaultValue: 0,
       isIndexed: true,
       ui: { description: "Orden en la UI (menor primero)" }
     }),
-    isDefault: (0, import_fields61.checkbox)({
+    isDefault: (0, import_fields63.checkbox)({
       defaultValue: false,
       ui: {
         description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
       }
     }),
-    isArchived: (0, import_fields61.checkbox)({
+    isArchived: (0, import_fields63.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en selectores sin borrar historial" }
     }),
-    followUpTasks: (0, import_fields61.relationship)({
+    followUpTasks: (0, import_fields63.relationship)({
       ref: "TechFollowUpTask.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields61.relationship)({
+    proposals: (0, import_fields63.relationship)({
       ref: "TechProposal.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    salesActivities: (0, import_fields61.relationship)({
+    salesActivities: (0, import_fields63.relationship)({
       ref: "TechSalesActivity.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields61.relationship)({
+    tasks: (0, import_fields63.relationship)({
       ref: "TechTask.statusCrm",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
@@ -7052,6 +7430,8 @@ var schema_default = {
   TechBusinessLead: TechBusinessLead_default,
   TechFile: TechFiles_default,
   TechLeadSyncLog: TechLeadSyncLog_default,
+  TechAiCallLog: TechAiCallLog_default,
+  TechAiInsight: TechAiInsight_default,
   TechFollowUpTask: TechFollowUpTask_default,
   TechProposal: TechProposal_default,
   TechSalesActivity: TechSalesActivity_default,
@@ -7064,7 +7444,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core62 = require("@keystone-6/core");
+var import_core64 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -7862,8 +8242,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text51 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text51}`;
+  const text53 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text53}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -8155,6 +8535,8 @@ async function grantPurchaseCredits(context, params) {
   return updated;
 }
 async function consumeCompanyCredits(context, params) {
+  const consumeType = params.ledgerType ?? COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC;
+  const defaultReferenceType = consumeType === COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI ? "ai" : "sync";
   if (params.amount < 1) {
     const period2 = await ensureSaasCompanyCreditPeriod(context, params.companyId);
     const syncedCount = period2.used ?? 0;
@@ -8213,12 +8595,13 @@ async function consumeCompanyCredits(context, params) {
     await writeLedgerEntry(context, {
       companyId: params.companyId,
       periodId: refreshed.id,
-      type: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC,
+      type: consumeType,
       amount: -params.amount,
       balanceAfter: getPeriodRemaining(refreshed),
-      referenceType: params.referenceType ?? "sync",
+      referenceType: params.referenceType ?? defaultReferenceType,
       referenceId: params.referenceId ?? null,
-      notes: params.notes ?? null
+      notes: params.notes ?? null,
+      metadata: params.metadata
     });
     return {
       success: true,
@@ -8237,12 +8620,13 @@ async function consumeCompanyCredits(context, params) {
   await writeLedgerEntry(context, {
     companyId: params.companyId,
     periodId: updated.id,
-    type: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC,
+    type: consumeType,
     amount: -params.amount,
     balanceAfter: getPeriodRemaining(updated),
-    referenceType: params.referenceType ?? "sync",
+    referenceType: params.referenceType ?? defaultReferenceType,
     referenceId: params.referenceId ?? null,
-    notes: params.notes ?? null
+    notes: params.notes ?? null,
+    metadata: params.metadata
   });
   return {
     success: true,
@@ -8964,8 +9348,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text51 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text51}`;
+  const text53 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text53}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -10382,6 +10766,1103 @@ var resolver12 = {
 };
 var sendTestEmail_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
 
+// utils/helpers/encryption.ts
+var import_crypto4 = require("crypto");
+var ALGORITHM = "aes-256-gcm";
+var IV_LENGTH = 12;
+var AUTH_TAG_LENGTH = 16;
+var KEY_HEX_LENGTH = 64;
+function getEncryptionKey() {
+  const hex = process.env.AI_ENCRYPTION_KEY?.trim() ?? "";
+  if (hex.length !== KEY_HEX_LENGTH) {
+    throw new Error(
+      "AI_ENCRYPTION_KEY must be 32 bytes encoded as 64 hex characters (openssl rand -hex 32)"
+    );
+  }
+  return Buffer.from(hex, "hex");
+}
+function encrypt(plainText) {
+  const key = getEncryptionKey();
+  const iv = (0, import_crypto4.randomBytes)(IV_LENGTH);
+  const cipher = (0, import_crypto4.createCipheriv)(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([
+    cipher.update(plainText, "utf8"),
+    cipher.final()
+  ]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
+}
+function decrypt(payload) {
+  const parts = payload.split(":");
+  if (parts.length !== 3) {
+    throw new Error("Invalid encrypted payload");
+  }
+  const [ivHex, authTagHex, encryptedHex] = parts;
+  const key = getEncryptionKey();
+  const iv = Buffer.from(ivHex, "hex");
+  const authTag = Buffer.from(authTagHex, "hex");
+  const encrypted = Buffer.from(encryptedHex, "hex");
+  if (iv.length !== IV_LENGTH || authTag.length !== AUTH_TAG_LENGTH) {
+    throw new Error("Invalid encrypted payload");
+  }
+  const decipher = (0, import_crypto4.createDecipheriv)(ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+  const decrypted = Buffer.concat([
+    decipher.update(encrypted),
+    decipher.final()
+  ]);
+  return decrypted.toString("utf8");
+}
+function maskApiKey(apiKey) {
+  const trimmed = apiKey.trim();
+  if (trimmed.length <= 8) return "\u2022\u2022\u2022\u2022";
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
+}
+
+// utils/ai/errors.ts
+var AiNotConfiguredError = class extends Error {
+  code = "AI_NOT_CONFIGURED";
+  constructor(message = "Configura tu API key de IA en Perfil de Empresa \u2192 Kadesh Urim AI") {
+    super(message);
+    this.name = "AiNotConfiguredError";
+  }
+};
+var AiInsufficientCreditsError = class extends Error {
+  code = "AI_INSUFFICIENT_CREDITS";
+  constructor(message = "No te quedan cr\xE9ditos de IA este mes.") {
+    super(message);
+    this.name = "AiInsufficientCreditsError";
+  }
+};
+var AiProviderError = class extends Error {
+  code = "AI_PROVIDER_ERROR";
+  constructor(message) {
+    super(message);
+    this.name = "AiProviderError";
+  }
+};
+var AiPlatformNotConfiguredError = class extends Error {
+  code = "AI_PLATFORM_NOT_CONFIGURED";
+  constructor(message = "Kadesh a\xFAn no tiene configurada la IA administrada. Prueba con tu propia API key o contacta a soporte.") {
+    super(message);
+    this.name = "AiPlatformNotConfiguredError";
+  }
+};
+
+// utils/ai/tokenCredits.ts
+var OUTPUT_TOKEN_WEIGHT = 5;
+var BILLABLE_TOKENS_PER_CREDIT = 1e3;
+var CHARS_PER_TOKEN_ESTIMATE = 4;
+function toBillableTokens(usage) {
+  const input = Math.max(0, usage.inputTokens);
+  const output = Math.max(0, usage.outputTokens);
+  return input + output * OUTPUT_TOKEN_WEIGHT;
+}
+function tokensToCredits(usage) {
+  const billable = toBillableTokens(usage);
+  if (billable <= 0) return 0;
+  return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
+}
+function estimateTokensFromText(text53) {
+  if (!text53) return 0;
+  return Math.max(1, Math.ceil(text53.length / CHARS_PER_TOKEN_ESTIMATE));
+}
+function estimateCreditsForPrompt(params) {
+  const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
+  const outputTokens = params.maxOutputTokens ?? 1024;
+  return tokensToCredits({ inputTokens, outputTokens });
+}
+
+// utils/ai/providers/anthropic.ts
+var ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
+async function complete(params) {
+  const response = await fetch(ANTHROPIC_MESSAGES_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": params.apiKey,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: params.model,
+      max_tokens: params.maxTokens ?? 1024,
+      system: params.systemPrompt,
+      messages: [{ role: "user", content: params.userPrompt }]
+    })
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new AiProviderError(
+      payload?.error?.message ?? `Anthropic HTTP ${response.status}`
+    );
+  }
+  const text53 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text53) {
+    throw new AiProviderError("Anthropic no devolvi\xF3 texto");
+  }
+  return {
+    text: text53,
+    usage: {
+      inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(params.systemPrompt + params.userPrompt),
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text53)
+    }
+  };
+}
+var anthropicAdapter = {
+  key: "anthropic",
+  defaultModel: DEFAULT_AI_MODELS.anthropic,
+  complete
+};
+
+// utils/ai/providers/gemini.ts
+function geminiUrl(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+}
+async function complete2(params) {
+  const response = await fetch(geminiUrl(params.model), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-goog-api-key": params.apiKey
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: params.systemPrompt }]
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: params.userPrompt }]
+        }
+      ],
+      generationConfig: {
+        maxOutputTokens: params.maxTokens ?? 1024
+      }
+    })
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new AiProviderError(
+      payload?.error?.message ?? `Gemini HTTP ${response.status}`
+    );
+  }
+  const text53 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text53) {
+    throw new AiProviderError("Gemini no devolvi\xF3 texto");
+  }
+  return {
+    text: text53,
+    usage: {
+      inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(params.systemPrompt + params.userPrompt),
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text53)
+    }
+  };
+}
+var geminiAdapter = {
+  key: "gemini",
+  defaultModel: DEFAULT_AI_MODELS.gemini,
+  complete: complete2
+};
+
+// utils/ai/providers/openai.ts
+var OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
+async function complete3(params) {
+  const response = await fetch(OPENAI_CHAT_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${params.apiKey}`
+    },
+    body: JSON.stringify({
+      model: params.model,
+      max_tokens: params.maxTokens ?? 1024,
+      messages: [
+        { role: "system", content: params.systemPrompt },
+        { role: "user", content: params.userPrompt }
+      ]
+    })
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new AiProviderError(
+      payload?.error?.message ?? `OpenAI HTTP ${response.status}`
+    );
+  }
+  const text53 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text53) {
+    throw new AiProviderError("OpenAI no devolvi\xF3 texto");
+  }
+  return {
+    text: text53,
+    usage: {
+      inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(params.systemPrompt + params.userPrompt),
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text53)
+    }
+  };
+}
+var openaiAdapter = {
+  key: "openai",
+  defaultModel: DEFAULT_AI_MODELS.openai,
+  complete: complete3
+};
+
+// utils/ai/callLog.ts
+async function persistAiCallLog(params) {
+  if (!params.companyId) return;
+  const usage = params.usage ?? { inputTokens: 0, outputTokens: 0 };
+  try {
+    await params.context.sudo().query.TechAiCallLog.createOne({
+      data: {
+        company: { connect: { id: params.companyId } },
+        ...params.userId && { user: { connect: { id: params.userId } } },
+        feature: params.feature ?? null,
+        billingMode: params.billingMode ?? null,
+        provider: params.provider ?? null,
+        model: params.model ?? null,
+        featurePrompt: params.featurePrompt ?? null,
+        systemPrompt: params.systemPrompt ?? null,
+        userPrompt: params.userPrompt ?? null,
+        response: params.response ?? null,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        billableTokens: toBillableTokens(usage),
+        creditsCharged: params.creditsCharged ?? 0,
+        billed: params.billed ?? false,
+        success: params.success,
+        errorMessage: params.errorMessage ?? null,
+        durationMs: params.durationMs ?? null
+      }
+    });
+  } catch (err) {
+    console.error("Failed to persist TechAiCallLog:", err);
+  }
+}
+
+// utils/ai/index.ts
+var PROVIDERS = {
+  anthropic: anthropicAdapter,
+  openai: openaiAdapter,
+  gemini: geminiAdapter
+};
+function isAiProviderKey(value) {
+  return value === AI_PROVIDER.ANTHROPIC || value === AI_PROVIDER.OPENAI || value === AI_PROVIDER.GEMINI;
+}
+function isAiBillingMode(value) {
+  return value === AI_BILLING_MODE.BYOK || value === AI_BILLING_MODE.MANAGED;
+}
+function getAiProviderAdapter(key) {
+  const adapter = PROVIDERS[key];
+  if (!adapter) {
+    throw new AiProviderError(`Proveedor de IA no soportado: ${String(key)}`);
+  }
+  return adapter;
+}
+function formatOnboardingLine(label, value) {
+  const trimmed = value?.trim();
+  return trimmed ? `- ${label}: ${trimmed}` : `- ${label}: (sin definir)`;
+}
+function buildSystemPrompt(company, featurePrompt) {
+  const brain = [
+    "Eres Kadesh AI, un asistente de ventas para la empresa del usuario.",
+    "Responde siempre en espa\xF1ol, con tono claro y accionable.",
+    "Contexto de negocio:",
+    formatOnboardingLine("Empresa", company.name),
+    formatOnboardingLine("Qu\xE9 vende", company.onboardingMainOffer),
+    formatOnboardingLine("Cliente ideal", company.onboardingIdealCustomer),
+    formatOnboardingLine("Ticket / valor", company.onboardingAvgTicketValue),
+    formatOnboardingLine("C\xF3mo consigue clientes / dolor de venta", company.onboardingSalesPain),
+    "",
+    "Instrucci\xF3n de esta funci\xF3n:",
+    featurePrompt.trim()
+  ];
+  return brain.join("\n");
+}
+function resolvePlatformProvider() {
+  const apiKey = process.env.PLATFORM_AI_API_KEY?.trim() ?? "";
+  const providerRaw = (process.env.PLATFORM_AI_PROVIDER?.trim() || AI_PROVIDER.ANTHROPIC).toLowerCase();
+  if (!apiKey) {
+    throw new AiPlatformNotConfiguredError();
+  }
+  if (!isAiProviderKey(providerRaw)) {
+    throw new AiPlatformNotConfiguredError(
+      `PLATFORM_AI_PROVIDER inv\xE1lido: ${providerRaw}`
+    );
+  }
+  const model = process.env.PLATFORM_AI_MODEL?.trim() || void 0;
+  return { provider: providerRaw, apiKey, model };
+}
+async function callCompanyAi(params) {
+  const startedAt = Date.now();
+  const userId = params.context.session?.data?.id ?? null;
+  const logBase = {
+    context: params.context,
+    companyId: params.companyId,
+    userId,
+    feature: params.feature ?? null,
+    featurePrompt: params.featurePrompt,
+    userPrompt: params.userPrompt
+  };
+  const company = await params.context.sudo().query.SaasCompany.findOne({
+    where: { id: params.companyId },
+    query: "id name aiBillingMode aiProvider aiModel aiApiKeyEncrypted onboardingMainOffer onboardingIdealCustomer onboardingAvgTicketValue onboardingSalesPain"
+  });
+  if (!company) {
+    await persistAiCallLog({
+      ...logBase,
+      success: false,
+      errorMessage: "No se encontr\xF3 la empresa",
+      durationMs: Date.now() - startedAt
+    });
+    throw new AiNotConfiguredError("No se encontr\xF3 la empresa");
+  }
+  const billingMode = company.aiBillingMode === AI_BILLING_MODE.MANAGED ? AI_BILLING_MODE.MANAGED : AI_BILLING_MODE.BYOK;
+  const systemPrompt = buildSystemPrompt(company, params.featurePrompt);
+  const shouldBill = billingMode === AI_BILLING_MODE.MANAGED && params.bill !== false;
+  let provider;
+  let apiKey;
+  let modelOverride;
+  let model = "";
+  try {
+    if (billingMode === AI_BILLING_MODE.MANAGED) {
+      const platform = resolvePlatformProvider();
+      provider = platform.provider;
+      apiKey = platform.apiKey;
+      modelOverride = platform.model;
+      if (shouldBill) {
+        const estimatedCredits = estimateCreditsForPrompt({
+          systemPrompt,
+          userPrompt: params.userPrompt,
+          maxOutputTokens: params.maxTokens
+        });
+        const credits = await getRemainingCredits(
+          params.context,
+          params.companyId
+        );
+        if (credits.blockingReason || credits.remainingQuota < estimatedCredits) {
+          throw new AiInsufficientCreditsError(
+            estimatedCredits > 1 ? `Esta llamada necesita unos ${estimatedCredits} cr\xE9ditos y no te alcanzan. Recarga o espera al siguiente mes.` : "No te quedan cr\xE9ditos este mes para usar la IA administrada."
+          );
+        }
+      }
+    } else {
+      if (!isAiProviderKey(company.aiProvider) || !company.aiApiKeyEncrypted) {
+        throw new AiNotConfiguredError();
+      }
+      provider = company.aiProvider;
+      apiKey = decrypt(company.aiApiKeyEncrypted);
+    }
+    if (!provider || !apiKey) {
+      throw new AiNotConfiguredError();
+    }
+    const adapter = getAiProviderAdapter(provider);
+    model = modelOverride || company.aiModel?.trim() || adapter.defaultModel;
+    const completion = await adapter.complete({
+      apiKey,
+      model,
+      systemPrompt,
+      userPrompt: params.userPrompt,
+      maxTokens: params.maxTokens
+    });
+    let creditsCharged = 0;
+    if (shouldBill) {
+      creditsCharged = tokensToCredits(completion.usage);
+      if (creditsCharged > 0) {
+        const consumed = await consumeCompanyCredits(params.context, {
+          companyId: params.companyId,
+          amount: creditsCharged,
+          ledgerType: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI,
+          referenceType: "ai",
+          notes: `IA ${provider}/${model}`,
+          metadata: {
+            provider,
+            model,
+            inputTokens: completion.usage.inputTokens,
+            outputTokens: completion.usage.outputTokens,
+            creditsCharged
+          }
+        });
+        if (!consumed.success) {
+          throw new AiInsufficientCreditsError();
+        }
+      }
+    }
+    await persistAiCallLog({
+      ...logBase,
+      billingMode,
+      provider,
+      model,
+      systemPrompt,
+      response: completion.text,
+      usage: completion.usage,
+      creditsCharged,
+      billed: shouldBill,
+      success: true,
+      durationMs: Date.now() - startedAt
+    });
+    return {
+      text: completion.text,
+      billingMode,
+      provider,
+      model,
+      usage: completion.usage,
+      creditsCharged
+    };
+  } catch (err) {
+    await persistAiCallLog({
+      ...logBase,
+      billingMode,
+      provider: provider ?? null,
+      model: model || null,
+      systemPrompt,
+      billed: shouldBill,
+      success: false,
+      errorMessage: err instanceof Error ? err.message : "Error desconocido al llamar a la IA",
+      durationMs: Date.now() - startedAt
+    });
+    throw err;
+  }
+}
+
+// graphql/customs/mutations/ai/access.ts
+function getSessionCompanyId(session2) {
+  return session2?.data?.company?.id ?? null;
+}
+function canManageCompanyAi(session2, companyId) {
+  if (!session2?.data) return false;
+  if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+  if (!hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) return false;
+  return getSessionCompanyId(session2) === companyId;
+}
+function canUseCompanyAi(session2, companyId) {
+  if (!session2?.data) return false;
+  if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+  return getSessionCompanyId(session2) === companyId;
+}
+function denyCompanyAiAccessMessage(session2) {
+  if (!session2?.data?.id) {
+    return "Debes iniciar sesi\xF3n para configurar la IA";
+  }
+  return "Solo el administrador de la empresa puede configurar la IA";
+}
+function denyCompanyAiUseMessage(session2) {
+  if (!session2?.data?.id) {
+    return "Debes iniciar sesi\xF3n para usar la IA";
+  }
+  return "Esta IA pertenece a otra empresa";
+}
+
+// graphql/customs/mutations/ai/updateCompanyAiSettings.ts
+var typeDefs13 = `
+  input UpdateCompanyAiSettingsInput {
+    companyId: ID!
+    billingMode: String
+    provider: String
+    apiKey: String
+    model: String
+  }
+
+  type UpdateCompanyAiSettingsResult {
+    success: Boolean!
+    message: String!
+    billingMode: String
+    provider: String
+    model: String
+    apiKeyPreview: String
+    keyUpdatedAt: String
+  }
+
+  type TestCompanyAiConnectionResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type Mutation {
+    updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
+    testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
+  }
+`;
+var definition13 = `
+  updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
+  testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
+`;
+var SETTINGS_QUERY = "id aiBillingMode aiProvider aiModel aiApiKeyPreview aiKeyUpdatedAt";
+function toResult(success, message, company) {
+  return {
+    success,
+    message,
+    billingMode: company?.aiBillingMode ?? null,
+    provider: company?.aiProvider ?? null,
+    model: company?.aiModel ?? null,
+    apiKeyPreview: company?.aiApiKeyPreview ?? null,
+    keyUpdatedAt: company?.aiKeyUpdatedAt ?? null
+  };
+}
+function friendlyAiError(err) {
+  if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError) {
+    return err.message;
+  }
+  if (err instanceof AiProviderError) {
+    return `El proveedor rechaz\xF3 la prueba: ${err.message}`;
+  }
+  return err instanceof Error ? err.message : "Error al llamar a la IA";
+}
+var resolver13 = {
+  updateCompanyAiSettings: async (_root, { input }, context) => {
+    const session2 = context.session;
+    if (!canManageCompanyAi(session2, input.companyId)) {
+      return toResult(false, denyCompanyAiAccessMessage(session2));
+    }
+    const existing = await context.sudo().query.SaasCompany.findOne({
+      where: { id: input.companyId },
+      query: SETTINGS_QUERY
+    });
+    if (!existing) {
+      return toResult(false, "No se encontr\xF3 la empresa");
+    }
+    const data = {};
+    if (input.billingMode != null && input.billingMode !== "") {
+      if (!isAiBillingMode(input.billingMode)) {
+        return toResult(false, "Modalidad de pago de IA inv\xE1lida", existing);
+      }
+      data.aiBillingMode = input.billingMode;
+    }
+    if (input.provider !== void 0) {
+      if (input.provider === null || input.provider === "") {
+        data.aiProvider = null;
+      } else if (!isAiProviderKey(input.provider)) {
+        return toResult(false, "Proveedor de IA inv\xE1lido", existing);
+      } else {
+        data.aiProvider = input.provider;
+      }
+    }
+    if (input.model !== void 0) {
+      data.aiModel = input.model?.trim() ? input.model.trim() : null;
+    }
+    if (input.apiKey !== void 0 && input.apiKey !== null) {
+      if (input.apiKey === "") {
+        data.aiApiKeyEncrypted = null;
+        data.aiApiKeyPreview = null;
+        data.aiKeyUpdatedAt = null;
+      } else {
+        try {
+          data.aiApiKeyEncrypted = encrypt(input.apiKey.trim());
+        } catch (err) {
+          return toResult(
+            false,
+            err instanceof Error ? err.message : "No se pudo cifrar la API key. Revisa AI_ENCRYPTION_KEY.",
+            existing
+          );
+        }
+        data.aiApiKeyPreview = maskApiKey(input.apiKey);
+        data.aiKeyUpdatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      }
+    }
+    const nextBillingMode = data.aiBillingMode ?? existing.aiBillingMode;
+    const nextProvider = data.aiProvider !== void 0 ? data.aiProvider : existing.aiProvider;
+    const hasKeyAfterUpdate = input.apiKey === void 0 || input.apiKey === null ? Boolean(existing.aiApiKeyPreview) : input.apiKey !== "";
+    if (nextBillingMode !== AI_BILLING_MODE.MANAGED && hasKeyAfterUpdate && !nextProvider) {
+      return toResult(
+        false,
+        "Elige un proveedor (Claude, OpenAI o Gemini) antes de guardar la API key.",
+        existing
+      );
+    }
+    if (Object.keys(data).length === 0) {
+      return toResult(true, "No hay cambios que guardar", existing);
+    }
+    const updated = await context.sudo().query.SaasCompany.updateOne({
+      where: { id: input.companyId },
+      data,
+      query: SETTINGS_QUERY
+    });
+    return toResult(true, "Configuraci\xF3n de IA guardada", updated);
+  },
+  testCompanyAiConnection: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    if (!canManageCompanyAi(session2, companyId)) {
+      return {
+        success: false,
+        message: denyCompanyAiAccessMessage(session2)
+      };
+    }
+    try {
+      const result = await callCompanyAi({
+        context,
+        companyId,
+        featurePrompt: "Responde solo con la palabra PONG. No agregues puntuaci\xF3n ni explicaci\xF3n.",
+        userPrompt: "PING",
+        feature: "connection_test",
+        bill: false,
+        maxTokens: 16
+      });
+      return {
+        success: true,
+        message: `Conexi\xF3n OK con ${result.provider} (${result.model}).`
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: friendlyAiError(err)
+      };
+    }
+  }
+};
+var updateCompanyAiSettings_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+
+// utils/ai/dailyDigest.ts
+var DIGEST_TIMEZONE = "America/Mexico_City";
+var COLD_LEAD_DAYS = 14;
+var SNAPSHOT_TAKE = 8;
+var CLOSED_PIPELINE = [
+  PIPELINE_STATUS.CERRADO_GANADO,
+  PIPELINE_STATUS.CERRADO_PERDIDO,
+  PIPELINE_STATUS.DESCARTADO
+];
+function todayKey(timeZone = DIGEST_TIMEZONE) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(/* @__PURE__ */ new Date());
+}
+function daysAgoKey(days, timeZone = DIGEST_TIMEZONE) {
+  const now = /* @__PURE__ */ new Date();
+  const shifted = new Date(now.getTime() - days * 24 * 60 * 60 * 1e3);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(shifted);
+}
+function money(value) {
+  if (value == null || Number.isNaN(value) || value <= 0) return null;
+  return `$${value.toLocaleString("es-MX", { maximumFractionDigits: 0 })}`;
+}
+function joinExtra(parts) {
+  return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
+}
+function parseDigestActions(text53) {
+  const stripped = text53.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  const objStart = stripped.indexOf("{");
+  const arrStart = stripped.indexOf("[");
+  let parsed = null;
+  try {
+    if (objStart !== -1 && (arrStart === -1 || objStart < arrStart)) {
+      parsed = JSON.parse(stripped.slice(objStart, stripped.lastIndexOf("}") + 1));
+    } else if (arrStart !== -1) {
+      parsed = JSON.parse(stripped.slice(arrStart, stripped.lastIndexOf("]") + 1));
+    } else {
+      parsed = JSON.parse(stripped);
+    }
+  } catch {
+    return [];
+  }
+  const raw = Array.isArray(parsed) ? parsed : Array.isArray(parsed.actions) ? parsed.actions : Array.isArray(parsed.pasos) ? parsed.pasos : [];
+  return raw.map((item) => {
+    if (!item || typeof item !== "object") return null;
+    const row = item;
+    const title = String(row.title ?? row.titulo ?? "").trim();
+    const detail = String(
+      row.detail ?? row.detalle ?? row.description ?? ""
+    ).trim();
+    if (!title || !detail) return null;
+    return { title: title.slice(0, 120), detail };
+  }).filter((item) => item != null).slice(0, 3);
+}
+function actionsFromStructuredData(data) {
+  if (!data || typeof data !== "object") return [];
+  const actions = data.actions;
+  if (!Array.isArray(actions)) return [];
+  return actions.map((item) => {
+    if (!item || typeof item !== "object") return null;
+    const row = item;
+    const title = String(row.title ?? "").trim();
+    const detail = String(row.detail ?? "").trim();
+    if (!title || !detail) return null;
+    return { title, detail };
+  }).filter((item) => item != null).slice(0, 3);
+}
+function toDigestInsightPayload(row) {
+  const fromJson = actionsFromStructuredData(row.structuredData);
+  const fromText = row.content ? parseDigestActions(row.content) : [];
+  return {
+    id: row.id,
+    referenceKey: row.referenceKey ?? "",
+    content: row.content ?? null,
+    actions: fromJson.length ? fromJson : fromText,
+    generatedAt: row.generatedAt ?? null
+  };
+}
+function formatActionsAsContent(actions) {
+  return actions.map((action, index) => `${index + 1}. ${action.title} \u2014 ${action.detail}`).join("\n");
+}
+var INSIGHT_QUERY = "id referenceKey content structuredData generatedAt salesPerson { id }";
+async function findDailyDigestInsight(context, params) {
+  const rows = await context.sudo().query.TechAiInsight.findMany({
+    where: {
+      company: { id: { equals: params.companyId } },
+      kind: { equals: AI_INSIGHT_KIND.DAILY_DIGEST },
+      referenceKey: { equals: params.today }
+    },
+    take: 20,
+    orderBy: [{ generatedAt: "desc" }],
+    query: INSIGHT_QUERY
+  });
+  const match = rows.find(
+    (row) => params.salesPersonId ? row.salesPerson?.id === params.salesPersonId : !row.salesPerson
+  );
+  return match ?? null;
+}
+async function saveDailyDigestInsight(context, params) {
+  const data = {
+    kind: AI_INSIGHT_KIND.DAILY_DIGEST,
+    referenceKey: params.today,
+    content: params.content,
+    structuredData: { actions: params.actions },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    company: { connect: { id: params.companyId } }
+  };
+  if (params.salesPersonId) {
+    data.salesPerson = { connect: { id: params.salesPersonId } };
+  }
+  if (params.existingId) {
+    return await context.sudo().query.TechAiInsight.updateOne({
+      where: { id: params.existingId },
+      data,
+      query: INSIGHT_QUERY
+    });
+  }
+  return await context.sudo().query.TechAiInsight.createOne({
+    data,
+    query: INSIGHT_QUERY
+  });
+}
+function formatSnapshotSection(title, lines) {
+  if (lines.length === 0) return `${title}: (ninguno)`;
+  return `${title}:
+${lines.map((line) => `- ${line.name}${line.extra ? ` \xB7 ${line.extra}` : ""}`).join("\n")}`;
+}
+function formatSnapshotPrompt(snapshot) {
+  return [
+    `Fecha de hoy (M\xE9xico): ${snapshot.today}`,
+    formatSnapshotSection(
+      "Cotizaciones enviadas sin respuesta",
+      snapshot.quotesWithoutReply
+    ),
+    formatSnapshotSection("Leads sin primer contacto", snapshot.uncontactedLeads),
+    formatSnapshotSection("Seguimientos vencidos", snapshot.overdueFollowUps),
+    formatSnapshotSection(
+      `Leads fr\xEDos (sin respuesta o sin movimiento \u2265 ${COLD_LEAD_DAYS} d\xEDas)`,
+      snapshot.coldLeads
+    )
+  ].join("\n\n");
+}
+var DAILY_DIGEST_FEATURE_PROMPT = `Vas a proponer exactamente 3 siguientes pasos de venta para HOY.
+Responde SOLO con JSON v\xE1lido, sin markdown ni texto alrededor, con esta forma:
+{"actions":[{"title":"...","detail":"..."}]}
+Cada title m\xE1ximo 80 caracteres. Cada detail 1 o 2 frases concretas (qui\xE9n, qu\xE9 hacer, por qu\xE9 ahora).
+Prioriza en este orden: 1) seguimientos vencidos, 2) cotizaciones enviadas sin respuesta, 3) leads sin primer contacto, 4) leads fr\xEDos.
+Si el pipeline est\xE1 vac\xEDo o es muy corto, sugiere prospecci\xF3n alineada al negocio del contexto.
+No inventes nombres de clientes que no aparezcan en el contexto.
+Usa el tono de un jefe de ventas claro y accionable.`;
+function statusLine(row) {
+  const name = row.businessLead?.businessName?.trim() || "Lead";
+  return {
+    name,
+    extra: joinExtra([
+      row.pipelineStatus,
+      money(row.estimatedValue),
+      row.businessLead?.city,
+      row.businessLead?.phone ? `tel ${row.businessLead.phone}` : null,
+      row.firstContactDate ? `contacto ${row.firstContactDate}` : null
+    ])
+  };
+}
+async function gatherDailyDigestSnapshot(context, params) {
+  const today = todayKey();
+  const coldSince = daysAgoKey(COLD_LEAD_DAYS);
+  const sudo = context.sudo();
+  const sellerStatus = params.salesPersonId ? { salesPerson: { id: { equals: params.salesPersonId } } } : {};
+  const sellerQuote = params.salesPersonId ? { assignedSeller: { id: { equals: params.salesPersonId } } } : {};
+  const sellerFollowUp = params.salesPersonId ? { assignedSeller: { id: { equals: params.salesPersonId } } } : {};
+  const [quotes, uncontacted, overdue, cold] = await Promise.all([
+    sudo.query.SaasQuotation.findMany({
+      where: {
+        company: { id: { equals: params.companyId } },
+        status: { equals: QUOTATION_STATUS.SENT },
+        ...sellerQuote
+      },
+      orderBy: [{ sentAt: "asc" }],
+      take: SNAPSHOT_TAKE,
+      query: "quotationNumber total currency validUntil sentAt lead { businessName phone city }"
+    }),
+    sudo.query.TechStatusBusinessLead.findMany({
+      where: {
+        saasCompany: { id: { equals: params.companyId } },
+        pipelineStatus: {
+          in: [PIPELINE_STATUS.DETECTADO, PIPELINE_STATUS.SELECCIONADO]
+        },
+        ...sellerStatus
+      },
+      orderBy: [{ estimatedValue: "desc" }],
+      take: SNAPSHOT_TAKE,
+      query: "pipelineStatus estimatedValue firstContactDate businessLead { businessName phone city }"
+    }),
+    sudo.query.TechFollowUpTask.findMany({
+      where: {
+        status: {
+          in: [
+            FOLLOW_UP_TASK_STATUS.PENDIENTE,
+            FOLLOW_UP_TASK_STATUS.POSPUESTO
+          ]
+        },
+        scheduledDate: { lt: today },
+        businessLead: {
+          saasCompany: { some: { id: { equals: params.companyId } } }
+        },
+        ...sellerFollowUp
+      },
+      orderBy: [{ scheduledDate: "asc" }],
+      take: SNAPSHOT_TAKE,
+      query: "scheduledDate priority notes businessLead { businessName phone city }"
+    }),
+    sudo.query.TechStatusBusinessLead.findMany({
+      where: {
+        AND: [
+          { saasCompany: { id: { equals: params.companyId } } },
+          { firstContactDate: { lte: coldSince } },
+          { pipelineStatus: { notIn: CLOSED_PIPELINE } },
+          ...params.salesPersonId ? [{ salesPerson: { id: { equals: params.salesPersonId } } }] : []
+        ]
+      },
+      orderBy: [{ firstContactDate: "asc" }],
+      take: SNAPSHOT_TAKE,
+      query: "pipelineStatus estimatedValue firstContactDate businessLead { businessName phone city }"
+    })
+  ]);
+  const quoteRows = quotes;
+  const overdueRows = overdue;
+  const uncontactedRows = uncontacted;
+  const coldRows = cold.filter((row) => {
+    const status = row.pipelineStatus ?? "";
+    if (status === PIPELINE_STATUS.SIN_RESPUESTA) return true;
+    return status !== PIPELINE_STATUS.DETECTADO && status !== PIPELINE_STATUS.SELECCIONADO;
+  });
+  const sinRespuesta = await sudo.query.TechStatusBusinessLead.findMany({
+    where: {
+      saasCompany: { id: { equals: params.companyId } },
+      pipelineStatus: { equals: PIPELINE_STATUS.SIN_RESPUESTA },
+      ...sellerStatus
+    },
+    orderBy: [{ estimatedValue: "desc" }],
+    take: SNAPSHOT_TAKE,
+    query: "pipelineStatus estimatedValue firstContactDate businessLead { businessName phone city }"
+  });
+  const coldMerged = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const row of [...sinRespuesta, ...coldRows]) {
+    const key = `${row.businessLead?.businessName ?? ""}|${row.pipelineStatus ?? ""}|${row.firstContactDate ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    coldMerged.push(row);
+    if (coldMerged.length >= SNAPSHOT_TAKE) break;
+  }
+  return {
+    today,
+    quotesWithoutReply: quoteRows.map((row) => ({
+      name: row.lead?.businessName?.trim() || row.quotationNumber || "Cotizaci\xF3n",
+      extra: joinExtra([
+        row.quotationNumber,
+        money(row.total),
+        row.validUntil ? `vigencia ${row.validUntil}` : null,
+        row.sentAt ? `enviada ${String(row.sentAt).slice(0, 10)}` : null
+      ])
+    })),
+    uncontactedLeads: uncontactedRows.map(statusLine),
+    overdueFollowUps: overdueRows.map((row) => ({
+      name: row.businessLead?.businessName?.trim() || "Seguimiento",
+      extra: joinExtra([
+        row.scheduledDate ? `venci\xF3 ${row.scheduledDate}` : null,
+        row.priority,
+        row.businessLead?.phone ? `tel ${row.businessLead.phone}` : null,
+        row.notes?.trim()?.slice(0, 80)
+      ])
+    })),
+    coldLeads: coldMerged.map(statusLine)
+  };
+}
+
+// graphql/customs/ai/dailyDigest.ts
+var typeDefs14 = `
+  type DailyDigestAction {
+    title: String!
+    detail: String!
+  }
+
+  type DailyDigestInsight {
+    id: ID!
+    referenceKey: String!
+    content: String
+    actions: [DailyDigestAction!]!
+    generatedAt: String
+  }
+
+  type DailyDigestResult {
+    success: Boolean!
+    message: String!
+    cached: Boolean!
+    creditsCharged: Int
+    insight: DailyDigestInsight
+  }
+
+  type Query {
+    dailyDigest(companyId: ID!): DailyDigestResult!
+  }
+
+  type Mutation {
+    generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+  }
+`;
+var queryDefinition = `
+  dailyDigest(companyId: ID!): DailyDigestResult!
+`;
+var mutationDefinition = `
+  generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+`;
+function toResult2(success, message, extras) {
+  return {
+    success,
+    message,
+    cached: extras?.cached ?? false,
+    creditsCharged: extras?.creditsCharged ?? null,
+    insight: extras?.insight ?? null
+  };
+}
+function friendlyAiError2(err) {
+  if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError) {
+    return err.message;
+  }
+  if (err instanceof AiProviderError) {
+    return `El proveedor rechaz\xF3 la llamada: ${err.message}`;
+  }
+  return err instanceof Error ? err.message : "Error al generar el resumen del d\xEDa";
+}
+function resolveDigestSalesPersonId(session2, companyId) {
+  if (hasRole(session2, ["admin" /* ADMIN */])) return null;
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]) && getSessionCompanyId(session2) === companyId) {
+    return null;
+  }
+  return session2?.data?.id ?? null;
+}
+function fallbackActions(snapshotPrompt) {
+  return [
+    {
+      title: "Revisa el pipeline de hoy",
+      detail: "No pude estructurar 3 pasos autom\xE1ticos. Abre clientes y cotizaciones y elige el contacto de mayor valor."
+    },
+    {
+      title: "Cierra seguimientos vencidos",
+      detail: "Prioriza a quien ya esperaba respuesta. Un WhatsApp corto desbloquea m\xE1s que un mensaje largo."
+    },
+    {
+      title: "Prospecta con tu oferta actual",
+      detail: snapshotPrompt.includes("(ninguno)") ? "Si el tablero est\xE1 vac\xEDo, extrae o asigna clientes alineados a tu cliente ideal." : "Elige un lead sin contacto o una cotizaci\xF3n enviada y da el siguiente paso hoy."
+    }
+  ];
+}
+var queryResolver = {
+  dailyDigest: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    if (!canUseCompanyAi(session2, companyId)) {
+      return toResult2(false, denyCompanyAiUseMessage(session2));
+    }
+    const today = todayKey();
+    const salesPersonId = resolveDigestSalesPersonId(session2, companyId);
+    const existing = await findDailyDigestInsight(context, {
+      companyId,
+      salesPersonId,
+      today
+    });
+    if (!existing) {
+      return toResult2(true, "A\xFAn no hay resumen para hoy", {
+        cached: false,
+        insight: null
+      });
+    }
+    return toResult2(true, "Resumen del d\xEDa", {
+      cached: true,
+      insight: toDigestInsightPayload(existing)
+    });
+  }
+};
+var mutationResolver = {
+  generateDailyDigest: async (_root, { companyId, force }, context) => {
+    const session2 = context.session;
+    if (!canUseCompanyAi(session2, companyId)) {
+      return toResult2(false, denyCompanyAiUseMessage(session2));
+    }
+    const today = todayKey();
+    const salesPersonId = resolveDigestSalesPersonId(session2, companyId);
+    const existing = await findDailyDigestInsight(context, {
+      companyId,
+      salesPersonId,
+      today
+    });
+    if (existing && !force) {
+      return toResult2(true, "Ya ten\xEDas el resumen de hoy. P\xE1salo a acci\xF3n.", {
+        cached: true,
+        creditsCharged: 0,
+        insight: toDigestInsightPayload(existing)
+      });
+    }
+    try {
+      const snapshot = await gatherDailyDigestSnapshot(context, {
+        companyId,
+        salesPersonId
+      });
+      const userPrompt = formatSnapshotPrompt(snapshot);
+      const result = await callCompanyAi({
+        context,
+        companyId,
+        featurePrompt: DAILY_DIGEST_FEATURE_PROMPT,
+        userPrompt,
+        feature: AI_FEATURE.DAILY_DIGEST,
+        bill: true,
+        maxTokens: 800
+      });
+      let actions = parseDigestActions(result.text);
+      if (actions.length < 3) {
+        const fallback = fallbackActions(userPrompt);
+        actions = [...actions, ...fallback].slice(0, 3);
+      }
+      const saved = await saveDailyDigestInsight(context, {
+        companyId,
+        salesPersonId,
+        today,
+        content: formatActionsAsContent(actions),
+        actions,
+        existingId: existing?.id
+      });
+      return toResult2(true, "Listo. Estos son tus 3 siguientes pasos de hoy.", {
+        cached: false,
+        creditsCharged: result.creditsCharged,
+        insight: toDigestInsightPayload(saved)
+      });
+    } catch (err) {
+      return toResult2(false, friendlyAiError2(err));
+    }
+  }
+};
+var dailyDigest_default = {
+  typeDefs: typeDefs14,
+  queryDefinition,
+  mutationDefinition,
+  queryResolver,
+  mutationResolver
+};
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -10397,6 +11878,8 @@ var customMutation = {
     ${remainingCredits_default.typeDefs}
     ${purchaseCredits_default.typeDefs}
     ${sendTestEmail_default.typeDefs}
+    ${updateCompanyAiSettings_default.typeDefs}
+    ${dailyDigest_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -10411,6 +11894,8 @@ var customMutation = {
     ${remainingCredits_default.definition}
     ${purchaseCredits_default.definition}
     ${sendTestEmail_default.definition}
+    ${updateCompanyAiSettings_default.definition}
+    ${dailyDigest_default.mutationDefinition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -10424,7 +11909,9 @@ var customMutation = {
     ...addOwnLead_default.resolver,
     ...remainingCredits_default.resolver,
     ...purchaseCredits_default.resolver,
-    ...sendTestEmail_default.resolver
+    ...sendTestEmail_default.resolver,
+    ...updateCompanyAiSettings_default.resolver,
+    ...dailyDigest_default.mutationResolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -10435,7 +11922,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs13 = `
+var typeDefs15 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -10492,7 +11979,7 @@ var typeDefs13 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition13 = `
+var definition14 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -10542,7 +12029,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver13 = {
+var resolver14 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -10696,7 +12183,7 @@ var resolver13 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+var nearbyAnimals_default = { typeDefs: typeDefs15, definition: definition14, resolver: resolver14 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -10964,7 +12451,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs14 = `
+var typeDefs16 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -11022,10 +12509,10 @@ var typeDefs14 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition14 = `
+var definition15 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver14 = {
+var resolver15 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -11107,10 +12594,10 @@ var resolver14 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs16, definition: definition15, resolver: resolver15 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs15 = `
+var typeDefs17 = `
   type StripeCard {
     brand: String
     country: String
@@ -11144,10 +12631,10 @@ var typeDefs15 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition15 = `
+var definition16 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver15 = {
+var resolver16 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -11183,7 +12670,7 @@ var resolver15 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
+var stripePaymentMethods_default = { typeDefs: typeDefs17, definition: definition16, resolver: resolver16 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -11236,7 +12723,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs16 = `
+var typeDefs18 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -11264,10 +12751,10 @@ var typeDefs16 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition16 = `
+var definition17 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver16 = {
+var resolver17 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -11399,7 +12886,7 @@ var resolver16 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs16, definition: definition16, resolver: resolver16 };
+var subscriptionStatus_default = { typeDefs: typeDefs18, definition: definition17, resolver: resolver17 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -11414,12 +12901,14 @@ var customQuery = {
     ${nearbyPetPlaces_default.definition}
     ${stripePaymentMethods_default.definition}
     ${subscriptionStatus_default.definition}
+    ${dailyDigest_default.queryDefinition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
     ...nearbyPetPlaces_default.resolver,
     ...stripePaymentMethods_default.resolver,
-    ...subscriptionStatus_default.resolver
+    ...subscriptionStatus_default.resolver,
+    ...dailyDigest_default.queryResolver
   }
 };
 var queries_default = customQuery;
@@ -11470,29 +12959,154 @@ var storage = {
     storagePath: "public/images"
   },
   ...hasS3 ? {
-    s3_files: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, signed: { expiry: 3600 } },
-    s3_categories: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/", signed: { expiry: 3600 } },
-    s3_posts: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/", signed: { expiry: 3600 } },
-    s3_profile: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/", signed: { expiry: 3600 } },
-    s3_animals: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", signed: { expiry: 3600 } },
-    s3_pets: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", signed: { expiry: 3600 } },
-    s3_ads: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", signed: { expiry: 3600 } },
-    s3_tech_files: { kind: "s3", type: "file", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/tech-files/" : "tech-files/", signed: { expiry: 3600 } },
-    s3_company_logo: { kind: "s3", type: "file", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/company-logo/" : "company-logo/", signed: { expiry: 3600 } }
+    s3_files: {
+      kind: "s3",
+      type: "image",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      signed: { expiry: 3600 }
+    },
+    s3_categories: {
+      kind: "s3",
+      type: "image",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/",
+      signed: { expiry: 3600 }
+    },
+    s3_posts: {
+      kind: "s3",
+      type: "image",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/",
+      signed: { expiry: 3600 }
+    },
+    s3_profile: {
+      kind: "s3",
+      type: "image",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/",
+      signed: { expiry: 3600 }
+    },
+    s3_animals: {
+      kind: "s3",
+      type: "image",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/",
+      signed: { expiry: 3600 }
+    },
+    s3_pets: {
+      kind: "s3",
+      type: "image",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/",
+      signed: { expiry: 3600 }
+    },
+    s3_ads: {
+      kind: "s3",
+      type: "image",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/",
+      signed: { expiry: 3600 }
+    },
+    s3_tech_files: {
+      kind: "s3",
+      type: "file",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/tech-files/" : "tech-files/",
+      signed: { expiry: 3600 }
+    },
+    s3_company_logo: {
+      kind: "s3",
+      type: "file",
+      bucketName,
+      region,
+      accessKeyId,
+      secretAccessKey,
+      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/company-logo/" : "company-logo/",
+      signed: { expiry: 3600 }
+    }
   } : {
-    s3_files: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-    s3_categories: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-    s3_posts: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-    s3_profile: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-    s3_animals: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-    s3_pets: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-    s3_ads: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-    s3_tech_files: { kind: "local", type: "file", serverRoute: { path: "/files" }, storagePath: "public/files" },
-    s3_company_logo: { kind: "local", type: "file", serverRoute: { path: "/images" }, storagePath: "public/images" }
+    s3_files: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
+    s3_categories: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
+    s3_posts: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
+    s3_profile: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
+    s3_animals: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
+    s3_pets: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
+    s3_ads: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
+    s3_tech_files: {
+      kind: "local",
+      type: "file",
+      serverRoute: { path: "/files" },
+      storagePath: "public/files"
+    },
+    s3_company_logo: {
+      kind: "local",
+      type: "file",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    }
   }
 };
 var keystone_default = withAuth(
-  (0, import_core62.config)({
+  (0, import_core64.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
@@ -11504,7 +13118,7 @@ var keystone_default = withAuth(
     server: {
       cors: true,
       maxFileSize: 200 * 1024 * 1024,
-      port: 3001
+      port: Number(process.env.LOCAL_PORT) || 3001
     },
     storage,
     graphql: {
