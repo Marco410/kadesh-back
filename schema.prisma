@@ -966,17 +966,17 @@ model TechBusinessLead {
 }
 
 model TechFile {
-  id            String       @id @default(cuid())
-  title         String       @default("")
-  description   String       @default("")
-  category      String?      @default("otro")
+  id            String          @id @default(cuid())
+  title         String          @default("")
+  description   String          @default("")
+  category      String?         @default("otro")
   file_filesize Int?
   file_filename String?
   company       SaasCompany?    @relation("TechFile_company", fields: [companyId], references: [id])
   companyId     String?         @map("company")
   aiInsights    TechAiInsight[] @relation("TechAiInsight_relatedFile")
-  createdAt     DateTime?    @default(now())
-  updatedAt     DateTime?    @updatedAt
+  createdAt     DateTime?       @default(now())
+  updatedAt     DateTime?       @updatedAt
 
   @@index([title])
   @@index([category])
