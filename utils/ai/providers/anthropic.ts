@@ -1,11 +1,18 @@
 import { DEFAULT_AI_MODELS } from "../constants";
 import { AiProviderError } from "../errors";
+import {
+  toGuardedUserPrompt,
+  withPromptInjectionGuard,
+} from "../promptSafety";
 import { estimateTokensFromText } from "../tokenCredits";
 import type { AiCompletionParams, AiCompletionResult, AiProviderAdapter } from "../types";
 
 const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
 
 async function complete(params: AiCompletionParams): Promise<AiCompletionResult> {
+  const systemPrompt = withPromptInjectionGuard(params.systemPrompt);
+  const userPrompt = toGuardedUserPrompt(params.userPrompt);
+
   const response = await fetch(ANTHROPIC_MESSAGES_URL, {
     method: "POST",
     headers: {
@@ -16,8 +23,8 @@ async function complete(params: AiCompletionParams): Promise<AiCompletionResult>
     body: JSON.stringify({
       model: params.model,
       max_tokens: params.maxTokens ?? 1024,
-      system: params.systemPrompt,
-      messages: [{ role: "user", content: params.userPrompt }],
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
     }),
   });
 
@@ -43,7 +50,7 @@ async function complete(params: AiCompletionParams): Promise<AiCompletionResult>
     usage: {
       inputTokens:
         payload?.usage?.input_tokens ??
-        estimateTokensFromText(params.systemPrompt + params.userPrompt),
+        estimateTokensFromText(systemPrompt + userPrompt),
       outputTokens:
         payload?.usage?.output_tokens ?? estimateTokensFromText(text),
     },

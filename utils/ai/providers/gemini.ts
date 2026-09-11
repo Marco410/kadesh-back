@@ -1,5 +1,9 @@
 import { DEFAULT_AI_MODELS } from "../constants";
 import { AiProviderError } from "../errors";
+import {
+  toGuardedUserPrompt,
+  withPromptInjectionGuard,
+} from "../promptSafety";
 import { estimateTokensFromText } from "../tokenCredits";
 import type { AiCompletionParams, AiCompletionResult, AiProviderAdapter } from "../types";
 
@@ -8,6 +12,9 @@ function geminiUrl(model: string): string {
 }
 
 async function complete(params: AiCompletionParams): Promise<AiCompletionResult> {
+  const systemPrompt = withPromptInjectionGuard(params.systemPrompt);
+  const userPrompt = toGuardedUserPrompt(params.userPrompt);
+
   const response = await fetch(geminiUrl(params.model), {
     method: "POST",
     headers: {
@@ -16,12 +23,12 @@ async function complete(params: AiCompletionParams): Promise<AiCompletionResult>
     },
     body: JSON.stringify({
       systemInstruction: {
-        parts: [{ text: params.systemPrompt }],
+        parts: [{ text: systemPrompt }],
       },
       contents: [
         {
           role: "user",
-          parts: [{ text: params.userPrompt }],
+          parts: [{ text: userPrompt }],
         },
       ],
       generationConfig: {
@@ -58,7 +65,7 @@ async function complete(params: AiCompletionParams): Promise<AiCompletionResult>
     usage: {
       inputTokens:
         payload?.usageMetadata?.promptTokenCount ??
-        estimateTokensFromText(params.systemPrompt + params.userPrompt),
+        estimateTokensFromText(systemPrompt + userPrompt),
       outputTokens:
         payload?.usageMetadata?.candidatesTokenCount ??
         estimateTokensFromText(text),
