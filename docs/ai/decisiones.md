@@ -64,3 +64,7 @@ El nivel gratuito de Gemini es **por modelo** (RPM / TPM / RPD). Un solo modelo 
 
 Default Gemini pasa a `gemini-3.5-flash-lite` (el mayor cupo del nivel gratis).
 
+## 2026-09-12 — Feature `kadesh_ai` en todos los planes
+
+Entra al catálogo (`plan_features.json`) e `included: true` en Free / Starter / Pro / Agencia. El límite de uso managed sigue siendo la bolsa de créditos, no el flag. Ver [`models/Saas/SaasPlan/README.md`](../../models/Saas/SaasPlan/README.md).
+

@@ -110,6 +110,7 @@ const planFeaturesStarter = getPlanFeatures({
   projects: false,
   quotations: false,
   workspaces: false,
+  kadesh_ai: true,
 });
 
 const planFeaturesPro = getPlanFeatures({
@@ -129,6 +130,7 @@ const planFeaturesPro = getPlanFeatures({
   projects: false,
   quotations: false,
   workspaces: false,
+  kadesh_ai: true,
 });
 
 const planFeaturesAgency = getPlanFeatures();
