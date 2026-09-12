@@ -1,6 +1,7 @@
 import { SUBSCRIPTION_STATUS } from "../SaasCompanySubscription/constants";
 import { Role } from "../../Role/constants";
 import { TRIAL_DAYS_FREE_PLAN } from "../../../utils/constants/constants";
+import { attachUserToCompany } from "../../../utils/access/attachUserToCompany";
 
 /** On SaasCompany create: default "Ventas" workspace, assign free plan (cost = 0), SaasCompanySubscription, and Admin (Company) role to the creator. */
 export const saasCompanySubscriptionHook = {
@@ -11,21 +12,36 @@ export const saasCompanySubscriptionHook = {
       const session = context.session as { data?: { id: string } } | undefined;
       const createdByUserId = session?.data?.id;
       if (createdByUserId) {
+        const user = (await context.sudo().query.User.findOne({
+          where: { id: createdByUserId },
+          query: "id company { id } roles { id }",
+        })) as {
+          id: string;
+          company?: { id: string } | null;
+          roles?: { id: string }[];
+        } | null;
+
+        if (user && !user.company?.id) {
+          await attachUserToCompany(context, createdByUserId, item.id);
+        }
+
         const [adminCompanyRole] = await context.sudo().query.Role.findMany({
           where: { name: { equals: Role.ADMIN_COMPANY } },
           take: 1,
           query: "id",
         });
         if (adminCompanyRole) {
-          const user = await context.sudo().query.User.findOne({
-            where: { id: createdByUserId },
-            query: "id roles { id }",
-          }) as { id: string; roles?: { id: string }[] } | null;
-          const alreadyHasRole = user?.roles?.some((r) => r.id === (adminCompanyRole as { id: string }).id);
+          const alreadyHasRole = user?.roles?.some(
+            (r) => r.id === (adminCompanyRole as { id: string }).id,
+          );
           if (!alreadyHasRole) {
             await context.sudo().query.User.updateOne({
               where: { id: createdByUserId },
-              data: { roles: { connect: { id: (adminCompanyRole as { id: string }).id } } },
+              data: {
+                roles: {
+                  connect: { id: (adminCompanyRole as { id: string }).id },
+                },
+              },
             });
           }
         }
@@ -57,7 +73,9 @@ export const saasCompanySubscriptionHook = {
 
       const today = new Date().toISOString().slice(0, 10);
       const trialDaysFromNow = new Date();
-      trialDaysFromNow.setDate(trialDaysFromNow.getDate() + TRIAL_DAYS_FREE_PLAN);
+      trialDaysFromNow.setDate(
+        trialDaysFromNow.getDate() + TRIAL_DAYS_FREE_PLAN,
+      );
       const periodEnd = trialDaysFromNow.toISOString().slice(0, 10);
 
       await context.sudo().query.SaasCompanySubscription.createOne({

@@ -3,6 +3,7 @@ import lists from "./models/schema";
 import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
 import extendGraphqlSchema from "./graphql/extendedSchema";
+import { isPlatformAdmin } from "./utils/access/tenant";
 
 // Setup environment variables
 const path = require("path");
@@ -39,26 +40,163 @@ const storage: Record<string, any> = {
   },
   ...(hasS3
     ? {
-        s3_files: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, signed: { expiry: 3600 } },
-        s3_categories: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/", signed: { expiry: 3600 } },
-        s3_posts: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/", signed: { expiry: 3600 } },
-        s3_profile: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/", signed: { expiry: 3600 } },
-        s3_animals: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/", signed: { expiry: 3600 } },
-        s3_pets: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/", signed: { expiry: 3600 } },
-        s3_ads: { kind: "s3", type: "image", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/", signed: { expiry: 3600 } },
-        s3_tech_files: { kind: "s3", type: "file", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/tech-files/" : "tech-files/", signed: { expiry: 3600 } },
-        s3_company_logo: { kind: "s3", type: "file", bucketName, region, accessKeyId, secretAccessKey, pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/company-logo/" : "company-logo/", signed: { expiry: 3600 } },
+        s3_files: {
+          kind: "s3",
+          type: "image",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          signed: { expiry: 3600 },
+        },
+        s3_categories: {
+          kind: "s3",
+          type: "image",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          pathPrefix:
+            process.env.ENVIROMENT === "DEV"
+              ? "dev/categories/"
+              : "categories/",
+          signed: { expiry: 3600 },
+        },
+        s3_posts: {
+          kind: "s3",
+          type: "image",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          pathPrefix:
+            process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/",
+          signed: { expiry: 3600 },
+        },
+        s3_profile: {
+          kind: "s3",
+          type: "image",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          pathPrefix:
+            process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/",
+          signed: { expiry: 3600 },
+        },
+        s3_animals: {
+          kind: "s3",
+          type: "image",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          pathPrefix:
+            process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/",
+          signed: { expiry: 3600 },
+        },
+        s3_pets: {
+          kind: "s3",
+          type: "image",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/",
+          signed: { expiry: 3600 },
+        },
+        s3_ads: {
+          kind: "s3",
+          type: "image",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/",
+          signed: { expiry: 3600 },
+        },
+        s3_tech_files: {
+          kind: "s3",
+          type: "file",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          pathPrefix:
+            process.env.ENVIROMENT === "DEV"
+              ? "dev/tech-files/"
+              : "tech-files/",
+          signed: { expiry: 3600 },
+        },
+        s3_company_logo: {
+          kind: "s3",
+          type: "file",
+          bucketName,
+          region,
+          accessKeyId,
+          secretAccessKey,
+          pathPrefix:
+            process.env.ENVIROMENT === "DEV"
+              ? "dev/company-logo/"
+              : "company-logo/",
+          signed: { expiry: 3600 },
+        },
       }
     : {
-        s3_files: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-        s3_categories: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-        s3_posts: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-        s3_profile: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-        s3_animals: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-        s3_pets: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-        s3_ads: { kind: "local", type: "image", serverRoute: { path: "/images" }, storagePath: "public/images" },
-        s3_tech_files: { kind: "local", type: "file", serverRoute: { path: "/files" }, storagePath: "public/files" },
-        s3_company_logo: { kind: "local", type: "file", serverRoute: { path: "/images" }, storagePath: "public/images" },
+        s3_files: {
+          kind: "local",
+          type: "image",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
+        s3_categories: {
+          kind: "local",
+          type: "image",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
+        s3_posts: {
+          kind: "local",
+          type: "image",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
+        s3_profile: {
+          kind: "local",
+          type: "image",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
+        s3_animals: {
+          kind: "local",
+          type: "image",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
+        s3_pets: {
+          kind: "local",
+          type: "image",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
+        s3_ads: {
+          kind: "local",
+          type: "image",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
+        s3_tech_files: {
+          kind: "local",
+          type: "file",
+          serverRoute: { path: "/files" },
+          storagePath: "public/files",
+        },
+        s3_company_logo: {
+          kind: "local",
+          type: "file",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
       }),
 };
 
@@ -69,13 +207,13 @@ export default withAuth(
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
       prismaClientPath: "node_modules/.prisma/client",
     },
-    ui:{
-      isAccessAllowed: (context) => !!context.session?.data,
+    ui: {
+      isAccessAllowed: (context) => isPlatformAdmin(context.session),
     },
     server: {
       cors: true,
       maxFileSize: 200 * 1024 * 1024,
-      port: 3001,
+      port: Number(process.env.LOCAL_PORT) || 3001,
     },
     storage,
     graphql: {

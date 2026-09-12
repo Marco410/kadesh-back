@@ -10,13 +10,14 @@ import { createSaasPlan } from "./saas_plan";
 import { createSaasCreditPackages } from "./saas_credits";
 
 async function createRoles(context: KeystoneContext) {
+  const sudo = context.sudo();
   for (const role of ROLES) {
-    const existing = await context.db.Role.findOne({
+    const existing = await sudo.db.Role.findOne({
       where: { name: role.value },
     });
 
     if (!existing) {
-      await context.db.Role.createOne({
+      await sudo.db.Role.createOne({
         data: {
           name: role.value,
         },

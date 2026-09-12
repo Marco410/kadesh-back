@@ -2550,6 +2550,10 @@ type SaasCompany {
   projectsCount(where: SaasProjectWhereInput! = {}): Int
   leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
   leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
+  aiCallLogs(where: TechAiCallLogWhereInput! = {}, orderBy: [TechAiCallLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiCallLogWhereUniqueInput): [TechAiCallLog!]
+  aiCallLogsCount(where: TechAiCallLogWhereInput! = {}): Int
+  aiInsights(where: TechAiInsightWhereInput! = {}, orderBy: [TechAiInsightOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiInsightWhereUniqueInput): [TechAiInsight!]
+  aiInsightsCount(where: TechAiInsightWhereInput! = {}): Int
   saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
   saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
   quotations(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
@@ -2559,6 +2563,12 @@ type SaasCompany {
   onboardingIdealCustomer: String
   onboardingAvgTicketValue: String
   onboardingSalesPain: String
+  aiBillingMode: String
+  aiProvider: String
+  aiModel: String
+  aiApiKeyEncrypted: String
+  aiApiKeyPreview: String
+  aiKeyUpdatedAt: DateTime
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -2598,12 +2608,20 @@ input SaasCompanyWhereInput {
   techFiles: TechFileManyRelationFilter
   projects: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
+  aiCallLogs: TechAiCallLogManyRelationFilter
+  aiInsights: TechAiInsightManyRelationFilter
   saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   quotations: SaasQuotationManyRelationFilter
   onboardingMainOffer: StringNullableFilter
   onboardingIdealCustomer: StringNullableFilter
   onboardingAvgTicketValue: StringNullableFilter
   onboardingSalesPain: StringNullableFilter
+  aiBillingMode: StringNullableFilter
+  aiProvider: StringNullableFilter
+  aiModel: StringNullableFilter
+  aiApiKeyEncrypted: StringNullableFilter
+  aiApiKeyPreview: StringNullableFilter
+  aiKeyUpdatedAt: DateTimeNullableFilter
   termsQuotation: StringNullableFilter
   colorPrimary: StringNullableFilter
   colorSecondary: StringNullableFilter
@@ -2673,6 +2691,18 @@ input TechLeadSyncLogManyRelationFilter {
   none: TechLeadSyncLogWhereInput
 }
 
+input TechAiCallLogManyRelationFilter {
+  every: TechAiCallLogWhereInput
+  some: TechAiCallLogWhereInput
+  none: TechAiCallLogWhereInput
+}
+
+input TechAiInsightManyRelationFilter {
+  every: TechAiInsightWhereInput
+  some: TechAiInsightWhereInput
+  none: TechAiInsightWhereInput
+}
+
 input SaasSubscriptionLogManyRelationFilter {
   every: SaasSubscriptionLogWhereInput
   some: SaasSubscriptionLogWhereInput
@@ -2694,6 +2724,12 @@ input SaasCompanyOrderByInput {
   onboardingIdealCustomer: OrderDirection
   onboardingAvgTicketValue: OrderDirection
   onboardingSalesPain: OrderDirection
+  aiBillingMode: OrderDirection
+  aiProvider: OrderDirection
+  aiModel: OrderDirection
+  aiApiKeyEncrypted: OrderDirection
+  aiApiKeyPreview: OrderDirection
+  aiKeyUpdatedAt: OrderDirection
   termsQuotation: OrderDirection
   colorPrimary: OrderDirection
   colorSecondary: OrderDirection
@@ -2720,6 +2756,8 @@ input SaasCompanyUpdateInput {
   techFiles: TechFileRelateToManyForUpdateInput
   projects: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
+  aiCallLogs: TechAiCallLogRelateToManyForUpdateInput
+  aiInsights: TechAiInsightRelateToManyForUpdateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
   quotations: SaasQuotationRelateToManyForUpdateInput
   logo: FileFieldInput
@@ -2727,6 +2765,12 @@ input SaasCompanyUpdateInput {
   onboardingIdealCustomer: String
   onboardingAvgTicketValue: String
   onboardingSalesPain: String
+  aiBillingMode: String
+  aiProvider: String
+  aiModel: String
+  aiApiKeyEncrypted: String
+  aiApiKeyPreview: String
+  aiKeyUpdatedAt: DateTime
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -2812,6 +2856,20 @@ input TechLeadSyncLogRelateToManyForUpdateInput {
   connect: [TechLeadSyncLogWhereUniqueInput!]
 }
 
+input TechAiCallLogRelateToManyForUpdateInput {
+  disconnect: [TechAiCallLogWhereUniqueInput!]
+  set: [TechAiCallLogWhereUniqueInput!]
+  create: [TechAiCallLogCreateInput!]
+  connect: [TechAiCallLogWhereUniqueInput!]
+}
+
+input TechAiInsightRelateToManyForUpdateInput {
+  disconnect: [TechAiInsightWhereUniqueInput!]
+  set: [TechAiInsightWhereUniqueInput!]
+  create: [TechAiInsightCreateInput!]
+  connect: [TechAiInsightWhereUniqueInput!]
+}
+
 input SaasSubscriptionLogRelateToManyForUpdateInput {
   disconnect: [SaasSubscriptionLogWhereUniqueInput!]
   set: [SaasSubscriptionLogWhereUniqueInput!]
@@ -2852,6 +2910,8 @@ input SaasCompanyCreateInput {
   techFiles: TechFileRelateToManyForCreateInput
   projects: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
+  aiCallLogs: TechAiCallLogRelateToManyForCreateInput
+  aiInsights: TechAiInsightRelateToManyForCreateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
   quotations: SaasQuotationRelateToManyForCreateInput
   logo: FileFieldInput
@@ -2859,6 +2919,12 @@ input SaasCompanyCreateInput {
   onboardingIdealCustomer: String
   onboardingAvgTicketValue: String
   onboardingSalesPain: String
+  aiBillingMode: String
+  aiProvider: String
+  aiModel: String
+  aiApiKeyEncrypted: String
+  aiApiKeyPreview: String
+  aiKeyUpdatedAt: DateTime
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -2921,6 +2987,16 @@ input SaasProjectRelateToManyForCreateInput {
 input TechLeadSyncLogRelateToManyForCreateInput {
   create: [TechLeadSyncLogCreateInput!]
   connect: [TechLeadSyncLogWhereUniqueInput!]
+}
+
+input TechAiCallLogRelateToManyForCreateInput {
+  create: [TechAiCallLogCreateInput!]
+  connect: [TechAiCallLogWhereUniqueInput!]
+}
+
+input TechAiInsightRelateToManyForCreateInput {
+  create: [TechAiInsightCreateInput!]
+  connect: [TechAiInsightWhereUniqueInput!]
 }
 
 input SaasSubscriptionLogRelateToManyForCreateInput {
@@ -5105,6 +5181,8 @@ type TechFile {
   category: String
   file: FileFieldOutput
   company: SaasCompany
+  aiInsights(where: TechAiInsightWhereInput! = {}, orderBy: [TechAiInsightOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiInsightWhereUniqueInput): [TechAiInsight!]
+  aiInsightsCount(where: TechAiInsightWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -5122,6 +5200,7 @@ input TechFileWhereInput {
   description: StringFilter
   category: StringNullableFilter
   company: SaasCompanyWhereInput
+  aiInsights: TechAiInsightManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -5141,6 +5220,7 @@ input TechFileUpdateInput {
   category: String
   file: FileFieldInput
   company: SaasCompanyRelateToOneForUpdateInput
+  aiInsights: TechAiInsightRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -5156,6 +5236,7 @@ input TechFileCreateInput {
   category: String
   file: FileFieldInput
   company: SaasCompanyRelateToOneForCreateInput
+  aiInsights: TechAiInsightRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -5261,6 +5342,205 @@ input TechLeadSyncLogCreateInput {
   radius: Float
   category: String
   createdAt: DateTime
+}
+
+type TechAiCallLog {
+  id: ID!
+  user: User
+  company: SaasCompany
+  feature: String
+  billingMode: String
+  provider: String
+  model: String
+  featurePrompt: String
+  systemPrompt: String
+  userPrompt: String
+  response: String
+  inputTokens: Int
+  outputTokens: Int
+  billableTokens: Int
+  creditsCharged: Int
+  billed: Boolean
+  success: Boolean
+  errorMessage: String
+  durationMs: Int
+  createdAt: DateTime
+}
+
+input TechAiCallLogWhereUniqueInput {
+  id: ID
+}
+
+input TechAiCallLogWhereInput {
+  AND: [TechAiCallLogWhereInput!]
+  OR: [TechAiCallLogWhereInput!]
+  NOT: [TechAiCallLogWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  company: SaasCompanyWhereInput
+  feature: StringNullableFilter
+  billingMode: StringNullableFilter
+  provider: StringNullableFilter
+  model: StringNullableFilter
+  featurePrompt: StringNullableFilter
+  systemPrompt: StringNullableFilter
+  userPrompt: StringNullableFilter
+  response: StringNullableFilter
+  inputTokens: IntNullableFilter
+  outputTokens: IntNullableFilter
+  billableTokens: IntNullableFilter
+  creditsCharged: IntNullableFilter
+  billed: BooleanFilter
+  success: BooleanFilter
+  errorMessage: StringNullableFilter
+  durationMs: IntNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input TechAiCallLogOrderByInput {
+  id: OrderDirection
+  feature: OrderDirection
+  billingMode: OrderDirection
+  provider: OrderDirection
+  model: OrderDirection
+  featurePrompt: OrderDirection
+  systemPrompt: OrderDirection
+  userPrompt: OrderDirection
+  response: OrderDirection
+  inputTokens: OrderDirection
+  outputTokens: OrderDirection
+  billableTokens: OrderDirection
+  creditsCharged: OrderDirection
+  billed: OrderDirection
+  success: OrderDirection
+  errorMessage: OrderDirection
+  durationMs: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TechAiCallLogUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  company: SaasCompanyRelateToOneForUpdateInput
+  feature: String
+  billingMode: String
+  provider: String
+  model: String
+  featurePrompt: String
+  systemPrompt: String
+  userPrompt: String
+  response: String
+  inputTokens: Int
+  outputTokens: Int
+  billableTokens: Int
+  creditsCharged: Int
+  billed: Boolean
+  success: Boolean
+  errorMessage: String
+  durationMs: Int
+  createdAt: DateTime
+}
+
+input TechAiCallLogUpdateArgs {
+  where: TechAiCallLogWhereUniqueInput!
+  data: TechAiCallLogUpdateInput!
+}
+
+input TechAiCallLogCreateInput {
+  user: UserRelateToOneForCreateInput
+  company: SaasCompanyRelateToOneForCreateInput
+  feature: String
+  billingMode: String
+  provider: String
+  model: String
+  featurePrompt: String
+  systemPrompt: String
+  userPrompt: String
+  response: String
+  inputTokens: Int
+  outputTokens: Int
+  billableTokens: Int
+  creditsCharged: Int
+  billed: Boolean
+  success: Boolean
+  errorMessage: String
+  durationMs: Int
+  createdAt: DateTime
+}
+
+type TechAiInsight {
+  id: ID!
+  company: SaasCompany
+  salesPerson: User
+  kind: String
+  referenceKey: String
+  content: String
+  structuredData: JSON
+  relatedFile: TechFile
+  generatedAt: DateTime
+}
+
+input TechAiInsightWhereUniqueInput {
+  id: ID
+}
+
+input TechAiInsightWhereInput {
+  AND: [TechAiInsightWhereInput!]
+  OR: [TechAiInsightWhereInput!]
+  NOT: [TechAiInsightWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  salesPerson: UserWhereInput
+  kind: StringFilter
+  referenceKey: StringFilter
+  content: StringNullableFilter
+  relatedFile: TechFileWhereInput
+  generatedAt: DateTimeNullableFilter
+}
+
+input TechAiInsightOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  referenceKey: OrderDirection
+  content: OrderDirection
+  generatedAt: OrderDirection
+}
+
+input TechAiInsightUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  salesPerson: UserRelateToOneForUpdateInput
+  kind: String
+  referenceKey: String
+  content: String
+  structuredData: JSON
+  relatedFile: TechFileRelateToOneForUpdateInput
+  generatedAt: DateTime
+}
+
+input TechFileRelateToOneForUpdateInput {
+  create: TechFileCreateInput
+  connect: TechFileWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechAiInsightUpdateArgs {
+  where: TechAiInsightWhereUniqueInput!
+  data: TechAiInsightUpdateInput!
+}
+
+input TechAiInsightCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  salesPerson: UserRelateToOneForCreateInput
+  kind: String
+  referenceKey: String
+  content: String
+  structuredData: JSON
+  relatedFile: TechFileRelateToOneForCreateInput
+  generatedAt: DateTime
+}
+
+input TechFileRelateToOneForCreateInput {
+  create: TechFileCreateInput
+  connect: TechFileWhereUniqueInput
 }
 
 type TechFollowUpTask {
@@ -5810,6 +6090,10 @@ type User {
   projectsResponsibleCount(where: SaasProjectWhereInput! = {}): Int
   leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
   leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
+  aiCallLogs(where: TechAiCallLogWhereInput! = {}, orderBy: [TechAiCallLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiCallLogWhereUniqueInput): [TechAiCallLog!]
+  aiCallLogsCount(where: TechAiCallLogWhereInput! = {}): Int
+  aiInsights(where: TechAiInsightWhereInput! = {}, orderBy: [TechAiInsightOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiInsightWhereUniqueInput): [TechAiInsight!]
+  aiInsightsCount(where: TechAiInsightWhereInput! = {}): Int
   saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
   saasSubscriptionLogsCount(where: SaasSubscriptionLogWhereInput! = {}): Int
   authLogs(where: UserAuthLogWhereInput! = {}, orderBy: [UserAuthLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserAuthLogWhereUniqueInput): [UserAuthLog!]
@@ -5883,6 +6167,8 @@ input UserWhereInput {
   createdByProposals: TechProposalManyRelationFilter
   projectsResponsible: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
+  aiCallLogs: TechAiCallLogManyRelationFilter
+  aiInsights: TechAiInsightManyRelationFilter
   saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   authLogs: UserAuthLogManyRelationFilter
   quotationsCreated: SaasQuotationManyRelationFilter
@@ -5985,6 +6271,8 @@ input UserUpdateInput {
   createdByProposals: TechProposalRelateToManyForUpdateInput
   projectsResponsible: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
+  aiCallLogs: TechAiCallLogRelateToManyForUpdateInput
+  aiInsights: TechAiInsightRelateToManyForUpdateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
   authLogs: UserAuthLogRelateToManyForUpdateInput
   quotationsCreated: SaasQuotationRelateToManyForUpdateInput
@@ -6068,6 +6356,8 @@ input UserCreateInput {
   createdByProposals: TechProposalRelateToManyForCreateInput
   projectsResponsible: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
+  aiCallLogs: TechAiCallLogRelateToManyForCreateInput
+  aiInsights: TechAiInsightRelateToManyForCreateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
   authLogs: UserAuthLogRelateToManyForCreateInput
   quotationsCreated: SaasQuotationRelateToManyForCreateInput
@@ -6549,6 +6839,18 @@ type Mutation {
   updateTechLeadSyncLogs(data: [TechLeadSyncLogUpdateArgs!]!): [TechLeadSyncLog]
   deleteTechLeadSyncLog(where: TechLeadSyncLogWhereUniqueInput!): TechLeadSyncLog
   deleteTechLeadSyncLogs(where: [TechLeadSyncLogWhereUniqueInput!]!): [TechLeadSyncLog]
+  createTechAiCallLog(data: TechAiCallLogCreateInput!): TechAiCallLog
+  createTechAiCallLogs(data: [TechAiCallLogCreateInput!]!): [TechAiCallLog]
+  updateTechAiCallLog(where: TechAiCallLogWhereUniqueInput!, data: TechAiCallLogUpdateInput!): TechAiCallLog
+  updateTechAiCallLogs(data: [TechAiCallLogUpdateArgs!]!): [TechAiCallLog]
+  deleteTechAiCallLog(where: TechAiCallLogWhereUniqueInput!): TechAiCallLog
+  deleteTechAiCallLogs(where: [TechAiCallLogWhereUniqueInput!]!): [TechAiCallLog]
+  createTechAiInsight(data: TechAiInsightCreateInput!): TechAiInsight
+  createTechAiInsights(data: [TechAiInsightCreateInput!]!): [TechAiInsight]
+  updateTechAiInsight(where: TechAiInsightWhereUniqueInput!, data: TechAiInsightUpdateInput!): TechAiInsight
+  updateTechAiInsights(data: [TechAiInsightUpdateArgs!]!): [TechAiInsight]
+  deleteTechAiInsight(where: TechAiInsightWhereUniqueInput!): TechAiInsight
+  deleteTechAiInsights(where: [TechAiInsightWhereUniqueInput!]!): [TechAiInsight]
   createTechFollowUpTask(data: TechFollowUpTaskCreateInput!): TechFollowUpTask
   createTechFollowUpTasks(data: [TechFollowUpTaskCreateInput!]!): [TechFollowUpTask]
   updateTechFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!, data: TechFollowUpTaskUpdateInput!): TechFollowUpTask
@@ -6615,9 +6917,14 @@ type Mutation {
   remainingCredits(companyId: ID): RemainingCreditsResult!
   purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
   sendTestEmail(email: String!): SendTestEmailResult!
+  updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
+  testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
-  registerUser(data: UserCreateInput!, referrerCode: String): User
+  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
+  generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
+  generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
+  generateCompanyAiBrief(companyId: ID!, force: Boolean): CompanyAiBriefResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -6797,6 +7104,12 @@ type Query {
   techLeadSyncLog(where: TechLeadSyncLogWhereUniqueInput!): TechLeadSyncLog
   techLeadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
   techLeadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
+  techAiCallLog(where: TechAiCallLogWhereUniqueInput!): TechAiCallLog
+  techAiCallLogs(where: TechAiCallLogWhereInput! = {}, orderBy: [TechAiCallLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiCallLogWhereUniqueInput): [TechAiCallLog!]
+  techAiCallLogsCount(where: TechAiCallLogWhereInput! = {}): Int
+  techAiInsight(where: TechAiInsightWhereUniqueInput!): TechAiInsight
+  techAiInsights(where: TechAiInsightWhereInput! = {}, orderBy: [TechAiInsightOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiInsightWhereUniqueInput): [TechAiInsight!]
+  techAiInsightsCount(where: TechAiInsightWhereInput! = {}): Int
   techFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!): TechFollowUpTask
   techFollowUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   techFollowUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
@@ -6830,6 +7143,9 @@ type Query {
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   StripePaymentMethods(email: String!): StripePaymentMethodsType
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
+  dailyDigest(companyId: ID!): DailyDigestResult!
+  aiPlaybook(companyId: ID!): DailyDigestResult!
+  companyAiBrief(companyId: ID!): CompanyAiBriefResult!
 }
 
 union AuthenticatedItem = User
@@ -7131,6 +7447,72 @@ type SendTestEmailResult {
   smtpHost: String
   smtpPort: Int
   smtpConfigured: Boolean!
+}
+
+input UpdateCompanyAiSettingsInput {
+  companyId: ID!
+  billingMode: String
+  provider: String
+  apiKey: String
+  model: String
+}
+
+type UpdateCompanyAiSettingsResult {
+  success: Boolean!
+  message: String!
+  billingMode: String
+  provider: String
+  model: String
+  apiKeyPreview: String
+  keyUpdatedAt: String
+}
+
+type TestCompanyAiConnectionResult {
+  success: Boolean!
+  message: String!
+}
+
+type DailyDigestAction {
+  title: String!
+  detail: String!
+}
+
+type DailyDigestInsight {
+  id: ID!
+  referenceKey: String!
+  content: String
+  actions: [DailyDigestAction!]!
+  generatedAt: String
+}
+
+type DailyDigestResult {
+  success: Boolean!
+  message: String!
+  cached: Boolean!
+  creditsCharged: Int
+  insight: DailyDigestInsight
+}
+
+type CompanyAiBriefPillar {
+  key: String!
+  title: String!
+  summary: String!
+  gaps: [String!]!
+}
+
+type CompanyAiBriefInsight {
+  id: ID!
+  generatedAt: String
+  sourceHash: String!
+  pillars: [CompanyAiBriefPillar!]!
+}
+
+type CompanyAiBriefResult {
+  success: Boolean!
+  message: String!
+  cached: Boolean!
+  creditsCharged: Int
+  insight: CompanyAiBriefInsight
 }
 
 type AnimalMultimediaImage {

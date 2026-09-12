@@ -43,6 +43,8 @@ import TechSalesActivity from "./Tech/SalesActivity/TechSalesActivity";
 import TechTask from "./Tech/Task/TechTask";
 import TechFile from "./Tech/TechFiles/TechFiles";
 import TechLeadSyncLog from "./Tech/LeadSyncLog/TechLeadSyncLog";
+import TechAiCallLog from "./Tech/AiCallLog/TechAiCallLog";
+import TechAiInsight from "./Tech/AiInsight/TechAiInsight";
 import SaasCompany from "./Saas/SaasCompany/SaasCompany";
 import SaasPlan from "./Saas/SaasPlan/SaasPlan";
 import SaasCredit from "./Saas/SaasCredit/SaasCredit";
@@ -113,6 +115,8 @@ export default {
   TechBusinessLead,
   TechFile,
   TechLeadSyncLog,
+  TechAiCallLog,
+  TechAiInsight,
   TechFollowUpTask,
   TechProposal,
   TechSalesActivity,

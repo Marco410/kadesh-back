@@ -2,6 +2,10 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscription/constants";
 import { getStripeSubscription } from "../../../../utils/saas/stripeSubscription";
 import { getFreePlanTrialInfo } from "../../../../utils/saas/freePlanTrial";
+import {
+  denyOtherCompanyMessage,
+  resolveAuthorizedCompanyId,
+} from "../../../../utils/access/tenant";
 
 
 /** Map Stripe subscription status to our SUBSCRIPTION_STATUS */
@@ -70,7 +74,7 @@ const resolver = {
     { companyId }: { companyId?: string | null },
     context: KeystoneContext,
   ) => {
-    const session = context.session as { data?: { id: string } } | undefined;
+    const session = context.session;
     const userId = session?.data?.id;
 
     if (!userId) {
@@ -83,18 +87,14 @@ const resolver = {
       };
     }
 
-    const user = await context.sudo().query.User.findOne({
-      where: { id: userId },
-      query: "id company { id name }",
-    });
-
-    const userCompany = (user as { company?: { id: string; name?: string } | null })?.company;
-    const companyIdToUse = companyId ?? userCompany?.id;
+    const companyIdToUse = resolveAuthorizedCompanyId(session, companyId);
 
     if (!companyIdToUse) {
       return {
         success: false,
-        message: "No se encontró un negocio asignado.",
+        message: companyId
+          ? denyOtherCompanyMessage()
+          : "No se encontró un negocio asignado.",
         daysUntilNextBilling: null,
         subscriptionActive: false,
         subscription: null,

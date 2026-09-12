@@ -12,8 +12,8 @@ Kadesh backend: a [Keystone 6](https://keystonejs.com) CMS/API app (Node + TypeS
 yarn dev                    # start Keystone dev server (admin UI + GraphQL API) on :3000
 yarn build                  # production build
 yarn start                  # run production build
-yarn migrate                # keystone prisma migrate dev — create/apply a migration after editing models/schema.prisma changes
-yarn migration:status       # check pending migrations
+yarn migrate                # HUMANO ONLY — never run by the agent. keystone prisma migrate dev after editing models
+yarn migration:status       # HUMANO ONLY — never run by the agent
 yarn db:seed                # run seed.ts (IS_BUILDING=true tsx seed.ts) against utils/seed/
 ```
 
@@ -27,7 +27,7 @@ Required env vars (see `config/.env.template`): `POSTGRES_DB`, `POSTGRES_USER`, 
 
 **Entry point**: `keystone.ts` builds the Keystone `config()`, wiring together `models/schema.ts` (lists), `auth/auth.ts` (session/auth), and `graphql/extendedSchema.ts` (custom GraphQL). It also declares two file storage backends: `my_local_images` (local disk, served at `/images`) and `s3_files` (S3, signed URLs).
 
-**Models** (`models/`): each Keystone list lives in its own file/folder under `models/<Name>/<Name>.ts`, and every list must be registered in `models/schema.ts` to be included in the schema. Related sub-lists are nested in folders, e.g. `models/Animal/AnimalBreed/AnimalBreed.ts`, `models/PetPlace/PetPlaceLike/PetPlaceLike.ts`, `models/Store/Product/Product.ts`. Editing `models/schema.ts` or any list's fields changes the generated `schema.prisma` / `schema.graphql` — run `yarn migrate` afterward to create a Prisma migration (migrations live in `migrations/`, one per named change).
+**Models** (`models/`): each Keystone list lives in its own file/folder under `models/<Name>/<Name>.ts`, and every list must be registered in `models/schema.ts` to be included in the schema. Related sub-lists are nested in folders, e.g. `models/Animal/AnimalBreed/AnimalBreed.ts`, `models/PetPlace/PetPlaceLike/PetPlaceLike.ts`, `models/Store/Product/Product.ts`. Editing `models/schema.ts` or any list's fields changes the generated `schema.prisma` / `schema.graphql`. **Do not create or run Prisma migrations** — tell the human to run `yarn migrate` (or write the SQL under `migrations/` by hand).
 
 Per-list conventions:
 - `access` is a plain object/function passed to `list({ access, fields })`, usually imported from a colocated `<Name>.access.ts` (see `models/User/User.access.ts`) or the shared open-access default in `utils/generalAccess/access.ts`.
@@ -50,9 +50,11 @@ Per-list conventions:
 
 **Admin UI customization** (`admin/`): `admin/config.ts` registers custom Admin UI React components (`admin/components/`) like `CustomNavigation` and `CustomLogo`, wired into `keystone.ts`'s `ui` config.
 
+**IA / Cerebro Kadesh** (`docs/ai/`): capa de IA a nivel `SaasCompany`. Cifrado en `utils/helpers/encryption.ts`, adapters en `utils/ai/`, mutaciones en `graphql/customs/mutations/ai/`. La IA managed consume los **mismos** créditos del periodo mensual (tokens → créditos, ver `docs/ai/precio-tokens.md`). Cada llamada queda en `TechAiCallLog`.
+
 ## Adding a new list
 
 1. Create `models/<Name>/<Name>.ts` exporting `list({ access, fields })` from `@keystone-6/core`.
 2. Add access rules (reuse `utils/generalAccess/access.ts` or write a `<Name>.access.ts` using `hasRole`/`Role`).
 3. Register the list in `models/schema.ts`.
-4. Run `yarn migrate` to generate the Prisma migration and regenerate `schema.prisma`/`schema.graphql`.
+4. Stop. Tell the human to run `yarn migrate` (or write the migration SQL by hand). Never create files under `migrations/` or run migrate commands.

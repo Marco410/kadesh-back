@@ -357,7 +357,7 @@ export async function grantPurchaseCredits(
 }
 
 /**
- * Descuenta créditos por sincronización de leads.
+ * Descuenta créditos (sync de leads o IA managed).
  * Usa increment atómico vía Prisma cuando está disponible; falla si no hay saldo.
  */
 export async function consumeCompanyCredits(
@@ -368,6 +368,8 @@ export async function consumeCompanyCredits(
     referenceType?: string | null;
     referenceId?: string | null;
     notes?: string | null;
+    ledgerType?: string;
+    metadata?: Record<string, unknown>;
   },
 ): Promise<{
   success: boolean;
@@ -377,6 +379,11 @@ export async function consumeCompanyCredits(
   leadLimit: number;
   syncedCount: number;
 }> {
+  const consumeType =
+    params.ledgerType ?? COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC;
+  const defaultReferenceType =
+    consumeType === COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI ? "ai" : "sync";
+
   if (params.amount < 1) {
     const period = await ensureSaasCompanyCreditPeriod(context, params.companyId);
     const syncedCount = period.used ?? 0;
@@ -445,12 +452,13 @@ export async function consumeCompanyCredits(
     await writeLedgerEntry(context, {
       companyId: params.companyId,
       periodId: refreshed.id,
-      type: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC,
+      type: consumeType,
       amount: -params.amount,
       balanceAfter: getPeriodRemaining(refreshed),
-      referenceType: params.referenceType ?? "sync",
+      referenceType: params.referenceType ?? defaultReferenceType,
       referenceId: params.referenceId ?? null,
       notes: params.notes ?? null,
+      metadata: params.metadata,
     });
 
     return {
@@ -473,12 +481,13 @@ export async function consumeCompanyCredits(
   await writeLedgerEntry(context, {
     companyId: params.companyId,
     periodId: updated.id,
-    type: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC,
+    type: consumeType,
     amount: -params.amount,
     balanceAfter: getPeriodRemaining(updated),
-    referenceType: params.referenceType ?? "sync",
+    referenceType: params.referenceType ?? defaultReferenceType,
     referenceId: params.referenceId ?? null,
     notes: params.notes ?? null,
+    metadata: params.metadata,
   });
 
   return {

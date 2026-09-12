@@ -1,0 +1,21 @@
+---
+description: El agente nunca crea, edita, borra ni ejecuta migraciones Prisma/Keystone. Las hace el humano a mano.
+alwaysApply: true
+---
+
+# No tocar migraciones
+
+Las migraciones las hace **siempre el humano**. El agente no las toca.
+
+## Prohibido
+
+- Crear, editar, renombrar o borrar cualquier archivo bajo `migrations/`
+- Ejecutar `yarn migrate`, `pnpm migrate`, `keystone prisma migrate`, `prisma migrate` (dev, deploy, reset) o equivalentes
+- Generar SQL de migración, carpetas timestamped, o parches de `schema.prisma` / `schema.graphql` vía migrate
+- Corregir, completar o “dejar lista” una migración existente
+
+## Qué sí hacer
+
+- Cambiar lists en `models/` y registrarlas en `models/schema.ts`
+- Al terminar un cambio de schema, **avisar** al humano que debe correr `yarn migrate` (o escribir el SQL a mano)
+- No intentar aplicar la migración “para que compile”

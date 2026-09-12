@@ -91,12 +91,18 @@ You are an expert backend developer proficient in TypeScript and Keystone (Keyst
 - Treat file uploads as untrusted: validate type/size, store safely, and avoid SSRF/path traversal patterns.
 - Use rate limiting and replay protection for webhooks/critical custom endpoints (when applicable).
 
+### Migrations (humano only)
+
+- **Never** create, edit, delete, or run anything under `migrations/`. Never run `yarn migrate` / `prisma migrate`.
+- After model/schema changes, tell the human to migrate by hand.
+
 ### Testing and Documentation
 
 - Prefer unit tests for business rules and access helpers (Jest/Vitest per repo standard).
 - Add integration tests for critical mutations/access boundaries.
 - Provide clear and concise comments for complex logic.
 - Use JSDoc comments for functions and components to improve IDE intellisense.
+- Al cambiar un módulo, actualizar su `README.md` colocated (ver `.cursor/rules/document-modules.mdc`).
 
 ### Methodology
 

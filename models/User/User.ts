@@ -21,7 +21,12 @@ import {
   stripeCustomerHook,
   userReferralHook,
 } from "./User.hooks";
-import access from "../../utils/generalAccess/access";
+import access, {
+  userCompanyFieldAccess,
+  userRolesFieldAccess,
+  userSecretFieldAccess,
+  userStripeFieldAccess,
+} from "./User.access";
 
 async function resolveInput(
   args: Parameters<typeof userRoleHook.resolveInput>[0]
@@ -112,6 +117,7 @@ export default list({
     roles: relationship({
       ref: "Role.users",
       many: true,
+      access: userRolesFieldAccess,
     }),
     referredBy: relationship({
       ref: "User.referrals",
@@ -130,6 +136,7 @@ export default list({
     company: relationship({
       ref: "SaasCompany.users",
       many: false,
+      access: userCompanyFieldAccess,
       ui: { description: "Company/organization this user belongs to" },
     }),
     workspaces: relationship({
@@ -195,6 +202,16 @@ export default list({
       many: true,
       ui: { description: "Logs de sincronización de leads (mapa)" },
     }),
+    aiCallLogs: relationship({
+      ref: "TechAiCallLog.user",
+      many: true,
+      ui: { description: "Llamadas a IA disparadas por este usuario" },
+    }),
+    aiInsights: relationship({
+      ref: "TechAiInsight.salesPerson",
+      many: true,
+      ui: { description: "Insights de IA de este vendedor (digest diario)" },
+    }),
     saasSubscriptionLogs: relationship({
       ref: "SaasSubscriptionLog.user",
       many: true,
@@ -250,26 +267,30 @@ export default list({
       defaultValue: 10,
     }),
     bank: text({
+      access: userSecretFieldAccess,
       ui: { description: "Nombre del banco" },
     }),
     clabe: text({
       db: { isNullable: true },
+      access: userSecretFieldAccess,
       ui: {
         listView: { fieldMode: "hidden" },
       },
     }),
     cardNumber: text({
       db: { isNullable: true },
+      access: userSecretFieldAccess,
       ui: {
         listView: { fieldMode: "hidden" },
       },
     }),
     stripeCustomerId: text({
       db: { isNullable: true },
+      access: userStripeFieldAccess,
       ui: {
         createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" },
-        itemView: { fieldMode: "read" },
+        listView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
         description: "Stripe Customer ID, created automatically on user signup",
       },
     }),

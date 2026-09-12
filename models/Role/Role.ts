@@ -4,11 +4,11 @@ import {
   timestamp,
   select,
 } from "@keystone-6/core/fields";
-import access from "../../utils/generalAccess/access";
+import { roleAccess, roleUsersFieldAccess } from "./Role.access";
 import { ROLES } from "./constants";
 
 export default list({
-  access,
+  access: roleAccess,
   fields: {
       name: select({ 
         options: ROLES,
@@ -17,6 +17,7 @@ export default list({
     users: relationship({
       ref: "User.roles",
       many: true,
+      access: roleUsersFieldAccess,
     }),
     createdAt: timestamp({
       defaultValue: {

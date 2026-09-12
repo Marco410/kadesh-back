@@ -8,9 +8,15 @@ import {
   file,
   checkbox,
   integer,
+  select,
 } from "@keystone-6/core/fields";
-import { saasCompanyAccess } from "./SaasCompany.access";
+import { saasCompanyAccess, aiApiKeyPreviewFieldAccess } from "./SaasCompany.access";
 import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
+import {
+  AI_BILLING_MODE,
+  AI_BILLING_MODE_OPTIONS,
+  AI_PROVIDER_OPTIONS,
+} from "../../../utils/ai/constants";
 
 export default list({
   access: saasCompanyAccess,
@@ -123,6 +129,16 @@ export default list({
       many: true,
       ui: { description: "Logs de sincronización de leads" },
     }),
+    aiCallLogs: relationship({
+      ref: "TechAiCallLog.company",
+      many: true,
+      ui: { description: "Historial de llamadas a IA (prompts, tokens, créditos)" },
+    }),
+    aiInsights: relationship({
+      ref: "TechAiInsight.company",
+      many: true,
+      ui: { description: "Insights de IA (digest diario, narrativa, archivos)" },
+    }),
     saasSubscriptionLogs: relationship({
       ref: "SaasSubscriptionLog.company",
       many: true,
@@ -167,6 +183,58 @@ export default list({
         displayMode: "textarea",
         description:
           'Pregunta de oro 4 — El "Cómo": ¿Cómo consigues clientes hoy y qué es lo que más te cuesta al vender?',
+      },
+    }),
+    aiBillingMode: select({
+      type: "string",
+      options: [...AI_BILLING_MODE_OPTIONS],
+      defaultValue: AI_BILLING_MODE.BYOK,
+      ui: {
+        description:
+          "Cómo paga la empresa la IA: API key propia (BYOK) o créditos administrados por Kadesh",
+      },
+    }),
+    aiProvider: select({
+      type: "string",
+      options: [...AI_PROVIDER_OPTIONS],
+      db: { isNullable: true },
+      ui: {
+        description: "Proveedor de IA en modalidad BYOK (Claude, OpenAI o Gemini)",
+      },
+    }),
+    aiModel: text({
+      db: { isNullable: true },
+      ui: {
+        description:
+          "Override opcional del modelo. Vacío = default del proveedor.",
+      },
+    }),
+    aiApiKeyEncrypted: text({
+      db: { isNullable: true },
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false,
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "API key cifrada (solo mutaciones custom vía sudo)",
+      },
+    }),
+    aiApiKeyPreview: text({
+      db: { isNullable: true },
+      access: aiApiKeyPreviewFieldAccess,
+      ui: {
+        description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)",
+      },
+    }),
+    aiKeyUpdatedAt: timestamp({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "Última vez que se guardó o borró la API key de IA",
       },
     }),
     termsQuotation: text({

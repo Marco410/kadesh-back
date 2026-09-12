@@ -7,6 +7,9 @@ import {
   file,
 } from "@keystone-6/core/fields";
 import { techFilesAccess } from "./TechFiles.access";
+import { hasRole } from "../../../auth/permissions";
+import { Role } from "../../Role/constants";
+import { getSessionCompanyId } from "../../../utils/access/tenant";
 
 const CATEGORY_OPTIONS = [
   { label: "Proceso de venta", value: "purchase_process" },
@@ -18,6 +21,21 @@ const CATEGORY_OPTIONS = [
 
 export default list({
   access: techFilesAccess,
+  hooks: {
+    resolveInput: async ({ resolvedData, context, operation }: any) => {
+      if (hasRole(context.session, [Role.ADMIN])) return resolvedData;
+      const companyId = getSessionCompanyId(context.session);
+      if (operation === "create" && companyId) {
+        return {
+          ...resolvedData,
+          company: { connect: { id: companyId } },
+        };
+      }
+      const next = { ...resolvedData };
+      delete next.company;
+      return next;
+    },
+  },
   ui: {
     listView: {
       initialColumns: ["title", "category", "company", "createdAt"],
@@ -51,6 +69,11 @@ export default list({
     company: relationship({
       ref: "SaasCompany.techFiles",
       many: false,
+    }),
+    aiInsights: relationship({
+      ref: "TechAiInsight.relatedFile",
+      many: true,
+      ui: { description: "Análisis de IA ligados a este archivo" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

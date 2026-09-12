@@ -57,7 +57,7 @@ export default list({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" },
     }),
-    /** Number of extra lead-sync credits added on purchase */
+    /** Number of extra credits added on purchase (leads sync or managed AI) */
     creditsToAdd: integer({
       validation: { isRequired: true },
       ui: { description: "Credits added to the company on successful purchase" },

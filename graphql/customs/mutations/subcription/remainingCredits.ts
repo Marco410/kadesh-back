@@ -1,5 +1,9 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { getRemainingCredits } from "../../../../utils/helpers/tech/remaining_credits";
+import {
+  denyOtherCompanyMessage,
+  resolveAuthorizedCompanyId,
+} from "../../../../utils/access/tenant";
 
 const BLOCKING_MESSAGES: Record<string, string> = {
   no_subscription:
@@ -40,7 +44,7 @@ const resolver = {
     { companyId }: { companyId?: string | null },
     context: KeystoneContext,
   ) => {
-    const session = context.session as { data?: { id: string } } | undefined;
+    const session = context.session;
     const userId = session?.data?.id;
 
     if (!userId) {
@@ -57,18 +61,14 @@ const resolver = {
       };
     }
 
-    const user = await context.sudo().query.User.findOne({
-      where: { id: userId },
-      query: "id company { id name }",
-    });
-
-    const userCompany = (user as { company?: { id: string; name?: string } | null })?.company;
-    const companyIdToUse = companyId ?? userCompany?.id;
+    const companyIdToUse = resolveAuthorizedCompanyId(session, companyId);
 
     if (!companyIdToUse) {
       return {
         success: false,
-        message: "No se encontró un negocio asignado.",
+        message: companyId
+          ? denyOtherCompanyMessage()
+          : "No se encontró un negocio asignado.",
         remainingQuota: 0,
         syncedCount: 0,
         leadLimit: null,
