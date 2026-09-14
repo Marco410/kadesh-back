@@ -5,6 +5,7 @@ const typeDefs = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
+    order: Int
   }
 
   type NearbyAnimalUser {
@@ -294,8 +295,10 @@ const resolver = {
     const paginatedAnimalIds = paginatedAnimals.map((a: any) => a.id);
     const multimediaData = await context.sudo().query.AnimalMultimedia.findMany({
       where: { animal: { id: { in: paginatedAnimalIds } } },
+      orderBy: [{ order: "asc" }],
       query: `
         id
+        order
         image {
           id
           url
@@ -320,13 +323,19 @@ const resolver = {
           url: media.image.url,
         } : null;
 
-        multimediaByAnimal.get(animalId)!.push(imageObj);
+        multimediaByAnimal.get(animalId)!.push({
+          id: media.id,
+          url: imageObj?.url ?? null,
+          order: media.order ?? 10_000,
+        });
       }
     }
 
     const animalsWithMultimedia = paginatedAnimals.map((animal: any) => ({
       ...animal,
-      multimedia: multimediaByAnimal.get(animal.id) || [],
+      multimedia: (multimediaByAnimal.get(animal.id) || []).sort(
+        (a, b) => (a.order ?? 10_000) - (b.order ?? 10_000)
+      ),
     }));
 
     return {

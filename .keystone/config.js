@@ -286,6 +286,13 @@ var AnimalMultimedia_default = (0, import_core3.list)({
     animal: (0, import_fields3.relationship)({
       ref: "Animal.multimedia"
     }),
+    order: (0, import_fields3.integer)({
+      defaultValue: 1,
+      validation: { isRequired: true },
+      ui: {
+        description: "1 es la portada de la ficha. 2, 3\u2026 el resto."
+      }
+    }),
     createdAt: (0, import_fields3.timestamp)({
       defaultValue: {
         kind: "now"
@@ -13141,6 +13148,7 @@ var typeDefs16 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
+    order: Int
   }
 
   type NearbyAnimalUser {
@@ -13361,8 +13369,10 @@ var resolver14 = {
     const paginatedAnimalIds = paginatedAnimals.map((a) => a.id);
     const multimediaData = await context.sudo().query.AnimalMultimedia.findMany({
       where: { animal: { id: { in: paginatedAnimalIds } } },
+      orderBy: [{ order: "asc" }],
       query: `
         id
+        order
         image {
           id
           url
@@ -13383,12 +13393,18 @@ var resolver14 = {
           id: media.image.id,
           url: media.image.url
         } : null;
-        multimediaByAnimal.get(animalId).push(imageObj);
+        multimediaByAnimal.get(animalId).push({
+          id: media.id,
+          url: imageObj?.url ?? null,
+          order: media.order ?? 1e4
+        });
       }
     }
     const animalsWithMultimedia = paginatedAnimals.map((animal) => ({
       ...animal,
-      multimedia: multimediaByAnimal.get(animal.id) || []
+      multimedia: (multimediaByAnimal.get(animal.id) || []).sort(
+        (a, b) => (a.order ?? 1e4) - (b.order ?? 1e4)
+      )
     }));
     return {
       success: true,
