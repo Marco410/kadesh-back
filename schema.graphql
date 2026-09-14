@@ -267,6 +267,7 @@ input UserRelateToOneForCreateInput {
 type Animal {
   id: ID!
   name: String
+  slug: String
   physical_description: String
   age: String
   sex: String
@@ -285,6 +286,7 @@ type Animal {
 
 input AnimalWhereUniqueInput {
   id: ID
+  slug: String
 }
 
 input AnimalWhereInput {
@@ -293,6 +295,7 @@ input AnimalWhereInput {
   NOT: [AnimalWhereInput!]
   id: IDFilter
   name: StringFilter
+  slug: StringNullableFilter
   physical_description: StringFilter
   age: StringFilter
   sex: StringNullableFilter
@@ -322,6 +325,7 @@ input AnimalLogManyRelationFilter {
 input AnimalOrderByInput {
   id: OrderDirection
   name: OrderDirection
+  slug: OrderDirection
   physical_description: OrderDirection
   age: OrderDirection
   sex: OrderDirection
@@ -333,6 +337,7 @@ input AnimalOrderByInput {
 
 input AnimalUpdateInput {
   name: String
+  slug: String
   physical_description: String
   age: String
   sex: String
@@ -380,6 +385,7 @@ input AnimalUpdateArgs {
 
 input AnimalCreateInput {
   name: String
+  slug: String
   physical_description: String
   age: String
   sex: String
@@ -7537,6 +7543,7 @@ type NearbyAnimalUserProfileImage {
 
 type NearbyAnimal {
   id: ID!
+  slug: String
   name: String
   sex: String
   distance: Float

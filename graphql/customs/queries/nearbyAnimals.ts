@@ -19,6 +19,7 @@ const typeDefs = `
 
   type NearbyAnimal {
     id: ID!
+    slug: String
     name: String
     sex: String
     distance: Float
@@ -178,6 +179,7 @@ const resolver = {
       where: animalWhere,
       query: `
         id
+        slug
         name
         sex
         animal_type {

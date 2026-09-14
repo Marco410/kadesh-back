@@ -205,11 +205,175 @@ var POST_CATEGORIES = [
   { label: "Otro", value: "other" }
 ];
 
+// models/Animal/Animal.hooks.ts
+var EMOJI_RE = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
+var UNNAMED_RE = /^(sin-?nombre|n-?a|na|unnamed)?$/;
+var TYPE_SLUG = {
+  dog: "perro",
+  perro: "perro",
+  cat: "gato",
+  gato: "gato",
+  bird: "ave",
+  ave: "ave",
+  fish: "pez",
+  pez: "pez",
+  reptil: "reptil",
+  mammal: "mamifero",
+  mamifero: "mamifero"
+};
+var STATUS_SLUG = {
+  lost: "perdido",
+  found: "encontrado",
+  in_adoption: "adopcion",
+  abandoned: "abandonado",
+  rescued: "rescatado",
+  adopted: "adoptado",
+  in_family: "en-familia"
+};
+var STATUS_SLUG_VALUES = Object.values(STATUS_SLUG);
+function slugify(value) {
+  const cleaned = value.replace(EMOJI_RE, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  if (cleaned.length <= 40) return cleaned;
+  return cleaned.slice(0, 40).replace(/-+$/g, "");
+}
+function shortAnimalId(id) {
+  return id.slice(-6).toLowerCase();
+}
+function animalSlugHasStatus(slug) {
+  if (!slug) return false;
+  return STATUS_SLUG_VALUES.some(
+    (status) => slug.includes(`-${status}-`) || slug.startsWith(`${status}-`)
+  );
+}
+function buildAnimalSlug(input) {
+  const nameSlug = slugify(input.name ?? "");
+  const isUnnamed = !nameSlug || UNNAMED_RE.test(nameSlug);
+  const typeKey = (input.type ?? "").toLowerCase();
+  const typeSlug = TYPE_SLUG[typeKey] || slugify(input.type ?? "");
+  const statusKey = (input.status ?? "").toLowerCase();
+  const statusSlug = !statusKey || statusKey === "register" ? "" : STATUS_SLUG[statusKey] || slugify(input.status ?? "");
+  const citySlug = slugify(input.city ?? "");
+  const shortId = shortAnimalId(input.id);
+  const parts = [];
+  if (!isUnnamed) {
+    parts.push(nameSlug);
+    if (!statusSlug && typeSlug) parts.push(typeSlug);
+  } else {
+    parts.push(typeSlug || "animal");
+  }
+  if (statusSlug) parts.push(statusSlug);
+  if (citySlug) parts.push(citySlug);
+  parts.push(shortId);
+  const slug = parts.filter(Boolean).join("-").replace(/-+/g, "-");
+  if (slug === "nuevo") return "animal-nuevo";
+  return slug;
+}
+async function ensureUniqueAnimalSlug(base, animalId, context) {
+  let candidate = base;
+  let counter = 1;
+  while (true) {
+    const existing = await context.sudo().db.Animal.findOne({
+      where: { slug: candidate }
+    });
+    if (!existing || existing.id === animalId) return candidate;
+    counter += 1;
+    candidate = `${base}-${counter}`;
+  }
+}
+async function persistAnimalSlug(animalId, input, context) {
+  const slug = await ensureUniqueAnimalSlug(
+    buildAnimalSlug({ ...input, id: animalId }),
+    animalId,
+    context
+  );
+  await context.sudo().db.Animal.updateOne({
+    where: { id: animalId },
+    data: { slug }
+  });
+  return slug;
+}
+var animalSlugAfterOperation = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation !== "create" || !item?.id || item.slug) return;
+    try {
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: item.id },
+        query: "id name animal_type { name }"
+      });
+      if (!animal) return;
+      await persistAnimalSlug(
+        item.id,
+        {
+          name: animal.name,
+          type: animal.animal_type?.name
+        },
+        context
+      );
+    } catch (error) {
+      console.error("Error generating animal slug:", error);
+    }
+  }
+};
+var animalLogSlugAfterOperation = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation !== "create") return;
+    const animalId = item?.animalId ?? item?.animal;
+    if (!animalId || typeof animalId !== "string") return;
+    try {
+      const logs = await context.sudo().query.AnimalLog.findMany({
+        where: { animal: { id: { equals: animalId } } },
+        query: "id"
+      });
+      if (logs.length !== 1) return;
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: animalId },
+        query: "id name slug animal_type { name }"
+      });
+      if (!animal || animalSlugHasStatus(animal.slug)) return;
+      await persistAnimalSlug(
+        animalId,
+        {
+          name: animal.name,
+          type: animal.animal_type?.name,
+          status: item.status,
+          city: item.city
+        },
+        context
+      );
+    } catch (error) {
+      console.error("Error enriching animal slug from log:", error);
+    }
+  }
+};
+
 // models/Animal/Animal.ts
 var Animal_default = (0, import_core.list)({
   access: access_default,
+  hooks: animalSlugAfterOperation,
+  ui: {
+    listView: {
+      initialColumns: ["name", "slug", "createdAt"]
+    }
+  },
   fields: {
     name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "URL amigable. Se genera sola y no cambia si editas el nombre."
+      }
+    }),
     physical_description: (0, import_fields.text)(),
     age: (0, import_fields.text)(),
     sex: (0, import_fields.select)({
@@ -328,6 +492,7 @@ var import_core5 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
 var AnimalLog_default = (0, import_core5.list)({
   access: access_default,
+  hooks: animalLogSlugAfterOperation,
   fields: {
     animal: (0, import_fields5.relationship)({
       ref: "Animal.logs"
@@ -13162,6 +13327,7 @@ var typeDefs16 = `
 
   type NearbyAnimal {
     id: ID!
+    slug: String
     name: String
     sex: String
     distance: Float
@@ -13278,6 +13444,7 @@ var resolver14 = {
       where: animalWhere,
       query: `
         id
+        slug
         name
         sex
         animal_type {
