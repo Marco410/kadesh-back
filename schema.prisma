@@ -45,6 +45,7 @@ model Ad {
 model Animal {
   id                         String             @id @default(cuid())
   name                       String             @default("")
+  slug                       String?            @unique
   physical_description       String             @default("")
   age                        String             @default("")
   sex                        String?            @default("male")
