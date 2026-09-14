@@ -132,6 +132,7 @@ model AnimalMultimedia {
   image_extension String?
   animal          Animal?   @relation("AnimalMultimedia_animal", fields: [animalId], references: [id])
   animalId        String?   @map("animal")
+  order           Int       @default(1)
   createdAt       DateTime? @default(now())
 
   @@index([animalId])
