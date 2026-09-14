@@ -349,12 +349,13 @@ export const userBlogSubscriptionHook = {
   afterOperation: async ({ operation, item, context }: any) => {
     if (operation === "create" && item && item.email) {
       try {
-        const existingSubscription = await context.db.BlogSubscription.findOne({
+        const sudo = context.sudo();
+        const existingSubscription = await sudo.db.BlogSubscription.findOne({
           where: { email: item.email },
         });
 
         if (!existingSubscription) {
-          await context.db.BlogSubscription.createOne({
+          await sudo.db.BlogSubscription.createOne({
             data: {
               email: item.email,
               user: { connect: { id: item.id } },
@@ -362,7 +363,7 @@ export const userBlogSubscriptionHook = {
             },
           });
         } else if (existingSubscription && !existingSubscription.userId) {
-          await context.db.BlogSubscription.updateOne({
+          await sudo.db.BlogSubscription.updateOne({
             where: { id: existingSubscription.id },
             data: {
               user: { connect: { id: item.id } },
