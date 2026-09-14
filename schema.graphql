@@ -648,6 +648,7 @@ type AnimalMultimedia {
   id: ID!
   image: ImageFieldOutput
   animal: Animal
+  order: Int
   createdAt: DateTime
 }
 
@@ -661,17 +662,31 @@ input AnimalMultimediaWhereInput {
   NOT: [AnimalMultimediaWhereInput!]
   id: IDFilter
   animal: AnimalWhereInput
+  order: IntFilter
   createdAt: DateTimeNullableFilter
+}
+
+input IntFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntFilter
 }
 
 input AnimalMultimediaOrderByInput {
   id: OrderDirection
+  order: OrderDirection
   createdAt: OrderDirection
 }
 
 input AnimalMultimediaUpdateInput {
   image: ImageFieldInput
   animal: AnimalRelateToOneForUpdateInput
+  order: Int
   createdAt: DateTime
 }
 
@@ -683,6 +698,7 @@ input AnimalMultimediaUpdateArgs {
 input AnimalMultimediaCreateInput {
   image: ImageFieldInput
   animal: AnimalRelateToOneForCreateInput
+  order: Int
   createdAt: DateTime
 }
 
@@ -2337,17 +2353,6 @@ input ProductWhereInput {
   product_reviews: ReviewManyRelationFilter
   product_ads: AdManyRelationFilter
   createdAt: DateTimeNullableFilter
-}
-
-input IntFilter {
-  equals: Int
-  in: [Int!]
-  notIn: [Int!]
-  lt: Int
-  lte: Int
-  gt: Int
-  gte: Int
-  not: IntFilter
 }
 
 input ProductOrderByInput {
@@ -7518,6 +7523,7 @@ type CompanyAiBriefResult {
 type AnimalMultimediaImage {
   id: ID!
   url: String
+  order: Int
 }
 
 type NearbyAnimalUser {
