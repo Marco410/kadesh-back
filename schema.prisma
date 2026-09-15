@@ -920,51 +920,54 @@ model Tag {
 }
 
 model TechBusinessLead {
-  id                   String                   @id @default(cuid())
-  businessName         String                   @default("")
-  category             String                   @default("")
-  phone                String                   @default("")
-  email                String                   @default("")
-  address              String                   @default("")
-  city                 String                   @default("")
-  state                String                   @default("")
-  country              String                   @default("")
-  rating               Float?
-  lat                  Float?
-  lng                  Float?
-  reviewCount          Int?
-  hasWebsite           Boolean                  @default(false)
-  websiteUrl           String                   @default("")
-  source               String?                  @default("Google Maps")
-  status               TechStatusBusinessLead[] @relation("TechStatusBusinessLead_businessLead")
-  instagram            String                   @default("")
-  facebook             String                   @default("")
-  xTwitter             String                   @default("")
-  tiktok               String                   @default("")
-  topReview1           String                   @default("")
-  topReview2           String                   @default("")
-  topReview3           String                   @default("")
-  topReview4           String                   @default("")
-  topReview5           String                   @default("")
-  websitePromptContent String                   @default("")
-  activities           TechSalesActivity[]      @relation("TechSalesActivity_businessLead")
-  tasks                TechTask[]               @relation("TechTask_businessLead")
-  proposals            TechProposal[]           @relation("TechProposal_businessLead")
-  projects             SaasProject[]            @relation("SaasProject_businessLead")
-  followUpTasks        TechFollowUpTask[]       @relation("TechFollowUpTask_businessLead")
-  googleMapsUrl        String                   @default("")
-  googlePlaceId        String?                  @unique
-  salesPerson          User[]                   @relation("TechBusinessLead_salesPerson")
-  saasCompany          SaasCompany[]            @relation("SaasCompany_leads")
-  quotations           SaasQuotation[]          @relation("SaasQuotation_lead")
-  createdAt            DateTime?                @default(now())
-  updatedAt            DateTime?                @updatedAt
+  id                    String                   @id @default(cuid())
+  businessName          String                   @default("")
+  category              String                   @default("")
+  phone                 String                   @default("")
+  email                 String                   @default("")
+  address               String                   @default("")
+  city                  String                   @default("")
+  state                 String                   @default("")
+  country               String                   @default("")
+  rating                Float?
+  lat                   Float?
+  lng                   Float?
+  reviewCount           Int?
+  hasWebsite            Boolean                  @default(false)
+  websiteUrl            String                   @default("")
+  source                String?                  @default("Google Maps")
+  status                TechStatusBusinessLead[] @relation("TechStatusBusinessLead_businessLead")
+  instagram             String                   @default("")
+  facebook              String                   @default("")
+  xTwitter              String                   @default("")
+  tiktok                String                   @default("")
+  topReview1            String                   @default("")
+  topReview2            String                   @default("")
+  topReview3            String                   @default("")
+  topReview4            String                   @default("")
+  topReview5            String                   @default("")
+  websitePromptContent  String                   @default("")
+  activities            TechSalesActivity[]      @relation("TechSalesActivity_businessLead")
+  tasks                 TechTask[]               @relation("TechTask_businessLead")
+  proposals             TechProposal[]           @relation("TechProposal_businessLead")
+  projects              SaasProject[]            @relation("SaasProject_businessLead")
+  followUpTasks         TechFollowUpTask[]       @relation("TechFollowUpTask_businessLead")
+  googleMapsUrl         String                   @default("")
+  googlePlaceId         String?                  @unique
+  sourceEstablishment   TechInegiEstablishment?  @relation("TechBusinessLead_sourceEstablishment", fields: [sourceEstablishmentId], references: [id])
+  sourceEstablishmentId String?                  @map("sourceEstablishment")
+  salesPerson           User[]                   @relation("TechBusinessLead_salesPerson")
+  saasCompany           SaasCompany[]            @relation("SaasCompany_leads")
+  quotations            SaasQuotation[]          @relation("SaasQuotation_lead")
+  createdAt             DateTime?                @default(now())
+  updatedAt             DateTime?                @updatedAt
 
   @@index([businessName])
   @@index([category])
   @@index([city])
   @@index([state])
   @@index([country])
+  @@index([sourceEstablishmentId])
 }
 
 model TechFile {
@@ -1057,6 +1060,92 @@ model TechAiInsight {
   @@index([kind])
   @@index([referenceKey])
   @@index([relatedFileId])
+}
+
+model TechInegiEconomicActivity {
+  id             String                   @id @default(cuid())
+  scianCode      String                   @unique @default("")
+  name           String                   @default("")
+  establishments TechInegiEstablishment[] @relation("TechInegiEstablishment_economicActivity")
+
+  @@index([name])
+}
+
+model TechInegiEstablishment {
+  id                 String                     @id @default(cuid())
+  clee               String                     @unique @default("")
+  name               String                     @default("")
+  legalName          String                     @default("")
+  employeeStratum    String                     @default("")
+  economicActivity   TechInegiEconomicActivity? @relation("TechInegiEstablishment_economicActivity", fields: [economicActivityId], references: [id])
+  economicActivityId String?                    @map("economicActivity")
+  street             String                     @default("")
+  exteriorNumber     String                     @default("")
+  interiorNumber     String                     @default("")
+  neighborhood       String                     @default("")
+  postalCode         String                     @default("")
+  locality           String                     @default("")
+  municipality       String                     @default("")
+  state              String                     @default("")
+  phone              String                     @default("")
+  email              String                     @default("")
+  website            String                     @default("")
+  lat                Float?
+  lng                Float?
+  rawPayload         Json?
+  lastSyncedAt       DateTime?
+  promotedLeads      TechBusinessLead[]         @relation("TechBusinessLead_sourceEstablishment")
+
+  @@index([name])
+  @@index([economicActivityId])
+  @@index([municipality])
+  @@index([state])
+}
+
+model TechInegiGeoBoundary {
+  id         String  @id @default(cuid())
+  cacheKey   String  @unique @default("")
+  level      String
+  geoCode    String  @default("")
+  name       String  @default("")
+  parentCode String?
+  geometry   Json?
+
+  @@index([geoCode])
+  @@index([name])
+}
+
+model TechInegiIndicator {
+  id              String    @id @default(cuid())
+  cacheKey        String    @unique @default("")
+  indicatorId     String    @default("")
+  indicatorName   String    @default("")
+  geographicLevel String
+  geographicCode  String    @default("")
+  period          String    @default("")
+  value           Float?
+  unit            String    @default("")
+  fetchedAt       DateTime? @default(now())
+
+  @@index([indicatorId])
+  @@index([geographicCode])
+}
+
+model TechInegiSyncLog {
+  id           String    @id @default(cuid())
+  user         User?     @relation("TechInegiSyncLog_user", fields: [userId], references: [id])
+  userId       String?   @map("user")
+  success      Boolean   @default(false)
+  message      String    @default("")
+  created      Int?      @default(0)
+  updated      Int?      @default(0)
+  alreadyInDb  Int?      @default(0)
+  totalFetched Int?      @default(0)
+  sourceMethod String    @default("api")
+  searchParams Json?
+  createdAt    DateTime? @default(now())
+
+  @@index([userId])
 }
 
 model TechFollowUpTask {
@@ -1243,6 +1332,7 @@ model User {
   createdByProposals                       TechProposal[]           @relation("TechProposal_createdBy")
   projectsResponsible                      SaasProject[]            @relation("SaasProject_responsible")
   leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
+  inegiSyncLogs                            TechInegiSyncLog[]       @relation("TechInegiSyncLog_user")
   aiCallLogs                               TechAiCallLog[]          @relation("TechAiCallLog_user")
   aiInsights                               TechAiInsight[]          @relation("TechAiInsight_salesPerson")
   saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_user")

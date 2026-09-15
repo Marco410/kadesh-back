@@ -202,6 +202,11 @@ export default list({
       many: true,
       ui: { description: "Logs de sincronización de leads (mapa)" },
     }),
+    inegiSyncLogs: relationship({
+      ref: "TechInegiSyncLog.user",
+      many: true,
+      ui: { description: "Logs de sincronización del catálogo INEGI" },
+    }),
     aiCallLogs: relationship({
       ref: "TechAiCallLog.user",
       many: true,

@@ -129,6 +129,13 @@ export default list({
         listView: { fieldMode: "hidden" },
       },
     }),
+    sourceEstablishment: relationship({
+      ref: "TechInegiEstablishment.promotedLeads",
+      many: false,
+      ui: {
+        description: "Establecimiento DENUE del que se promovió este lead",
+      },
+    }),
     salesPerson: relationship({
       ref: "User.businessLeadsAssigned",
       many: true,

@@ -13,7 +13,8 @@ Capa de proveedores y `callCompanyAi`. Cada `SaasCompany` elige **BYOK** o **man
 | `tokenCredits.ts` | tokens → créditos (solo managed) |
 | `promptSafety.ts` | system policy + `<untrusted_data>` |
 | `callLog.ts` | `TechAiCallLog` (nunca lanza) |
-| `dailyDigest.ts` / `playbook.ts` | snapshot, caché `TechAiInsight`, prompts de feature |
+| `dailyDigest.ts` / `playbook.ts` / `companyBrief.ts` | snapshot, caché `TechAiInsight`, prompts de feature |
+| `marketSnapshot.ts` | conteos DENUE + indicadores BIE cacheados para `generateMarketInsight` |
 
 ## Invariantes
 
@@ -77,3 +78,8 @@ Cuenta `TechAiCallLog`. Tres scopes: usuario, empresa, todas las llamadas manage
 ### 2026-09-11 — Fallback Gemini por modelo (nivel gratuito)
 
 El cupo de Google es por modelo, no global. Cadena en `constants.ts`; chequeo por `billingMode + model` en `rateLimit.ts`; loop en `callCompanyAi`. Si todos fallan → `AiRateLimitError`.
+
+### 2026-09-14 — Análisis de mercado INEGI
+
+`marketSnapshot.ts` arma un bloque corto (muestra DENUE + BIE cacheado). No hay RAG. `kind: market_analysis`, `referenceKey` mensual por zona.
+

@@ -4,6 +4,7 @@ export const AI_INSIGHT_KIND = {
   FILE_ANALYSIS: "file_analysis",
   PROFILE_PLAYBOOK: "profile_playbook",
   COMPANY_BRIEF: "company_brief",
+  MARKET_ANALYSIS: "market_analysis",
 } as const;
 
 export type AiInsightKind =
@@ -15,4 +16,5 @@ export const AI_INSIGHT_KIND_OPTIONS = [
   { label: "Análisis de archivo", value: AI_INSIGHT_KIND.FILE_ANALYSIS },
   { label: "Playbook de perfil", value: AI_INSIGHT_KIND.PROFILE_PLAYBOOK },
   { label: "Brief de empresa", value: AI_INSIGHT_KIND.COMPANY_BRIEF },
+  { label: "Análisis de mercado", value: AI_INSIGHT_KIND.MARKET_ANALYSIS },
 ] as const;
