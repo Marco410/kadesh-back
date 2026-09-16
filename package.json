@@ -10,7 +10,10 @@
     "start": "keystone start",
     "build": "keystone build",
     "postinstall": "keystone build --no-ui",
-    "db:seed": "cross-env IS_BUILDING=true tsx seed.ts"
+    "db:seed": "cross-env IS_BUILDING=true tsx seed.ts",
+    "inegi:import:denue": "cross-env IS_BUILDING=true tsx inegi-denue-import.ts",
+    "inegi:import:indicadores": "cross-env IS_BUILDING=true tsx inegi-indicadores-import.ts",
+    "inegi:import:geo": "cross-env IS_BUILDING=true tsx inegi-geo-import.ts"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.23",
@@ -25,6 +28,7 @@
     "nodemailer": "^8.0.9",
     "slate-dom": "^0.111.0",
     "stripe": "^20.4.0",
+    "csv-parse": "^7.0.2",
     "tsx": "^4.19.2",
     "typescript": "^5.5.0"
   },

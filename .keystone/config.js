@@ -1359,11 +1359,12 @@ var userBlogSubscriptionHook = {
   afterOperation: async ({ operation, item, context }) => {
     if (operation === "create" && item && item.email) {
       try {
-        const existingSubscription = await context.db.BlogSubscription.findOne({
+        const sudo = context.sudo();
+        const existingSubscription = await sudo.db.BlogSubscription.findOne({
           where: { email: item.email }
         });
         if (!existingSubscription) {
-          await context.db.BlogSubscription.createOne({
+          await sudo.db.BlogSubscription.createOne({
             data: {
               email: item.email,
               user: { connect: { id: item.id } },
@@ -1371,7 +1372,7 @@ var userBlogSubscriptionHook = {
             }
           });
         } else if (existingSubscription && !existingSubscription.userId) {
-          await context.db.BlogSubscription.updateOne({
+          await sudo.db.BlogSubscription.updateOne({
             where: { id: existingSubscription.id },
             data: {
               user: { connect: { id: item.id } }
@@ -1636,6 +1637,11 @@ var User_default = (0, import_core7.list)({
       ref: "TechLeadSyncLog.user",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads (mapa)" }
+    }),
+    inegiSyncLogs: (0, import_fields7.relationship)({
+      ref: "TechInegiSyncLog.user",
+      many: true,
+      ui: { description: "Logs de sincronizaci\xF3n del cat\xE1logo INEGI" }
     }),
     aiCallLogs: (0, import_fields7.relationship)({
       ref: "TechAiCallLog.user",
@@ -3140,9 +3146,9 @@ var import_core33 = require("@keystone-6/core");
 var import_fields33 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text53) {
+function sanitizeUrl2(text58) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text53.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text58.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -3584,6 +3590,7 @@ var TASK_PRIORITY = {
 };
 var LEAD_SOURCE = {
   GOOGLE_MAPS: "Google Maps",
+  INEGI: "INEGI",
   REFERIDO: "Referido",
   WEB: "Web",
   SOCIAL_MEDIA: "Redes Sociales",
@@ -3706,6 +3713,13 @@ var TechBusinessLead_default = (0, import_core38.list)({
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "hidden" }
+      }
+    }),
+    sourceEstablishment: (0, import_fields38.relationship)({
+      ref: "TechInegiEstablishment.promotedLeads",
+      many: false,
+      ui: {
+        description: "Establecimiento DENUE del que se promovi\xF3 este lead"
       }
     }),
     salesPerson: (0, import_fields38.relationship)({
@@ -4811,7 +4825,8 @@ var AI_FEATURE = {
   MONTHLY_NARRATIVE: "monthly_narrative",
   FILE_ANALYSIS: "file_analysis",
   PROFILE_PLAYBOOK: "profile_playbook",
-  COMPANY_BRIEF: "company_brief"
+  COMPANY_BRIEF: "company_brief",
+  MARKET_ANALYSIS: "market_analysis"
 };
 var AI_RATE_LIMIT = {
   windowMs: 6e4,
@@ -4999,14 +5014,16 @@ var AI_INSIGHT_KIND = {
   MONTHLY_NARRATIVE: "monthly_narrative",
   FILE_ANALYSIS: "file_analysis",
   PROFILE_PLAYBOOK: "profile_playbook",
-  COMPANY_BRIEF: "company_brief"
+  COMPANY_BRIEF: "company_brief",
+  MARKET_ANALYSIS: "market_analysis"
 };
 var AI_INSIGHT_KIND_OPTIONS = [
   { label: "Digest diario", value: AI_INSIGHT_KIND.DAILY_DIGEST },
   { label: "Narrativa mensual", value: AI_INSIGHT_KIND.MONTHLY_NARRATIVE },
   { label: "An\xE1lisis de archivo", value: AI_INSIGHT_KIND.FILE_ANALYSIS },
   { label: "Playbook de perfil", value: AI_INSIGHT_KIND.PROFILE_PLAYBOOK },
-  { label: "Brief de empresa", value: AI_INSIGHT_KIND.COMPANY_BRIEF }
+  { label: "Brief de empresa", value: AI_INSIGHT_KIND.COMPANY_BRIEF },
+  { label: "An\xE1lisis de mercado", value: AI_INSIGHT_KIND.MARKET_ANALYSIS }
 ];
 
 // models/Tech/AiInsight/TechAiInsight.ts
@@ -5071,9 +5088,306 @@ var TechAiInsight_default = (0, import_core47.list)({
   }
 });
 
-// models/Saas/SaasCompany/SaasCompany.ts
+// models/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
 var import_core48 = require("@keystone-6/core");
 var import_fields48 = require("@keystone-6/core/fields");
+
+// models/Tech/Inegi/access.ts
+var inegiCatalogAccess = {
+  operation: {
+    query: () => true,
+    create: () => false,
+    update: () => false,
+    delete: () => false
+  }
+};
+var inegiSyncLogAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: () => false,
+    update: () => false,
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
+  }
+};
+
+// models/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
+var TechInegiEconomicActivity_default = (0, import_core48.list)({
+  access: inegiCatalogAccess,
+  ui: {
+    labelField: "name",
+    listView: {
+      initialColumns: ["scianCode", "name"]
+    }
+  },
+  fields: {
+    scianCode: (0, import_fields48.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique",
+      ui: { description: "C\xF3digo SCIAN (o clave sint\xE9tica si la API no lo trae)" }
+    }),
+    name: (0, import_fields48.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Nombre de la clase de actividad econ\xF3mica" }
+    }),
+    establishments: (0, import_fields48.relationship)({
+      ref: "TechInegiEstablishment.economicActivity",
+      many: true,
+      ui: { hideCreate: true }
+    })
+  }
+});
+
+// models/Tech/Inegi/Establishment/TechInegiEstablishment.ts
+var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
+var TechInegiEstablishment_default = (0, import_core49.list)({
+  access: inegiCatalogAccess,
+  ui: {
+    labelField: "name",
+    listView: {
+      initialColumns: ["clee", "name", "municipality", "state", "lastSyncedAt"]
+    }
+  },
+  fields: {
+    clee: (0, import_fields49.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique",
+      ui: { description: "Clave \xFAnica INEGI (CLEE)" }
+    }),
+    name: (0, import_fields49.text)({
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    legalName: (0, import_fields49.text)({
+      ui: { description: "Raz\xF3n social" }
+    }),
+    employeeStratum: (0, import_fields49.text)({
+      ui: { description: "Estrato de personal ocupado (tal cual DENUE)" }
+    }),
+    economicActivity: (0, import_fields49.relationship)({
+      ref: "TechInegiEconomicActivity.establishments",
+      many: false,
+      ui: { description: "Giro SCIAN" }
+    }),
+    street: (0, import_fields49.text)(),
+    exteriorNumber: (0, import_fields49.text)(),
+    interiorNumber: (0, import_fields49.text)(),
+    neighborhood: (0, import_fields49.text)(),
+    postalCode: (0, import_fields49.text)(),
+    locality: (0, import_fields49.text)(),
+    municipality: (0, import_fields49.text)({ isIndexed: true }),
+    state: (0, import_fields49.text)({ isIndexed: true }),
+    phone: (0, import_fields49.text)(),
+    email: (0, import_fields49.text)(),
+    website: (0, import_fields49.text)(),
+    lat: (0, import_fields49.float)({ db: { isNullable: true } }),
+    lng: (0, import_fields49.float)({ db: { isNullable: true } }),
+    rawPayload: (0, import_fields49.json)({
+      ui: { description: "Respuesta cruda de INEGI (API o fila CSV)" }
+    }),
+    lastSyncedAt: (0, import_fields49.timestamp)({
+      db: { isNullable: true },
+      ui: { description: "\xDAltima vez que se actualiz\xF3 desde INEGI" }
+    }),
+    promotedLeads: (0, import_fields49.relationship)({
+      ref: "TechBusinessLead.sourceEstablishment",
+      many: true,
+      ui: { hideCreate: true, description: "Leads CRM promovidos desde este establecimiento" }
+    })
+  }
+});
+
+// models/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
+
+// models/Tech/Inegi/constants.ts
+var INEGI_SYNC_SOURCE = {
+  API: "api",
+  BULK_IMPORT: "bulk_import"
+};
+var INEGI_SYNC_SOURCE_OPTIONS = [
+  { label: "API en vivo", value: INEGI_SYNC_SOURCE.API },
+  { label: "Carga masiva", value: INEGI_SYNC_SOURCE.BULK_IMPORT }
+];
+var INEGI_GEOGRAPHIC_LEVEL = {
+  NACIONAL: "nacional",
+  ESTATAL: "estatal",
+  MUNICIPAL: "municipal"
+};
+var INEGI_GEOGRAPHIC_LEVEL_OPTIONS = [
+  { label: "Nacional", value: INEGI_GEOGRAPHIC_LEVEL.NACIONAL },
+  { label: "Estatal", value: INEGI_GEOGRAPHIC_LEVEL.ESTATAL },
+  { label: "Municipal", value: INEGI_GEOGRAPHIC_LEVEL.MUNICIPAL }
+];
+var INEGI_GEO_BOUNDARY_LEVEL = {
+  ESTADO: "estado",
+  MUNICIPIO: "municipio",
+  LOCALIDAD: "localidad"
+};
+var INEGI_GEO_BOUNDARY_LEVEL_OPTIONS = [
+  { label: "Estado", value: INEGI_GEO_BOUNDARY_LEVEL.ESTADO },
+  { label: "Municipio", value: INEGI_GEO_BOUNDARY_LEVEL.MUNICIPIO },
+  { label: "Localidad", value: INEGI_GEO_BOUNDARY_LEVEL.LOCALIDAD }
+];
+var INEGI_LIVE_SYNC_CAP = 250;
+
+// models/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
+var TechInegiGeoBoundary_default = (0, import_core50.list)({
+  access: inegiCatalogAccess,
+  ui: {
+    labelField: "name",
+    listView: {
+      initialColumns: ["level", "geoCode", "name", "parentCode"]
+    }
+  },
+  fields: {
+    cacheKey: (0, import_fields50.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique",
+      ui: { description: "level:geoCode" }
+    }),
+    level: (0, import_fields50.select)({
+      type: "string",
+      options: [...INEGI_GEO_BOUNDARY_LEVEL_OPTIONS],
+      validation: { isRequired: true }
+    }),
+    geoCode: (0, import_fields50.text)({
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    name: (0, import_fields50.text)({
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    parentCode: (0, import_fields50.text)({
+      db: { isNullable: true },
+      ui: { description: "CVE_ENT para municipio; CVEGEO municipal para localidad" }
+    }),
+    geometry: (0, import_fields50.json)({
+      ui: { description: "GeoJSON geometry (sin PostGIS)" }
+    })
+  }
+});
+
+// models/Tech/Inegi/Indicator/TechInegiIndicator.ts
+var import_core51 = require("@keystone-6/core");
+var import_fields51 = require("@keystone-6/core/fields");
+var TechInegiIndicator_default = (0, import_core51.list)({
+  access: inegiCatalogAccess,
+  ui: {
+    labelField: "indicatorName",
+    listView: {
+      initialColumns: [
+        "indicatorName",
+        "geographicLevel",
+        "geographicCode",
+        "period",
+        "value"
+      ]
+    }
+  },
+  fields: {
+    cacheKey: (0, import_fields51.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique",
+      ui: {
+        description: "indicatorId:geographicCode:period"
+      }
+    }),
+    indicatorId: (0, import_fields51.text)({
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    indicatorName: (0, import_fields51.text)({
+      validation: { isRequired: true }
+    }),
+    geographicLevel: (0, import_fields51.select)({
+      type: "string",
+      options: [...INEGI_GEOGRAPHIC_LEVEL_OPTIONS],
+      validation: { isRequired: true }
+    }),
+    geographicCode: (0, import_fields51.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "00 nacional, 2 d\xEDgitos estado, 5 d\xEDgitos municipio" }
+    }),
+    period: (0, import_fields51.text)({
+      validation: { isRequired: true },
+      ui: { description: "TIME_PERIOD de BIE (p. ej. 2020)" }
+    }),
+    value: (0, import_fields51.float)({ db: { isNullable: true } }),
+    unit: (0, import_fields51.text)(),
+    fetchedAt: (0, import_fields51.timestamp)({
+      defaultValue: { kind: "now" }
+    })
+  }
+});
+
+// models/Tech/Inegi/SyncLog/TechInegiSyncLog.ts
+var import_core52 = require("@keystone-6/core");
+var import_fields52 = require("@keystone-6/core/fields");
+var TechInegiSyncLog_default = (0, import_core52.list)({
+  access: inegiSyncLogAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "createdAt",
+        "user",
+        "success",
+        "sourceMethod",
+        "created",
+        "updated",
+        "alreadyInDb",
+        "totalFetched"
+      ]
+    }
+  },
+  fields: {
+    user: (0, import_fields52.relationship)({
+      ref: "User.inegiSyncLogs",
+      many: false,
+      ui: { description: "Usuario que ejecut\xF3 el sync (vac\xEDo en scripts)" }
+    }),
+    success: (0, import_fields52.checkbox)({
+      defaultValue: false
+    }),
+    message: (0, import_fields52.text)(),
+    created: (0, import_fields52.integer)({
+      defaultValue: 0,
+      ui: { description: "Establecimientos nuevos" }
+    }),
+    updated: (0, import_fields52.integer)({
+      defaultValue: 0,
+      ui: { description: "Establecimientos actualizados" }
+    }),
+    alreadyInDb: (0, import_fields52.integer)({
+      defaultValue: 0,
+      ui: { description: "Ya exist\xEDan y no cambiaron (o se reencontraron)" }
+    }),
+    totalFetched: (0, import_fields52.integer)({
+      defaultValue: 0,
+      ui: { description: "Filas recibidas de INEGI en esta corrida" }
+    }),
+    sourceMethod: (0, import_fields52.select)({
+      type: "string",
+      options: [...INEGI_SYNC_SOURCE_OPTIONS],
+      validation: { isRequired: true },
+      defaultValue: "api"
+    }),
+    searchParams: (0, import_fields52.json)({
+      ui: { description: "Par\xE1metros de b\xFAsqueda o ruta del archivo" }
+    }),
+    createdAt: (0, import_fields52.timestamp)({
+      defaultValue: { kind: "now" }
+    })
+  }
+});
+
+// models/Saas/SaasCompany/SaasCompany.ts
+var import_core53 = require("@keystone-6/core");
+var import_fields53 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
 var saasCompanyAccess = {
@@ -5233,7 +5547,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core48.list)({
+var SaasCompany_default = (0, import_core53.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -5252,147 +5566,147 @@ var SaasCompany_default = (0, import_core48.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields48.text)({
+    name: (0, import_fields53.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields48.relationship)({
+    users: (0, import_fields53.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    workspaces: (0, import_fields48.relationship)({
+    workspaces: (0, import_fields53.relationship)({
       ref: "SaasWorkspace.company",
       many: true,
       ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields48.json)({
+    allowedGooglePlaceCategories: (0, import_fields53.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields48.relationship)({
+    leads: (0, import_fields53.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields48.relationship)({
+    plan: (0, import_fields53.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields48.calendarDay)({
+    subscriptionStartedAt: (0, import_fields53.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields48.relationship)({
+    subscriptions: (0, import_fields53.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields48.relationship)({
+    techStatusBusinessLeads: (0, import_fields53.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields48.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields53.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (legacy quota tracking)" }
     }),
     /** Cumulative purchased bonus credits (permanent monthly top-up) */
-    purchasedBonusCredits: (0, import_fields48.integer)({
+    purchasedBonusCredits: (0, import_fields53.integer)({
       defaultValue: 0,
       ui: {
         description: "Total extra credits purchased; added to the monthly allowance each period"
       }
     }),
-    creditPeriods: (0, import_fields48.relationship)({
+    creditPeriods: (0, import_fields53.relationship)({
       ref: "SaasCompanyCreditPeriod.company",
       many: true,
       ui: { description: "Monthly credit periods for this company" }
     }),
-    creditLedgerEntries: (0, import_fields48.relationship)({
+    creditLedgerEntries: (0, import_fields53.relationship)({
       ref: "SaasCompanyCreditLedger.company",
       many: true,
       ui: { description: "Credit grant/consume ledger for this company" }
     }),
-    techFiles: (0, import_fields48.relationship)({
+    techFiles: (0, import_fields53.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields48.relationship)({
+    projects: (0, import_fields53.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    leadSyncLogs: (0, import_fields48.relationship)({
+    leadSyncLogs: (0, import_fields53.relationship)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
-    aiCallLogs: (0, import_fields48.relationship)({
+    aiCallLogs: (0, import_fields53.relationship)({
       ref: "TechAiCallLog.company",
       many: true,
       ui: { description: "Historial de llamadas a IA (prompts, tokens, cr\xE9ditos)" }
     }),
-    aiInsights: (0, import_fields48.relationship)({
+    aiInsights: (0, import_fields53.relationship)({
       ref: "TechAiInsight.company",
       many: true,
       ui: { description: "Insights de IA (digest diario, narrativa, archivos)" }
     }),
-    saasSubscriptionLogs: (0, import_fields48.relationship)({
+    saasSubscriptionLogs: (0, import_fields53.relationship)({
       ref: "SaasSubscriptionLog.company",
       many: true,
       ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
-    quotations: (0, import_fields48.relationship)({
+    quotations: (0, import_fields53.relationship)({
       ref: "SaasQuotation.company",
       many: true,
       ui: { description: "Cotizaciones de la empresa" }
     }),
-    logo: (0, import_fields48.file)({
+    logo: (0, import_fields53.file)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    onboardingMainOffer: (0, import_fields48.text)({
+    onboardingMainOffer: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    onboardingIdealCustomer: (0, import_fields48.text)({
+    onboardingIdealCustomer: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    onboardingAvgTicketValue: (0, import_fields48.text)({
+    onboardingAvgTicketValue: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    onboardingSalesPain: (0, import_fields48.text)({
+    onboardingSalesPain: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
       }
     }),
-    aiBillingMode: (0, import_fields48.select)({
+    aiBillingMode: (0, import_fields53.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       defaultValue: AI_BILLING_MODE.BYOK,
@@ -5400,7 +5714,7 @@ var SaasCompany_default = (0, import_core48.list)({
         description: "C\xF3mo paga la empresa la IA: API key propia (BYOK) o cr\xE9ditos administrados por Kadesh"
       }
     }),
-    aiProvider: (0, import_fields48.select)({
+    aiProvider: (0, import_fields53.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
@@ -5408,13 +5722,13 @@ var SaasCompany_default = (0, import_core48.list)({
         description: "Proveedor de IA en modalidad BYOK (Claude, OpenAI o Gemini)"
       }
     }),
-    aiModel: (0, import_fields48.text)({
+    aiModel: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         description: "Override opcional del modelo. Vac\xEDo = default del proveedor."
       }
     }),
-    aiApiKeyEncrypted: (0, import_fields48.text)({
+    aiApiKeyEncrypted: (0, import_fields53.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -5428,61 +5742,61 @@ var SaasCompany_default = (0, import_core48.list)({
         description: "API key cifrada (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    aiApiKeyPreview: (0, import_fields48.text)({
+    aiApiKeyPreview: (0, import_fields53.text)({
       db: { isNullable: true },
       access: aiApiKeyPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)"
       }
     }),
-    aiKeyUpdatedAt: (0, import_fields48.timestamp)({
+    aiKeyUpdatedAt: (0, import_fields53.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se guard\xF3 o borr\xF3 la API key de IA"
       }
     }),
-    termsQuotation: (0, import_fields48.text)({
+    termsQuotation: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
       }
     }),
-    colorPrimary: (0, import_fields48.text)({
+    colorPrimary: (0, import_fields53.text)({
       db: { isNullable: true },
       defaultValue: "#F7945E",
       ui: {
         description: "Color primario de la empresa"
       }
     }),
-    colorSecondary: (0, import_fields48.text)({
+    colorSecondary: (0, import_fields53.text)({
       db: { isNullable: true },
       defaultValue: "#E07C3A",
       ui: {
         description: "Color secundario de la empresa"
       }
     }),
-    contactEmail: (0, import_fields48.text)({
+    contactEmail: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de contacto de la empresa"
       }
     }),
-    contactPhone: (0, import_fields48.text)({
+    contactPhone: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
-    createdAt: (0, import_fields48.timestamp)({
+    createdAt: (0, import_fields53.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields48.timestamp)({
+    updatedAt: (0, import_fields53.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5493,8 +5807,8 @@ var SaasCompany_default = (0, import_core48.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core49 = require("@keystone-6/core");
-var import_fields49 = require("@keystone-6/core/fields");
+var import_core54 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -5526,7 +5840,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core49.list)({
+var SaasPlan_default = (0, import_core54.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -5544,42 +5858,42 @@ var SaasPlan_default = (0, import_core49.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields49.text)({
+    name: (0, import_fields54.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields49.float)({
+    cost: (0, import_fields54.float)({
       ui: { description: "Plan cost per billing period" }
     }),
-    costOld: (0, import_fields49.float)({
+    costOld: (0, import_fields54.float)({
       ui: { description: "Plan cost original" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
-    referralUpfrontCommissionPct: (0, import_fields49.float)({
+    referralUpfrontCommissionPct: (0, import_fields54.float)({
       ui: {
         description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
       }
     }),
     /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
-    referralRecurringCommissionPct: (0, import_fields49.float)({
+    referralRecurringCommissionPct: (0, import_fields54.float)({
       ui: {
         description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
       }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields49.select)({
+    frequency: (0, import_fields54.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields49.text)({
+    currency: (0, import_fields54.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields49.integer)({
+    leadLimit: (0, import_fields54.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -5590,28 +5904,28 @@ var SaasPlan_default = (0, import_core49.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields49.json)({
+    planFeatures: (0, import_fields54.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields49.relationship)({
+    saasPayments: (0, import_fields54.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields49.checkbox)({
+    active: (0, import_fields54.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields49.checkbox)({
+    bestSeller: (0, import_fields54.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields49.text)({
+    stripePriceId: (0, import_fields54.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -5619,36 +5933,36 @@ var SaasPlan_default = (0, import_core49.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields49.text)({
+    stripeProductId: (0, import_fields54.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
     /** Companies currently on this plan */
-    companies: (0, import_fields49.relationship)({
+    companies: (0, import_fields54.relationship)({
       ref: "SaasCompany.plan",
       many: true,
       ui: { description: "Companies on this plan" }
     }),
-    subscriptions: (0, import_fields49.relationship)({
+    subscriptions: (0, import_fields54.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
-    saasSubscriptionLogs: (0, import_fields49.relationship)({
+    saasSubscriptionLogs: (0, import_fields54.relationship)({
       ref: "SaasSubscriptionLog.plan",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
     }),
-    createdAt: (0, import_fields49.timestamp)({
+    createdAt: (0, import_fields54.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields49.timestamp)({
+    updatedAt: (0, import_fields54.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5659,8 +5973,8 @@ var SaasPlan_default = (0, import_core49.list)({
 });
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var import_core50 = require("@keystone-6/core");
-var import_fields50 = require("@keystone-6/core/fields");
+var import_core55 = require("@keystone-6/core");
+var import_fields55 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCredit/SaasCredit.access.ts
 var saasCreditAccess = {
@@ -5678,7 +5992,7 @@ var saasCreditAccess = {
 };
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var SaasCredit_default = (0, import_core50.list)({
+var SaasCredit_default = (0, import_core55.list)({
   access: saasCreditAccess,
   ui: {
     listView: {
@@ -5696,51 +6010,51 @@ var SaasCredit_default = (0, import_core50.list)({
   },
   fields: {
     /** Internal key for upsert/seed (e.g. "Recarga Básica") */
-    slug: (0, import_fields50.text)({
+    slug: (0, import_fields55.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
     }),
     /** Package display name shown in the app */
-    name: (0, import_fields50.text)({
+    name: (0, import_fields55.text)({
       validation: { isRequired: true },
       ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
     }),
     /** One-time price amount (in package currency) */
-    cost: (0, import_fields50.float)({
+    cost: (0, import_fields55.float)({
       ui: { description: "One-time package cost" }
     }),
-    costOld: (0, import_fields50.float)({
+    costOld: (0, import_fields55.float)({
       ui: { description: "Original price for strikethrough discount display" }
     }),
     /** Payment frequency (one-time for credit top-ups) */
-    frequency: (0, import_fields50.select)({
+    frequency: (0, import_fields55.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       defaultValue: "once",
       ui: { description: "Payment frequency (once for credit packages)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields50.text)({
+    currency: (0, import_fields55.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
     /** Number of extra credits added on purchase (leads sync or managed AI) */
-    creditsToAdd: (0, import_fields50.integer)({
+    creditsToAdd: (0, import_fields55.integer)({
       validation: { isRequired: true },
       ui: { description: "Credits added to the company on successful purchase" }
     }),
     /** Shown in app and available for purchase */
-    active: (0, import_fields50.checkbox)({
+    active: (0, import_fields55.checkbox)({
       defaultValue: true,
       ui: { description: "Package enabled in app (visible for purchase)" }
     }),
-    bestSeller: (0, import_fields50.checkbox)({
+    bestSeller: (0, import_fields55.checkbox)({
       defaultValue: false,
       ui: { description: "Highlight this package as best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
-    stripePriceId: (0, import_fields50.text)({
+    stripePriceId: (0, import_fields55.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -5748,20 +6062,20 @@ var SaasCredit_default = (0, import_core50.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields50.text)({
+    stripeProductId: (0, import_fields55.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
-    createdAt: (0, import_fields50.timestamp)({
+    createdAt: (0, import_fields55.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields50.timestamp)({
+    updatedAt: (0, import_fields55.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5772,8 +6086,8 @@ var SaasCredit_default = (0, import_core50.list)({
 });
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var import_core51 = require("@keystone-6/core");
-var import_fields51 = require("@keystone-6/core/fields");
+var import_core56 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
 var getCompanyId8 = (session2) => session2?.data?.company?.id;
@@ -5813,7 +6127,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
 };
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core51.list)({
+var SaasCompanyMonthlyLeadSync_default = (0, import_core56.list)({
   access: saasCompanyMonthlyLeadSyncAccess,
   ui: {
     listView: {
@@ -5821,30 +6135,30 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core51.list)({
     }
   },
   fields: {
-    company: (0, import_fields51.relationship)({
+    company: (0, import_fields56.relationship)({
       ref: "SaasCompany.monthlyLeadSyncRecords",
       many: false
     }),
-    year: (0, import_fields51.integer)({
+    year: (0, import_fields56.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the sync period" }
     }),
-    month: (0, import_fields51.integer)({
+    month: (0, import_fields56.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the sync period (1-12)" }
     }),
     /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields51.integer)({
+    syncedCount: (0, import_fields56.integer)({
       defaultValue: 0,
       ui: { description: "Number of leads synced this month (for quota tracking)" }
     }),
-    createdAt: (0, import_fields51.timestamp)({
+    createdAt: (0, import_fields56.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields51.timestamp)({
+    updatedAt: (0, import_fields56.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -5852,8 +6166,8 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core51.list)({
 });
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var import_core52 = require("@keystone-6/core");
-var import_fields52 = require("@keystone-6/core/fields");
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
 var getCompanyId9 = (session2) => session2?.data?.company?.id;
@@ -5887,7 +6201,7 @@ var companyCreditPeriodAccess = {
 };
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var SaasCompanyCreditPeriod_default = (0, import_core52.list)({
+var SaasCompanyCreditPeriod_default = (0, import_core57.list)({
   access: companyCreditPeriodAccess,
   ui: {
     listView: {
@@ -5903,60 +6217,60 @@ var SaasCompanyCreditPeriod_default = (0, import_core52.list)({
     }
   },
   fields: {
-    company: (0, import_fields52.relationship)({
+    company: (0, import_fields57.relationship)({
       ref: "SaasCompany.creditPeriods",
       many: false,
       ui: { description: "Company that owns this credit period" }
     }),
-    subscription: (0, import_fields52.relationship)({
+    subscription: (0, import_fields57.relationship)({
       ref: "SaasCompanySubscription.creditPeriods",
       many: false,
       ui: { description: "Active subscription when this period was created" }
     }),
-    periodKey: (0, import_fields52.text)({
+    periodKey: (0, import_fields57.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: {
         description: "Unique key: companyId:year:month"
       }
     }),
-    year: (0, import_fields52.integer)({
+    year: (0, import_fields57.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the credit period" }
     }),
-    month: (0, import_fields52.integer)({
+    month: (0, import_fields57.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the credit period (1-12)" }
     }),
-    planAllowance: (0, import_fields52.integer)({
+    planAllowance: (0, import_fields57.integer)({
       defaultValue: 0,
       ui: { description: "Monthly lead allowance from the active plan" }
     }),
-    bonusAllowance: (0, import_fields52.integer)({
+    bonusAllowance: (0, import_fields57.integer)({
       defaultValue: 0,
       ui: {
         description: "Extra purchased credits added to the monthly allowance for this period"
       }
     }),
-    used: (0, import_fields52.integer)({
+    used: (0, import_fields57.integer)({
       defaultValue: 0,
       ui: { description: "Credits consumed in this period" }
     }),
-    ledgerEntries: (0, import_fields52.relationship)({
+    ledgerEntries: (0, import_fields57.relationship)({
       ref: "SaasCompanyCreditLedger.period",
       many: true,
       ui: { description: "Ledger movements for this period" }
     }),
-    createdAt: (0, import_fields52.timestamp)({
+    createdAt: (0, import_fields57.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields52.timestamp)({
+    updatedAt: (0, import_fields57.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5967,8 +6281,8 @@ var SaasCompanyCreditPeriod_default = (0, import_core52.list)({
 });
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var import_core53 = require("@keystone-6/core");
-var import_fields53 = require("@keystone-6/core/fields");
+var import_core58 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
 var getCompanyId10 = (session2) => session2?.data?.company?.id;
@@ -6018,7 +6332,7 @@ var COMPANY_CREDIT_LEDGER_TYPE_OPTIONS = [
 ];
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var SaasCompanyCreditLedger_default = (0, import_core53.list)({
+var SaasCompanyCreditLedger_default = (0, import_core58.list)({
   access: companyCreditLedgerAccess,
   ui: {
     listView: {
@@ -6034,49 +6348,49 @@ var SaasCompanyCreditLedger_default = (0, import_core53.list)({
     }
   },
   fields: {
-    company: (0, import_fields53.relationship)({
+    company: (0, import_fields58.relationship)({
       ref: "SaasCompany.creditLedgerEntries",
       many: false,
       ui: { description: "Company this ledger entry belongs to" }
     }),
-    period: (0, import_fields53.relationship)({
+    period: (0, import_fields58.relationship)({
       ref: "SaasCompanyCreditPeriod.ledgerEntries",
       many: false,
       ui: { description: "Credit period this entry affects" }
     }),
-    type: (0, import_fields53.select)({
+    type: (0, import_fields58.select)({
       type: "string",
       options: [...COMPANY_CREDIT_LEDGER_TYPE_OPTIONS],
       validation: { isRequired: true },
       ui: { description: "Type of credit movement" }
     }),
-    amount: (0, import_fields53.integer)({
+    amount: (0, import_fields58.integer)({
       validation: { isRequired: true },
       ui: {
         description: "Signed amount: positive = grant, negative = consume"
       }
     }),
-    balanceAfter: (0, import_fields53.integer)({
+    balanceAfter: (0, import_fields58.integer)({
       ui: { description: "Remaining credits after this movement" }
     }),
-    referenceType: (0, import_fields53.text)({
+    referenceType: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         description: "Reference entity type (subscription, payment, syncLog)"
       }
     }),
-    referenceId: (0, import_fields53.text)({
+    referenceId: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: { description: "Reference entity ID" }
     }),
-    notes: (0, import_fields53.text)({
+    notes: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
-    metadata: (0, import_fields53.json)({
+    metadata: (0, import_fields58.json)({
       ui: { description: "Optional extra context for this movement" }
     }),
-    createdAt: (0, import_fields53.timestamp)({
+    createdAt: (0, import_fields58.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6087,8 +6401,8 @@ var SaasCompanyCreditLedger_default = (0, import_core53.list)({
 });
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var import_core54 = require("@keystone-6/core");
-var import_fields54 = require("@keystone-6/core/fields");
+var import_core59 = require("@keystone-6/core");
+var import_fields59 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
 var getCompanyId11 = (session2) => session2?.data?.company?.id;
@@ -6128,7 +6442,7 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core54.list)({
+var SaasCompanySubscription_default = (0, import_core59.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -6146,102 +6460,102 @@ var SaasCompanySubscription_default = (0, import_core54.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields54.relationship)({
+    company: (0, import_fields59.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields54.text)({
+    planName: (0, import_fields59.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields54.float)({
+    planCost: (0, import_fields59.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields54.text)({
+    planFrequency: (0, import_fields59.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields54.integer)({
+    planLeadLimit: (0, import_fields59.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
-    newCreditsAdded: (0, import_fields54.integer)({
+    newCreditsAdded: (0, import_fields59.integer)({
       defaultValue: 0,
       ui: { description: "Extra credits purchased and added to this subscription" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields54.text)({
+    planStripePriceId: (0, import_fields59.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields54.text)({
+    planCurrency: (0, import_fields59.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields54.json)({
+    planFeatures: (0, import_fields59.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields54.select)({
+    status: (0, import_fields59.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields54.calendarDay)({
+    activatedAt: (0, import_fields59.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields54.calendarDay)({
+    currentPeriodEnd: (0, import_fields59.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields54.text)({
+    stripeSubscriptionId: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields54.text)({
+    stripeCustomerId: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields54.relationship)({
+    saasPayments: (0, import_fields59.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
-    creditPeriods: (0, import_fields54.relationship)({
+    creditPeriods: (0, import_fields59.relationship)({
       ref: "SaasCompanyCreditPeriod.subscription",
       many: true,
       ui: { description: "Credit periods linked to this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields54.relationship)({
+    plan: (0, import_fields59.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    saasSubscriptionLogs: (0, import_fields54.relationship)({
+    saasSubscriptionLogs: (0, import_fields59.relationship)({
       ref: "SaasSubscriptionLog.createdSubscription",
       many: true,
       ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
     }),
-    createdAt: (0, import_fields54.timestamp)({
+    createdAt: (0, import_fields59.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields54.timestamp)({
+    updatedAt: (0, import_fields59.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6252,8 +6566,8 @@ var SaasCompanySubscription_default = (0, import_core54.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core55 = require("@keystone-6/core");
-var import_fields55 = require("@keystone-6/core/fields");
+var import_core60 = require("@keystone-6/core");
+var import_fields60 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
 function paymentMethodFilter(session2) {
@@ -6279,7 +6593,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core55.list)({
+var SaasPaymentMethod_default = (0, import_core60.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -6294,61 +6608,61 @@ var SaasPaymentMethod_default = (0, import_core55.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields55.relationship)({
+    user: (0, import_fields60.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields55.text)({
+    cardType: (0, import_fields60.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields55.text)({
+    lastFourDigits: (0, import_fields60.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields55.text)({
+    expMonth: (0, import_fields60.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields55.text)({
+    expYear: (0, import_fields60.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields55.text)({
+    stripeProcessorId: (0, import_fields60.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields55.text)({
+    stripePaymentMethodId: (0, import_fields60.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields55.text)({
+    address: (0, import_fields60.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields55.text)({
+    postalCode: (0, import_fields60.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields55.text)({
+    ownerName: (0, import_fields60.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields55.text)({
+    country: (0, import_fields60.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields55.relationship)({
+    saasPayments: (0, import_fields60.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields55.timestamp)({
+    createdAt: (0, import_fields60.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields55.timestamp)({
+    updatedAt: (0, import_fields60.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -6356,8 +6670,8 @@ var SaasPaymentMethod_default = (0, import_core55.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core56 = require("@keystone-6/core");
-var import_fields56 = require("@keystone-6/core/fields");
+var import_core61 = require("@keystone-6/core");
+var import_fields61 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
 function paymentFilter(session2) {
@@ -6383,7 +6697,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core56.list)({
+var SaasPayment_default = (0, import_core61.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -6401,30 +6715,30 @@ var SaasPayment_default = (0, import_core56.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields56.relationship)({
+    user: (0, import_fields61.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields56.text)({
+    paymentMethodType: (0, import_fields61.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields56.relationship)({
+    paymentMethod: (0, import_fields61.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields56.decimal)({
+    amount: (0, import_fields61.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields56.select)({
+    status: (0, import_fields61.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -6437,38 +6751,38 @@ var SaasPayment_default = (0, import_core56.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields56.text)({
+    processorStripeChargeId: (0, import_fields61.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields56.text)({
+    stripeErrorMessage: (0, import_fields61.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields56.text)({
+    notes: (0, import_fields61.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields56.relationship)({
+    plan: (0, import_fields61.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields56.relationship)({
+    subscription: (0, import_fields61.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields56.timestamp)({
+    createdAt: (0, import_fields61.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields56.timestamp)({
+    updatedAt: (0, import_fields61.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -6476,8 +6790,8 @@ var SaasPayment_default = (0, import_core56.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core57 = require("@keystone-6/core");
-var import_fields57 = require("@keystone-6/core/fields");
+var import_core62 = require("@keystone-6/core");
+var import_fields62 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
 var getCompanyId12 = (session2) => session2?.data?.company?.id;
@@ -6520,7 +6834,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core57.list)({
+var SaasProject_default = (0, import_core62.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -6535,78 +6849,78 @@ var SaasProject_default = (0, import_core57.list)({
     }
   },
   fields: {
-    name: (0, import_fields57.text)({
+    name: (0, import_fields62.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields57.text)({
+    serviceType: (0, import_fields62.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields57.relationship)({
+    responsible: (0, import_fields62.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields57.calendarDay)({
+    startDate: (0, import_fields62.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields57.calendarDay)({
+    estimatedEndDate: (0, import_fields62.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields57.text)({
+    description: (0, import_fields62.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields57.select)({
+    status: (0, import_fields62.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields57.text)({
+    urlData: (0, import_fields62.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields57.relationship)({
+    company: (0, import_fields62.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields57.relationship)({
+    businessLead: (0, import_fields62.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields57.relationship)({
+    proposal: (0, import_fields62.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields57.relationship)({
+    quotations: (0, import_fields62.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields57.timestamp)({
+    createdAt: (0, import_fields62.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields57.timestamp)({
+    updatedAt: (0, import_fields62.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6617,8 +6931,8 @@ var SaasProject_default = (0, import_core57.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core58 = require("@keystone-6/core");
-var import_fields58 = require("@keystone-6/core/fields");
+var import_core63 = require("@keystone-6/core");
+var import_fields63 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
 var getCompanyId13 = (session2) => session2?.data?.company?.id;
@@ -6745,7 +7059,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core58.list)({
+var SaasQuotation_default = (0, import_core63.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -6763,117 +7077,117 @@ var SaasQuotation_default = (0, import_core58.list)({
     }
   },
   fields: {
-    company: (0, import_fields58.relationship)({
+    company: (0, import_fields63.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields58.relationship)({
+    lead: (0, import_fields63.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields58.relationship)({
+    project: (0, import_fields63.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields58.text)({
+    quotationNumber: (0, import_fields63.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields58.select)({
+    status: (0, import_fields63.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields58.text)({
+    currency: (0, import_fields63.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields58.float)({
+    exchangeRate: (0, import_fields63.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields58.float)({
+    subtotal: (0, import_fields63.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields58.float)({
+    discountTotal: (0, import_fields63.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields58.float)({
+    taxTotal: (0, import_fields63.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields58.float)({
+    total: (0, import_fields63.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields58.calendarDay)({
+    validUntil: (0, import_fields63.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields58.timestamp)({
+    sentAt: (0, import_fields63.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields58.timestamp)({
+    acceptedAt: (0, import_fields63.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields58.text)({
+    notes: (0, import_fields63.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields58.text)({
+    terms: (0, import_fields63.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields58.relationship)({
+    createdBy: (0, import_fields63.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields58.relationship)({
+    assignedSeller: (0, import_fields63.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields58.text)({
+    pdfFileOrUrl: (0, import_fields63.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields58.relationship)({
+    quotationProducts: (0, import_fields63.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields58.checkbox)({
+    showDiscount: (0, import_fields63.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields58.checkbox)({
+    showNotes: (0, import_fields63.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields58.timestamp)({
+    createdAt: (0, import_fields63.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields58.timestamp)({
+    updatedAt: (0, import_fields63.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6884,8 +7198,8 @@ var SaasQuotation_default = (0, import_core58.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core59 = require("@keystone-6/core");
-var import_fields59 = require("@keystone-6/core/fields");
+var import_core64 = require("@keystone-6/core");
+var import_fields64 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
 var getCompanyId14 = (session2) => session2?.data?.company?.id;
@@ -7073,7 +7387,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core59.list)({
+var SaasQuotationProduct_default = (0, import_core64.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -7082,60 +7396,60 @@ var SaasQuotationProduct_default = (0, import_core59.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields59.relationship)({
+    quotation: (0, import_fields64.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields59.text)({
+    description: (0, import_fields64.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields59.float)({
+    quantity: (0, import_fields64.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields59.float)({
+    unitPrice: (0, import_fields64.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields59.select)({
+    discountType: (0, import_fields64.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields59.float)({
+    discountValue: (0, import_fields64.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields59.float)({
+    taxRate: (0, import_fields64.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields59.float)({
+    lineSubtotal: (0, import_fields64.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields59.float)({
+    lineTotal: (0, import_fields64.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields59.timestamp)({
+    createdAt: (0, import_fields64.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields59.timestamp)({
+    updatedAt: (0, import_fields64.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -7146,8 +7460,8 @@ var SaasQuotationProduct_default = (0, import_core59.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core60 = require("@keystone-6/core");
-var import_fields60 = require("@keystone-6/core/fields");
+var import_core65 = require("@keystone-6/core");
+var import_fields65 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
 var getCompanyId15 = (session2) => session2?.data?.company?.id;
@@ -7189,7 +7503,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core60.list)({
+var SaasReferralCommission_default = (0, import_core65.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -7208,27 +7522,27 @@ var SaasReferralCommission_default = (0, import_core60.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields60.relationship)({
+    referrer: (0, import_fields65.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields60.relationship)({
+    referredUser: (0, import_fields65.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields60.relationship)({
+    company: (0, import_fields65.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields60.relationship)({
+    subscription: (0, import_fields65.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields60.relationship)({
+    plan: (0, import_fields65.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields60.select)({
+    type: (0, import_fields65.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -7236,30 +7550,30 @@ var SaasReferralCommission_default = (0, import_core60.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields60.float)({
+    percentage: (0, import_fields65.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields60.float)({
+    amount: (0, import_fields65.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields60.text)({
+    currency: (0, import_fields65.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields60.float)({
+    periodIndex: (0, import_fields65.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields60.calendarDay)({
+    periodStart: (0, import_fields65.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields60.calendarDay)({
+    periodEnd: (0, import_fields65.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields60.select)({
+    status: (0, import_fields65.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -7270,18 +7584,18 @@ var SaasReferralCommission_default = (0, import_core60.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields60.text)({
+    notes: (0, import_fields65.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields60.timestamp)({
+    createdAt: (0, import_fields65.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields60.timestamp)({
+    updatedAt: (0, import_fields65.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -7292,8 +7606,8 @@ var SaasReferralCommission_default = (0, import_core60.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core61 = require("@keystone-6/core");
-var import_fields61 = require("@keystone-6/core/fields");
+var import_core66 = require("@keystone-6/core");
+var import_fields66 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
 var getCompanyId16 = (session2) => session2?.data?.company?.id;
@@ -7326,7 +7640,7 @@ var saasSubscriptionLogAccess = {
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core61.list)({
+var SaasSubscriptionLog_default = (0, import_core66.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -7341,71 +7655,71 @@ var SaasSubscriptionLog_default = (0, import_core61.list)({
     }
   },
   fields: {
-    user: (0, import_fields61.relationship)({
+    user: (0, import_fields66.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields61.relationship)({
+    company: (0, import_fields66.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields61.relationship)({
+    plan: (0, import_fields66.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields61.relationship)({
+    createdSubscription: (0, import_fields66.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields61.checkbox)({
+    success: (0, import_fields66.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields61.text)({
+    step: (0, import_fields66.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields61.text)({
+    message: (0, import_fields66.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields61.json)({
+    responseSnapshot: (0, import_fields66.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields61.text)({
+    emailMasked: (0, import_fields66.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields61.text)({
+    planIdRequested: (0, import_fields66.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields61.text)({
+    totalSubmitted: (0, import_fields66.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields61.text)({
+    paymentMethodIdSubmitted: (0, import_fields66.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields61.text)({
+    paymentTypeSubmitted: (0, import_fields66.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields61.integer)({
+    durationMs: (0, import_fields66.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields61.text)({
+    stripeCustomerId: (0, import_fields66.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields61.text)({
+    stripeSubscriptionId: (0, import_fields66.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields61.timestamp)({
+    createdAt: (0, import_fields66.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
     })
@@ -7413,8 +7727,8 @@ var SaasSubscriptionLog_default = (0, import_core61.list)({
 });
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var import_core62 = require("@keystone-6/core");
-var import_fields62 = require("@keystone-6/core/fields");
+var import_core67 = require("@keystone-6/core");
+var import_fields67 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId17 = (session2) => session2?.data?.company?.id;
@@ -7505,7 +7819,7 @@ var saasWorkspaceSeedCrmStatusesHook = {
 };
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var SaasWorkspace_default = (0, import_core62.list)({
+var SaasWorkspace_default = (0, import_core67.list)({
   access: saasWorkspaceAccess,
   hooks: {
     afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
@@ -7516,58 +7830,58 @@ var SaasWorkspace_default = (0, import_core62.list)({
     }
   },
   fields: {
-    name: (0, import_fields62.text)({
+    name: (0, import_fields67.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
     }),
-    showActivities: (0, import_fields62.checkbox)({
+    showActivities: (0, import_fields67.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar actividades de CRM en este workspace" }
     }),
-    showProposals: (0, import_fields62.checkbox)({
+    showProposals: (0, import_fields67.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar propuestas de CRM en este workspace" }
     }),
-    showFollowUpTasks: (0, import_fields62.checkbox)({
+    showFollowUpTasks: (0, import_fields67.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
     }),
-    showTasks: (0, import_fields62.checkbox)({
+    showTasks: (0, import_fields67.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de workspace en este workspace" }
     }),
-    company: (0, import_fields62.relationship)({
+    company: (0, import_fields67.relationship)({
       ref: "SaasCompany.workspaces",
       many: false,
       ui: { description: "Empresa (tenant) a la que pertenece" }
     }),
-    members: (0, import_fields62.relationship)({
+    members: (0, import_fields67.relationship)({
       ref: "User.workspaces",
       many: true,
       ui: { description: "Usuarios con acceso a este workspace" }
     }),
-    salesActivities: (0, import_fields62.relationship)({
+    salesActivities: (0, import_fields67.relationship)({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" }
     }),
-    tasks: (0, import_fields62.relationship)({
+    tasks: (0, import_fields67.relationship)({
       ref: "TechTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
     }),
-    proposals: (0, import_fields62.relationship)({
+    proposals: (0, import_fields67.relationship)({
       ref: "TechProposal.workspace",
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
-    followUpTasks: (0, import_fields62.relationship)({
+    followUpTasks: (0, import_fields67.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
     }),
-    crmStatuses: (0, import_fields62.relationship)({
+    crmStatuses: (0, import_fields67.relationship)({
       ref: "SaasWorkspaceCrmStatus.workspace",
       many: true,
       ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
@@ -7576,8 +7890,8 @@ var SaasWorkspace_default = (0, import_core62.list)({
 });
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var import_core63 = require("@keystone-6/core");
-var import_fields63 = require("@keystone-6/core/fields");
+var import_core68 = require("@keystone-6/core");
+var import_fields68 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
 var getCompanyId18 = (session2) => session2?.data?.company?.id;
@@ -7822,7 +8136,7 @@ var saasWorkspaceCrmStatusHooks = {
 };
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var SaasWorkspaceCrmStatus_default = (0, import_core63.list)({
+var SaasWorkspaceCrmStatus_default = (0, import_core68.list)({
   access: saasWorkspaceCrmStatusAccess,
   hooks: saasWorkspaceCrmStatusHooks,
   ui: {
@@ -7831,58 +8145,58 @@ var SaasWorkspaceCrmStatus_default = (0, import_core63.list)({
     }
   },
   fields: {
-    workspace: (0, import_fields63.relationship)({
+    workspace: (0, import_fields68.relationship)({
       ref: "SaasWorkspace.crmStatuses",
       many: false,
       ui: { description: "Workspace al que pertenece este estado" }
     }),
-    name: (0, import_fields63.text)({
+    name: (0, import_fields68.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre visible (p. ej. Kanban)" }
     }),
-    color: (0, import_fields63.text)({
+    color: (0, import_fields68.text)({
       validation: { isRequired: true },
       ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
     }),
-    key: (0, import_fields63.text)({
+    key: (0, import_fields68.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
       }
     }),
-    order: (0, import_fields63.integer)({
+    order: (0, import_fields68.integer)({
       defaultValue: 0,
       isIndexed: true,
       ui: { description: "Orden en la UI (menor primero)" }
     }),
-    isDefault: (0, import_fields63.checkbox)({
+    isDefault: (0, import_fields68.checkbox)({
       defaultValue: false,
       ui: {
         description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
       }
     }),
-    isArchived: (0, import_fields63.checkbox)({
+    isArchived: (0, import_fields68.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en selectores sin borrar historial" }
     }),
-    followUpTasks: (0, import_fields63.relationship)({
+    followUpTasks: (0, import_fields68.relationship)({
       ref: "TechFollowUpTask.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields63.relationship)({
+    proposals: (0, import_fields68.relationship)({
       ref: "TechProposal.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    salesActivities: (0, import_fields63.relationship)({
+    salesActivities: (0, import_fields68.relationship)({
       ref: "TechSalesActivity.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields63.relationship)({
+    tasks: (0, import_fields68.relationship)({
       ref: "TechTask.statusCrm",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
@@ -7946,6 +8260,11 @@ var schema_default = {
   TechLeadSyncLog: TechLeadSyncLog_default,
   TechAiCallLog: TechAiCallLog_default,
   TechAiInsight: TechAiInsight_default,
+  TechInegiEconomicActivity: TechInegiEconomicActivity_default,
+  TechInegiEstablishment: TechInegiEstablishment_default,
+  TechInegiGeoBoundary: TechInegiGeoBoundary_default,
+  TechInegiIndicator: TechInegiIndicator_default,
+  TechInegiSyncLog: TechInegiSyncLog_default,
   TechFollowUpTask: TechFollowUpTask_default,
   TechProposal: TechProposal_default,
   TechSalesActivity: TechSalesActivity_default,
@@ -7958,7 +8277,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core64 = require("@keystone-6/core");
+var import_core69 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -8859,8 +9178,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text53 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text53}`;
+  const text58 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text58}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -9256,7 +9575,7 @@ async function consumeCompanyCredits(context, params) {
 }
 async function getCompanyRemainingCredits(context, companyId) {
   const { year, month } = getCurrentPeriodParts();
-  const empty = {
+  const empty2 = {
     blockingReason: null,
     remainingQuota: 0,
     syncedCount: 0,
@@ -9269,13 +9588,13 @@ async function getCompanyRemainingCredits(context, companyId) {
   };
   const subscription = await getActiveSubscription(context, companyId);
   if (!subscription) {
-    return { ...empty, blockingReason: "no_subscription" };
+    return { ...empty2, blockingReason: "no_subscription" };
   }
   const isFreePlan = subscription.planCost != null && subscription.planCost <= 0;
   if (isFreePlan && subscription.activatedAt) {
     const { isExpired } = getFreePlanTrialInfo(subscription.activatedAt);
     if (isExpired) {
-      return { ...empty, blockingReason: "free_plan_expired", leadLimit: 0 };
+      return { ...empty2, blockingReason: "free_plan_expired", leadLimit: 0 };
     }
   }
   const planLeadLimit = subscription.planLeadLimit ?? null;
@@ -9286,7 +9605,7 @@ async function getCompanyRemainingCredits(context, companyId) {
   );
   if (planLeadLimit === null) {
     return {
-      ...empty,
+      ...empty2,
       blockingReason: "no_lead_limit",
       planLeadLimit,
       extraCredits
@@ -9294,7 +9613,7 @@ async function getCompanyRemainingCredits(context, companyId) {
   }
   if (planLeadLimit < 1 && extraCredits < 1) {
     return {
-      ...empty,
+      ...empty2,
       blockingReason: "lead_limit_too_low",
       planLeadLimit,
       extraCredits,
@@ -9428,7 +9747,7 @@ var resolver6 = {
   syncLeadsFront: async (_root, {
     input
   }, context) => {
-    const emptyResult = {
+    const emptyResult2 = {
       created: 0,
       alreadyInDb: 0,
       skippedLowRating: 0,
@@ -9452,7 +9771,7 @@ var resolver6 = {
       return {
         success: false,
         message: "Debes iniciar sesi\xF3n para sincronizar leads",
-        ...emptyResult
+        ...emptyResult2
       };
     }
     const user = await context.sudo().query.User.findOne({
@@ -9464,7 +9783,7 @@ var resolver6 = {
       const result = {
         success: false,
         message: "Tu usuario no tiene una empresa asignada",
-        ...emptyResult
+        ...emptyResult2
       };
       await logSyncLeadsResult(context, userId, void 0, input, result);
       return result;
@@ -9476,7 +9795,7 @@ var resolver6 = {
       const result = {
         success: false,
         message: `"${company?.name ?? "La empresa"}" no tiene una suscripci\xF3n activa. Contrata o activa una suscripci\xF3n para sincronizar leads.`,
-        ...emptyResult
+        ...emptyResult2
       };
       await logSyncLeadsResult(context, userId, company.id, input, result);
       return result;
@@ -9485,7 +9804,7 @@ var resolver6 = {
       const result = {
         success: false,
         message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.",
-        ...emptyResult,
+        ...emptyResult2,
         leadLimit: 0
       };
       await logSyncLeadsResult(context, userId, company.id, input, result);
@@ -9495,7 +9814,7 @@ var resolver6 = {
       const result = {
         success: false,
         message: `La suscripci\xF3n activa de "${companyLabel}" no tiene l\xEDmite de leads configurado.`,
-        ...emptyResult,
+        ...emptyResult2,
         leadLimit
       };
       await logSyncLeadsResult(context, userId, company.id, input, result);
@@ -9505,7 +9824,7 @@ var resolver6 = {
       const result = {
         success: false,
         message: `La suscripci\xF3n activa de "${companyLabel}" no permite sincronizar leads.`,
-        ...emptyResult,
+        ...emptyResult2,
         leadLimit
       };
       await logSyncLeadsResult(context, userId, company.id, input, result);
@@ -9515,7 +9834,7 @@ var resolver6 = {
       const result = {
         success: false,
         message: `Cuota mensual de tu suscripci\xF3n alcanzada (${syncedCount}/${leadLimit} leads). Pr\xF3ximo reinicio el mes siguiente.`,
-        ...emptyResult,
+        ...emptyResult2,
         syncedCount,
         leadLimit
       };
@@ -9607,7 +9926,7 @@ var resolver6 = {
         const result = {
           success: false,
           message: `Cuota mensual alcanzada (${consumeResult.syncedCount}/${consumeResult.leadLimit} leads).`,
-          ...emptyResult,
+          ...emptyResult2,
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
@@ -9649,7 +9968,7 @@ var resolver6 = {
       const result = {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
-        ...emptyResult
+        ...emptyResult2
       };
       await logSyncLeadsResult(context, userId, company.id, input, result);
       return result;
@@ -9965,8 +10284,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text53 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text53}`;
+  const text58 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text58}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -11481,11 +11800,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text53) {
-  return text53.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text58) {
+  return text58.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text53) {
-  const cleaned = stripSpoofedDelimiters(text53 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text58) {
+  const cleaned = stripSpoofedDelimiters(text58 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -11525,9 +11844,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text53) {
-  if (!text53) return 0;
-  return Math.max(1, Math.ceil(text53.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text58) {
+  if (!text58) return 0;
+  return Math.max(1, Math.ceil(text58.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -11561,15 +11880,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text53 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text53) {
+  const text58 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text58) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text53,
+    text: text58,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text53)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text58)
     }
   };
 }
@@ -11614,15 +11933,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text53 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text53) {
+  const text58 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text58) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text53,
+    text: text58,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text53)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text58)
     }
   };
 }
@@ -11659,15 +11978,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text53 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text53) {
+  const text58 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text58) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text53,
+    text: text58,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text53)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text58)
     }
   };
 }
@@ -12323,8 +12642,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text53) {
-  const stripped = text53.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text58) {
+  const stripped = text58.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -12574,9 +12893,372 @@ async function gatherDailyDigestSnapshot(context, params) {
   };
 }
 
+// utils/inegi/indicatorCatalog.ts
+var INEGI_INDICATOR_CATALOG = [
+  {
+    id: "1002000001",
+    name: "Poblaci\xF3n total",
+    unit: "Personas"
+  },
+  {
+    id: "1002000002",
+    name: "Poblaci\xF3n hombres",
+    unit: "Personas"
+  },
+  {
+    id: "1002000003",
+    name: "Poblaci\xF3n mujeres",
+    unit: "Personas"
+  },
+  {
+    id: "6207019034",
+    name: "Unidades econ\xF3micas",
+    unit: "Unidades"
+  },
+  {
+    id: "6200001817",
+    name: "Personal ocupado total",
+    unit: "Personas"
+  },
+  {
+    id: "5300000002",
+    name: "Poblaci\xF3n ocupada",
+    unit: "Personas"
+  },
+  {
+    id: "6207061840",
+    name: "Producto interno bruto",
+    unit: "Miles de pesos"
+  }
+];
+function findCatalogIndicator(id) {
+  return INEGI_INDICATOR_CATALOG.find((item) => item.id === id);
+}
+
+// utils/ai/marketSnapshot.ts
+var SNAPSHOT_ACTIVITY_CAP = 8;
+var ESTABLISHMENT_SAMPLE = 2e3;
+function marketMonthKey(timeZone = DIGEST_TIMEZONE) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit"
+  }).format(/* @__PURE__ */ new Date()).slice(0, 7);
+}
+function marketReferenceKey(params, monthKey) {
+  const state = (params.state ?? "*").trim() || "*";
+  const municipality = (params.municipality ?? "*").trim() || "*";
+  const activity = (params.activity ?? "*").trim() || "*";
+  return `${state}:${municipality}:${activity}:${monthKey}`;
+}
+function containsFilter(value) {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "*") return null;
+  return { contains: trimmed };
+}
+async function gatherMarketSnapshot(context, params) {
+  const monthKey = marketMonthKey();
+  const stateFilter = containsFilter(params.state);
+  const municipalityFilter = containsFilter(params.municipality);
+  const activityFilter = containsFilter(params.activity);
+  const where = {};
+  const and = [];
+  if (stateFilter) and.push({ state: stateFilter });
+  if (municipalityFilter) and.push({ municipality: municipalityFilter });
+  if (activityFilter) {
+    and.push({
+      economicActivity: {
+        OR: [{ name: activityFilter }, { scianCode: activityFilter }]
+      }
+    });
+  }
+  if (and.length) where.AND = and;
+  const rows = await context.sudo().query.TechInegiEstablishment.findMany({
+    where,
+    take: ESTABLISHMENT_SAMPLE,
+    query: "id economicActivity { name scianCode }"
+  });
+  const counts = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const name = row.economicActivity?.name?.trim() || "Sin giro";
+    const scianCode = row.economicActivity?.scianCode ?? null;
+    const key = scianCode || name;
+    const current = counts.get(key);
+    if (current) current.count += 1;
+    else counts.set(key, { name, scianCode, count: 1 });
+  }
+  const activities = [...counts.values()].sort((a, b) => b.count - a.count).slice(0, SNAPSHOT_ACTIVITY_CAP);
+  const geographicCode = params.geographicCode?.trim() || "";
+  const geoCodes = geographicCode ? [geographicCode, geographicCode.slice(0, 2), "00"].filter(
+    (code, index, all) => all.indexOf(code) === index
+  ) : [];
+  const catalogIds = INEGI_INDICATOR_CATALOG.map((item) => item.id);
+  const indicatorRows = geoCodes.length ? await context.sudo().query.TechInegiIndicator.findMany({
+    where: {
+      geographicCode: { in: geoCodes },
+      indicatorId: { in: [...catalogIds] }
+    },
+    take: 40,
+    orderBy: [{ fetchedAt: "desc" }],
+    query: "indicatorName period value unit geographicCode indicatorId"
+  }) : [];
+  const seen = /* @__PURE__ */ new Set();
+  const indicators = [];
+  for (const row of indicatorRows) {
+    const key = `${row.name}:${row.geographicCode}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    indicators.push(row);
+    if (indicators.length >= SNAPSHOT_ACTIVITY_CAP) break;
+  }
+  return {
+    monthKey,
+    state: params.state?.trim() || "*",
+    municipality: params.municipality?.trim() || "*",
+    activity: params.activity?.trim() || "*",
+    geographicCode: geographicCode || "*",
+    totalSampled: rows.length,
+    activities,
+    indicators
+  };
+}
+function formatMarketSnapshotPrompt(snapshot) {
+  const activityLines = snapshot.activities.length ? snapshot.activities.map(
+    (item) => `- ${item.name}${item.scianCode ? ` (${item.scianCode})` : ""}: ${item.count}`
+  ).join("\n") : "- (sin establecimientos DENUE en el recorte)";
+  const indicatorLines = snapshot.indicators.length ? snapshot.indicators.map((item) => {
+    const value = item.value == null ? "s/d" : item.value.toLocaleString("es-MX", { maximumFractionDigits: 1 });
+    return `- ${item.name} [${item.geographicCode} ${item.period}]: ${value} ${item.unit ?? ""}`.trim();
+  }).join("\n") : "- (sin indicadores BIE cacheados para esa geograf\xEDa)";
+  return [
+    `Mes (M\xE9xico): ${snapshot.monthKey}`,
+    `Zona: estado=${snapshot.state}; municipio=${snapshot.municipality}; giro=${snapshot.activity}`,
+    `C\xF3digo geo BIE: ${snapshot.geographicCode}`,
+    `Muestra DENUE (m\xE1x. ${ESTABLISHMENT_SAMPLE} filas): ${snapshot.totalSampled} establecimientos`,
+    "Top giros en la muestra:",
+    activityLines,
+    "Indicadores oficiales cacheados:",
+    indicatorLines
+  ].join("\n");
+}
+var MARKET_ANALYSIS_FEATURE_PROMPT = `
+Analiza el mercado local con los datos oficiales (DENUE / indicadores INEGI) y el perfil de la empresa.
+Devuelve JSON con esta forma exacta:
+{"summary":"2-4 oraciones","actions":[{"title":"...","detail":"..."},{"title":"...","detail":"..."},{"title":"...","detail":"..."}]}
+Las 3 actions deben ser pasos comerciales concretos para esta empresa en esa zona.
+No inventes cifras que no est\xE9n en el snapshot. Si la muestra es chica, dilo.
+`.trim();
+var INSIGHT_QUERY2 = "id referenceKey content structuredData generatedAt";
+async function findMarketInsight(context, companyId, referenceKey) {
+  const [row] = await context.sudo().query.TechAiInsight.findMany({
+    where: {
+      company: { id: { equals: companyId } },
+      kind: { equals: AI_INSIGHT_KIND.MARKET_ANALYSIS },
+      referenceKey: { equals: referenceKey }
+    },
+    take: 1,
+    orderBy: [{ generatedAt: "desc" }],
+    query: INSIGHT_QUERY2
+  });
+  return row ?? null;
+}
+async function saveMarketInsight(context, params) {
+  const data = {
+    kind: AI_INSIGHT_KIND.MARKET_ANALYSIS,
+    referenceKey: params.referenceKey,
+    content: params.content,
+    structuredData: params.structuredData,
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    company: { connect: { id: params.companyId } }
+  };
+  if (params.existingId) {
+    return context.sudo().query.TechAiInsight.updateOne({
+      where: { id: params.existingId },
+      data,
+      query: INSIGHT_QUERY2
+    });
+  }
+  return context.sudo().query.TechAiInsight.createOne({
+    data,
+    query: INSIGHT_QUERY2
+  });
+}
+function parseMarketInsight(text58) {
+  const match = text58.match(/\{[\s\S]*\}/);
+  if (!match) {
+    return {
+      summary: text58.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      actions: []
+    };
+  }
+  try {
+    const parsed = JSON.parse(match[0]);
+    const actions = (parsed.actions ?? []).map((item) => ({
+      title: String(item.title ?? "").trim(),
+      detail: String(item.detail ?? "").trim()
+    })).filter((item) => item.title && item.detail).slice(0, 3);
+    return {
+      summary: String(parsed.summary ?? "").trim() || text58.trim().slice(0, 800),
+      actions
+    };
+  } catch {
+    return {
+      summary: text58.trim().slice(0, 800),
+      actions: []
+    };
+  }
+}
+
+// graphql/customs/ai/generateMarketInsight.ts
+var typeDefs14 = `
+  type MarketInsightAction {
+    title: String!
+    detail: String!
+  }
+
+  type MarketInsight {
+    id: ID!
+    referenceKey: String!
+    content: String
+    generatedAt: String
+    summary: String
+    actions: [MarketInsightAction!]!
+  }
+
+  type MarketInsightResult {
+    success: Boolean!
+    message: String!
+    cached: Boolean!
+    creditsCharged: Int
+    insight: MarketInsight
+  }
+`;
+var queryDefinition = `
+  marketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String): MarketInsightResult!
+`;
+var mutationDefinition = `
+  generateMarketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String, force: Boolean): MarketInsightResult!
+`;
+function toResult2(success, message, extras) {
+  return {
+    success,
+    message,
+    cached: extras?.cached ?? false,
+    creditsCharged: extras?.creditsCharged ?? null,
+    insight: extras?.insight ?? null
+  };
+}
+function structuredFromRecord(record) {
+  const data = record.structuredData;
+  const actions = (data?.actions ?? []).map((item) => ({
+    title: String(item.title ?? "").trim(),
+    detail: String(item.detail ?? "").trim()
+  })).filter((item) => item.title && item.detail);
+  return {
+    summary: data?.summary?.trim() || record.content?.trim() || "",
+    actions
+  };
+}
+function toPayload(record) {
+  const parsed = structuredFromRecord(record);
+  return {
+    id: record.id,
+    referenceKey: record.referenceKey ?? "",
+    content: record.content ?? null,
+    generatedAt: record.generatedAt ?? null,
+    summary: parsed.summary,
+    actions: parsed.actions
+  };
+}
+function friendlyAiError2(err) {
+  if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError || err instanceof AiRateLimitError) {
+    return err.message;
+  }
+  if (err instanceof AiProviderError) {
+    return `El proveedor rechaz\xF3 la llamada: ${err.message}`;
+  }
+  return err instanceof Error ? err.message : "Error al generar el an\xE1lisis de mercado";
+}
+var queryResolver = {
+  marketInsight: async (_root, args, context) => {
+    if (!canUseCompanyAi(context.session, args.companyId)) {
+      return toResult2(false, denyCompanyAiUseMessage(context.session));
+    }
+    const referenceKey = marketReferenceKey(args, marketMonthKey());
+    const existing = await findMarketInsight(context, args.companyId, referenceKey);
+    if (!existing) {
+      return toResult2(true, "A\xFAn no hay an\xE1lisis de mercado para esta zona este mes", {
+        cached: false,
+        insight: null
+      });
+    }
+    return toResult2(true, "An\xE1lisis de mercado cacheado", {
+      cached: true,
+      creditsCharged: 0,
+      insight: toPayload(existing)
+    });
+  }
+};
+var mutationResolver = {
+  generateMarketInsight: async (_root, args, context) => {
+    if (!canUseCompanyAi(context.session, args.companyId)) {
+      return toResult2(false, denyCompanyAiUseMessage(context.session));
+    }
+    const referenceKey = marketReferenceKey(args, marketMonthKey());
+    const existing = await findMarketInsight(
+      context,
+      args.companyId,
+      referenceKey
+    );
+    if (existing && !args.force) {
+      return toResult2(true, "Ya ten\xEDas este an\xE1lisis de mercado. Regenera con force.", {
+        cached: true,
+        creditsCharged: 0,
+        insight: toPayload(existing)
+      });
+    }
+    try {
+      const snapshot = await gatherMarketSnapshot(context, args);
+      const userPrompt = formatMarketSnapshotPrompt(snapshot);
+      const result = await callCompanyAi({
+        context,
+        companyId: args.companyId,
+        featurePrompt: MARKET_ANALYSIS_FEATURE_PROMPT,
+        userPrompt,
+        feature: AI_FEATURE.MARKET_ANALYSIS,
+        bill: true,
+        maxTokens: 800
+      });
+      const parsed = parseMarketInsight(result.text);
+      const content = parsed.summary + (parsed.actions.length ? "\n" + parsed.actions.map((action, index) => `${index + 1}. ${action.title} \u2014 ${action.detail}`).join("\n") : "");
+      const saved = await saveMarketInsight(context, {
+        companyId: args.companyId,
+        referenceKey,
+        content,
+        structuredData: parsed,
+        existingId: existing?.id
+      });
+      return toResult2(true, "An\xE1lisis de mercado listo", {
+        cached: false,
+        creditsCharged: result.creditsCharged,
+        insight: toPayload(saved)
+      });
+    } catch (err) {
+      return toResult2(false, friendlyAiError2(err));
+    }
+  }
+};
+var generateMarketInsight_default = {
+  typeDefs: typeDefs14,
+  queryDefinition,
+  mutationDefinition,
+  queryResolver,
+  mutationResolver
+};
+
 // utils/ai/playbook.ts
 var PLAYBOOK_REFERENCE_KEY = "playbook";
-var INSIGHT_QUERY2 = "id referenceKey content structuredData generatedAt salesPerson { id }";
+var INSIGHT_QUERY3 = "id referenceKey content structuredData generatedAt salesPerson { id }";
 var PROFILE_PLAYBOOK_FEATURE_PROMPT = `Vas a proponer exactamente 4 recomendaciones de venta para ESTA empresa, no un resumen del pipeline.
 Responde SOLO con JSON v\xE1lido, sin markdown, con esta forma:
 {"actions":[{"title":"...","detail":"..."}]}
@@ -12629,7 +13311,7 @@ async function findProfilePlaybook(context, companyId) {
     },
     take: 5,
     orderBy: [{ generatedAt: "desc" }],
-    query: INSIGHT_QUERY2
+    query: INSIGHT_QUERY3
   });
   return rows.find((row) => !row.salesPerson) ?? null;
 }
@@ -12646,17 +13328,17 @@ async function saveProfilePlaybook(context, params) {
     return await context.sudo().query.TechAiInsight.updateOne({
       where: { id: params.existingId },
       data,
-      query: INSIGHT_QUERY2
+      query: INSIGHT_QUERY3
     });
   }
   return await context.sudo().query.TechAiInsight.createOne({
     data,
-    query: INSIGHT_QUERY2
+    query: INSIGHT_QUERY3
   });
 }
 
 // graphql/customs/ai/dailyDigest.ts
-var typeDefs14 = `
+var typeDefs15 = `
   type DailyDigestAction {
     title: String!
     detail: String!
@@ -12678,15 +13360,15 @@ var typeDefs14 = `
     insight: DailyDigestInsight
   }
 `;
-var queryDefinition = `
+var queryDefinition2 = `
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
 `;
-var mutationDefinition = `
+var mutationDefinition2 = `
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
   generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
 `;
-function toResult2(success, message, extras) {
+function toResult3(success, message, extras) {
   return {
     success,
     message,
@@ -12695,7 +13377,7 @@ function toResult2(success, message, extras) {
     insight: extras?.insight ?? null
   };
 }
-function friendlyAiError2(err) {
+function friendlyAiError3(err) {
   if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError || err instanceof AiRateLimitError) {
     return err.message;
   }
@@ -12727,11 +13409,11 @@ function fallbackActions(snapshotPrompt) {
     }
   ];
 }
-var queryResolver = {
+var queryResolver2 = {
   dailyDigest: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyAi(session2, companyId)) {
-      return toResult2(false, denyCompanyAiUseMessage(session2));
+      return toResult3(false, denyCompanyAiUseMessage(session2));
     }
     const today = todayKey();
     const salesPersonId = resolveDigestSalesPersonId(session2, companyId);
@@ -12741,12 +13423,12 @@ var queryResolver = {
       today
     });
     if (!existing) {
-      return toResult2(true, "A\xFAn no hay resumen para hoy", {
+      return toResult3(true, "A\xFAn no hay resumen para hoy", {
         cached: false,
         insight: null
       });
     }
-    return toResult2(true, "Resumen del d\xEDa", {
+    return toResult3(true, "Resumen del d\xEDa", {
       cached: true,
       insight: toDigestInsightPayload(existing)
     });
@@ -12754,26 +13436,26 @@ var queryResolver = {
   aiPlaybook: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyAi(session2, companyId)) {
-      return toResult2(false, denyCompanyAiUseMessage(session2));
+      return toResult3(false, denyCompanyAiUseMessage(session2));
     }
     const existing = await findProfilePlaybook(context, companyId);
     if (!existing) {
-      return toResult2(true, "A\xFAn no hay recomendaciones de perfil", {
+      return toResult3(true, "A\xFAn no hay recomendaciones de perfil", {
         cached: false,
         insight: null
       });
     }
-    return toResult2(true, "Recomendaciones de perfil", {
+    return toResult3(true, "Recomendaciones de perfil", {
       cached: true,
       insight: toDigestInsightPayload(existing)
     });
   }
 };
-var mutationResolver = {
+var mutationResolver2 = {
   generateDailyDigest: async (_root, { companyId, force }, context) => {
     const session2 = context.session;
     if (!canUseCompanyAi(session2, companyId)) {
-      return toResult2(false, denyCompanyAiUseMessage(session2));
+      return toResult3(false, denyCompanyAiUseMessage(session2));
     }
     const today = todayKey();
     const salesPersonId = resolveDigestSalesPersonId(session2, companyId);
@@ -12783,7 +13465,7 @@ var mutationResolver = {
       today
     });
     if (existing && !force) {
-      return toResult2(true, "Ya ten\xEDas el resumen de hoy. P\xE1salo a acci\xF3n.", {
+      return toResult3(true, "Ya ten\xEDas el resumen de hoy. P\xE1salo a acci\xF3n.", {
         cached: true,
         creditsCharged: 0,
         insight: toDigestInsightPayload(existing)
@@ -12817,23 +13499,23 @@ var mutationResolver = {
         actions,
         existingId: existing?.id
       });
-      return toResult2(true, "Listo. Estos son tus 3 siguientes pasos de hoy.", {
+      return toResult3(true, "Listo. Estos son tus 3 siguientes pasos de hoy.", {
         cached: false,
         creditsCharged: result.creditsCharged,
         insight: toDigestInsightPayload(saved)
       });
     } catch (err) {
-      return toResult2(false, friendlyAiError2(err));
+      return toResult3(false, friendlyAiError3(err));
     }
   },
   generateAiPlaybook: async (_root, { companyId, force }, context) => {
     const session2 = context.session;
     if (!canUseCompanyAi(session2, companyId)) {
-      return toResult2(false, denyCompanyAiUseMessage(session2));
+      return toResult3(false, denyCompanyAiUseMessage(session2));
     }
     const existing = await findProfilePlaybook(context, companyId);
     if (existing && !force) {
-      return toResult2(true, "Ya ten\xEDas recomendaciones. \xDAsalas o regenera.", {
+      return toResult3(true, "Ya ten\xEDas recomendaciones. \xDAsalas o regenera.", {
         cached: true,
         creditsCharged: 0,
         insight: toDigestInsightPayload(existing)
@@ -12866,27 +13548,27 @@ var mutationResolver = {
         actions: actions.slice(0, 4),
         existingId: existing?.id
       });
-      return toResult2(true, "Listo. Estas recomendaciones salen de tu perfil.", {
+      return toResult3(true, "Listo. Estas recomendaciones salen de tu perfil.", {
         cached: false,
         creditsCharged: result.creditsCharged,
         insight: toDigestInsightPayload(saved)
       });
     } catch (err) {
-      return toResult2(false, friendlyAiError2(err));
+      return toResult3(false, friendlyAiError3(err));
     }
   }
 };
 var dailyDigest_default = {
-  typeDefs: typeDefs14,
-  queryDefinition,
-  mutationDefinition,
-  queryResolver,
-  mutationResolver
+  typeDefs: typeDefs15,
+  queryDefinition: queryDefinition2,
+  mutationDefinition: mutationDefinition2,
+  queryResolver: queryResolver2,
+  mutationResolver: mutationResolver2
 };
 
 // utils/ai/companyBrief.ts
 var COMPANY_BRIEF_REFERENCE_KEY = "company_brief";
-var INSIGHT_QUERY3 = "id referenceKey content structuredData generatedAt salesPerson { id }";
+var INSIGHT_QUERY4 = "id referenceKey content structuredData generatedAt salesPerson { id }";
 var COMPANY_BRIEF_PILLAR_KEYS = [
   "onboardingMainOffer",
   "onboardingIdealCustomer",
@@ -12975,8 +13657,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text53) {
-  const stripped = text53.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text58) {
+  const stripped = text58.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -12986,8 +13668,8 @@ function parseJsonObject(text53) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text53, company) {
-  const parsed = parseJsonObject(text53);
+function parseCompanyBriefPillars(text58, company) {
+  const parsed = parseJsonObject(text58);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -13060,7 +13742,7 @@ async function findCompanyBrief(context, companyId) {
     },
     take: 5,
     orderBy: [{ generatedAt: "desc" }],
-    query: INSIGHT_QUERY3
+    query: INSIGHT_QUERY4
   });
   return rows.find((row) => !row.salesPerson) ?? null;
 }
@@ -13080,17 +13762,17 @@ async function saveCompanyBrief(context, params) {
     return await context.sudo().query.TechAiInsight.updateOne({
       where: { id: params.existingId },
       data,
-      query: INSIGHT_QUERY3
+      query: INSIGHT_QUERY4
     });
   }
   return await context.sudo().query.TechAiInsight.createOne({
     data,
-    query: INSIGHT_QUERY3
+    query: INSIGHT_QUERY4
   });
 }
 
 // graphql/customs/ai/companyBrief.ts
-var typeDefs15 = `
+var typeDefs16 = `
   type CompanyAiBriefPillar {
     key: String!
     title: String!
@@ -13113,13 +13795,13 @@ var typeDefs15 = `
     insight: CompanyAiBriefInsight
   }
 `;
-var queryDefinition2 = `
+var queryDefinition3 = `
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
 `;
-var mutationDefinition2 = `
+var mutationDefinition3 = `
   generateCompanyAiBrief(companyId: ID!, force: Boolean): CompanyAiBriefResult!
 `;
-function toResult3(success, message, extras) {
+function toResult4(success, message, extras) {
   return {
     success,
     message,
@@ -13128,7 +13810,7 @@ function toResult3(success, message, extras) {
     insight: extras?.insight ?? null
   };
 }
-function friendlyAiError3(err) {
+function friendlyAiError4(err) {
   if (err instanceof AiNotConfiguredError || err instanceof AiInsufficientCreditsError || err instanceof AiPlatformNotConfiguredError || err instanceof AiRateLimitError) {
     return err.message;
   }
@@ -13143,45 +13825,45 @@ async function loadCompany(context, companyId) {
     query: "id name onboardingMainOffer onboardingIdealCustomer onboardingAvgTicketValue onboardingSalesPain"
   });
 }
-var queryResolver2 = {
+var queryResolver3 = {
   companyAiBrief: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyAi(session2, companyId)) {
-      return toResult3(false, denyCompanyAiUseMessage(session2));
+      return toResult4(false, denyCompanyAiUseMessage(session2));
     }
     const company = await loadCompany(context, companyId) ?? {};
     const existing = await findCompanyBrief(context, companyId);
     if (!existing) {
-      return toResult3(true, "A\xFAn no hay un resumen de tu negocio", {
+      return toResult4(true, "A\xFAn no hay un resumen de tu negocio", {
         cached: false,
         insight: null
       });
     }
-    return toResult3(true, "Lo que Kadesh AI sabe de tu empresa", {
+    return toResult4(true, "Lo que Kadesh AI sabe de tu empresa", {
       cached: true,
       insight: toCompanyBriefPayload(existing, company)
     });
   }
 };
-var mutationResolver2 = {
+var mutationResolver3 = {
   generateCompanyAiBrief: async (_root, { companyId, force }, context) => {
     const session2 = context.session;
     if (!canUseCompanyAi(session2, companyId)) {
-      return toResult3(false, denyCompanyAiUseMessage(session2));
+      return toResult4(false, denyCompanyAiUseMessage(session2));
     }
     const company = await loadCompany(context, companyId) ?? {};
     const sourceHash = companyBriefSourceHash(company);
     const existing = await findCompanyBrief(context, companyId);
     const existingHash = existing ? sourceHashFromStructuredData(existing.structuredData) : "";
     if (existing && !force) {
-      return toResult3(true, "Ya hab\xEDa un resumen de tu negocio.", {
+      return toResult4(true, "Ya hab\xEDa un resumen de tu negocio.", {
         cached: true,
         creditsCharged: 0,
         insight: toCompanyBriefPayload(existing, company)
       });
     }
     if (existing && force && existingHash === sourceHash) {
-      return toResult3(true, "El perfil no cambi\xF3. Seguimos con el mismo resumen.", {
+      return toResult4(true, "El perfil no cambi\xF3. Seguimos con el mismo resumen.", {
         cached: true,
         creditsCharged: 0,
         insight: toCompanyBriefPayload(existing, company)
@@ -13198,7 +13880,7 @@ var mutationResolver2 = {
         sourceHash,
         existingId: existing?.id
       });
-      return toResult3(true, "Completa los cuatro puntos para que Kadesh AI conozca tu negocio.", {
+      return toResult4(true, "Completa los cuatro puntos para que Kadesh AI conozca tu negocio.", {
         cached: false,
         creditsCharged: 0,
         insight: toCompanyBriefPayload(saved, company)
@@ -13224,28 +13906,2035 @@ var mutationResolver2 = {
         sourceHash,
         existingId: existing?.id
       });
-      return toResult3(true, "Listo. Esto es lo que Kadesh AI ya sabe de tu negocio.", {
+      return toResult4(true, "Listo. Esto es lo que Kadesh AI ya sabe de tu negocio.", {
         cached: false,
         creditsCharged: result.creditsCharged,
         insight: toCompanyBriefPayload(saved, company)
       });
     } catch (err) {
       if (existing) {
-        return toResult3(false, friendlyAiError3(err), {
+        return toResult4(false, friendlyAiError4(err), {
           insight: toCompanyBriefPayload(existing, company)
         });
       }
-      return toResult3(false, friendlyAiError3(err));
+      return toResult4(false, friendlyAiError4(err));
     }
   }
 };
 var companyBrief_default = {
-  typeDefs: typeDefs15,
-  queryDefinition: queryDefinition2,
-  mutationDefinition: mutationDefinition2,
-  queryResolver: queryResolver2,
-  mutationResolver: mutationResolver2
+  typeDefs: typeDefs16,
+  queryDefinition: queryDefinition3,
+  mutationDefinition: mutationDefinition3,
+  queryResolver: queryResolver3,
+  mutationResolver: mutationResolver3
 };
+
+// utils/inegi/throttle.ts
+var DEFAULT_DELAY_MS = 400;
+var MAX_RETRIES = 3;
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function isRetryableStatus(status) {
+  return status === 429 || status >= 500;
+}
+async function inegiFetch(url, options) {
+  const retries = options?.retries ?? MAX_RETRIES;
+  const delayMs = options?.delayMs ?? DEFAULT_DELAY_MS;
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    if (attempt > 0 || delayMs > 0) {
+      const backoff = attempt === 0 ? delayMs : delayMs * 2 ** (attempt - 1);
+      await sleep(backoff);
+    }
+    try {
+      const res = await fetch(url);
+      if (isRetryableStatus(res.status) && attempt < retries) {
+        lastError = new Error(`INEGI HTTP ${res.status}`);
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= retries) break;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("No se pudo contactar la API de INEGI");
+}
+
+// utils/inegi/denue.ts
+var DENUE_BASE = "https://www.inegi.org.mx/app/api/denue/v1/consulta";
+var MAX_RADIUS_METERS = 5e3;
+var PAGE_SIZE_CAP = 1e3;
+function denueToken() {
+  const token = process.env.INEGI_DENUE_TOKEN?.trim();
+  if (!token) {
+    throw new Error("INEGI_DENUE_TOKEN no configurada");
+  }
+  return token;
+}
+function encodeDenueCondition(value, fallback) {
+  const ascii = (value.trim() || fallback).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const parts = ascii.split(/[\s,]+/).filter(Boolean);
+  const words = parts.length ? parts : [fallback];
+  return words.map((word) => encodeURIComponent(word)).join(",");
+}
+function isDenueEmptyBody(text58) {
+  const trimmed = text58.trim().toLowerCase();
+  if (!trimmed) return true;
+  return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
+}
+async function parseDenueList(res) {
+  const text58 = await res.text();
+  if (isDenueEmptyBody(text58)) return [];
+  if (!res.ok) {
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text58.slice(0, 200)}`);
+  }
+  let data;
+  try {
+    data = JSON.parse(text58);
+  } catch {
+    throw new Error(
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text58.slice(0, 200)}`
+    );
+  }
+  if (!Array.isArray(data)) {
+    throw new Error("INEGI DENUE no devolvi\xF3 una lista de establecimientos");
+  }
+  return data;
+}
+async function searchByLocation(params) {
+  const token = denueToken();
+  const radius = Math.min(
+    Math.max(Math.floor(params.radiusMeters), 1),
+    MAX_RADIUS_METERS
+  );
+  const condition = encodeDenueCondition(params.keyword ?? "", "todos");
+  const url = `${DENUE_BASE}/Buscar/${condition}/${params.lat},${params.lng}/${radius}/${token}`;
+  const res = await inegiFetch(url);
+  return parseDenueList(res);
+}
+async function searchByAreaActivity(params) {
+  const token = denueToken();
+  const start = Math.max(1, Math.floor(params.start));
+  const end = Math.min(
+    Math.max(start, Math.floor(params.end)),
+    start + PAGE_SIZE_CAP - 1
+  );
+  const scian = (params.scianCode ?? "").replace(/\D/g, "");
+  const sector = scian.slice(0, 2) || "0";
+  const subsector = scian.slice(0, 3) || "0";
+  const rama = scian.slice(0, 4) || "0";
+  const clase = scian.slice(0, 6) || "0";
+  const name = params.keyword?.trim() ? encodeDenueCondition(params.keyword, "0") : "0";
+  const url = [
+    DENUE_BASE,
+    "BuscarAreaAct",
+    params.stateCode || "0",
+    params.municipalityCode || "0",
+    params.localityCode || "0",
+    "0",
+    "0",
+    sector,
+    subsector,
+    rama,
+    clase,
+    name,
+    String(start),
+    String(end),
+    "0",
+    token
+  ].join("/");
+  const res = await inegiFetch(url);
+  return parseDenueList(res);
+}
+var DENUE_MAX_RADIUS_METERS = MAX_RADIUS_METERS;
+var DENUE_PAGE_SIZE_CAP = PAGE_SIZE_CAP;
+
+// utils/inegi/indicadores.ts
+var INDICADORES_BASE = "https://www.inegi.org.mx/app/api/indicadores/desarrolladores/jsonxml/INDICATOR";
+function indicadoresToken() {
+  const token = process.env.INEGI_INDICADORES_TOKEN?.trim();
+  if (!token) {
+    throw new Error("INEGI_INDICADORES_TOKEN no configurada");
+  }
+  return token;
+}
+function geographicLevelFromCode(code) {
+  const digits = code.replace(/\D/g, "");
+  if (!digits || digits === "0" || digits === "00") {
+    return INEGI_GEOGRAPHIC_LEVEL.NACIONAL;
+  }
+  if (digits.length <= 2) return INEGI_GEOGRAPHIC_LEVEL.ESTATAL;
+  return INEGI_GEOGRAPHIC_LEVEL.MUNICIPAL;
+}
+function indicatorCacheKey(indicatorId, geographicCode, period) {
+  return `${indicatorId}:${geographicCode}:${period}`;
+}
+function parseValue(raw) {
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+async function getIndicator(indicatorId, geographicArea, recent = true, source = "BISE") {
+  const token = indicadoresToken();
+  const area = geographicArea.trim() || "00";
+  const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
+  const res = await inegiFetch(url);
+  const text58 = await res.text();
+  if (!res.ok) {
+    throw new Error(
+      `INEGI Indicadores HTTP ${res.status}: ${text58.slice(0, 200)}`
+    );
+  }
+  try {
+    return JSON.parse(text58);
+  } catch {
+    throw new Error(
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text58.slice(0, 200)}`
+    );
+  }
+}
+function mapIndicatorResponse(indicatorId, geographicCode, payload, fallbackName) {
+  const series = payload.Series ?? [];
+  const mapped = [];
+  const level = geographicLevelFromCode(geographicCode);
+  for (const item of series) {
+    const unit = item.UNIT ?? "";
+    const name = fallbackName || payload.Header?.Name || item.INDICADOR || indicatorId;
+    for (const obs of item.OBSERVATIONS ?? []) {
+      const period = String(obs.TIME_PERIOD ?? "").trim();
+      if (!period) continue;
+      mapped.push({
+        cacheKey: indicatorCacheKey(indicatorId, geographicCode, period),
+        indicatorId,
+        indicatorName: name,
+        geographicLevel: level,
+        geographicCode,
+        period,
+        value: parseValue(obs.OBS_VALUE),
+        unit
+      });
+    }
+  }
+  return mapped;
+}
+
+// utils/inegi/mapEstablishment.ts
+function asString(value) {
+  if (value == null) return "";
+  return String(value).trim();
+}
+function parseFloatOrNull(value) {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(String(value).trim());
+  return Number.isFinite(n) ? n : null;
+}
+function slugActivity(name) {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+}
+function resolveScian(code, name) {
+  const scianName = asString(name) || null;
+  const rawCode = asString(code);
+  if (rawCode) return { scianCode: rawCode, scianName };
+  if (scianName) return { scianCode: `n:${slugActivity(scianName)}`, scianName };
+  return { scianCode: null, scianName: null };
+}
+function mapDenueApiRow(row) {
+  const clee = asString(row.CLEE);
+  const name = asString(row.Nombre);
+  if (!clee || !name) return null;
+  const { scianCode, scianName } = resolveScian(
+    row.Codigo_Act ?? row.Clave ?? row.Clase,
+    row.Clase_actividad
+  );
+  const ubicacion = asString(row.Ubicacion);
+  const parts = ubicacion.split(",").map((p) => p.trim()).filter(Boolean);
+  const inferredState = parts.length >= 1 ? parts[parts.length - 1] : "";
+  const inferredMunicipality = parts.length >= 2 ? parts[parts.length - 2] : "";
+  return {
+    clee,
+    name,
+    legalName: asString(row.Razon_social),
+    employeeStratum: asString(row.Estrato),
+    scianCode,
+    scianName,
+    street: asString(row.Calle) || asString(row.Tipo_vialidad),
+    exteriorNumber: asString(row.Num_Exterior),
+    interiorNumber: asString(row.Num_Interior),
+    neighborhood: asString(row.Colonia),
+    postalCode: asString(row.CP),
+    locality: asString(row.Localidad),
+    municipality: asString(row.Municipio) || inferredMunicipality,
+    state: asString(row.Entidad) || inferredState,
+    phone: asString(row.Telefono),
+    email: asString(row.Correo_e),
+    website: asString(row.Sitio_internet),
+    lat: parseFloatOrNull(row.Latitud),
+    lng: parseFloatOrNull(row.Longitud),
+    rawPayload: { ...row }
+  };
+}
+function formatEstablishmentAddress(mapped) {
+  return [
+    mapped.street,
+    mapped.exteriorNumber,
+    mapped.neighborhood,
+    mapped.postalCode,
+    mapped.locality,
+    mapped.municipality,
+    mapped.state
+  ].filter((part) => part && part.trim()).join(", ");
+}
+
+// utils/inegi/upsertEstablishment.ts
+var ACTIVITY_QUERY = "id scianCode name";
+async function getOrCreateEconomicActivity(context, scianCode, name) {
+  const code = scianCode.trim();
+  if (!code) return null;
+  const existing = await context.sudo().query.TechInegiEconomicActivity.findOne({
+    where: { scianCode: code },
+    query: ACTIVITY_QUERY
+  });
+  if (existing) return { id: existing.id };
+  try {
+    const created = await context.sudo().query.TechInegiEconomicActivity.createOne({
+      data: {
+        scianCode: code,
+        name: (name ?? code).trim() || code
+      },
+      query: "id"
+    });
+    return { id: created.id };
+  } catch {
+    const raced = await context.sudo().query.TechInegiEconomicActivity.findOne({
+      where: { scianCode: code },
+      query: "id"
+    });
+    return raced ? { id: raced.id } : null;
+  }
+}
+async function upsertEstablishment(context, mapped) {
+  const activity = mapped.scianCode != null ? await getOrCreateEconomicActivity(
+    context,
+    mapped.scianCode,
+    mapped.scianName
+  ) : null;
+  const data = {
+    name: mapped.name,
+    legalName: mapped.legalName,
+    employeeStratum: mapped.employeeStratum,
+    street: mapped.street,
+    exteriorNumber: mapped.exteriorNumber,
+    interiorNumber: mapped.interiorNumber,
+    neighborhood: mapped.neighborhood,
+    postalCode: mapped.postalCode,
+    locality: mapped.locality,
+    municipality: mapped.municipality,
+    state: mapped.state,
+    phone: mapped.phone,
+    email: mapped.email,
+    website: mapped.website,
+    lat: mapped.lat,
+    lng: mapped.lng,
+    rawPayload: mapped.rawPayload,
+    lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  if (activity) {
+    data.economicActivity = { connect: { id: activity.id } };
+  }
+  const existing = await context.sudo().query.TechInegiEstablishment.findOne({
+    where: { clee: mapped.clee },
+    query: "id"
+  });
+  if (existing) {
+    await context.sudo().query.TechInegiEstablishment.updateOne({
+      where: { id: existing.id },
+      data
+    });
+    return "updated";
+  }
+  await context.sudo().query.TechInegiEstablishment.createOne({
+    data: {
+      clee: mapped.clee,
+      ...data
+    }
+  });
+  return "created";
+}
+
+// utils/inegi/upsertIndicator.ts
+async function upsertMappedIndicator(context, mapped) {
+  const existing = await context.sudo().query.TechInegiIndicator.findOne({
+    where: { cacheKey: mapped.cacheKey },
+    query: "id"
+  });
+  const data = {
+    indicatorId: mapped.indicatorId,
+    indicatorName: mapped.indicatorName,
+    geographicLevel: mapped.geographicLevel,
+    geographicCode: mapped.geographicCode,
+    period: mapped.period,
+    value: mapped.value,
+    unit: mapped.unit,
+    fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  if (existing) {
+    await context.sudo().query.TechInegiIndicator.updateOne({
+      where: { id: existing.id },
+      data
+    });
+    return "updated";
+  }
+  await context.sudo().query.TechInegiIndicator.createOne({
+    data: { cacheKey: mapped.cacheKey, ...data }
+  });
+  return "created";
+}
+async function fetchAndCacheIndicator(context, indicatorId, geographicCode, recent = true) {
+  const catalog = findCatalogIndicator(indicatorId);
+  const payload = await getIndicator(indicatorId, geographicCode, recent);
+  const mapped = mapIndicatorResponse(
+    indicatorId,
+    geographicCode,
+    payload,
+    catalog?.name
+  );
+  let created = 0;
+  let updated = 0;
+  for (const row of mapped) {
+    const result = await upsertMappedIndicator(context, row);
+    if (result === "created") created += 1;
+    else updated += 1;
+  }
+  return { mapped, created, updated };
+}
+
+// graphql/customs/mutations/inegi/syncEstablishmentsFromInegi.ts
+var typeDefs17 = `
+  input SyncEstablishmentsFromInegiInput {
+    lat: Float
+    lng: Float
+    radiusMeters: Int
+    keyword: String
+    stateCode: String
+    municipalityCode: String
+    localityCode: String
+    scianCode: String
+    maxResults: Int
+  }
+
+  type SyncEstablishmentsFromInegiResult {
+    success: Boolean!
+    message: String!
+    created: Int!
+    updated: Int!
+    alreadyInDb: Int!
+    totalFetched: Int!
+  }
+
+  type Mutation {
+    syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
+  }
+`;
+var definition14 = `
+  syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
+`;
+function emptyResult(message, extras) {
+  return {
+    success: false,
+    message,
+    created: 0,
+    updated: 0,
+    alreadyInDb: 0,
+    totalFetched: 0,
+    ...extras
+  };
+}
+async function logSync(context, userId, input, result) {
+  try {
+    await context.sudo().query.TechInegiSyncLog.createOne({
+      data: {
+        ...userId ? { user: { connect: { id: userId } } } : {},
+        success: result.success,
+        message: result.message,
+        created: result.created,
+        updated: result.updated,
+        alreadyInDb: result.alreadyInDb,
+        totalFetched: result.totalFetched,
+        sourceMethod: INEGI_SYNC_SOURCE.API,
+        searchParams: input
+      }
+    });
+  } catch (err) {
+    console.error("TechInegiSyncLog create failed", err);
+  }
+}
+async function fetchRows(input, cap) {
+  const hasPoint = typeof input.lat === "number" && typeof input.lng === "number";
+  const stateCode = input.stateCode?.trim();
+  if (hasPoint) {
+    return searchByLocation({
+      lat: input.lat,
+      lng: input.lng,
+      radiusMeters: input.radiusMeters ?? 1e3,
+      keyword: input.keyword ?? void 0
+    });
+  }
+  if (stateCode) {
+    return searchByAreaActivity({
+      stateCode,
+      municipalityCode: input.municipalityCode ?? void 0,
+      localityCode: input.localityCode ?? void 0,
+      scianCode: input.scianCode ?? void 0,
+      keyword: input.keyword ?? void 0,
+      start: 1,
+      end: Math.min(cap, DENUE_PAGE_SIZE_CAP)
+    });
+  }
+  throw new Error(
+    "Indica lat/lng (b\xFAsqueda por radio) o stateCode (b\xFAsqueda por \xE1rea)"
+  );
+}
+var resolver14 = {
+  syncEstablishmentsFromInegi: async (_root, { input }, context) => {
+    if (!isSignedIn(context.session)) {
+      return emptyResult("Debes iniciar sesi\xF3n para sincronizar DENUE");
+    }
+    if (!process.env.INEGI_DENUE_TOKEN?.trim()) {
+      return emptyResult("INEGI_DENUE_TOKEN no configurada");
+    }
+    const userId = getSessionUserId(context.session);
+    const cap = Math.min(
+      Math.max(1, input.maxResults ?? INEGI_LIVE_SYNC_CAP),
+      INEGI_LIVE_SYNC_CAP
+    );
+    if (typeof input.radiusMeters === "number" && input.radiusMeters > DENUE_MAX_RADIUS_METERS) {
+      const result = emptyResult(
+        `El radio m\xE1ximo de DENUE es ${DENUE_MAX_RADIUS_METERS} metros`
+      );
+      await logSync(context, userId, input, result);
+      return result;
+    }
+    try {
+      const rows = (await fetchRows(input, cap)).slice(0, cap);
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+      for (const row of rows) {
+        const mapped = mapDenueApiRow(row);
+        if (!mapped) {
+          skipped += 1;
+          continue;
+        }
+        const status = await upsertEstablishment(context, mapped);
+        if (status === "created") created += 1;
+        else updated += 1;
+      }
+      const result = {
+        success: true,
+        message: `DENUE: ${created} nuevos, ${updated} actualizados, ${skipped} omitidos`,
+        created,
+        updated,
+        alreadyInDb: updated,
+        totalFetched: rows.length
+      };
+      await logSync(context, userId, input, result);
+      return result;
+    } catch (err) {
+      const result = emptyResult(
+        err instanceof Error ? err.message : "Error al consultar DENUE"
+      );
+      await logSync(context, userId, input, result);
+      return result;
+    }
+  }
+};
+var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs17, definition: definition14, resolver: resolver14 };
+
+// utils/constants/googlePlaceCategories.ts
+var GOOGLE_PLACE_CATEGORIES = [
+  // ── SALUD ──────────────────────────────────────────────
+  { value: "m\xE9dicos", label: "M\xE9dicos" },
+  { value: "dentistas", label: "Dentistas" },
+  { value: "cl\xEDnicas", label: "Cl\xEDnicas" },
+  { value: "laboratorios", label: "Laboratorios" },
+  { value: "farmacias", label: "Farmacias" },
+  { value: "\xF3pticas", label: "\xD3pticas" },
+  { value: "veterinarias", label: "Veterinarias" },
+  { value: "psic\xF3logos", label: "Psic\xF3logos" },
+  { value: "fisioterapeutas", label: "Fisioterapeutas" },
+  { value: "nutri\xF3logos", label: "Nutri\xF3logos" },
+  { value: "quiropr\xE1cticos", label: "Quiropr\xE1cticos" },
+  { value: "centros de rehabilitaci\xF3n", label: "Centros de rehabilitaci\xF3n" },
+  { value: "hospitales", label: "Hospitales" },
+  { value: "centros de diagn\xF3stico", label: "Centros de diagn\xF3stico" },
+  { value: "medicina est\xE9tica", label: "Medicina est\xE9tica" },
+  { value: "cirujanos pl\xE1sticos", label: "Cirujanos pl\xE1sticos" },
+  { value: "pediatras", label: "Pediatras" },
+  { value: "ginec\xF3logos", label: "Ginec\xF3logos" },
+  { value: "dermat\xF3logos", label: "Dermat\xF3logos" },
+  { value: "oftalm\xF3logos", label: "Oftalm\xF3logos" },
+  // ── LEGAL Y FINANCIERO ─────────────────────────────────
+  { value: "abogados", label: "Abogados" },
+  { value: "notar\xEDas", label: "Notar\xEDas" },
+  { value: "contadores", label: "Contadores" },
+  { value: "bancos", label: "Bancos" },
+  { value: "seguros", label: "Seguros" },
+  { value: "casas de cambio", label: "Casas de cambio" },
+  { value: "despachos contables", label: "Despachos contables" },
+  { value: "consultoras empresariales", label: "Consultoras empresariales" },
+  { value: "gestor\xEDas", label: "Gestor\xEDas" },
+  // ── EDUCACIÓN ──────────────────────────────────────────
+  { value: "escuelas", label: "Escuelas" },
+  { value: "guarder\xEDas", label: "Guarder\xEDas" },
+  { value: "autoescuelas", label: "Autoescuelas" },
+  { value: "universidades", label: "Universidades" },
+  { value: "academias de idiomas", label: "Academias de idiomas" },
+  { value: "academias de m\xFAsica", label: "Academias de m\xFAsica" },
+  { value: "academias de baile", label: "Academias de baile" },
+  { value: "tutor\xEDas", label: "Tutor\xEDas" },
+  { value: "centros de capacitaci\xF3n", label: "Centros de capacitaci\xF3n" },
+  { value: "colegios privados", label: "Colegios privados" },
+  // ── ALIMENTACIÓN ───────────────────────────────────────
+  { value: "restaurantes", label: "Restaurantes" },
+  { value: "cafeter\xEDas", label: "Cafeter\xEDas" },
+  { value: "bares", label: "Bares" },
+  { value: "panader\xEDas", label: "Panader\xEDas" },
+  { value: "pasteler\xEDas", label: "Pasteler\xEDas" },
+  { value: "taquer\xEDas", label: "Taquer\xEDas" },
+  { value: "fondas", label: "Fondas" },
+  { value: "pizzer\xEDas", label: "Pizzer\xEDas" },
+  { value: "marisquer\xEDas", label: "Marisquer\xEDas" },
+  { value: "cocinas econ\xF3micas", label: "Cocinas econ\xF3micas" },
+  { value: "helader\xEDas", label: "Helader\xEDas" },
+  { value: "juguer\xEDas", label: "Juguer\xEDas" },
+  { value: "supermercados", label: "Supermercados" },
+  { value: "carnicer\xEDas", label: "Carnicer\xEDas" },
+  { value: "tortiller\xEDas", label: "Tortiller\xEDas" },
+  // ── BELLEZA Y BIENESTAR ────────────────────────────────
+  { value: "salones de belleza", label: "Salones de belleza" },
+  { value: "peluquer\xEDas", label: "Peluquer\xEDas" },
+  { value: "spa", label: "Spa" },
+  { value: "gimnasios", label: "Gimnasios" },
+  { value: "gimnasios de box", label: "Gimnasios de box" },
+  { value: "estudios de yoga", label: "Estudios de yoga" },
+  { value: "estudios de pilates", label: "Estudios de pilates" },
+  { value: "centros de tatuajes", label: "Centros de tatuajes" },
+  { value: "centros de depilaci\xF3n", label: "Centros de depilaci\xF3n" },
+  { value: "barber\xEDas", label: "Barber\xEDas" },
+  { value: "u\xF1as y est\xE9tica", label: "U\xF1as y est\xE9tica" },
+  // ── COMERCIO ───────────────────────────────────────────
+  { value: "tiendas de ropa", label: "Tiendas de ropa" },
+  { value: "tiendas de mascotas", label: "Tiendas de mascotas" },
+  { value: "joyer\xEDas", label: "Joyer\xEDas" },
+  { value: "muebler\xEDas", label: "Muebler\xEDas" },
+  { value: "librer\xEDas", label: "Librer\xEDas" },
+  { value: "florer\xEDas", label: "Florer\xEDas" },
+  { value: "ferreter\xEDas", label: "Ferreter\xEDas" },
+  { value: "electr\xF3nica", label: "Electr\xF3nica" },
+  { value: "\xF3pticas", label: "\xD3pticas" },
+  { value: "tiendas de deportes", label: "Tiendas de deportes" },
+  { value: "tiendas de celulares", label: "Tiendas de celulares" },
+  { value: "papeler\xEDas", label: "Papeler\xEDas" },
+  { value: "jugueter\xEDas", label: "Jugueter\xEDas" },
+  { value: "tiendas de novias", label: "Tiendas de novias" },
+  { value: "tiendas de abarrotes", label: "Tiendas de abarrotes" },
+  { value: "tiendas de materiales", label: "Tiendas de materiales" },
+  { value: "distribuidoras", label: "Distribuidoras" },
+  // ── INDUSTRIA Y PRODUCCIÓN ─────────────────────────────
+  { value: "f\xE1bricas", label: "F\xE1bricas" },
+  { value: "procesadoras", label: "Procesadoras" },
+  { value: "servicio de distribuci\xF3n", label: "Servicio de distribuci\xF3n" },
+  // ── SERVICIOS AL HOGAR ─────────────────────────────────
+  { value: "plomeros", label: "Plomeros" },
+  { value: "electricistas", label: "Electricistas" },
+  { value: "carpinter\xEDas", label: "Carpinter\xEDas" },
+  { value: "lavander\xEDas", label: "Lavander\xEDas" },
+  { value: "mudanzas", label: "Mudanzas" },
+  { value: "herrer\xEDa", label: "Herrer\xEDa" },
+  { value: "pintura y construcci\xF3n", label: "Pintura y construcci\xF3n" },
+  { value: "impermeabilizantes", label: "Impermeabilizantes" },
+  { value: "albaniler\xEDa", label: "Albaniler\xEDa" },
+  { value: "fumigaci\xF3n", label: "Fumigaci\xF3n" },
+  { value: "limpieza de hogares", label: "Limpieza de hogares" },
+  { value: "instalaci\xF3n de alarmas", label: "Instalaci\xF3n de alarmas" },
+  { value: "cerrajeros", label: "Cerrajeros" },
+  // ── AUTOMOTRIZ ─────────────────────────────────────────
+  { value: "talleres mec\xE1nicos", label: "Talleres mec\xE1nicos" },
+  { value: "gasolineras", label: "Gasolineras" },
+  { value: "agencias de autos", label: "Agencias de autos" },
+  { value: "refaccionarias", label: "Refaccionarias" },
+  { value: "llanter\xEDas", label: "Llanter\xEDas" },
+  { value: "hojalater\xEDa y pintura", label: "Hojalater\xEDa y pintura" },
+  { value: "verificaciones", label: "Verificaciones" },
+  { value: "renta de autos", label: "Renta de autos" },
+  { value: "estacionamientos", label: "Estacionamientos" },
+  // ── INMOBILIARIO Y CONSTRUCCIÓN ────────────────────────
+  { value: "inmobiliarias", label: "Inmobiliarias" },
+  { value: "constructoras", label: "Constructoras" },
+  { value: "arquitectos", label: "Arquitectos" },
+  { value: "dise\xF1adores de interiores", label: "Dise\xF1adores de interiores" },
+  { value: "valuadores", label: "Valuadores" },
+  { value: "desarrolladoras", label: "Desarrolladoras" },
+  // ── TURISMO Y ENTRETENIMIENTO ──────────────────────────
+  { value: "hoteles", label: "Hoteles" },
+  { value: "agencias de viajes", label: "Agencias de viajes" },
+  { value: "salones de eventos", label: "Salones de eventos" },
+  { value: "fotograf\xEDa y video", label: "Fotograf\xEDa y video" },
+  { value: "grupos de m\xFAsica", label: "Grupos de m\xFAsica" },
+  { value: "recreaci\xF3n infantil", label: "Recreaci\xF3n infantil" },
+  { value: "cines", label: "Cines" },
+  { value: "escape rooms", label: "Escape rooms" },
+  { value: "parques de diversiones", label: "Parques de diversiones" },
+  { value: "canchas deportivas", label: "Canchas deportivas" },
+  // ── SERVICIOS DIGITALES Y CREATIVOS ───────────────────
+  { value: "agencias de marketing", label: "Agencias de marketing" },
+  { value: "agencias de dise\xF1o", label: "Agencias de dise\xF1o" },
+  { value: "imprentas", label: "Imprentas" },
+  { value: "fotograf\xEDa", label: "Fotograf\xEDa" },
+  { value: "estudio de grabaci\xF3n", label: "Estudio de grabaci\xF3n" },
+  { value: "agencias de publicidad", label: "Agencias de publicidad" },
+  // ── RELIGIOSO Y SOCIAL ─────────────────────────────────
+  { value: "iglesias", label: "Iglesias" },
+  { value: "funerarias", label: "Funerarias" },
+  { value: "asilos y casas de reposo", label: "Asilos y casas de reposo" },
+  { value: "orfanatos", label: "Orfanatos" },
+  { value: "organizaciones sin fines de lucro", label: "ONG / Sin fines de lucro" },
+  // ── OTROS ──────────────────────────────────────────────
+  { value: "negocios locales", label: "Negocios locales" },
+  { value: "otra", label: "Otra" }
+];
+
+// utils/constants/inegiDenueCategories.ts
+var INEGI_DENUE_CATEGORIES = [
+  // ── SALUD (62) ─────────────────────────────────────────
+  { value: "medicina", label: "M\xE9dicos" },
+  // 621111 medicina general, 621113 especializada
+  { value: "dentales", label: "Dentistas" },
+  // 621211 Consultorios dentales
+  { value: "clinicas", label: "Cl\xEDnicas" },
+  // 621115 Clínicas de consultorios médicos
+  { value: "laboratorios", label: "Laboratorios" },
+  // 621511 Laboratorios médicos y de diagnóstico
+  { value: "farmacias", label: "Farmacias" },
+  // 464111/464112 Farmacias
+  { value: "optometria", label: "\xD3pticas" },
+  // 621320 Consultorios de optometría
+  { value: "veterinarios", label: "Veterinarias" },
+  // 541941 Servicios veterinarios para mascotas
+  { value: "psicologia", label: "Psic\xF3logos" },
+  // 621331 Consultorios de psicología
+  { value: "terapia", label: "Fisioterapeutas" },
+  // 621341 terapia ocupacional, física y del lenguaje
+  { value: "nutriologos", label: "Nutri\xF3logos" },
+  // 621391 Consultorios de nutriólogos y dietistas
+  { value: "quiropractica", label: "Quiropr\xE1cticos" },
+  // 621311 Consultorios de quiropráctica
+  { value: "rehabilitacion", label: "Centros de rehabilitaci\xF3n" },
+  // 623111 residencias… rehabilitación
+  { value: "hospitales", label: "Hospitales" },
+  // 622111
+  { value: "laboratorios", label: "Centros de diagn\xF3stico" },
+  // 621511 (misma clase; “diagnostico” no pega en DENUE)
+  { value: "ambulancias", label: "Ambulancias" },
+  // 621910
+  { value: "enfermeria", label: "Enfermer\xEDa a domicilio" },
+  // 621610
+  { value: "ortopedicos", label: "Ortop\xE9dicos" },
+  // 464122
+  { value: "naturistas", label: "Productos naturistas" },
+  // 464113
+  { value: "belleza", label: "Medicina est\xE9tica" },
+  // 812110
+  { value: "especializada", label: "Cirujanos pl\xE1sticos" },
+  // 621113 medicina especializada
+  { value: "especializada", label: "Pediatras" },
+  { value: "especializada", label: "Ginec\xF3logos" },
+  { value: "especializada", label: "Dermat\xF3logos" },
+  { value: "especializada", label: "Oftalm\xF3logos" },
+  // ── LEGAL Y FINANCIERO ─────────────────────────────────
+  { value: "bufetes", label: "Abogados" },
+  // 541110 Bufetes jurídicos
+  { value: "notarias", label: "Notar\xEDas" },
+  // 541120 Notarías públicas
+  { value: "contabilidad", label: "Contadores" },
+  // 541211 Servicios de contabilidad y auditoría
+  { value: "banca", label: "Bancos" },
+  // 522110 Banca múltiple
+  { value: "seguros", label: "Seguros" },
+  // 524110 Compañías de seguros / 524210 agentes
+  { value: "cambio", label: "Casas de cambio" },
+  // 523121 Casas de cambio
+  { value: "contabilidad", label: "Despachos contables" },
+  // 541211
+  { value: "consultoria", label: "Consultoras empresariales" },
+  // 541610
+  { value: "tramites", label: "Gestor\xEDas" },
+  // 541190
+  { value: "ingenieria", label: "Ingenieros" },
+  // 541330
+  { value: "computo", label: "Software y sistemas" },
+  // 541510 diseño de sistemas de cómputo
+  { value: "relaciones", label: "Relaciones p\xFAblicas" },
+  // 541820
+  { value: "encuestas", label: "Investigaci\xF3n de mercados" },
+  // 541910
+  { value: "traduccion", label: "Traducci\xF3n" },
+  // 541930
+  { value: "empeno", label: "Casas de empe\xF1o" },
+  // 522452
+  // ── EDUCACIÓN (61) ─────────────────────────────────────
+  { value: "escuelas", label: "Escuelas" },
+  // 6111
+  { value: "preescolar", label: "Preescolar" },
+  // 611111 preescolar y estimulación temprana
+  { value: "guarderias", label: "Guarder\xEDas" },
+  // 624411
+  { value: "oficios", label: "Autoescuelas" },
+  // 611511
+  { value: "superior", label: "Universidades" },
+  // 611311
+  { value: "idiomas", label: "Academias de idiomas" },
+  // 611631
+  { value: "arte", label: "Academias de m\xFAsica" },
+  // 611611
+  { value: "arte", label: "Academias de baile" },
+  { value: "computacion", label: "Escuelas de computaci\xF3n" },
+  // 611421
+  { value: "profesores", label: "Tutor\xEDas" },
+  // 611691
+  { value: "capacitacion", label: "Centros de capacitaci\xF3n" },
+  // 611431
+  { value: "escuelas", label: "Colegios privados" },
+  // ── ALIMENTACIÓN (72 / 46 / 31) ────────────────────────
+  { value: "restaurantes", label: "Restaurantes" },
+  // 722511
+  { value: "cafeterias", label: "Cafeter\xEDas" },
+  // 722515 Cafeterías, fuentes de sodas, neverías…
+  { value: "bares", label: "Bares" },
+  // 722412 Bares, cantinas y similares
+  { value: "panificacion", label: "Panader\xEDas" },
+  // 311812 Panificación tradicional
+  { value: "panificacion", label: "Pasteler\xEDas" },
+  { value: "tacos", label: "Taquer\xEDas" },
+  // 722514 tacos y tortas
+  { value: "antojitos", label: "Fondas" },
+  // 722513 antojitos
+  { value: "pizzas", label: "Pizzer\xEDas" },
+  // 722517 pizzas, hamburguesas…
+  { value: "mariscos", label: "Marisquer\xEDas" },
+  // 722512 pescados y mariscos
+  { value: "corrida", label: "Cocinas econ\xF3micas" },
+  // 722511 comida corrida
+  { value: "neverias", label: "Helader\xEDas" },
+  // 722515 neverías / 461170 paletas de hielo y helados
+  { value: "refresquerias", label: "Juguer\xEDas" },
+  // 722515
+  { value: "supermercados", label: "Supermercados" },
+  // 462111
+  { value: "minisupers", label: "Minisupers" },
+  // 462112
+  { value: "carnes", label: "Carnicer\xEDas" },
+  // 461121
+  { value: "frutas", label: "Fruter\xEDas y verduler\xEDas" },
+  // 461130
+  { value: "licores", label: "Vinos y licores" },
+  // 461211
+  { value: "tortillas", label: "Tortiller\xEDas" },
+  // 311830
+  { value: "ocasiones", label: "Banquetes y catering" },
+  // 722320 alimentos para ocasiones especiales
+  { value: "moviles", label: "Comida para llevar / food trucks" },
+  // 722330 unidades móviles
+  { value: "discotecas", label: "Discotecas" },
+  // 722411
+  // ── BELLEZA Y BIENESTAR ────────────────────────────────
+  { value: "belleza", label: "Salones de belleza" },
+  // 812110 Salones y clínicas de belleza y peluquerías
+  { value: "peluquerias", label: "Peluquer\xEDas" },
+  // 812110
+  { value: "belleza", label: "Spa" },
+  { value: "acondicionamiento", label: "Gimnasios" },
+  // 713943 Centros de acondicionamiento físico
+  { value: "acondicionamiento", label: "Gimnasios de box" },
+  { value: "acondicionamiento", label: "Estudios de yoga" },
+  { value: "acondicionamiento", label: "Estudios de pilates" },
+  { value: "personales", label: "Centros de tatuajes" },
+  // 812990 Otros servicios personales
+  { value: "belleza", label: "Centros de depilaci\xF3n" },
+  { value: "peluquerias", label: "Barber\xEDas" },
+  { value: "belleza", label: "U\xF1as y est\xE9tica" },
+  // ── COMERCIO (46) ──────────────────────────────────────
+  { value: "ropa", label: "Tiendas de ropa" },
+  // 463211
+  { value: "calzado", label: "Zapater\xEDas" },
+  // 463310
+  { value: "departamentales", label: "Tiendas departamentales" },
+  // 462210
+  { value: "mascotas", label: "Tiendas de mascotas" },
+  // 465911 mascotas y sus accesorios
+  { value: "joyeria", label: "Joyer\xEDas" },
+  // 465112
+  { value: "muebles", label: "Muebler\xEDas" },
+  // 466111
+  { value: "libros", label: "Librer\xEDas" },
+  // 465312
+  { value: "flores", label: "Florer\xEDas" },
+  // 466312
+  { value: "ferreterias", label: "Ferreter\xEDas" },
+  // 467111
+  { value: "electrodomesticos", label: "Electr\xF3nica" },
+  // 466112
+  { value: "computo", label: "Tiendas de c\xF3mputo" },
+  // 466211
+  { value: "lentes", label: "\xD3pticas" },
+  // 464121
+  { value: "deportivos", label: "Tiendas de deportes" },
+  // 465215
+  { value: "telefonos", label: "Tiendas de celulares" },
+  // 466212
+  { value: "papeleria", label: "Papeler\xEDas" },
+  // 465311
+  { value: "juguetes", label: "Jugueter\xEDas" },
+  // 465212
+  { value: "bicicletas", label: "Bicicleter\xEDas" },
+  // 465213
+  { value: "novia", label: "Tiendas de novias" },
+  // 463214
+  { value: "cosmeticos", label: "Perfumer\xEDas" },
+  // 465111
+  { value: "artesanias", label: "Artesan\xEDas" },
+  // 465915
+  { value: "abarrotes", label: "Tiendas de abarrotes" },
+  // 461110
+  { value: "construccion", label: "Tiendas de materiales" },
+  // 467116
+  { value: "vidrios", label: "Vidrios y espejos" },
+  // 467114
+  { value: "motocicletas", label: "Agencias de motos" },
+  // 468311
+  { value: "abarrotes", label: "Distribuidoras" },
+  // ── INDUSTRIA ──────────────────────────────────────────
+  { value: "fabricacion", label: "F\xE1bricas" },
+  { value: "fabricacion", label: "Procesadoras" },
+  { value: "transporte", label: "Servicio de distribuci\xF3n" },
+  // 48-49 transportes
+  // ── SERVICIOS AL HOGAR ─────────────────────────────────
+  { value: "hidrosanitarias", label: "Plomeros" },
+  // 238221
+  { value: "electricas", label: "Electricistas" },
+  // 238210
+  { value: "calefaccion", label: "Aire acondicionado" },
+  // 238222
+  { value: "carpinteria", label: "Carpinter\xEDas" },
+  // 238350
+  { value: "lavanderias", label: "Lavander\xEDas" },
+  // 812210
+  { value: "mudanzas", label: "Mudanzas" },
+  // 484210
+  { value: "herreria", label: "Herrer\xEDa" },
+  // 332320
+  { value: "pintura", label: "Pintura y construcci\xF3n" },
+  // 238320
+  { value: "pintura", label: "Impermeabilizantes" },
+  { value: "albanileria", label: "Albaniler\xEDa" },
+  // 238130
+  { value: "plagas", label: "Fumigaci\xF3n" },
+  // 561710
+  { value: "limpieza", label: "Limpieza de hogares" },
+  // 561720
+  { value: "verdes", label: "Jardiner\xEDa" },
+  // 561730 áreas verdes
+  { value: "seguridad", label: "Instalaci\xF3n de alarmas" },
+  // 561620
+  { value: "cerrajerias", label: "Cerrajeros" },
+  // 811491
+  { value: "mensajeria", label: "Mensajer\xEDa y paqueter\xEDa" },
+  // 492210
+  { value: "aduanales", label: "Agencias aduanales" },
+  // 488511
+  { value: "colocacion", label: "Agencias de empleo" },
+  // 561310
+  { value: "fotocopiado", label: "Fotocopiado" },
+  // 561431
+  { value: "cobranza", label: "Despachos de cobranza" },
+  // 561440
+  // ── AUTOMOTRIZ ─────────────────────────────────────────
+  { value: "mecanica", label: "Talleres mec\xE1nicos" },
+  // 811111 Reparación mecánica en general
+  { value: "gasolina", label: "Gasolineras" },
+  // 468411 gasolina y diésel
+  { value: "automoviles", label: "Agencias de autos" },
+  // 468111 automóviles y camionetas nuevos
+  { value: "refacciones", label: "Refaccionarias" },
+  // 468211 partes y refacciones
+  { value: "llantas", label: "Llanter\xEDas" },
+  // 468213 llantas y cámaras
+  { value: "hojalateria", label: "Hojalater\xEDa y pintura" },
+  // 811121
+  { value: "alineacion", label: "Verificaciones" },
+  // 811116
+  { value: "alquiler", label: "Renta de autos" },
+  // 532110
+  { value: "estacionamientos", label: "Estacionamientos" },
+  // 812410
+  { value: "lubricado", label: "Autolavado" },
+  // 811192 Lavado y lubricado
+  { value: "grua", label: "Gr\xFAas" },
+  // 488410
+  // ── INMOBILIARIO Y CONSTRUCCIÓN ────────────────────────
+  { value: "inmobiliarias", label: "Inmobiliarias" },
+  // 531210 Inmobiliarias y corredores de bienes raíces
+  { value: "edificacion", label: "Constructoras" },
+  // 236111 Edificación de vivienda
+  { value: "arquitectura", label: "Arquitectos" },
+  // 541310 Servicios de arquitectura
+  { value: "interiores", label: "Dise\xF1adores de interiores" },
+  // 541410 Diseño y decoración de interiores
+  { value: "inmobiliarias", label: "Valuadores" },
+  // sin clase propia; cae en servicios inmobiliarios
+  { value: "edificacion", label: "Desarrolladoras" },
+  // ── TURISMO Y ENTRETENIMIENTO ──────────────────────────
+  { value: "hoteles", label: "Hoteles" },
+  // 721111/721112
+  { value: "moteles", label: "Moteles" },
+  // 721113
+  { value: "viajes", label: "Agencias de viajes" },
+  // 561510
+  { value: "salones", label: "Salones de eventos" },
+  // 531113
+  { value: "fotografia", label: "Fotograf\xEDa y video" },
+  // 541920 fotografía y videograbación
+  { value: "musicales", label: "Grupos de m\xFAsica" },
+  // 711131
+  { value: "diversiones", label: "Recreaci\xF3n infantil" },
+  // 713111
+  { value: "peliculas", label: "Cines" },
+  // 512130
+  { value: "juegos", label: "Escape rooms" },
+  // 713120
+  { value: "diversiones", label: "Parques de diversiones" },
+  // 713111
+  { value: "balnearios", label: "Balnearios" },
+  // 713113 parques acuáticos y balnearios
+  { value: "boliches", label: "Boliches" },
+  // 713950
+  { value: "deportivos", label: "Canchas deportivas" },
+  // 713941
+  // ── SERVICIOS DIGITALES Y CREATIVOS ───────────────────
+  { value: "publicidad", label: "Agencias de marketing" },
+  // 541810 Agencias de publicidad
+  { value: "grafico", label: "Agencias de dise\xF1o" },
+  // 541430 Diseño gráfico
+  { value: "impresion", label: "Imprentas" },
+  // 323111 Impresión de libros…
+  { value: "fotografia", label: "Fotograf\xEDa" },
+  // 541920
+  { value: "grabacion", label: "Estudio de grabaci\xF3n" },
+  // 512240 (si aplica) / 711510 independientes
+  { value: "publicidad", label: "Agencias de publicidad" },
+  // 541810
+  // ── RELIGIOSO Y SOCIAL ─────────────────────────────────
+  { value: "religiosas", label: "Iglesias" },
+  // 813210 Asociaciones y organizaciones religiosas
+  { value: "funerarios", label: "Funerarias" },
+  // 812310 Servicios funerarios
+  { value: "asilos", label: "Asilos y casas de reposo" },
+  // 623311 Asilos… cuidado de ancianos
+  { value: "orfanatos", label: "Orfanatos" },
+  // 623991 Orfanatos y otras residencias
+  { value: "civiles", label: "ONG / Sin fines de lucro" },
+  // 813230 Asociaciones y organizaciones civiles
+  // ── OTROS ──────────────────────────────────────────────
+  { value: "todos", label: "Negocios locales" },
+  { value: "todos", label: "Otra" }
+];
+function fold(value) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+}
+var CATCH_ALL = /* @__PURE__ */ new Set([
+  "",
+  "todos",
+  "todo",
+  "otra",
+  "otro",
+  "all",
+  "negocios locales",
+  "negocioslocales"
+]);
+var KEYWORD_ALIASES = {
+  diagnostico: "laboratorios",
+  laboratorio: "laboratorios"
+};
+function denueKeywordVariants(keyword) {
+  const folded = fold(keyword);
+  if (!folded) return [];
+  const variants = /* @__PURE__ */ new Set([folded]);
+  if (folded.endsWith("es") && folded.length > 5) {
+    variants.add(folded.slice(0, -2));
+  } else if (folded.endsWith("s") && folded.length > 4) {
+    variants.add(folded.slice(0, -1));
+  } else {
+    variants.add(`${folded}s`);
+  }
+  return [...variants];
+}
+function denueContains(keyword) {
+  return denueKeywordVariants(keyword).map((word) => ({
+    contains: word,
+    mode: "insensitive"
+  }));
+}
+function resolveDenueSearch(raw) {
+  const folded = fold(raw);
+  const compact = KEYWORD_ALIASES[folded] ?? folded;
+  if (!compact || CATCH_ALL.has(compact) || CATCH_ALL.has(compact.replace(/\s/g, ""))) {
+    return { keyword: "todos", isCatchAll: true, label: "Negocios locales" };
+  }
+  const inegiByValue = INEGI_DENUE_CATEGORIES.find(
+    (item) => fold(item.value) === compact
+  );
+  if (inegiByValue) {
+    return {
+      keyword: inegiByValue.value,
+      isCatchAll: inegiByValue.value === "todos",
+      label: inegiByValue.label
+    };
+  }
+  const google = GOOGLE_PLACE_CATEGORIES.find(
+    (item) => fold(item.value) === compact
+  );
+  if (google) {
+    const mapped = INEGI_DENUE_CATEGORIES.find(
+      (item) => item.label === google.label
+    );
+    if (mapped) {
+      return {
+        keyword: mapped.value,
+        isCatchAll: mapped.value === "todos",
+        label: mapped.label
+      };
+    }
+  }
+  const byLabel = [...INEGI_DENUE_CATEGORIES, ...GOOGLE_PLACE_CATEGORIES].find(
+    (item) => fold(item.label) === compact
+  );
+  if (byLabel) {
+    const mapped = INEGI_DENUE_CATEGORIES.find((item) => item.label === byLabel.label) ?? INEGI_DENUE_CATEGORIES.find(
+      (item) => fold(item.value) === fold(byLabel.value)
+    );
+    if (mapped) {
+      return {
+        keyword: mapped.value,
+        isCatchAll: mapped.value === "todos",
+        label: mapped.label
+      };
+    }
+  }
+  return { keyword: compact, isCatchAll: false, label: null };
+}
+
+// graphql/customs/mutations/inegi/syncLeadsFromInegi.ts
+var DEFAULT_MAX_RESULTS3 = 60;
+var CATALOG_TAKE = 1e3;
+var MSG = {
+  login: "Inicia sesi\xF3n para buscar negocios.",
+  noCompany: "Tu cuenta no tiene una empresa asignada.",
+  noSubscription: "No hay una suscripci\xF3n activa. Contrata o activa una para buscar negocios.",
+  freeExpired: "Tu plan gratuito termin\xF3. Contrata una suscripci\xF3n para seguir buscando clientes.",
+  noLeadLimit: "Tu suscripci\xF3n no permite buscar negocios por ahora. Contacta a soporte.",
+  leadLimitTooLow: "Tu suscripci\xF3n no permite buscar negocios por ahora.",
+  quotaFull: (synced, limit) => limit != null && synced != null ? `Ya usaste tu cuota de este mes (${synced}/${limit}). Se reinicia el pr\xF3ximo mes.` : "Ya usaste tu cuota de este mes. Se reinicia el pr\xF3ximo mes.",
+  searchFailed: "No pudimos completar la b\xFAsqueda. Intenta de nuevo en unos minutos.",
+  noneFound: "No encontramos negocios cerca con esa b\xFAsqueda. Prueba otra categor\xEDa o un radio m\xE1s amplio.",
+  added: (count) => count === 1 ? "Agregamos 1 negocio a tu lista." : `Agregamos ${count} negocios a tu lista.`
+};
+var ESTABLISHMENT_QUERY = `
+  id
+  clee
+  name
+  legalName
+  phone
+  email
+  website
+  street
+  exteriorNumber
+  neighborhood
+  postalCode
+  locality
+  municipality
+  state
+  lat
+  lng
+  economicActivity { id name scianCode }
+`;
+var typeDefs18 = `
+  input SyncLeadsFromInegiInput {
+    lat: Float!
+    lng: Float!
+    radius: Float!
+    category: String!
+    maxResults: Int
+  }
+
+  type SyncLeadsFromInegiResult {
+    success: Boolean!
+    message: String!
+    created: Int!
+    alreadyInDb: Int!
+    skippedLowRating: Int!
+    syncedLeadsCount: Int!
+    syncedCount: Int
+    leadLimit: Int
+  }
+
+  type Mutation {
+    syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
+  }
+`;
+var definition15 = `
+  syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
+`;
+function emptyFields() {
+  return {
+    created: 0,
+    alreadyInDb: 0,
+    skippedLowRating: 0,
+    syncedLeadsCount: 0,
+    syncedCount: null,
+    leadLimit: null
+  };
+}
+function inRadius(centerLat, centerLng, lat, lng, radiusKm) {
+  if (lat == null || lng == null) return false;
+  return haversineDistance(centerLat, centerLng, lat, lng) <= radiusKm;
+}
+function boundingBoxFilters(lat, lng, radiusKm) {
+  const latDelta = radiusKm / 111;
+  const lngDelta = radiusKm / (111 * Math.max(Math.cos(lat * Math.PI / 180), 0.01));
+  return [
+    { lat: { gte: lat - latDelta, lte: lat + latDelta } },
+    { lng: { gte: lng - lngDelta, lte: lng + lngDelta } }
+  ];
+}
+async function ensureStatus(context, leadId, companyId, userId) {
+  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
+    where: {
+      businessLead: { id: { equals: leadId } },
+      saasCompany: { id: { equals: companyId } }
+    },
+    take: 1,
+    query: "id"
+  });
+  if (existing) {
+    await context.sudo().query.TechStatusBusinessLead.updateOne({
+      where: { id: existing.id },
+      data: {
+        salesPerson: { connect: { id: userId } },
+        pipelineStatus: PIPELINE_STATUS.DETECTADO,
+        opportunityLevel: "Media"
+      }
+    });
+    return;
+  }
+  await context.sudo().query.TechStatusBusinessLead.createOne({
+    data: {
+      businessLead: { connect: { id: leadId } },
+      saasCompany: { connect: { id: companyId } },
+      salesPerson: { connect: { id: userId } },
+      pipelineStatus: PIPELINE_STATUS.DETECTADO,
+      opportunityLevel: "Media"
+    }
+  });
+}
+async function logResult(context, userId, companyId, input, result) {
+  if (!userId) return;
+  try {
+    await context.sudo().query.TechLeadSyncLog.createOne({
+      data: {
+        user: { connect: { id: userId } },
+        ...companyId ? { company: { connect: { id: companyId } } } : {},
+        success: result.success,
+        message: result.message,
+        created: result.created,
+        alreadyInDb: result.alreadyInDb,
+        skippedLowRating: result.skippedLowRating,
+        syncedLeadsCount: result.syncedLeadsCount,
+        syncedCount: result.syncedCount,
+        leadLimit: result.leadLimit,
+        lat: input.lat,
+        lng: input.lng,
+        radius: input.radius,
+        category: input.category
+      }
+    });
+  } catch (_) {
+  }
+}
+function leadDataFromEstablishment(establishment, category, companyId, userId) {
+  return {
+    businessName: establishment.name,
+    category,
+    phone: establishment.phone || "",
+    email: establishment.email || "",
+    address: formatEstablishmentAddress({
+      clee: establishment.clee,
+      name: establishment.name,
+      legalName: establishment.legalName ?? "",
+      employeeStratum: "",
+      scianCode: null,
+      scianName: null,
+      street: establishment.street ?? "",
+      exteriorNumber: establishment.exteriorNumber ?? "",
+      interiorNumber: "",
+      neighborhood: establishment.neighborhood ?? "",
+      postalCode: establishment.postalCode ?? "",
+      locality: establishment.locality ?? "",
+      municipality: establishment.municipality ?? "",
+      state: establishment.state ?? "",
+      phone: "",
+      email: "",
+      website: "",
+      lat: null,
+      lng: null,
+      rawPayload: {}
+    }),
+    city: establishment.locality || establishment.municipality || "",
+    state: establishment.state || "",
+    country: "M\xE9xico",
+    hasWebsite: Boolean(establishment.website),
+    websiteUrl: establishment.website || "",
+    source: LEAD_SOURCE.INEGI,
+    lat: establishment.lat ?? null,
+    lng: establishment.lng ?? null,
+    sourceEstablishment: { connect: { id: establishment.id } },
+    saasCompany: { connect: [{ id: companyId }] },
+    salesPerson: { connect: [{ id: userId }] }
+  };
+}
+async function assignEstablishment(context, establishment, companyId, userId, category) {
+  const [existing] = await context.sudo().query.TechBusinessLead.findMany({
+    where: { sourceEstablishment: { id: { equals: establishment.id } } },
+    take: 1,
+    query: "id saasCompany { id }"
+  });
+  if (existing) {
+    const already = (existing.saasCompany ?? []).some(
+      (c) => c.id === companyId
+    );
+    if (already) return "skipped";
+    await context.sudo().query.TechBusinessLead.updateOne({
+      where: { id: existing.id },
+      data: {
+        saasCompany: { connect: [{ id: companyId }] },
+        salesPerson: { connect: [{ id: userId }] }
+      }
+    });
+    await ensureStatus(context, existing.id, companyId, userId);
+    return "assigned";
+  }
+  const lead = await context.sudo().query.TechBusinessLead.createOne({
+    data: leadDataFromEstablishment(
+      establishment,
+      category,
+      companyId,
+      userId
+    ),
+    query: "id"
+  });
+  await ensureStatus(context, lead.id, companyId, userId);
+  return "created";
+}
+var resolver15 = {
+  syncLeadsFromInegi: async (_root, {
+    input
+  }, context) => {
+    const empty2 = emptyFields();
+    const session2 = context.session;
+    const userId = session2?.data?.id;
+    if (!userId) {
+      return {
+        success: false,
+        message: MSG.login,
+        ...empty2
+      };
+    }
+    const user = await context.sudo().query.User.findOne({
+      where: { id: userId },
+      query: "id company { id name }"
+    });
+    const company = user?.company;
+    if (!company?.id) {
+      const result2 = {
+        success: false,
+        message: MSG.noCompany,
+        ...empty2
+      };
+      await logResult(context, userId, void 0, input, result2);
+      return result2;
+    }
+    const credits = await getRemainingCredits(context, company.id);
+    const { remainingQuota, syncedCount, leadLimit } = credits;
+    if (credits.blockingReason === "no_subscription") {
+      const result2 = {
+        success: false,
+        message: MSG.noSubscription,
+        ...empty2
+      };
+      await logResult(context, userId, company.id, input, result2);
+      return result2;
+    }
+    if (credits.blockingReason === "free_plan_expired") {
+      const result2 = {
+        success: false,
+        message: MSG.freeExpired,
+        ...empty2,
+        leadLimit: 0
+      };
+      await logResult(context, userId, company.id, input, result2);
+      return result2;
+    }
+    if (credits.blockingReason === "no_lead_limit") {
+      const result2 = {
+        success: false,
+        message: MSG.noLeadLimit,
+        ...empty2,
+        leadLimit
+      };
+      await logResult(context, userId, company.id, input, result2);
+      return result2;
+    }
+    if (credits.blockingReason === "lead_limit_too_low") {
+      const result2 = {
+        success: false,
+        message: MSG.leadLimitTooLow,
+        ...empty2,
+        leadLimit
+      };
+      await logResult(context, userId, company.id, input, result2);
+      return result2;
+    }
+    if (remainingQuota === 0) {
+      const result2 = {
+        success: false,
+        message: MSG.quotaFull(syncedCount, leadLimit),
+        ...empty2,
+        syncedCount,
+        leadLimit
+      };
+      await logResult(context, userId, company.id, input, result2);
+      return result2;
+    }
+    const maxResults = Math.min(
+      Math.max(1, input.maxResults ?? DEFAULT_MAX_RESULTS3),
+      remainingQuota,
+      DEFAULT_MAX_RESULTS3
+    );
+    const category = input.category.trim();
+    const search = resolveDenueSearch(category);
+    const { lat, lng, radius: radiusKm } = input;
+    const existingLeads = await context.sudo().query.TechBusinessLead.findMany({
+      where: {
+        AND: [
+          { source: { equals: LEAD_SOURCE.INEGI } },
+          ...boundingBoxFilters(lat, lng, radiusKm),
+          ...search.isCatchAll ? [] : [
+            {
+              OR: [
+                ...denueContains(search.keyword).map((contains) => ({
+                  category: contains
+                })),
+                ...denueContains(category).map((contains) => ({
+                  category: contains
+                }))
+              ]
+            }
+          ]
+        ]
+      },
+      take: CATALOG_TAKE,
+      query: "id lat lng saasCompany { id }"
+    });
+    const toAssignFromCrm = [];
+    for (const lead of existingLeads) {
+      if (toAssignFromCrm.length >= maxResults) break;
+      if (!inRadius(lat, lng, lead.lat, lead.lng, radiusKm)) continue;
+      const already = (lead.saasCompany ?? []).some((c) => c.id === company.id);
+      if (already) continue;
+      toAssignFromCrm.push(lead.id);
+    }
+    let assignedFromDb = 0;
+    for (const leadId of toAssignFromCrm) {
+      try {
+        await context.sudo().query.TechBusinessLead.updateOne({
+          where: { id: leadId },
+          data: {
+            saasCompany: { connect: [{ id: company.id }] },
+            salesPerson: { connect: [{ id: userId }] }
+          }
+        });
+        await ensureStatus(context, leadId, company.id, userId);
+        assignedFromDb += 1;
+      } catch (_) {
+      }
+    }
+    let syncedThisRequest = assignedFromDb;
+    let currentSyncedCount = syncedCount;
+    let created = 0;
+    let alreadyInDb = assignedFromDb;
+    if (assignedFromDb > 0) {
+      const consumeResult = await consumeCompanyCredits(context, {
+        companyId: company.id,
+        amount: assignedFromDb,
+        referenceType: "sync",
+        notes: "Leads INEGI asignados desde BD"
+      });
+      if (!consumeResult.success) {
+        const result2 = {
+          success: false,
+          message: MSG.quotaFull(
+            consumeResult.syncedCount,
+            consumeResult.leadLimit
+          ),
+          ...empty2,
+          syncedCount: consumeResult.syncedCount,
+          leadLimit: consumeResult.leadLimit
+        };
+        await logResult(context, userId, company.id, input, result2);
+        return result2;
+      }
+      currentSyncedCount = consumeResult.syncedCount;
+    }
+    if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
+      const result2 = {
+        success: true,
+        message: MSG.added(assignedFromDb),
+        created: 0,
+        alreadyInDb: assignedFromDb,
+        skippedLowRating: 0,
+        syncedLeadsCount: assignedFromDb,
+        syncedCount: currentSyncedCount,
+        leadLimit
+      };
+      await logResult(context, userId, company.id, input, result2);
+      return result2;
+    }
+    const catalogWhere = {
+      AND: [
+        ...boundingBoxFilters(lat, lng, radiusKm),
+        ...search.isCatchAll ? [] : [
+          {
+            OR: denueKeywordVariants(search.keyword).flatMap((word) => [
+              { name: { contains: word, mode: "insensitive" } },
+              {
+                legalName: {
+                  contains: word,
+                  mode: "insensitive"
+                }
+              },
+              {
+                economicActivity: {
+                  name: { contains: word, mode: "insensitive" }
+                }
+              }
+            ])
+          }
+        ]
+      ]
+    };
+    const catalogRows = await context.sudo().query.TechInegiEstablishment.findMany({
+      where: catalogWhere,
+      take: CATALOG_TAKE,
+      query: ESTABLISHMENT_QUERY
+    });
+    const nearbyCatalog = catalogRows.filter((row) => inRadius(lat, lng, row.lat, row.lng, radiusKm)).sort((a, b) => {
+      const da = haversineDistance(
+        lat,
+        lng,
+        a.lat,
+        a.lng
+      );
+      const db = haversineDistance(
+        lat,
+        lng,
+        b.lat,
+        b.lng
+      );
+      return da - db;
+    });
+    const token = process.env.INEGI_DENUE_TOKEN?.trim();
+    const stillNeed = maxResults - syncedThisRequest;
+    if (nearbyCatalog.length < stillNeed && token) {
+      const radiusMeters = Math.min(
+        Math.max(1, Math.round(radiusKm * 1e3)),
+        DENUE_MAX_RADIUS_METERS
+      );
+      try {
+        const apiRows = await searchByLocation({
+          lat,
+          lng,
+          radiusMeters,
+          keyword: search.keyword
+        });
+        const upsertedClees = [];
+        for (const raw of apiRows) {
+          const mapped = mapDenueApiRow(raw);
+          if (!mapped) continue;
+          await upsertEstablishment(context, mapped);
+          upsertedClees.push(mapped.clee);
+        }
+        const uniqueClees = [...new Set(upsertedClees)];
+        const fromApi = uniqueClees.length ? await context.sudo().query.TechInegiEstablishment.findMany({
+          where: { clee: { in: uniqueClees } },
+          take: CATALOG_TAKE,
+          query: ESTABLISHMENT_QUERY
+        }) : [];
+        const ids = new Set(nearbyCatalog.map((row) => row.id));
+        for (const row of fromApi) {
+          if (ids.has(row.id)) continue;
+          if (!inRadius(lat, lng, row.lat, row.lng, radiusKm)) continue;
+          nearbyCatalog.push(row);
+          ids.add(row.id);
+        }
+        nearbyCatalog.sort((a, b) => {
+          const da = haversineDistance(
+            lat,
+            lng,
+            a.lat,
+            a.lng
+          );
+          const db = haversineDistance(
+            lat,
+            lng,
+            b.lat,
+            b.lng
+          );
+          return da - db;
+        });
+      } catch (err) {
+        console.error("[syncLeadsFromInegi] DENUE search failed", err);
+        if (nearbyCatalog.length === 0 && syncedThisRequest === 0) {
+          const result2 = {
+            success: false,
+            message: MSG.searchFailed,
+            ...empty2,
+            syncedCount: currentSyncedCount,
+            leadLimit
+          };
+          await logResult(context, userId, company.id, input, result2);
+          return result2;
+        }
+      }
+    } else if (nearbyCatalog.length === 0 && !token && syncedThisRequest === 0) {
+      const result2 = {
+        success: false,
+        message: MSG.searchFailed,
+        ...empty2,
+        syncedCount: currentSyncedCount,
+        leadLimit
+      };
+      await logResult(context, userId, company.id, input, result2);
+      return result2;
+    }
+    let assignedFromCatalog = 0;
+    for (const establishment of nearbyCatalog) {
+      if (syncedThisRequest >= maxResults) break;
+      if (leadLimit !== null && currentSyncedCount >= leadLimit) break;
+      try {
+        const kind = await assignEstablishment(
+          context,
+          establishment,
+          company.id,
+          userId,
+          search.isCatchAll ? establishment.economicActivity?.name || "Negocio" : category || search.keyword || "Negocio"
+        );
+        if (kind === "skipped") continue;
+        if (kind === "created") created += 1;
+        else {
+          alreadyInDb += 1;
+          assignedFromCatalog += 1;
+        }
+        syncedThisRequest += 1;
+        currentSyncedCount += 1;
+      } catch (_) {
+      }
+    }
+    const chargedNow = created + assignedFromCatalog;
+    if (chargedNow > 0) {
+      const consumeResult = await consumeCompanyCredits(context, {
+        companyId: company.id,
+        amount: chargedNow,
+        referenceType: "sync",
+        notes: "Leads sincronizados desde INEGI DENUE"
+      });
+      if (consumeResult.success) {
+        currentSyncedCount = consumeResult.syncedCount;
+      }
+    }
+    const result = {
+      success: true,
+      message: syncedThisRequest === 0 ? MSG.noneFound : MSG.added(syncedThisRequest),
+      created,
+      alreadyInDb,
+      skippedLowRating: 0,
+      syncedLeadsCount: syncedThisRequest,
+      syncedCount: currentSyncedCount,
+      leadLimit
+    };
+    await logResult(context, userId, company.id, input, result);
+    return result;
+  }
+};
+var syncLeadsFromInegi_default = { typeDefs: typeDefs18, definition: definition15, resolver: resolver15 };
+
+// graphql/customs/mutations/inegi/promoteInegiEstablishmentToLead.ts
+var typeDefs19 = `
+  input PromoteInegiEstablishmentToLeadInput {
+    establishmentId: ID!
+    assignedSellerId: ID
+    companyId: ID
+  }
+
+  type PromoteInegiEstablishmentToLeadResult {
+    success: Boolean!
+    message: String!
+    businessLeadId: ID
+    creditsCharged: Int
+  }
+
+  type Mutation {
+    promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
+  }
+`;
+var definition16 = `
+  promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
+`;
+function fail(message) {
+  return { success: false, message, businessLeadId: null, creditsCharged: 0 };
+}
+var ESTABLISHMENT_QUERY2 = `
+  id
+  clee
+  name
+  legalName
+  phone
+  email
+  website
+  street
+  exteriorNumber
+  neighborhood
+  postalCode
+  locality
+  municipality
+  state
+  lat
+  lng
+  economicActivity { id name scianCode }
+`;
+async function ensureStatusForImport2(context, leadId, companyId, sellerId) {
+  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
+    where: {
+      businessLead: { id: { equals: leadId } },
+      saasCompany: { id: { equals: companyId } }
+    },
+    take: 1,
+    query: "id"
+  });
+  if (existing) return;
+  await context.sudo().query.TechStatusBusinessLead.createOne({
+    data: {
+      businessLead: { connect: { id: leadId } },
+      saasCompany: { connect: { id: companyId } },
+      ...sellerId ? { salesPerson: { connect: { id: sellerId } } } : {},
+      pipelineStatus: PIPELINE_STATUS.DETECTADO,
+      opportunityLevel: "Media"
+    }
+  });
+}
+async function getVerifiedSalesPersonIds3(context, companyId) {
+  const users = await context.sudo().query.User.findMany({
+    where: {
+      salesPersonVerified: { equals: true },
+      roles: { some: { name: { equals: "vendedor" /* VENDEDOR */ } } },
+      company: { id: { equals: companyId } }
+    },
+    query: "id"
+  });
+  return users.map((u) => u.id);
+}
+function quotaMessage(blockingReason, remainingQuota, syncedCount, leadLimit) {
+  if (blockingReason === "no_subscription") {
+    return "No tienes una suscripci\xF3n activa. Contrata o activa una suscripci\xF3n para promover leads.";
+  }
+  if (blockingReason === "free_plan_expired") {
+    return "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.";
+  }
+  if (blockingReason === "no_lead_limit") {
+    return "La suscripci\xF3n activa no tiene l\xEDmite de leads configurado.";
+  }
+  if (blockingReason === "lead_limit_too_low") {
+    return "La suscripci\xF3n activa no permite sincronizar leads.";
+  }
+  if (remainingQuota === 0) {
+    return `Cuota mensual alcanzada (${syncedCount}/${leadLimit ?? 0} leads). Pr\xF3ximo reinicio el mes siguiente.`;
+  }
+  return null;
+}
+var resolver16 = {
+  promoteInegiEstablishmentToLead: async (_root, { input }, context) => {
+    if (!isSignedIn(context.session)) {
+      return fail("Debes iniciar sesi\xF3n para promover un establecimiento");
+    }
+    const companyId = resolveAuthorizedCompanyId(
+      context.session,
+      input.companyId
+    );
+    if (!companyId) {
+      return fail(denyOtherCompanyMessage());
+    }
+    const establishment = await context.sudo().query.TechInegiEstablishment.findOne({
+      where: { id: input.establishmentId },
+      query: ESTABLISHMENT_QUERY2
+    });
+    if (!establishment) {
+      return fail("Establecimiento INEGI no encontrado");
+    }
+    const credits = await getRemainingCredits(context, companyId);
+    const blocked = quotaMessage(
+      credits.blockingReason,
+      credits.remainingQuota,
+      credits.syncedCount,
+      credits.leadLimit
+    );
+    if (blocked) return fail(blocked);
+    const userId = getSessionUserId(context.session);
+    let sellerId = input.assignedSellerId ?? userId;
+    if (input.assignedSellerId) {
+      const seller = await context.sudo().query.User.findOne({
+        where: { id: input.assignedSellerId },
+        query: "id company { id }"
+      });
+      if (!seller || seller.company?.id !== companyId) {
+        return fail("El vendedor no pertenece a tu empresa");
+      }
+      sellerId = seller.id;
+    } else {
+      const verifiedSellerIds = await getVerifiedSalesPersonIds3(
+        context,
+        companyId
+      );
+      sellerId = verifiedSellerIds[0] ?? userId;
+    }
+    const [existingLead] = await context.sudo().query.TechBusinessLead.findMany({
+      where: {
+        sourceEstablishment: { id: { equals: establishment.id } }
+      },
+      take: 1,
+      query: "id saasCompany { id }"
+    });
+    const alreadyOnCompany = existingLead?.saasCompany?.some(
+      (company) => company.id === companyId
+    );
+    if (existingLead && alreadyOnCompany) {
+      await ensureStatusForImport2(
+        context,
+        existingLead.id,
+        companyId,
+        sellerId
+      );
+      return {
+        success: true,
+        message: "Este establecimiento ya es un lead de tu empresa",
+        businessLeadId: existingLead.id,
+        creditsCharged: 0
+      };
+    }
+    if (existingLead) {
+      await context.sudo().query.TechBusinessLead.updateOne({
+        where: { id: existingLead.id },
+        data: {
+          saasCompany: { connect: [{ id: companyId }] },
+          ...sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}
+        }
+      });
+      await ensureStatusForImport2(
+        context,
+        existingLead.id,
+        companyId,
+        sellerId
+      );
+      const consumeResult = await consumeCompanyCredits(context, {
+        companyId,
+        amount: 1,
+        referenceType: "sync",
+        referenceId: existingLead.id,
+        notes: "Lead asignado desde cat\xE1logo INEGI DENUE"
+      });
+      if (!consumeResult.success) {
+        return fail("No se pudieron descontar cr\xE9ditos para asignar el lead");
+      }
+      return {
+        success: true,
+        message: "Lead asignado a tu empresa",
+        businessLeadId: existingLead.id,
+        creditsCharged: 1
+      };
+    }
+    const data = {
+      businessName: establishment.name,
+      category: establishment.economicActivity?.name || "Negocio",
+      phone: establishment.phone || "",
+      email: establishment.email || "",
+      address: formatEstablishmentAddress({
+        clee: establishment.clee,
+        name: establishment.name,
+        legalName: establishment.legalName ?? "",
+        employeeStratum: "",
+        scianCode: null,
+        scianName: null,
+        street: establishment.street ?? "",
+        exteriorNumber: establishment.exteriorNumber ?? "",
+        interiorNumber: "",
+        neighborhood: establishment.neighborhood ?? "",
+        postalCode: establishment.postalCode ?? "",
+        locality: establishment.locality ?? "",
+        municipality: establishment.municipality ?? "",
+        state: establishment.state ?? "",
+        phone: "",
+        email: "",
+        website: "",
+        lat: null,
+        lng: null,
+        rawPayload: {}
+      }),
+      city: establishment.locality || establishment.municipality || "",
+      state: establishment.state || "",
+      country: "M\xE9xico",
+      hasWebsite: Boolean(establishment.website),
+      websiteUrl: establishment.website || "",
+      source: LEAD_SOURCE.INEGI,
+      lat: establishment.lat ?? null,
+      lng: establishment.lng ?? null,
+      sourceEstablishment: { connect: { id: establishment.id } },
+      saasCompany: { connect: [{ id: companyId }] }
+    };
+    if (sellerId) {
+      data.salesPerson = { connect: [{ id: sellerId }] };
+    }
+    try {
+      const lead = await context.sudo().query.TechBusinessLead.createOne({
+        data,
+        query: "id"
+      });
+      await ensureStatusForImport2(context, lead.id, companyId, sellerId);
+      const consumeResult = await consumeCompanyCredits(context, {
+        companyId,
+        amount: 1,
+        referenceType: "sync",
+        referenceId: lead.id,
+        notes: "Lead promovido desde cat\xE1logo INEGI DENUE"
+      });
+      if (!consumeResult.success) {
+        return fail("No se pudieron descontar cr\xE9ditos para crear el lead");
+      }
+      return {
+        success: true,
+        message: "Lead importado desde INEGI DENUE",
+        businessLeadId: lead.id,
+        creditsCharged: 1
+      };
+    } catch (err) {
+      return fail(err instanceof Error ? err.message : "Error creando lead");
+    }
+  }
+};
+var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs19, definition: definition16, resolver: resolver16 };
+
+// graphql/customs/mutations/inegi/fetchInegiIndicator.ts
+var typeDefs20 = `
+  input FetchInegiIndicatorInput {
+    indicatorId: String!
+    geographicCode: String!
+    recent: Boolean
+  }
+
+  type InegiIndicatorValue {
+    cacheKey: String!
+    indicatorId: String!
+    indicatorName: String!
+    geographicLevel: String!
+    geographicCode: String!
+    period: String!
+    value: Float
+    unit: String
+  }
+
+  type FetchInegiIndicatorResult {
+    success: Boolean!
+    message: String!
+    created: Int!
+    updated: Int!
+    indicators: [InegiIndicatorValue!]!
+  }
+
+  type Mutation {
+    fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
+  }
+`;
+var definition17 = `
+  fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
+`;
+var empty = {
+  created: 0,
+  updated: 0,
+  indicators: []
+};
+var resolver17 = {
+  fetchInegiIndicator: async (_root, {
+    input
+  }, context) => {
+    if (!isSignedIn(context.session)) {
+      return {
+        success: false,
+        message: "Debes iniciar sesi\xF3n para consultar indicadores",
+        ...empty
+      };
+    }
+    if (!process.env.INEGI_INDICADORES_TOKEN?.trim()) {
+      return {
+        success: false,
+        message: "INEGI_INDICADORES_TOKEN no configurada",
+        ...empty
+      };
+    }
+    const indicatorId = input.indicatorId.trim();
+    const geographicCode = input.geographicCode.trim() || "00";
+    const catalog = findCatalogIndicator(indicatorId);
+    try {
+      const { mapped, created, updated } = await fetchAndCacheIndicator(
+        context,
+        indicatorId,
+        geographicCode,
+        input.recent !== false
+      );
+      return {
+        success: true,
+        message: catalog ? `${catalog.name}: ${created} nuevos, ${updated} actualizados` : `Indicador ${indicatorId}: ${created} nuevos, ${updated} actualizados`,
+        created,
+        updated,
+        indicators: mapped
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Error al consultar indicadores INEGI",
+        ...empty
+      };
+    }
+  }
+};
+var fetchInegiIndicator_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -13265,6 +15954,11 @@ var customMutation = {
     ${updateCompanyAiSettings_default.typeDefs}
     ${dailyDigest_default.typeDefs}
     ${companyBrief_default.typeDefs}
+    ${generateMarketInsight_default.typeDefs}
+    ${syncEstablishmentsFromInegi_default.typeDefs}
+    ${syncLeadsFromInegi_default.typeDefs}
+    ${promoteInegiEstablishmentToLead_default.typeDefs}
+    ${fetchInegiIndicator_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -13282,6 +15976,11 @@ var customMutation = {
     ${updateCompanyAiSettings_default.definition}
     ${dailyDigest_default.mutationDefinition}
     ${companyBrief_default.mutationDefinition}
+    ${generateMarketInsight_default.mutationDefinition}
+    ${syncEstablishmentsFromInegi_default.definition}
+    ${syncLeadsFromInegi_default.definition}
+    ${promoteInegiEstablishmentToLead_default.definition}
+    ${fetchInegiIndicator_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -13298,7 +15997,12 @@ var customMutation = {
     ...sendTestEmail_default.resolver,
     ...updateCompanyAiSettings_default.resolver,
     ...dailyDigest_default.mutationResolver,
-    ...companyBrief_default.mutationResolver
+    ...companyBrief_default.mutationResolver,
+    ...generateMarketInsight_default.mutationResolver,
+    ...syncEstablishmentsFromInegi_default.resolver,
+    ...syncLeadsFromInegi_default.resolver,
+    ...promoteInegiEstablishmentToLead_default.resolver,
+    ...fetchInegiIndicator_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -13309,7 +16013,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs16 = `
+var typeDefs21 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -13368,7 +16072,7 @@ var typeDefs16 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition14 = `
+var definition18 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -13418,7 +16122,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver14 = {
+var resolver18 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -13581,7 +16285,7 @@ var resolver14 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs16, definition: definition14, resolver: resolver14 };
+var nearbyAnimals_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -13849,7 +16553,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs17 = `
+var typeDefs22 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -13907,10 +16611,10 @@ var typeDefs17 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition15 = `
+var definition19 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver15 = {
+var resolver19 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -13992,10 +16696,10 @@ var resolver15 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs17, definition: definition15, resolver: resolver15 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs18 = `
+var typeDefs23 = `
   type StripeCard {
     brand: String
     country: String
@@ -14029,10 +16733,10 @@ var typeDefs18 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition16 = `
+var definition20 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver16 = {
+var resolver20 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -14068,7 +16772,7 @@ var resolver16 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs18, definition: definition16, resolver: resolver16 };
+var stripePaymentMethods_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -14121,7 +16825,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs19 = `
+var typeDefs24 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -14149,10 +16853,10 @@ var typeDefs19 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition17 = `
+var definition21 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver17 = {
+var resolver21 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -14279,7 +16983,7 @@ var resolver17 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs19, definition: definition17, resolver: resolver17 };
+var subscriptionStatus_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -14296,6 +17000,7 @@ var customQuery = {
     ${subscriptionStatus_default.definition}
     ${dailyDigest_default.queryDefinition}
     ${companyBrief_default.queryDefinition}
+    ${generateMarketInsight_default.queryDefinition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -14303,7 +17008,8 @@ var customQuery = {
     ...stripePaymentMethods_default.resolver,
     ...subscriptionStatus_default.resolver,
     ...dailyDigest_default.queryResolver,
-    ...companyBrief_default.queryResolver
+    ...companyBrief_default.queryResolver,
+    ...generateMarketInsight_default.queryResolver
   }
 };
 var queries_default = customQuery;
@@ -14501,7 +17207,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core64.config)({
+  (0, import_core69.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,

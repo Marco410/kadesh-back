@@ -5005,6 +5005,7 @@ type TechBusinessLead {
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   googleMapsUrl: String
   googlePlaceId: String
+  sourceEstablishment: TechInegiEstablishment
   salesPerson(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   salesPersonCount(where: UserWhereInput! = {}): Int
   saasCompany(where: SaasCompanyWhereInput! = {}, orderBy: [SaasCompanyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyWhereUniqueInput): [SaasCompany!]
@@ -5058,6 +5059,7 @@ input TechBusinessLeadWhereInput {
   followUpTasks: TechFollowUpTaskManyRelationFilter
   googleMapsUrl: StringFilter
   googlePlaceId: StringNullableFilter
+  sourceEstablishment: TechInegiEstablishmentWhereInput
   salesPerson: UserManyRelationFilter
   saasCompany: SaasCompanyManyRelationFilter
   quotations: SaasQuotationManyRelationFilter
@@ -5132,11 +5134,18 @@ input TechBusinessLeadUpdateInput {
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   googleMapsUrl: String
   googlePlaceId: String
+  sourceEstablishment: TechInegiEstablishmentRelateToOneForUpdateInput
   salesPerson: UserRelateToManyForUpdateInput
   saasCompany: SaasCompanyRelateToManyForUpdateInput
   quotations: SaasQuotationRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input TechInegiEstablishmentRelateToOneForUpdateInput {
+  create: TechInegiEstablishmentCreateInput
+  connect: TechInegiEstablishmentWhereUniqueInput
+  disconnect: Boolean
 }
 
 input TechBusinessLeadUpdateArgs {
@@ -5178,11 +5187,17 @@ input TechBusinessLeadCreateInput {
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   googleMapsUrl: String
   googlePlaceId: String
+  sourceEstablishment: TechInegiEstablishmentRelateToOneForCreateInput
   salesPerson: UserRelateToManyForCreateInput
   saasCompany: SaasCompanyRelateToManyForCreateInput
   quotations: SaasQuotationRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input TechInegiEstablishmentRelateToOneForCreateInput {
+  create: TechInegiEstablishmentCreateInput
+  connect: TechInegiEstablishmentWhereUniqueInput
 }
 
 type TechFile {
@@ -5552,6 +5567,426 @@ input TechAiInsightCreateInput {
 input TechFileRelateToOneForCreateInput {
   create: TechFileCreateInput
   connect: TechFileWhereUniqueInput
+}
+
+type TechInegiEconomicActivity {
+  id: ID!
+  scianCode: String
+  name: String
+  establishments(where: TechInegiEstablishmentWhereInput! = {}, orderBy: [TechInegiEstablishmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechInegiEstablishmentWhereUniqueInput): [TechInegiEstablishment!]
+  establishmentsCount(where: TechInegiEstablishmentWhereInput! = {}): Int
+}
+
+input TechInegiEconomicActivityWhereUniqueInput {
+  id: ID
+  scianCode: String
+}
+
+input TechInegiEconomicActivityWhereInput {
+  AND: [TechInegiEconomicActivityWhereInput!]
+  OR: [TechInegiEconomicActivityWhereInput!]
+  NOT: [TechInegiEconomicActivityWhereInput!]
+  id: IDFilter
+  scianCode: StringFilter
+  name: StringFilter
+  establishments: TechInegiEstablishmentManyRelationFilter
+}
+
+input TechInegiEstablishmentManyRelationFilter {
+  every: TechInegiEstablishmentWhereInput
+  some: TechInegiEstablishmentWhereInput
+  none: TechInegiEstablishmentWhereInput
+}
+
+input TechInegiEconomicActivityOrderByInput {
+  id: OrderDirection
+  scianCode: OrderDirection
+  name: OrderDirection
+}
+
+input TechInegiEconomicActivityUpdateInput {
+  scianCode: String
+  name: String
+  establishments: TechInegiEstablishmentRelateToManyForUpdateInput
+}
+
+input TechInegiEstablishmentRelateToManyForUpdateInput {
+  disconnect: [TechInegiEstablishmentWhereUniqueInput!]
+  set: [TechInegiEstablishmentWhereUniqueInput!]
+  create: [TechInegiEstablishmentCreateInput!]
+  connect: [TechInegiEstablishmentWhereUniqueInput!]
+}
+
+input TechInegiEconomicActivityUpdateArgs {
+  where: TechInegiEconomicActivityWhereUniqueInput!
+  data: TechInegiEconomicActivityUpdateInput!
+}
+
+input TechInegiEconomicActivityCreateInput {
+  scianCode: String
+  name: String
+  establishments: TechInegiEstablishmentRelateToManyForCreateInput
+}
+
+input TechInegiEstablishmentRelateToManyForCreateInput {
+  create: [TechInegiEstablishmentCreateInput!]
+  connect: [TechInegiEstablishmentWhereUniqueInput!]
+}
+
+type TechInegiEstablishment {
+  id: ID!
+  clee: String
+  name: String
+  legalName: String
+  employeeStratum: String
+  economicActivity: TechInegiEconomicActivity
+  street: String
+  exteriorNumber: String
+  interiorNumber: String
+  neighborhood: String
+  postalCode: String
+  locality: String
+  municipality: String
+  state: String
+  phone: String
+  email: String
+  website: String
+  lat: Float
+  lng: Float
+  rawPayload: JSON
+  lastSyncedAt: DateTime
+  promotedLeads(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
+  promotedLeadsCount(where: TechBusinessLeadWhereInput! = {}): Int
+}
+
+input TechInegiEstablishmentWhereUniqueInput {
+  id: ID
+  clee: String
+}
+
+input TechInegiEstablishmentWhereInput {
+  AND: [TechInegiEstablishmentWhereInput!]
+  OR: [TechInegiEstablishmentWhereInput!]
+  NOT: [TechInegiEstablishmentWhereInput!]
+  id: IDFilter
+  clee: StringFilter
+  name: StringFilter
+  legalName: StringFilter
+  employeeStratum: StringFilter
+  economicActivity: TechInegiEconomicActivityWhereInput
+  street: StringFilter
+  exteriorNumber: StringFilter
+  interiorNumber: StringFilter
+  neighborhood: StringFilter
+  postalCode: StringFilter
+  locality: StringFilter
+  municipality: StringFilter
+  state: StringFilter
+  phone: StringFilter
+  email: StringFilter
+  website: StringFilter
+  lat: FloatNullableFilter
+  lng: FloatNullableFilter
+  lastSyncedAt: DateTimeNullableFilter
+  promotedLeads: TechBusinessLeadManyRelationFilter
+}
+
+input TechInegiEstablishmentOrderByInput {
+  id: OrderDirection
+  clee: OrderDirection
+  name: OrderDirection
+  legalName: OrderDirection
+  employeeStratum: OrderDirection
+  street: OrderDirection
+  exteriorNumber: OrderDirection
+  interiorNumber: OrderDirection
+  neighborhood: OrderDirection
+  postalCode: OrderDirection
+  locality: OrderDirection
+  municipality: OrderDirection
+  state: OrderDirection
+  phone: OrderDirection
+  email: OrderDirection
+  website: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  lastSyncedAt: OrderDirection
+}
+
+input TechInegiEstablishmentUpdateInput {
+  clee: String
+  name: String
+  legalName: String
+  employeeStratum: String
+  economicActivity: TechInegiEconomicActivityRelateToOneForUpdateInput
+  street: String
+  exteriorNumber: String
+  interiorNumber: String
+  neighborhood: String
+  postalCode: String
+  locality: String
+  municipality: String
+  state: String
+  phone: String
+  email: String
+  website: String
+  lat: Float
+  lng: Float
+  rawPayload: JSON
+  lastSyncedAt: DateTime
+  promotedLeads: TechBusinessLeadRelateToManyForUpdateInput
+}
+
+input TechInegiEconomicActivityRelateToOneForUpdateInput {
+  create: TechInegiEconomicActivityCreateInput
+  connect: TechInegiEconomicActivityWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechInegiEstablishmentUpdateArgs {
+  where: TechInegiEstablishmentWhereUniqueInput!
+  data: TechInegiEstablishmentUpdateInput!
+}
+
+input TechInegiEstablishmentCreateInput {
+  clee: String
+  name: String
+  legalName: String
+  employeeStratum: String
+  economicActivity: TechInegiEconomicActivityRelateToOneForCreateInput
+  street: String
+  exteriorNumber: String
+  interiorNumber: String
+  neighborhood: String
+  postalCode: String
+  locality: String
+  municipality: String
+  state: String
+  phone: String
+  email: String
+  website: String
+  lat: Float
+  lng: Float
+  rawPayload: JSON
+  lastSyncedAt: DateTime
+  promotedLeads: TechBusinessLeadRelateToManyForCreateInput
+}
+
+input TechInegiEconomicActivityRelateToOneForCreateInput {
+  create: TechInegiEconomicActivityCreateInput
+  connect: TechInegiEconomicActivityWhereUniqueInput
+}
+
+type TechInegiGeoBoundary {
+  id: ID!
+  cacheKey: String
+  level: String
+  geoCode: String
+  name: String
+  parentCode: String
+  geometry: JSON
+}
+
+input TechInegiGeoBoundaryWhereUniqueInput {
+  id: ID
+  cacheKey: String
+}
+
+input TechInegiGeoBoundaryWhereInput {
+  AND: [TechInegiGeoBoundaryWhereInput!]
+  OR: [TechInegiGeoBoundaryWhereInput!]
+  NOT: [TechInegiGeoBoundaryWhereInput!]
+  id: IDFilter
+  cacheKey: StringFilter
+  level: StringFilter
+  geoCode: StringFilter
+  name: StringFilter
+  parentCode: StringNullableFilter
+}
+
+input TechInegiGeoBoundaryOrderByInput {
+  id: OrderDirection
+  cacheKey: OrderDirection
+  level: OrderDirection
+  geoCode: OrderDirection
+  name: OrderDirection
+  parentCode: OrderDirection
+}
+
+input TechInegiGeoBoundaryUpdateInput {
+  cacheKey: String
+  level: String
+  geoCode: String
+  name: String
+  parentCode: String
+  geometry: JSON
+}
+
+input TechInegiGeoBoundaryUpdateArgs {
+  where: TechInegiGeoBoundaryWhereUniqueInput!
+  data: TechInegiGeoBoundaryUpdateInput!
+}
+
+input TechInegiGeoBoundaryCreateInput {
+  cacheKey: String
+  level: String
+  geoCode: String
+  name: String
+  parentCode: String
+  geometry: JSON
+}
+
+type TechInegiIndicator {
+  id: ID!
+  cacheKey: String
+  indicatorId: String
+  indicatorName: String
+  geographicLevel: String
+  geographicCode: String
+  period: String
+  value: Float
+  unit: String
+  fetchedAt: DateTime
+}
+
+input TechInegiIndicatorWhereUniqueInput {
+  id: ID
+  cacheKey: String
+}
+
+input TechInegiIndicatorWhereInput {
+  AND: [TechInegiIndicatorWhereInput!]
+  OR: [TechInegiIndicatorWhereInput!]
+  NOT: [TechInegiIndicatorWhereInput!]
+  id: IDFilter
+  cacheKey: StringFilter
+  indicatorId: StringFilter
+  indicatorName: StringFilter
+  geographicLevel: StringFilter
+  geographicCode: StringFilter
+  period: StringFilter
+  value: FloatNullableFilter
+  unit: StringFilter
+  fetchedAt: DateTimeNullableFilter
+}
+
+input TechInegiIndicatorOrderByInput {
+  id: OrderDirection
+  cacheKey: OrderDirection
+  indicatorId: OrderDirection
+  indicatorName: OrderDirection
+  geographicLevel: OrderDirection
+  geographicCode: OrderDirection
+  period: OrderDirection
+  value: OrderDirection
+  unit: OrderDirection
+  fetchedAt: OrderDirection
+}
+
+input TechInegiIndicatorUpdateInput {
+  cacheKey: String
+  indicatorId: String
+  indicatorName: String
+  geographicLevel: String
+  geographicCode: String
+  period: String
+  value: Float
+  unit: String
+  fetchedAt: DateTime
+}
+
+input TechInegiIndicatorUpdateArgs {
+  where: TechInegiIndicatorWhereUniqueInput!
+  data: TechInegiIndicatorUpdateInput!
+}
+
+input TechInegiIndicatorCreateInput {
+  cacheKey: String
+  indicatorId: String
+  indicatorName: String
+  geographicLevel: String
+  geographicCode: String
+  period: String
+  value: Float
+  unit: String
+  fetchedAt: DateTime
+}
+
+type TechInegiSyncLog {
+  id: ID!
+  user: User
+  success: Boolean
+  message: String
+  created: Int
+  updated: Int
+  alreadyInDb: Int
+  totalFetched: Int
+  sourceMethod: String
+  searchParams: JSON
+  createdAt: DateTime
+}
+
+input TechInegiSyncLogWhereUniqueInput {
+  id: ID
+}
+
+input TechInegiSyncLogWhereInput {
+  AND: [TechInegiSyncLogWhereInput!]
+  OR: [TechInegiSyncLogWhereInput!]
+  NOT: [TechInegiSyncLogWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  success: BooleanFilter
+  message: StringFilter
+  created: IntNullableFilter
+  updated: IntNullableFilter
+  alreadyInDb: IntNullableFilter
+  totalFetched: IntNullableFilter
+  sourceMethod: StringFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input TechInegiSyncLogOrderByInput {
+  id: OrderDirection
+  success: OrderDirection
+  message: OrderDirection
+  created: OrderDirection
+  updated: OrderDirection
+  alreadyInDb: OrderDirection
+  totalFetched: OrderDirection
+  sourceMethod: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TechInegiSyncLogUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  success: Boolean
+  message: String
+  created: Int
+  updated: Int
+  alreadyInDb: Int
+  totalFetched: Int
+  sourceMethod: String
+  searchParams: JSON
+  createdAt: DateTime
+}
+
+input TechInegiSyncLogUpdateArgs {
+  where: TechInegiSyncLogWhereUniqueInput!
+  data: TechInegiSyncLogUpdateInput!
+}
+
+input TechInegiSyncLogCreateInput {
+  user: UserRelateToOneForCreateInput
+  success: Boolean
+  message: String
+  created: Int
+  updated: Int
+  alreadyInDb: Int
+  totalFetched: Int
+  sourceMethod: String
+  searchParams: JSON
+  createdAt: DateTime
 }
 
 type TechFollowUpTask {
@@ -6101,6 +6536,8 @@ type User {
   projectsResponsibleCount(where: SaasProjectWhereInput! = {}): Int
   leadSyncLogs(where: TechLeadSyncLogWhereInput! = {}, orderBy: [TechLeadSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadSyncLogWhereUniqueInput): [TechLeadSyncLog!]
   leadSyncLogsCount(where: TechLeadSyncLogWhereInput! = {}): Int
+  inegiSyncLogs(where: TechInegiSyncLogWhereInput! = {}, orderBy: [TechInegiSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechInegiSyncLogWhereUniqueInput): [TechInegiSyncLog!]
+  inegiSyncLogsCount(where: TechInegiSyncLogWhereInput! = {}): Int
   aiCallLogs(where: TechAiCallLogWhereInput! = {}, orderBy: [TechAiCallLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiCallLogWhereUniqueInput): [TechAiCallLog!]
   aiCallLogsCount(where: TechAiCallLogWhereInput! = {}): Int
   aiInsights(where: TechAiInsightWhereInput! = {}, orderBy: [TechAiInsightOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiInsightWhereUniqueInput): [TechAiInsight!]
@@ -6178,6 +6615,7 @@ input UserWhereInput {
   createdByProposals: TechProposalManyRelationFilter
   projectsResponsible: SaasProjectManyRelationFilter
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
+  inegiSyncLogs: TechInegiSyncLogManyRelationFilter
   aiCallLogs: TechAiCallLogManyRelationFilter
   aiInsights: TechAiInsightManyRelationFilter
   saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
@@ -6215,6 +6653,12 @@ input BlogSubscriptionManyRelationFilter {
   every: BlogSubscriptionWhereInput
   some: BlogSubscriptionWhereInput
   none: BlogSubscriptionWhereInput
+}
+
+input TechInegiSyncLogManyRelationFilter {
+  every: TechInegiSyncLogWhereInput
+  some: TechInegiSyncLogWhereInput
+  none: TechInegiSyncLogWhereInput
 }
 
 input UserAuthLogManyRelationFilter {
@@ -6282,6 +6726,7 @@ input UserUpdateInput {
   createdByProposals: TechProposalRelateToManyForUpdateInput
   projectsResponsible: SaasProjectRelateToManyForUpdateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
+  inegiSyncLogs: TechInegiSyncLogRelateToManyForUpdateInput
   aiCallLogs: TechAiCallLogRelateToManyForUpdateInput
   aiInsights: TechAiInsightRelateToManyForUpdateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
@@ -6318,6 +6763,13 @@ input BlogSubscriptionRelateToManyForUpdateInput {
   set: [BlogSubscriptionWhereUniqueInput!]
   create: [BlogSubscriptionCreateInput!]
   connect: [BlogSubscriptionWhereUniqueInput!]
+}
+
+input TechInegiSyncLogRelateToManyForUpdateInput {
+  disconnect: [TechInegiSyncLogWhereUniqueInput!]
+  set: [TechInegiSyncLogWhereUniqueInput!]
+  create: [TechInegiSyncLogCreateInput!]
+  connect: [TechInegiSyncLogWhereUniqueInput!]
 }
 
 input UserAuthLogRelateToManyForUpdateInput {
@@ -6367,6 +6819,7 @@ input UserCreateInput {
   createdByProposals: TechProposalRelateToManyForCreateInput
   projectsResponsible: SaasProjectRelateToManyForCreateInput
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
+  inegiSyncLogs: TechInegiSyncLogRelateToManyForCreateInput
   aiCallLogs: TechAiCallLogRelateToManyForCreateInput
   aiInsights: TechAiInsightRelateToManyForCreateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
@@ -6399,6 +6852,11 @@ input RoleRelateToManyForCreateInput {
 input BlogSubscriptionRelateToManyForCreateInput {
   create: [BlogSubscriptionCreateInput!]
   connect: [BlogSubscriptionWhereUniqueInput!]
+}
+
+input TechInegiSyncLogRelateToManyForCreateInput {
+  create: [TechInegiSyncLogCreateInput!]
+  connect: [TechInegiSyncLogWhereUniqueInput!]
 }
 
 input UserAuthLogRelateToManyForCreateInput {
@@ -6862,6 +7320,36 @@ type Mutation {
   updateTechAiInsights(data: [TechAiInsightUpdateArgs!]!): [TechAiInsight]
   deleteTechAiInsight(where: TechAiInsightWhereUniqueInput!): TechAiInsight
   deleteTechAiInsights(where: [TechAiInsightWhereUniqueInput!]!): [TechAiInsight]
+  createTechInegiEconomicActivity(data: TechInegiEconomicActivityCreateInput!): TechInegiEconomicActivity
+  createTechInegiEconomicActivities(data: [TechInegiEconomicActivityCreateInput!]!): [TechInegiEconomicActivity]
+  updateTechInegiEconomicActivity(where: TechInegiEconomicActivityWhereUniqueInput!, data: TechInegiEconomicActivityUpdateInput!): TechInegiEconomicActivity
+  updateTechInegiEconomicActivities(data: [TechInegiEconomicActivityUpdateArgs!]!): [TechInegiEconomicActivity]
+  deleteTechInegiEconomicActivity(where: TechInegiEconomicActivityWhereUniqueInput!): TechInegiEconomicActivity
+  deleteTechInegiEconomicActivities(where: [TechInegiEconomicActivityWhereUniqueInput!]!): [TechInegiEconomicActivity]
+  createTechInegiEstablishment(data: TechInegiEstablishmentCreateInput!): TechInegiEstablishment
+  createTechInegiEstablishments(data: [TechInegiEstablishmentCreateInput!]!): [TechInegiEstablishment]
+  updateTechInegiEstablishment(where: TechInegiEstablishmentWhereUniqueInput!, data: TechInegiEstablishmentUpdateInput!): TechInegiEstablishment
+  updateTechInegiEstablishments(data: [TechInegiEstablishmentUpdateArgs!]!): [TechInegiEstablishment]
+  deleteTechInegiEstablishment(where: TechInegiEstablishmentWhereUniqueInput!): TechInegiEstablishment
+  deleteTechInegiEstablishments(where: [TechInegiEstablishmentWhereUniqueInput!]!): [TechInegiEstablishment]
+  createTechInegiGeoBoundary(data: TechInegiGeoBoundaryCreateInput!): TechInegiGeoBoundary
+  createTechInegiGeoBoundaries(data: [TechInegiGeoBoundaryCreateInput!]!): [TechInegiGeoBoundary]
+  updateTechInegiGeoBoundary(where: TechInegiGeoBoundaryWhereUniqueInput!, data: TechInegiGeoBoundaryUpdateInput!): TechInegiGeoBoundary
+  updateTechInegiGeoBoundaries(data: [TechInegiGeoBoundaryUpdateArgs!]!): [TechInegiGeoBoundary]
+  deleteTechInegiGeoBoundary(where: TechInegiGeoBoundaryWhereUniqueInput!): TechInegiGeoBoundary
+  deleteTechInegiGeoBoundaries(where: [TechInegiGeoBoundaryWhereUniqueInput!]!): [TechInegiGeoBoundary]
+  createTechInegiIndicator(data: TechInegiIndicatorCreateInput!): TechInegiIndicator
+  createTechInegiIndicators(data: [TechInegiIndicatorCreateInput!]!): [TechInegiIndicator]
+  updateTechInegiIndicator(where: TechInegiIndicatorWhereUniqueInput!, data: TechInegiIndicatorUpdateInput!): TechInegiIndicator
+  updateTechInegiIndicators(data: [TechInegiIndicatorUpdateArgs!]!): [TechInegiIndicator]
+  deleteTechInegiIndicator(where: TechInegiIndicatorWhereUniqueInput!): TechInegiIndicator
+  deleteTechInegiIndicators(where: [TechInegiIndicatorWhereUniqueInput!]!): [TechInegiIndicator]
+  createTechInegiSyncLog(data: TechInegiSyncLogCreateInput!): TechInegiSyncLog
+  createTechInegiSyncLogs(data: [TechInegiSyncLogCreateInput!]!): [TechInegiSyncLog]
+  updateTechInegiSyncLog(where: TechInegiSyncLogWhereUniqueInput!, data: TechInegiSyncLogUpdateInput!): TechInegiSyncLog
+  updateTechInegiSyncLogs(data: [TechInegiSyncLogUpdateArgs!]!): [TechInegiSyncLog]
+  deleteTechInegiSyncLog(where: TechInegiSyncLogWhereUniqueInput!): TechInegiSyncLog
+  deleteTechInegiSyncLogs(where: [TechInegiSyncLogWhereUniqueInput!]!): [TechInegiSyncLog]
   createTechFollowUpTask(data: TechFollowUpTaskCreateInput!): TechFollowUpTask
   createTechFollowUpTasks(data: [TechFollowUpTaskCreateInput!]!): [TechFollowUpTask]
   updateTechFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!, data: TechFollowUpTaskUpdateInput!): TechFollowUpTask
@@ -6930,12 +7418,17 @@ type Mutation {
   sendTestEmail(email: String!): SendTestEmailResult!
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
+  syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
+  syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
+  promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
+  fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
   generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
   generateCompanyAiBrief(companyId: ID!, force: Boolean): CompanyAiBriefResult!
+  generateMarketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String, force: Boolean): MarketInsightResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -7121,6 +7614,21 @@ type Query {
   techAiInsight(where: TechAiInsightWhereUniqueInput!): TechAiInsight
   techAiInsights(where: TechAiInsightWhereInput! = {}, orderBy: [TechAiInsightOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiInsightWhereUniqueInput): [TechAiInsight!]
   techAiInsightsCount(where: TechAiInsightWhereInput! = {}): Int
+  techInegiEconomicActivity(where: TechInegiEconomicActivityWhereUniqueInput!): TechInegiEconomicActivity
+  techInegiEconomicActivities(where: TechInegiEconomicActivityWhereInput! = {}, orderBy: [TechInegiEconomicActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechInegiEconomicActivityWhereUniqueInput): [TechInegiEconomicActivity!]
+  techInegiEconomicActivitiesCount(where: TechInegiEconomicActivityWhereInput! = {}): Int
+  techInegiEstablishment(where: TechInegiEstablishmentWhereUniqueInput!): TechInegiEstablishment
+  techInegiEstablishments(where: TechInegiEstablishmentWhereInput! = {}, orderBy: [TechInegiEstablishmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechInegiEstablishmentWhereUniqueInput): [TechInegiEstablishment!]
+  techInegiEstablishmentsCount(where: TechInegiEstablishmentWhereInput! = {}): Int
+  techInegiGeoBoundary(where: TechInegiGeoBoundaryWhereUniqueInput!): TechInegiGeoBoundary
+  techInegiGeoBoundaries(where: TechInegiGeoBoundaryWhereInput! = {}, orderBy: [TechInegiGeoBoundaryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechInegiGeoBoundaryWhereUniqueInput): [TechInegiGeoBoundary!]
+  techInegiGeoBoundariesCount(where: TechInegiGeoBoundaryWhereInput! = {}): Int
+  techInegiIndicator(where: TechInegiIndicatorWhereUniqueInput!): TechInegiIndicator
+  techInegiIndicators(where: TechInegiIndicatorWhereInput! = {}, orderBy: [TechInegiIndicatorOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechInegiIndicatorWhereUniqueInput): [TechInegiIndicator!]
+  techInegiIndicatorsCount(where: TechInegiIndicatorWhereInput! = {}): Int
+  techInegiSyncLog(where: TechInegiSyncLogWhereUniqueInput!): TechInegiSyncLog
+  techInegiSyncLogs(where: TechInegiSyncLogWhereInput! = {}, orderBy: [TechInegiSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechInegiSyncLogWhereUniqueInput): [TechInegiSyncLog!]
+  techInegiSyncLogsCount(where: TechInegiSyncLogWhereInput! = {}): Int
   techFollowUpTask(where: TechFollowUpTaskWhereUniqueInput!): TechFollowUpTask
   techFollowUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   techFollowUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
@@ -7157,6 +7665,7 @@ type Query {
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
+  marketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String): MarketInsightResult!
 }
 
 union AuthenticatedItem = User
@@ -7524,6 +8033,106 @@ type CompanyAiBriefResult {
   cached: Boolean!
   creditsCharged: Int
   insight: CompanyAiBriefInsight
+}
+
+type MarketInsightAction {
+  title: String!
+  detail: String!
+}
+
+type MarketInsight {
+  id: ID!
+  referenceKey: String!
+  content: String
+  generatedAt: String
+  summary: String
+  actions: [MarketInsightAction!]!
+}
+
+type MarketInsightResult {
+  success: Boolean!
+  message: String!
+  cached: Boolean!
+  creditsCharged: Int
+  insight: MarketInsight
+}
+
+input SyncEstablishmentsFromInegiInput {
+  lat: Float
+  lng: Float
+  radiusMeters: Int
+  keyword: String
+  stateCode: String
+  municipalityCode: String
+  localityCode: String
+  scianCode: String
+  maxResults: Int
+}
+
+type SyncEstablishmentsFromInegiResult {
+  success: Boolean!
+  message: String!
+  created: Int!
+  updated: Int!
+  alreadyInDb: Int!
+  totalFetched: Int!
+}
+
+input SyncLeadsFromInegiInput {
+  lat: Float!
+  lng: Float!
+  radius: Float!
+  category: String!
+  maxResults: Int
+}
+
+type SyncLeadsFromInegiResult {
+  success: Boolean!
+  message: String!
+  created: Int!
+  alreadyInDb: Int!
+  skippedLowRating: Int!
+  syncedLeadsCount: Int!
+  syncedCount: Int
+  leadLimit: Int
+}
+
+input PromoteInegiEstablishmentToLeadInput {
+  establishmentId: ID!
+  assignedSellerId: ID
+  companyId: ID
+}
+
+type PromoteInegiEstablishmentToLeadResult {
+  success: Boolean!
+  message: String!
+  businessLeadId: ID
+  creditsCharged: Int
+}
+
+input FetchInegiIndicatorInput {
+  indicatorId: String!
+  geographicCode: String!
+  recent: Boolean
+}
+
+type InegiIndicatorValue {
+  cacheKey: String!
+  indicatorId: String!
+  indicatorName: String!
+  geographicLevel: String!
+  geographicCode: String!
+  period: String!
+  value: Float
+  unit: String
+}
+
+type FetchInegiIndicatorResult {
+  success: Boolean!
+  message: String!
+  created: Int!
+  updated: Int!
+  indicators: [InegiIndicatorValue!]!
 }
 
 type AnimalMultimediaImage {

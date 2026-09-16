@@ -38,6 +38,7 @@ export const AI_FEATURE = {
   FILE_ANALYSIS: "file_analysis",
   PROFILE_PLAYBOOK: "profile_playbook",
   COMPANY_BRIEF: "company_brief",
+  MARKET_ANALYSIS: "market_analysis",
 } as const;
 
 export const AI_RATE_LIMIT = {

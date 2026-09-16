@@ -11,8 +11,13 @@ import remainingCredits from "./subcription/remainingCredits";
 import purchaseCredits from "./credits/purchaseCredits";
 import sendTestEmail from "./sendTestEmail";
 import updateCompanyAiSettings from "./ai/updateCompanyAiSettings";
+import generateMarketInsight from "./ai/generateMarketInsight";
 import dailyDigest from "../ai/dailyDigest";
 import companyBrief from "../ai/companyBrief";
+import syncEstablishmentsFromInegi from "./inegi/syncEstablishmentsFromInegi";
+import syncLeadsFromInegi from "./inegi/syncLeadsFromInegi";
+import promoteInegiEstablishmentToLead from "./inegi/promoteInegiEstablishmentToLead";
+import fetchInegiIndicator from "./inegi/fetchInegiIndicator";
 
 const customMutation = {
   typeDefs: `
@@ -31,6 +36,11 @@ const customMutation = {
     ${updateCompanyAiSettings.typeDefs}
     ${dailyDigest.typeDefs}
     ${companyBrief.typeDefs}
+    ${generateMarketInsight.typeDefs}
+    ${syncEstablishmentsFromInegi.typeDefs}
+    ${syncLeadsFromInegi.typeDefs}
+    ${promoteInegiEstablishmentToLead.typeDefs}
+    ${fetchInegiIndicator.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -48,6 +58,11 @@ const customMutation = {
     ${updateCompanyAiSettings.definition}
     ${dailyDigest.mutationDefinition}
     ${companyBrief.mutationDefinition}
+    ${generateMarketInsight.mutationDefinition}
+    ${syncEstablishmentsFromInegi.definition}
+    ${syncLeadsFromInegi.definition}
+    ${promoteInegiEstablishmentToLead.definition}
+    ${fetchInegiIndicator.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -65,6 +80,11 @@ const customMutation = {
     ...updateCompanyAiSettings.resolver,
     ...dailyDigest.mutationResolver,
     ...companyBrief.mutationResolver,
+    ...generateMarketInsight.mutationResolver,
+    ...syncEstablishmentsFromInegi.resolver,
+    ...syncLeadsFromInegi.resolver,
+    ...promoteInegiEstablishmentToLead.resolver,
+    ...fetchInegiIndicator.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
