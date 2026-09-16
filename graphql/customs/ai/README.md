@@ -9,8 +9,12 @@ Capa GraphQL de las features de IA (Inicio). Snapshots y caché viven en `utils/
 | `dailyDigest` | query | Lee el insight del día (caché). |
 | `generateDailyDigest(force)` | mutation | Genera o reusa el digest. |
 | `aiPlaybook` / `generateAiPlaybook` | query / mutation | Playbook de perfil, misma forma de resultado. |
+| `marketInsight` / `generateMarketInsight` | query / mutation | Análisis de mercado (DENUE + BIE). Caché mensual por zona. |
 
 Access: `canUseCompanyAi` (miembro de la empresa o admin de plataforma). Configurar la key es otro permiso (`canManageCompanyAi`).
+
+`generateMarketInsight` usa el mismo gate. El snapshot lo arma [`utils/ai/marketSnapshot.ts`](../../../utils/ai/marketSnapshot.ts).
+
 
 ## Invariantes
 
@@ -25,4 +29,7 @@ Access: `canUseCompanyAi` (miembro de la empresa o admin de plataforma). Configu
 
 El plan decía “el vendedor abre Inicio”. El dashboard de `admin_company` es el pipeline de toda la empresa, así que su digest no se guarda atado a un vendedor. Misma mutación, distinta clave de caché.
 
-Cualquier miembro puede **generar**; solo el admin de empresa configura modalidad / API key.
+### 2026-09-14 — Análisis de mercado
+
+Misma forma query/mutation + `force` que el digest. Caché `company + kind + referenceKey` mensual. No mezclar con el digest del vendedor (`salesPerson` vacío = insight de empresa).
+

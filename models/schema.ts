@@ -45,6 +45,11 @@ import TechFile from "./Tech/TechFiles/TechFiles";
 import TechLeadSyncLog from "./Tech/LeadSyncLog/TechLeadSyncLog";
 import TechAiCallLog from "./Tech/AiCallLog/TechAiCallLog";
 import TechAiInsight from "./Tech/AiInsight/TechAiInsight";
+import TechInegiEconomicActivity from "./Tech/Inegi/EconomicActivity/TechInegiEconomicActivity";
+import TechInegiEstablishment from "./Tech/Inegi/Establishment/TechInegiEstablishment";
+import TechInegiGeoBoundary from "./Tech/Inegi/GeoBoundary/TechInegiGeoBoundary";
+import TechInegiIndicator from "./Tech/Inegi/Indicator/TechInegiIndicator";
+import TechInegiSyncLog from "./Tech/Inegi/SyncLog/TechInegiSyncLog";
 import SaasCompany from "./Saas/SaasCompany/SaasCompany";
 import SaasPlan from "./Saas/SaasPlan/SaasPlan";
 import SaasCredit from "./Saas/SaasCredit/SaasCredit";
@@ -117,6 +122,11 @@ export default {
   TechLeadSyncLog,
   TechAiCallLog,
   TechAiInsight,
+  TechInegiEconomicActivity,
+  TechInegiEstablishment,
+  TechInegiGeoBoundary,
+  TechInegiIndicator,
+  TechInegiSyncLog,
   TechFollowUpTask,
   TechProposal,
   TechSalesActivity,

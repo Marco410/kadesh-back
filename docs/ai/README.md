@@ -28,7 +28,8 @@ Junto al código (fuente operativa):
 
 - [`utils/ai/README.md`](../../utils/ai/README.md) — `callCompanyAi`, créditos, rate limit, fallback Gemini
 - [`graphql/customs/mutations/ai/README.md`](../../graphql/customs/mutations/ai/README.md) — settings y ping
-- [`graphql/customs/ai/README.md`](../../graphql/customs/ai/README.md) — digest y playbook
+- [`graphql/customs/ai/README.md`](../../graphql/customs/ai/README.md) — digest, playbook y análisis de mercado INEGI
+- [INEGI — catálogo DENUE/BIE](../inegi/README.md)
 
 ## Idea central
 
