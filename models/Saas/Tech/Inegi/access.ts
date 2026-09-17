@@ -1,7 +1,7 @@
 import { ListAccessControl } from "@keystone-6/core/types";
-import { hasRole } from "../../../auth/permissions";
-import { Role } from "../../Role/constants";
-import { isSignedIn } from "../../../utils/access/tenant";
+import { hasRole } from "../../../../auth/permissions";
+import { Role } from "../../../Role/constants";
+import { isSignedIn } from "../../../../utils/access/tenant";
 
 /**
  * Catálogo público INEGI: lectura abierta, escrituras solo vía sudo

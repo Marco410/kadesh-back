@@ -1,5 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { PIPELINE_STATUS, LEAD_SOURCE } from "../../../models/Tech/crm/constants";
+import { PIPELINE_STATUS, LEAD_SOURCE } from "../../../models/Saas/Tech/crm/constants";
 import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscription/constants";
 
 const ADD_OWN_LEADS_FEATURE_KEY = "add_own_leads";

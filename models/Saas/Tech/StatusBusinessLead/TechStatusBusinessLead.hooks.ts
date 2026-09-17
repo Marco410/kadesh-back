@@ -1,6 +1,6 @@
-import { hasRole } from "../../../auth/permissions";
-import { Role } from "../../Role/constants";
-import { getSessionCompanyId } from "../../../utils/access/tenant";
+import { hasRole } from "../../../../auth/permissions";
+import { Role } from "../../../Role/constants";
+import { getSessionCompanyId } from "../../../../utils/access/tenant";
 
 export const statusBusinessLeadHooks = {
   resolveInput: async ({

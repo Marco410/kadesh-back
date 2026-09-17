@@ -13,7 +13,7 @@ import config from "./keystone";
 import {
   INEGI_GEO_BOUNDARY_LEVEL,
   type InegiGeoBoundaryLevel,
-} from "./models/Tech/Inegi/constants";
+} from "./models/Saas/Tech/Inegi/constants";
 
 type GeoJsonGeometry = {
   type: string;

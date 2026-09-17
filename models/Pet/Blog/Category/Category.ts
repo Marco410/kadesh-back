@@ -6,8 +6,8 @@ import {
   image,
   select,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
-import { POST_CATEGORIES } from "../../../utils/constants/constants";
+import access from "../../../../utils/generalAccess/access";
+import { POST_CATEGORIES } from "../../../../utils/constants/constants";
 import { categoryUrlHook } from "./Category.hooks";
 
 export default list({

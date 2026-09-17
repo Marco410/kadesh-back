@@ -1,7 +1,7 @@
 import { list } from "@keystone-6/core";
 import { relationship, select, text, timestamp } from "@keystone-6/core/fields";
-import access from "../../utils/generalAccess/access";
-import { ANIMAL_SEX_OPTIONS } from "../../utils/constants/constants";
+import access from "../../../utils/generalAccess/access";
+import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
 import { animalSlugAfterOperation } from "./Animal.hooks";
 
 export default list({

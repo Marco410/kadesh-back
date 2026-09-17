@@ -3,8 +3,8 @@ import { integer, relationship, select } from "@keystone-6/core/fields";
 import {
   ANIMAL_TYPE_OPTIONS,
   AnimalTypes,
-} from "../../../utils/constants/constants";
-import access from "../../../utils/generalAccess/access";
+} from "../../../../utils/constants/constants";
+import access from "../../../../utils/generalAccess/access";
 
 export default list({
   access,

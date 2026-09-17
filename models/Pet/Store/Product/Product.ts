@@ -6,12 +6,12 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import access from "../../../../utils/generalAccess/access";
 import {
   ANIMAL_TYPE_OPTIONS,
   BRANDS,
   PRODUCT_CATEGORIES,
-} from "../../../utils/constants/constants";
+} from "../../../../utils/constants/constants";
 
 export default list({
   access,

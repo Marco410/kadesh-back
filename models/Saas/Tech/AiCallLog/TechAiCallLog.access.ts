@@ -4,7 +4,7 @@ import {
   isCompanyAdmin,
   isPlatformAdmin,
   isSignedIn,
-} from "../../../utils/access/tenant";
+} from "../../../../utils/access/tenant";
 
 /**
  * Historial de llamadas a IA: lectura acotada a la empresa de la sesión.

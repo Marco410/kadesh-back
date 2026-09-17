@@ -3,7 +3,7 @@ import { mergeSchemas } from "@graphql-tools/schema";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import customMutation from "./customs/mutations";
 import customQuery from "./customs/queries";
-import { persistPetPlaceSlugIfMissing } from "../models/PetPlace/PetPlace.hooks";
+import { persistPetPlaceSlugIfMissing } from "../models/Pet/PetPlace/PetPlace.hooks";
 
 type PetPlaceSlugParent = {
   id?: string;

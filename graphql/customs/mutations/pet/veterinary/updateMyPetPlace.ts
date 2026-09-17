@@ -1,6 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { getSessionUserId } from "../../../../../utils/access/tenant";
-import { PET_PLACE_CLAIM_STATUS } from "../../../../../models/PetPlace/claim";
+import { PET_PLACE_CLAIM_STATUS } from "../../../../../models/Pet/PetPlace/claim";
 
 const PHONE_PATTERN = /^\+?\d{10,}$/;
 const SOCIAL_MEDIA_OPTIONS = ["Facebook", "Instagram", "X", "LinkedIn", "TikTok"] as const;

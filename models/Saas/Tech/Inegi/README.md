@@ -14,7 +14,7 @@ Lists de referencia **compartidas** (no tenant). El tenant entra al promover un 
 
 `TechBusinessLead.sourceEstablishment` apunta al establecimiento DENUE. `LEAD_SOURCE.INEGI` = `"INEGI"`.
 
-Cómo llenar y consultar el catálogo desde ops/front: [docs/inegi/uso.md](../../../docs/inegi/uso.md).
+Cómo llenar y consultar el catálogo desde ops/front: [docs/inegi/uso.md](../../../../docs/inegi/uso.md).
 
 ## Invariantes
 

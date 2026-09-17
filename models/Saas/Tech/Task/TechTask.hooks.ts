@@ -1,4 +1,4 @@
-import { validateTechStatusCrmInput } from "../../../utils/validation/validateTechStatusCrm";
+import { validateTechStatusCrmInput } from "../../../../utils/validation/validateTechStatusCrm";
 
 export const techTaskHooks = {
   validateInput: async ({

@@ -29,6 +29,6 @@ No hay cron: sync puntual por GraphQL o scripts que corre un humano.
 
 Código operativo:
 
-- [`models/Tech/Inegi`](../../models/Tech/Inegi/README.md)
+- [`models/Saas/Tech/Inegi`](../../models/Saas/Tech/Inegi/README.md)
 - [`utils/inegi`](../../utils/inegi/README.md)
 - [`graphql/customs/mutations/inegi`](../../graphql/customs/mutations/inegi/README.md)

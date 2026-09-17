@@ -1,10 +1,10 @@
 import { ListAccessControl } from "@keystone-6/core/types";
-import { statusLeadCompanyScopedWhere } from "../../../utils/access/leadScopedFilter";
+import { statusLeadCompanyScopedWhere } from "../../../../utils/access/leadScopedFilter";
 import {
   getSessionCompanyId,
   isPlatformAdmin,
   isSignedIn,
-} from "../../../utils/access/tenant";
+} from "../../../../utils/access/tenant";
 
 export const statusBusinessLeadAccess: ListAccessControl<any> = {
   operation: {

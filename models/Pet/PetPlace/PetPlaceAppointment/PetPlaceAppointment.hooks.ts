@@ -1,6 +1,6 @@
-import { sendPetPlaceAppointmentEmail } from "../../../utils/helpers/sendgrid";
-import { isSmtpConfigured } from "../../../utils/intregrations/smtpMail";
-import { getSessionUserId, isPlatformAdmin } from "../../../utils/access/tenant";
+import { sendPetPlaceAppointmentEmail } from "../../../../utils/helpers/sendgrid";
+import { isSmtpConfigured } from "../../../../utils/intregrations/smtpMail";
+import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { PET_PLACE_APPOINTMENT_STATUS } from "./status";
 
 export const petPlaceAppointmentValidateInput = async ({

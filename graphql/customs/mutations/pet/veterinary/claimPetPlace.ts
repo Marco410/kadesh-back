@@ -4,7 +4,7 @@ import {
   PET_PLACE_CLAIM_ROLE,
   PET_PLACE_CLAIM_STATUS,
   type PetPlaceClaimRole,
-} from "../../../../../models/PetPlace/claim";
+} from "../../../../../models/Pet/PetPlace/claim";
 
 const PHONE_PATTERN = /^\+?\d{10,}$/;
 

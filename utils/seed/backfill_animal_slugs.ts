@@ -9,7 +9,7 @@
 import { getContext } from "@keystone-6/core/context";
 import * as PrismaModule from "@prisma/client";
 import config from "../../keystone";
-import { persistAnimalSlugIfMissing } from "../../models/Animal/Animal.hooks";
+import { persistAnimalSlugIfMissing } from "../../models/Pet/Animal/Animal.hooks";
 
 type AnimalSlugRow = {
   id: string;

@@ -7,9 +7,9 @@ import {
   file,
 } from "@keystone-6/core/fields";
 import { techFilesAccess } from "./TechFiles.access";
-import { hasRole } from "../../../auth/permissions";
-import { Role } from "../../Role/constants";
-import { getSessionCompanyId } from "../../../utils/access/tenant";
+import { hasRole } from "../../../../auth/permissions";
+import { Role } from "../../../Role/constants";
+import { getSessionCompanyId } from "../../../../utils/access/tenant";
 
 const CATEGORY_OPTIONS = [
   { label: "Proceso de venta", value: "purchase_process" },

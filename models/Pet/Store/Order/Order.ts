@@ -6,8 +6,8 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
-import { ORDER_STATUS } from "../../../utils/constants/constants";
+import access from "../../../../utils/generalAccess/access";
+import { ORDER_STATUS } from "../../../../utils/constants/constants";
 
 export default list({
   access,

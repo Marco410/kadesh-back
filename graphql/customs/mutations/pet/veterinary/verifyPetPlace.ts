@@ -3,7 +3,7 @@ import {
   getSessionUserId,
   isPlatformAdmin,
 } from "../../../../../utils/access/tenant";
-import { PET_PLACE_CLAIM_STATUS } from "../../../../../models/PetPlace/claim";
+import { PET_PLACE_CLAIM_STATUS } from "../../../../../models/Pet/PetPlace/claim";
 
 type PetPlaceVerifyRow = {
   id: string;

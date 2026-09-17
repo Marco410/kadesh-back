@@ -39,7 +39,7 @@ var path = require("path");
 var dotenv = require("dotenv");
 dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
 
-// models/Animal/Animal.ts
+// models/Pet/Animal/Animal.ts
 var import_core = require("@keystone-6/core");
 var import_fields = require("@keystone-6/core/fields");
 
@@ -205,7 +205,7 @@ var POST_CATEGORIES = [
   { label: "Otro", value: "other" }
 ];
 
-// models/Animal/Animal.hooks.ts
+// models/Pet/Animal/Animal.hooks.ts
 var EMOJI_RE = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
 var UNNAMED_RE = /^(sin-?nombre|n-?a|na|unnamed)?$/;
 var TYPE_SLUG = {
@@ -354,7 +354,7 @@ var animalLogSlugAfterOperation = {
   }
 };
 
-// models/Animal/Animal.ts
+// models/Pet/Animal/Animal.ts
 var Animal_default = (0, import_core.list)({
   access: access_default,
   hooks: animalSlugAfterOperation,
@@ -415,7 +415,7 @@ var Animal_default = (0, import_core.list)({
   }
 });
 
-// models/Animal/AnimalType/AnimalType.ts
+// models/Pet/Animal/AnimalType/AnimalType.ts
 var import_core2 = require("@keystone-6/core");
 var import_fields2 = require("@keystone-6/core/fields");
 var AnimalType_default = (0, import_core2.list)({
@@ -438,7 +438,7 @@ var AnimalType_default = (0, import_core2.list)({
   }
 });
 
-// models/Animal/AnimalMultimedia/AnimalMultimedia.ts
+// models/Pet/Animal/AnimalMultimedia/AnimalMultimedia.ts
 var import_core3 = require("@keystone-6/core");
 var import_fields3 = require("@keystone-6/core/fields");
 var AnimalMultimedia_default = (0, import_core3.list)({
@@ -465,7 +465,7 @@ var AnimalMultimedia_default = (0, import_core3.list)({
   }
 });
 
-// models/Animal/AnimalFavorite/AnimalFavorite.ts
+// models/Pet/Animal/AnimalFavorite/AnimalFavorite.ts
 var import_core4 = require("@keystone-6/core");
 var import_fields4 = require("@keystone-6/core/fields");
 var AnimalFavorite_default = (0, import_core4.list)({
@@ -487,7 +487,7 @@ var AnimalFavorite_default = (0, import_core4.list)({
   }
 });
 
-// models/Animal/AnimalLog/AnimalLog.ts
+// models/Pet/Animal/AnimalLog/AnimalLog.ts
 var import_core5 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
 var AnimalLog_default = (0, import_core5.list)({
@@ -525,7 +525,7 @@ var AnimalLog_default = (0, import_core5.list)({
   }
 });
 
-// models/Animal/AnimalComment/AnimalComment.ts
+// models/Pet/Animal/AnimalComment/AnimalComment.ts
 var import_core6 = require("@keystone-6/core");
 var import_fields6 = require("@keystone-6/core/fields");
 var AnimalComment_default = (0, import_core6.list)({
@@ -2001,7 +2001,7 @@ var UserAuthLog_default = (0, import_core8.list)({
   }
 });
 
-// models/Animal/AnimalBreed/AnimalBreed.ts
+// models/Pet/Animal/AnimalBreed/AnimalBreed.ts
 var import_core9 = require("@keystone-6/core");
 var import_fields9 = require("@keystone-6/core/fields");
 var AnimalBreed_default = (0, import_core9.list)({
@@ -2091,11 +2091,11 @@ var PetMultimedia_default = (0, import_core11.list)({
   }
 });
 
-// models/PetPlace/PetPlace.ts
+// models/Pet/PetPlace/PetPlace.ts
 var import_core13 = require("@keystone-6/core");
 var import_fields13 = require("@keystone-6/core/fields");
 
-// models/Schedule/Schedule.ts
+// models/Pet/Schedule/Schedule.ts
 var import_core12 = require("@keystone-6/core");
 var import_fields12 = require("@keystone-6/core/fields");
 var Schedule_default = (0, import_core12.list)({
@@ -2139,7 +2139,7 @@ var dayNames = {
   6: "S\xE1bado" /* SAB */
 };
 
-// models/PetPlace/claim.ts
+// models/Pet/PetPlace/claim.ts
 var PET_PLACE_CLAIM_STATUS = {
   UNCLAIMED: "unclaimed",
   PENDING: "pending",
@@ -2163,7 +2163,7 @@ var PET_PLACE_CLAIM_ROLE_OPTIONS = [
   { label: "Veterinario", value: PET_PLACE_CLAIM_ROLE.VET }
 ];
 
-// models/PetPlace/PetPlace.hooks.ts
+// models/Pet/PetPlace/PetPlace.hooks.ts
 var EMOJI_RE2 = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
 var RESERVED_SLUGS = /* @__PURE__ */ new Set(["registro"]);
 function slugifyPetPlace(value) {
@@ -2254,7 +2254,7 @@ var petPlaceSlugAfterOperation = {
   }
 };
 
-// models/PetPlace/PetPlace.ts
+// models/Pet/PetPlace/PetPlace.ts
 var PetPlace_default = (0, import_core13.list)({
   access: access_default,
   ui: {
@@ -2497,11 +2497,11 @@ var PetPlace_default = (0, import_core13.list)({
   }
 });
 
-// models/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
+// models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
 var import_core14 = require("@keystone-6/core");
 var import_fields14 = require("@keystone-6/core/fields");
 
-// models/PetPlace/PetPlaceAppointment/PetPlaceAppointment.access.ts
+// models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.access.ts
 function visibleWhere(session2) {
   if (isPlatformAdmin(session2)) return true;
   const userId = getSessionUserId(session2);
@@ -2531,7 +2531,7 @@ var petPlaceAppointmentAccess = {
   }
 };
 
-// models/PetPlace/PetPlaceAppointment/status.ts
+// models/Pet/PetPlace/PetPlaceAppointment/status.ts
 var PET_PLACE_APPOINTMENT_STATUS = {
   PENDING: "pending",
   CONFIRMED: "confirmed",
@@ -2547,7 +2547,7 @@ var PET_PLACE_APPOINTMENT_STATUS_OPTIONS = [
   { label: "No se present\xF3", value: PET_PLACE_APPOINTMENT_STATUS.NO_SHOW }
 ];
 
-// models/PetPlace/PetPlaceAppointment/PetPlaceAppointment.hooks.ts
+// models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.hooks.ts
 var petPlaceAppointmentValidateInput = async ({
   resolvedData,
   item,
@@ -2635,7 +2635,7 @@ var petPlaceAppointmentEmailHook = {
   }
 };
 
-// models/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
+// models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
 var PetPlaceAppointment_default = (0, import_core14.list)({
   access: petPlaceAppointmentAccess,
   ui: {
@@ -2717,7 +2717,7 @@ var PetPlaceAppointment_default = (0, import_core14.list)({
   }
 });
 
-// models/PetPlace/PetPlaceLike/PetPlaceLike.ts
+// models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts
 var import_core15 = require("@keystone-6/core");
 var import_fields15 = require("@keystone-6/core/fields");
 var PetPlaceLike_default = (0, import_core15.list)({
@@ -2738,7 +2738,7 @@ var PetPlaceLike_default = (0, import_core15.list)({
   }
 });
 
-// models/PetPlace/PetPlaceService/PetPlaceService.ts
+// models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
 var import_core16 = require("@keystone-6/core");
 var import_fields16 = require("@keystone-6/core/fields");
 var PetPlaceService_default = (0, import_core16.list)({
@@ -2756,7 +2756,7 @@ var PetPlaceService_default = (0, import_core16.list)({
   }
 });
 
-// models/SocialMedia/SocialMedia.ts
+// models/Pet/SocialMedia/SocialMedia.ts
 var import_core17 = require("@keystone-6/core");
 var import_fields17 = require("@keystone-6/core/fields");
 var SocialMedia_default = (0, import_core17.list)({
@@ -2997,7 +2997,7 @@ var SystemRelease_default = (0, import_core18.list)({
   }
 });
 
-// models/Review/Review.ts
+// models/Pet/Review/Review.ts
 var import_core19 = require("@keystone-6/core");
 var import_fields19 = require("@keystone-6/core/fields");
 var Review_default = (0, import_core19.list)({
@@ -3029,7 +3029,7 @@ var Review_default = (0, import_core19.list)({
   }
 });
 
-// models/Store/Product/Product.ts
+// models/Pet/Store/Product/Product.ts
 var import_core20 = require("@keystone-6/core");
 var import_fields20 = require("@keystone-6/core/fields");
 var Product_default = (0, import_core20.list)({
@@ -3070,7 +3070,7 @@ var Product_default = (0, import_core20.list)({
   }
 });
 
-// models/Store/WishList/WishList.ts
+// models/Pet/Store/WishList/WishList.ts
 var import_core21 = require("@keystone-6/core");
 var import_fields21 = require("@keystone-6/core/fields");
 var WishList_default = (0, import_core21.list)({
@@ -3097,7 +3097,7 @@ var WishList_default = (0, import_core21.list)({
   }
 });
 
-// models/Store/Cart/Cart.ts
+// models/Pet/Store/Cart/Cart.ts
 var import_core22 = require("@keystone-6/core");
 var import_fields22 = require("@keystone-6/core/fields");
 var Cart_default = (0, import_core22.list)({
@@ -3124,7 +3124,7 @@ var Cart_default = (0, import_core22.list)({
   }
 });
 
-// models/Store/Order/Order.ts
+// models/Pet/Store/Order/Order.ts
 var import_core23 = require("@keystone-6/core");
 var import_fields23 = require("@keystone-6/core/fields");
 var Order_default = (0, import_core23.list)({
@@ -3156,7 +3156,7 @@ var Order_default = (0, import_core23.list)({
   }
 });
 
-// models/Store/Payment/Payment.ts
+// models/Pet/Store/Payment/Payment.ts
 var import_fields24 = require("@keystone-6/core/fields");
 var import_core24 = require("@keystone-6/core");
 var Payment_default = (0, import_core24.list)({
@@ -3210,7 +3210,7 @@ var Payment_default = (0, import_core24.list)({
   }
 });
 
-// models/Store/PaymentMethod/PaymentMethod.ts
+// models/Pet/Store/PaymentMethod/PaymentMethod.ts
 var import_fields25 = require("@keystone-6/core/fields");
 var import_core25 = require("@keystone-6/core");
 var PaymentMethod_default = (0, import_core25.list)({
@@ -3309,7 +3309,7 @@ var TokenNotification_default = (0, import_core26.list)({
   }
 });
 
-// models/Ad/Ad.ts
+// models/Pet/Ad/Ad.ts
 var import_core27 = require("@keystone-6/core");
 var import_fields27 = require("@keystone-6/core/fields");
 var Ad_default = (0, import_core27.list)({
@@ -3358,11 +3358,11 @@ var Ad_default = (0, import_core27.list)({
   }
 });
 
-// models/Blog/Post/Post.ts
+// models/Pet/Blog/Post/Post.ts
 var import_core28 = require("@keystone-6/core");
 var import_fields28 = require("@keystone-6/core/fields");
 
-// models/Blog/Post/Post.hooks.ts
+// models/Pet/Blog/Post/Post.hooks.ts
 var postUrlHook = {
   resolveInput: async ({ resolvedData, item, context }) => {
     if (item && !resolvedData.title) {
@@ -3471,7 +3471,7 @@ var newPostEmailHook = {
   }
 };
 
-// models/Blog/Post/Post.ts
+// models/Pet/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
 var Post_default = (0, import_core28.list)({
   access: access_default,
@@ -3563,7 +3563,7 @@ var Post_default = (0, import_core28.list)({
   }
 });
 
-// models/Blog/Post/PostComment/PostComment.ts
+// models/Pet/Blog/Post/PostComment/PostComment.ts
 var import_core29 = require("@keystone-6/core");
 var import_fields29 = require("@keystone-6/core/fields");
 var PostComment_default = (0, import_core29.list)({
@@ -3605,7 +3605,7 @@ var PostComment_default = (0, import_core29.list)({
   }
 });
 
-// models/Blog/Post/PostLike/PostLike.ts
+// models/Pet/Blog/Post/PostLike/PostLike.ts
 var import_core30 = require("@keystone-6/core");
 var import_fields30 = require("@keystone-6/core/fields");
 var PostLike_default = (0, import_core30.list)({
@@ -3631,7 +3631,7 @@ var PostLike_default = (0, import_core30.list)({
   }
 });
 
-// models/Blog/Post/PostFavorite/PostFavorite.ts
+// models/Pet/Blog/Post/PostFavorite/PostFavorite.ts
 var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 var PostFavorite_default = (0, import_core31.list)({
@@ -3657,7 +3657,7 @@ var PostFavorite_default = (0, import_core31.list)({
   }
 });
 
-// models/Blog/Post/PostView/PostView.ts
+// models/Pet/Blog/Post/PostView/PostView.ts
 var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
 var PostView_default = (0, import_core32.list)({
@@ -3683,7 +3683,7 @@ var PostView_default = (0, import_core32.list)({
   }
 });
 
-// models/Blog/Tag/Tag.ts
+// models/Pet/Blog/Tag/Tag.ts
 var import_core33 = require("@keystone-6/core");
 var import_fields33 = require("@keystone-6/core/fields");
 var Tag_default = (0, import_core33.list)({
@@ -3709,11 +3709,11 @@ var Tag_default = (0, import_core33.list)({
   }
 });
 
-// models/Blog/Category/Category.ts
+// models/Pet/Blog/Category/Category.ts
 var import_core34 = require("@keystone-6/core");
 var import_fields34 = require("@keystone-6/core/fields");
 
-// models/Blog/Category/Category.hooks.ts
+// models/Pet/Blog/Category/Category.hooks.ts
 function sanitizeUrl2(text59) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
   let cleaned = text59.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
@@ -3752,7 +3752,7 @@ async function checkCategoryUrl(name, currentCategoryId, context) {
   return uniqueLink;
 }
 
-// models/Blog/Category/Category.ts
+// models/Pet/Blog/Category/Category.ts
 var Category_default = (0, import_core34.list)({
   access: access_default,
   fields: {
@@ -3787,7 +3787,7 @@ var Category_default = (0, import_core34.list)({
   }
 });
 
-// models/Blog/BlogSubscription/BlogSubscription.ts
+// models/Pet/Blog/BlogSubscription/BlogSubscription.ts
 var import_core35 = require("@keystone-6/core");
 var import_fields35 = require("@keystone-6/core/fields");
 var BlogSubscription_default = (0, import_core35.list)({
@@ -3879,7 +3879,7 @@ var Role_default = (0, import_core36.list)({
   }
 });
 
-// models/PetPlace/PetPlaceType/PetPlaceType.ts
+// models/Pet/PetPlace/PetPlaceType/PetPlaceType.ts
 var import_core37 = require("@keystone-6/core");
 var import_fields37 = require("@keystone-6/core/fields");
 var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
@@ -3998,7 +3998,7 @@ var ContactForm_default = (0, import_core38.list)({
   }
 });
 
-// models/Tech/BusinessLead/TechBusinessLead.ts
+// models/Saas/Tech/BusinessLead/TechBusinessLead.ts
 var import_core39 = require("@keystone-6/core");
 var import_fields39 = require("@keystone-6/core/fields");
 
@@ -4066,7 +4066,7 @@ function statusLeadCompanyScopedWhere(session2) {
   };
 }
 
-// models/Tech/BusinessLead/TechBusinessLead.access.ts
+// models/Saas/Tech/BusinessLead/TechBusinessLead.access.ts
 var businessLeadAccess = {
   operation: {
     query: ({ session: session2 }) => isSignedIn(session2),
@@ -4081,7 +4081,7 @@ var businessLeadAccess = {
   }
 };
 
-// models/Tech/BusinessLead/TechBusinessLead.hooks.ts
+// models/Saas/Tech/BusinessLead/TechBusinessLead.hooks.ts
 function stripTenantFromClient(resolvedData, key) {
   const next = { ...resolvedData };
   delete next[key];
@@ -4109,7 +4109,7 @@ var businessLeadHooks = {
   }
 };
 
-// models/Tech/crm/constants.ts
+// models/Saas/Tech/crm/constants.ts
 var PIPELINE_STATUS = {
   DETECTADO: "01 - Detectado",
   SELECCIONADO: "02 - Seleccionado",
@@ -4167,7 +4167,7 @@ var LEAD_SOURCE = {
   OTRO: "Otro"
 };
 
-// models/Tech/BusinessLead/TechBusinessLead.ts
+// models/Saas/Tech/BusinessLead/TechBusinessLead.ts
 var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
   value: v
@@ -4322,11 +4322,11 @@ var TechBusinessLead_default = (0, import_core39.list)({
   }
 });
 
-// models/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
+// models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
 var import_core40 = require("@keystone-6/core");
 var import_fields40 = require("@keystone-6/core/fields");
 
-// models/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
+// models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
 var statusBusinessLeadAccess = {
   operation: {
     query: ({ session: session2 }) => isSignedIn(session2),
@@ -4341,7 +4341,7 @@ var statusBusinessLeadAccess = {
   }
 };
 
-// models/Tech/StatusBusinessLead/TechStatusBusinessLead.hooks.ts
+// models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.hooks.ts
 var statusBusinessLeadHooks = {
   resolveInput: async ({
     resolvedData,
@@ -4364,7 +4364,7 @@ var statusBusinessLeadHooks = {
   }
 };
 
-// models/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
+// models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
 var pipelineOptions = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
   label: v,
   value: v
@@ -4462,7 +4462,7 @@ var TechStatusBusinessLead_default = (0, import_core40.list)({
   }
 });
 
-// models/Tech/FollowUpTask/TechFollowUpTask.ts
+// models/Saas/Tech/FollowUpTask/TechFollowUpTask.ts
 var import_core41 = require("@keystone-6/core");
 var import_fields41 = require("@keystone-6/core/fields");
 
@@ -4508,7 +4508,7 @@ function crmWorkspaceScopedWhere(session2, options) {
   return false;
 }
 
-// models/Tech/FollowUpTask/TechFollowUpTask.access.ts
+// models/Saas/Tech/FollowUpTask/TechFollowUpTask.access.ts
 var getCompanyId2 = (session2) => session2?.data?.company?.id;
 var followUpTaskAccess = {
   operation: {
@@ -4591,7 +4591,7 @@ async function validateTechStatusCrmInput(args) {
   }
 }
 
-// models/Tech/FollowUpTask/TechFollowUpTask.hooks.ts
+// models/Saas/Tech/FollowUpTask/TechFollowUpTask.hooks.ts
 var followUpTaskHooks = {
   validateInput: async ({
     context,
@@ -4609,7 +4609,7 @@ var followUpTaskHooks = {
   }
 };
 
-// models/Tech/FollowUpTask/TechFollowUpTask.ts
+// models/Saas/Tech/FollowUpTask/TechFollowUpTask.ts
 var statusOptions = Object.entries(FOLLOW_UP_TASK_STATUS).map(([k, v]) => ({
   label: v,
   value: v
@@ -4693,11 +4693,11 @@ var TechFollowUpTask_default = (0, import_core41.list)({
   }
 });
 
-// models/Tech/Proposal/TechProposal.ts
+// models/Saas/Tech/Proposal/TechProposal.ts
 var import_core42 = require("@keystone-6/core");
 var import_fields42 = require("@keystone-6/core/fields");
 
-// models/Tech/Proposal/TechProposal.access.ts
+// models/Saas/Tech/Proposal/TechProposal.access.ts
 var getCompanyId3 = (session2) => session2?.data?.company?.id;
 var proposalAccess = {
   operation: {
@@ -4713,7 +4713,7 @@ var proposalAccess = {
   }
 };
 
-// models/Tech/Proposal/TechProposal.hooks.ts
+// models/Saas/Tech/Proposal/TechProposal.hooks.ts
 var proposalHooks = {
   validateInput: async ({
     context,
@@ -4762,7 +4762,7 @@ var proposalHooks = {
   }
 };
 
-// models/Tech/Proposal/TechProposal.ts
+// models/Saas/Tech/Proposal/TechProposal.ts
 var statusOptions2 = Object.entries(PROPOSAL_STATUS).map(([k, v]) => ({
   label: v,
   value: v
@@ -4855,11 +4855,11 @@ var TechProposal_default = (0, import_core42.list)({
   }
 });
 
-// models/Tech/SalesActivity/TechSalesActivity.ts
+// models/Saas/Tech/SalesActivity/TechSalesActivity.ts
 var import_core43 = require("@keystone-6/core");
 var import_fields43 = require("@keystone-6/core/fields");
 
-// models/Tech/SalesActivity/TechSalesActivity.access.ts
+// models/Saas/Tech/SalesActivity/TechSalesActivity.access.ts
 var getCompanyId4 = (session2) => session2?.data?.company?.id;
 var salesActivityAccess = {
   operation: {
@@ -4875,7 +4875,7 @@ var salesActivityAccess = {
   }
 };
 
-// models/Tech/SalesActivity/TechSalesActivity.hooks.ts
+// models/Saas/Tech/SalesActivity/TechSalesActivity.hooks.ts
 var salesActivityHooks = {
   validateInput: async ({
     context,
@@ -4893,7 +4893,7 @@ var salesActivityHooks = {
   }
 };
 
-// models/Tech/SalesActivity/TechSalesActivity.ts
+// models/Saas/Tech/SalesActivity/TechSalesActivity.ts
 var activityTypeOptions = Object.entries(SALES_ACTIVITY_TYPE).map(
   ([k, v]) => ({
     label: v,
@@ -4982,11 +4982,11 @@ var TechSalesActivity_default = (0, import_core43.list)({
   }
 });
 
-// models/Tech/Task/TechTask.ts
+// models/Saas/Tech/Task/TechTask.ts
 var import_core44 = require("@keystone-6/core");
 var import_fields44 = require("@keystone-6/core/fields");
 
-// models/Tech/Task/TechTask.access.ts
+// models/Saas/Tech/Task/TechTask.access.ts
 var getCompanyId5 = (session2) => session2?.data?.company?.id;
 var techTaskAccess = {
   operation: {
@@ -5002,7 +5002,7 @@ var techTaskAccess = {
   }
 };
 
-// models/Tech/Task/TechTask.hooks.ts
+// models/Saas/Tech/Task/TechTask.hooks.ts
 var techTaskHooks = {
   validateInput: async ({
     context,
@@ -5020,7 +5020,7 @@ var techTaskHooks = {
   }
 };
 
-// models/Tech/Task/TechTask.ts
+// models/Saas/Tech/Task/TechTask.ts
 var priorityOptions3 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
@@ -5102,11 +5102,11 @@ var TechTask_default = (0, import_core44.list)({
   }
 });
 
-// models/Tech/TechFiles/TechFiles.ts
+// models/Saas/Tech/TechFiles/TechFiles.ts
 var import_core45 = require("@keystone-6/core");
 var import_fields45 = require("@keystone-6/core/fields");
 
-// models/Tech/TechFiles/TechFiles.access.ts
+// models/Saas/Tech/TechFiles/TechFiles.access.ts
 var techFilesAccess = {
   operation: {
     query: ({ session: session2 }) => isSignedIn(session2),
@@ -5136,7 +5136,7 @@ var techFilesAccess = {
   }
 };
 
-// models/Tech/TechFiles/TechFiles.ts
+// models/Saas/Tech/TechFiles/TechFiles.ts
 var CATEGORY_OPTIONS = [
   { label: "Proceso de venta", value: "purchase_process" },
   { label: "T\xE9cnica de venta", value: "sales_technique" },
@@ -5217,11 +5217,11 @@ var TechFiles_default = (0, import_core45.list)({
   }
 });
 
-// models/Tech/LeadSyncLog/TechLeadSyncLog.ts
+// models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
 var import_core46 = require("@keystone-6/core");
 var import_fields46 = require("@keystone-6/core/fields");
 
-// models/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
+// models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
 var getCompanyId6 = (session2) => session2?.data?.company?.id;
 var techLeadSyncLogAccess = {
   operation: {
@@ -5251,7 +5251,7 @@ var techLeadSyncLogAccess = {
   }
 };
 
-// models/Tech/LeadSyncLog/TechLeadSyncLog.ts
+// models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
 var TechLeadSyncLog_default = (0, import_core46.list)({
   access: techLeadSyncLogAccess,
   ui: {
@@ -5332,11 +5332,11 @@ var TechLeadSyncLog_default = (0, import_core46.list)({
   }
 });
 
-// models/Tech/AiCallLog/TechAiCallLog.ts
+// models/Saas/Tech/AiCallLog/TechAiCallLog.ts
 var import_core47 = require("@keystone-6/core");
 var import_fields47 = require("@keystone-6/core/fields");
 
-// models/Tech/AiCallLog/TechAiCallLog.access.ts
+// models/Saas/Tech/AiCallLog/TechAiCallLog.access.ts
 var techAiCallLogAccess = {
   operation: {
     query: ({ session: session2 }) => isSignedIn(session2),
@@ -5413,7 +5413,7 @@ var MANAGED_GEMINI_FALLBACK = [
 ];
 var AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
-// models/Tech/AiCallLog/TechAiCallLog.ts
+// models/Saas/Tech/AiCallLog/TechAiCallLog.ts
 var TechAiCallLog_default = (0, import_core47.list)({
   access: techAiCallLogAccess,
   ui: {
@@ -5542,11 +5542,11 @@ var TechAiCallLog_default = (0, import_core47.list)({
   }
 });
 
-// models/Tech/AiInsight/TechAiInsight.ts
+// models/Saas/Tech/AiInsight/TechAiInsight.ts
 var import_core48 = require("@keystone-6/core");
 var import_fields48 = require("@keystone-6/core/fields");
 
-// models/Tech/AiInsight/TechAiInsight.access.ts
+// models/Saas/Tech/AiInsight/TechAiInsight.access.ts
 var getCompanyId7 = (session2) => session2?.data?.company?.id;
 var techAiInsightAccess = {
   operation: {
@@ -5576,7 +5576,7 @@ var techAiInsightAccess = {
   }
 };
 
-// models/Tech/AiInsight/constants.ts
+// models/Saas/Tech/AiInsight/constants.ts
 var AI_INSIGHT_KIND = {
   DAILY_DIGEST: "daily_digest",
   MONTHLY_NARRATIVE: "monthly_narrative",
@@ -5594,7 +5594,7 @@ var AI_INSIGHT_KIND_OPTIONS = [
   { label: "An\xE1lisis de mercado", value: AI_INSIGHT_KIND.MARKET_ANALYSIS }
 ];
 
-// models/Tech/AiInsight/TechAiInsight.ts
+// models/Saas/Tech/AiInsight/TechAiInsight.ts
 var TechAiInsight_default = (0, import_core48.list)({
   access: techAiInsightAccess,
   ui: {
@@ -5656,11 +5656,11 @@ var TechAiInsight_default = (0, import_core48.list)({
   }
 });
 
-// models/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
+// models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
 var import_core49 = require("@keystone-6/core");
 var import_fields49 = require("@keystone-6/core/fields");
 
-// models/Tech/Inegi/access.ts
+// models/Saas/Tech/Inegi/access.ts
 var inegiCatalogAccess = {
   operation: {
     query: () => true,
@@ -5678,7 +5678,7 @@ var inegiSyncLogAccess = {
   }
 };
 
-// models/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
+// models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
 var TechInegiEconomicActivity_default = (0, import_core49.list)({
   access: inegiCatalogAccess,
   ui: {
@@ -5706,7 +5706,7 @@ var TechInegiEconomicActivity_default = (0, import_core49.list)({
   }
 });
 
-// models/Tech/Inegi/Establishment/TechInegiEstablishment.ts
+// models/Saas/Tech/Inegi/Establishment/TechInegiEstablishment.ts
 var import_core50 = require("@keystone-6/core");
 var import_fields50 = require("@keystone-6/core/fields");
 var TechInegiEstablishment_default = (0, import_core50.list)({
@@ -5766,11 +5766,11 @@ var TechInegiEstablishment_default = (0, import_core50.list)({
   }
 });
 
-// models/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
+// models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
 var import_core51 = require("@keystone-6/core");
 var import_fields51 = require("@keystone-6/core/fields");
 
-// models/Tech/Inegi/constants.ts
+// models/Saas/Tech/Inegi/constants.ts
 var INEGI_SYNC_SOURCE = {
   API: "api",
   BULK_IMPORT: "bulk_import"
@@ -5801,7 +5801,7 @@ var INEGI_GEO_BOUNDARY_LEVEL_OPTIONS = [
 ];
 var INEGI_LIVE_SYNC_CAP = 250;
 
-// models/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
+// models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
 var TechInegiGeoBoundary_default = (0, import_core51.list)({
   access: inegiCatalogAccess,
   ui: {
@@ -5839,7 +5839,7 @@ var TechInegiGeoBoundary_default = (0, import_core51.list)({
   }
 });
 
-// models/Tech/Inegi/Indicator/TechInegiIndicator.ts
+// models/Saas/Tech/Inegi/Indicator/TechInegiIndicator.ts
 var import_core52 = require("@keystone-6/core");
 var import_fields52 = require("@keystone-6/core/fields");
 var TechInegiIndicator_default = (0, import_core52.list)({
@@ -5893,7 +5893,7 @@ var TechInegiIndicator_default = (0, import_core52.list)({
   }
 });
 
-// models/Tech/Inegi/SyncLog/TechInegiSyncLog.ts
+// models/Saas/Tech/Inegi/SyncLog/TechInegiSyncLog.ts
 var import_core53 = require("@keystone-6/core");
 var import_fields53 = require("@keystone-6/core/fields");
 var TechInegiSyncLog_default = (0, import_core53.list)({

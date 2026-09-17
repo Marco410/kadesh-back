@@ -1,6 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { persistPetPlaceSlugIfMissing } from "../../models/PetPlace/PetPlace.hooks";
-import { dayNames } from "../../models/Schedule/Schedule";
+import { persistPetPlaceSlugIfMissing } from "../../models/Pet/PetPlace/PetPlace.hooks";
+import { dayNames } from "../../models/Pet/Schedule/Schedule";
 import { TYPES_PET_SHELTER } from "../constants/constants";
 
 /**

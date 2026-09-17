@@ -1,5 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { sendNewPostEmail } from "../../../utils/helpers/sendgrid";
+import { sendNewPostEmail } from "../../../../utils/helpers/sendgrid";
 
 export const postUrlHook = {
   resolveInput: async ({ resolvedData, item, context }: any) => {

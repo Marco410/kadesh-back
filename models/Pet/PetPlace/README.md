@@ -14,7 +14,7 @@ La ficha pública vive en `/veterinarias/{slug}`. El slug es `nombre-municipio` 
 
 ## Reclamo
 
-Ver [`graphql/customs/mutations/pet/veterinary/README.md`](../../graphql/customs/mutations/pet/veterinary/README.md). En Keystone: columnas `claimStatus` y `verified`. Marcar `verified` sincroniza el estado a verificada.
+Ver [`graphql/customs/mutations/pet/veterinary/README.md`](../../../graphql/customs/mutations/pet/veterinary/README.md). En Keystone: columnas `claimStatus` y `verified`. Marcar `verified` sincroniza el estado a verificada.
 
 ## Agenda
 

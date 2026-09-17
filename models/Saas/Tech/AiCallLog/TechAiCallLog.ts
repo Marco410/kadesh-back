@@ -11,7 +11,7 @@ import { techAiCallLogAccess, aiCallLogPromptFieldAccess } from "./TechAiCallLog
 import {
   AI_BILLING_MODE_OPTIONS,
   AI_PROVIDER_OPTIONS,
-} from "../../../utils/ai/constants";
+} from "../../../../utils/ai/constants";
 
 export default list({
   access: techAiCallLogAccess,

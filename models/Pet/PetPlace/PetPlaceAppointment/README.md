@@ -2,7 +2,7 @@
 
 Citas/reservas de clientes hacia un `PetPlace` (veterinaria, refugio, hotel/guardería, groomer). Un solo modelo cubre tanto una cita puntual (una hora) como una estancia multi-día (check-in/check-out), usando un rango `startsAt`/`endsAt` en vez de un slot fijo.
 
-No confundir con `models/Schedule/Schedule.ts` (`PetPlace.pet_place_schedules`), que es el **horario semanal de apertura** del negocio, no citas.
+No confundir con `models/Pet/Schedule/Schedule.ts` (`PetPlace.pet_place_schedules`), que es el **horario semanal de apertura** del negocio, no citas.
 
 ## Invariantes
 
@@ -10,7 +10,7 @@ No confundir con `models/Schedule/Schedule.ts` (`PetPlace.pet_place_schedules`),
 - `hooks.ts` `validateInput`: `endsAt` debe ser posterior a `startsAt`; en `create`, `startsAt` no puede ser pasado; el `customer` se auto-asigna al usuario en sesión y se rechaza si alguien intenta reservar a nombre de otro (excepto admin).
 - No hay control de capacidad/disponibilidad ni prevención de doble-booking (v1 es solo CRUD + status). Queda como mejora futura.
 - No hay mutations custom: `createOnePetPlaceAppointment`/`updateOnePetPlaceAppointment` generadas por Keystone alcanzan; `access.ts` + `validateInput` + el hook de correo cubren todo el flujo.
-- `petName`/`petSpecies` son texto libre, no relación: no existe un modelo de "mascota propia del cliente" en este codebase (`models/Animal/` es para mascotas en adopción de refugios, no mascotas de clientes).
+- `petName`/`petSpecies` son texto libre, no relación: no existe un modelo de "mascota propia del cliente" en este codebase (`models/Pet/Animal/` es para mascotas en adopción de refugios, no mascotas de clientes).
 
 ## Correo
 

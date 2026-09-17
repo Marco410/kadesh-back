@@ -1,7 +1,7 @@
 import { list } from "@keystone-6/core";
 import { select, text } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
-import { TYPES_PET_SHELTER } from "../../../utils/constants/constants";
+import access from "../../../../utils/generalAccess/access";
+import { TYPES_PET_SHELTER } from "../../../../utils/constants/constants";
 
 const PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
   label: type.label,

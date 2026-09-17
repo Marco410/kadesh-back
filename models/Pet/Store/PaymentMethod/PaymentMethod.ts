@@ -6,8 +6,8 @@ import {
   select,
 } from "@keystone-6/core/fields";
 import { list } from "@keystone-6/core";
-import access from "../../../utils/generalAccess/access";
-import { PAYMENT_TYPES } from "../../../utils/constants/constants";
+import access from "../../../../utils/generalAccess/access";
+import { PAYMENT_TYPES } from "../../../../utils/constants/constants";
 
 export default list({
   access,

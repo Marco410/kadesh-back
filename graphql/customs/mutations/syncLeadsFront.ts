@@ -1,5 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
+import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
 import { haversineDistance } from "../../../utils/helpers/calculate_distances";
 import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_text";
 import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";

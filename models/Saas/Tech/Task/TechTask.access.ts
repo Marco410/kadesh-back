@@ -1,5 +1,5 @@
 import { ListAccessControl } from "@keystone-6/core/types";
-import { crmWorkspaceScopedWhere } from "../../../utils/access/crmWorkspaceScopedFilter";
+import { crmWorkspaceScopedWhere } from "../../../../utils/access/crmWorkspaceScopedFilter";
 
 const getCompanyId = (session: any) => session?.data?.company?.id;
 

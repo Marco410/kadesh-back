@@ -1,6 +1,6 @@
 # Mutaciones INEGI
 
-Catálogo DENUE/BIE. Runtime: [`utils/inegi`](../../../../utils/inegi/README.md). Lists: [`models/Tech/Inegi`](../../../../models/Tech/Inegi/README.md).
+Catálogo DENUE/BIE. Runtime: [`utils/inegi`](../../../../utils/inegi/README.md). Lists: [`models/Saas/Tech/Inegi`](../../../../models/Saas/Tech/Inegi/README.md).
 
 Ejemplos copiables para el front: [docs/inegi/uso.md](../../../../docs/inegi/uso.md). Carga masiva (no GraphQL): `pnpm inegi:import:denue`, `inegi:import:indicadores`, `inegi:import:geo`.
 

@@ -8,7 +8,7 @@ import {
   timestamp,
   virtual,
 } from "@keystone-6/core/fields";
-import access from "../../utils/generalAccess/access";
+import access from "../../../utils/generalAccess/access";
 import { KeystoneContext } from "@keystone-6/core/types";
 import { dayNames } from "../Schedule/Schedule";
 import {

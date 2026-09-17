@@ -1,6 +1,6 @@
 import { ListAccessControl } from "@keystone-6/core/types";
-import { hasRole } from "../../../auth/permissions";
-import { Role } from "../../Role/constants";
+import { hasRole } from "../../../../auth/permissions";
+import { Role } from "../../../Role/constants";
 
 const getCompanyId = (session: any) => session?.data?.company?.id;
 

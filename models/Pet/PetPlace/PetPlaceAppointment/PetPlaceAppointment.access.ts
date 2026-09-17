@@ -3,7 +3,7 @@ import {
   getSessionUserId,
   isPlatformAdmin,
   isSignedIn,
-} from "../../../utils/access/tenant";
+} from "../../../../utils/access/tenant";
 
 /**
  * Filas visibles/editables:

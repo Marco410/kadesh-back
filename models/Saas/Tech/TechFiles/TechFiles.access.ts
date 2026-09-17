@@ -3,7 +3,7 @@ import {
   getSessionCompanyId,
   isPlatformAdmin,
   isSignedIn,
-} from "../../../utils/access/tenant";
+} from "../../../../utils/access/tenant";
 
 /**
  * TechFiles: solo se ven/editan/borran los archivos de la SaasCompany del usuario.

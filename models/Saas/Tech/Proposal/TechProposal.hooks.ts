@@ -1,6 +1,6 @@
 import { PROPOSAL_STATUS } from "../crm/constants";
 import { PIPELINE_STATUS } from "../crm/constants";
-import { validateTechStatusCrmInput } from "../../../utils/validation/validateTechStatusCrm";
+import { validateTechStatusCrmInput } from "../../../../utils/validation/validateTechStatusCrm";
 
 /**
  * Cuando una propuesta pasa a "Aceptada", marcar el BusinessLead como "Cerrado Ganado".

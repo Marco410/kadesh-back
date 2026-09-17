@@ -2,7 +2,7 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import {
   LEAD_SOURCE,
   PIPELINE_STATUS,
-} from "../../../../models/Tech/crm/constants";
+} from "../../../../models/Saas/Tech/crm/constants";
 import { haversineDistance } from "../../../../utils/helpers/calculate_distances";
 import { getRemainingCredits } from "../../../../utils/helpers/tech/remaining_credits";
 import { consumeCompanyCredits } from "../../../../utils/saas/companyCredits";
