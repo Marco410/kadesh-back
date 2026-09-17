@@ -1,6 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../../models/Role/constants";
-import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
+import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
 
 /** Obtiene los IDs de usuarios con salesPersonVerified = true, para asignación round-robin de leads. */
 async function getVerifiedSalesPersonIds(

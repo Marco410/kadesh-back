@@ -1,5 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { AI_INSIGHT_KIND } from "../../models/Tech/AiInsight/constants";
+import { AI_INSIGHT_KIND } from "../../models/Saas/Tech/AiInsight/constants";
 import type { DigestInsightRecord } from "./dailyDigest";
 
 export const COMPANY_BRIEF_REFERENCE_KEY = "company_brief";

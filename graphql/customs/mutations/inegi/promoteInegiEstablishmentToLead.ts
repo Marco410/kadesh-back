@@ -2,7 +2,7 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import {
   PIPELINE_STATUS,
   LEAD_SOURCE,
-} from "../../../../models/Tech/crm/constants";
+} from "../../../../models/Saas/Tech/crm/constants";
 import { Role } from "../../../../models/Role/constants";
 import {
   denyOtherCompanyMessage,

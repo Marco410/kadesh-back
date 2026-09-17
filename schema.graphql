@@ -1502,9 +1502,15 @@ input PetRelateToOneForCreateInput {
 type PetPlace {
   id: ID!
   name: String
+  slug: String
   description: String
   phone: String
+  whatsapp: String
   website: String
+  email: String
+  emergencies: Boolean
+  parking: Boolean
+  appointmentRequired: Boolean
   street: String
   municipality: String
   state: String
@@ -1518,6 +1524,13 @@ type PetPlace {
   services(where: PetPlaceServiceWhereInput! = {}, orderBy: [PetPlaceServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceServiceWhereUniqueInput): [PetPlaceService!]
   servicesCount(where: PetPlaceServiceWhereInput! = {}): Int
   user: User
+  verified: Boolean
+  verifiedAt: DateTime
+  claimStatus: String
+  claimRole: String
+  claimPhone: String
+  claimNotes: String
+  claimedAt: DateTime
   isOpen: Boolean
   pet_place_social_media(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
   pet_place_social_mediaCount(where: SocialMediaWhereInput! = {}): Int
@@ -1525,6 +1538,8 @@ type PetPlace {
   pet_place_likesCount(where: PetPlaceLikeWhereInput! = {}): Int
   pet_place_schedules(where: ScheduleWhereInput! = {}, orderBy: [ScheduleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ScheduleWhereUniqueInput): [Schedule!]
   pet_place_schedulesCount(where: ScheduleWhereInput! = {}): Int
+  pet_place_appointments(where: PetPlaceAppointmentWhereInput! = {}, orderBy: [PetPlaceAppointmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceAppointmentWhereUniqueInput): [PetPlaceAppointment!]
+  pet_place_appointmentsCount(where: PetPlaceAppointmentWhereInput! = {}): Int
   pet_place_reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
   pet_place_reviewsCount(where: ReviewWhereInput! = {}): Int
   reviewsCount: Int
@@ -1539,6 +1554,7 @@ type PetPlace {
 
 input PetPlaceWhereUniqueInput {
   id: ID
+  slug: String
   google_place_id: String
 }
 
@@ -1548,9 +1564,15 @@ input PetPlaceWhereInput {
   NOT: [PetPlaceWhereInput!]
   id: IDFilter
   name: StringFilter
+  slug: StringNullableFilter
   description: StringFilter
   phone: StringFilter
+  whatsapp: StringFilter
   website: StringFilter
+  email: StringFilter
+  emergencies: BooleanFilter
+  parking: BooleanFilter
+  appointmentRequired: BooleanFilter
   street: StringFilter
   municipality: StringFilter
   state: StringFilter
@@ -1562,9 +1584,17 @@ input PetPlaceWhereInput {
   types: PetPlaceTypeManyRelationFilter
   services: PetPlaceServiceManyRelationFilter
   user: UserWhereInput
+  verified: BooleanFilter
+  verifiedAt: DateTimeNullableFilter
+  claimStatus: StringNullableFilter
+  claimRole: StringNullableFilter
+  claimPhone: StringFilter
+  claimNotes: StringFilter
+  claimedAt: DateTimeNullableFilter
   pet_place_social_media: SocialMediaManyRelationFilter
   pet_place_likes: PetPlaceLikeManyRelationFilter
   pet_place_schedules: ScheduleManyRelationFilter
+  pet_place_appointments: PetPlaceAppointmentManyRelationFilter
   pet_place_reviews: ReviewManyRelationFilter
   pet_place_ads: AdManyRelationFilter
   address: StringFilter
@@ -1603,6 +1633,12 @@ input ScheduleManyRelationFilter {
   none: ScheduleWhereInput
 }
 
+input PetPlaceAppointmentManyRelationFilter {
+  every: PetPlaceAppointmentWhereInput
+  some: PetPlaceAppointmentWhereInput
+  none: PetPlaceAppointmentWhereInput
+}
+
 input ReviewManyRelationFilter {
   every: ReviewWhereInput
   some: ReviewWhereInput
@@ -1618,9 +1654,15 @@ input AdManyRelationFilter {
 input PetPlaceOrderByInput {
   id: OrderDirection
   name: OrderDirection
+  slug: OrderDirection
   description: OrderDirection
   phone: OrderDirection
+  whatsapp: OrderDirection
   website: OrderDirection
+  email: OrderDirection
+  emergencies: OrderDirection
+  parking: OrderDirection
+  appointmentRequired: OrderDirection
   street: OrderDirection
   municipality: OrderDirection
   state: OrderDirection
@@ -1629,6 +1671,13 @@ input PetPlaceOrderByInput {
   lat: OrderDirection
   lng: OrderDirection
   views: OrderDirection
+  verified: OrderDirection
+  verifiedAt: OrderDirection
+  claimStatus: OrderDirection
+  claimRole: OrderDirection
+  claimPhone: OrderDirection
+  claimNotes: OrderDirection
+  claimedAt: OrderDirection
   address: OrderDirection
   google_place_id: OrderDirection
   google_opening_hours: OrderDirection
@@ -1637,9 +1686,15 @@ input PetPlaceOrderByInput {
 
 input PetPlaceUpdateInput {
   name: String
+  slug: String
   description: String
   phone: String
+  whatsapp: String
   website: String
+  email: String
+  emergencies: Boolean
+  parking: Boolean
+  appointmentRequired: Boolean
   street: String
   municipality: String
   state: String
@@ -1651,9 +1706,17 @@ input PetPlaceUpdateInput {
   types: PetPlaceTypeRelateToManyForUpdateInput
   services: PetPlaceServiceRelateToManyForUpdateInput
   user: UserRelateToOneForUpdateInput
+  verified: Boolean
+  verifiedAt: DateTime
+  claimStatus: String
+  claimRole: String
+  claimPhone: String
+  claimNotes: String
+  claimedAt: DateTime
   pet_place_social_media: SocialMediaRelateToManyForUpdateInput
   pet_place_likes: PetPlaceLikeRelateToManyForUpdateInput
   pet_place_schedules: ScheduleRelateToManyForUpdateInput
+  pet_place_appointments: PetPlaceAppointmentRelateToManyForUpdateInput
   pet_place_reviews: ReviewRelateToManyForUpdateInput
   pet_place_ads: AdRelateToManyForUpdateInput
   address: String
@@ -1697,6 +1760,13 @@ input ScheduleRelateToManyForUpdateInput {
   connect: [ScheduleWhereUniqueInput!]
 }
 
+input PetPlaceAppointmentRelateToManyForUpdateInput {
+  disconnect: [PetPlaceAppointmentWhereUniqueInput!]
+  set: [PetPlaceAppointmentWhereUniqueInput!]
+  create: [PetPlaceAppointmentCreateInput!]
+  connect: [PetPlaceAppointmentWhereUniqueInput!]
+}
+
 input ReviewRelateToManyForUpdateInput {
   disconnect: [ReviewWhereUniqueInput!]
   set: [ReviewWhereUniqueInput!]
@@ -1718,9 +1788,15 @@ input PetPlaceUpdateArgs {
 
 input PetPlaceCreateInput {
   name: String
+  slug: String
   description: String
   phone: String
+  whatsapp: String
   website: String
+  email: String
+  emergencies: Boolean
+  parking: Boolean
+  appointmentRequired: Boolean
   street: String
   municipality: String
   state: String
@@ -1732,9 +1808,17 @@ input PetPlaceCreateInput {
   types: PetPlaceTypeRelateToManyForCreateInput
   services: PetPlaceServiceRelateToManyForCreateInput
   user: UserRelateToOneForCreateInput
+  verified: Boolean
+  verifiedAt: DateTime
+  claimStatus: String
+  claimRole: String
+  claimPhone: String
+  claimNotes: String
+  claimedAt: DateTime
   pet_place_social_media: SocialMediaRelateToManyForCreateInput
   pet_place_likes: PetPlaceLikeRelateToManyForCreateInput
   pet_place_schedules: ScheduleRelateToManyForCreateInput
+  pet_place_appointments: PetPlaceAppointmentRelateToManyForCreateInput
   pet_place_reviews: ReviewRelateToManyForCreateInput
   pet_place_ads: AdRelateToManyForCreateInput
   address: String
@@ -1768,6 +1852,11 @@ input ScheduleRelateToManyForCreateInput {
   connect: [ScheduleWhereUniqueInput!]
 }
 
+input PetPlaceAppointmentRelateToManyForCreateInput {
+  create: [PetPlaceAppointmentCreateInput!]
+  connect: [PetPlaceAppointmentWhereUniqueInput!]
+}
+
 input ReviewRelateToManyForCreateInput {
   create: [ReviewCreateInput!]
   connect: [ReviewWhereUniqueInput!]
@@ -1776,6 +1865,115 @@ input ReviewRelateToManyForCreateInput {
 input AdRelateToManyForCreateInput {
   create: [AdCreateInput!]
   connect: [AdWhereUniqueInput!]
+}
+
+type PetPlaceAppointment {
+  id: ID!
+  pet_place: PetPlace
+  customer: User
+  service: PetPlaceService
+  startsAt: DateTime
+  endsAt: DateTime
+  status: String
+  petName: String
+  petSpecies: String
+  notes: String
+  ownerNotes: String
+  cancelReason: String
+  createdAt: DateTime
+}
+
+input PetPlaceAppointmentWhereUniqueInput {
+  id: ID
+}
+
+input PetPlaceAppointmentWhereInput {
+  AND: [PetPlaceAppointmentWhereInput!]
+  OR: [PetPlaceAppointmentWhereInput!]
+  NOT: [PetPlaceAppointmentWhereInput!]
+  id: IDFilter
+  pet_place: PetPlaceWhereInput
+  customer: UserWhereInput
+  service: PetPlaceServiceWhereInput
+  startsAt: DateTimeFilter
+  endsAt: DateTimeFilter
+  status: StringFilter
+  petName: StringFilter
+  petSpecies: StringFilter
+  notes: StringFilter
+  ownerNotes: StringFilter
+  cancelReason: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input DateTimeFilter {
+  equals: DateTime
+  in: [DateTime!]
+  notIn: [DateTime!]
+  lt: DateTime
+  lte: DateTime
+  gt: DateTime
+  gte: DateTime
+  not: DateTimeFilter
+}
+
+input PetPlaceAppointmentOrderByInput {
+  id: OrderDirection
+  startsAt: OrderDirection
+  endsAt: OrderDirection
+  status: OrderDirection
+  petName: OrderDirection
+  petSpecies: OrderDirection
+  notes: OrderDirection
+  ownerNotes: OrderDirection
+  cancelReason: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetPlaceAppointmentUpdateInput {
+  pet_place: PetPlaceRelateToOneForUpdateInput
+  customer: UserRelateToOneForUpdateInput
+  service: PetPlaceServiceRelateToOneForUpdateInput
+  startsAt: DateTime
+  endsAt: DateTime
+  status: String
+  petName: String
+  petSpecies: String
+  notes: String
+  ownerNotes: String
+  cancelReason: String
+  createdAt: DateTime
+}
+
+input PetPlaceServiceRelateToOneForUpdateInput {
+  create: PetPlaceServiceCreateInput
+  connect: PetPlaceServiceWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PetPlaceAppointmentUpdateArgs {
+  where: PetPlaceAppointmentWhereUniqueInput!
+  data: PetPlaceAppointmentUpdateInput!
+}
+
+input PetPlaceAppointmentCreateInput {
+  pet_place: PetPlaceRelateToOneForCreateInput
+  customer: UserRelateToOneForCreateInput
+  service: PetPlaceServiceRelateToOneForCreateInput
+  startsAt: DateTime
+  endsAt: DateTime
+  status: String
+  petName: String
+  petSpecies: String
+  notes: String
+  ownerNotes: String
+  cancelReason: String
+  createdAt: DateTime
+}
+
+input PetPlaceServiceRelateToOneForCreateInput {
+  create: PetPlaceServiceCreateInput
+  connect: PetPlaceServiceWhereUniqueInput
 }
 
 type PetPlaceLike {
@@ -4871,17 +5069,6 @@ input SystemReleaseWhereInput {
   createdAt: DateTimeNullableFilter
 }
 
-input DateTimeFilter {
-  equals: DateTime
-  in: [DateTime!]
-  notIn: [DateTime!]
-  lt: DateTime
-  lte: DateTime
-  gt: DateTime
-  gte: DateTime
-  not: DateTimeFilter
-}
-
 input SystemReleaseOrderByInput {
   id: OrderDirection
   version: OrderDirection
@@ -6512,6 +6699,10 @@ type User {
   company: SaasCompany
   workspaces(where: SaasWorkspaceWhereInput! = {}, orderBy: [SaasWorkspaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasWorkspaceWhereUniqueInput): [SaasWorkspace!]
   workspacesCount(where: SaasWorkspaceWhereInput! = {}): Int
+  pet_places(where: PetPlaceWhereInput! = {}, orderBy: [PetPlaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceWhereUniqueInput): [PetPlace!]
+  pet_placesCount(where: PetPlaceWhereInput! = {}): Int
+  my_appointments(where: PetPlaceAppointmentWhereInput! = {}, orderBy: [PetPlaceAppointmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceAppointmentWhereUniqueInput): [PetPlaceAppointment!]
+  my_appointmentsCount(where: PetPlaceAppointmentWhereInput! = {}): Int
   blog_subscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
   blog_subscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
   businessLeadsAssigned(where: TechBusinessLeadWhereInput! = {}, orderBy: [TechBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechBusinessLeadWhereUniqueInput): [TechBusinessLead!]
@@ -6603,6 +6794,8 @@ input UserWhereInput {
   referrals: UserManyRelationFilter
   company: SaasCompanyWhereInput
   workspaces: SaasWorkspaceManyRelationFilter
+  pet_places: PetPlaceManyRelationFilter
+  my_appointments: PetPlaceAppointmentManyRelationFilter
   blog_subscriptions: BlogSubscriptionManyRelationFilter
   businessLeadsAssigned: TechBusinessLeadManyRelationFilter
   salesActivities: TechSalesActivityManyRelationFilter
@@ -6647,6 +6840,12 @@ input RoleManyRelationFilter {
   every: RoleWhereInput
   some: RoleWhereInput
   none: RoleWhereInput
+}
+
+input PetPlaceManyRelationFilter {
+  every: PetPlaceWhereInput
+  some: PetPlaceWhereInput
+  none: PetPlaceWhereInput
 }
 
 input BlogSubscriptionManyRelationFilter {
@@ -6714,6 +6913,8 @@ input UserUpdateInput {
   referrals: UserRelateToManyForUpdateInput
   company: SaasCompanyRelateToOneForUpdateInput
   workspaces: SaasWorkspaceRelateToManyForUpdateInput
+  pet_places: PetPlaceRelateToManyForUpdateInput
+  my_appointments: PetPlaceAppointmentRelateToManyForUpdateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForUpdateInput
   businessLeadsAssigned: TechBusinessLeadRelateToManyForUpdateInput
   salesActivities: TechSalesActivityRelateToManyForUpdateInput
@@ -6756,6 +6957,13 @@ input RoleRelateToManyForUpdateInput {
   set: [RoleWhereUniqueInput!]
   create: [RoleCreateInput!]
   connect: [RoleWhereUniqueInput!]
+}
+
+input PetPlaceRelateToManyForUpdateInput {
+  disconnect: [PetPlaceWhereUniqueInput!]
+  set: [PetPlaceWhereUniqueInput!]
+  create: [PetPlaceCreateInput!]
+  connect: [PetPlaceWhereUniqueInput!]
 }
 
 input BlogSubscriptionRelateToManyForUpdateInput {
@@ -6807,6 +7015,8 @@ input UserCreateInput {
   referrals: UserRelateToManyForCreateInput
   company: SaasCompanyRelateToOneForCreateInput
   workspaces: SaasWorkspaceRelateToManyForCreateInput
+  pet_places: PetPlaceRelateToManyForCreateInput
+  my_appointments: PetPlaceAppointmentRelateToManyForCreateInput
   blog_subscriptions: BlogSubscriptionRelateToManyForCreateInput
   businessLeadsAssigned: TechBusinessLeadRelateToManyForCreateInput
   salesActivities: TechSalesActivityRelateToManyForCreateInput
@@ -6847,6 +7057,11 @@ input UserCreateInput {
 input RoleRelateToManyForCreateInput {
   create: [RoleCreateInput!]
   connect: [RoleWhereUniqueInput!]
+}
+
+input PetPlaceRelateToManyForCreateInput {
+  create: [PetPlaceCreateInput!]
+  connect: [PetPlaceWhereUniqueInput!]
 }
 
 input BlogSubscriptionRelateToManyForCreateInput {
@@ -7104,6 +7319,12 @@ type Mutation {
   updatePetPlaces(data: [PetPlaceUpdateArgs!]!): [PetPlace]
   deletePetPlace(where: PetPlaceWhereUniqueInput!): PetPlace
   deletePetPlaces(where: [PetPlaceWhereUniqueInput!]!): [PetPlace]
+  createPetPlaceAppointment(data: PetPlaceAppointmentCreateInput!): PetPlaceAppointment
+  createPetPlaceAppointments(data: [PetPlaceAppointmentCreateInput!]!): [PetPlaceAppointment]
+  updatePetPlaceAppointment(where: PetPlaceAppointmentWhereUniqueInput!, data: PetPlaceAppointmentUpdateInput!): PetPlaceAppointment
+  updatePetPlaceAppointments(data: [PetPlaceAppointmentUpdateArgs!]!): [PetPlaceAppointment]
+  deletePetPlaceAppointment(where: PetPlaceAppointmentWhereUniqueInput!): PetPlaceAppointment
+  deletePetPlaceAppointments(where: [PetPlaceAppointmentWhereUniqueInput!]!): [PetPlaceAppointment]
   createPetPlaceLike(data: PetPlaceLikeCreateInput!): PetPlaceLike
   createPetPlaceLikes(data: [PetPlaceLikeCreateInput!]!): [PetPlaceLike]
   updatePetPlaceLike(where: PetPlaceLikeWhereUniqueInput!, data: PetPlaceLikeUpdateInput!): PetPlaceLike
@@ -7429,6 +7650,9 @@ type Mutation {
   generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
   generateCompanyAiBrief(companyId: ID!, force: Boolean): CompanyAiBriefResult!
   generateMarketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String, force: Boolean): MarketInsightResult!
+  claimPetPlace(input: ClaimPetPlaceInput!): ClaimPetPlaceResult!
+  updateMyPetPlace(input: UpdateMyPetPlaceInput!): UpdateMyPetPlaceResult!
+  verifyPetPlace(input: VerifyPetPlaceInput!): VerifyPetPlaceResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -7506,6 +7730,9 @@ type Query {
   petPlace(where: PetPlaceWhereUniqueInput!): PetPlace
   petPlaces(where: PetPlaceWhereInput! = {}, orderBy: [PetPlaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceWhereUniqueInput): [PetPlace!]
   petPlacesCount(where: PetPlaceWhereInput! = {}): Int
+  petPlaceAppointment(where: PetPlaceAppointmentWhereUniqueInput!): PetPlaceAppointment
+  petPlaceAppointments(where: PetPlaceAppointmentWhereInput! = {}, orderBy: [PetPlaceAppointmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceAppointmentWhereUniqueInput): [PetPlaceAppointment!]
+  petPlaceAppointmentsCount(where: PetPlaceAppointmentWhereInput! = {}): Int
   petPlaceLike(where: PetPlaceLikeWhereUniqueInput!): PetPlaceLike
   petPlaceLikes(where: PetPlaceLikeWhereInput! = {}, orderBy: [PetPlaceLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceLikeWhereUniqueInput): [PetPlaceLike!]
   petPlaceLikesCount(where: PetPlaceLikeWhereInput! = {}): Int
@@ -8135,6 +8362,63 @@ type FetchInegiIndicatorResult {
   indicators: [InegiIndicatorValue!]!
 }
 
+input ClaimPetPlaceInput {
+  petPlaceId: String!
+  role: String!
+  phone: String!
+  notes: String
+}
+
+type ClaimPetPlaceResult {
+  success: Boolean!
+  message: String!
+  claimStatus: String
+  petPlaceId: String
+}
+
+input UpdateMyPetPlaceInput {
+  petPlaceId: String!
+  name: String
+  description: String
+  phone: String
+  whatsapp: String
+  website: String
+  street: String
+  municipality: String
+  state: String
+  country: String
+  cp: String
+  address: String
+  emergencies: Boolean
+  email: String
+  parking: Boolean
+  appointmentRequired: Boolean
+  socialMedia: [PetPlaceSocialMediaInput!]
+}
+
+input PetPlaceSocialMediaInput {
+  social_media: String!
+  link: String!
+}
+
+type UpdateMyPetPlaceResult {
+  success: Boolean!
+  message: String!
+  petPlaceId: String
+}
+
+input VerifyPetPlaceInput {
+  petPlaceId: String!
+  approved: Boolean!
+}
+
+type VerifyPetPlaceResult {
+  success: Boolean!
+  message: String!
+  claimStatus: String
+  verified: Boolean
+}
+
 type AnimalMultimediaImage {
   id: ID!
   url: String
@@ -8192,6 +8476,7 @@ input NearbyAnimalsInput {
 type NearbyPetPlace {
   id: ID!
   name: String
+  slug: String
   description: String
   lat: String
   lng: String
@@ -8219,6 +8504,7 @@ type NearbyPetPlace {
   createdAt: String
   reviewsCount: Int
   averageRating: Float
+  verified: Boolean
 }
 
 type NearbyPetPlacesResult {

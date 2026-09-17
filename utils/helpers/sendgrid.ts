@@ -479,3 +479,164 @@ export async function sendSystemReleaseEmail({
     fromName: "Kadesh",
   });
 }
+
+const PET_PLACE_APPOINTMENT_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendiente",
+  confirmed: "Confirmada",
+  cancelled: "Cancelada",
+  completed: "Completada",
+  no_show: "No se presentó",
+};
+
+function appointmentStatusLabel(status: string): string {
+  return PET_PLACE_APPOINTMENT_STATUS_LABELS[status] ?? status;
+}
+
+function formatAppointmentDate(value: string | Date): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return date.toLocaleString("es-MX", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: "America/Mexico_City",
+  });
+}
+
+function buildPetPlaceAppointmentEmailHtml(params: {
+  audience: "owner" | "customer";
+  ownerName: string;
+  petPlaceName: string;
+  customerName: string;
+  petName?: string | null;
+  startsAt: string | Date;
+  endsAt: string | Date;
+  status: string;
+}): string {
+  const isOwner = params.audience === "owner";
+  const heading = isOwner ? "Nueva cita reservada" : "Actualización de tu cita";
+  const greetingName = escapeHtml(isOwner ? params.ownerName : params.customerName);
+  const petPlaceName = escapeHtml(params.petPlaceName);
+  const customerName = escapeHtml(params.customerName);
+  const petName = params.petName ? escapeHtml(params.petName) : null;
+  const statusLabel = escapeHtml(appointmentStatusLabel(params.status));
+  const startsAtLabel = escapeHtml(formatAppointmentDate(params.startsAt));
+  const endsAtLabel = escapeHtml(formatAppointmentDate(params.endsAt));
+
+  const bodyText = isOwner
+    ? `<strong>${customerName}</strong> reservó una cita${petName ? ` para <strong>${petName}</strong>` : ""} en <strong>${petPlaceName}</strong>.`
+    : `Tu cita en <strong>${petPlaceName}</strong> ahora está <strong>${statusLabel}</strong>.`;
+
+  const rows: Array<[string, string]> = [
+    ["Negocio", petPlaceName],
+    ...(petName ? ([["Mascota", petName]] as Array<[string, string]>) : []),
+    ["Inicio", startsAtLabel],
+    ["Fin", endsAtLabel],
+    ["Estatus", statusLabel],
+  ];
+
+  const tableRows = rows
+    .map(
+      ([label, value]) => `
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#64748b;width:35%;">${label}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;">${value}</td>
+        </tr>`,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>${heading}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_ORANGE_DARK} 100%);padding:28px 32px;">
+              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.9);">Kadesh</p>
+              <h1 style="margin:8px 0 0 0;font-size:24px;font-weight:700;line-height:1.25;color:#ffffff;">${heading}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 32px 28px 32px;">
+              <p style="margin:0 0 16px 0;font-size:18px;line-height:1.5;color:#0f172a;">Hola <strong>${greetingName}</strong>,</p>
+              <p style="margin:0 0 20px 0;font-size:16px;line-height:1.65;color:#475569;">${bodyText}</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                ${tableRows}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 28px 32px;background:#f8fafc;">
+              <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;text-align:center;">
+                © ${new Date().getFullYear()} Kadesh · Equipo de soporte
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Correo de agenda de PetPlace: nueva cita reservada (al dueño) o
+ * cambio de estatus de una cita (al cliente).
+ */
+export async function sendPetPlaceAppointmentEmail({
+  to,
+  audience,
+  ownerName,
+  petPlaceName,
+  customerName,
+  petName,
+  startsAt,
+  endsAt,
+  status,
+}: {
+  to: string;
+  audience: "owner" | "customer";
+  ownerName: string;
+  petPlaceName: string;
+  customerName: string;
+  petName?: string | null;
+  startsAt: string | Date;
+  endsAt: string | Date;
+  status: string;
+}): Promise<void> {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendPetPlaceAppointmentEmail: sin email destino.");
+    return;
+  }
+
+  const subject =
+    audience === "owner"
+      ? `Nueva cita en ${petPlaceName}`
+      : `Tu cita en ${petPlaceName}: ${appointmentStatusLabel(status)}`;
+
+  const html = buildPetPlaceAppointmentEmailHtml({
+    audience,
+    ownerName,
+    petPlaceName,
+    customerName,
+    petName,
+    startsAt,
+    endsAt,
+    status,
+  });
+
+  await sendEmail({
+    to: trimmedTo,
+    subject,
+    html,
+    fromName: "Kadesh",
+  });
+}

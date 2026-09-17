@@ -27,7 +27,7 @@ Required env vars (see `config/.env.template`): `POSTGRES_DB`, `POSTGRES_USER`, 
 
 **Entry point**: `keystone.ts` builds the Keystone `config()`, wiring together `models/schema.ts` (lists), `auth/auth.ts` (session/auth), and `graphql/extendedSchema.ts` (custom GraphQL). It also declares two file storage backends: `my_local_images` (local disk, served at `/images`) and `s3_files` (S3, signed URLs).
 
-**Models** (`models/`): each Keystone list lives in its own file/folder under `models/<Name>/<Name>.ts`, and every list must be registered in `models/schema.ts` to be included in the schema. Related sub-lists are nested in folders, e.g. `models/Animal/AnimalBreed/AnimalBreed.ts`, `models/PetPlace/PetPlaceLike/PetPlaceLike.ts`, `models/Store/Product/Product.ts`. Editing `models/schema.ts` or any list's fields changes the generated `schema.prisma` / `schema.graphql`. **Do not create or run Prisma migrations** — tell the human to run `yarn migrate` (or write the SQL under `migrations/` by hand).
+**Models** (`models/`): lists live under `models/Pet/` (KadeshPet), `models/Saas/` (CRM, billing, `Saas/Tech`), or the `models/` root if both products use them (`User`, `Role`). Register every list in `models/schema.ts`. Related sub-lists stay nested, e.g. `models/Pet/Animal/AnimalBreed/AnimalBreed.ts`, `models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts`. Editing `models/schema.ts` or any list's fields changes the generated `schema.prisma` / `schema.graphql`. **Do not create or run Prisma migrations** — tell the human to run `yarn migrate` (or write the SQL under `migrations/` by hand).
 
 Per-list conventions:
 - `access` is a plain object/function passed to `list({ access, fields })`, usually imported from a colocated `<Name>.access.ts` (see `models/User/User.access.ts`) or the shared open-access default in `utils/generalAccess/access.ts`.
@@ -54,7 +54,7 @@ Per-list conventions:
 
 ## Adding a new list
 
-1. Create `models/<Name>/<Name>.ts` exporting `list({ access, fields })` from `@keystone-6/core`.
+1. Create `models/Pet/<Name>/<Name>.ts`, `models/Saas/<Name>/<Name>.ts`, or `models/<Name>/<Name>.ts` (shared) exporting `list({ access, fields })` from `@keystone-6/core`.
 2. Add access rules (reuse `utils/generalAccess/access.ts` or write a `<Name>.access.ts` using `hasRole`/`Role`).
 3. Register the list in `models/schema.ts`.
 4. Stop. Tell the human to run `yarn migrate` (or write the migration SQL by hand). Never create files under `migrations/` or run migrate commands.

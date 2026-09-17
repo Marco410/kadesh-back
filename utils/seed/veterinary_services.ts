@@ -1,5 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { services } from "../../models/PetPlace/const";
+import { services } from "../../models/Pet/PetPlace/const";
 
 export async function createPetPlaceService(context: KeystoneContext) {
   const existingSer = await context.sudo().query.PetPlaceService.findMany({

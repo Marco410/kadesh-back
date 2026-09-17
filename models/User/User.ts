@@ -144,6 +144,16 @@ export default list({
       many: true,
       ui: { description: "Workspaces (áreas) a los que pertenece" },
     }),
+    pet_places: relationship({
+      ref: "PetPlace.user",
+      many: true,
+      ui: { description: "Clínicas que este usuario reclamó" },
+    }),
+    my_appointments: relationship({
+      ref: "PetPlaceAppointment.customer",
+      many: true,
+      ui: { description: "Citas reservadas por este usuario" },
+    }),
     blog_subscriptions: relationship({
       ref: "BlogSubscription.user",
       many: true,

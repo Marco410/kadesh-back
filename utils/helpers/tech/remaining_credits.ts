@@ -3,7 +3,7 @@ import {
   getCompanyRemainingCredits,
   type RemainingCreditsBlockingReason,
   type RemainingCreditsResult as CompanyRemainingCreditsResult,
-} from "../../../utils/saas/companyCredits";
+} from "../../saas/companyCredits";
 
 export type { RemainingCreditsBlockingReason };
 

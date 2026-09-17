@@ -2,9 +2,9 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import {
   FOLLOW_UP_TASK_STATUS,
   PIPELINE_STATUS,
-} from "../../models/Tech/crm/constants";
+} from "../../models/Saas/Tech/crm/constants";
 import { QUOTATION_STATUS } from "../../models/Saas/Quotation/SaasQuotation.constants";
-import { AI_INSIGHT_KIND } from "../../models/Tech/AiInsight/constants";
+import { AI_INSIGHT_KIND } from "../../models/Saas/Tech/AiInsight/constants";
 
 export const DIGEST_TIMEZONE = "America/Mexico_City";
 export const COLD_LEAD_DAYS = 14;
