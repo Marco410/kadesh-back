@@ -14,6 +14,7 @@ const typeDefs = `
   type NearbyPetPlace {
     id: ID!
     name: String
+    slug: String
     description: String
     lat: String
     lng: String
@@ -41,6 +42,7 @@ const typeDefs = `
     createdAt: String
     reviewsCount: Int
     averageRating: Float
+    verified: Boolean
   }
 
   type NearbyPetPlacesResult {

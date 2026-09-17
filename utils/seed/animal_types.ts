@@ -7,7 +7,7 @@ import {
   FISH_BREEDS,
   MAMMAL_BREEDS,
   REPTIL_BREEDS,
-} from "../../utils/constants/constants";
+} from "../constants/constants";
 export async function createAnimalTypes(context: KeystoneContext) {
   const existingTypes = await context.sudo().query.AnimalType.findMany();
   if (existingTypes.length > 0) {

@@ -282,34 +282,71 @@ model PetMultimedia {
 }
 
 model PetPlace {
-  id                     String            @id @default(cuid())
-  name                   String            @default("")
-  description            String            @default("")
-  phone                  String            @default("")
-  website                String            @default("")
-  street                 String            @default("")
-  municipality           String            @default("")
-  state                  String            @default("")
-  country                String            @default("")
-  cp                     String            @default("")
-  lat                    String            @default("")
-  lng                    String            @default("")
+  id                     String                @id @default(cuid())
+  name                   String                @default("")
+  slug                   String?               @unique
+  description            String                @default("")
+  phone                  String                @default("")
+  whatsapp               String                @default("")
+  website                String                @default("")
+  email                  String                @default("")
+  emergencies            Boolean               @default(false)
+  parking                Boolean               @default(false)
+  appointmentRequired    Boolean               @default(false)
+  street                 String                @default("")
+  municipality           String                @default("")
+  state                  String                @default("")
+  country                String                @default("")
+  cp                     String                @default("")
+  lat                    String                @default("")
+  lng                    String                @default("")
   views                  Int?
-  types                  PetPlaceType[]    @relation("PetPlace_types")
-  services               PetPlaceService[] @relation("PetPlace_services")
-  user                   User?             @relation("PetPlace_user", fields: [userId], references: [id])
-  userId                 String?           @map("user")
-  pet_place_social_media SocialMedia[]     @relation("SocialMedia_pet_place")
-  pet_place_likes        PetPlaceLike[]    @relation("PetPlaceLike_pet_place")
-  pet_place_schedules    Schedule[]        @relation("Schedule_pet_place")
-  pet_place_reviews      Review[]          @relation("Review_pet_place")
-  pet_place_ads          Ad[]              @relation("Ad_pet_place")
-  address                String            @default("")
-  google_place_id        String            @unique @default("")
-  google_opening_hours   String            @default("")
-  createdAt              DateTime?         @default(now())
+  types                  PetPlaceType[]        @relation("PetPlace_types")
+  services               PetPlaceService[]     @relation("PetPlace_services")
+  user                   User?                 @relation("PetPlace_user", fields: [userId], references: [id])
+  userId                 String?               @map("user")
+  verified               Boolean               @default(false)
+  verifiedAt             DateTime?
+  claimStatus            String?               @default("unclaimed")
+  claimRole              String?
+  claimPhone             String                @default("")
+  claimNotes             String                @default("")
+  claimedAt              DateTime?
+  pet_place_social_media SocialMedia[]         @relation("SocialMedia_pet_place")
+  pet_place_likes        PetPlaceLike[]        @relation("PetPlaceLike_pet_place")
+  pet_place_schedules    Schedule[]            @relation("Schedule_pet_place")
+  pet_place_appointments PetPlaceAppointment[] @relation("PetPlaceAppointment_pet_place")
+  pet_place_reviews      Review[]              @relation("Review_pet_place")
+  pet_place_ads          Ad[]                  @relation("Ad_pet_place")
+  address                String                @default("")
+  google_place_id        String                @unique @default("")
+  google_opening_hours   String                @default("")
+  createdAt              DateTime?             @default(now())
 
   @@index([userId])
+}
+
+model PetPlaceAppointment {
+  id           String           @id @default(cuid())
+  pet_place    PetPlace?        @relation("PetPlaceAppointment_pet_place", fields: [pet_placeId], references: [id])
+  pet_placeId  String?          @map("pet_place")
+  customer     User?            @relation("PetPlaceAppointment_customer", fields: [customerId], references: [id])
+  customerId   String?          @map("customer")
+  service      PetPlaceService? @relation("PetPlaceAppointment_service", fields: [serviceId], references: [id])
+  serviceId    String?          @map("service")
+  startsAt     DateTime
+  endsAt       DateTime
+  status       String           @default("pending")
+  petName      String           @default("")
+  petSpecies   String           @default("")
+  notes        String           @default("")
+  ownerNotes   String           @default("")
+  cancelReason String?
+  createdAt    DateTime?        @default(now())
+
+  @@index([pet_placeId])
+  @@index([customerId])
+  @@index([serviceId])
 }
 
 model PetPlaceLike {
@@ -325,13 +362,14 @@ model PetPlaceLike {
 }
 
 model PetPlaceService {
-  id                     String     @id @default(cuid())
-  name                   String     @default("")
-  slug                   String     @default("")
-  description            String     @default("")
-  active                 Boolean    @default(false)
-  createdAt              DateTime?  @default(now())
-  from_PetPlace_services PetPlace[] @relation("PetPlace_services")
+  id                               String                @id @default(cuid())
+  name                             String                @default("")
+  slug                             String                @default("")
+  description                      String                @default("")
+  active                           Boolean               @default(false)
+  createdAt                        DateTime?             @default(now())
+  from_PetPlace_services           PetPlace[]            @relation("PetPlace_services")
+  from_PetPlaceAppointment_service PetPlaceAppointment[] @relation("PetPlaceAppointment_service")
 }
 
 model PetPlaceType {
@@ -1320,6 +1358,8 @@ model User {
   company                                  SaasCompany?             @relation("User_company", fields: [companyId], references: [id])
   companyId                                String?                  @map("company")
   workspaces                               SaasWorkspace[]          @relation("SaasWorkspace_members")
+  pet_places                               PetPlace[]               @relation("PetPlace_user")
+  my_appointments                          PetPlaceAppointment[]    @relation("PetPlaceAppointment_customer")
   blog_subscriptions                       BlogSubscription[]       @relation("BlogSubscription_user")
   businessLeadsAssigned                    TechBusinessLead[]       @relation("TechBusinessLead_salesPerson")
   salesActivities                          TechSalesActivity[]      @relation("TechSalesActivity_assignedSeller")
@@ -1367,7 +1407,6 @@ model User {
   from_Order_user                          Order[]                  @relation("Order_user")
   from_PaymentMethod_user                  PaymentMethod[]          @relation("PaymentMethod_user")
   from_Pet_user                            Pet[]                    @relation("Pet_user")
-  from_PetPlace_user                       PetPlace[]               @relation("PetPlace_user")
   from_PetPlaceLike_user                   PetPlaceLike[]           @relation("PetPlaceLike_user")
   from_Post_author                         Post[]                   @relation("Post_author")
   from_PostComment_user                    PostComment[]            @relation("PostComment_user")

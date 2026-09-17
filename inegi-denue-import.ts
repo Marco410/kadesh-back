@@ -14,7 +14,7 @@ import { parse } from "csv-parse";
 import { getContext } from "@keystone-6/core/context";
 import * as PrismaModule from "@prisma/client";
 import config from "./keystone";
-import { INEGI_SYNC_SOURCE } from "./models/Tech/Inegi/constants";
+import { INEGI_SYNC_SOURCE } from "./models/Saas/Tech/Inegi/constants";
 import { mapDenueCsvRow } from "./utils/inegi/mapEstablishment";
 import type { DenueCsvRow, MappedEstablishment } from "./utils/inegi/types";
 

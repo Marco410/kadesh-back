@@ -1,5 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { INEGI_LIVE_SYNC_CAP, INEGI_SYNC_SOURCE } from "../../../../models/Tech/Inegi/constants";
+import { INEGI_LIVE_SYNC_CAP, INEGI_SYNC_SOURCE } from "../../../../models/Saas/Tech/Inegi/constants";
 import {
   getSessionUserId,
   isSignedIn,

@@ -7,6 +7,7 @@ List de cuentas (auth Keystone, roles, company, Stripe, referidos). El registro 
 - `create` está abierto: cualquiera puede registrarse.
 - `query`/`update` exigen sesión y solo ven al propio usuario (admins de company ven compañeros; platform admin ve todo).
 - Tras crear un User con email, `userBlogSubscriptionHook` crea o vincula un `BlogSubscription`. Ese side-effect corre con `context.sudo()`: el request de registro no está autenticado y Keystone niega el `connect` a `User` si se usa el context original.
+- `my_appointments` (`PetPlaceAppointment.customer`) son las citas que este usuario reservó como cliente; ver [`../Pet/PetPlace/PetPlaceAppointment/README.md`](../Pet/PetPlace/PetPlaceAppointment/README.md). Distinto de `pet_places`, que son los negocios que reclamó como dueño.
 
 ## Decisiones
 

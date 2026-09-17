@@ -1,7 +1,7 @@
 import {
   INEGI_GEOGRAPHIC_LEVEL,
   type InegiGeographicLevel,
-} from "../../models/Tech/Inegi/constants";
+} from "../../models/Saas/Tech/Inegi/constants";
 import { inegiFetch } from "./throttle";
 import type { InegiIndicatorResponse, MappedIndicator } from "./types";
 

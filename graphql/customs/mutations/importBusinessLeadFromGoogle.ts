@@ -1,5 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { PIPELINE_STATUS } from "../../../models/Tech/crm/constants";
+import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
 import { Role } from "../../../models/Role/constants";
 import {
   denyOtherCompanyMessage,

@@ -4,7 +4,7 @@ Sin cron. El vendedor abre **Inicio** y pulsa **Generar mi resumen del día**. L
 
 ## Modelo
 
-`TechAiInsight` (`models/Tech/AiInsight/TechAiInsight.ts`):
+`TechAiInsight` (`models/Saas/Tech/AiInsight/TechAiInsight.ts`):
 
 - `company`, `salesPerson` (nullable; `null` = insight de empresa para admin / alcance global)
 - `kind`: `daily_digest` | `monthly_narrative` | `file_analysis`
