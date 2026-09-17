@@ -1,7 +1,9 @@
 import { graphql, list } from "@keystone-6/core";
 import {
+  checkbox,
   integer,
   relationship,
+  select,
   text,
   timestamp,
   virtual,
@@ -9,14 +11,89 @@ import {
 import access from "../../utils/generalAccess/access";
 import { KeystoneContext } from "@keystone-6/core/types";
 import { dayNames } from "../Schedule/Schedule";
+import {
+  PET_PLACE_CLAIM_STATUS,
+  PET_PLACE_CLAIM_STATUS_OPTIONS,
+  PET_PLACE_CLAIM_ROLE_OPTIONS,
+} from "./claim";
+import { petPlaceSlugAfterOperation } from "./PetPlace.hooks";
 
 export default list({
   access,
+  ui: {
+    listView: {
+      initialColumns: ["name", "slug", "claimStatus", "verified", "municipality"],
+    },
+  },
+  hooks: {
+    afterOperation: petPlaceSlugAfterOperation.afterOperation,
+    resolveInput: async ({ resolvedData, item, operation }) => {
+      if (operation !== "update") return resolvedData;
+
+      const wasVerified = Boolean(item?.verified);
+      const nextVerified = resolvedData.verified;
+
+      if (nextVerified === true && !wasVerified) {
+        resolvedData.claimStatus = PET_PLACE_CLAIM_STATUS.VERIFIED;
+        if (resolvedData.verifiedAt === undefined) {
+          resolvedData.verifiedAt = new Date();
+        }
+      }
+
+      if (nextVerified === false && wasVerified) {
+        if (resolvedData.claimStatus === undefined) {
+          resolvedData.claimStatus = item?.userId
+            ? PET_PLACE_CLAIM_STATUS.PENDING
+            : PET_PLACE_CLAIM_STATUS.UNCLAIMED;
+        }
+        if (resolvedData.verifiedAt === undefined) {
+          resolvedData.verifiedAt = null;
+        }
+      }
+
+      if (resolvedData.claimStatus === PET_PLACE_CLAIM_STATUS.VERIFIED) {
+        resolvedData.verified = true;
+        if (!wasVerified && resolvedData.verifiedAt === undefined) {
+          resolvedData.verifiedAt = new Date();
+        }
+      }
+
+      return resolvedData;
+    },
+  },
   fields: {
     name: text({ validation: { isRequired: true } }),
+    slug: text({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description:
+          "URL amigable. Se genera sola (nombre + municipio) y no cambia si editas el nombre.",
+      },
+    }),
     description: text({ validation: { isRequired: true } }),
     phone: text(),
+    whatsapp: text({
+      ui: { description: "WhatsApp de la clínica (solo dígitos, con lada)" },
+    }),
     website: text(),
+    email: text({
+      ui: { description: "Correo público de la clínica" },
+    }),
+    emergencies: checkbox({
+      defaultValue: false,
+      ui: { description: "Atiende urgencias 24/7" },
+    }),
+    parking: checkbox({
+      defaultValue: false,
+      ui: { description: "Tiene estacionamiento" },
+    }),
+    appointmentRequired: checkbox({
+      defaultValue: false,
+      ui: { description: "Atiende solo con cita" },
+    }),
     street: text(),
     municipality: text(),
     state: text(),
@@ -34,8 +111,48 @@ export default list({
       many: true,
     }),
     user: relationship({
-      ref: "User",
+      ref: "User.pet_places",
       many: false,
+      ui: { description: "Dueño o solicitante de la ficha" },
+    }),
+    verified: checkbox({
+      defaultValue: false,
+      ui: {
+        description:
+          "Marca cuando un admin ya validó que la clínica es de este usuario",
+      },
+    }),
+    verifiedAt: timestamp({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
+    claimStatus: select({
+      options: PET_PLACE_CLAIM_STATUS_OPTIONS,
+      defaultValue: PET_PLACE_CLAIM_STATUS.UNCLAIMED,
+      ui: { displayMode: "segmented-control" },
+    }),
+    claimRole: select({
+      options: PET_PLACE_CLAIM_ROLE_OPTIONS,
+      ui: { description: "Rol declarado al reclamar" },
+    }),
+    claimPhone: text({
+      ui: { description: "Teléfono que dejó en la solicitud" },
+    }),
+    claimNotes: text({
+      ui: {
+        displayMode: "textarea",
+        description: "Cómo comprueba que es suya (cédula, RFC, etc.)",
+      },
+    }),
+    claimedAt: timestamp({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
     }),
     isOpen: virtual({
       field: graphql.field({
@@ -82,6 +199,10 @@ export default list({
     }),
     pet_place_schedules: relationship({
       ref: "Schedule.pet_place",
+      many: true,
+    }),
+    pet_place_appointments: relationship({
+      ref: "PetPlaceAppointment.pet_place",
       many: true,
     }),
     pet_place_reviews: relationship({

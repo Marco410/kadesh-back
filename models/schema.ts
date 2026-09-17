@@ -10,6 +10,7 @@ import AnimalBreed from "./Animal/AnimalBreed/AnimalBreed";
 import Pet from "./Pet/Pet";
 import PetMultimedia from "./Pet/PetMultimedia/PetMultimedia";
 import PetPlace from "./PetPlace/PetPlace";
+import PetPlaceAppointment from "./PetPlace/PetPlaceAppointment/PetPlaceAppointment";
 import PetPlaceLike from "./PetPlace/PetPlaceLike/PetPlaceLike";
 import PetPlaceService from "./PetPlace/PetPlaceService/PetPlaceService";
 import Schedule from "./Schedule/Schedule";
@@ -86,6 +87,7 @@ export default {
   Pet,
   PetMultimedia,
   PetPlace,
+  PetPlaceAppointment,
   PetPlaceLike,
   PetPlaceService,
   PetPlaceType,

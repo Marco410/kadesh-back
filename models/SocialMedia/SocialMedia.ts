@@ -6,7 +6,7 @@ export default list({
   access,
   fields: {
     social_media: select({
-      options: ["Facebook", "Instagram", "X", "LinkedIn"],
+      options: ["Facebook", "Instagram", "X", "LinkedIn", "TikTok"],
       validation: { isRequired: true },
     }),
     link: text({
