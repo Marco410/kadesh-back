@@ -9,6 +9,7 @@ import createCompanySubscription from "./createCompanySubscription";
 import addOwnLead from "./addOwnLead";
 import remainingCredits from "./subcription/remainingCredits";
 import purchaseCredits from "./credits/purchaseCredits";
+import grantAdminCredits from "./credits/grantAdminCredits";
 import sendTestEmail from "./sendTestEmail";
 import updateCompanyAiSettings from "./ai/updateCompanyAiSettings";
 import generateMarketInsight from "./ai/generateMarketInsight";
@@ -33,6 +34,7 @@ const customMutation = {
     ${addOwnLead.typeDefs}
     ${remainingCredits.typeDefs}
     ${purchaseCredits.typeDefs}
+    ${grantAdminCredits.typeDefs}
     ${sendTestEmail.typeDefs}
     ${updateCompanyAiSettings.typeDefs}
     ${dailyDigest.typeDefs}
@@ -56,6 +58,7 @@ const customMutation = {
     ${addOwnLead.definition}
     ${remainingCredits.definition}
     ${purchaseCredits.definition}
+    ${grantAdminCredits.definition}
     ${sendTestEmail.definition}
     ${updateCompanyAiSettings.definition}
     ${dailyDigest.mutationDefinition}
@@ -79,6 +82,7 @@ const customMutation = {
     ...addOwnLead.resolver,
     ...remainingCredits.resolver,
     ...purchaseCredits.resolver,
+    ...grantAdminCredits.resolver,
     ...sendTestEmail.resolver,
     ...updateCompanyAiSettings.resolver,
     ...dailyDigest.mutationResolver,

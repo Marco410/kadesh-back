@@ -1,9 +1,18 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { getSessionUserId } from "../../../../../utils/access/tenant";
 import { PET_PLACE_CLAIM_STATUS } from "../../../../../models/Pet/PetPlace/claim";
+import {
+  TYPES_PET_SHELTER,
+  dayOfWeek,
+} from "../../../../../utils/constants/constants";
+import { ensurePetPlaceTypes } from "./ensurePetPlaceType";
 
 const PHONE_PATTERN = /^\+?\d{10,}$/;
 const SOCIAL_MEDIA_OPTIONS = ["Facebook", "Instagram", "X", "LinkedIn", "TikTok"] as const;
+const TYPE_VALUES = new Set<string>(
+  TYPES_PET_SHELTER.map((type) => type.value),
+);
+const DAY_VALUES = new Set<string>(Object.values(dayOfWeek));
 
 function normalizePhone(value: string): string {
   const trimmed = value.trim();
@@ -39,11 +48,20 @@ const typeDefs = `
     parking: Boolean
     appointmentRequired: Boolean
     socialMedia: [PetPlaceSocialMediaInput!]
+    types: [String!]
+    serviceIds: [ID!]
+    schedules: [PetPlaceScheduleInput!]
   }
 
   input PetPlaceSocialMediaInput {
     social_media: String!
     link: String!
+  }
+
+  input PetPlaceScheduleInput {
+    day: String!
+    timeIni: Int!
+    timeEnd: Int!
   }
 
   type UpdateMyPetPlaceResult {
@@ -81,6 +99,9 @@ const resolver = {
         parking?: boolean | null;
         appointmentRequired?: boolean | null;
         socialMedia?: Array<{ social_media: string; link: string }> | null;
+        types?: string[] | null;
+        serviceIds?: string[] | null;
+        schedules?: Array<{ day: string; timeIni: number; timeEnd: number }> | null;
       };
     },
     context: KeystoneContext,
@@ -210,9 +231,101 @@ const resolver = {
     }
 
     const socialMedia = input.socialMedia;
+    const typesInput = input.types;
+    const serviceIdsInput = input.serviceIds;
+    const schedulesInput = input.schedules;
     const hasSocialUpdate = socialMedia !== undefined && socialMedia !== null;
+    const hasTypesUpdate = typesInput !== undefined && typesInput !== null;
+    const hasServicesUpdate = serviceIdsInput !== undefined && serviceIdsInput !== null;
+    const hasSchedulesUpdate =
+      schedulesInput !== undefined && schedulesInput !== null;
 
-    if (Object.keys(data).length === 0 && !hasSocialUpdate) {
+    if (typesInput !== undefined && typesInput !== null) {
+      const uniqueTypes = [...new Set(typesInput.map((value) => value.trim()))];
+      if (uniqueTypes.length === 0) {
+        return {
+          success: false,
+          message: "Elige al menos un tipo de negocio.",
+          petPlaceId: place.id,
+        };
+      }
+      if (uniqueTypes.some((value) => !TYPE_VALUES.has(value))) {
+        return {
+          success: false,
+          message: "Hay un tipo de negocio que no reconocemos.",
+          petPlaceId: place.id,
+        };
+      }
+
+      const typeRows = await ensurePetPlaceTypes(context, uniqueTypes);
+
+      if (typeRows.length !== uniqueTypes.length) {
+        return {
+          success: false,
+          message: "Hay un tipo de negocio que no reconocemos.",
+          petPlaceId: place.id,
+        };
+      }
+
+      data.types = { set: typeRows.map((row) => ({ id: row.id })) };
+    }
+
+    if (serviceIdsInput !== undefined && serviceIdsInput !== null) {
+      const uniqueIds = [...new Set(serviceIdsInput.filter(Boolean))];
+      if (uniqueIds.length > 0) {
+        const serviceRows = (await context.sudo().query.PetPlaceService.findMany({
+          where: { id: { in: uniqueIds } },
+          query: "id",
+        })) as Array<{ id: string }>;
+        if (serviceRows.length !== uniqueIds.length) {
+          return {
+            success: false,
+            message: "Hay un servicio que ya no existe. Recarga e intenta de nuevo.",
+            petPlaceId: place.id,
+          };
+        }
+      }
+      data.services = { set: uniqueIds.map((id) => ({ id })) };
+    }
+
+    if (schedulesInput !== undefined && schedulesInput !== null) {
+      for (const row of schedulesInput) {
+        if (!DAY_VALUES.has(row.day)) {
+          return {
+            success: false,
+            message: "Hay un día de horario que no reconocemos.",
+            petPlaceId: place.id,
+          };
+        }
+        if (
+          !Number.isInteger(row.timeIni) ||
+          !Number.isInteger(row.timeEnd) ||
+          row.timeIni < 0 ||
+          row.timeIni > 23 ||
+          row.timeEnd < 0 ||
+          row.timeEnd > 23
+        ) {
+          return {
+            success: false,
+            message: "Los horarios deben ser horas entre 0 y 23.",
+            petPlaceId: place.id,
+          };
+        }
+        if (row.timeEnd <= row.timeIni) {
+          return {
+            success: false,
+            message: "La hora de cierre debe ser posterior a la de apertura.",
+            petPlaceId: place.id,
+          };
+        }
+      }
+    }
+
+    if (
+      Object.keys(data).length === 0 &&
+      !hasSocialUpdate &&
+      !hasSchedulesUpdate
+    ) {
       return {
         success: true,
         message: "No había cambios que guardar.",
@@ -226,6 +339,30 @@ const resolver = {
           where: { id: place.id },
           data,
         });
+      }
+
+      if (schedulesInput !== undefined && schedulesInput !== null) {
+        const existing = (await context.sudo().query.Schedule.findMany({
+          where: { pet_place: { id: { equals: place.id } } },
+          query: "id",
+        })) as Array<{ id: string }>;
+
+        if (existing.length > 0) {
+          await context.sudo().query.Schedule.deleteMany({
+            where: existing.map((item) => ({ id: item.id })),
+          });
+        }
+
+        for (const row of schedulesInput) {
+          await context.sudo().query.Schedule.createOne({
+            data: {
+              day: row.day,
+              timeIni: row.timeIni,
+              timeEnd: row.timeEnd,
+              pet_place: { connect: { id: place.id } },
+            },
+          });
+        }
       }
 
       if (hasSocialUpdate) {

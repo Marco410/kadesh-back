@@ -303,6 +303,8 @@ model PetPlace {
   views                  Int?
   types                  PetPlaceType[]        @relation("PetPlace_types")
   services               PetPlaceService[]     @relation("PetPlace_services")
+  requested_services     PetPlaceService[]     @relation("PetPlaceService_requestedFor")
+  patients               User[]                @relation("PetPlace_patients")
   user                   User?                 @relation("PetPlace_user", fields: [userId], references: [id])
   userId                 String?               @map("user")
   verified               Boolean               @default(false)
@@ -364,12 +366,20 @@ model PetPlaceLike {
 model PetPlaceService {
   id                               String                @id @default(cuid())
   name                             String                @default("")
-  slug                             String                @default("")
+  slug                             String                @unique @default("")
   description                      String                @default("")
-  active                           Boolean               @default(false)
+  active                           Boolean               @default(true)
+  status                           String                @default("approved")
+  requestedBy                      User?                 @relation("PetPlaceService_requestedBy", fields: [requestedById], references: [id])
+  requestedById                    String?               @map("requestedBy")
+  requestedFor                     PetPlace?             @relation("PetPlaceService_requestedFor", fields: [requestedForId], references: [id])
+  requestedForId                   String?               @map("requestedFor")
   createdAt                        DateTime?             @default(now())
   from_PetPlace_services           PetPlace[]            @relation("PetPlace_services")
   from_PetPlaceAppointment_service PetPlaceAppointment[] @relation("PetPlaceAppointment_service")
+
+  @@index([requestedById])
+  @@index([requestedForId])
 }
 
 model PetPlaceType {
@@ -1359,6 +1369,8 @@ model User {
   companyId                                String?                  @map("company")
   workspaces                               SaasWorkspace[]          @relation("SaasWorkspace_members")
   pet_places                               PetPlace[]               @relation("PetPlace_user")
+  clinic_patients_of                       PetPlace[]               @relation("PetPlace_patients")
+  requested_pet_place_services             PetPlaceService[]        @relation("PetPlaceService_requestedBy")
   my_appointments                          PetPlaceAppointment[]    @relation("PetPlaceAppointment_customer")
   blog_subscriptions                       BlogSubscription[]       @relation("BlogSubscription_user")
   businessLeadsAssigned                    TechBusinessLead[]       @relation("TechBusinessLead_salesPerson")
