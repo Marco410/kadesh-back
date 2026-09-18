@@ -61,6 +61,16 @@ var access_default = access;
 
 // utils/constants/constants.ts
 var TRIAL_DAYS_FREE_PLAN = 7;
+var dayOfWeek = /* @__PURE__ */ ((dayOfWeek2) => {
+  dayOfWeek2["DOM"] = "Domingo";
+  dayOfWeek2["LUN"] = "Lunes";
+  dayOfWeek2["MAR"] = "Martes";
+  dayOfWeek2["MIER"] = "Mi\xE9rcoles";
+  dayOfWeek2["JUEV"] = "Jueves";
+  dayOfWeek2["VIE"] = "Viernes";
+  dayOfWeek2["SAB"] = "S\xE1bado";
+  return dayOfWeek2;
+})(dayOfWeek || {});
 var ANIMAL_TYPE_OPTIONS = [
   { label: "Perro", value: "dog" /* DOG */ },
   { label: "Gato", value: "cat" /* CAT */ },
@@ -555,11 +565,6 @@ var AnimalComment_default = (0, import_core6.list)({
 var import_core7 = require("@keystone-6/core");
 var import_fields7 = require("@keystone-6/core/fields");
 
-// utils/helpers/unike_link.ts
-function genUniqueLink(link) {
-  return link.toLowerCase().replace(/ñ/g, "n").replace(/\s+/g, ".");
-}
-
 // utils/intregrations/smtpMail.ts
 var MAILTRAP_SEND_URL = process.env.MAILTRAP_SEND_URL?.trim() || "https://send.api.mailtrap.io/api/send";
 var PLACEHOLDER_PASS = /* @__PURE__ */ new Set(["<tu_password>", "your_smtp_password", "changeme"]);
@@ -824,6 +829,56 @@ async function sendAdminUserBankDetailsUpdatedEmail({
   const fieldsList = fieldsUpdated.join(", ");
   const subject = "[Kadesh] Usuario actualiz\xF3 datos bancarios";
   const html = buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList);
+  await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
+}
+async function sendAdminPetPlaceServiceRequestEmail({
+  serviceName,
+  description,
+  petPlaceName,
+  petPlaceId,
+  requesterName,
+  requesterEmail
+}) {
+  const recipients = parseAdminNotificationEmails();
+  if (recipients.length === 0) {
+    console.warn(
+      "SMTP_ADMIN_NOTIFICATION_EMAILS no configurado. No se env\xEDa aviso de servicio nuevo."
+    );
+    return;
+  }
+  const name = escapeHtml(serviceName);
+  const place = escapeHtml(petPlaceName);
+  const who = escapeHtml(requesterName);
+  const mail = escapeHtml(requesterEmail || "(sin correo)");
+  const desc = escapeHtml(description || "(sin descripci\xF3n)");
+  const subject = `[Kadesh] Nuevo servicio para revisar: ${serviceName}`;
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td style="background:${BRAND_ORANGE};padding:24px 32px;color:#fff;">
+              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;">Kadesh</p>
+              <h1 style="margin:8px 0 0;font-size:22px;">Servicio pendiente de aprobaci\xF3n</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px;color:#0f172a;font-size:16px;line-height:1.6;">
+              <p style="margin:0 0 12px;"><strong>${who}</strong> (${mail}) pidi\xF3 un servicio para <strong>${place}</strong>.</p>
+              <p style="margin:0 0 8px;"><strong>Nombre:</strong> ${name}</p>
+              <p style="margin:0 0 8px;"><strong>Descripci\xF3n:</strong> ${desc}</p>
+              <p style="margin:16px 0 0;font-size:14px;color:#64748b;">Apru\xE9balo o rech\xE1zalo en Keystone \u2192 PetPlaceService (id de cl\xEDnica ${escapeHtml(petPlaceId)}). Solo si lo apruebas aparece en el cat\xE1logo.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
   await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
 }
 async function sendNewPostEmail({
@@ -1247,52 +1302,46 @@ var emailHooks = {
     return email;
   }
 };
+function slugifyUsername(value) {
+  const slug = value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n").replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "");
+  return slug || "user";
+}
+async function usernameTaken(context, username) {
+  const rows = await context.sudo().query.User.findMany({
+    where: { username: { equals: username } },
+    take: 1,
+    query: "id"
+  });
+  return rows.length > 0;
+}
 var userNameHook = {
-  resolveInput: async ({ resolvedData, item, context }) => {
-    if (item && resolvedData.username) {
-      return resolvedData.username;
+  resolveInput: async ({ resolvedData, item, context, operation }) => {
+    if (operation === "update" || item) {
+      if (resolvedData.username) return resolvedData.username;
+      return item?.username;
     }
-    if (item && !resolvedData.username) {
-      return item.username;
+    const name = resolvedData.name;
+    const lastName = resolvedData.lastName || "";
+    const preferred = resolvedData.username;
+    if (preferred || name) {
+      return checkUserName(name || "user", lastName, context, preferred);
     }
-    if (!item && resolvedData.username) {
-      return resolvedData.username;
-    }
-    if (!item && !resolvedData.username) {
-      const name = resolvedData.name;
-      const lastName = resolvedData.lastName || "";
-      if (name) {
-        return checkUserName(name, lastName, context);
-      }
-    }
-    return resolvedData.username;
+    return checkUserName("user", "", context);
   }
 };
-async function checkUserName(name, lastName, context) {
-  if (!name) {
-    throw new Error("El nombre es requerido para generar el username");
+async function checkUserName(name, lastName, context, preferred) {
+  const source = preferred?.trim() || [name, lastName].filter(Boolean).join(" ") || "user";
+  const baseLink = slugifyUsername(source);
+  if (!await usernameTaken(context, baseLink)) {
+    return baseLink;
   }
-  const namePart = name.trim();
-  const lastNamePart = lastName ? lastName.trim() : "";
-  const fullName = lastNamePart ? `${namePart} ${lastNamePart}` : namePart;
-  let baseLink = genUniqueLink(fullName);
-  if (!baseLink || baseLink === "") {
-    baseLink = "user";
+  for (let n = 2; n <= 99; n += 1) {
+    const candidate = `${baseLink}${n}`;
+    if (!await usernameTaken(context, candidate)) {
+      return candidate;
+    }
   }
-  let uniqueLink = baseLink;
-  let existingUser = await context.db.User.findOne({
-    where: { username: uniqueLink }
-  });
-  let counter = 1;
-  while (existingUser) {
-    const randomNum1 = Math.floor(Math.random() * 100).toString();
-    uniqueLink = `${baseLink}${randomNum1}`;
-    existingUser = await context.db.User.findOne({
-      where: { username: uniqueLink }
-    });
-    counter++;
-  }
-  return uniqueLink;
+  return `${baseLink}${Date.now().toString(36)}`;
 }
 function relationIds(value) {
   if (!value) return [];
@@ -1523,7 +1572,29 @@ function userVisibleWhere(session2) {
       ]
     };
   }
-  return { id: { equals: userId } };
+  return {
+    OR: [
+      { id: { equals: userId } },
+      {
+        my_appointments: {
+          some: {
+            pet_place: {
+              user: { id: { equals: userId } },
+              verified: { equals: true }
+            }
+          }
+        }
+      },
+      {
+        clinic_patients_of: {
+          some: {
+            user: { id: { equals: userId } },
+            verified: { equals: true }
+          }
+        }
+      }
+    ]
+  };
 }
 function isSelf(session2, item) {
   const userId = getSessionUserId(session2);
@@ -1703,6 +1774,16 @@ var User_default = (0, import_core7.list)({
       ref: "PetPlace.user",
       many: true,
       ui: { description: "Cl\xEDnicas que este usuario reclam\xF3" }
+    }),
+    clinic_patients_of: (0, import_fields7.relationship)({
+      ref: "PetPlace.patients",
+      many: true,
+      ui: { description: "Cl\xEDnicas donde figura como paciente" }
+    }),
+    requested_pet_place_services: (0, import_fields7.relationship)({
+      ref: "PetPlaceService.requestedBy",
+      many: true,
+      ui: { description: "Servicios de cat\xE1logo que este usuario pidi\xF3" }
     }),
     my_appointments: (0, import_fields7.relationship)({
       ref: "PetPlaceAppointment.customer",
@@ -2339,6 +2420,16 @@ var PetPlace_default = (0, import_core13.list)({
       ref: "PetPlaceService",
       many: true
     }),
+    requested_services: (0, import_fields13.relationship)({
+      ref: "PetPlaceService.requestedFor",
+      many: true,
+      ui: { description: "Servicios que esta cl\xEDnica pidi\xF3 al cat\xE1logo" }
+    }),
+    patients: (0, import_fields13.relationship)({
+      ref: "User.clinic_patients_of",
+      many: true,
+      ui: { description: "Pacientes dados de alta por esta cl\xEDnica" }
+    }),
     user: (0, import_fields13.relationship)({
       ref: "User.pet_places",
       many: false,
@@ -2548,6 +2639,16 @@ var PET_PLACE_APPOINTMENT_STATUS_OPTIONS = [
 ];
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.hooks.ts
+async function loadPlaceForCreate(context, petPlaceId) {
+  if (!petPlaceId) return null;
+  return context.sudo().query.PetPlace.findOne({
+    where: { id: petPlaceId },
+    query: "id verified user { id } patients { id }"
+  });
+}
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
 var petPlaceAppointmentValidateInput = async ({
   resolvedData,
   item,
@@ -2561,14 +2662,32 @@ var petPlaceAppointmentValidateInput = async ({
     addValidationError("La fecha de fin debe ser posterior a la de inicio.");
   }
   if (operation === "create") {
-    if (startsAt && new Date(startsAt) < /* @__PURE__ */ new Date()) {
-      addValidationError("No puedes agendar una cita en el pasado.");
-    }
     const sessionUserId = getSessionUserId(context.session);
+    const petPlaceId = resolvedData.pet_place?.connect?.id;
+    const place = await loadPlaceForCreate(context, petPlaceId);
+    const isOwner = Boolean(sessionUserId) && Boolean(place?.verified) && place?.user?.id === sessionUserId;
+    if (startsAt && new Date(startsAt) < /* @__PURE__ */ new Date()) {
+      if (!isOwner) {
+        addValidationError("No puedes agendar una cita en el pasado.");
+      } else if (startOfDay(new Date(startsAt)) < startOfDay(/* @__PURE__ */ new Date())) {
+        addValidationError("No puedes agendar una cita en un d\xEDa anterior.");
+      }
+    }
     if (!isPlatformAdmin(context.session)) {
       const connectId = resolvedData.customer?.connect?.id;
       if (!sessionUserId) {
         addValidationError("Inicia sesi\xF3n para reservar una cita.");
+      } else if (isOwner) {
+        if (!connectId) {
+          addValidationError("Elige un paciente para esta cita.");
+        } else if (connectId !== sessionUserId) {
+          const isPatient = (place?.patients ?? []).some(
+            (patient) => patient.id === connectId
+          );
+          if (!isPatient) {
+            addValidationError("El paciente no est\xE1 dado de alta en esta cl\xEDnica.");
+          }
+        }
       } else if (connectId && connectId !== sessionUserId) {
         addValidationError("No puedes reservar a nombre de otro usuario.");
       } else if (!connectId) {
@@ -2597,20 +2716,38 @@ var petPlaceAppointmentEmailHook = {
       const ownerName = [appointment.pet_place?.user?.name, appointment.pet_place?.user?.lastName].filter(Boolean).join(" ") || "ah\xED";
       const customerName = [appointment.customer?.name, appointment.customer?.lastName].filter(Boolean).join(" ") || "Un cliente";
       const petPlaceName = appointment.pet_place?.name ?? "tu negocio";
+      const sessionUserId = getSessionUserId(context.session);
+      const createdByOwner = Boolean(sessionUserId) && sessionUserId === appointment.pet_place?.user?.id;
       if (operation === "create") {
-        const ownerEmail = appointment.pet_place?.user?.email;
-        if (ownerEmail) {
-          await sendPetPlaceAppointmentEmail({
-            to: ownerEmail,
-            audience: "owner",
-            ownerName,
-            petPlaceName,
-            customerName,
-            petName: appointment.petName,
-            startsAt: appointment.startsAt,
-            endsAt: appointment.endsAt,
-            status: appointment.status
-          });
+        if (createdByOwner) {
+          if (appointment.customer?.email) {
+            await sendPetPlaceAppointmentEmail({
+              to: appointment.customer.email,
+              audience: "customer",
+              ownerName,
+              petPlaceName,
+              customerName,
+              petName: appointment.petName,
+              startsAt: appointment.startsAt,
+              endsAt: appointment.endsAt,
+              status: appointment.status
+            });
+          }
+        } else {
+          const ownerEmail = appointment.pet_place?.user?.email;
+          if (ownerEmail) {
+            await sendPetPlaceAppointmentEmail({
+              to: ownerEmail,
+              audience: "owner",
+              ownerName,
+              petPlaceName,
+              customerName,
+              petName: appointment.petName,
+              startsAt: appointment.startsAt,
+              endsAt: appointment.endsAt,
+              status: appointment.status
+            });
+          }
         }
       }
       if (operation === "update" && inputData && Object.prototype.hasOwnProperty.call(inputData, "status") && [
@@ -2741,13 +2878,115 @@ var PetPlaceLike_default = (0, import_core15.list)({
 // models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
 var import_core16 = require("@keystone-6/core");
 var import_fields16 = require("@keystone-6/core/fields");
+
+// models/Pet/PetPlace/PetPlaceService/status.ts
+var PET_PLACE_SERVICE_STATUS = {
+  PENDING: "pending",
+  APPROVED: "approved",
+  REJECTED: "rejected"
+};
+var PET_PLACE_SERVICE_STATUS_OPTIONS = [
+  { label: "Pendiente", value: PET_PLACE_SERVICE_STATUS.PENDING },
+  { label: "Aprobado", value: PET_PLACE_SERVICE_STATUS.APPROVED },
+  { label: "Rechazado", value: PET_PLACE_SERVICE_STATUS.REJECTED }
+];
+
+// models/Pet/PetPlace/PetPlaceService/PetPlaceService.hooks.ts
+function slugFromName(name) {
+  return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
+}
+var petPlaceServiceHooks = {
+  resolveInput: async ({
+    resolvedData,
+    item,
+    operation,
+    context
+  }) => {
+    if (operation === "create" && getSessionUserId(context.session) && !isPlatformAdmin(context.session)) {
+      resolvedData.status = PET_PLACE_SERVICE_STATUS.PENDING;
+      resolvedData.active = false;
+    }
+    const status = resolvedData.status ?? item?.status;
+    if (status === PET_PLACE_SERVICE_STATUS.APPROVED) {
+      if (resolvedData.active === void 0) resolvedData.active = true;
+    } else if (status === PET_PLACE_SERVICE_STATUS.PENDING || status === PET_PLACE_SERVICE_STATUS.REJECTED) {
+      resolvedData.active = false;
+    }
+    const name = String(resolvedData.name ?? item?.name ?? "").trim();
+    if (!resolvedData.slug && !item?.slug && name) {
+      let slug = slugFromName(name) || "servicio";
+      let candidate = slug;
+      let n = 2;
+      while ((await context.sudo().query.PetPlaceService.findMany({
+        where: { slug: { equals: candidate } },
+        take: 1,
+        query: "id"
+      })).length > 0) {
+        candidate = `${slug}_${n}`;
+        n += 1;
+      }
+      resolvedData.slug = candidate;
+    }
+    return resolvedData;
+  },
+  afterOperation: async ({ operation, item, inputData, context }) => {
+    if (operation !== "update" || !item?.id) return;
+    if (inputData?.status !== PET_PLACE_SERVICE_STATUS.APPROVED) return;
+    const row = await context.sudo().query.PetPlaceService.findOne({
+      where: { id: item.id },
+      query: "id requestedFor { id }"
+    });
+    const placeId = row?.requestedFor?.id;
+    if (!placeId) return;
+    await context.sudo().query.PetPlace.updateOne({
+      where: { id: placeId },
+      data: { services: { connect: [{ id: item.id }] } }
+    });
+  }
+};
+
+// models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
 var PetPlaceService_default = (0, import_core16.list)({
   access: access_default,
+  ui: {
+    listView: {
+      initialColumns: ["name", "status", "active", "requestedFor"]
+    }
+  },
+  hooks: {
+    resolveInput: petPlaceServiceHooks.resolveInput,
+    afterOperation: petPlaceServiceHooks.afterOperation
+  },
   fields: {
-    name: (0, import_fields16.text)(),
-    slug: (0, import_fields16.text)(),
+    name: (0, import_fields16.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields16.text)({ isIndexed: "unique" }),
     description: (0, import_fields16.text)({ ui: { displayMode: "textarea" } }),
-    active: (0, import_fields16.checkbox)(),
+    active: (0, import_fields16.checkbox)({
+      defaultValue: true,
+      ui: {
+        description: "Visible en el cat\xE1logo y en fichas. Solo si est\xE1 aprobado."
+      }
+    }),
+    status: (0, import_fields16.select)({
+      type: "string",
+      options: PET_PLACE_SERVICE_STATUS_OPTIONS,
+      defaultValue: PET_PLACE_SERVICE_STATUS.APPROVED,
+      validation: { isRequired: true },
+      ui: {
+        displayMode: "segmented-control",
+        description: "Pendiente = lo pidi\xF3 un due\xF1o. Aprobado = sale en el cat\xE1logo. Rechazado = no sale."
+      }
+    }),
+    requestedBy: (0, import_fields16.relationship)({
+      ref: "User.requested_pet_place_services",
+      many: false,
+      ui: { description: "Due\xF1o que pidi\xF3 este servicio" }
+    }),
+    requestedFor: (0, import_fields16.relationship)({
+      ref: "PetPlace.requested_services",
+      many: false,
+      ui: { description: "Cl\xEDnica que lo pidi\xF3; al aprobar se conecta a sus servicios" }
+    }),
     createdAt: (0, import_fields16.timestamp)({
       defaultValue: {
         kind: "now"
@@ -6887,13 +7126,23 @@ var companyCreditLedgerAccess = {
 var COMPANY_CREDIT_LEDGER_TYPE = {
   GRANT_PLAN: "GRANT_PLAN",
   GRANT_PURCHASE: "GRANT_PURCHASE",
+  GRANT_ADMIN: "GRANT_ADMIN",
   CONSUME_SYNC: "CONSUME_SYNC",
   CONSUME_AI: "CONSUME_AI",
   ADJUST: "ADJUST"
 };
+var COMPANY_CREDIT_LEDGER_REFERENCE_TYPE = {
+  SUBSCRIPTION: "subscription",
+  PAYMENT: "payment",
+  COMPANY: "company",
+  ADMIN: "admin",
+  SYNC: "sync",
+  AI: "ai"
+};
 var COMPANY_CREDIT_LEDGER_TYPE_OPTIONS = [
   { label: "Grant plan", value: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN },
   { label: "Grant purchase", value: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE },
+  { label: "Grant admin", value: COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN },
   { label: "Consume sync", value: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC },
   { label: "Consume AI", value: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI },
   { label: "Adjust", value: COMPANY_CREDIT_LEDGER_TYPE.ADJUST }
@@ -6944,7 +7193,7 @@ var SaasCompanyCreditLedger_default = (0, import_core59.list)({
     referenceType: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
-        description: "Reference entity type (subscription, payment, syncLog)"
+        description: "Reference entity type (subscription, payment, admin, company, sync, ai)"
       }
     }),
     referenceId: (0, import_fields59.text)({
@@ -9936,7 +10185,7 @@ async function ensureSaasCompanyCreditPeriod(context, companyId) {
       type: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN,
       amount: planAllowance,
       balanceAfter: remaining,
-      referenceType: "subscription",
+      referenceType: COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.SUBSCRIPTION,
       referenceId: subscription?.id ?? null,
       notes: "Monthly plan allowance"
     });
@@ -9948,7 +10197,7 @@ async function ensureSaasCompanyCreditPeriod(context, companyId) {
       type: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE,
       amount: purchasedBonus,
       balanceAfter: remaining,
-      referenceType: "company",
+      referenceType: COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.COMPANY,
       referenceId: companyId,
       notes: "Purchased bonus credits (period init)"
     });
@@ -9996,7 +10245,7 @@ async function grantPlanCreditsOnSubscription(context, params) {
       type: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN,
       amount: delta,
       balanceAfter: getPeriodRemaining(updated),
-      referenceType: "subscription",
+      referenceType: COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.SUBSCRIPTION,
       referenceId: params.subscriptionId,
       notes: "Plan allowance updated on subscription change"
     });
@@ -10030,18 +10279,18 @@ async function grantPurchaseCredits(context, params) {
   await writeLedgerEntry(context, {
     companyId: params.companyId,
     periodId: updated.id,
-    type: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE,
+    type: params.ledgerType ?? COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE,
     amount: params.amount,
     balanceAfter: getPeriodRemaining(updated),
-    referenceType: "payment",
-    referenceId: params.paymentId ?? null,
+    referenceType: params.referenceType ?? COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.PAYMENT,
+    referenceId: params.referenceId ?? params.paymentId ?? null,
     notes: params.notes ?? `Purchased +${params.amount} credits`
   });
   return updated;
 }
 async function consumeCompanyCredits(context, params) {
   const consumeType = params.ledgerType ?? COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC;
-  const defaultReferenceType = consumeType === COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI ? "ai" : "sync";
+  const defaultReferenceType = consumeType === COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI ? COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.AI : COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.SYNC;
   if (params.amount < 1) {
     const period2 = await ensureSaasCompanyCreditPeriod(context, params.companyId);
     const syncedCount = period2.used ?? 0;
@@ -12159,6 +12408,132 @@ var resolver11 = {
 };
 var purchaseCredits_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
 
+// graphql/customs/mutations/credits/grantAdminCredits.ts
+var MAX_GRANT = 5e4;
+var typeDefs12 = `
+  input GrantAdminCreditsInput {
+    companyId: ID!
+    subscriptionId: ID!
+    amount: Int!
+    notes: String
+  }
+
+  type GrantAdminCreditsResult {
+    success: Boolean!
+    message: String!
+    creditsAdded: Int
+    remainingQuota: Int
+    extraCredits: Int
+  }
+
+  type Mutation {
+    grantAdminCredits(input: GrantAdminCreditsInput!): GrantAdminCreditsResult!
+  }
+`;
+var definition12 = `
+  grantAdminCredits(input: GrantAdminCreditsInput!): GrantAdminCreditsResult!
+`;
+var resolver12 = {
+  grantAdminCredits: async (_root, { input }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return {
+        success: false,
+        message: "Solo operaciones puede otorgar cr\xE9ditos.",
+        creditsAdded: null,
+        remainingQuota: null,
+        extraCredits: null
+      };
+    }
+    const companyId = input.companyId?.trim();
+    const subscriptionId = input.subscriptionId?.trim();
+    const amount = Math.floor(Number(input.amount));
+    if (!companyId || !subscriptionId) {
+      return {
+        success: false,
+        message: "Faltan la empresa o la suscripci\xF3n.",
+        creditsAdded: null,
+        remainingQuota: null,
+        extraCredits: null
+      };
+    }
+    if (!Number.isFinite(amount) || amount < 1) {
+      return {
+        success: false,
+        message: "Indica cu\xE1ntos cr\xE9ditos agregar (m\xEDnimo 1).",
+        creditsAdded: null,
+        remainingQuota: null,
+        extraCredits: null
+      };
+    }
+    if (amount > MAX_GRANT) {
+      return {
+        success: false,
+        message: `No se pueden otorgar m\xE1s de ${MAX_GRANT.toLocaleString("es-MX")} cr\xE9ditos a la vez.`,
+        creditsAdded: null,
+        remainingQuota: null,
+        extraCredits: null
+      };
+    }
+    const [company, subscription] = await Promise.all([
+      context.sudo().query.SaasCompany.findOne({
+        where: { id: companyId },
+        query: "id"
+      }),
+      context.sudo().query.SaasCompanySubscription.findOne({
+        where: { id: subscriptionId },
+        query: "id company { id }"
+      })
+    ]);
+    if (!company) {
+      return {
+        success: false,
+        message: "No se encontr\xF3 la empresa.",
+        creditsAdded: null,
+        remainingQuota: null,
+        extraCredits: null
+      };
+    }
+    if (!subscription) {
+      return {
+        success: false,
+        message: "No se encontr\xF3 la suscripci\xF3n.",
+        creditsAdded: null,
+        remainingQuota: null,
+        extraCredits: null
+      };
+    }
+    const subscriptionCompanyId = subscription.company?.id;
+    if (subscriptionCompanyId !== companyId) {
+      return {
+        success: false,
+        message: "La suscripci\xF3n no pertenece a esa empresa.",
+        creditsAdded: null,
+        remainingQuota: null,
+        extraCredits: null
+      };
+    }
+    const notes = input.notes?.trim() || `Ajuste de cr\xE9ditos desde operaciones (+${amount})`;
+    await grantPurchaseCredits(context, {
+      companyId,
+      subscriptionId,
+      amount,
+      notes,
+      ledgerType: COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN,
+      referenceType: COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.ADMIN,
+      referenceId: context.session?.data?.id ?? null
+    });
+    const credits = await getRemainingCredits(context, companyId);
+    return {
+      success: true,
+      message: `Se agregaron ${amount.toLocaleString("es-MX")} cr\xE9ditos extra.`,
+      creditsAdded: amount,
+      remainingQuota: credits.remainingQuota,
+      extraCredits: credits.extraCredits
+    };
+  }
+};
+var grantAdminCredits_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
+
 // graphql/customs/mutations/sendTestEmail.ts
 var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function mailDiagnostics() {
@@ -12185,7 +12560,7 @@ function buildTestEmailHtml() {
     </div>
   `;
 }
-var typeDefs12 = `
+var typeDefs13 = `
   type SendTestEmailResult {
     success: Boolean!
     message: String!
@@ -12199,10 +12574,10 @@ var typeDefs12 = `
     sendTestEmail(email: String!): SendTestEmailResult!
   }
 `;
-var definition12 = `
+var definition13 = `
   sendTestEmail(email: String!): SendTestEmailResult!
 `;
-var resolver12 = {
+var resolver13 = {
   sendTestEmail: async (_root, { email }, context) => {
     const session2 = context.session;
     const diagnostics = mailDiagnostics();
@@ -12264,7 +12639,7 @@ var resolver12 = {
     }
   }
 };
-var sendTestEmail_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
+var sendTestEmail_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
 
 // utils/helpers/encryption.ts
 var import_crypto4 = require("crypto");
@@ -13020,7 +13395,7 @@ function denyCompanyAiUseMessage(session2) {
 }
 
 // graphql/customs/mutations/ai/updateCompanyAiSettings.ts
-var typeDefs13 = `
+var typeDefs14 = `
   input UpdateCompanyAiSettingsInput {
     companyId: ID!
     billingMode: String
@@ -13049,7 +13424,7 @@ var typeDefs13 = `
     testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
   }
 `;
-var definition13 = `
+var definition14 = `
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
 `;
@@ -13074,7 +13449,7 @@ function friendlyAiError(err) {
   }
   return err instanceof Error ? err.message : "Error al llamar a la IA";
 }
-var resolver13 = {
+var resolver14 = {
   updateCompanyAiSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyAi(session2, input.companyId)) {
@@ -13175,7 +13550,7 @@ var resolver13 = {
     }
   }
 };
-var updateCompanyAiSettings_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+var updateCompanyAiSettings_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
 
 // utils/ai/dailyDigest.ts
 var DIGEST_TIMEZONE = "America/Mexico_City";
@@ -13679,7 +14054,7 @@ function parseMarketInsight(text59) {
 }
 
 // graphql/customs/ai/generateMarketInsight.ts
-var typeDefs14 = `
+var typeDefs15 = `
   type MarketInsightAction {
     title: String!
     detail: String!
@@ -13818,7 +14193,7 @@ var mutationResolver = {
   }
 };
 var generateMarketInsight_default = {
-  typeDefs: typeDefs14,
+  typeDefs: typeDefs15,
   queryDefinition,
   mutationDefinition,
   queryResolver,
@@ -13907,7 +14282,7 @@ async function saveProfilePlaybook(context, params) {
 }
 
 // graphql/customs/ai/dailyDigest.ts
-var typeDefs15 = `
+var typeDefs16 = `
   type DailyDigestAction {
     title: String!
     detail: String!
@@ -14128,7 +14503,7 @@ var mutationResolver2 = {
   }
 };
 var dailyDigest_default = {
-  typeDefs: typeDefs15,
+  typeDefs: typeDefs16,
   queryDefinition: queryDefinition2,
   mutationDefinition: mutationDefinition2,
   queryResolver: queryResolver2,
@@ -14341,7 +14716,7 @@ async function saveCompanyBrief(context, params) {
 }
 
 // graphql/customs/ai/companyBrief.ts
-var typeDefs16 = `
+var typeDefs17 = `
   type CompanyAiBriefPillar {
     key: String!
     title: String!
@@ -14491,7 +14866,7 @@ var mutationResolver3 = {
   }
 };
 var companyBrief_default = {
-  typeDefs: typeDefs16,
+  typeDefs: typeDefs17,
   queryDefinition: queryDefinition3,
   mutationDefinition: mutationDefinition3,
   queryResolver: queryResolver3,
@@ -14880,7 +15255,7 @@ async function fetchAndCacheIndicator(context, indicatorId, geographicCode, rece
 }
 
 // graphql/customs/mutations/inegi/syncEstablishmentsFromInegi.ts
-var typeDefs17 = `
+var typeDefs18 = `
   input SyncEstablishmentsFromInegiInput {
     lat: Float
     lng: Float
@@ -14906,7 +15281,7 @@ var typeDefs17 = `
     syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
   }
 `;
-var definition14 = `
+var definition15 = `
   syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
 `;
 function emptyResult(message, extras) {
@@ -14965,7 +15340,7 @@ async function fetchRows(input, cap) {
     "Indica lat/lng (b\xFAsqueda por radio) o stateCode (b\xFAsqueda por \xE1rea)"
   );
 }
-var resolver14 = {
+var resolver15 = {
   syncEstablishmentsFromInegi: async (_root, { input }, context) => {
     if (!isSignedIn(context.session)) {
       return emptyResult("Debes iniciar sesi\xF3n para sincronizar DENUE");
@@ -15019,7 +15394,7 @@ var resolver14 = {
     }
   }
 };
-var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs17, definition: definition14, resolver: resolver14 };
+var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs18, definition: definition15, resolver: resolver15 };
 
 // utils/constants/googlePlaceCategories.ts
 var GOOGLE_PLACE_CATEGORIES = [
@@ -15638,7 +16013,7 @@ var ESTABLISHMENT_QUERY = `
   lng
   economicActivity { id name scianCode }
 `;
-var typeDefs18 = `
+var typeDefs19 = `
   input SyncLeadsFromInegiInput {
     lat: Float!
     lng: Float!
@@ -15662,7 +16037,7 @@ var typeDefs18 = `
     syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
   }
 `;
-var definition15 = `
+var definition16 = `
   syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
 `;
 function emptyFields() {
@@ -15815,7 +16190,7 @@ async function assignEstablishment(context, establishment, companyId, userId, ca
   await ensureStatus(context, lead.id, companyId, userId);
   return "created";
 }
-var resolver15 = {
+var resolver16 = {
   syncLeadsFromInegi: async (_root, {
     input
   }, context) => {
@@ -16155,10 +16530,10 @@ var resolver15 = {
     return result;
   }
 };
-var syncLeadsFromInegi_default = { typeDefs: typeDefs18, definition: definition15, resolver: resolver15 };
+var syncLeadsFromInegi_default = { typeDefs: typeDefs19, definition: definition16, resolver: resolver16 };
 
 // graphql/customs/mutations/inegi/promoteInegiEstablishmentToLead.ts
-var typeDefs19 = `
+var typeDefs20 = `
   input PromoteInegiEstablishmentToLeadInput {
     establishmentId: ID!
     assignedSellerId: ID
@@ -16176,7 +16551,7 @@ var typeDefs19 = `
     promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
   }
 `;
-var definition16 = `
+var definition17 = `
   promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
 `;
 function fail(message) {
@@ -16250,7 +16625,7 @@ function quotaMessage(blockingReason, remainingQuota, syncedCount, leadLimit) {
   }
   return null;
 }
-var resolver16 = {
+var resolver17 = {
   promoteInegiEstablishmentToLead: async (_root, { input }, context) => {
     if (!isSignedIn(context.session)) {
       return fail("Debes iniciar sesi\xF3n para promover un establecimiento");
@@ -16418,10 +16793,10 @@ var resolver16 = {
     }
   }
 };
-var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs19, definition: definition16, resolver: resolver16 };
+var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
 
 // graphql/customs/mutations/inegi/fetchInegiIndicator.ts
-var typeDefs20 = `
+var typeDefs21 = `
   input FetchInegiIndicatorInput {
     indicatorId: String!
     geographicCode: String!
@@ -16451,7 +16826,7 @@ var typeDefs20 = `
     fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   }
 `;
-var definition17 = `
+var definition18 = `
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
 `;
 var empty = {
@@ -16459,7 +16834,7 @@ var empty = {
   updated: 0,
   indicators: []
 };
-var resolver17 = {
+var resolver18 = {
   fetchInegiIndicator: async (_root, {
     input
   }, context) => {
@@ -16503,7 +16878,7 @@ var resolver17 = {
     }
   }
 };
-var fetchInegiIndicator_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
+var fetchInegiIndicator_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
 
 // graphql/customs/mutations/pet/veterinary/claimPetPlace.ts
 var PHONE_PATTERN = /^\+?\d{10,}$/;
@@ -16515,7 +16890,7 @@ function normalizePhone(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var typeDefs21 = `
+var typeDefs22 = `
   input ClaimPetPlaceInput {
     petPlaceId: String!
     role: String!
@@ -16530,10 +16905,10 @@ var typeDefs21 = `
     petPlaceId: String
   }
 `;
-var definition18 = `
+var definition19 = `
   claimPetPlace(input: ClaimPetPlaceInput!): ClaimPetPlaceResult!
 `;
-var resolver18 = {
+var resolver19 = {
   claimPetPlace: async (_root, {
     input
   }, context) => {
@@ -16626,11 +17001,52 @@ var resolver18 = {
     };
   }
 };
-var claimPetPlace_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
+var claimPetPlace_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
+
+// graphql/customs/mutations/pet/veterinary/ensurePetPlaceType.ts
+async function ensurePetPlaceType(context, value) {
+  const sudo = context.sudo();
+  const existing = await sudo.query.PetPlaceType.findOne({
+    where: { value },
+    query: "id value"
+  });
+  if (existing) return existing;
+  const typeData = TYPES_PET_SHELTER.find((type) => type.value === value);
+  if (!typeData) return null;
+  try {
+    return await sudo.query.PetPlaceType.createOne({
+      data: {
+        label: typeData.label,
+        value: typeData.value,
+        plural: typeData.plural
+      },
+      query: "id value"
+    });
+  } catch {
+    const raced = await sudo.query.PetPlaceType.findOne({
+      where: { value },
+      query: "id value"
+    });
+    return raced;
+  }
+}
+async function ensurePetPlaceTypes(context, values) {
+  const unique = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+  const rows = [];
+  for (const value of unique) {
+    const row = await ensurePetPlaceType(context, value);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
 
 // graphql/customs/mutations/pet/veterinary/updateMyPetPlace.ts
 var PHONE_PATTERN2 = /^\+?\d{10,}$/;
 var SOCIAL_MEDIA_OPTIONS = ["Facebook", "Instagram", "X", "LinkedIn", "TikTok"];
+var TYPE_VALUES = new Set(
+  TYPES_PET_SHELTER.map((type) => type.value)
+);
+var DAY_VALUES = new Set(Object.values(dayOfWeek));
 function normalizePhone2(value) {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -16638,7 +17054,7 @@ function normalizePhone2(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var typeDefs22 = `
+var typeDefs23 = `
   input UpdateMyPetPlaceInput {
     petPlaceId: String!
     name: String
@@ -16657,11 +17073,20 @@ var typeDefs22 = `
     parking: Boolean
     appointmentRequired: Boolean
     socialMedia: [PetPlaceSocialMediaInput!]
+    types: [String!]
+    serviceIds: [ID!]
+    schedules: [PetPlaceScheduleInput!]
   }
 
   input PetPlaceSocialMediaInput {
     social_media: String!
     link: String!
+  }
+
+  input PetPlaceScheduleInput {
+    day: String!
+    timeIni: Int!
+    timeEnd: Int!
   }
 
   type UpdateMyPetPlaceResult {
@@ -16670,10 +17095,10 @@ var typeDefs22 = `
     petPlaceId: String
   }
 `;
-var definition19 = `
+var definition20 = `
   updateMyPetPlace(input: UpdateMyPetPlaceInput!): UpdateMyPetPlaceResult!
 `;
-var resolver19 = {
+var resolver20 = {
   updateMyPetPlace: async (_root, {
     input
   }, context) => {
@@ -16782,8 +17207,82 @@ var resolver19 = {
       data.appointmentRequired = input.appointmentRequired;
     }
     const socialMedia = input.socialMedia;
+    const typesInput = input.types;
+    const serviceIdsInput = input.serviceIds;
+    const schedulesInput = input.schedules;
     const hasSocialUpdate = socialMedia !== void 0 && socialMedia !== null;
-    if (Object.keys(data).length === 0 && !hasSocialUpdate) {
+    const hasTypesUpdate = typesInput !== void 0 && typesInput !== null;
+    const hasServicesUpdate = serviceIdsInput !== void 0 && serviceIdsInput !== null;
+    const hasSchedulesUpdate = schedulesInput !== void 0 && schedulesInput !== null;
+    if (typesInput !== void 0 && typesInput !== null) {
+      const uniqueTypes = [...new Set(typesInput.map((value) => value.trim()))];
+      if (uniqueTypes.length === 0) {
+        return {
+          success: false,
+          message: "Elige al menos un tipo de negocio.",
+          petPlaceId: place.id
+        };
+      }
+      if (uniqueTypes.some((value) => !TYPE_VALUES.has(value))) {
+        return {
+          success: false,
+          message: "Hay un tipo de negocio que no reconocemos.",
+          petPlaceId: place.id
+        };
+      }
+      const typeRows = await ensurePetPlaceTypes(context, uniqueTypes);
+      if (typeRows.length !== uniqueTypes.length) {
+        return {
+          success: false,
+          message: "Hay un tipo de negocio que no reconocemos.",
+          petPlaceId: place.id
+        };
+      }
+      data.types = { set: typeRows.map((row) => ({ id: row.id })) };
+    }
+    if (serviceIdsInput !== void 0 && serviceIdsInput !== null) {
+      const uniqueIds = [...new Set(serviceIdsInput.filter(Boolean))];
+      if (uniqueIds.length > 0) {
+        const serviceRows = await context.sudo().query.PetPlaceService.findMany({
+          where: { id: { in: uniqueIds } },
+          query: "id"
+        });
+        if (serviceRows.length !== uniqueIds.length) {
+          return {
+            success: false,
+            message: "Hay un servicio que ya no existe. Recarga e intenta de nuevo.",
+            petPlaceId: place.id
+          };
+        }
+      }
+      data.services = { set: uniqueIds.map((id) => ({ id })) };
+    }
+    if (schedulesInput !== void 0 && schedulesInput !== null) {
+      for (const row of schedulesInput) {
+        if (!DAY_VALUES.has(row.day)) {
+          return {
+            success: false,
+            message: "Hay un d\xEDa de horario que no reconocemos.",
+            petPlaceId: place.id
+          };
+        }
+        if (!Number.isInteger(row.timeIni) || !Number.isInteger(row.timeEnd) || row.timeIni < 0 || row.timeIni > 23 || row.timeEnd < 0 || row.timeEnd > 23) {
+          return {
+            success: false,
+            message: "Los horarios deben ser horas entre 0 y 23.",
+            petPlaceId: place.id
+          };
+        }
+        if (row.timeEnd <= row.timeIni) {
+          return {
+            success: false,
+            message: "La hora de cierre debe ser posterior a la de apertura.",
+            petPlaceId: place.id
+          };
+        }
+      }
+    }
+    if (Object.keys(data).length === 0 && !hasSocialUpdate && !hasSchedulesUpdate) {
       return {
         success: true,
         message: "No hab\xEDa cambios que guardar.",
@@ -16796,6 +17295,27 @@ var resolver19 = {
           where: { id: place.id },
           data
         });
+      }
+      if (schedulesInput !== void 0 && schedulesInput !== null) {
+        const existing = await context.sudo().query.Schedule.findMany({
+          where: { pet_place: { id: { equals: place.id } } },
+          query: "id"
+        });
+        if (existing.length > 0) {
+          await context.sudo().query.Schedule.deleteMany({
+            where: existing.map((item) => ({ id: item.id }))
+          });
+        }
+        for (const row of schedulesInput) {
+          await context.sudo().query.Schedule.createOne({
+            data: {
+              day: row.day,
+              timeIni: row.timeIni,
+              timeEnd: row.timeEnd,
+              pet_place: { connect: { id: place.id } }
+            }
+          });
+        }
       }
       if (hasSocialUpdate) {
         const existing = await context.sudo().query.SocialMedia.findMany({
@@ -16837,10 +17357,10 @@ var resolver19 = {
     };
   }
 };
-var updateMyPetPlace_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
+var updateMyPetPlace_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
 
 // graphql/customs/mutations/pet/veterinary/verifyPetPlace.ts
-var typeDefs23 = `
+var typeDefs24 = `
   input VerifyPetPlaceInput {
     petPlaceId: String!
     approved: Boolean!
@@ -16853,10 +17373,10 @@ var typeDefs23 = `
     verified: Boolean
   }
 `;
-var definition20 = `
+var definition21 = `
   verifyPetPlace(input: VerifyPetPlaceInput!): VerifyPetPlaceResult!
 `;
-var resolver20 = {
+var resolver21 = {
   verifyPetPlace: async (_root, {
     input
   }, context) => {
@@ -16939,7 +17459,368 @@ var resolver20 = {
     }
   }
 };
-var verifyPetPlace_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
+var verifyPetPlace_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
+
+// graphql/customs/mutations/pet/veterinary/ownedPlace.ts
+async function requireOwnedVerifiedPlace(context, petPlaceId, query = "id name verified claimStatus user { id }") {
+  const userId = getSessionUserId(context.session);
+  if (!userId) {
+    return {
+      success: false,
+      message: "Inicia sesi\xF3n para continuar.",
+      petPlaceId: null
+    };
+  }
+  const place = await context.sudo().query.PetPlace.findOne({
+    where: { id: petPlaceId },
+    query
+  });
+  if (!place) {
+    return {
+      success: false,
+      message: "No encontramos esta veterinaria.",
+      petPlaceId: null
+    };
+  }
+  const isOwner = place.user?.id === userId;
+  const isVerified = Boolean(place.verified) || place.claimStatus === PET_PLACE_CLAIM_STATUS.VERIFIED;
+  if (!isOwner || !isVerified) {
+    return {
+      success: false,
+      message: isOwner ? "Cuando validemos la ficha podr\xE1s editar los datos." : "Solo el due\xF1o verificado puede hacer esto.",
+      petPlaceId: place.id
+    };
+  }
+  return { userId, place };
+}
+
+// graphql/customs/mutations/pet/veterinary/requestPetPlaceService.ts
+var typeDefs25 = `
+  input RequestPetPlaceServiceInput {
+    petPlaceId: String!
+    name: String!
+    description: String
+  }
+
+  type RequestPetPlaceServiceResult {
+    success: Boolean!
+    message: String!
+    serviceId: String
+    status: String
+  }
+`;
+var definition22 = `
+  requestPetPlaceService(input: RequestPetPlaceServiceInput!): RequestPetPlaceServiceResult!
+`;
+function normalizeName(value) {
+  return value.trim().replace(/\s+/g, " ");
+}
+var resolver22 = {
+  requestPetPlaceService: async (_root, { input }, context) => {
+    const owned = await requireOwnedVerifiedPlace(context, input.petPlaceId);
+    if ("success" in owned) return { ...owned, serviceId: null, status: null };
+    const name = normalizeName(input.name ?? "");
+    if (name.length < 3) {
+      return {
+        success: false,
+        message: "Escribe el nombre del servicio (al menos 3 letras).",
+        serviceId: null,
+        status: null
+      };
+    }
+    const description = (input.description ?? "").trim();
+    const { userId, place } = owned;
+    const duplicates = await context.sudo().query.PetPlaceService.findMany({
+      where: { name: { equals: name, mode: "insensitive" } },
+      query: "id name status active requestedFor { id }"
+    });
+    const approved = duplicates.find(
+      (row) => row.status === PET_PLACE_SERVICE_STATUS.APPROVED || row.active === true
+    );
+    if (approved) {
+      return {
+        success: false,
+        message: "Ese servicio ya est\xE1 en el cat\xE1logo. B\xFAscalo y m\xE1rcalo.",
+        serviceId: approved.id,
+        status: PET_PLACE_SERVICE_STATUS.APPROVED
+      };
+    }
+    const pendingMine = duplicates.find(
+      (row) => row.status === PET_PLACE_SERVICE_STATUS.PENDING && row.requestedFor?.id === place.id
+    );
+    if (pendingMine) {
+      return {
+        success: false,
+        message: "Ya pediste este servicio. Est\xE1 en revisi\xF3n.",
+        serviceId: pendingMine.id,
+        status: PET_PLACE_SERVICE_STATUS.PENDING
+      };
+    }
+    const created = await context.sudo().query.PetPlaceService.createOne({
+      data: {
+        name,
+        description,
+        active: false,
+        status: PET_PLACE_SERVICE_STATUS.PENDING,
+        requestedBy: { connect: { id: userId } },
+        requestedFor: { connect: { id: place.id } }
+      },
+      query: "id status name"
+    });
+    if (isSmtpConfigured()) {
+      const requester = await context.sudo().query.User.findOne({
+        where: { id: userId },
+        query: "name lastName email"
+      });
+      const requesterName = [requester?.name, requester?.lastName].filter(Boolean).join(" ") || "Un due\xF1o";
+      try {
+        await sendAdminPetPlaceServiceRequestEmail({
+          serviceName: created.name || name,
+          description,
+          petPlaceName: place.name || "Cl\xEDnica",
+          petPlaceId: place.id,
+          requesterName,
+          requesterEmail: requester?.email ?? ""
+        });
+      } catch (error) {
+        console.error("[requestPetPlaceService] Error enviando correo:", error);
+      }
+    }
+    return {
+      success: true,
+      message: "Lo revisamos y, si aplica, aparecer\xE1 en el cat\xE1logo.",
+      serviceId: created.id,
+      status: created.status
+    };
+  }
+};
+var requestPetPlaceService_default = { typeDefs: typeDefs25, definition: definition22, resolver: resolver22 };
+
+// graphql/customs/mutations/pet/veterinary/createPetPlacePatient.ts
+var PHONE_PATTERN3 = /^\+?\d{10,}$/;
+var EMAIL_PATTERN = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+var typeDefs26 = `
+  input CreatePetPlacePatientInput {
+    petPlaceId: String!
+    name: String!
+    lastName: String
+    phone: String
+    email: String
+  }
+
+  type PetPlacePatient {
+    id: ID!
+    name: String
+    lastName: String
+    phone: String
+    email: String
+  }
+
+  type CreatePetPlacePatientResult {
+    success: Boolean!
+    message: String!
+    created: Boolean!
+    patient: PetPlacePatient
+  }
+`;
+var definition23 = `
+  createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
+`;
+function normalizePhone3(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+  return hasPlus ? `+${digits}` : digits;
+}
+var resolver23 = {
+  createPetPlacePatient: async (_root, {
+    input
+  }, context) => {
+    const owned = await requireOwnedVerifiedPlace(
+      context,
+      input.petPlaceId,
+      "id name verified claimStatus user { id } patients { id }"
+    );
+    if ("success" in owned) {
+      return { ...owned, created: false, patient: null };
+    }
+    const name = (input.name ?? "").trim();
+    if (!name) {
+      return {
+        success: false,
+        message: "Escribe el nombre del paciente.",
+        created: false,
+        patient: null
+      };
+    }
+    const lastName = (input.lastName ?? "").trim();
+    const phone = normalizePhone3(input.phone ?? "");
+    const email = (input.email ?? "").trim().toLowerCase();
+    if (phone && !PHONE_PATTERN3.test(phone)) {
+      return {
+        success: false,
+        message: "El tel\xE9fono debe tener al menos 10 d\xEDgitos.",
+        created: false,
+        patient: null
+      };
+    }
+    if (email && !EMAIL_PATTERN.test(email)) {
+      return {
+        success: false,
+        message: "El correo no tiene un formato v\xE1lido.",
+        created: false,
+        patient: null
+      };
+    }
+    const { place } = owned;
+    const patientQuery = "id name lastName phone email";
+    if (email) {
+      const existing = await context.sudo().query.User.findMany({
+        where: { email: { equals: email, mode: "insensitive" } },
+        take: 1,
+        query: patientQuery
+      });
+      const user = existing[0];
+      if (user) {
+        const already = (place.patients ?? []).some(
+          (row) => row.id === user.id
+        );
+        if (!already) {
+          await context.sudo().query.PetPlace.updateOne({
+            where: { id: place.id },
+            data: { patients: { connect: [{ id: user.id }] } }
+          });
+        }
+        return {
+          success: true,
+          message: already ? "Esa persona ya est\xE1 en tu lista de pacientes." : "Encontramos su cuenta y la ligamos a esta cl\xEDnica.",
+          created: false,
+          patient: user
+        };
+      }
+    }
+    const created = await context.sudo().query.User.createOne({
+      data: {
+        name,
+        lastName,
+        phone,
+        ...email ? { email } : {},
+        clinic_patients_of: { connect: [{ id: place.id }] }
+      },
+      query: patientQuery
+    });
+    return {
+      success: true,
+      message: "Paciente dado de alta.",
+      created: true,
+      patient: created
+    };
+  }
+};
+var createPetPlacePatient_default = { typeDefs: typeDefs26, definition: definition23, resolver: resolver23 };
+
+// graphql/customs/mutations/pet/veterinary/createClinicAppointment.ts
+var typeDefs27 = `
+  input CreateClinicAppointmentInput {
+    petPlaceId: String!
+    customerId: ID!
+    startsAt: String!
+    endsAt: String!
+    serviceId: ID
+    petName: String
+    petSpecies: String
+    notes: String
+  }
+
+  type CreateClinicAppointmentResult {
+    success: Boolean!
+    message: String!
+    appointmentId: String
+  }
+`;
+var definition24 = `
+  createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
+`;
+var resolver24 = {
+  createClinicAppointment: async (_root, {
+    input
+  }, context) => {
+    const owned = await requireOwnedVerifiedPlace(
+      context,
+      input.petPlaceId,
+      "id verified claimStatus user { id } patients { id }"
+    );
+    if ("success" in owned) {
+      return { ...owned, appointmentId: null };
+    }
+    const startsAt = new Date(input.startsAt);
+    const endsAt = new Date(input.endsAt);
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+      return {
+        success: false,
+        message: "Revisa la hora de la cita.",
+        appointmentId: null
+      };
+    }
+    if (endsAt <= startsAt) {
+      return {
+        success: false,
+        message: "La hora de fin debe ser posterior a la de inicio.",
+        appointmentId: null
+      };
+    }
+    const startDay = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate());
+    const today = /* @__PURE__ */ new Date();
+    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (startDay < todayDay) {
+      return {
+        success: false,
+        message: "No puedes agendar en un d\xEDa anterior.",
+        appointmentId: null
+      };
+    }
+    const patientIds = (owned.place.patients ?? []).map(
+      (row) => row.id
+    );
+    if (!patientIds.includes(input.customerId)) {
+      return {
+        success: false,
+        message: "Primero da de alta al paciente en esta cl\xEDnica.",
+        appointmentId: null
+      };
+    }
+    try {
+      const created = await context.query.PetPlaceAppointment.createOne({
+        data: {
+          pet_place: { connect: { id: input.petPlaceId } },
+          customer: { connect: { id: input.customerId } },
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+          status: PET_PLACE_APPOINTMENT_STATUS.CONFIRMED,
+          ...input.serviceId ? { service: { connect: { id: input.serviceId } } } : {},
+          petName: (input.petName ?? "").trim(),
+          petSpecies: (input.petSpecies ?? "").trim(),
+          notes: (input.notes ?? "").trim()
+        },
+        query: "id"
+      });
+      return {
+        success: true,
+        message: "Cita agendada.",
+        appointmentId: created.id
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message.split("\n")[0] : "No pudimos agendar la cita.";
+      return {
+        success: false,
+        message,
+        appointmentId: null
+      };
+    }
+  }
+};
+var createClinicAppointment_default = { typeDefs: typeDefs27, definition: definition24, resolver: resolver24 };
 
 // graphql/customs/mutations/pet/veterinary/index.ts
 var veterinaryMutations = {
@@ -16947,16 +17828,25 @@ var veterinaryMutations = {
     ${claimPetPlace_default.typeDefs}
     ${updateMyPetPlace_default.typeDefs}
     ${verifyPetPlace_default.typeDefs}
+    ${requestPetPlaceService_default.typeDefs}
+    ${createPetPlacePatient_default.typeDefs}
+    ${createClinicAppointment_default.typeDefs}
   `,
   definition: `
     ${claimPetPlace_default.definition}
     ${updateMyPetPlace_default.definition}
     ${verifyPetPlace_default.definition}
+    ${requestPetPlaceService_default.definition}
+    ${createPetPlacePatient_default.definition}
+    ${createClinicAppointment_default.definition}
   `,
   resolver: {
     ...claimPetPlace_default.resolver,
     ...updateMyPetPlace_default.resolver,
-    ...verifyPetPlace_default.resolver
+    ...verifyPetPlace_default.resolver,
+    ...requestPetPlaceService_default.resolver,
+    ...createPetPlacePatient_default.resolver,
+    ...createClinicAppointment_default.resolver
   }
 };
 var veterinary_default = veterinaryMutations;
@@ -16975,6 +17865,7 @@ var customMutation = {
     ${addOwnLead_default.typeDefs}
     ${remainingCredits_default.typeDefs}
     ${purchaseCredits_default.typeDefs}
+    ${grantAdminCredits_default.typeDefs}
     ${sendTestEmail_default.typeDefs}
     ${updateCompanyAiSettings_default.typeDefs}
     ${dailyDigest_default.typeDefs}
@@ -16998,6 +17889,7 @@ var customMutation = {
     ${addOwnLead_default.definition}
     ${remainingCredits_default.definition}
     ${purchaseCredits_default.definition}
+    ${grantAdminCredits_default.definition}
     ${sendTestEmail_default.definition}
     ${updateCompanyAiSettings_default.definition}
     ${dailyDigest_default.mutationDefinition}
@@ -17021,6 +17913,7 @@ var customMutation = {
     ...addOwnLead_default.resolver,
     ...remainingCredits_default.resolver,
     ...purchaseCredits_default.resolver,
+    ...grantAdminCredits_default.resolver,
     ...sendTestEmail_default.resolver,
     ...updateCompanyAiSettings_default.resolver,
     ...dailyDigest_default.mutationResolver,
@@ -17041,7 +17934,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs24 = `
+var typeDefs28 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -17100,7 +17993,7 @@ var typeDefs24 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition21 = `
+var definition25 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -17150,7 +18043,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver21 = {
+var resolver25 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -17313,7 +18206,7 @@ var resolver21 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
+var nearbyAnimals_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -17626,7 +18519,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs25 = `
+var typeDefs29 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -17686,10 +18579,10 @@ var typeDefs25 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition22 = `
+var definition26 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver22 = {
+var resolver26 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -17771,10 +18664,10 @@ var resolver22 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs25, definition: definition22, resolver: resolver22 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs26 = `
+var typeDefs30 = `
   type StripeCard {
     brand: String
     country: String
@@ -17808,10 +18701,10 @@ var typeDefs26 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition23 = `
+var definition27 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver23 = {
+var resolver27 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -17847,7 +18740,7 @@ var resolver23 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs26, definition: definition23, resolver: resolver23 };
+var stripePaymentMethods_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -17900,7 +18793,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs27 = `
+var typeDefs31 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -17928,10 +18821,10 @@ var typeDefs27 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition24 = `
+var definition28 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver24 = {
+var resolver28 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -18058,7 +18951,7 @@ var resolver24 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs27, definition: definition24, resolver: resolver24 };
+var subscriptionStatus_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

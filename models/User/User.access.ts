@@ -28,7 +28,29 @@ function userVisibleWhere(
     };
   }
 
-  return { id: { equals: userId } };
+  return {
+    OR: [
+      { id: { equals: userId } },
+      {
+        my_appointments: {
+          some: {
+            pet_place: {
+              user: { id: { equals: userId } },
+              verified: { equals: true },
+            },
+          },
+        },
+      },
+      {
+        clinic_patients_of: {
+          some: {
+            user: { id: { equals: userId } },
+            verified: { equals: true },
+          },
+        },
+      },
+    ],
+  };
 }
 
 function isSelf(session: any, item: { id?: string } | undefined) {

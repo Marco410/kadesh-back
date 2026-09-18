@@ -216,6 +216,66 @@ export async function sendAdminUserBankDetailsUpdatedEmail({
   await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
 }
 
+export async function sendAdminPetPlaceServiceRequestEmail({
+  serviceName,
+  description,
+  petPlaceName,
+  petPlaceId,
+  requesterName,
+  requesterEmail,
+}: {
+  serviceName: string;
+  description?: string;
+  petPlaceName: string;
+  petPlaceId: string;
+  requesterName: string;
+  requesterEmail: string;
+}): Promise<void> {
+  const recipients = parseAdminNotificationEmails();
+  if (recipients.length === 0) {
+    console.warn(
+      "SMTP_ADMIN_NOTIFICATION_EMAILS no configurado. No se envía aviso de servicio nuevo.",
+    );
+    return;
+  }
+
+  const name = escapeHtml(serviceName);
+  const place = escapeHtml(petPlaceName);
+  const who = escapeHtml(requesterName);
+  const mail = escapeHtml(requesterEmail || "(sin correo)");
+  const desc = escapeHtml(description || "(sin descripción)");
+  const subject = `[Kadesh] Nuevo servicio para revisar: ${serviceName}`;
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td style="background:${BRAND_ORANGE};padding:24px 32px;color:#fff;">
+              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;">Kadesh</p>
+              <h1 style="margin:8px 0 0;font-size:22px;">Servicio pendiente de aprobación</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px;color:#0f172a;font-size:16px;line-height:1.6;">
+              <p style="margin:0 0 12px;"><strong>${who}</strong> (${mail}) pidió un servicio para <strong>${place}</strong>.</p>
+              <p style="margin:0 0 8px;"><strong>Nombre:</strong> ${name}</p>
+              <p style="margin:0 0 8px;"><strong>Descripción:</strong> ${desc}</p>
+              <p style="margin:16px 0 0;font-size:14px;color:#64748b;">Apruébalo o recházalo en Keystone → PetPlaceService (id de clínica ${escapeHtml(petPlaceId)}). Solo si lo apruebas aparece en el catálogo.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
+}
+
 /**
  * Send email notification for new blog post
  */
