@@ -110,6 +110,16 @@ export default list({
       ref: "PetPlaceService",
       many: true,
     }),
+    requested_services: relationship({
+      ref: "PetPlaceService.requestedFor",
+      many: true,
+      ui: { description: "Servicios que esta clínica pidió al catálogo" },
+    }),
+    patients: relationship({
+      ref: "User.clinic_patients_of",
+      many: true,
+      ui: { description: "Pacientes dados de alta por esta clínica" },
+    }),
     user: relationship({
       ref: "User.pet_places",
       many: false,

@@ -1,5 +1,4 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { genUniqueLink } from "../../utils/helpers/unike_link";
 import {
   sendAdminUserBankDetailsUpdatedEmail,
   sendUserWelcomeEmail,
@@ -46,30 +45,44 @@ export const emailHooks = {
   },
 };
 
+function slugifyUsername(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ñ/g, "n")
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+  return slug || "user";
+}
+
+async function usernameTaken(
+  context: KeystoneContext,
+  username: string,
+): Promise<boolean> {
+  const rows = await context.sudo().query.User.findMany({
+    where: { username: { equals: username } },
+    take: 1,
+    query: "id",
+  });
+  return rows.length > 0;
+}
+
 export const userNameHook = {
-  resolveInput: async ({ resolvedData, item, context }: any) => {
-    if (item && resolvedData.username) {
-      return resolvedData.username;
+  resolveInput: async ({ resolvedData, item, context, operation }: any) => {
+    if (operation === "update" || item) {
+      if (resolvedData.username) return resolvedData.username;
+      return item?.username;
     }
 
-    if (item && !resolvedData.username) {
-      return item.username;
+    const name = resolvedData.name;
+    const lastName = resolvedData.lastName || "";
+    const preferred = resolvedData.username;
+    if (preferred || name) {
+      return checkUserName(name || "user", lastName, context, preferred);
     }
-
-    if (!item && resolvedData.username) {
-      return resolvedData.username;
-    }
-
-    if (!item && !resolvedData.username) {
-      const name = resolvedData.name;
-      const lastName = resolvedData.lastName || "";
-
-      if (name) {
-        return checkUserName(name, lastName, context);
-      }
-    }
-
-    return resolvedData.username;
+    return checkUserName("user", "", context);
   },
 };
 
@@ -77,37 +90,24 @@ export async function checkUserName(
   name: string,
   lastName: string,
   context: KeystoneContext,
+  preferred?: string | null,
 ): Promise<string> {
-  if (!name) {
-    throw new Error("El nombre es requerido para generar el username");
+  const source =
+    preferred?.trim() || [name, lastName].filter(Boolean).join(" ") || "user";
+  const baseLink = slugifyUsername(source);
+
+  if (!(await usernameTaken(context, baseLink))) {
+    return baseLink;
   }
 
-  const namePart = name.trim();
-  const lastNamePart = lastName ? lastName.trim() : "";
-  const fullName = lastNamePart ? `${namePart} ${lastNamePart}` : namePart;
-  let baseLink = genUniqueLink(fullName);
-
-  if (!baseLink || baseLink === "") {
-    baseLink = "user";
+  for (let n = 2; n <= 99; n += 1) {
+    const candidate = `${baseLink}${n}`;
+    if (!(await usernameTaken(context, candidate))) {
+      return candidate;
+    }
   }
 
-  let uniqueLink: string = baseLink;
-
-  let existingUser = await context.db.User.findOne({
-    where: { username: uniqueLink },
-  });
-
-  let counter = 1;
-  while (existingUser) {
-    const randomNum1 = Math.floor(Math.random() * 100).toString();
-    uniqueLink = `${baseLink}${randomNum1}`;
-    existingUser = await context.db.User.findOne({
-      where: { username: uniqueLink },
-    });
-    counter++;
-  }
-
-  return uniqueLink;
+  return `${baseLink}${Date.now().toString(36)}`;
 }
 
 function relationIds(value: unknown): string[] {

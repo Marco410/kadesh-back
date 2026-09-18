@@ -7,7 +7,10 @@
  */
 import { KeystoneContext } from "@keystone-6/core/types";
 import { SUBSCRIPTION_STATUS } from "../../models/Saas/SaasCompanySubscription/constants";
-import { COMPANY_CREDIT_LEDGER_TYPE } from "../../models/Saas/SaasCompanyCreditLedger/constants";
+import {
+  COMPANY_CREDIT_LEDGER_REFERENCE_TYPE,
+  COMPANY_CREDIT_LEDGER_TYPE,
+} from "../../models/Saas/SaasCompanyCreditLedger/constants";
 import { getFreePlanTrialInfo } from "./freePlanTrial";
 
 /** Snapshot de un periodo mensual de créditos de una empresa. */
@@ -210,7 +213,7 @@ export async function ensureSaasCompanyCreditPeriod(
       type: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN,
       amount: planAllowance,
       balanceAfter: remaining,
-      referenceType: "subscription",
+      referenceType: COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.SUBSCRIPTION,
       referenceId: subscription?.id ?? null,
       notes: "Monthly plan allowance",
     });
@@ -223,7 +226,7 @@ export async function ensureSaasCompanyCreditPeriod(
       type: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE,
       amount: purchasedBonus,
       balanceAfter: remaining,
-      referenceType: "company",
+      referenceType: COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.COMPANY,
       referenceId: companyId,
       notes: "Purchased bonus credits (period init)",
     });
@@ -289,7 +292,7 @@ export async function grantPlanCreditsOnSubscription(
       type: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN,
       amount: delta,
       balanceAfter: getPeriodRemaining(updated),
-      referenceType: "subscription",
+      referenceType: COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.SUBSCRIPTION,
       referenceId: params.subscriptionId,
       notes: "Plan allowance updated on subscription change",
     });
@@ -310,6 +313,9 @@ export async function grantPurchaseCredits(
     amount: number;
     paymentId?: string | null;
     notes?: string | null;
+    ledgerType?: string;
+    referenceType?: string | null;
+    referenceId?: string | null;
   },
 ): Promise<SaasCompanyCreditPeriodRecord> {
   if (params.amount < 1) {
@@ -345,11 +351,12 @@ export async function grantPurchaseCredits(
   await writeLedgerEntry(context, {
     companyId: params.companyId,
     periodId: updated.id,
-    type: COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE,
+    type: params.ledgerType ?? COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE,
     amount: params.amount,
     balanceAfter: getPeriodRemaining(updated),
-    referenceType: "payment",
-    referenceId: params.paymentId ?? null,
+    referenceType:
+      params.referenceType ?? COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.PAYMENT,
+    referenceId: params.referenceId ?? params.paymentId ?? null,
     notes: params.notes ?? `Purchased +${params.amount} credits`,
   });
 
@@ -382,7 +389,9 @@ export async function consumeCompanyCredits(
   const consumeType =
     params.ledgerType ?? COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC;
   const defaultReferenceType =
-    consumeType === COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI ? "ai" : "sync";
+    consumeType === COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI
+      ? COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.AI
+      : COMPANY_CREDIT_LEDGER_REFERENCE_TYPE.SYNC;
 
   if (params.amount < 1) {
     const period = await ensureSaasCompanyCreditPeriod(context, params.companyId);

@@ -54,7 +54,8 @@ export default list({
     referenceType: text({
       db: { isNullable: true },
       ui: {
-        description: "Reference entity type (subscription, payment, syncLog)",
+        description:
+          "Reference entity type (subscription, payment, admin, company, sync, ai)",
       },
     }),
     referenceId: text({
