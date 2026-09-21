@@ -5,7 +5,7 @@ import {
   USER_AUTH_LOG_STEP,
 } from "../../../../models/User/UserAuthLog/constants";
 import { writeUserAuthLog } from "../../../../utils/auth/userAuthLogWrite";
-import { attachUserToCompany } from "../../../../utils/access/attachUserToCompany";
+import { provisionSignupCompany } from "../../../../utils/access/provisionSignupCompany";
 
 const SIGNUP_ROLE_NAMES = [Role.VENDEDOR, Role.ADMIN_COMPANY] as const;
 
@@ -78,14 +78,6 @@ const resolver = {
       const trimmedCompanyName = companyName?.trim() ?? "";
       let companyId: string | undefined;
 
-      if (trimmedCompanyName) {
-        const company = (await context.sudo().query.SaasCompany.createOne({
-          data: { name: trimmedCompanyName },
-          query: "id",
-        })) as { id: string };
-        companyId = company.id;
-      }
-
       const signupRoleIds = await findSignupRoleIds(context);
       if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
         throw new Error(
@@ -103,26 +95,12 @@ const resolver = {
           "id name lastName secondLastName email phone username referralCode referredBy { id }",
       });
 
-      if (companyId) {
-        await attachUserToCompany(
+      if (trimmedCompanyName) {
+        companyId = await provisionSignupCompany(
           context,
           (user as { id: string }).id,
-          companyId,
+          trimmedCompanyName,
         );
-        const workspaces = (await context.sudo().query.SaasWorkspace.findMany({
-          where: { company: { id: { equals: companyId } } },
-          take: 1,
-          query: "id",
-        })) as { id: string }[];
-        const workspaceId = workspaces[0]?.id;
-        if (workspaceId) {
-          await context.sudo().query.SaasWorkspace.updateOne({
-            where: { id: workspaceId },
-            data: {
-              members: { connect: [{ id: (user as { id: string }).id }] },
-            },
-          });
-        }
       }
 
       await writeUserAuthLog(context, {

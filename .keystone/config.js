@@ -9561,6 +9561,30 @@ var resolver2 = {
 };
 var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
 
+// utils/access/provisionSignupCompany.ts
+async function provisionSignupCompany(context, userId, companyName) {
+  const company = await context.sudo().query.SaasCompany.createOne({
+    data: { name: companyName },
+    query: "id"
+  });
+  await attachUserToCompany(context, userId, company.id);
+  const workspaces = await context.sudo().query.SaasWorkspace.findMany({
+    where: { company: { id: { equals: company.id } } },
+    take: 1,
+    query: "id"
+  });
+  const workspaceId = workspaces[0]?.id;
+  if (workspaceId) {
+    await context.sudo().query.SaasWorkspace.updateOne({
+      where: { id: workspaceId },
+      data: {
+        members: { connect: [{ id: userId }] }
+      }
+    });
+  }
+  return company.id;
+}
+
 // graphql/customs/mutations/auth/registerUser.ts
 var SIGNUP_ROLE_NAMES = ["vendedor" /* VENDEDOR */, "admin_company" /* ADMIN_COMPANY */];
 async function findSignupRoleIds(context) {
@@ -9615,13 +9639,6 @@ var resolver3 = {
     try {
       const trimmedCompanyName = companyName?.trim() ?? "";
       let companyId;
-      if (trimmedCompanyName) {
-        const company = await context.sudo().query.SaasCompany.createOne({
-          data: { name: trimmedCompanyName },
-          query: "id"
-        });
-        companyId = company.id;
-      }
       const signupRoleIds = await findSignupRoleIds(context);
       if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
         throw new Error(
@@ -9636,26 +9653,12 @@ var resolver3 = {
         },
         query: "id name lastName secondLastName email phone username referralCode referredBy { id }"
       });
-      if (companyId) {
-        await attachUserToCompany(
+      if (trimmedCompanyName) {
+        companyId = await provisionSignupCompany(
           context,
           user.id,
-          companyId
+          trimmedCompanyName
         );
-        const workspaces = await context.sudo().query.SaasWorkspace.findMany({
-          where: { company: { id: { equals: companyId } } },
-          take: 1,
-          query: "id"
-        });
-        const workspaceId = workspaces[0]?.id;
-        if (workspaceId) {
-          await context.sudo().query.SaasWorkspace.updateOne({
-            where: { id: workspaceId },
-            data: {
-              members: { connect: [{ id: user.id }] }
-            }
-          });
-        }
       }
       await writeUserAuthLog(context, {
         startedAt,
