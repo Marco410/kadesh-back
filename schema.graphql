@@ -775,6 +775,7 @@ input AnimalBreedRelateToManyForCreateInput {
 type BlogSubscription {
   id: ID!
   email: String
+  product: String
   user: User
   active: Boolean
   createdAt: DateTime
@@ -782,7 +783,6 @@ type BlogSubscription {
 
 input BlogSubscriptionWhereUniqueInput {
   id: ID
-  email: String
 }
 
 input BlogSubscriptionWhereInput {
@@ -791,6 +791,7 @@ input BlogSubscriptionWhereInput {
   NOT: [BlogSubscriptionWhereInput!]
   id: IDFilter
   email: StringFilter
+  product: StringFilter
   user: UserWhereInput
   active: BooleanFilter
   createdAt: DateTimeNullableFilter
@@ -799,12 +800,14 @@ input BlogSubscriptionWhereInput {
 input BlogSubscriptionOrderByInput {
   id: OrderDirection
   email: OrderDirection
+  product: OrderDirection
   active: OrderDirection
   createdAt: OrderDirection
 }
 
 input BlogSubscriptionUpdateInput {
   email: String
+  product: String
   user: UserRelateToOneForUpdateInput
   active: Boolean
   createdAt: DateTime
@@ -817,6 +820,7 @@ input BlogSubscriptionUpdateArgs {
 
 input BlogSubscriptionCreateInput {
   email: String
+  product: String
   user: UserRelateToOneForCreateInput
   active: Boolean
   createdAt: DateTime
@@ -891,6 +895,7 @@ input ProductRelateToManyForCreateInput {
 
 type Category {
   id: ID!
+  product: String
   name: String
   url: String
   image: ImageFieldOutput
@@ -910,6 +915,7 @@ input CategoryWhereInput {
   OR: [CategoryWhereInput!]
   NOT: [CategoryWhereInput!]
   id: IDFilter
+  product: StringFilter
   name: StringNullableFilter
   url: StringFilter
   posts: PostManyRelationFilter
@@ -924,12 +930,14 @@ input PostManyRelationFilter {
 
 input CategoryOrderByInput {
   id: OrderDirection
+  product: OrderDirection
   name: OrderDirection
   url: OrderDirection
   createdAt: OrderDirection
 }
 
 input CategoryUpdateInput {
+  product: String
   name: String
   url: String
   image: ImageFieldInput
@@ -950,6 +958,7 @@ input CategoryUpdateArgs {
 }
 
 input CategoryCreateInput {
+  product: String
   name: String
   url: String
   image: ImageFieldInput
@@ -2165,6 +2174,7 @@ input PetPlaceTypeCreateInput {
 
 type Post {
   id: ID!
+  product: String
   title: String
   url: String
   content: Post_content_Document
@@ -2202,6 +2212,7 @@ input PostWhereInput {
   OR: [PostWhereInput!]
   NOT: [PostWhereInput!]
   id: IDFilter
+  product: StringFilter
   title: StringFilter
   url: StringFilter
   excerpt: StringFilter
@@ -2250,6 +2261,7 @@ input PostViewManyRelationFilter {
 
 input PostOrderByInput {
   id: OrderDirection
+  product: OrderDirection
   title: OrderDirection
   url: OrderDirection
   excerpt: OrderDirection
@@ -2260,6 +2272,7 @@ input PostOrderByInput {
 }
 
 input PostUpdateInput {
+  product: String
   title: String
   url: String
   content: JSON
@@ -2325,6 +2338,7 @@ input PostUpdateArgs {
 }
 
 input PostCreateInput {
+  product: String
   title: String
   url: String
   content: JSON

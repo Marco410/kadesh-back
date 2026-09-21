@@ -5,18 +5,41 @@ import {
   image,
   relationship,
   timestamp,
+  select,
 } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
-import { postUrlHook, publishedAtHook, newPostEmailHook } from "./Post.hooks";
+import access from "../../../utils/generalAccess/access";
+import { PRODUCT, PRODUCT_OPTIONS } from "../../../utils/constants/product";
+import {
+  postUrlHook,
+  publishedAtHook,
+  newPostEmailHook,
+  postCategoryProductHook,
+} from "./Post.hooks";
 import { document } from '@keystone-6/fields-document';
 
 export default list({
   access,
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
+    validateInput: postCategoryProductHook.validateInput,
     afterOperation: newPostEmailHook.afterOperation,
   },
+  ui: {
+    listView: {
+      initialColumns: ["title", "product", "category", "published", "publishedAt"],
+    },
+  },
   fields: {
+    product: select({
+      options: PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description: "Pet, SaaS o ambas apps. Su categoría debe ser del mismo producto.",
+      },
+    }),
     title: text({ validation: { isRequired: true } }),
     url: text({
       isIndexed: "unique",

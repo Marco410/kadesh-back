@@ -6,14 +6,28 @@ import {
   image,
   select,
 } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
-import { POST_CATEGORIES } from "../../../../utils/constants/constants";
+import access from "../../../utils/generalAccess/access";
+import { POST_CATEGORIES } from "../../../utils/constants/constants";
+import { PRODUCT, PRODUCT_OPTIONS } from "../../../utils/constants/product";
 import { categoryUrlHook } from "./Category.hooks";
 
 export default list({
   access,
+  ui: {
+    listView: { initialColumns: ["name", "product", "url"] },
+  },
   fields: {
-    name: select({ 
+    product: select({
+      options: PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description: "Pet, SaaS o ambas apps. Define dónde aparece la categoría.",
+      },
+    }),
+    name: select({
       options: POST_CATEGORIES,
       isIndexed: "unique",
     }),
