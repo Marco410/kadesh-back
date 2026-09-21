@@ -1,5 +1,60 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { sendNewPostEmail } from "../../../../utils/helpers/sendgrid";
+import { sendNewPostEmail } from "../../../utils/helpers/sendgrid";
+import { PRODUCT, type Product } from "../../../utils/constants/product";
+
+/** Suscriptores que reciben un post: los de su producto, o los dos si el post es `all`. */
+function subscriberProductsFor(product: Product): string[] {
+  return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
+}
+
+/** URL del front de cada producto. `FRONTEND_URL` se mantiene como fallback de Pet. */
+function frontendUrlFor(product: string): string {
+  if (product === PRODUCT.SAAS) {
+    return process.env.SAAS_FRONTEND_URL?.trim() || "https://kadesh.com.mx";
+  }
+  return (
+    process.env.PET_FRONTEND_URL?.trim() ||
+    process.env.FRONTEND_URL?.trim() ||
+    "http://localhost:3000"
+  );
+}
+
+/** La categoría del post debe ser del mismo producto, o de `all`. */
+export const postCategoryProductHook = {
+  validateInput: async ({
+    operation,
+    resolvedData,
+    item,
+    context,
+    addValidationError,
+  }: any) => {
+    const product: string | undefined = resolvedData.product ?? item?.product;
+    const categoryInput = resolvedData.category;
+
+    // Sin cambios en producto ni categoría no hay nada que validar.
+    if (operation === "update" && resolvedData.product === undefined && categoryInput === undefined) {
+      return;
+    }
+
+    const categoryId: string | null | undefined =
+      categoryInput === undefined
+        ? item?.categoryId
+        : categoryInput?.connect?.id ?? null;
+
+    if (!categoryId || !product || product === PRODUCT.ALL) return;
+
+    const category = await context.sudo().db.Category.findOne({
+      where: { id: categoryId },
+    });
+    if (!category) return;
+
+    if (category.product !== product && category.product !== PRODUCT.ALL) {
+      addValidationError(
+        `La categoría es de "${category.product}" y el post es de "${product}". Usa una categoría del mismo producto.`,
+      );
+    }
+  },
+};
 
 export const postUrlHook = {
   resolveInput: async ({ resolvedData, item, context }: any) => {
@@ -100,6 +155,7 @@ export const newPostEmailHook = {
             title
             url
             excerpt
+            product
             author {
               name
               lastName
@@ -114,14 +170,19 @@ export const newPostEmailHook = {
           return;
         }
 
-        // Get all active blog subscriptions
+        const postProduct = (post.product || PRODUCT.PET) as Product;
+
+        // Solo suscriptores activos del producto al que pertenece el post
         const subscriptions = await context.sudo().query.BlogSubscription.findMany({
           where: {
             active: {
               equals: true,
             },
+            product: {
+              in: subscriberProductsFor(postProduct),
+            },
           },
-          query: 'email',
+          query: 'email product',
         });
 
         if (subscriptions.length === 0) {
@@ -129,34 +190,40 @@ export const newPostEmailHook = {
           return;
         }
 
-        const recipientEmails = subscriptions
-          .map((sub: any) => sub.email)
-          .filter((email: string) => email && email.trim() !== '');
-
-        if (recipientEmails.length === 0) {
-          console.log('No valid email addresses found. Email not sent.');
-          return;
-        }
-
-        // Build post URL (adjust this based on your frontend URL structure)
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        const postUrl = `${frontendUrl}/blog/${post.url || post.id}`;
-
         const authorName = post.author
           ? `${post.author.name} ${post.author.lastName || ''}`.trim()
           : null;
 
-        // Send email to all subscribers
-        await sendNewPostEmail({
-          postTitle: post.title,
-          postUrl,
-          postExcerpt: post.excerpt,
-          authorName,
-          categoryName: post.category?.name || null,
-          recipientEmails,
-        });
+        // Un correo por producto: cada uno con su URL de front y su marca
+        let sent = 0;
+        for (const product of subscriberProductsFor(postProduct)) {
+          const recipientEmails = subscriptions
+            .filter((sub: any) => sub.product === product)
+            .map((sub: any) => sub.email)
+            .filter((email: string) => email && email.trim() !== '');
 
-        console.log(`New post email sent to ${recipientEmails.length} subscribers`);
+          if (recipientEmails.length === 0) {
+            continue;
+          }
+
+          await sendNewPostEmail({
+            postTitle: post.title,
+            postUrl: `${frontendUrlFor(product)}/blog/${post.url || post.id}`,
+            postExcerpt: post.excerpt,
+            authorName,
+            categoryName: post.category?.name || null,
+            recipientEmails,
+            brand: product === PRODUCT.SAAS ? 'saas' : 'pet',
+          });
+          sent += recipientEmails.length;
+        }
+
+        if (sent === 0) {
+          console.log('No valid email addresses found. Email not sent.');
+          return;
+        }
+
+        console.log(`New post email sent to ${sent} subscribers`);
       } catch (error) {
         console.error('Error sending new post email:', error);
         // Don't throw error to prevent post creation from failing

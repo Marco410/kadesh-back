@@ -150,12 +150,15 @@ model AnimalType {
 
 model BlogSubscription {
   id        String    @id @default(cuid())
-  email     String    @unique @default("")
+  email     String    @default("")
+  product   String    @default("pet")
   user      User?     @relation("BlogSubscription_user", fields: [userId], references: [id])
   userId    String?   @map("user")
   active    Boolean   @default(true)
   createdAt DateTime? @default(now())
 
+  @@index([email])
+  @@index([product])
   @@index([userId])
 }
 
@@ -173,6 +176,7 @@ model Cart {
 
 model Category {
   id              String    @id @default(cuid())
+  product         String    @default("pet")
   name            String?   @unique
   url             String    @unique @default("")
   image_id        String?
@@ -182,6 +186,8 @@ model Category {
   image_extension String?
   posts           Post[]    @relation("Post_category")
   createdAt       DateTime? @default(now())
+
+  @@index([product])
 }
 
 model ContactForm {
@@ -392,6 +398,7 @@ model PetPlaceType {
 
 model Post {
   id              String         @id @default(cuid())
+  product         String         @default("pet")
   title           String         @default("")
   url             String         @unique @default("")
   content         Json           @default("[{\"type\":\"paragraph\",\"children\":[{\"text\":\"\"}]}]")
@@ -415,6 +422,7 @@ model Post {
   createdAt       DateTime?      @default(now())
   updatedAt       DateTime?      @default(now()) @updatedAt
 
+  @@index([product])
   @@index([categoryId])
   @@index([authorId])
 }

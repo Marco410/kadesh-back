@@ -276,6 +276,14 @@ export async function sendAdminPetPlaceServiceRequestEmail({
   await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
 }
 
+/** Marca del correo de "nuevo post": cada producto tiene su propio blog y audiencia. */
+const NEW_POST_EMAIL_BRANDS = {
+  pet: { name: "Kadesh Pet", color: "#FF8C42", hover: "#E67A35" },
+  saas: { name: "Kadesh Negocios", color: "#FF8C42", hover: "#E67A35" },
+} as const;
+
+export type NewPostEmailBrand = keyof typeof NEW_POST_EMAIL_BRANDS;
+
 /**
  * Send email notification for new blog post
  */
@@ -286,6 +294,7 @@ export async function sendNewPostEmail({
   authorName,
   categoryName,
   recipientEmails,
+  brand = "pet",
 }: {
   postTitle: string;
   postUrl: string;
@@ -293,12 +302,14 @@ export async function sendNewPostEmail({
   authorName?: string | null;
   categoryName?: string | null;
   recipientEmails: string[];
+  brand?: NewPostEmailBrand;
 }): Promise<void> {
   if (recipientEmails.length === 0) {
     return;
   }
 
-  const subject = `Nuevo post publicado: ${postTitle}`;
+  const { name: brandName, color, hover } = NEW_POST_EMAIL_BRANDS[brand];
+  const subject = `Nuevo artículo en ${brandName}: ${postTitle}`;
 
   const html = `
     <!DOCTYPE html>
@@ -317,7 +328,7 @@ export async function sendNewPostEmail({
           padding: 20px;
         }
         .header {
-          background-color: #FF8C42;
+          background-color: ${color};
           color: #FFFFFF;
           padding: 20px;
           text-align: center;
@@ -354,7 +365,7 @@ export async function sendNewPostEmail({
         .button {
           display: inline-block;
           padding: 12px 30px;
-          background-color: #FF8C42;
+          background-color: ${color};
           color: #FFFFFF;
           text-decoration: none;
           border-radius: 5px;
@@ -362,7 +373,7 @@ export async function sendNewPostEmail({
           margin-top: 20px;
         }
         .button:hover {
-          background-color: #E67A35;
+          background-color: ${hover};
         }
         .footer {
           margin-top: 30px;
@@ -376,7 +387,7 @@ export async function sendNewPostEmail({
     </head>
     <body>
       <div class="header">
-        <h1>¡Nuevo Post Publicado!</h1>
+        <h1>¡Nuevo artículo en ${brandName}!</h1>
       </div>
       <div class="content">
         <div class="post-title">${postTitle}</div>
@@ -400,6 +411,7 @@ export async function sendNewPostEmail({
       to: email,
       subject,
       html,
+      fromName: brandName,
     });
   }
 }
