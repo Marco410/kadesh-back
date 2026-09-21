@@ -21,11 +21,11 @@ There is no lint or test script configured in this repo.
 
 Local Postgres for development is provided by `docker-compose.yml` (`docker compose up db`), configured via `config/.env.dev` (copy from `config/.env.template`). `env.ts` loads `config/.env.dev` via dotenv and is imported first in `keystone.ts`.
 
-Required env vars (see `config/.env.template`): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_HOST`, `DB_PORT`, `GOOGLE_MAPS_API_KEY`, plus S3 storage config (`S3_BUCKET_NAME`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` — `keystone.ts` throws at startup if any S3 var is missing).
+Required env vars (see `config/.env.template`): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_HOST`, `DB_PORT`, `GOOGLE_MAPS_API_KEY`, plus object storage (`S3_BUCKET_NAME`, `S3_REGION=auto`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`). Storage is Cloudflare R2 via Keystone's S3 adapter; missing keys fall back to local disk.
 
 ## Architecture
 
-**Entry point**: `keystone.ts` builds the Keystone `config()`, wiring together `models/schema.ts` (lists), `auth/auth.ts` (session/auth), and `graphql/extendedSchema.ts` (custom GraphQL). It also declares two file storage backends: `my_local_images` (local disk, served at `/images`) and `s3_files` (S3, signed URLs).
+**Entry point**: `keystone.ts` builds the Keystone `config()`, wiring together `models/schema.ts` (lists), `auth/auth.ts` (session/auth), and `graphql/extendedSchema.ts` (custom GraphQL). Storage: `my_local_images` (local disk, `/images`) plus `s3_*` backends that target Cloudflare R2 when `S3_ENDPOINT` is set (signed URLs, 1h).
 
 **Models** (`models/`): lists live under `models/Pet/` (KadeshPet), `models/Saas/` (CRM, billing, `Saas/Tech`), or the `models/` root if both products use them (`User`, `Role`). Register every list in `models/schema.ts`. Related sub-lists stay nested, e.g. `models/Pet/Animal/AnimalBreed/AnimalBreed.ts`, `models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts`. Editing `models/schema.ts` or any list's fields changes the generated `schema.prisma` / `schema.graphql`. **Do not create or run Prisma migrations** — tell the human to run `yarn migrate` (or write the SQL under `migrations/` by hand).
 
