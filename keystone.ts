@@ -11,23 +11,29 @@ const dotenv = require("dotenv");
 
 dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
 
-/* if (
-  !process.env.S3_BUCKET_NAME ||
-  !process.env.S3_REGION ||
-  !process.env.S3_ACCESS_KEY_ID ||
-  !process.env.S3_SECRET_ACCESS_KEY
-) {
-  throw new Error("S3 Configs are not set");
-} */
-
 const {
   S3_BUCKET_NAME: bucketName = "",
-  S3_REGION: region = "",
+  S3_REGION: region = "auto",
   S3_ACCESS_KEY_ID: accessKeyId = "",
   S3_SECRET_ACCESS_KEY: secretAccessKey = "",
+  S3_ENDPOINT: endpoint = "",
 } = process.env;
 
-const hasS3 = !!(region && bucketName);
+const hasObjectStorage = !!(bucketName && accessKeyId && secretAccessKey);
+const useDevPrefix = (process.env.ENVIROMENT ?? "").toUpperCase() === "DEV";
+const prefix = (prod: string) => (useDevPrefix ? `dev/${prod}` : prod);
+
+const s3Common = {
+  kind: "s3" as const,
+  bucketName,
+  region: region || "auto",
+  accessKeyId,
+  secretAccessKey,
+  ...(endpoint
+    ? { endpoint, forcePathStyle: true }
+    : {}),
+  signed: { expiry: 3600 } as const,
+};
 
 const storage: Record<string, any> = {
   my_local_images: {
@@ -38,108 +44,51 @@ const storage: Record<string, any> = {
     serverRoute: { path: "/images" },
     storagePath: "public/images",
   },
-  ...(hasS3
+  ...(hasObjectStorage
     ? {
         s3_files: {
-          kind: "s3",
+          ...s3Common,
           type: "image",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          signed: { expiry: 3600 },
         },
         s3_categories: {
-          kind: "s3",
+          ...s3Common,
           type: "image",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          pathPrefix:
-            process.env.ENVIROMENT === "DEV"
-              ? "dev/categories/"
-              : "categories/",
-          signed: { expiry: 3600 },
+          pathPrefix: prefix("categories/"),
         },
         s3_posts: {
-          kind: "s3",
+          ...s3Common,
           type: "image",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          pathPrefix:
-            process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/",
-          signed: { expiry: 3600 },
+          pathPrefix: prefix("posts/"),
         },
         s3_profile: {
-          kind: "s3",
+          ...s3Common,
           type: "image",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          pathPrefix:
-            process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/",
-          signed: { expiry: 3600 },
+          pathPrefix: prefix("profiles/"),
         },
         s3_animals: {
-          kind: "s3",
+          ...s3Common,
           type: "image",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          pathPrefix:
-            process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/",
-          signed: { expiry: 3600 },
+          pathPrefix: prefix("animals/"),
         },
         s3_pets: {
-          kind: "s3",
+          ...s3Common,
           type: "image",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/",
-          signed: { expiry: 3600 },
+          pathPrefix: prefix("pets/"),
         },
         s3_ads: {
-          kind: "s3",
+          ...s3Common,
           type: "image",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/",
-          signed: { expiry: 3600 },
+          pathPrefix: prefix("ads/"),
         },
         s3_tech_files: {
-          kind: "s3",
+          ...s3Common,
           type: "file",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          pathPrefix:
-            process.env.ENVIROMENT === "DEV"
-              ? "dev/tech-files/"
-              : "tech-files/",
-          signed: { expiry: 3600 },
+          pathPrefix: prefix("tech-files/"),
         },
         s3_company_logo: {
-          kind: "s3",
+          ...s3Common,
           type: "file",
-          bucketName,
-          region,
-          accessKeyId,
-          secretAccessKey,
-          pathPrefix:
-            process.env.ENVIROMENT === "DEV"
-              ? "dev/company-logo/"
-              : "company-logo/",
-          signed: { expiry: 3600 },
+          pathPrefix: prefix("company-logo/"),
         },
       }
     : {

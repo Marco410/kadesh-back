@@ -7808,7 +7808,7 @@ var QUOTATION_DISCOUNT_TYPE_OPTIONS = [
 // models/Saas/Quotation/SaasQuotation.hooks.ts
 async function nextQuotationNumber(context, companyId) {
   const year = (/* @__PURE__ */ new Date()).getFullYear();
-  const prefix = `Q-${year}-`;
+  const prefix2 = `Q-${year}-`;
   const rows = await context.sudo().query.SaasQuotation.findMany({
     where: { company: { id: { equals: companyId } } },
     orderBy: [{ createdAt: "desc" }],
@@ -7818,13 +7818,13 @@ async function nextQuotationNumber(context, companyId) {
   let max = 0;
   for (const r of rows) {
     const qn = r.quotationNumber;
-    if (qn?.startsWith(prefix)) {
-      const part = qn.slice(prefix.length);
+    if (qn?.startsWith(prefix2)) {
+      const part = qn.slice(prefix2.length);
       const n = parseInt(part, 10);
       if (!isNaN(n) && n > max) max = n;
     }
   }
-  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+  return `${prefix2}${String(max + 1).padStart(4, "0")}`;
 }
 function applyStatusTimestamps(operation, resolvedData, item) {
   if (operation === "create") {
@@ -19030,11 +19030,23 @@ var dotenv2 = require("dotenv");
 dotenv2.config({ path: path2.resolve(process.cwd(), "config", ".env.dev") });
 var {
   S3_BUCKET_NAME: bucketName = "",
-  S3_REGION: region = "",
+  S3_REGION: region = "auto",
   S3_ACCESS_KEY_ID: accessKeyId = "",
-  S3_SECRET_ACCESS_KEY: secretAccessKey = ""
+  S3_SECRET_ACCESS_KEY: secretAccessKey = "",
+  S3_ENDPOINT: endpoint = ""
 } = process.env;
-var hasS3 = !!(region && bucketName);
+var hasObjectStorage = !!(bucketName && accessKeyId && secretAccessKey);
+var useDevPrefix = (process.env.ENVIROMENT ?? "").toUpperCase() === "DEV";
+var prefix = (prod) => useDevPrefix ? `dev/${prod}` : prod;
+var s3Common = {
+  kind: "s3",
+  bucketName,
+  region: region || "auto",
+  accessKeyId,
+  secretAccessKey,
+  ...endpoint ? { endpoint, forcePathStyle: true } : {},
+  signed: { expiry: 3600 }
+};
 var storage = {
   my_local_images: {
     kind: "local",
@@ -19043,95 +19055,50 @@ var storage = {
     serverRoute: { path: "/images" },
     storagePath: "public/images"
   },
-  ...hasS3 ? {
+  ...hasObjectStorage ? {
     s3_files: {
-      kind: "s3",
-      type: "image",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      signed: { expiry: 3600 }
+      ...s3Common,
+      type: "image"
     },
     s3_categories: {
-      kind: "s3",
+      ...s3Common,
       type: "image",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/categories/" : "categories/",
-      signed: { expiry: 3600 }
+      pathPrefix: prefix("categories/")
     },
     s3_posts: {
-      kind: "s3",
+      ...s3Common,
       type: "image",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/posts/" : "posts/",
-      signed: { expiry: 3600 }
+      pathPrefix: prefix("posts/")
     },
     s3_profile: {
-      kind: "s3",
+      ...s3Common,
       type: "image",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/profiles/" : "profiles/",
-      signed: { expiry: 3600 }
+      pathPrefix: prefix("profiles/")
     },
     s3_animals: {
-      kind: "s3",
+      ...s3Common,
       type: "image",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/animals/" : "animals/",
-      signed: { expiry: 3600 }
+      pathPrefix: prefix("animals/")
     },
     s3_pets: {
-      kind: "s3",
+      ...s3Common,
       type: "image",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/pets/" : "pets/",
-      signed: { expiry: 3600 }
+      pathPrefix: prefix("pets/")
     },
     s3_ads: {
-      kind: "s3",
+      ...s3Common,
       type: "image",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/ads/" : "ads/",
-      signed: { expiry: 3600 }
+      pathPrefix: prefix("ads/")
     },
     s3_tech_files: {
-      kind: "s3",
+      ...s3Common,
       type: "file",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/tech-files/" : "tech-files/",
-      signed: { expiry: 3600 }
+      pathPrefix: prefix("tech-files/")
     },
     s3_company_logo: {
-      kind: "s3",
+      ...s3Common,
       type: "file",
-      bucketName,
-      region,
-      accessKeyId,
-      secretAccessKey,
-      pathPrefix: process.env.ENVIROMENT === "DEV" ? "dev/company-logo/" : "company-logo/",
-      signed: { expiry: 3600 }
+      pathPrefix: prefix("company-logo/")
     }
   } : {
     s3_files: {
