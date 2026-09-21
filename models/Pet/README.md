@@ -1,6 +1,6 @@
 # Pet
 
-Dominio KadeshPet. Lists de adopción (`Animal`), mascotas del usuario (`Pet`), directorio (`PetPlace`), tienda, anuncios, reseñas y blog.
+Dominio KadeshPet. Lists de adopción (`Animal`), mascotas del usuario (`Pet`), directorio (`PetPlace`), tienda, anuncios y reseñas. El blog vive en `models/Blog` (compartido con el SaaS).
 
 `Schedule` y `SocialMedia` viven aquí porque hoy solo cuelgan de `PetPlace`.
 

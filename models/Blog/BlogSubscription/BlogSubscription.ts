@@ -4,16 +4,36 @@ import {
   checkbox,
   relationship,
   timestamp,
+  select,
 } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import access from "../../../utils/generalAccess/access";
+import {
+  PRODUCT,
+  SINGLE_PRODUCT_OPTIONS,
+} from "../../../utils/constants/product";
+import { blogSubscriptionHooks } from "./BlogSubscription.hooks";
 
 export default list({
   access,
+  hooks: {
+    validateInput: blogSubscriptionHooks.validateInput,
+  },
   fields: {
     email: text({
-      isIndexed: "unique",
+      // No es único: la unicidad es (email, product), ver BlogSubscription.hooks.ts
+      isIndexed: true,
       ui: {
         displayMode: "input",
+      },
+    }),
+    product: select({
+      options: SINGLE_PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description: "Blog al que está suscrito: Pet o SaaS",
       },
     }),
     user: relationship({
@@ -42,7 +62,7 @@ export default list({
   ui: {
     labelField: "email",
     listView: {
-      initialColumns: ["email", "user", "active", "createdAt"],
+      initialColumns: ["email", "product", "user", "active", "createdAt"],
     },
   },
 });

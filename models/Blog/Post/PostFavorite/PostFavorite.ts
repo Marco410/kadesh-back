@@ -1,21 +1,17 @@
 import { list } from "@keystone-6/core";
-import {
-  text,
-  relationship,
-  timestamp,
-} from "@keystone-6/core/fields";
+import { relationship, timestamp } from "@keystone-6/core/fields";
 import access from "../../../../utils/generalAccess/access";
 
 export default list({
   access,
   fields: {
-    name: text({ 
-      validation: { isRequired: true },
-      isIndexed: "unique",
+    user: relationship({
+      ref: "User",
+      many: false,
     }),
-    posts: relationship({
-      ref: "Post.tags",
-      many: true,
+    post: relationship({
+      ref: "Post.post_favorites",
+      many: false,
     }),
     createdAt: timestamp({
       defaultValue: {

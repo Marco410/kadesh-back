@@ -212,7 +212,13 @@ var POST_CATEGORIES = [
   { label: "Adopci\xF3n", value: "adoption" },
   { label: "Noticias", value: "news" },
   { label: "Consejos", value: "tips" },
-  { label: "Otro", value: "other" }
+  { label: "Otro", value: "other" },
+  // Blog de Kadesh Negocios (SaaS). Cada valor pertenece a un solo producto: `Category.name` es único.
+  { label: "Prospecci\xF3n B2B", value: "prospecting" },
+  { label: "CRM y ventas", value: "crm_sales" },
+  { label: "Generaci\xF3n de leads", value: "lead_gen" },
+  { label: "Casos de \xE9xito", value: "case_studies" },
+  { label: "Producto", value: "product_updates" }
 ];
 
 // models/Pet/Animal/Animal.hooks.ts
@@ -656,17 +662,25 @@ async function sendEmail({
   }
 }
 
-// models/SystemRelease/constants.ts
-var SYSTEM_RELEASE_PRODUCT = {
+// utils/constants/product.ts
+var PRODUCT = {
   PET: "pet",
   SAAS: "saas",
   ALL: "all"
 };
-var SYSTEM_RELEASE_PRODUCT_OPTIONS = [
-  { label: "Pet", value: SYSTEM_RELEASE_PRODUCT.PET },
-  { label: "SaaS", value: SYSTEM_RELEASE_PRODUCT.SAAS },
-  { label: "Ambas", value: SYSTEM_RELEASE_PRODUCT.ALL }
+var PRODUCT_OPTIONS = [
+  { label: "Pet", value: PRODUCT.PET },
+  { label: "SaaS", value: PRODUCT.SAAS },
+  { label: "Ambas", value: PRODUCT.ALL }
 ];
+var SINGLE_PRODUCT_OPTIONS = [
+  { label: "Pet", value: PRODUCT.PET },
+  { label: "SaaS", value: PRODUCT.SAAS }
+];
+
+// models/SystemRelease/constants.ts
+var SYSTEM_RELEASE_PRODUCT = PRODUCT;
+var SYSTEM_RELEASE_PRODUCT_OPTIONS = PRODUCT_OPTIONS;
 
 // utils/helpers/sendgrid.ts
 function escapeHtml(s) {
@@ -881,18 +895,24 @@ async function sendAdminPetPlaceServiceRequestEmail({
 </html>`;
   await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
 }
+var NEW_POST_EMAIL_BRANDS = {
+  pet: { name: "Kadesh Pet", color: "#FF8C42", hover: "#E67A35" },
+  saas: { name: "Kadesh Negocios", color: "#FF8C42", hover: "#E67A35" }
+};
 async function sendNewPostEmail({
   postTitle,
   postUrl,
   postExcerpt,
   authorName,
   categoryName,
-  recipientEmails
+  recipientEmails,
+  brand = "pet"
 }) {
   if (recipientEmails.length === 0) {
     return;
   }
-  const subject = `Nuevo post publicado: ${postTitle}`;
+  const { name: brandName, color, hover } = NEW_POST_EMAIL_BRANDS[brand];
+  const subject = `Nuevo art\xEDculo en ${brandName}: ${postTitle}`;
   const html = `
     <!DOCTYPE html>
     <html>
@@ -910,7 +930,7 @@ async function sendNewPostEmail({
           padding: 20px;
         }
         .header {
-          background-color: #FF8C42;
+          background-color: ${color};
           color: #FFFFFF;
           padding: 20px;
           text-align: center;
@@ -947,7 +967,7 @@ async function sendNewPostEmail({
         .button {
           display: inline-block;
           padding: 12px 30px;
-          background-color: #FF8C42;
+          background-color: ${color};
           color: #FFFFFF;
           text-decoration: none;
           border-radius: 5px;
@@ -955,7 +975,7 @@ async function sendNewPostEmail({
           margin-top: 20px;
         }
         .button:hover {
-          background-color: #E67A35;
+          background-color: ${hover};
         }
         .footer {
           margin-top: 30px;
@@ -969,7 +989,7 @@ async function sendNewPostEmail({
     </head>
     <body>
       <div class="header">
-        <h1>\xA1Nuevo Post Publicado!</h1>
+        <h1>\xA1Nuevo art\xEDculo en ${brandName}!</h1>
       </div>
       <div class="content">
         <div class="post-title">${postTitle}</div>
@@ -991,7 +1011,8 @@ async function sendNewPostEmail({
     await sendEmail({
       to: email,
       subject,
-      html
+      html,
+      fromName: brandName
     });
   }
 }
@@ -3597,11 +3618,46 @@ var Ad_default = (0, import_core27.list)({
   }
 });
 
-// models/Pet/Blog/Post/Post.ts
+// models/Blog/Post/Post.ts
 var import_core28 = require("@keystone-6/core");
 var import_fields28 = require("@keystone-6/core/fields");
 
-// models/Pet/Blog/Post/Post.hooks.ts
+// models/Blog/Post/Post.hooks.ts
+function subscriberProductsFor(product) {
+  return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
+}
+function frontendUrlFor(product) {
+  if (product === PRODUCT.SAAS) {
+    return process.env.SAAS_FRONTEND_URL?.trim() || "https://kadesh.com.mx";
+  }
+  return process.env.PET_FRONTEND_URL?.trim() || process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+}
+var postCategoryProductHook = {
+  validateInput: async ({
+    operation,
+    resolvedData,
+    item,
+    context,
+    addValidationError
+  }) => {
+    const product = resolvedData.product ?? item?.product;
+    const categoryInput = resolvedData.category;
+    if (operation === "update" && resolvedData.product === void 0 && categoryInput === void 0) {
+      return;
+    }
+    const categoryId = categoryInput === void 0 ? item?.categoryId : categoryInput?.connect?.id ?? null;
+    if (!categoryId || !product || product === PRODUCT.ALL) return;
+    const category = await context.sudo().db.Category.findOne({
+      where: { id: categoryId }
+    });
+    if (!category) return;
+    if (category.product !== product && category.product !== PRODUCT.ALL) {
+      addValidationError(
+        `La categor\xEDa es de "${category.product}" y el post es de "${product}". Usa una categor\xEDa del mismo producto.`
+      );
+    }
+  }
+};
 var postUrlHook = {
   resolveInput: async ({ resolvedData, item, context }) => {
     if (item && !resolvedData.title) {
@@ -3662,6 +3718,7 @@ var newPostEmailHook = {
             title
             url
             excerpt
+            product
             author {
               name
               lastName
@@ -3674,35 +3731,45 @@ var newPostEmailHook = {
         if (!post) {
           return;
         }
+        const postProduct = post.product || PRODUCT.PET;
         const subscriptions = await context.sudo().query.BlogSubscription.findMany({
           where: {
             active: {
               equals: true
+            },
+            product: {
+              in: subscriberProductsFor(postProduct)
             }
           },
-          query: "email"
+          query: "email product"
         });
         if (subscriptions.length === 0) {
           console.log("No active subscriptions found. Email not sent.");
           return;
         }
-        const recipientEmails = subscriptions.map((sub) => sub.email).filter((email) => email && email.trim() !== "");
-        if (recipientEmails.length === 0) {
+        const authorName = post.author ? `${post.author.name} ${post.author.lastName || ""}`.trim() : null;
+        let sent = 0;
+        for (const product of subscriberProductsFor(postProduct)) {
+          const recipientEmails = subscriptions.filter((sub) => sub.product === product).map((sub) => sub.email).filter((email) => email && email.trim() !== "");
+          if (recipientEmails.length === 0) {
+            continue;
+          }
+          await sendNewPostEmail({
+            postTitle: post.title,
+            postUrl: `${frontendUrlFor(product)}/blog/${post.url || post.id}`,
+            postExcerpt: post.excerpt,
+            authorName,
+            categoryName: post.category?.name || null,
+            recipientEmails,
+            brand: product === PRODUCT.SAAS ? "saas" : "pet"
+          });
+          sent += recipientEmails.length;
+        }
+        if (sent === 0) {
           console.log("No valid email addresses found. Email not sent.");
           return;
         }
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-        const postUrl = `${frontendUrl}/blog/${post.url || post.id}`;
-        const authorName = post.author ? `${post.author.name} ${post.author.lastName || ""}`.trim() : null;
-        await sendNewPostEmail({
-          postTitle: post.title,
-          postUrl,
-          postExcerpt: post.excerpt,
-          authorName,
-          categoryName: post.category?.name || null,
-          recipientEmails
-        });
-        console.log(`New post email sent to ${recipientEmails.length} subscribers`);
+        console.log(`New post email sent to ${sent} subscribers`);
       } catch (error) {
         console.error("Error sending new post email:", error);
       }
@@ -3710,15 +3777,31 @@ var newPostEmailHook = {
   }
 };
 
-// models/Pet/Blog/Post/Post.ts
+// models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
 var Post_default = (0, import_core28.list)({
   access: access_default,
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
+    validateInput: postCategoryProductHook.validateInput,
     afterOperation: newPostEmailHook.afterOperation
   },
+  ui: {
+    listView: {
+      initialColumns: ["title", "product", "category", "published", "publishedAt"]
+    }
+  },
   fields: {
+    product: (0, import_fields28.select)({
+      options: PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description: "Pet, SaaS o ambas apps. Su categor\xEDa debe ser del mismo producto."
+      }
+    }),
     title: (0, import_fields28.text)({ validation: { isRequired: true } }),
     url: (0, import_fields28.text)({
       isIndexed: "unique",
@@ -3802,7 +3885,7 @@ var Post_default = (0, import_core28.list)({
   }
 });
 
-// models/Pet/Blog/Post/PostComment/PostComment.ts
+// models/Blog/Post/PostComment/PostComment.ts
 var import_core29 = require("@keystone-6/core");
 var import_fields29 = require("@keystone-6/core/fields");
 var PostComment_default = (0, import_core29.list)({
@@ -3844,7 +3927,7 @@ var PostComment_default = (0, import_core29.list)({
   }
 });
 
-// models/Pet/Blog/Post/PostLike/PostLike.ts
+// models/Blog/Post/PostLike/PostLike.ts
 var import_core30 = require("@keystone-6/core");
 var import_fields30 = require("@keystone-6/core/fields");
 var PostLike_default = (0, import_core30.list)({
@@ -3870,7 +3953,7 @@ var PostLike_default = (0, import_core30.list)({
   }
 });
 
-// models/Pet/Blog/Post/PostFavorite/PostFavorite.ts
+// models/Blog/Post/PostFavorite/PostFavorite.ts
 var import_core31 = require("@keystone-6/core");
 var import_fields31 = require("@keystone-6/core/fields");
 var PostFavorite_default = (0, import_core31.list)({
@@ -3896,7 +3979,7 @@ var PostFavorite_default = (0, import_core31.list)({
   }
 });
 
-// models/Pet/Blog/Post/PostView/PostView.ts
+// models/Blog/Post/PostView/PostView.ts
 var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
 var PostView_default = (0, import_core32.list)({
@@ -3922,7 +4005,7 @@ var PostView_default = (0, import_core32.list)({
   }
 });
 
-// models/Pet/Blog/Tag/Tag.ts
+// models/Blog/Tag/Tag.ts
 var import_core33 = require("@keystone-6/core");
 var import_fields33 = require("@keystone-6/core/fields");
 var Tag_default = (0, import_core33.list)({
@@ -3948,11 +4031,11 @@ var Tag_default = (0, import_core33.list)({
   }
 });
 
-// models/Pet/Blog/Category/Category.ts
+// models/Blog/Category/Category.ts
 var import_core34 = require("@keystone-6/core");
 var import_fields34 = require("@keystone-6/core/fields");
 
-// models/Pet/Blog/Category/Category.hooks.ts
+// models/Blog/Category/Category.hooks.ts
 function sanitizeUrl2(text59) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
   let cleaned = text59.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
@@ -3991,10 +4074,23 @@ async function checkCategoryUrl(name, currentCategoryId, context) {
   return uniqueLink;
 }
 
-// models/Pet/Blog/Category/Category.ts
+// models/Blog/Category/Category.ts
 var Category_default = (0, import_core34.list)({
   access: access_default,
+  ui: {
+    listView: { initialColumns: ["name", "product", "url"] }
+  },
   fields: {
+    product: (0, import_fields34.select)({
+      options: PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description: "Pet, SaaS o ambas apps. Define d\xF3nde aparece la categor\xEDa."
+      }
+    }),
     name: (0, import_fields34.select)({
       options: POST_CATEGORIES,
       isIndexed: "unique"
@@ -4026,16 +4122,57 @@ var Category_default = (0, import_core34.list)({
   }
 });
 
-// models/Pet/Blog/BlogSubscription/BlogSubscription.ts
+// models/Blog/BlogSubscription/BlogSubscription.ts
 var import_core35 = require("@keystone-6/core");
 var import_fields35 = require("@keystone-6/core/fields");
+
+// models/Blog/BlogSubscription/BlogSubscription.hooks.ts
+var blogSubscriptionHooks = {
+  validateInput: async ({
+    operation,
+    resolvedData,
+    item,
+    context,
+    addValidationError
+  }) => {
+    const email = resolvedData.email ?? item?.email;
+    const product = resolvedData.product ?? item?.product ?? PRODUCT.PET;
+    if (!email) return;
+    if (operation === "update" && resolvedData.email === void 0 && resolvedData.product === void 0) {
+      return;
+    }
+    const existing = await context.sudo().db.BlogSubscription.findMany({
+      where: { email: { equals: email }, product: { equals: product } },
+      take: 1
+    });
+    if (existing.length > 0 && existing[0].id !== item?.id) {
+      addValidationError("Este correo ya est\xE1 suscrito al blog.");
+    }
+  }
+};
+
+// models/Blog/BlogSubscription/BlogSubscription.ts
 var BlogSubscription_default = (0, import_core35.list)({
   access: access_default,
+  hooks: {
+    validateInput: blogSubscriptionHooks.validateInput
+  },
   fields: {
     email: (0, import_fields35.text)({
-      isIndexed: "unique",
+      // No es único: la unicidad es (email, product), ver BlogSubscription.hooks.ts
+      isIndexed: true,
       ui: {
         displayMode: "input"
+      }
+    }),
+    product: (0, import_fields35.select)({
+      options: SINGLE_PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description: "Blog al que est\xE1 suscrito: Pet o SaaS"
       }
     }),
     user: (0, import_fields35.relationship)({
@@ -4064,7 +4201,7 @@ var BlogSubscription_default = (0, import_core35.list)({
   ui: {
     labelField: "email",
     listView: {
-      initialColumns: ["email", "user", "active", "createdAt"]
+      initialColumns: ["email", "product", "user", "active", "createdAt"]
     }
   }
 });

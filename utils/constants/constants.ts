@@ -602,4 +602,10 @@ export const POST_CATEGORIES = [
   { label: "Noticias", value: "news" },
   { label: "Consejos", value: "tips" },
   { label: "Otro", value: "other" },
+  // Blog de Kadesh Negocios (SaaS). Cada valor pertenece a un solo producto: `Category.name` es único.
+  { label: "Prospección B2B", value: "prospecting" },
+  { label: "CRM y ventas", value: "crm_sales" },
+  { label: "Generación de leads", value: "lead_gen" },
+  { label: "Casos de éxito", value: "case_studies" },
+  { label: "Producto", value: "product_updates" },
 ];

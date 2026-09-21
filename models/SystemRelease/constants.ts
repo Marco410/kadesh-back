@@ -1,18 +1,12 @@
+import {
+  PRODUCT,
+  PRODUCT_OPTIONS,
+  type Product,
+} from "../../utils/constants/product";
+
 /** Qué app(s) consume esta entrada de versión / changelog. */
-export const SYSTEM_RELEASE_PRODUCT = {
-  PET: "pet",
-  SAAS: "saas",
-  ALL: "all",
-} as const;
+export const SYSTEM_RELEASE_PRODUCT = PRODUCT;
 
-export type SystemReleaseProduct =
-  (typeof SYSTEM_RELEASE_PRODUCT)[keyof typeof SYSTEM_RELEASE_PRODUCT];
+export type SystemReleaseProduct = Product;
 
-export const SYSTEM_RELEASE_PRODUCT_OPTIONS: {
-  label: string;
-  value: SystemReleaseProduct;
-}[] = [
-  { label: "Pet", value: SYSTEM_RELEASE_PRODUCT.PET },
-  { label: "SaaS", value: SYSTEM_RELEASE_PRODUCT.SAAS },
-  { label: "Ambas", value: SYSTEM_RELEASE_PRODUCT.ALL },
-];
+export const SYSTEM_RELEASE_PRODUCT_OPTIONS = PRODUCT_OPTIONS;
