@@ -56,3 +56,14 @@ export const aiApiKeyPreviewFieldAccess = {
   create: () => false,
   update: () => false,
 };
+
+/** Mismo criterio que `aiApiKeyPreviewFieldAccess`, duplicado para no acoplar IA y WhatsApp. */
+export const whatsappTokenPreviewFieldAccess = {
+  read: ({ session, item }: any) => {
+    if (isPlatformAdmin(session)) return true;
+    if (!isCompanyAdmin(session)) return false;
+    return getSessionCompanyId(session) === item?.id;
+  },
+  create: () => false,
+  update: () => false,
+};

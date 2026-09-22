@@ -151,6 +151,11 @@ export default list({
       many: true,
       ui: { description: "Cotizaciones ligadas a este lead" },
     }),
+    whatsappMessages: relationship({
+      ref: "TechWhatsAppMessage.businessLead",
+      many: true,
+      ui: { hideCreate: true, description: "Historial de WhatsApp con este lead" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

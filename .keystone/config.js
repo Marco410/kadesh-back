@@ -1885,6 +1885,11 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { description: "Llamadas a IA disparadas por este usuario" }
     }),
+    whatsappMessagesSent: (0, import_fields7.relationship)({
+      ref: "TechWhatsAppMessage.sentBy",
+      many: true,
+      ui: { hideCreate: true, description: "Mensajes de WhatsApp enviados por este usuario" }
+    }),
     aiInsights: (0, import_fields7.relationship)({
       ref: "TechAiInsight.salesPerson",
       many: true,
@@ -4184,9 +4189,9 @@ var import_core34 = require("@keystone-6/core");
 var import_fields34 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text59) {
+function sanitizeUrl2(text60) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text59.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text60.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -4589,6 +4594,11 @@ function statusLeadCompanyScopedWhere(session2) {
     ]
   };
 }
+function whatsappMessageScopedWhere(session2) {
+  const leadWhere = leadCompanyScopedWhere(session2);
+  if (leadWhere === true || leadWhere === false) return leadWhere;
+  return { businessLead: leadWhere };
+}
 
 // models/Saas/Tech/BusinessLead/TechBusinessLead.access.ts
 var businessLeadAccess = {
@@ -4828,6 +4838,11 @@ var TechBusinessLead_default = (0, import_core39.list)({
       ref: "SaasQuotation.lead",
       many: true,
       ui: { description: "Cotizaciones ligadas a este lead" }
+    }),
+    whatsappMessages: (0, import_fields39.relationship)({
+      ref: "TechWhatsAppMessage.businessLead",
+      many: true,
+      ui: { hideCreate: true, description: "Historial de WhatsApp con este lead" }
     }),
     createdAt: (0, import_fields39.timestamp)({
       defaultValue: { kind: "now" },
@@ -6523,6 +6538,15 @@ var aiApiKeyPreviewFieldAccess = {
   create: () => false,
   update: () => false
 };
+var whatsappTokenPreviewFieldAccess = {
+  read: ({ session: session2, item }) => {
+    if (isPlatformAdmin(session2)) return true;
+    if (!isCompanyAdmin(session2)) return false;
+    return getSessionCompanyId(session2) === item?.id;
+  },
+  create: () => false,
+  update: () => false
+};
 
 // models/Saas/SaasCompanySubscription/constants.ts
 var SUBSCRIPTION_STATUS = {
@@ -6847,6 +6871,71 @@ var SaasCompany_default = (0, import_core54.list)({
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se guard\xF3 o borr\xF3 la API key de IA"
       }
+    }),
+    whatsappPhoneNumberId: (0, import_fields54.text)({
+      db: { isNullable: true },
+      isIndexed: "unique",
+      ui: {
+        description: "Phone Number ID de WhatsApp Cloud API (Meta). \xDAnico por empresa: se usa para enrutar el webhook entrante."
+      }
+    }),
+    whatsappBusinessAccountId: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: { description: "WhatsApp Business Account ID (WABA)" }
+    }),
+    whatsappDisplayPhoneNumber: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "N\xFAmero mostrado por Meta (se llena al probar la conexi\xF3n)"
+      }
+    }),
+    whatsappAccessTokenEncrypted: (0, import_fields54.text)({
+      db: { isNullable: true },
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "Access token cifrado (solo mutaciones custom v\xEDa sudo)"
+      }
+    }),
+    whatsappAppSecretEncrypted: (0, import_fields54.text)({
+      db: { isNullable: true },
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "App Secret de la App de Meta de esta empresa, cifrado. Verifica la firma del webhook entrante."
+      }
+    }),
+    whatsappTokenPreview: (0, import_fields54.text)({
+      db: { isNullable: true },
+      access: whatsappTokenPreviewFieldAccess,
+      ui: {
+        description: "Vista enmascarada del access token (ej. EAAxyz...wXyz)"
+      }
+    }),
+    whatsappConnectedAt: (0, import_fields54.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "\xDAltima vez que se conect\xF3 o desconect\xF3 WhatsApp"
+      }
+    }),
+    whatsappMessages: (0, import_fields54.relationship)({
+      ref: "TechWhatsAppMessage.company",
+      many: true,
+      ui: { description: "Historial de mensajes de WhatsApp de esta empresa" }
     }),
     termsQuotation: (0, import_fields54.text)({
       db: { isNullable: true },
@@ -9306,6 +9395,109 @@ var SaasWorkspaceCrmStatus_default = (0, import_core69.list)({
   }
 });
 
+// models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
+var import_core70 = require("@keystone-6/core");
+var import_fields70 = require("@keystone-6/core/fields");
+
+// models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.access.ts
+var techWhatsAppMessageAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: () => false,
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => whatsappMessageScopedWhere(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2) ? true : false
+  }
+};
+
+// models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
+var TechWhatsAppMessage_default = (0, import_core70.list)({
+  access: techWhatsAppMessageAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "createdAt",
+        "company",
+        "businessLead",
+        "direction",
+        "status",
+        "body"
+      ]
+    }
+  },
+  fields: {
+    company: (0, import_fields70.relationship)({
+      ref: "SaasCompany.whatsappMessages",
+      many: false,
+      ui: { description: "Empresa due\xF1a del n\xFAmero de WhatsApp" }
+    }),
+    businessLead: (0, import_fields70.relationship)({
+      ref: "TechBusinessLead.whatsappMessages",
+      many: false,
+      ui: { description: "Lead asociado (vac\xEDo si no matche\xF3 ning\xFAn tel\xE9fono conocido)" }
+    }),
+    direction: (0, import_fields70.select)({
+      type: "string",
+      options: [
+        { label: "Entrante", value: "inbound" },
+        { label: "Saliente", value: "outbound" },
+        { label: "Sin identificar", value: "unknown" }
+      ],
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    source: (0, import_fields70.select)({
+      type: "string",
+      options: [
+        { label: "Cloud API", value: "api" },
+        { label: "Importado", value: "imported" }
+      ],
+      defaultValue: "api",
+      isIndexed: true,
+      ui: { description: "Si lleg\xF3 en vivo por la Cloud API o se import\xF3 de un .txt exportado" }
+    }),
+    senderLabel: (0, import_fields70.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Nombre del remitente tal cual ven\xEDa en el .txt importado. Se usa cuando direction es 'unknown'."
+      }
+    }),
+    waMessageId: (0, import_fields70.text)({
+      db: { isNullable: true },
+      isIndexed: "unique",
+      ui: { description: "ID de Meta. Usado para no duplicar reintentos del webhook." }
+    }),
+    fromPhone: (0, import_fields70.text)({ db: { isNullable: true } }),
+    toPhone: (0, import_fields70.text)({ db: { isNullable: true } }),
+    body: (0, import_fields70.text)({ ui: { displayMode: "textarea" } }),
+    status: (0, import_fields70.select)({
+      type: "string",
+      options: [
+        { label: "Enviado", value: "sent" },
+        { label: "Recibido", value: "received" },
+        { label: "Fall\xF3", value: "failed" }
+      ],
+      defaultValue: "sent"
+    }),
+    sentBy: (0, import_fields70.relationship)({
+      ref: "User.whatsappMessagesSent",
+      many: false,
+      ui: { description: "Usuario que mand\xF3 el mensaje (solo salientes)" }
+    }),
+    errorMessage: (0, import_fields70.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea", description: "Error si el env\xEDo fall\xF3" }
+    }),
+    createdAt: (0, import_fields70.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { description: "Momento del mensaje" }
+    })
+  }
+});
+
 // models/schema.ts
 var schema_default = {
   Ad: Ad_default,
@@ -9373,6 +9565,7 @@ var schema_default = {
   TechSalesActivity: TechSalesActivity_default,
   TechTask: TechTask_default,
   TechStatusBusinessLead: TechStatusBusinessLead_default,
+  TechWhatsAppMessage: TechWhatsAppMessage_default,
   TokenNotification: TokenNotification_default,
   User: User_default,
   UserAuthLog: UserAuthLog_default,
@@ -9380,7 +9573,7 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core70 = require("@keystone-6/core");
+var import_core71 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto = require("crypto");
@@ -10284,8 +10477,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text59 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text59}`;
+  const text60 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text60}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -11390,8 +11583,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text59 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text59}`;
+  const text60 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text60}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -13032,11 +13225,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text59) {
-  return text59.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text60) {
+  return text60.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text59) {
-  const cleaned = stripSpoofedDelimiters(text59 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text60) {
+  const cleaned = stripSpoofedDelimiters(text60 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -13076,9 +13269,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text59) {
-  if (!text59) return 0;
-  return Math.max(1, Math.ceil(text59.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text60) {
+  if (!text60) return 0;
+  return Math.max(1, Math.ceil(text60.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -13112,15 +13305,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text59 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text59) {
+  const text60 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text60) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text59,
+    text: text60,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text59)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text60)
     }
   };
 }
@@ -13165,15 +13358,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text59 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text59) {
+  const text60 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text60) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text59,
+    text: text60,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text59)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text60)
     }
   };
 }
@@ -13210,15 +13403,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text59 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text59) {
+  const text60 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text60) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text59,
+    text: text60,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text59)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text60)
     }
   };
 }
@@ -13874,8 +14067,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text59) {
-  const stripped = text59.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text60) {
+  const stripped = text60.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -14315,11 +14508,11 @@ async function saveMarketInsight(context, params) {
     query: INSIGHT_QUERY2
   });
 }
-function parseMarketInsight(text59) {
-  const match = text59.match(/\{[\s\S]*\}/);
+function parseMarketInsight(text60) {
+  const match = text60.match(/\{[\s\S]*\}/);
   if (!match) {
     return {
-      summary: text59.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      summary: text60.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
       actions: []
     };
   }
@@ -14330,12 +14523,12 @@ function parseMarketInsight(text59) {
       detail: String(item.detail ?? "").trim()
     })).filter((item) => item.title && item.detail).slice(0, 3);
     return {
-      summary: String(parsed.summary ?? "").trim() || text59.trim().slice(0, 800),
+      summary: String(parsed.summary ?? "").trim() || text60.trim().slice(0, 800),
       actions
     };
   } catch {
     return {
-      summary: text59.trim().slice(0, 800),
+      summary: text60.trim().slice(0, 800),
       actions: []
     };
   }
@@ -14889,8 +15082,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text59) {
-  const stripped = text59.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text60) {
+  const stripped = text60.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -14900,8 +15093,8 @@ function parseJsonObject(text59) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text59, company) {
-  const parsed = parseJsonObject(text59);
+function parseCompanyBriefPillars(text60, company) {
+  const parsed = parseJsonObject(text60);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -15211,23 +15404,23 @@ function encodeDenueCondition(value, fallback) {
   const words = parts.length ? parts : [fallback];
   return words.map((word) => encodeURIComponent(word)).join(",");
 }
-function isDenueEmptyBody(text59) {
-  const trimmed = text59.trim().toLowerCase();
+function isDenueEmptyBody(text60) {
+  const trimmed = text60.trim().toLowerCase();
   if (!trimmed) return true;
   return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
 }
 async function parseDenueList(res) {
-  const text59 = await res.text();
-  if (isDenueEmptyBody(text59)) return [];
+  const text60 = await res.text();
+  if (isDenueEmptyBody(text60)) return [];
   if (!res.ok) {
-    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text59.slice(0, 200)}`);
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text60.slice(0, 200)}`);
   }
   let data;
   try {
-    data = JSON.parse(text59);
+    data = JSON.parse(text60);
   } catch {
     throw new Error(
-      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text59.slice(0, 200)}`
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text60.slice(0, 200)}`
     );
   }
   if (!Array.isArray(data)) {
@@ -15313,17 +15506,17 @@ async function getIndicator(indicatorId, geographicArea, recent = true, source =
   const area = geographicArea.trim() || "00";
   const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
   const res = await inegiFetch(url);
-  const text59 = await res.text();
+  const text60 = await res.text();
   if (!res.ok) {
     throw new Error(
-      `INEGI Indicadores HTTP ${res.status}: ${text59.slice(0, 200)}`
+      `INEGI Indicadores HTTP ${res.status}: ${text60.slice(0, 200)}`
     );
   }
   try {
-    return JSON.parse(text59);
+    return JSON.parse(text60);
   } catch {
     throw new Error(
-      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text59.slice(0, 200)}`
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text60.slice(0, 200)}`
     );
   }
 }
@@ -18360,6 +18553,587 @@ var resolver27 = {
 };
 var upsertDraftSystemRelease_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
+// graphql/customs/mutations/whatsapp/access.ts
+function canManageCompanyWhatsapp(session2, companyId) {
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
+  if (!hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) return false;
+  return getSessionCompanyId(session2) === companyId;
+}
+function canUseCompanyWhatsapp(session2, companyId) {
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
+  return getSessionCompanyId(session2) === companyId;
+}
+function denyCompanyWhatsappAccessMessage(session2) {
+  if (!session2?.data?.id) {
+    return "Debes iniciar sesi\xF3n para configurar WhatsApp";
+  }
+  return "Solo el administrador de la empresa puede configurar WhatsApp";
+}
+function denyCompanyWhatsappUseMessage(session2) {
+  if (!session2?.data?.id) {
+    return "Debes iniciar sesi\xF3n para usar WhatsApp";
+  }
+  return "Este WhatsApp pertenece a otra empresa";
+}
+
+// graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
+var typeDefs31 = `
+  input UpdateCompanyWhatsappSettingsInput {
+    companyId: ID!
+    phoneNumberId: String
+    businessAccountId: String
+    accessToken: String
+    appSecret: String
+  }
+
+  type UpdateCompanyWhatsappSettingsResult {
+    success: Boolean!
+    message: String!
+    phoneNumberId: String
+    businessAccountId: String
+    displayPhoneNumber: String
+    tokenPreview: String
+    appSecretConfigured: Boolean!
+    connectedAt: String
+  }
+
+  type Mutation {
+    updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
+  }
+`;
+var definition28 = `
+  updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
+`;
+var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
+function toResult5(success, message, company) {
+  return {
+    success,
+    message,
+    phoneNumberId: company?.whatsappPhoneNumberId ?? null,
+    businessAccountId: company?.whatsappBusinessAccountId ?? null,
+    displayPhoneNumber: company?.whatsappDisplayPhoneNumber ?? null,
+    tokenPreview: company?.whatsappTokenPreview ?? null,
+    appSecretConfigured: Boolean(company?.whatsappAppSecretEncrypted),
+    connectedAt: company?.whatsappConnectedAt ?? null
+  };
+}
+var resolver28 = {
+  updateCompanyWhatsappSettings: async (_root, { input }, context) => {
+    const session2 = context.session;
+    if (!canManageCompanyWhatsapp(session2, input.companyId)) {
+      return toResult5(false, denyCompanyWhatsappAccessMessage(session2));
+    }
+    const existing = await context.sudo().query.SaasCompany.findOne({
+      where: { id: input.companyId },
+      query: SETTINGS_QUERY2
+    });
+    if (!existing) {
+      return toResult5(false, "No se encontr\xF3 la empresa");
+    }
+    const data = {};
+    if (input.phoneNumberId !== void 0) {
+      const phoneNumberId = input.phoneNumberId?.trim() || null;
+      if (phoneNumberId) {
+        const clash = await context.sudo().query.SaasCompany.findMany({
+          where: {
+            whatsappPhoneNumberId: { equals: phoneNumberId },
+            id: { not: { equals: input.companyId } }
+          },
+          query: "id",
+          take: 1
+        });
+        if (clash.length > 0) {
+          return toResult5(
+            false,
+            "Ese Phone Number ID ya est\xE1 conectado a otra cuenta",
+            existing
+          );
+        }
+      }
+      data.whatsappPhoneNumberId = phoneNumberId;
+    }
+    if (input.businessAccountId !== void 0) {
+      data.whatsappBusinessAccountId = input.businessAccountId?.trim() || null;
+    }
+    if (input.accessToken !== void 0 && input.accessToken !== null) {
+      if (input.accessToken === "") {
+        data.whatsappAccessTokenEncrypted = null;
+        data.whatsappTokenPreview = null;
+        data.whatsappDisplayPhoneNumber = null;
+        data.whatsappConnectedAt = null;
+      } else {
+        try {
+          data.whatsappAccessTokenEncrypted = encrypt(input.accessToken.trim());
+        } catch (err) {
+          return toResult5(
+            false,
+            err instanceof Error ? err.message : "No se pudo cifrar el access token. Revisa AI_ENCRYPTION_KEY.",
+            existing
+          );
+        }
+        data.whatsappTokenPreview = maskApiKey(input.accessToken);
+        data.whatsappConnectedAt = (/* @__PURE__ */ new Date()).toISOString();
+      }
+    }
+    if (input.appSecret !== void 0 && input.appSecret !== null) {
+      if (input.appSecret === "") {
+        data.whatsappAppSecretEncrypted = null;
+      } else {
+        try {
+          data.whatsappAppSecretEncrypted = encrypt(input.appSecret.trim());
+        } catch (err) {
+          return toResult5(
+            false,
+            err instanceof Error ? err.message : "No se pudo cifrar el App Secret. Revisa AI_ENCRYPTION_KEY.",
+            existing
+          );
+        }
+      }
+    }
+    if (Object.keys(data).length === 0) {
+      return toResult5(true, "No hay cambios que guardar", existing);
+    }
+    const updated = await context.sudo().query.SaasCompany.updateOne({
+      where: { id: input.companyId },
+      data,
+      query: SETTINGS_QUERY2
+    });
+    return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
+  }
+};
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+
+// utils/intregrations/whatsapp.ts
+var import_crypto5 = __toESM(require("crypto"));
+var GRAPH_API_VERSION2 = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
+function parseGraphError(bodyText) {
+  try {
+    const parsed = JSON.parse(bodyText);
+    if (parsed?.error?.message) {
+      return { message: parsed.error.message, code: parsed.error.code };
+    }
+  } catch {
+  }
+  return { message: bodyText || "Error desconocido de la Graph API" };
+}
+async function sendWhatsAppTextMessage({
+  phoneNumberId,
+  accessToken,
+  to,
+  body
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body }
+      })
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const { message, code } = parseGraphError(bodyText);
+    const err = new Error(`[whatsapp] Graph API error: ${message}`);
+    err.graphCode = code;
+    throw err;
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const id = parsed?.messages?.[0]?.id;
+  if (!id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
+  }
+  return { id };
+}
+async function fetchWhatsAppPhoneNumberInfo({
+  phoneNumberId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}?fields=display_phone_number,verified_name`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const { message } = parseGraphError(bodyText);
+    throw new Error(`[whatsapp] Graph API error: ${message}`);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return {
+    displayPhoneNumber: parsed?.display_phone_number || "",
+    verifiedName: parsed?.verified_name || ""
+  };
+}
+function verifyWhatsAppSignature({
+  appSecret,
+  rawBody,
+  signatureHeader
+}) {
+  if (!signatureHeader) return false;
+  const expected = import_crypto5.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const received = signatureHeader.replace(/^sha256=/, "");
+  const expectedBuf = Buffer.from(expected, "hex");
+  const receivedBuf = Buffer.from(received, "hex");
+  if (expectedBuf.length !== receivedBuf.length) return false;
+  return import_crypto5.default.timingSafeEqual(expectedBuf, receivedBuf);
+}
+
+// graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
+var typeDefs32 = `
+  type TestCompanyWhatsappConnectionResult {
+    success: Boolean!
+    message: String!
+    displayPhoneNumber: String
+    verifiedName: String
+  }
+
+  type Mutation {
+    testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
+  }
+`;
+var definition29 = `
+  testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
+`;
+var resolver29 = {
+  testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    if (!canManageCompanyWhatsapp(session2, companyId)) {
+      return { success: false, message: denyCompanyWhatsappAccessMessage(session2) };
+    }
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: companyId },
+      query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted"
+    });
+    if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
+      return {
+        success: false,
+        message: "Falta configurar el Phone Number ID o el access token"
+      };
+    }
+    try {
+      const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
+      const info = await fetchWhatsAppPhoneNumberInfo({
+        phoneNumberId: company.whatsappPhoneNumberId,
+        accessToken
+      });
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: companyId },
+        data: {
+          whatsappDisplayPhoneNumber: info.displayPhoneNumber || null,
+          whatsappConnectedAt: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      });
+      return {
+        success: true,
+        message: "Conexi\xF3n OK con WhatsApp Business",
+        displayPhoneNumber: info.displayPhoneNumber,
+        verifiedName: info.verifiedName
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Error al probar la conexi\xF3n"
+      };
+    }
+  }
+};
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+
+// graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
+var typeDefs33 = `
+  type SendWhatsAppMessageResult {
+    success: Boolean!
+    message: String!
+    messageId: String
+  }
+
+  type Mutation {
+    sendWhatsAppMessage(businessLeadId: ID!, body: String!): SendWhatsAppMessageResult!
+  }
+`;
+var definition30 = `
+  sendWhatsAppMessage(businessLeadId: ID!, body: String!): SendWhatsAppMessageResult!
+`;
+function normalizeWhatsAppDigits(raw) {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length === 10) return `52${digits}`;
+  return digits;
+}
+var resolver30 = {
+  sendWhatsAppMessage: async (_root, { businessLeadId, body }, context) => {
+    const session2 = context.session;
+    const companyId = getSessionCompanyId(session2);
+    const trimmedBody = body.trim();
+    if (!trimmedBody) {
+      return { success: false, message: "El mensaje no puede estar vac\xEDo" };
+    }
+    if (!companyId && !session2?.data?.id) {
+      return { success: false, message: denyCompanyWhatsappUseMessage(session2) };
+    }
+    const lead = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: businessLeadId },
+      query: "id phone businessName saasCompany { id }"
+    });
+    if (!lead) {
+      return { success: false, message: "No se encontr\xF3 el lead" };
+    }
+    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
+    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
+    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
+      return { success: false, message: denyCompanyWhatsappUseMessage(session2) };
+    }
+    const to = lead.phone ? normalizeWhatsAppDigits(lead.phone) : null;
+    if (!to) {
+      return { success: false, message: "Este lead no tiene un tel\xE9fono v\xE1lido" };
+    }
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: effectiveCompanyId },
+      query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted"
+    });
+    if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
+      return { success: false, message: "WhatsApp no est\xE1 conectado para esta empresa" };
+    }
+    try {
+      const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
+      const result = await sendWhatsAppTextMessage({
+        phoneNumberId: company.whatsappPhoneNumberId,
+        accessToken,
+        to,
+        body: trimmedBody
+      });
+      await context.sudo().query.TechWhatsAppMessage.createOne({
+        data: {
+          company: { connect: { id: effectiveCompanyId } },
+          businessLead: { connect: { id: businessLeadId } },
+          direction: "outbound",
+          waMessageId: result.id,
+          toPhone: to,
+          body: trimmedBody,
+          status: "sent",
+          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+        }
+      });
+      return { success: true, message: "Mensaje enviado", messageId: result.id };
+    } catch (err) {
+      const graphCode = err?.graphCode;
+      const isOutsideWindow = graphCode === 131047;
+      await context.sudo().query.TechWhatsAppMessage.createOne({
+        data: {
+          company: { connect: { id: effectiveCompanyId } },
+          businessLead: { connect: { id: businessLeadId } },
+          direction: "outbound",
+          toPhone: to,
+          body: trimmedBody,
+          status: "failed",
+          errorMessage: err instanceof Error ? err.message : "Error desconocido",
+          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+        }
+      });
+      return {
+        success: false,
+        message: isOutsideWindow ? "Han pasado m\xE1s de 24h desde el \xFAltimo mensaje del lead. Se necesita una plantilla aprobada (no soportado todav\xEDa)." : err instanceof Error ? err.message : "Error al enviar el mensaje"
+      };
+    }
+  }
+};
+var sendWhatsAppMessage_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+
+// utils/whatsapp/parseChatExport.ts
+var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
+var ANDROID_LINE = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\s*[-–]\s*([^:]+):\s?(.*)$/;
+function parseTimeParts(raw) {
+  const trimmed = raw.trim();
+  const isPM = /[Pp]\.?\s?[Mm]\.?$/.test(trimmed);
+  const isAM = /[Aa]\.?\s?[Mm]\.?$/.test(trimmed);
+  const numeric = trimmed.replace(/[AaPp]\.?\s?[Mm]\.?$/, "").trim();
+  const parts = numeric.split(":").map((p) => parseInt(p, 10));
+  let hour = parts[0] || 0;
+  const minute = parts[1] || 0;
+  const second = parts[2] || 0;
+  if (isPM && hour < 12) hour += 12;
+  if (isAM && hour === 12) hour = 0;
+  return { hour, minute, second };
+}
+function resolveDayMonth(d1, d2) {
+  if (d2 > 12 && d1 <= 12) return { day: d2, month: d1 };
+  return { day: d1, month: d2 };
+}
+function buildDate(d1, d2, yearRaw, timeRaw) {
+  const year = yearRaw.length === 2 ? 2e3 + parseInt(yearRaw, 10) : parseInt(yearRaw, 10);
+  const { day, month } = resolveDayMonth(parseInt(d1, 10), parseInt(d2, 10));
+  const { hour, minute, second } = parseTimeParts(timeRaw);
+  return new Date(year, month - 1, day, hour, minute, second);
+}
+function parseWhatsAppChatExport(text60) {
+  const lines = text60.split(/\r?\n/);
+  const messages = [];
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/^‎/, "");
+    if (!line.trim()) continue;
+    const iosMatch = line.match(IOS_LINE);
+    const androidMatch = !iosMatch ? line.match(ANDROID_LINE) : null;
+    const match = iosMatch || androidMatch;
+    if (match) {
+      const [, d1, d2, year, time, senderRaw, bodyRaw] = match;
+      messages.push({
+        timestamp: buildDate(d1, d2, year, time),
+        sender: senderRaw.trim(),
+        body: bodyRaw.trim()
+      });
+      continue;
+    }
+    const last = messages[messages.length - 1];
+    if (last) {
+      last.body = `${last.body}
+${line}`.trim();
+    }
+  }
+  return messages;
+}
+function distinctSenders(messages) {
+  const seen = /* @__PURE__ */ new Set();
+  const result = [];
+  for (const msg of messages) {
+    if (!seen.has(msg.sender)) {
+      seen.add(msg.sender);
+      result.push(msg.sender);
+    }
+  }
+  return result;
+}
+
+// graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
+var DEDUPE_LOOKBACK = 5e3;
+var typeDefs34 = `
+  type ImportWhatsAppChatExportResult {
+    success: Boolean!
+    message: String!
+    imported: Int!
+    skippedDuplicates: Int!
+  }
+
+  type Mutation {
+    importWhatsAppChatExport(
+      businessLeadId: ID!
+      fileName: String
+      content: String!
+      leadSenderName: String
+    ): ImportWhatsAppChatExportResult!
+  }
+`;
+var definition31 = `
+  importWhatsAppChatExport(
+    businessLeadId: ID!
+    fileName: String
+    content: String!
+    leadSenderName: String
+  ): ImportWhatsAppChatExportResult!
+`;
+function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
+  return { success, message, imported, skippedDuplicates };
+}
+var resolver31 = {
+  importWhatsAppChatExport: async (_root, {
+    businessLeadId,
+    content,
+    leadSenderName
+  }, context) => {
+    const session2 = context.session;
+    const companyId = getSessionCompanyId(session2);
+    const lead = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: businessLeadId },
+      query: "id saasCompany { id }"
+    });
+    if (!lead) {
+      return toResult6(false, "No se encontr\xF3 el lead");
+    }
+    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
+    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
+    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
+      return toResult6(false, denyCompanyWhatsappUseMessage(session2));
+    }
+    let parsed;
+    try {
+      parsed = parseWhatsAppChatExport(content);
+    } catch (err) {
+      return toResult6(false, err instanceof Error ? err.message : "No se pudo leer el archivo");
+    }
+    if (parsed.length === 0) {
+      return toResult6(false, "No se reconoci\xF3 ning\xFAn mensaje en el archivo");
+    }
+    const existing = await context.sudo().query.TechWhatsAppMessage.findMany({
+      where: {
+        businessLead: { id: { equals: businessLeadId } },
+        source: { equals: "imported" }
+      },
+      query: "createdAt body",
+      take: DEDUPE_LOOKBACK
+    });
+    const existingKeys = new Set(
+      existing.map((m) => `${new Date(m.createdAt).getTime()}|${m.body}`)
+    );
+    const normalizedLeadSender = leadSenderName?.trim() || null;
+    const rows = parsed.map((msg) => ({
+      key: `${msg.timestamp.getTime()}|${msg.body}`,
+      msg
+    })).filter(({ key }) => !existingKeys.has(key));
+    const skippedDuplicates = parsed.length - rows.length;
+    if (rows.length === 0) {
+      return toResult6(true, "No hay mensajes nuevos que importar (ya se hab\xEDan importado)", 0, skippedDuplicates);
+    }
+    const data = rows.map(({ msg }) => {
+      const direction = !normalizedLeadSender ? "unknown" : msg.sender === normalizedLeadSender ? "inbound" : "outbound";
+      return {
+        companyId: effectiveCompanyId,
+        businessLeadId,
+        direction,
+        source: "imported",
+        senderLabel: direction === "unknown" ? msg.sender : null,
+        body: msg.body,
+        status: direction === "outbound" ? "sent" : "received",
+        createdAt: msg.timestamp
+      };
+    });
+    try {
+      await context.sudo().prisma.techWhatsAppMessage.createMany({ data });
+    } catch (err) {
+      return toResult6(
+        false,
+        err instanceof Error ? err.message : "No se pudo guardar el historial importado"
+      );
+    }
+    return toResult6(
+      true,
+      `${data.length} mensajes importados${skippedDuplicates ? `, ${skippedDuplicates} ya exist\xEDan` : ""}`,
+      data.length,
+      skippedDuplicates
+    );
+  }
+};
+var importWhatsAppChatExport_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -18388,6 +19162,10 @@ var customMutation = {
     ${unsubscribeBlog_default.typeDefs}
     ${publishScheduledPosts_default.typeDefs}
     ${upsertDraftSystemRelease_default.typeDefs}
+    ${updateCompanyWhatsappSettings_default.typeDefs}
+    ${testCompanyWhatsappConnection_default.typeDefs}
+    ${sendWhatsAppMessage_default.typeDefs}
+    ${importWhatsAppChatExport_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -18415,6 +19193,10 @@ var customMutation = {
     ${unsubscribeBlog_default.definition}
     ${publishScheduledPosts_default.definition}
     ${upsertDraftSystemRelease_default.definition}
+    ${updateCompanyWhatsappSettings_default.definition}
+    ${testCompanyWhatsappConnection_default.definition}
+    ${sendWhatsAppMessage_default.definition}
+    ${importWhatsAppChatExport_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -18441,7 +19223,11 @@ var customMutation = {
     ...veterinary_default.resolver,
     ...unsubscribeBlog_default.resolver,
     ...publishScheduledPosts_default.resolver,
-    ...upsertDraftSystemRelease_default.resolver
+    ...upsertDraftSystemRelease_default.resolver,
+    ...updateCompanyWhatsappSettings_default.resolver,
+    ...testCompanyWhatsappConnection_default.resolver,
+    ...sendWhatsAppMessage_default.resolver,
+    ...importWhatsAppChatExport_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -18452,7 +19238,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs31 = `
+var typeDefs35 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -18511,7 +19297,7 @@ var typeDefs31 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition28 = `
+var definition32 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -18561,7 +19347,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver28 = {
+var resolver32 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -18724,7 +19510,7 @@ var resolver28 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var nearbyAnimals_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -19037,7 +19823,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs32 = `
+var typeDefs36 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -19097,10 +19883,10 @@ var typeDefs32 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition29 = `
+var definition33 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver29 = {
+var resolver33 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -19182,10 +19968,10 @@ var resolver29 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs33 = `
+var typeDefs37 = `
   type StripeCard {
     brand: String
     country: String
@@ -19219,10 +20005,10 @@ var typeDefs33 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition30 = `
+var definition34 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver30 = {
+var resolver34 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -19258,7 +20044,7 @@ var resolver30 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var stripePaymentMethods_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -19311,7 +20097,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs34 = `
+var typeDefs38 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -19339,10 +20125,10 @@ var typeDefs34 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition31 = `
+var definition35 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver31 = {
+var resolver35 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -19469,7 +20255,59 @@ var resolver31 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var subscriptionStatus_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+
+// graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
+var MAX_SENDERS_FOR_1TO1 = 5;
+var typeDefs39 = `
+  type PreviewWhatsAppChatExportResult {
+    success: Boolean!
+    message: String!
+    messageCount: Int!
+    senderNames: [String!]!
+  }
+
+  type Query {
+    previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
+  }
+`;
+var definition36 = `
+  previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
+`;
+var resolver36 = {
+  previewWhatsAppChatExport: async (_root, { content }, context) => {
+    if (!isSignedIn(context.session)) {
+      return {
+        success: false,
+        message: "Debes iniciar sesi\xF3n",
+        messageCount: 0,
+        senderNames: []
+      };
+    }
+    try {
+      const parsed = parseWhatsAppChatExport(content);
+      const senderNames = distinctSenders(parsed);
+      if (parsed.length === 0) {
+        return {
+          success: false,
+          message: "No se reconoci\xF3 ning\xFAn mensaje en el archivo. \xBFEs un .txt exportado de WhatsApp?",
+          messageCount: 0,
+          senderNames: []
+        };
+      }
+      const message = senderNames.length > MAX_SENDERS_FOR_1TO1 ? `Se detectaron ${senderNames.length} remitentes distintos \u2014 probablemente no es un chat 1 a 1.` : `${parsed.length} mensajes detectados.`;
+      return { success: true, message, messageCount: parsed.length, senderNames };
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "No se pudo leer el archivo",
+        messageCount: 0,
+        senderNames: []
+      };
+    }
+  }
+};
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -19478,6 +20316,7 @@ var customQuery = {
     ${nearbyPetPlaces_default.typeDefs}
     ${stripePaymentMethods_default.typeDefs}
     ${subscriptionStatus_default.typeDefs}
+    ${previewWhatsAppChatExport_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -19487,6 +20326,7 @@ var customQuery = {
     ${dailyDigest_default.queryDefinition}
     ${companyBrief_default.queryDefinition}
     ${generateMarketInsight_default.queryDefinition}
+    ${previewWhatsAppChatExport_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -19495,7 +20335,8 @@ var customQuery = {
     ...subscriptionStatus_default.resolver,
     ...dailyDigest_default.queryResolver,
     ...companyBrief_default.queryResolver,
-    ...generateMarketInsight_default.queryResolver
+    ...generateMarketInsight_default.queryResolver,
+    ...previewWhatsAppChatExport_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -19540,6 +20381,111 @@ function extendGraphqlSchema(baseSchema) {
       ...mutations_default.extraResolvers ?? {}
     }
   });
+}
+
+// webhooks/whatsapp.ts
+var import_express = __toESM(require("express"));
+var WEBHOOK_PATH = "/webhooks/whatsapp";
+function last10Digits(digits) {
+  return digits.slice(-10);
+}
+function extractMessageBody(msg) {
+  if (msg.type === "text" && msg.text?.body) return msg.text.body;
+  return msg.type ? `[${msg.type}, no soportado todav\xEDa]` : "";
+}
+function handleVerify(req, res) {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+  const expected = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
+  if (mode === "subscribe" && expected && token === expected) {
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
+}
+async function persistIncomingMessages(companyId, messages, context) {
+  for (const msg of messages) {
+    if (!msg.id) continue;
+    const existing = await context.sudo().db.TechWhatsAppMessage.findOne({
+      where: { waMessageId: msg.id }
+    });
+    if (existing) continue;
+    const fromDigits = (msg.from || "").replace(/\D/g, "");
+    let businessLeadId = null;
+    if (fromDigits) {
+      const candidates = await context.sudo().query.TechBusinessLead.findMany({
+        where: {
+          saasCompany: { some: { id: { equals: companyId } } },
+          phone: { contains: last10Digits(fromDigits) }
+        },
+        query: "id",
+        take: 1
+      });
+      businessLeadId = candidates[0]?.id ?? null;
+    }
+    await context.sudo().db.TechWhatsAppMessage.createOne({
+      data: {
+        company: { connect: { id: companyId } },
+        ...businessLeadId ? { businessLead: { connect: { id: businessLeadId } } } : {},
+        direction: "inbound",
+        waMessageId: msg.id,
+        fromPhone: msg.from || null,
+        body: extractMessageBody(msg),
+        status: "received"
+      }
+    });
+  }
+}
+async function handleIncoming(req, res, context) {
+  res.sendStatus(200);
+  try {
+    const rawBody = req.body;
+    let payload;
+    try {
+      payload = JSON.parse(rawBody.toString("utf8"));
+    } catch {
+      return;
+    }
+    const value = payload.entry?.[0]?.changes?.[0]?.value;
+    const phoneNumberId = value?.metadata?.phone_number_id;
+    const messages = value?.messages ?? [];
+    if (!phoneNumberId || messages.length === 0) return;
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { whatsappPhoneNumberId: phoneNumberId },
+      query: "id whatsappAppSecretEncrypted"
+    });
+    if (!company?.whatsappAppSecretEncrypted) {
+      console.warn(
+        `[whatsapp webhook] phone_number_id "${phoneNumberId}" no est\xE1 conectado a ninguna empresa`
+      );
+      return;
+    }
+    const appSecret = decrypt(company.whatsappAppSecretEncrypted);
+    const signatureHeader = req.header("x-hub-signature-256");
+    const validSignature = verifyWhatsAppSignature({
+      appSecret,
+      rawBody,
+      signatureHeader
+    });
+    if (!validSignature) {
+      console.error(
+        `[whatsapp webhook] firma inv\xE1lida para la empresa "${company.id}", se descarta el payload`
+      );
+      return;
+    }
+    await persistIncomingMessages(company.id, messages, context);
+  } catch (err) {
+    console.error("[whatsapp webhook] error procesando el payload:", err);
+  }
+}
+function registerWhatsAppWebhook(app, context) {
+  app.get(WEBHOOK_PATH, handleVerify);
+  app.post(
+    WEBHOOK_PATH,
+    import_express.default.raw({ type: "application/json" }),
+    (req, res) => handleIncoming(req, res, context)
+  );
 }
 
 // keystone.ts
@@ -19676,7 +20622,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core70.config)({
+  (0, import_core71.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
@@ -19688,11 +20634,17 @@ var keystone_default = withAuth(
     server: {
       cors: true,
       maxFileSize: 200 * 1024 * 1024,
-      port: Number(process.env.LOCAL_PORT) || 3001
+      port: Number(process.env.LOCAL_PORT) || 3001,
+      extendExpressApp: (app, context) => {
+        registerWhatsAppWebhook(app, context);
+      }
     },
     storage,
     graphql: {
-      extendGraphqlSchema
+      extendGraphqlSchema,
+      // Default de body-parser es 100kb — insuficiente para el .txt de historial de WhatsApp
+      // mandado como variable de la mutación importWhatsAppChatExport.
+      bodyParser: { limit: "15mb" }
     },
     lists: schema_default,
     session
