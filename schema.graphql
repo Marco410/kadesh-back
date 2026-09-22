@@ -2182,6 +2182,7 @@ type Post {
   image: ImageFieldOutput
   published: Boolean
   publishedAt: DateTime
+  publishedNotifiedAt: DateTime
   category: Category
   tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
   tagsCount(where: TagWhereInput! = {}): Int
@@ -2218,6 +2219,7 @@ input PostWhereInput {
   excerpt: StringFilter
   published: BooleanFilter
   publishedAt: DateTimeNullableFilter
+  publishedNotifiedAt: DateTimeNullableFilter
   category: CategoryWhereInput
   tags: TagManyRelationFilter
   author: UserWhereInput
@@ -2267,6 +2269,7 @@ input PostOrderByInput {
   excerpt: OrderDirection
   published: OrderDirection
   publishedAt: OrderDirection
+  publishedNotifiedAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2280,6 +2283,7 @@ input PostUpdateInput {
   image: ImageFieldInput
   published: Boolean
   publishedAt: DateTime
+  publishedNotifiedAt: DateTime
   category: CategoryRelateToOneForUpdateInput
   tags: TagRelateToManyForUpdateInput
   author: UserRelateToOneForUpdateInput
@@ -2346,6 +2350,7 @@ input PostCreateInput {
   image: ImageFieldInput
   published: Boolean
   publishedAt: DateTime
+  publishedNotifiedAt: DateTime
   category: CategoryRelateToOneForCreateInput
   tags: TagRelateToManyForCreateInput
   author: UserRelateToOneForCreateInput
@@ -7693,6 +7698,7 @@ type Mutation {
   promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
+  publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -8552,6 +8558,12 @@ type CreateClinicAppointmentResult {
 type UnsubscribeBlogResult {
   success: Boolean!
   message: String!
+}
+
+type PublishScheduledPostsResult {
+  success: Boolean!
+  message: String!
+  checked: Int!
 }
 
 type AnimalMultimediaImage {
