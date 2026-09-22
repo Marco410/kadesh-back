@@ -1,6 +1,6 @@
 name: Publish scheduled blog posts
 
-# Dispara `publishScheduledPosts` (models/Blog/Post/Post.hooks.ts) cada 30 min para mandar el
+# Dispara `publishScheduledPosts` (models/Blog/Post/Post.hooks.ts) cada hora para mandar el
 # correo de "nuevo post" cuando un post programado (publishedAt a futuro) llega a su fecha y
 # nadie lo vuelve a abrir en el admin. La VISIBILIDAD del post no depende de esto — los fronts
 # ya filtran por fecha en cada lectura (ver models/README.md, decisión 2026-09-22).
@@ -14,7 +14,7 @@ name: Publish scheduled blog posts
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch: {}
 
 jobs:
@@ -38,10 +38,20 @@ jobs:
             variables: { secret: $secret }
           }')
 
-          response=$(curl -sS -f -X POST "$KADESH_API_URL" \
+          # Sin -f: así curl no se traga el body ni el motivo real en un error (protocolo,
+          # DNS, HTTP 4xx/5xx...). Se captura el status y el body por separado y se imprimen
+          # siempre, para poder diagnosticar desde el log en vez de adivinar por el exit code.
+          http_status=$(curl -sS -o response.json -w "%{http_code}" -X POST "$KADESH_API_URL" \
             -H "Content-Type: application/json" \
             -d "$payload")
 
-          echo "$response" | jq .
+          echo "HTTP status: $http_status"
+          echo "Respuesta:"
+          cat response.json | jq . 2>/dev/null || cat response.json
 
-          echo "$response" | jq -e '.data.publishScheduledPosts.success == true' > /dev/null
+          if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+            echo "::error::KADESH_API_URL respondió HTTP $http_status. Revisa que sea la URL GraphQL real de Railway (con https:// y sin el placeholder <tu-dominio>) y que el servicio tenga dominio público habilitado."
+            exit 1
+          fi
+
+          jq -e '.data.publishScheduledPosts.success == true' response.json > /dev/null
