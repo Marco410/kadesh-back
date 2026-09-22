@@ -1,10 +1,20 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { sendNewPostEmail } from "../../../utils/helpers/sendgrid";
 import { PRODUCT, type Product } from "../../../utils/constants/product";
+import { POST_CATEGORIES } from "../../../utils/constants/constants";
 
 /** Suscriptores que reciben un post: los de su producto, o los dos si el post es `all`. */
 function subscriberProductsFor(product: Product): string[] {
   return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
+}
+
+/** `Category.name` es un `select`: la API regresa el `value` (ej. "product_updates"), no el label. */
+function categoryLabelFor(categoryName: string | null | undefined): string | null {
+  if (!categoryName) return null;
+  return (
+    POST_CATEGORIES.find((category) => category.value === categoryName)?.label ??
+    categoryName
+  );
 }
 
 /** URL del front de cada producto. `FRONTEND_URL` se mantiene como fallback de Pet. */
@@ -211,9 +221,10 @@ export const newPostEmailHook = {
             postUrl: `${frontendUrlFor(product)}/blog/${post.url || post.id}`,
             postExcerpt: post.excerpt,
             authorName,
-            categoryName: post.category?.name || null,
+            categoryName: categoryLabelFor(post.category?.name),
             recipientEmails,
             brand: product === PRODUCT.SAAS ? 'saas' : 'pet',
+            unsubscribeBaseUrl: `${frontendUrlFor(product)}/blog/desuscribirse`,
           });
           sent += recipientEmails.length;
         }
