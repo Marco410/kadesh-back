@@ -22,6 +22,7 @@ import fetchInegiIndicator from "./inegi/fetchInegiIndicator";
 import veterinaryMutations from "./pet/veterinary";
 import unsubscribeBlog from "./unsubscribeBlog";
 import publishScheduledPosts from "./publishScheduledPosts";
+import upsertDraftSystemRelease from "./upsertDraftSystemRelease";
 
 const customMutation = {
   typeDefs: `
@@ -49,6 +50,7 @@ const customMutation = {
     ${veterinaryMutations.typeDefs}
     ${unsubscribeBlog.typeDefs}
     ${publishScheduledPosts.typeDefs}
+    ${upsertDraftSystemRelease.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -75,6 +77,7 @@ const customMutation = {
     ${veterinaryMutations.definition}
     ${unsubscribeBlog.definition}
     ${publishScheduledPosts.definition}
+    ${upsertDraftSystemRelease.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -101,6 +104,7 @@ const customMutation = {
     ...veterinaryMutations.resolver,
     ...unsubscribeBlog.resolver,
     ...publishScheduledPosts.resolver,
+    ...upsertDraftSystemRelease.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {

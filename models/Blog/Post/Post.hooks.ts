@@ -1,5 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { sendNewPostEmail } from "../../../utils/helpers/sendgrid";
+import { postToFacebookPage } from "../../../utils/intregrations/facebook";
 import { PRODUCT, type Product } from "../../../utils/constants/product";
 import { POST_CATEGORIES } from "../../../utils/constants/constants";
 
@@ -150,27 +151,32 @@ export const publishedAtHook = {
 };
 
 /**
- * Ventana de gracia para el correo de "nuevo post": solo se manda si `publishedAt` venció hace
- * menos de esto. Evita que, al agregar `publishedNotifiedAt` (nace en `null` para todo lo que
- * ya existía), reabrir/editar un post viejo ya publicado —o el cron de `publishScheduledPosts`—
- * dispare un correo masivo para contenido de hace meses. No requiere backfill de datos.
+ * Ventana de gracia para los efectos secundarios de "post publicado" (correo, Facebook): solo
+ * se disparan si `publishedAt` venció hace menos de esto. Evita que, al agregar un flag nuevo
+ * (nace en `null` para todo lo que ya existía), reabrir/editar un post viejo ya publicado —o el
+ * cron de `publishScheduledPosts`— dispare un correo/post masivo para contenido de hace meses.
+ * No requiere backfill de datos.
  */
 const NOTIFY_GRACE_MS = 3 * 24 * 60 * 60 * 1000; // 3 días
+
+function isRecentlyDue(publishedAt: string | Date | null | undefined): boolean {
+  if (!publishedAt) return false;
+  const publishedAtMs = new Date(publishedAt).getTime();
+  const elapsedMs = Date.now() - publishedAtMs;
+  return elapsedMs >= 0 && elapsedMs <= NOTIFY_GRACE_MS;
+}
 
 type NotifiablePost = {
   id: string;
   published?: boolean | null;
   publishedAt?: string | Date | null;
   publishedNotifiedAt?: string | Date | null;
+  publishedToFacebookAt?: string | Date | null;
 };
 
 function isPendingNotification(post: NotifiablePost): boolean {
   if (post.published !== true || post.publishedNotifiedAt) return false;
-  if (!post.publishedAt) return false;
-
-  const publishedAtMs = new Date(post.publishedAt).getTime();
-  const elapsedMs = Date.now() - publishedAtMs;
-  return elapsedMs >= 0 && elapsedMs <= NOTIFY_GRACE_MS;
+  return isRecentlyDue(post.publishedAt);
 }
 
 /**
@@ -186,10 +192,13 @@ export async function notifyNewPostIfDue(
 
   try {
     // Se marca antes de intentar el envío para no reintentar (ni duplicar) en el próximo
-    // guardado o corrida de cron si el envío falla a medio camino.
-    await context.sudo().db.Post.updateOne({
+    // guardado o corrida de cron si el envío falla a medio camino. `context.prisma` (no
+    // `context.db`/`context.query`) porque estos sí vuelven a disparar `afterOperation` — con
+    // dos flags independientes (correo y Facebook) eso puede procesar el otro flag con datos
+    // viejos desde el código que sigue más abajo. `context.prisma` no pasa por los hooks.
+    await context.sudo().prisma.post.update({
       where: { id: post.id },
-      data: { publishedNotifiedAt: new Date().toISOString() },
+      data: { publishedNotifiedAt: new Date() },
     });
 
     // Get full post data with relationships
@@ -276,12 +285,81 @@ export async function notifyNewPostIfDue(
   }
 }
 
+function isPendingFacebookPost(post: NotifiablePost): boolean {
+  if (post.published !== true || post.publishedToFacebookAt) return false;
+  return isRecentlyDue(post.publishedAt);
+}
+
+/** A qué Página(s) de Facebook le toca un post, según su `product`. `all` va a las dos. */
+function facebookProductsFor(product: Product): Product[] {
+  return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
+}
+
 /**
- * Hook: intenta notificar cada vez que un post se crea o se edita. Cubre el caso normal
- * (publicar de inmediato) y el caso en que alguien reabre y guarda un post programado después
- * de su fecha. El cron `publishScheduledPosts` cubre el caso en que nadie lo vuelve a tocar.
+ * Publica `post` en la(s) Página(s) de Facebook que le tocan (ver `isPendingFacebookPost`), y
+ * marca `publishedToFacebookAt` para no duplicar. Mismo trade-off que el correo: se marca antes
+ * de intentar, así que un fallo (ej. token vencido) no reintenta solo — un admin puede vaciar
+ * `publishedToFacebookAt` desde el Admin UI para forzar un reintento tras arreglar la causa.
  */
-export const newPostEmailHook = {
+export async function publishPostToFacebookIfDue(
+  post: NotifiablePost,
+  context: KeystoneContext,
+): Promise<void> {
+  if (!isPendingFacebookPost(post)) return;
+
+  try {
+    // Ver el comentario equivalente en notifyNewPostIfDue: `context.prisma` evita que esta
+    // escritura vuelva a disparar `afterOperation` (y con él, este mismo guard) en cascada.
+    await context.sudo().prisma.post.update({
+      where: { id: post.id },
+      data: { publishedToFacebookAt: new Date() },
+    });
+
+    const fullPost = await context.sudo().query.Post.findOne({
+      where: { id: post.id },
+      query: `
+        id
+        title
+        url
+        excerpt
+        product
+      `,
+    });
+
+    if (!fullPost) {
+      return;
+    }
+
+    const postProduct = (fullPost.product || PRODUCT.PET) as Product;
+    const message = fullPost.excerpt
+      ? `${fullPost.title}\n\n${fullPost.excerpt}`
+      : fullPost.title;
+
+    for (const product of facebookProductsFor(postProduct)) {
+      const link = `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`;
+      try {
+        const result = await postToFacebookPage({ product, message, link });
+        if (result) {
+          console.log(`[facebook] Post publicado en la Página de "${product}": ${result.id}`);
+        }
+      } catch (error) {
+        // Un fallo en una Página (ej. token vencido) no debe impedir intentar la otra.
+        console.error(`[facebook] Error publicando en la Página de "${product}":`, error);
+      }
+    }
+  } catch (error) {
+    console.error('[facebook] Error al preparar la publicación:', error);
+    // Don't throw error to prevent post creation from failing
+  }
+}
+
+/**
+ * Hook: intenta el correo y la publicación en Facebook cada vez que un post se crea o se edita.
+ * Cubre el caso normal (publicar de inmediato) y el caso en que alguien reabre y guarda un post
+ * programado después de su fecha. El cron `publishScheduledPosts` cubre el caso en que nadie
+ * vuelve a tocarlo.
+ */
+export const postPublishSideEffectsHook = {
   afterOperation: async ({
     operation,
     item,
@@ -293,6 +371,7 @@ export const newPostEmailHook = {
   }) => {
     if (operation === 'create' || operation === 'update') {
       await notifyNewPostIfDue(item, context);
+      await publishPostToFacebookIfDue(item, context);
     }
   },
 };

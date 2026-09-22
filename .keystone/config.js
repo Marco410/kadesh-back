@@ -3628,6 +3628,57 @@ var Ad_default = (0, import_core27.list)({
 var import_core28 = require("@keystone-6/core");
 var import_fields28 = require("@keystone-6/core/fields");
 
+// utils/intregrations/facebook.ts
+var GRAPH_API_VERSION = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
+function facebookPageEnv(product) {
+  if (product === PRODUCT.SAAS) {
+    return {
+      pageId: process.env.FACEBOOK_SAAS_PAGE_ID?.trim(),
+      accessToken: process.env.FACEBOOK_SAAS_PAGE_ACCESS_TOKEN?.trim()
+    };
+  }
+  return {
+    pageId: process.env.FACEBOOK_PET_PAGE_ID?.trim(),
+    accessToken: process.env.FACEBOOK_PET_PAGE_ACCESS_TOKEN?.trim()
+  };
+}
+async function postToFacebookPage({
+  product,
+  message,
+  link
+}) {
+  const { pageId, accessToken } = facebookPageEnv(product);
+  if (!pageId || !accessToken) {
+    console.warn(
+      `[facebook] P\xE1gina de "${product}" no configurada (FACEBOOK_${product.toUpperCase()}_PAGE_ID / _ACCESS_TOKEN). Post no publicado.`
+    );
+    return void 0;
+  }
+  const body = new URLSearchParams({ message, link, access_token: accessToken });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageId}/feed`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    }
+  );
+  const bodyText = await response.text();
+  let parsed = null;
+  if (bodyText) {
+    try {
+      parsed = JSON.parse(bodyText);
+    } catch {
+      parsed = null;
+    }
+  }
+  if (!response.ok || !parsed?.id) {
+    const detail = parsed?.error?.message || bodyText || `HTTP ${response.status}`;
+    throw new Error(`[facebook] Graph API error (${product}): ${detail}`);
+  }
+  return { id: parsed.id };
+}
+
 // models/Blog/Post/Post.hooks.ts
 function subscriberProductsFor(product) {
   return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
@@ -3715,19 +3766,22 @@ var publishedAtHook = {
   }
 };
 var NOTIFY_GRACE_MS = 3 * 24 * 60 * 60 * 1e3;
-function isPendingNotification(post) {
-  if (post.published !== true || post.publishedNotifiedAt) return false;
-  if (!post.publishedAt) return false;
-  const publishedAtMs = new Date(post.publishedAt).getTime();
+function isRecentlyDue(publishedAt) {
+  if (!publishedAt) return false;
+  const publishedAtMs = new Date(publishedAt).getTime();
   const elapsedMs = Date.now() - publishedAtMs;
   return elapsedMs >= 0 && elapsedMs <= NOTIFY_GRACE_MS;
+}
+function isPendingNotification(post) {
+  if (post.published !== true || post.publishedNotifiedAt) return false;
+  return isRecentlyDue(post.publishedAt);
 }
 async function notifyNewPostIfDue(post, context) {
   if (!isPendingNotification(post)) return;
   try {
-    await context.sudo().db.Post.updateOne({
+    await context.sudo().prisma.post.update({
       where: { id: post.id },
-      data: { publishedNotifiedAt: (/* @__PURE__ */ new Date()).toISOString() }
+      data: { publishedNotifiedAt: /* @__PURE__ */ new Date() }
     });
     const fullPost = await context.sudo().query.Post.findOne({
       where: { id: post.id },
@@ -3793,7 +3847,53 @@ async function notifyNewPostIfDue(post, context) {
     console.error("Error sending new post email:", error);
   }
 }
-var newPostEmailHook = {
+function isPendingFacebookPost(post) {
+  if (post.published !== true || post.publishedToFacebookAt) return false;
+  return isRecentlyDue(post.publishedAt);
+}
+function facebookProductsFor(product) {
+  return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
+}
+async function publishPostToFacebookIfDue(post, context) {
+  if (!isPendingFacebookPost(post)) return;
+  try {
+    await context.sudo().prisma.post.update({
+      where: { id: post.id },
+      data: { publishedToFacebookAt: /* @__PURE__ */ new Date() }
+    });
+    const fullPost = await context.sudo().query.Post.findOne({
+      where: { id: post.id },
+      query: `
+        id
+        title
+        url
+        excerpt
+        product
+      `
+    });
+    if (!fullPost) {
+      return;
+    }
+    const postProduct = fullPost.product || PRODUCT.PET;
+    const message = fullPost.excerpt ? `${fullPost.title}
+
+${fullPost.excerpt}` : fullPost.title;
+    for (const product of facebookProductsFor(postProduct)) {
+      const link = `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`;
+      try {
+        const result = await postToFacebookPage({ product, message, link });
+        if (result) {
+          console.log(`[facebook] Post publicado en la P\xE1gina de "${product}": ${result.id}`);
+        }
+      } catch (error) {
+        console.error(`[facebook] Error publicando en la P\xE1gina de "${product}":`, error);
+      }
+    }
+  } catch (error) {
+    console.error("[facebook] Error al preparar la publicaci\xF3n:", error);
+  }
+}
+var postPublishSideEffectsHook = {
   afterOperation: async ({
     operation,
     item,
@@ -3801,6 +3901,7 @@ var newPostEmailHook = {
   }) => {
     if (operation === "create" || operation === "update") {
       await notifyNewPostIfDue(item, context);
+      await publishPostToFacebookIfDue(item, context);
     }
   }
 };
@@ -3812,7 +3913,7 @@ var Post_default = (0, import_core28.list)({
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
     validateInput: postCategoryProductHook.validateInput,
-    afterOperation: newPostEmailHook.afterOperation
+    afterOperation: postPublishSideEffectsHook.afterOperation
   },
   ui: {
     listView: {
@@ -3870,6 +3971,14 @@ var Post_default = (0, import_core28.list)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
+      }
+    }),
+    /** Cuándo se publicó en la Página de Facebook. Editable: vaciarlo fuerza un reintento. */
+    publishedToFacebookAt: (0, import_fields28.timestamp)({
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "edit" },
+        description: "Se llena solo al publicarse en Facebook. B\xF3rralo para forzar un reintento (ej. despu\xE9s de renovar un token vencido)."
       }
     }),
     category: (0, import_fields28.relationship)({
@@ -18117,9 +18226,10 @@ var resolver26 = {
    *
    * La visibilidad de un post programado (`publishedAt` a futuro) ya funciona sola —los fronts
    * filtran por fecha en cada lectura, sin cron—. Lo único que este mutation resuelve es que el
-   * correo de "nuevo post" salga cerca de la fecha programada aunque nadie vuelva a abrir el
-   * post en el admin. Reusa `notifyNewPostIfDue`, la misma función que dispara el hook al
-   * crear/editar, así que nunca duplica un envío ya hecho.
+   * correo de "nuevo post" y la publicación en Facebook salgan cerca de la fecha programada
+   * aunque nadie vuelva a abrir el post en el admin. Reusa `notifyNewPostIfDue` y
+   * `publishPostToFacebookIfDue`, las mismas funciones que dispara el hook al crear/editar —
+   * cada una re-chequea su propio flag, así que nunca duplica un envío/post ya hecho.
    */
   publishScheduledPosts: async (_root, { secret }, context) => {
     const expected = process.env.CRON_SECRET?.trim();
@@ -18132,11 +18242,15 @@ var resolver26 = {
         where: {
           published: { equals: true },
           publishedAt: { lte: now },
-          publishedNotifiedAt: { equals: null }
+          OR: [
+            { publishedNotifiedAt: { equals: null } },
+            { publishedToFacebookAt: { equals: null } }
+          ]
         }
       });
       for (const post of duePosts) {
         await notifyNewPostIfDue(post, context);
+        await publishPostToFacebookIfDue(post, context);
       }
       return {
         success: true,
@@ -18154,6 +18268,97 @@ var resolver26 = {
   }
 };
 var publishScheduledPosts_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+
+// graphql/customs/mutations/upsertDraftSystemRelease.ts
+var typeDefs30 = `
+  type UpsertDraftSystemReleaseResult {
+    success: Boolean!
+    message: String!
+    releaseId: ID
+  }
+
+  type Mutation {
+    upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
+  }
+`;
+var definition27 = `
+  upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
+`;
+var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
+var MAX_ENTRY_LENGTH = 300;
+function todayPlaceholderVersion() {
+  const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  return `Borrador ${today}`;
+}
+var resolver27 = {
+  /**
+   * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
+   * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
+   * sesión/rol. Cada push a main de esos repos manda una línea (el mensaje del commit, ya en
+   * lenguaje natural) que se agrega al borrador de novedades sin publicar más reciente de ese
+   * producto, o crea uno nuevo si no hay ninguno. Nunca marca `isPublished: true` — eso lo hace
+   * un admin a mano desde el admin de Keystone, editando también `version` antes de publicar.
+   */
+  upsertDraftSystemRelease: async (_root, { secret, product, entry }, context) => {
+    const expected = process.env.SYSTEM_RELEASE_SECRET?.trim();
+    if (!expected || secret !== expected) {
+      return { success: false, message: "No autorizado.", releaseId: null };
+    }
+    if (!ALLOWED_PRODUCTS.includes(product)) {
+      return {
+        success: false,
+        message: `Producto inv\xE1lido: ${product}.`,
+        releaseId: null
+      };
+    }
+    const cleanEntry = entry.trim().slice(0, MAX_ENTRY_LENGTH);
+    if (!cleanEntry) {
+      return { success: false, message: "La novedad viene vac\xEDa.", releaseId: null };
+    }
+    try {
+      const [draft] = await context.sudo().db.SystemRelease.findMany({
+        where: { product: { equals: product }, isPublished: { equals: false } },
+        orderBy: [{ createdAt: "desc" }],
+        take: 1
+      });
+      if (draft) {
+        const body = draft.body ? `${draft.body}
+- ${cleanEntry}` : `- ${cleanEntry}`;
+        const updated = await context.sudo().db.SystemRelease.updateOne({
+          where: { id: draft.id },
+          data: { body }
+        });
+        return {
+          success: true,
+          message: "Novedad agregada al borrador existente.",
+          releaseId: updated.id
+        };
+      }
+      const created = await context.sudo().db.SystemRelease.createOne({
+        data: {
+          product,
+          version: todayPlaceholderVersion(),
+          body: `- ${cleanEntry}`,
+          releasedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          isPublished: false
+        }
+      });
+      return {
+        success: true,
+        message: "Borrador de novedades creado.",
+        releaseId: created.id
+      };
+    } catch (error) {
+      console.error("Error en upsertDraftSystemRelease:", error);
+      return {
+        success: false,
+        message: "Error al guardar la novedad.",
+        releaseId: null
+      };
+    }
+  }
+};
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -18182,6 +18387,7 @@ var customMutation = {
     ${veterinary_default.typeDefs}
     ${unsubscribeBlog_default.typeDefs}
     ${publishScheduledPosts_default.typeDefs}
+    ${upsertDraftSystemRelease_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -18208,6 +18414,7 @@ var customMutation = {
     ${veterinary_default.definition}
     ${unsubscribeBlog_default.definition}
     ${publishScheduledPosts_default.definition}
+    ${upsertDraftSystemRelease_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -18233,7 +18440,8 @@ var customMutation = {
     ...fetchInegiIndicator_default.resolver,
     ...veterinary_default.resolver,
     ...unsubscribeBlog_default.resolver,
-    ...publishScheduledPosts_default.resolver
+    ...publishScheduledPosts_default.resolver,
+    ...upsertDraftSystemRelease_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -18244,7 +18452,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs30 = `
+var typeDefs31 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -18303,7 +18511,7 @@ var typeDefs30 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition27 = `
+var definition28 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -18353,7 +18561,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver27 = {
+var resolver28 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -18516,7 +18724,7 @@ var resolver27 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
+var nearbyAnimals_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -18829,7 +19037,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs31 = `
+var typeDefs32 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -18889,10 +19097,10 @@ var typeDefs31 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition28 = `
+var definition29 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver28 = {
+var resolver29 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -18974,10 +19182,10 @@ var resolver28 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs32 = `
+var typeDefs33 = `
   type StripeCard {
     brand: String
     country: String
@@ -19011,10 +19219,10 @@ var typeDefs32 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition29 = `
+var definition30 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver29 = {
+var resolver30 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -19050,7 +19258,7 @@ var resolver29 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var stripePaymentMethods_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -19103,7 +19311,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs33 = `
+var typeDefs34 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -19131,10 +19339,10 @@ var typeDefs33 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition30 = `
+var definition31 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver30 = {
+var resolver31 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -19261,7 +19469,7 @@ var resolver30 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var subscriptionStatus_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

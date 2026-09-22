@@ -12,7 +12,7 @@ import { PRODUCT, PRODUCT_OPTIONS } from "../../../utils/constants/product";
 import {
   postUrlHook,
   publishedAtHook,
-  newPostEmailHook,
+  postPublishSideEffectsHook,
   postCategoryProductHook,
 } from "./Post.hooks";
 import { document } from '@keystone-6/fields-document';
@@ -22,7 +22,7 @@ export default list({
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
     validateInput: postCategoryProductHook.validateInput,
-    afterOperation: newPostEmailHook.afterOperation,
+    afterOperation: postPublishSideEffectsHook.afterOperation,
   },
   ui: {
     listView: {
@@ -82,6 +82,15 @@ export default list({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
+      },
+    }),
+    /** Cuándo se publicó en la Página de Facebook. Editable: vaciarlo fuerza un reintento. */
+    publishedToFacebookAt: timestamp({
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "edit" },
+        description:
+          "Se llena solo al publicarse en Facebook. Bórralo para forzar un reintento (ej. después de renovar un token vencido).",
       },
     }),
     category: relationship({
