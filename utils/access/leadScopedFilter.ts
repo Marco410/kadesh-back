@@ -87,3 +87,15 @@ export function statusLeadCompanyScopedWhere(
     ],
   };
 }
+
+/**
+ * TechWhatsAppMessage: mismo criterio que el lead al que pertenece — un vendedor solo ve
+ * mensajes de leads que tiene asignados, igual que ya pasa con `TechStatusBusinessLead`.
+ */
+export function whatsappMessageScopedWhere(
+  session: any,
+): true | false | Record<string, unknown> {
+  const leadWhere = leadCompanyScopedWhere(session);
+  if (leadWhere === true || leadWhere === false) return leadWhere;
+  return { businessLead: leadWhere };
+}

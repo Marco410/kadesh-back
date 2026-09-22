@@ -10,7 +10,11 @@ import {
   integer,
   select,
 } from "@keystone-6/core/fields";
-import { saasCompanyAccess, aiApiKeyPreviewFieldAccess } from "./SaasCompany.access";
+import {
+  saasCompanyAccess,
+  aiApiKeyPreviewFieldAccess,
+  whatsappTokenPreviewFieldAccess,
+} from "./SaasCompany.access";
 import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
 import {
   AI_BILLING_MODE,
@@ -236,6 +240,73 @@ export default list({
         createView: { fieldMode: "hidden" },
         description: "Última vez que se guardó o borró la API key de IA",
       },
+    }),
+    whatsappPhoneNumberId: text({
+      db: { isNullable: true },
+      isIndexed: "unique",
+      ui: {
+        description:
+          "Phone Number ID de WhatsApp Cloud API (Meta). Único por empresa: se usa para enrutar el webhook entrante.",
+      },
+    }),
+    whatsappBusinessAccountId: text({
+      db: { isNullable: true },
+      ui: { description: "WhatsApp Business Account ID (WABA)" },
+    }),
+    whatsappDisplayPhoneNumber: text({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "Número mostrado por Meta (se llena al probar la conexión)",
+      },
+    }),
+    whatsappAccessTokenEncrypted: text({
+      db: { isNullable: true },
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false,
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "Access token cifrado (solo mutaciones custom vía sudo)",
+      },
+    }),
+    whatsappAppSecretEncrypted: text({
+      db: { isNullable: true },
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false,
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description:
+          "App Secret de la App de Meta de esta empresa, cifrado. Verifica la firma del webhook entrante.",
+      },
+    }),
+    whatsappTokenPreview: text({
+      db: { isNullable: true },
+      access: whatsappTokenPreviewFieldAccess,
+      ui: {
+        description: "Vista enmascarada del access token (ej. EAAxyz...wXyz)",
+      },
+    }),
+    whatsappConnectedAt: timestamp({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "Última vez que se conectó o desconectó WhatsApp",
+      },
+    }),
+    whatsappMessages: relationship({
+      ref: "TechWhatsAppMessage.company",
+      many: true,
+      ui: { description: "Historial de mensajes de WhatsApp de esta empresa" },
     }),
     termsQuotation: text({
       db: { isNullable: true },

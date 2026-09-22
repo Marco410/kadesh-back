@@ -2826,6 +2826,15 @@ type SaasCompany {
   aiApiKeyEncrypted: String
   aiApiKeyPreview: String
   aiKeyUpdatedAt: DateTime
+  whatsappPhoneNumberId: String
+  whatsappBusinessAccountId: String
+  whatsappDisplayPhoneNumber: String
+  whatsappAccessTokenEncrypted: String
+  whatsappAppSecretEncrypted: String
+  whatsappTokenPreview: String
+  whatsappConnectedAt: DateTime
+  whatsappMessages(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
+  whatsappMessagesCount(where: TechWhatsAppMessageWhereInput! = {}): Int
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -2843,6 +2852,7 @@ type FileFieldOutput {
 
 input SaasCompanyWhereUniqueInput {
   id: ID
+  whatsappPhoneNumberId: String
 }
 
 input SaasCompanyWhereInput {
@@ -2879,6 +2889,14 @@ input SaasCompanyWhereInput {
   aiApiKeyEncrypted: StringNullableFilter
   aiApiKeyPreview: StringNullableFilter
   aiKeyUpdatedAt: DateTimeNullableFilter
+  whatsappPhoneNumberId: StringNullableFilter
+  whatsappBusinessAccountId: StringNullableFilter
+  whatsappDisplayPhoneNumber: StringNullableFilter
+  whatsappAccessTokenEncrypted: StringNullableFilter
+  whatsappAppSecretEncrypted: StringNullableFilter
+  whatsappTokenPreview: StringNullableFilter
+  whatsappConnectedAt: DateTimeNullableFilter
+  whatsappMessages: TechWhatsAppMessageManyRelationFilter
   termsQuotation: StringNullableFilter
   colorPrimary: StringNullableFilter
   colorSecondary: StringNullableFilter
@@ -2972,6 +2990,12 @@ input SaasQuotationManyRelationFilter {
   none: SaasQuotationWhereInput
 }
 
+input TechWhatsAppMessageManyRelationFilter {
+  every: TechWhatsAppMessageWhereInput
+  some: TechWhatsAppMessageWhereInput
+  none: TechWhatsAppMessageWhereInput
+}
+
 input SaasCompanyOrderByInput {
   id: OrderDirection
   name: OrderDirection
@@ -2987,6 +3011,13 @@ input SaasCompanyOrderByInput {
   aiApiKeyEncrypted: OrderDirection
   aiApiKeyPreview: OrderDirection
   aiKeyUpdatedAt: OrderDirection
+  whatsappPhoneNumberId: OrderDirection
+  whatsappBusinessAccountId: OrderDirection
+  whatsappDisplayPhoneNumber: OrderDirection
+  whatsappAccessTokenEncrypted: OrderDirection
+  whatsappAppSecretEncrypted: OrderDirection
+  whatsappTokenPreview: OrderDirection
+  whatsappConnectedAt: OrderDirection
   termsQuotation: OrderDirection
   colorPrimary: OrderDirection
   colorSecondary: OrderDirection
@@ -3028,6 +3059,14 @@ input SaasCompanyUpdateInput {
   aiApiKeyEncrypted: String
   aiApiKeyPreview: String
   aiKeyUpdatedAt: DateTime
+  whatsappPhoneNumberId: String
+  whatsappBusinessAccountId: String
+  whatsappDisplayPhoneNumber: String
+  whatsappAccessTokenEncrypted: String
+  whatsappAppSecretEncrypted: String
+  whatsappTokenPreview: String
+  whatsappConnectedAt: DateTime
+  whatsappMessages: TechWhatsAppMessageRelateToManyForUpdateInput
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -3145,6 +3184,13 @@ input FileFieldInput {
   upload: Upload!
 }
 
+input TechWhatsAppMessageRelateToManyForUpdateInput {
+  disconnect: [TechWhatsAppMessageWhereUniqueInput!]
+  set: [TechWhatsAppMessageWhereUniqueInput!]
+  create: [TechWhatsAppMessageCreateInput!]
+  connect: [TechWhatsAppMessageWhereUniqueInput!]
+}
+
 input SaasCompanyUpdateArgs {
   where: SaasCompanyWhereUniqueInput!
   data: SaasCompanyUpdateInput!
@@ -3182,6 +3228,14 @@ input SaasCompanyCreateInput {
   aiApiKeyEncrypted: String
   aiApiKeyPreview: String
   aiKeyUpdatedAt: DateTime
+  whatsappPhoneNumberId: String
+  whatsappBusinessAccountId: String
+  whatsappDisplayPhoneNumber: String
+  whatsappAccessTokenEncrypted: String
+  whatsappAppSecretEncrypted: String
+  whatsappTokenPreview: String
+  whatsappConnectedAt: DateTime
+  whatsappMessages: TechWhatsAppMessageRelateToManyForCreateInput
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -3264,6 +3318,11 @@ input SaasSubscriptionLogRelateToManyForCreateInput {
 input SaasQuotationRelateToManyForCreateInput {
   create: [SaasQuotationCreateInput!]
   connect: [SaasQuotationWhereUniqueInput!]
+}
+
+input TechWhatsAppMessageRelateToManyForCreateInput {
+  create: [TechWhatsAppMessageCreateInput!]
+  connect: [TechWhatsAppMessageWhereUniqueInput!]
 }
 
 type SaasCompanyMonthlyLeadSync {
@@ -5247,6 +5306,8 @@ type TechBusinessLead {
   saasCompanyCount(where: SaasCompanyWhereInput! = {}): Int
   quotations(where: SaasQuotationWhereInput! = {}, orderBy: [SaasQuotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasQuotationWhereUniqueInput): [SaasQuotation!]
   quotationsCount(where: SaasQuotationWhereInput! = {}): Int
+  whatsappMessages(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
+  whatsappMessagesCount(where: TechWhatsAppMessageWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -5298,6 +5359,7 @@ input TechBusinessLeadWhereInput {
   salesPerson: UserManyRelationFilter
   saasCompany: SaasCompanyManyRelationFilter
   quotations: SaasQuotationManyRelationFilter
+  whatsappMessages: TechWhatsAppMessageManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -5373,6 +5435,7 @@ input TechBusinessLeadUpdateInput {
   salesPerson: UserRelateToManyForUpdateInput
   saasCompany: SaasCompanyRelateToManyForUpdateInput
   quotations: SaasQuotationRelateToManyForUpdateInput
+  whatsappMessages: TechWhatsAppMessageRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -5426,6 +5489,7 @@ input TechBusinessLeadCreateInput {
   salesPerson: UserRelateToManyForCreateInput
   saasCompany: SaasCompanyRelateToManyForCreateInput
   quotations: SaasQuotationRelateToManyForCreateInput
+  whatsappMessages: TechWhatsAppMessageRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -6688,6 +6752,99 @@ input TechStatusBusinessLeadCreateInput {
   notes: String
 }
 
+type TechWhatsAppMessage {
+  id: ID!
+  company: SaasCompany
+  businessLead: TechBusinessLead
+  direction: String
+  source: String
+  senderLabel: String
+  waMessageId: String
+  fromPhone: String
+  toPhone: String
+  body: String
+  status: String
+  sentBy: User
+  errorMessage: String
+  createdAt: DateTime
+}
+
+input TechWhatsAppMessageWhereUniqueInput {
+  id: ID
+  waMessageId: String
+}
+
+input TechWhatsAppMessageWhereInput {
+  AND: [TechWhatsAppMessageWhereInput!]
+  OR: [TechWhatsAppMessageWhereInput!]
+  NOT: [TechWhatsAppMessageWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  businessLead: TechBusinessLeadWhereInput
+  direction: StringFilter
+  source: StringNullableFilter
+  senderLabel: StringNullableFilter
+  waMessageId: StringNullableFilter
+  fromPhone: StringNullableFilter
+  toPhone: StringNullableFilter
+  body: StringFilter
+  status: StringNullableFilter
+  sentBy: UserWhereInput
+  errorMessage: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input TechWhatsAppMessageOrderByInput {
+  id: OrderDirection
+  direction: OrderDirection
+  source: OrderDirection
+  senderLabel: OrderDirection
+  waMessageId: OrderDirection
+  fromPhone: OrderDirection
+  toPhone: OrderDirection
+  body: OrderDirection
+  status: OrderDirection
+  errorMessage: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TechWhatsAppMessageUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  direction: String
+  source: String
+  senderLabel: String
+  waMessageId: String
+  fromPhone: String
+  toPhone: String
+  body: String
+  status: String
+  sentBy: UserRelateToOneForUpdateInput
+  errorMessage: String
+  createdAt: DateTime
+}
+
+input TechWhatsAppMessageUpdateArgs {
+  where: TechWhatsAppMessageWhereUniqueInput!
+  data: TechWhatsAppMessageUpdateInput!
+}
+
+input TechWhatsAppMessageCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  direction: String
+  source: String
+  senderLabel: String
+  waMessageId: String
+  fromPhone: String
+  toPhone: String
+  body: String
+  status: String
+  sentBy: UserRelateToOneForCreateInput
+  errorMessage: String
+  createdAt: DateTime
+}
+
 type TokenNotification {
   id: ID!
   token: String
@@ -6783,6 +6940,8 @@ type User {
   inegiSyncLogsCount(where: TechInegiSyncLogWhereInput! = {}): Int
   aiCallLogs(where: TechAiCallLogWhereInput! = {}, orderBy: [TechAiCallLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiCallLogWhereUniqueInput): [TechAiCallLog!]
   aiCallLogsCount(where: TechAiCallLogWhereInput! = {}): Int
+  whatsappMessagesSent(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
+  whatsappMessagesSentCount(where: TechWhatsAppMessageWhereInput! = {}): Int
   aiInsights(where: TechAiInsightWhereInput! = {}, orderBy: [TechAiInsightOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiInsightWhereUniqueInput): [TechAiInsight!]
   aiInsightsCount(where: TechAiInsightWhereInput! = {}): Int
   saasSubscriptionLogs(where: SaasSubscriptionLogWhereInput! = {}, orderBy: [SaasSubscriptionLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasSubscriptionLogWhereUniqueInput): [SaasSubscriptionLog!]
@@ -6864,6 +7023,7 @@ input UserWhereInput {
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
   inegiSyncLogs: TechInegiSyncLogManyRelationFilter
   aiCallLogs: TechAiCallLogManyRelationFilter
+  whatsappMessagesSent: TechWhatsAppMessageManyRelationFilter
   aiInsights: TechAiInsightManyRelationFilter
   saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   authLogs: UserAuthLogManyRelationFilter
@@ -6985,6 +7145,7 @@ input UserUpdateInput {
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
   inegiSyncLogs: TechInegiSyncLogRelateToManyForUpdateInput
   aiCallLogs: TechAiCallLogRelateToManyForUpdateInput
+  whatsappMessagesSent: TechWhatsAppMessageRelateToManyForUpdateInput
   aiInsights: TechAiInsightRelateToManyForUpdateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForUpdateInput
   authLogs: UserAuthLogRelateToManyForUpdateInput
@@ -7089,6 +7250,7 @@ input UserCreateInput {
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
   inegiSyncLogs: TechInegiSyncLogRelateToManyForCreateInput
   aiCallLogs: TechAiCallLogRelateToManyForCreateInput
+  whatsappMessagesSent: TechWhatsAppMessageRelateToManyForCreateInput
   aiInsights: TechAiInsightRelateToManyForCreateInput
   saasSubscriptionLogs: SaasSubscriptionLogRelateToManyForCreateInput
   authLogs: UserAuthLogRelateToManyForCreateInput
@@ -7659,6 +7821,12 @@ type Mutation {
   updateTechStatusBusinessLeads(data: [TechStatusBusinessLeadUpdateArgs!]!): [TechStatusBusinessLead]
   deleteTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
   deleteTechStatusBusinessLeads(where: [TechStatusBusinessLeadWhereUniqueInput!]!): [TechStatusBusinessLead]
+  createTechWhatsAppMessage(data: TechWhatsAppMessageCreateInput!): TechWhatsAppMessage
+  createTechWhatsAppMessages(data: [TechWhatsAppMessageCreateInput!]!): [TechWhatsAppMessage]
+  updateTechWhatsAppMessage(where: TechWhatsAppMessageWhereUniqueInput!, data: TechWhatsAppMessageUpdateInput!): TechWhatsAppMessage
+  updateTechWhatsAppMessages(data: [TechWhatsAppMessageUpdateArgs!]!): [TechWhatsAppMessage]
+  deleteTechWhatsAppMessage(where: TechWhatsAppMessageWhereUniqueInput!): TechWhatsAppMessage
+  deleteTechWhatsAppMessages(where: [TechWhatsAppMessageWhereUniqueInput!]!): [TechWhatsAppMessage]
   createTokenNotification(data: TokenNotificationCreateInput!): TokenNotification
   createTokenNotifications(data: [TokenNotificationCreateInput!]!): [TokenNotification]
   updateTokenNotification(where: TokenNotificationWhereUniqueInput!, data: TokenNotificationUpdateInput!): TokenNotification
@@ -7705,6 +7873,10 @@ type Mutation {
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
+  updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
+  testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
+  sendWhatsAppMessage(businessLeadId: ID!, body: String!): SendWhatsAppMessageResult!
+  importWhatsAppChatExport(businessLeadId: ID!, fileName: String, content: String!, leadSenderName: String): ImportWhatsAppChatExportResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -7936,6 +8108,9 @@ type Query {
   techStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
   techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
   techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
+  techWhatsAppMessage(where: TechWhatsAppMessageWhereUniqueInput!): TechWhatsAppMessage
+  techWhatsAppMessages(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
+  techWhatsAppMessagesCount(where: TechWhatsAppMessageWhereInput! = {}): Int
   tokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
   tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
   tokenNotificationsCount(where: TokenNotificationWhereInput! = {}): Int
@@ -7954,6 +8129,7 @@ type Query {
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   StripePaymentMethods(email: String!): StripePaymentMethodsType
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
+  previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
@@ -8578,6 +8754,45 @@ type UpsertDraftSystemReleaseResult {
   releaseId: ID
 }
 
+input UpdateCompanyWhatsappSettingsInput {
+  companyId: ID!
+  phoneNumberId: String
+  businessAccountId: String
+  accessToken: String
+  appSecret: String
+}
+
+type UpdateCompanyWhatsappSettingsResult {
+  success: Boolean!
+  message: String!
+  phoneNumberId: String
+  businessAccountId: String
+  displayPhoneNumber: String
+  tokenPreview: String
+  appSecretConfigured: Boolean!
+  connectedAt: String
+}
+
+type TestCompanyWhatsappConnectionResult {
+  success: Boolean!
+  message: String!
+  displayPhoneNumber: String
+  verifiedName: String
+}
+
+type SendWhatsAppMessageResult {
+  success: Boolean!
+  message: String!
+  messageId: String
+}
+
+type ImportWhatsAppChatExportResult {
+  success: Boolean!
+  message: String!
+  imported: Int!
+  skippedDuplicates: Int!
+}
+
 type AnimalMultimediaImage {
   id: ID!
   url: String
@@ -8730,4 +8945,11 @@ type SubscriptionStatusResult {
   daysUntilNextBilling: Int
   subscriptionActive: Boolean
   subscription: SubscriptionData
+}
+
+type PreviewWhatsAppChatExportResult {
+  success: Boolean!
+  message: String!
+  messageCount: Int!
+  senderNames: [String!]!
 }

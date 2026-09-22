@@ -5,6 +5,7 @@ import subscriptionStatus from "./saas/subscriptionStatus";
 import dailyDigest from "../ai/dailyDigest";
 import companyBrief from "../ai/companyBrief";
 import generateMarketInsight from "../ai/generateMarketInsight";
+import previewWhatsAppChatExport from "./whatsapp/previewWhatsAppChatExport";
 
 const customQuery = {
   typeDefs: `
@@ -12,6 +13,7 @@ const customQuery = {
     ${nearbyPetPlaces.typeDefs}
     ${stripePaymentMethods.typeDefs}
     ${subscriptionStatus.typeDefs}
+    ${previewWhatsAppChatExport.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -21,6 +23,7 @@ const customQuery = {
     ${dailyDigest.queryDefinition}
     ${companyBrief.queryDefinition}
     ${generateMarketInsight.queryDefinition}
+    ${previewWhatsAppChatExport.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -30,6 +33,7 @@ const customQuery = {
     ...dailyDigest.queryResolver,
     ...companyBrief.queryResolver,
     ...generateMarketInsight.queryResolver,
+    ...previewWhatsAppChatExport.resolver,
   },
 };
 

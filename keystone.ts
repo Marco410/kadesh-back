@@ -4,6 +4,7 @@ import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
 import extendGraphqlSchema from "./graphql/extendedSchema";
 import { isPlatformAdmin } from "./utils/access/tenant";
+import registerWhatsAppWebhook from "./webhooks/whatsapp";
 
 // Setup environment variables
 const path = require("path");
@@ -163,10 +164,16 @@ export default withAuth(
       cors: true,
       maxFileSize: 200 * 1024 * 1024,
       port: Number(process.env.LOCAL_PORT) || 3001,
+      extendExpressApp: (app, context) => {
+        registerWhatsAppWebhook(app, context);
+      },
     },
     storage,
     graphql: {
       extendGraphqlSchema,
+      // Default de body-parser es 100kb — insuficiente para el .txt de historial de WhatsApp
+      // mandado como variable de la mutación importWhatsAppChatExport.
+      bodyParser: { limit: "15mb" },
     },
     lists,
     session,
