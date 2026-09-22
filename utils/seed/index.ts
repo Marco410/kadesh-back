@@ -30,11 +30,11 @@ export default async function seed(context: KeystoneContext) {
   await createRoles(context);
   await createAnimalTypes(context);
   await createPetPlaceTypes(context);
+  const planId = await createSaasPlan(context);
+  await createSaasCreditPackages(context);
   const userID = await createUserAdmin(context);
   const services = await createPetPlaceService(context);
 
   await createVeterinary(context, userID, services);
-  const planId = await createSaasPlan(context);
-  await createSaasCreditPackages(context);
   await createSaasCompany(context, planId);
 }

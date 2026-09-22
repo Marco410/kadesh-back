@@ -906,14 +906,15 @@ async function sendNewPostEmail({
   authorName,
   categoryName,
   recipientEmails,
-  brand = "pet"
+  brand = "pet",
+  unsubscribeBaseUrl
 }) {
   if (recipientEmails.length === 0) {
     return;
   }
   const { name: brandName, color, hover } = NEW_POST_EMAIL_BRANDS[brand];
   const subject = `Nuevo art\xEDculo en ${brandName}: ${postTitle}`;
-  const html = `
+  const buildHtml = (unsubscribeUrl) => `
     <!DOCTYPE html>
     <html>
     <head>
@@ -985,6 +986,10 @@ async function sendNewPostEmail({
           color: #BBBBBB;
           text-align: center;
         }
+        .footer a {
+          color: #87CEEB;
+          text-decoration: underline;
+        }
       </style>
     </head>
     <body>
@@ -1002,16 +1007,17 @@ async function sendNewPostEmail({
       </div>
       <div class="footer">
         <p>Gracias por suscribirte a nuestro blog.</p>
-        <p>Si no deseas recibir m\xE1s notificaciones, puedes cancelar tu suscripci\xF3n en cualquier momento.</p>
+        ${unsubscribeUrl ? `<p>Si no deseas recibir m\xE1s notificaciones, <a href="${escapeHtml(unsubscribeUrl)}">cancela tu suscripci\xF3n aqu\xED</a>.</p>` : `<p>Si no deseas recibir m\xE1s notificaciones, puedes cancelar tu suscripci\xF3n en cualquier momento.</p>`}
       </div>
     </body>
     </html>
   `;
   for (const email of recipientEmails) {
+    const unsubscribeUrl = unsubscribeBaseUrl ? `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}` : null;
     await sendEmail({
       to: email,
       subject,
-      html,
+      html: buildHtml(unsubscribeUrl),
       fromName: brandName
     });
   }
@@ -3626,6 +3632,10 @@ var import_fields28 = require("@keystone-6/core/fields");
 function subscriberProductsFor(product) {
   return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
 }
+function categoryLabelFor(categoryName) {
+  if (!categoryName) return null;
+  return POST_CATEGORIES.find((category) => category.value === categoryName)?.label ?? categoryName;
+}
 function frontendUrlFor(product) {
   if (product === PRODUCT.SAAS) {
     return process.env.SAAS_FRONTEND_URL?.trim() || "https://kadesh.com.mx";
@@ -3759,9 +3769,10 @@ var newPostEmailHook = {
             postUrl: `${frontendUrlFor(product)}/blog/${post.url || post.id}`,
             postExcerpt: post.excerpt,
             authorName,
-            categoryName: post.category?.name || null,
+            categoryName: categoryLabelFor(post.category?.name),
             recipientEmails,
-            brand: product === PRODUCT.SAAS ? "saas" : "pet"
+            brand: product === PRODUCT.SAAS ? "saas" : "pet",
+            unsubscribeBaseUrl: `${frontendUrlFor(product)}/blog/desuscribirse`
           });
           sent += recipientEmails.length;
         }
@@ -9561,6 +9572,30 @@ var resolver2 = {
 };
 var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
 
+// utils/access/provisionSignupCompany.ts
+async function provisionSignupCompany(context, userId, companyName) {
+  const company = await context.sudo().query.SaasCompany.createOne({
+    data: { name: companyName },
+    query: "id"
+  });
+  await attachUserToCompany(context, userId, company.id);
+  const workspaces = await context.sudo().query.SaasWorkspace.findMany({
+    where: { company: { id: { equals: company.id } } },
+    take: 1,
+    query: "id"
+  });
+  const workspaceId = workspaces[0]?.id;
+  if (workspaceId) {
+    await context.sudo().query.SaasWorkspace.updateOne({
+      where: { id: workspaceId },
+      data: {
+        members: { connect: [{ id: userId }] }
+      }
+    });
+  }
+  return company.id;
+}
+
 // graphql/customs/mutations/auth/registerUser.ts
 var SIGNUP_ROLE_NAMES = ["vendedor" /* VENDEDOR */, "admin_company" /* ADMIN_COMPANY */];
 async function findSignupRoleIds(context) {
@@ -9615,13 +9650,6 @@ var resolver3 = {
     try {
       const trimmedCompanyName = companyName?.trim() ?? "";
       let companyId;
-      if (trimmedCompanyName) {
-        const company = await context.sudo().query.SaasCompany.createOne({
-          data: { name: trimmedCompanyName },
-          query: "id"
-        });
-        companyId = company.id;
-      }
       const signupRoleIds = await findSignupRoleIds(context);
       if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
         throw new Error(
@@ -9636,26 +9664,12 @@ var resolver3 = {
         },
         query: "id name lastName secondLastName email phone username referralCode referredBy { id }"
       });
-      if (companyId) {
-        await attachUserToCompany(
+      if (trimmedCompanyName) {
+        companyId = await provisionSignupCompany(
           context,
           user.id,
-          companyId
+          trimmedCompanyName
         );
-        const workspaces = await context.sudo().query.SaasWorkspace.findMany({
-          where: { company: { id: { equals: companyId } } },
-          take: 1,
-          query: "id"
-        });
-        const workspaceId = workspaces[0]?.id;
-        if (workspaceId) {
-          await context.sudo().query.SaasWorkspace.updateOne({
-            where: { id: workspaceId },
-            data: {
-              members: { connect: [{ id: user.id }] }
-            }
-          });
-        }
       }
       await writeUserAuthLog(context, {
         startedAt,
@@ -17988,6 +18002,71 @@ var veterinaryMutations = {
 };
 var veterinary_default = veterinaryMutations;
 
+// graphql/customs/mutations/unsubscribeBlog.ts
+var typeDefs28 = `
+  type UnsubscribeBlogResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type Mutation {
+    unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
+  }
+`;
+var definition25 = `
+  unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
+`;
+var resolver25 = {
+  /**
+   * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
+   * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
+   * Es idempotente: darse de baja dos veces no falla.
+   */
+  unsubscribeBlog: async (_root, { email, product }, context) => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      return { success: false, message: "El correo es obligatorio." };
+    }
+    if (product !== PRODUCT.PET && product !== PRODUCT.SAAS) {
+      return { success: false, message: "Producto no v\xE1lido." };
+    }
+    try {
+      const subscriptions = await context.sudo().db.BlogSubscription.findMany({
+        where: {
+          email: { equals: normalizedEmail },
+          product: { equals: product }
+        }
+      });
+      if (subscriptions.length === 0) {
+        return {
+          success: false,
+          message: "No encontramos una suscripci\xF3n con este correo."
+        };
+      }
+      const active = subscriptions.filter((sub) => sub.active);
+      if (active.length > 0) {
+        await context.sudo().db.BlogSubscription.updateMany({
+          data: active.map((sub) => ({
+            where: { id: sub.id },
+            data: { active: false }
+          }))
+        });
+      }
+      return {
+        success: true,
+        message: "Tu suscripci\xF3n fue cancelada. Ya no recibir\xE1s notificaciones del blog."
+      };
+    } catch (error) {
+      console.error("Error al cancelar suscripci\xF3n al blog:", error);
+      return {
+        success: false,
+        message: "No pudimos cancelar tu suscripci\xF3n. Intenta de nuevo m\xE1s tarde."
+      };
+    }
+  }
+};
+var unsubscribeBlog_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -18013,6 +18092,7 @@ var customMutation = {
     ${promoteInegiEstablishmentToLead_default.typeDefs}
     ${fetchInegiIndicator_default.typeDefs}
     ${veterinary_default.typeDefs}
+    ${unsubscribeBlog_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -18037,6 +18117,7 @@ var customMutation = {
     ${promoteInegiEstablishmentToLead_default.definition}
     ${fetchInegiIndicator_default.definition}
     ${veterinary_default.definition}
+    ${unsubscribeBlog_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -18060,7 +18141,8 @@ var customMutation = {
     ...syncLeadsFromInegi_default.resolver,
     ...promoteInegiEstablishmentToLead_default.resolver,
     ...fetchInegiIndicator_default.resolver,
-    ...veterinary_default.resolver
+    ...veterinary_default.resolver,
+    ...unsubscribeBlog_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -18071,7 +18153,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs28 = `
+var typeDefs29 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -18130,7 +18212,7 @@ var typeDefs28 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition25 = `
+var definition26 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -18180,7 +18262,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver25 = {
+var resolver26 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -18343,7 +18425,7 @@ var resolver25 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
+var nearbyAnimals_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -18656,7 +18738,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs29 = `
+var typeDefs30 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -18716,10 +18798,10 @@ var typeDefs29 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition26 = `
+var definition27 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver26 = {
+var resolver27 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -18801,10 +18883,10 @@ var resolver26 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs30 = `
+var typeDefs31 = `
   type StripeCard {
     brand: String
     country: String
@@ -18838,10 +18920,10 @@ var typeDefs30 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition27 = `
+var definition28 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver27 = {
+var resolver28 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -18877,7 +18959,7 @@ var resolver27 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
+var stripePaymentMethods_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -18930,7 +19012,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs31 = `
+var typeDefs32 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -18958,10 +19040,10 @@ var typeDefs31 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition28 = `
+var definition29 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver28 = {
+var resolver29 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -19088,7 +19170,7 @@ var resolver28 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var subscriptionStatus_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

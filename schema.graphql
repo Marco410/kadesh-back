@@ -7692,6 +7692,7 @@ type Mutation {
   syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
   promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
+  unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -8546,6 +8547,11 @@ type CreateClinicAppointmentResult {
   success: Boolean!
   message: String!
   appointmentId: String
+}
+
+type UnsubscribeBlogResult {
+  success: Boolean!
+  message: String!
 }
 
 type AnimalMultimediaImage {
