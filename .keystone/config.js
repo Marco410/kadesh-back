@@ -3706,84 +3706,101 @@ async function checkPostUrl(title, currentPostId, context) {
   return uniqueLink;
 }
 var publishedAtHook = {
-  resolveInput: async ({ resolvedData, item, operation }) => {
-    if (resolvedData.published === true) {
+  resolveInput: async ({ resolvedData, item }) => {
+    const isNewlyPublishing = resolvedData.published === true && item?.published !== true;
+    if (isNewlyPublishing && (resolvedData.publishedAt === void 0 || resolvedData.publishedAt === null)) {
       resolvedData.publishedAt = (/* @__PURE__ */ new Date()).toISOString();
     }
     return resolvedData;
   }
 };
+var NOTIFY_GRACE_MS = 3 * 24 * 60 * 60 * 1e3;
+function isPendingNotification(post) {
+  if (post.published !== true || post.publishedNotifiedAt) return false;
+  if (!post.publishedAt) return false;
+  const publishedAtMs = new Date(post.publishedAt).getTime();
+  const elapsedMs = Date.now() - publishedAtMs;
+  return elapsedMs >= 0 && elapsedMs <= NOTIFY_GRACE_MS;
+}
+async function notifyNewPostIfDue(post, context) {
+  if (!isPendingNotification(post)) return;
+  try {
+    await context.sudo().db.Post.updateOne({
+      where: { id: post.id },
+      data: { publishedNotifiedAt: (/* @__PURE__ */ new Date()).toISOString() }
+    });
+    const fullPost = await context.sudo().query.Post.findOne({
+      where: { id: post.id },
+      query: `
+        id
+        title
+        url
+        excerpt
+        product
+        author {
+          name
+          lastName
+        }
+        category {
+          name
+        }
+      `
+    });
+    if (!fullPost) {
+      return;
+    }
+    const postProduct = fullPost.product || PRODUCT.PET;
+    const subscriptions = await context.sudo().query.BlogSubscription.findMany({
+      where: {
+        active: {
+          equals: true
+        },
+        product: {
+          in: subscriberProductsFor(postProduct)
+        }
+      },
+      query: "email product"
+    });
+    if (subscriptions.length === 0) {
+      console.log("No active subscriptions found. Email not sent.");
+      return;
+    }
+    const authorName = fullPost.author ? `${fullPost.author.name} ${fullPost.author.lastName || ""}`.trim() : null;
+    let sent = 0;
+    for (const product of subscriberProductsFor(postProduct)) {
+      const recipientEmails = subscriptions.filter((sub) => sub.product === product).map((sub) => sub.email).filter((email) => email && email.trim() !== "");
+      if (recipientEmails.length === 0) {
+        continue;
+      }
+      await sendNewPostEmail({
+        postTitle: fullPost.title,
+        postUrl: `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`,
+        postExcerpt: fullPost.excerpt,
+        authorName,
+        categoryName: categoryLabelFor(fullPost.category?.name),
+        recipientEmails,
+        brand: product === PRODUCT.SAAS ? "saas" : "pet",
+        unsubscribeBaseUrl: `${frontendUrlFor(product)}/blog/desuscribirse`
+      });
+      sent += recipientEmails.length;
+    }
+    if (sent === 0) {
+      console.log("No valid email addresses found. Email not sent.");
+      return;
+    }
+    console.log(`New post email sent to ${sent} subscribers`);
+  } catch (error) {
+    console.error("Error sending new post email:", error);
+  }
+}
 var newPostEmailHook = {
   afterOperation: async ({
     operation,
     item,
     context
   }) => {
-    if (operation === "create" && item?.published === true) {
-      try {
-        const post = await context.sudo().query.Post.findOne({
-          where: { id: item.id },
-          query: `
-            id
-            title
-            url
-            excerpt
-            product
-            author {
-              name
-              lastName
-            }
-            category {
-              name
-            }
-          `
-        });
-        if (!post) {
-          return;
-        }
-        const postProduct = post.product || PRODUCT.PET;
-        const subscriptions = await context.sudo().query.BlogSubscription.findMany({
-          where: {
-            active: {
-              equals: true
-            },
-            product: {
-              in: subscriberProductsFor(postProduct)
-            }
-          },
-          query: "email product"
-        });
-        if (subscriptions.length === 0) {
-          console.log("No active subscriptions found. Email not sent.");
-          return;
-        }
-        const authorName = post.author ? `${post.author.name} ${post.author.lastName || ""}`.trim() : null;
-        let sent = 0;
-        for (const product of subscriberProductsFor(postProduct)) {
-          const recipientEmails = subscriptions.filter((sub) => sub.product === product).map((sub) => sub.email).filter((email) => email && email.trim() !== "");
-          if (recipientEmails.length === 0) {
-            continue;
-          }
-          await sendNewPostEmail({
-            postTitle: post.title,
-            postUrl: `${frontendUrlFor(product)}/blog/${post.url || post.id}`,
-            postExcerpt: post.excerpt,
-            authorName,
-            categoryName: categoryLabelFor(post.category?.name),
-            recipientEmails,
-            brand: product === PRODUCT.SAAS ? "saas" : "pet",
-            unsubscribeBaseUrl: `${frontendUrlFor(product)}/blog/desuscribirse`
-          });
-          sent += recipientEmails.length;
-        }
-        if (sent === 0) {
-          console.log("No valid email addresses found. Email not sent.");
-          return;
-        }
-        console.log(`New post email sent to ${sent} subscribers`);
-      } catch (error) {
-        console.error("Error sending new post email:", error);
-      }
+    if (operation === "create" || operation === "update") {
+      await notifyNewPostIfDue(item, context);
     }
   }
 };
@@ -3836,12 +3853,23 @@ var Post_default = (0, import_core28.list)({
       storage: "s3_posts"
     }),
     published: (0, import_fields28.checkbox)({
-      defaultValue: false
+      defaultValue: false,
+      ui: {
+        description: 'Marca esto y deja "Published at" vac\xEDo para publicar de inmediato, o ponle una fecha futura para programarlo.'
+      }
     }),
     publishedAt: (0, import_fields28.timestamp)({
       ui: {
+        createView: { fieldMode: "edit" },
+        itemView: { fieldMode: "edit" },
+        description: 'Vac\xEDo = se llena solo al marcar "Published". Con una fecha futura, el post queda oculto en el sitio hasta esa fecha.'
+      }
+    }),
+    /** Cuándo se mandó el correo de "nuevo post". No editable: evita reenvíos en guardados posteriores. */
+    publishedNotifiedAt: (0, import_fields28.timestamp)({
+      ui: {
         createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "edit" }
+        itemView: { fieldMode: "read" }
       }
     }),
     category: (0, import_fields28.relationship)({
@@ -18067,6 +18095,66 @@ var resolver25 = {
 };
 var unsubscribeBlog_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
 
+// graphql/customs/mutations/publishScheduledPosts.ts
+var typeDefs29 = `
+  type PublishScheduledPostsResult {
+    success: Boolean!
+    message: String!
+    checked: Int!
+  }
+
+  type Mutation {
+    publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
+  }
+`;
+var definition26 = `
+  publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
+`;
+var resolver26 = {
+  /**
+   * Pensada para un cron externo (GitHub Actions, ver .github/workflows/publish-scheduled-posts.yml),
+   * no para un usuario logueado: se autoriza con `CRON_SECRET`, no con sesión/rol.
+   *
+   * La visibilidad de un post programado (`publishedAt` a futuro) ya funciona sola —los fronts
+   * filtran por fecha en cada lectura, sin cron—. Lo único que este mutation resuelve es que el
+   * correo de "nuevo post" salga cerca de la fecha programada aunque nadie vuelva a abrir el
+   * post en el admin. Reusa `notifyNewPostIfDue`, la misma función que dispara el hook al
+   * crear/editar, así que nunca duplica un envío ya hecho.
+   */
+  publishScheduledPosts: async (_root, { secret }, context) => {
+    const expected = process.env.CRON_SECRET?.trim();
+    if (!expected || secret !== expected) {
+      return { success: false, message: "No autorizado.", checked: 0 };
+    }
+    try {
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      const duePosts = await context.sudo().db.Post.findMany({
+        where: {
+          published: { equals: true },
+          publishedAt: { lte: now },
+          publishedNotifiedAt: { equals: null }
+        }
+      });
+      for (const post of duePosts) {
+        await notifyNewPostIfDue(post, context);
+      }
+      return {
+        success: true,
+        message: `Revisados ${duePosts.length} post(s) pendientes de notificar.`,
+        checked: duePosts.length
+      };
+    } catch (error) {
+      console.error("Error en publishScheduledPosts:", error);
+      return {
+        success: false,
+        message: "Error al procesar los posts programados.",
+        checked: 0
+      };
+    }
+  }
+};
+var publishScheduledPosts_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -18093,6 +18181,7 @@ var customMutation = {
     ${fetchInegiIndicator_default.typeDefs}
     ${veterinary_default.typeDefs}
     ${unsubscribeBlog_default.typeDefs}
+    ${publishScheduledPosts_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -18118,6 +18207,7 @@ var customMutation = {
     ${fetchInegiIndicator_default.definition}
     ${veterinary_default.definition}
     ${unsubscribeBlog_default.definition}
+    ${publishScheduledPosts_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -18142,7 +18232,8 @@ var customMutation = {
     ...promoteInegiEstablishmentToLead_default.resolver,
     ...fetchInegiIndicator_default.resolver,
     ...veterinary_default.resolver,
-    ...unsubscribeBlog_default.resolver
+    ...unsubscribeBlog_default.resolver,
+    ...publishScheduledPosts_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -18153,7 +18244,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs29 = `
+var typeDefs30 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -18212,7 +18303,7 @@ var typeDefs29 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition26 = `
+var definition27 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -18262,7 +18353,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver26 = {
+var resolver27 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -18425,7 +18516,7 @@ var resolver26 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+var nearbyAnimals_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -18738,7 +18829,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs30 = `
+var typeDefs31 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -18798,10 +18889,10 @@ var typeDefs30 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition27 = `
+var definition28 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver27 = {
+var resolver28 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -18883,10 +18974,10 @@ var resolver27 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs31 = `
+var typeDefs32 = `
   type StripeCard {
     brand: String
     country: String
@@ -18920,10 +19011,10 @@ var typeDefs31 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition28 = `
+var definition29 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver28 = {
+var resolver29 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -18959,7 +19050,7 @@ var resolver28 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var stripePaymentMethods_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -19012,7 +19103,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs32 = `
+var typeDefs33 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -19040,10 +19131,10 @@ var typeDefs32 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition29 = `
+var definition30 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver29 = {
+var resolver30 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -19170,7 +19261,7 @@ var resolver29 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var subscriptionStatus_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

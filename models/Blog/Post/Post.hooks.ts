@@ -132,9 +132,17 @@ export async function checkPostUrl(
   return uniqueLink;
 }
 
+/**
+ * Al marcar `published`, si el editor no puso una fecha manualmente se usa "ahora" (publicar
+ * de inmediato). Si sí puso una fecha (pasada o futura), se respeta: así se programa un post
+ * para publicarse después, sin que este hook la sobrescriba en cada guardado posterior.
+ */
 export const publishedAtHook = {
-  resolveInput: async ({ resolvedData, item, operation }: any) => {
-    if (resolvedData.published === true) {
+  resolveInput: async ({ resolvedData, item }: any) => {
+    const isNewlyPublishing = resolvedData.published === true && item?.published !== true;
+    // El campo `timestamp` del Admin UI manda `null` explícito cuando queda vacío (no omite
+    // la llave), así que se trata igual que "no puesto".
+    if (isNewlyPublishing && (resolvedData.publishedAt === undefined || resolvedData.publishedAt === null)) {
       resolvedData.publishedAt = new Date().toISOString();
     }
     return resolvedData;
@@ -142,7 +150,136 @@ export const publishedAtHook = {
 };
 
 /**
- * Hook to send email notification when a new post is created
+ * Ventana de gracia para el correo de "nuevo post": solo se manda si `publishedAt` venció hace
+ * menos de esto. Evita que, al agregar `publishedNotifiedAt` (nace en `null` para todo lo que
+ * ya existía), reabrir/editar un post viejo ya publicado —o el cron de `publishScheduledPosts`—
+ * dispare un correo masivo para contenido de hace meses. No requiere backfill de datos.
+ */
+const NOTIFY_GRACE_MS = 3 * 24 * 60 * 60 * 1000; // 3 días
+
+type NotifiablePost = {
+  id: string;
+  published?: boolean | null;
+  publishedAt?: string | Date | null;
+  publishedNotifiedAt?: string | Date | null;
+};
+
+function isPendingNotification(post: NotifiablePost): boolean {
+  if (post.published !== true || post.publishedNotifiedAt) return false;
+  if (!post.publishedAt) return false;
+
+  const publishedAtMs = new Date(post.publishedAt).getTime();
+  const elapsedMs = Date.now() - publishedAtMs;
+  return elapsedMs >= 0 && elapsedMs <= NOTIFY_GRACE_MS;
+}
+
+/**
+ * Manda el correo de "nuevo post" para `post` si le toca (ver `isPendingNotification`), y marca
+ * `publishedNotifiedAt` para no reenviar. La usan tanto el hook de creación/edición como el
+ * cron externo (`publishScheduledPosts`) — es la única fuente de verdad de "ya se notificó".
+ */
+export async function notifyNewPostIfDue(
+  post: NotifiablePost,
+  context: KeystoneContext,
+): Promise<void> {
+  if (!isPendingNotification(post)) return;
+
+  try {
+    // Se marca antes de intentar el envío para no reintentar (ni duplicar) en el próximo
+    // guardado o corrida de cron si el envío falla a medio camino.
+    await context.sudo().db.Post.updateOne({
+      where: { id: post.id },
+      data: { publishedNotifiedAt: new Date().toISOString() },
+    });
+
+    // Get full post data with relationships
+    const fullPost = await context.sudo().query.Post.findOne({
+      where: { id: post.id },
+      query: `
+        id
+        title
+        url
+        excerpt
+        product
+        author {
+          name
+          lastName
+        }
+        category {
+          name
+        }
+      `,
+    });
+
+    if (!fullPost) {
+      return;
+    }
+
+    const postProduct = (fullPost.product || PRODUCT.PET) as Product;
+
+    // Solo suscriptores activos del producto al que pertenece el post
+    const subscriptions = await context.sudo().query.BlogSubscription.findMany({
+      where: {
+        active: {
+          equals: true,
+        },
+        product: {
+          in: subscriberProductsFor(postProduct),
+        },
+      },
+      query: 'email product',
+    });
+
+    if (subscriptions.length === 0) {
+      console.log('No active subscriptions found. Email not sent.');
+      return;
+    }
+
+    const authorName = fullPost.author
+      ? `${fullPost.author.name} ${fullPost.author.lastName || ''}`.trim()
+      : null;
+
+    // Un correo por producto: cada uno con su URL de front y su marca
+    let sent = 0;
+    for (const product of subscriberProductsFor(postProduct)) {
+      const recipientEmails = subscriptions
+        .filter((sub: any) => sub.product === product)
+        .map((sub: any) => sub.email)
+        .filter((email: string) => email && email.trim() !== '');
+
+      if (recipientEmails.length === 0) {
+        continue;
+      }
+
+      await sendNewPostEmail({
+        postTitle: fullPost.title,
+        postUrl: `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`,
+        postExcerpt: fullPost.excerpt,
+        authorName,
+        categoryName: categoryLabelFor(fullPost.category?.name),
+        recipientEmails,
+        brand: product === PRODUCT.SAAS ? 'saas' : 'pet',
+        unsubscribeBaseUrl: `${frontendUrlFor(product)}/blog/desuscribirse`,
+      });
+      sent += recipientEmails.length;
+    }
+
+    if (sent === 0) {
+      console.log('No valid email addresses found. Email not sent.');
+      return;
+    }
+
+    console.log(`New post email sent to ${sent} subscribers`);
+  } catch (error) {
+    console.error('Error sending new post email:', error);
+    // Don't throw error to prevent post creation from failing
+  }
+}
+
+/**
+ * Hook: intenta notificar cada vez que un post se crea o se edita. Cubre el caso normal
+ * (publicar de inmediato) y el caso en que alguien reabre y guarda un post programado después
+ * de su fecha. El cron `publishScheduledPosts` cubre el caso en que nadie lo vuelve a tocar.
  */
 export const newPostEmailHook = {
   afterOperation: async ({
@@ -154,91 +291,8 @@ export const newPostEmailHook = {
     item: any;
     context: KeystoneContext;
   }) => {
-    // Only send email when a new post is created and published
-    if (operation === 'create' && item?.published === true) {
-      try {
-        // Get full post data with relationships
-        const post = await context.sudo().query.Post.findOne({
-          where: { id: item.id },
-          query: `
-            id
-            title
-            url
-            excerpt
-            product
-            author {
-              name
-              lastName
-            }
-            category {
-              name
-            }
-          `,
-        });
-
-        if (!post) {
-          return;
-        }
-
-        const postProduct = (post.product || PRODUCT.PET) as Product;
-
-        // Solo suscriptores activos del producto al que pertenece el post
-        const subscriptions = await context.sudo().query.BlogSubscription.findMany({
-          where: {
-            active: {
-              equals: true,
-            },
-            product: {
-              in: subscriberProductsFor(postProduct),
-            },
-          },
-          query: 'email product',
-        });
-
-        if (subscriptions.length === 0) {
-          console.log('No active subscriptions found. Email not sent.');
-          return;
-        }
-
-        const authorName = post.author
-          ? `${post.author.name} ${post.author.lastName || ''}`.trim()
-          : null;
-
-        // Un correo por producto: cada uno con su URL de front y su marca
-        let sent = 0;
-        for (const product of subscriberProductsFor(postProduct)) {
-          const recipientEmails = subscriptions
-            .filter((sub: any) => sub.product === product)
-            .map((sub: any) => sub.email)
-            .filter((email: string) => email && email.trim() !== '');
-
-          if (recipientEmails.length === 0) {
-            continue;
-          }
-
-          await sendNewPostEmail({
-            postTitle: post.title,
-            postUrl: `${frontendUrlFor(product)}/blog/${post.url || post.id}`,
-            postExcerpt: post.excerpt,
-            authorName,
-            categoryName: categoryLabelFor(post.category?.name),
-            recipientEmails,
-            brand: product === PRODUCT.SAAS ? 'saas' : 'pet',
-            unsubscribeBaseUrl: `${frontendUrlFor(product)}/blog/desuscribirse`,
-          });
-          sent += recipientEmails.length;
-        }
-
-        if (sent === 0) {
-          console.log('No valid email addresses found. Email not sent.');
-          return;
-        }
-
-        console.log(`New post email sent to ${sent} subscribers`);
-      } catch (error) {
-        console.error('Error sending new post email:', error);
-        // Don't throw error to prevent post creation from failing
-      }
+    if (operation === 'create' || operation === 'update') {
+      await notifyNewPostIfDue(item, context);
     }
   },
 };

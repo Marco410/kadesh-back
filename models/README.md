@@ -25,3 +25,13 @@ Qué: `Blog/` (Post, Category, Tag, PostLike/Favorite/Comment/View, BlogSubscrip
 Reglas: cada front filtra por `product in [suyo, all]` en **todas** sus lecturas (si no, un post de un producto aparece en el otro). La categoría de un post debe ser del mismo producto. `BlogSubscription.email` ya no es único: la unicidad es `(email, product)` y se valida en `BlogSubscription.hooks.ts`. El correo de nuevo post sale solo a suscriptores de ese producto, con su URL (`PET_FRONTEND_URL` / `SAAS_FRONTEND_URL`) y marca.
 
 Qué no hacer: no volver a meter el blog en `Pet/`; no reusar un valor de `POST_CATEGORIES` en los dos productos (`Category.name` es único).
+
+### 2026-09-22 — Programar posts a futuro
+
+Qué: `Post.publishedAt` ahora es editable desde la creación y programa la publicación: si al marcar `published` el editor no puso fecha, se usa "ahora" (`Post.hooks.ts` → `publishedAtHook`); si puso una fecha futura, se respeta y ya no se pisa en guardados posteriores. Los dos fronts filtran `publishedAt: { lte: now }` además de `published: true` en toda lectura pública (`components/blog/server.ts` de cada repo), así que el post queda invisible hasta esa fecha sin que nada del backend tenga que "despertar" — es lectura perezosa, coherente con `docs/ai/fase-2-digest-diario.md` ("sin cron").
+
+El correo de nuevo post sí sale automáticamente en la fecha programada: `notifyNewPostIfDue` (extraída de `newPostEmailHook` en `Post.hooks.ts`) la llaman tanto el hook de create/update como la mutación `publishScheduledPosts` (`graphql/customs/mutations/publishScheduledPosts.ts`, autorizada con `CRON_SECRET`, no con sesión). Un cron de GitHub Actions (`.github/workflows/publish-scheduled-posts.yml`, cada 10 min, gratis porque el repo es público) la llama para posts en los que nadie vuelve a entrar al admin. `publishedNotifiedAt` evita reenvíos en cualquiera de los dos caminos.
+
+`NOTIFY_GRACE_MS` (3 días) evita que un post viejo —cualquiera publicado antes de que existiera `publishedNotifiedAt`, que nace en `null`— dispare un correo masivo si alguien lo edita o si el cron lo barre: solo se notifica si `publishedAt` venció hace menos de esa ventana. No hizo falta backfill de datos por esto.
+
+Qué no hacer: no bajar `NOTIFY_GRACE_MS` sin pensar en el caso "el cron estuvo caído unos días"; no quitarle el chequeo de `CRON_SECRET` a `publishScheduledPosts` (no tiene otra autorización); si el repo de `kadesh-back` se vuelve privado, revisar la cuota de minutos gratis de GitHub Actions antes de mantener el cron cada 10 min.
