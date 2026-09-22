@@ -64,12 +64,25 @@ export default list({
     }),
     published: checkbox({
       defaultValue: false,
+      ui: {
+        description:
+          "Marca esto y deja \"Published at\" vacío para publicar de inmediato, o ponle una fecha futura para programarlo.",
+      },
     }),
     publishedAt: timestamp({
       ui: {
+        createView: { fieldMode: "edit" },
+        itemView: { fieldMode: "edit" },
+        description:
+          "Vacío = se llena solo al marcar \"Published\". Con una fecha futura, el post queda oculto en el sitio hasta esa fecha.",
+      },
+    }),
+    /** Cuándo se mandó el correo de "nuevo post". No editable: evita reenvíos en guardados posteriores. */
+    publishedNotifiedAt: timestamp({
+      ui: {
         createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "edit" }
-      }
+        itemView: { fieldMode: "read" },
+      },
     }),
     category: relationship({
       ref: "Category.posts",

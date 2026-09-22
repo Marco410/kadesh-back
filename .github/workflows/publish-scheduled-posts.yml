@@ -1,0 +1,47 @@
+name: Publish scheduled blog posts
+
+# Dispara `publishScheduledPosts` (models/Blog/Post/Post.hooks.ts) cada 30 min para mandar el
+# correo de "nuevo post" cuando un post programado (publishedAt a futuro) llega a su fecha y
+# nadie lo vuelve a abrir en el admin. La VISIBILIDAD del post no depende de esto — los fronts
+# ya filtran por fecha en cada lectura (ver models/README.md, decisión 2026-09-22).
+#
+# Gratis: este repo es público, así que los minutos de GitHub Actions no tienen costo. Si el
+# repo pasa a privado, revisar la cuota de minutos gratis del plan antes de mantener este cron.
+#
+# Requiere estos secrets del repo (Settings → Secrets and variables → Actions):
+#   KADESH_API_URL — endpoint GraphQL del backend en Railway, ej. https://<dominio>/api/graphql
+#   CRON_SECRET     — mismo valor que CRON_SECRET en las env vars de Railway
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  publish-scheduled-posts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a publishScheduledPosts
+        env:
+          KADESH_API_URL: ${{ secrets.KADESH_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${KADESH_API_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::Faltan los secrets KADESH_API_URL y/o CRON_SECRET en este repo."
+            exit 1
+          fi
+
+          payload=$(jq -n --arg secret "$CRON_SECRET" '{
+            query: "mutation PublishScheduledPosts($secret: String!) { publishScheduledPosts(secret: $secret) { success message checked } }",
+            variables: { secret: $secret }
+          }')
+
+          response=$(curl -sS -f -X POST "$KADESH_API_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+
+          echo "$response" | jq .
+
+          echo "$response" | jq -e '.data.publishScheduledPosts.success == true' > /dev/null
