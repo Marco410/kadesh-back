@@ -1,4 +1,7 @@
-import { notifyNewPostIfDue } from "../../../models/Blog/Post/Post.hooks";
+import {
+  notifyNewPostIfDue,
+  publishPostToFacebookIfDue,
+} from "../../../models/Blog/Post/Post.hooks";
 
 const typeDefs = `
   type PublishScheduledPostsResult {
@@ -23,9 +26,10 @@ const resolver = {
    *
    * La visibilidad de un post programado (`publishedAt` a futuro) ya funciona sola —los fronts
    * filtran por fecha en cada lectura, sin cron—. Lo único que este mutation resuelve es que el
-   * correo de "nuevo post" salga cerca de la fecha programada aunque nadie vuelva a abrir el
-   * post en el admin. Reusa `notifyNewPostIfDue`, la misma función que dispara el hook al
-   * crear/editar, así que nunca duplica un envío ya hecho.
+   * correo de "nuevo post" y la publicación en Facebook salgan cerca de la fecha programada
+   * aunque nadie vuelva a abrir el post en el admin. Reusa `notifyNewPostIfDue` y
+   * `publishPostToFacebookIfDue`, las mismas funciones que dispara el hook al crear/editar —
+   * cada una re-chequea su propio flag, así que nunca duplica un envío/post ya hecho.
    */
   publishScheduledPosts: async (
     _root: unknown,
@@ -43,12 +47,16 @@ const resolver = {
         where: {
           published: { equals: true },
           publishedAt: { lte: now },
-          publishedNotifiedAt: { equals: null },
+          OR: [
+            { publishedNotifiedAt: { equals: null } },
+            { publishedToFacebookAt: { equals: null } },
+          ],
         },
       });
 
       for (const post of duePosts) {
         await notifyNewPostIfDue(post, context);
+        await publishPostToFacebookIfDue(post, context);
       }
 
       return {
