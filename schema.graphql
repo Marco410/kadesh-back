@@ -2183,6 +2183,7 @@ type Post {
   published: Boolean
   publishedAt: DateTime
   publishedNotifiedAt: DateTime
+  publishedToFacebookAt: DateTime
   category: Category
   tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
   tagsCount(where: TagWhereInput! = {}): Int
@@ -2220,6 +2221,7 @@ input PostWhereInput {
   published: BooleanFilter
   publishedAt: DateTimeNullableFilter
   publishedNotifiedAt: DateTimeNullableFilter
+  publishedToFacebookAt: DateTimeNullableFilter
   category: CategoryWhereInput
   tags: TagManyRelationFilter
   author: UserWhereInput
@@ -2270,6 +2272,7 @@ input PostOrderByInput {
   published: OrderDirection
   publishedAt: OrderDirection
   publishedNotifiedAt: OrderDirection
+  publishedToFacebookAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2284,6 +2287,7 @@ input PostUpdateInput {
   published: Boolean
   publishedAt: DateTime
   publishedNotifiedAt: DateTime
+  publishedToFacebookAt: DateTime
   category: CategoryRelateToOneForUpdateInput
   tags: TagRelateToManyForUpdateInput
   author: UserRelateToOneForUpdateInput
@@ -2351,6 +2355,7 @@ input PostCreateInput {
   published: Boolean
   publishedAt: DateTime
   publishedNotifiedAt: DateTime
+  publishedToFacebookAt: DateTime
   category: CategoryRelateToOneForCreateInput
   tags: TagRelateToManyForCreateInput
   author: UserRelateToOneForCreateInput
@@ -7699,6 +7704,7 @@ type Mutation {
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
+  upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -8564,6 +8570,12 @@ type PublishScheduledPostsResult {
   success: Boolean!
   message: String!
   checked: Int!
+}
+
+type UpsertDraftSystemReleaseResult {
+  success: Boolean!
+  message: String!
+  releaseId: ID
 }
 
 type AnimalMultimediaImage {
