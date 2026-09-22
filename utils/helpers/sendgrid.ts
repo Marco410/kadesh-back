@@ -295,6 +295,7 @@ export async function sendNewPostEmail({
   categoryName,
   recipientEmails,
   brand = "pet",
+  unsubscribeBaseUrl,
 }: {
   postTitle: string;
   postUrl: string;
@@ -303,6 +304,8 @@ export async function sendNewPostEmail({
   categoryName?: string | null;
   recipientEmails: string[];
   brand?: NewPostEmailBrand;
+  /** Página del front donde se da de baja; se le agrega `?email=` de cada destinatario. */
+  unsubscribeBaseUrl?: string;
 }): Promise<void> {
   if (recipientEmails.length === 0) {
     return;
@@ -311,7 +314,7 @@ export async function sendNewPostEmail({
   const { name: brandName, color, hover } = NEW_POST_EMAIL_BRANDS[brand];
   const subject = `Nuevo artículo en ${brandName}: ${postTitle}`;
 
-  const html = `
+  const buildHtml = (unsubscribeUrl: string | null) => `
     <!DOCTYPE html>
     <html>
     <head>
@@ -383,6 +386,10 @@ export async function sendNewPostEmail({
           color: #BBBBBB;
           text-align: center;
         }
+        .footer a {
+          color: #87CEEB;
+          text-decoration: underline;
+        }
       </style>
     </head>
     <body>
@@ -400,17 +407,25 @@ export async function sendNewPostEmail({
       </div>
       <div class="footer">
         <p>Gracias por suscribirte a nuestro blog.</p>
-        <p>Si no deseas recibir más notificaciones, puedes cancelar tu suscripción en cualquier momento.</p>
+        ${
+          unsubscribeUrl
+            ? `<p>Si no deseas recibir más notificaciones, <a href="${escapeHtml(unsubscribeUrl)}">cancela tu suscripción aquí</a>.</p>`
+            : `<p>Si no deseas recibir más notificaciones, puedes cancelar tu suscripción en cualquier momento.</p>`
+        }
       </div>
     </body>
     </html>
   `;
 
   for (const email of recipientEmails) {
+    const unsubscribeUrl = unsubscribeBaseUrl
+      ? `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}`
+      : null;
+
     await sendEmail({
       to: email,
       subject,
-      html,
+      html: buildHtml(unsubscribeUrl),
       fromName: brandName,
     });
   }
