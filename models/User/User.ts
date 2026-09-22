@@ -232,6 +232,11 @@ export default list({
       many: true,
       ui: { description: "Llamadas a IA disparadas por este usuario" },
     }),
+    whatsappMessagesSent: relationship({
+      ref: "TechWhatsAppMessage.sentBy",
+      many: true,
+      ui: { hideCreate: true, description: "Mensajes de WhatsApp enviados por este usuario" },
+    }),
     aiInsights: relationship({
       ref: "TechAiInsight.salesPerson",
       many: true,

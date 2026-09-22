@@ -67,6 +67,7 @@ import SaasReferralCommission from "./Saas/SaasReferralCommission/SaasReferralCo
 import SaasSubscriptionLog from "./Saas/SaasSubscriptionLog/SaasSubscriptionLog";
 import SaasWorkspace from "./Saas/SaasWorkspace/SaasWorkspace";
 import SaasWorkspaceCrmStatus from "./Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus";
+import TechWhatsAppMessage from "./Saas/Tech/WhatsAppMessage/TechWhatsAppMessage";
 
 export default {
   Ad,
@@ -134,6 +135,7 @@ export default {
   TechSalesActivity,
   TechTask,
   TechStatusBusinessLead,
+  TechWhatsAppMessage,
   TokenNotification,
   User,
   UserAuthLog,

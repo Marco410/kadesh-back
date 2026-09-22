@@ -23,6 +23,10 @@ import veterinaryMutations from "./pet/veterinary";
 import unsubscribeBlog from "./unsubscribeBlog";
 import publishScheduledPosts from "./publishScheduledPosts";
 import upsertDraftSystemRelease from "./upsertDraftSystemRelease";
+import updateCompanyWhatsappSettings from "./whatsapp/updateCompanyWhatsappSettings";
+import testCompanyWhatsappConnection from "./whatsapp/testCompanyWhatsappConnection";
+import sendWhatsAppMessage from "./whatsapp/sendWhatsAppMessage";
+import importWhatsAppChatExport from "./whatsapp/importWhatsAppChatExport";
 
 const customMutation = {
   typeDefs: `
@@ -51,6 +55,10 @@ const customMutation = {
     ${unsubscribeBlog.typeDefs}
     ${publishScheduledPosts.typeDefs}
     ${upsertDraftSystemRelease.typeDefs}
+    ${updateCompanyWhatsappSettings.typeDefs}
+    ${testCompanyWhatsappConnection.typeDefs}
+    ${sendWhatsAppMessage.typeDefs}
+    ${importWhatsAppChatExport.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -78,6 +86,10 @@ const customMutation = {
     ${unsubscribeBlog.definition}
     ${publishScheduledPosts.definition}
     ${upsertDraftSystemRelease.definition}
+    ${updateCompanyWhatsappSettings.definition}
+    ${testCompanyWhatsappConnection.definition}
+    ${sendWhatsAppMessage.definition}
+    ${importWhatsAppChatExport.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -105,6 +117,10 @@ const customMutation = {
     ...unsubscribeBlog.resolver,
     ...publishScheduledPosts.resolver,
     ...upsertDraftSystemRelease.resolver,
+    ...updateCompanyWhatsappSettings.resolver,
+    ...testCompanyWhatsappConnection.resolver,
+    ...sendWhatsAppMessage.resolver,
+    ...importWhatsAppChatExport.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {

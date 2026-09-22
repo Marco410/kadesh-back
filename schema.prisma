@@ -555,6 +555,14 @@ model SaasCompany {
   aiApiKeyEncrypted                   String?
   aiApiKeyPreview                     String?
   aiKeyUpdatedAt                      DateTime?
+  whatsappPhoneNumberId               String?                      @unique
+  whatsappBusinessAccountId           String?
+  whatsappDisplayPhoneNumber          String?
+  whatsappAccessTokenEncrypted        String?
+  whatsappAppSecretEncrypted          String?
+  whatsappTokenPreview                String?
+  whatsappConnectedAt                 DateTime?
+  whatsappMessages                    TechWhatsAppMessage[]        @relation("TechWhatsAppMessage_company")
   termsQuotation                      String?
   colorPrimary                        String?                      @default("#F7945E")
   colorSecondary                      String?                      @default("#E07C3A")
@@ -1017,6 +1025,7 @@ model TechBusinessLead {
   salesPerson           User[]                   @relation("TechBusinessLead_salesPerson")
   saasCompany           SaasCompany[]            @relation("SaasCompany_leads")
   quotations            SaasQuotation[]          @relation("SaasQuotation_lead")
+  whatsappMessages      TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_businessLead")
   createdAt             DateTime?                @default(now())
   updatedAt             DateTime?                @updatedAt
 
@@ -1350,6 +1359,32 @@ model TechStatusBusinessLead {
   @@index([salesPersonId])
 }
 
+model TechWhatsAppMessage {
+  id             String            @id @default(cuid())
+  company        SaasCompany?      @relation("TechWhatsAppMessage_company", fields: [companyId], references: [id])
+  companyId      String?           @map("company")
+  businessLead   TechBusinessLead? @relation("TechWhatsAppMessage_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId String?           @map("businessLead")
+  direction      String
+  source         String?           @default("api")
+  senderLabel    String?
+  waMessageId    String?           @unique
+  fromPhone      String?
+  toPhone        String?
+  body           String            @default("")
+  status         String?           @default("sent")
+  sentBy         User?             @relation("TechWhatsAppMessage_sentBy", fields: [sentById], references: [id])
+  sentById       String?           @map("sentBy")
+  errorMessage   String?
+  createdAt      DateTime?         @default(now())
+
+  @@index([companyId])
+  @@index([businessLeadId])
+  @@index([direction])
+  @@index([source])
+  @@index([sentById])
+}
+
 model TokenNotification {
   id     String  @id @default(cuid())
   token  String  @default("")
@@ -1396,6 +1431,7 @@ model User {
   leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
   inegiSyncLogs                            TechInegiSyncLog[]       @relation("TechInegiSyncLog_user")
   aiCallLogs                               TechAiCallLog[]          @relation("TechAiCallLog_user")
+  whatsappMessagesSent                     TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_sentBy")
   aiInsights                               TechAiInsight[]          @relation("TechAiInsight_salesPerson")
   saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_user")
   authLogs                                 UserAuthLog[]            @relation("UserAuthLog_user")
