@@ -1,6 +1,6 @@
 name: Publish scheduled blog posts
 
-# Dispara `publishScheduledPosts` (models/Blog/Post/Post.hooks.ts) cada 30 min para mandar el
+# Dispara `publishScheduledPosts` (models/Blog/Post/Post.hooks.ts) cada hora para mandar el
 # correo de "nuevo post" cuando un post programado (publishedAt a futuro) llega a su fecha y
 # nadie lo vuelve a abrir en el admin. La VISIBILIDAD del post no depende de esto — los fronts
 # ya filtran por fecha en cada lectura (ver models/README.md, decisión 2026-09-22).
@@ -14,7 +14,7 @@ name: Publish scheduled blog posts
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch: {}
 
 jobs:
