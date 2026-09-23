@@ -18818,8 +18818,14 @@ var GRAPH_API_VERSION2 = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.
 function parseGraphError(bodyText) {
   try {
     const parsed = JSON.parse(bodyText);
-    if (parsed?.error?.message) {
-      return { message: parsed.error.message, code: parsed.error.code };
+    const err = parsed?.error;
+    if (err?.message) {
+      const detail = [err.error_user_title, err.error_user_msg].filter(Boolean).join(": ");
+      const subcode = err.error_subcode ? ` (subc\xF3digo ${err.error_subcode})` : "";
+      return {
+        message: `${err.message}${detail ? ` \u2014 ${detail}` : ""}${subcode}`,
+        code: err.code
+      };
     }
   } catch {
   }
@@ -18999,7 +19005,11 @@ async function uploadMediaToWhatsApp({
 }) {
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
-  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimetype }), filename);
+  form.append(
+    "file",
+    new Blob([new Uint8Array(buffer)], { type: mimetype }),
+    filename
+  );
   const response = await fetch(
     `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/media`,
     {
@@ -19075,9 +19085,12 @@ async function fetchWhatsAppMediaUrl({
   mediaId,
   accessToken
 }) {
-  const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION2}/${mediaId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${mediaId}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }
+  );
   const bodyText = await response.text();
   if (!response.ok) {
     const { message } = parseGraphError(bodyText);
@@ -19092,7 +19105,10 @@ async function fetchWhatsAppMediaUrl({
   if (!parsed?.url) {
     throw new Error("[whatsapp] La API no regres\xF3 una URL de media");
   }
-  return { url: parsed.url, mimeType: parsed.mime_type || "application/octet-stream" };
+  return {
+    url: parsed.url,
+    mimeType: parsed.mime_type || "application/octet-stream"
+  };
 }
 async function downloadWhatsAppMedia({
   url,
@@ -19102,7 +19118,9 @@ async function downloadWhatsAppMedia({
     headers: { Authorization: `Bearer ${accessToken}` }
   });
   if (!response.ok) {
-    throw new Error(`[whatsapp] No se pudo descargar el media (HTTP ${response.status})`);
+    throw new Error(
+      `[whatsapp] No se pudo descargar el media (HTTP ${response.status})`
+    );
   }
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
