@@ -237,6 +237,22 @@ export default list({
       many: true,
       ui: { hideCreate: true, description: "Mensajes de WhatsApp enviados por este usuario" },
     }),
+    whatsappMessagesAsTeamMember: relationship({
+      ref: "TechWhatsAppMessage.teamMember",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Chat interno de WhatsApp de la empresa con este usuario",
+      },
+    }),
+    whatsappInternalChatsStarted: relationship({
+      ref: "TechWhatsAppMessage.internalInitiator",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Chats internos de WhatsApp que este usuario abrió",
+      },
+    }),
     aiInsights: relationship({
       ref: "TechAiInsight.salesPerson",
       many: true,

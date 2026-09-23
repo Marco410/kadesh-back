@@ -1363,30 +1363,36 @@ model TechStatusBusinessLead {
 }
 
 model TechWhatsAppMessage {
-  id             String            @id @default(cuid())
-  company        SaasCompany?      @relation("TechWhatsAppMessage_company", fields: [companyId], references: [id])
-  companyId      String?           @map("company")
-  businessLead   TechBusinessLead? @relation("TechWhatsAppMessage_businessLead", fields: [businessLeadId], references: [id])
-  businessLeadId String?           @map("businessLead")
-  direction      String
-  source         String?           @default("api")
-  senderLabel    String?
-  waMessageId    String?           @unique
-  fromPhone      String?
-  toPhone        String?
-  body           String            @default("")
-  messageKind    String?           @default("text")
-  mediaKey       String?
-  mediaType      String?
-  mediaFileName  String?
-  status         String?           @default("sent")
-  sentBy         User?             @relation("TechWhatsAppMessage_sentBy", fields: [sentById], references: [id])
-  sentById       String?           @map("sentBy")
-  errorMessage   String?
-  createdAt      DateTime?         @default(now())
+  id                  String            @id @default(cuid())
+  company             SaasCompany?      @relation("TechWhatsAppMessage_company", fields: [companyId], references: [id])
+  companyId           String?           @map("company")
+  businessLead        TechBusinessLead? @relation("TechWhatsAppMessage_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId      String?           @map("businessLead")
+  teamMember          User?             @relation("TechWhatsAppMessage_teamMember", fields: [teamMemberId], references: [id])
+  teamMemberId        String?           @map("teamMember")
+  internalInitiator   User?             @relation("TechWhatsAppMessage_internalInitiator", fields: [internalInitiatorId], references: [id])
+  internalInitiatorId String?           @map("internalInitiator")
+  direction           String
+  source              String?           @default("api")
+  senderLabel         String?
+  waMessageId         String?           @unique
+  fromPhone           String?
+  toPhone             String?
+  body                String            @default("")
+  messageKind         String?           @default("text")
+  mediaKey            String?
+  mediaType           String?
+  mediaFileName       String?
+  status              String?           @default("sent")
+  sentBy              User?             @relation("TechWhatsAppMessage_sentBy", fields: [sentById], references: [id])
+  sentById            String?           @map("sentBy")
+  errorMessage        String?
+  createdAt           DateTime?         @default(now())
 
   @@index([companyId])
   @@index([businessLeadId])
+  @@index([teamMemberId])
+  @@index([internalInitiatorId])
   @@index([direction])
   @@index([source])
   @@index([sentById])
@@ -1439,6 +1445,8 @@ model User {
   inegiSyncLogs                            TechInegiSyncLog[]       @relation("TechInegiSyncLog_user")
   aiCallLogs                               TechAiCallLog[]          @relation("TechAiCallLog_user")
   whatsappMessagesSent                     TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_sentBy")
+  whatsappMessagesAsTeamMember             TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_teamMember")
+  whatsappInternalChatsStarted             TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_internalInitiator")
   aiInsights                               TechAiInsight[]          @relation("TechAiInsight_salesPerson")
   saasSubscriptionLogs                     SaasSubscriptionLog[]    @relation("SaasSubscriptionLog_user")
   authLogs                                 UserAuthLog[]            @relation("UserAuthLog_user")

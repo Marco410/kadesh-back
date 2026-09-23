@@ -9,6 +9,7 @@ import previewWhatsAppChatExport from "./whatsapp/previewWhatsAppChatExport";
 import companyWhatsappWebhookInfo from "./whatsapp/companyWhatsappWebhookInfo";
 import whatsappConversations from "./whatsapp/whatsappConversations";
 import businessLeadWhatsappStatus from "./whatsapp/businessLeadWhatsappStatus";
+import companyWhatsappTeam from "./whatsapp/companyWhatsappTeam";
 
 const customQuery = {
   typeDefs: `
@@ -20,6 +21,7 @@ const customQuery = {
     ${companyWhatsappWebhookInfo.typeDefs}
     ${whatsappConversations.typeDefs}
     ${businessLeadWhatsappStatus.typeDefs}
+    ${companyWhatsappTeam.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -33,6 +35,7 @@ const customQuery = {
     ${companyWhatsappWebhookInfo.definition}
     ${whatsappConversations.definition}
     ${businessLeadWhatsappStatus.definition}
+    ${companyWhatsappTeam.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -46,6 +49,7 @@ const customQuery = {
     ...companyWhatsappWebhookInfo.resolver,
     ...whatsappConversations.resolver,
     ...businessLeadWhatsappStatus.resolver,
+    ...companyWhatsappTeam.resolver,
   },
 };
 
