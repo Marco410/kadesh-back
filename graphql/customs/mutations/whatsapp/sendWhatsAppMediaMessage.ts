@@ -7,8 +7,7 @@ import {
   uploadMediaToWhatsApp,
 } from "../../../../utils/intregrations/whatsapp";
 import { uploadBufferToStorage } from "../../../../utils/intregrations/s3Storage";
-import { getSessionCompanyId } from "../../../../utils/access/tenant";
-import { canUseCompanyWhatsapp, denyCompanyWhatsappUseMessage } from "./access";
+import { resolveWhatsAppTarget } from "./target";
 
 const typeDefs = `
   type SendWhatsAppMediaMessageResult {
@@ -18,12 +17,12 @@ const typeDefs = `
   }
 
   type Mutation {
-    sendWhatsAppMediaMessage(businessLeadId: ID!, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+    sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
 
 const definition = `
-  sendWhatsAppMediaMessage(businessLeadId: ID!, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 
 type UploadValue = {
@@ -49,31 +48,27 @@ const resolver = {
     _root: unknown,
     {
       businessLeadId,
+      teamMemberId,
       media,
       caption,
-    }: { businessLeadId: string; media: Promise<UploadValue>; caption?: string | null },
+    }: {
+      businessLeadId?: string | null;
+      teamMemberId?: string | null;
+      media: Promise<UploadValue>;
+      caption?: string | null;
+    },
     context: KeystoneContext,
   ) => {
     const session = context.session;
-    const companyId = getSessionCompanyId(session);
 
-    const lead = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: businessLeadId },
-      query: "id phone saasCompany { id }",
-    });
-    if (!lead) return toResult(false, "No se encontró el lead");
+    const { target, error } = await resolveWhatsAppTarget(
+      { businessLeadId, teamMemberId },
+      context,
+    );
+    if (!target) return toResult(false, error ?? "No se pudo resolver el destinatario");
 
-    const leadCompanyIds: string[] = (lead.saasCompany ?? []).map((c: any) => c.id);
-    const effectiveCompanyId =
-      companyId && leadCompanyIds.includes(companyId) ? companyId : null;
-
-    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session, effectiveCompanyId)) {
-      return toResult(false, denyCompanyWhatsappUseMessage(session));
-    }
-
-    const toDigits = lead.phone ? lead.phone.replace(/\D/g, "") : null;
-    if (!toDigits) return toResult(false, "Este lead no tiene un teléfono válido");
-    const to = toDigits.length === 10 ? `52${toDigits}` : toDigits;
+    const effectiveCompanyId = target.companyId;
+    const to = target.to;
 
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: effectiveCompanyId },
@@ -119,7 +114,7 @@ const resolver = {
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: {
           company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
+          ...target.link,
           direction: "outbound",
           toPhone: to,
           body: caption || "",
@@ -136,7 +131,7 @@ const resolver = {
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: {
           company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
+          ...target.link,
           direction: "outbound",
           toPhone: to,
           body: caption || "",

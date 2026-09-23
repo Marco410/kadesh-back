@@ -1890,6 +1890,22 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { hideCreate: true, description: "Mensajes de WhatsApp enviados por este usuario" }
     }),
+    whatsappMessagesAsTeamMember: (0, import_fields7.relationship)({
+      ref: "TechWhatsAppMessage.teamMember",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Chat interno de WhatsApp de la empresa con este usuario"
+      }
+    }),
+    whatsappInternalChatsStarted: (0, import_fields7.relationship)({
+      ref: "TechWhatsAppMessage.internalInitiator",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Chats internos de WhatsApp que este usuario abri\xF3"
+      }
+    }),
     aiInsights: (0, import_fields7.relationship)({
       ref: "TechAiInsight.salesPerson",
       many: true,
@@ -4595,9 +4611,24 @@ function statusLeadCompanyScopedWhere(session2) {
   };
 }
 function whatsappMessageScopedWhere(session2) {
+  if (isPlatformAdmin(session2)) return true;
+  const companyId = getSessionCompanyId(session2);
+  const userId = getSessionUserId(session2);
+  if (!companyId) return false;
+  const inCompany = { company: { id: { equals: companyId } } };
+  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) return inCompany;
+  if (!userId) return false;
   const leadWhere = leadCompanyScopedWhere(session2);
-  if (leadWhere === true || leadWhere === false) return leadWhere;
-  return { businessLead: leadWhere };
+  const visible = [
+    { teamMember: { id: { equals: userId } } },
+    { internalInitiator: { id: { equals: userId } } }
+  ];
+  if (leadWhere !== false) {
+    visible.push(
+      leadWhere === true ? { businessLead: {} } : { businessLead: leadWhere }
+    );
+  }
+  return { AND: [inCompany, { OR: visible }] };
 }
 
 // models/Saas/Tech/BusinessLead/TechBusinessLead.access.ts
@@ -9470,6 +9501,25 @@ var TechWhatsAppMessage_default = (0, import_core70.list)({
       ref: "TechBusinessLead.whatsappMessages",
       many: false,
       ui: { description: "Lead asociado (vac\xEDo si no matche\xF3 ning\xFAn tel\xE9fono conocido)" }
+    }),
+    /** Conversación interna con alguien del equipo (vendedor) en vez de con un lead. Un
+     * mensaje tiene `businessLead` O `teamMember`; si no tiene ninguno, no se pudo matchear
+     * el teléfono y solo lo ven los admins de la empresa. */
+    teamMember: (0, import_fields70.relationship)({
+      ref: "User.whatsappMessagesAsTeamMember",
+      many: false,
+      ui: {
+        description: "Miembro del equipo con quien es esta conversaci\xF3n interna (en vez de un lead)"
+      }
+    }),
+    /** Quién abrió el chat interno. Junto con `teamMember` define quién puede verlo
+     * (ver whatsappMessageScopedWhere): solo esas dos personas, además de los admins. */
+    internalInitiator: (0, import_fields70.relationship)({
+      ref: "User.whatsappInternalChatsStarted",
+      many: false,
+      ui: {
+        description: "Qui\xE9n abri\xF3 la conversaci\xF3n interna. Con teamMember define qui\xE9n la puede ver."
+      }
     }),
     direction: (0, import_fields70.select)({
       type: "string",
@@ -19158,6 +19208,86 @@ var resolver29 = {
 };
 var testCompanyWhatsappConnection_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
+// graphql/customs/mutations/whatsapp/target.ts
+function normalizeWhatsAppDigits(raw) {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length === 10) return `52${digits}`;
+  return digits;
+}
+async function resolveWhatsAppTarget({ businessLeadId, teamMemberId }, context) {
+  const session2 = context.session;
+  const sessionCompanyId = getSessionCompanyId(session2);
+  const sessionUserId = getSessionUserId(session2);
+  const hasLead = Boolean(businessLeadId);
+  const hasTeamMember = Boolean(teamMemberId);
+  if (hasLead === hasTeamMember) {
+    return { error: "Indica un lead o un miembro del equipo (uno de los dos)" };
+  }
+  if (hasTeamMember) {
+    const user = await context.sudo().query.User.findOne({
+      where: { id: teamMemberId },
+      query: "id name lastName phone company { id }"
+    });
+    if (!user) return { error: "No se encontr\xF3 a esa persona" };
+    const userCompanyId = user.company?.id ?? null;
+    if (!userCompanyId || userCompanyId !== sessionCompanyId || !canUseCompanyWhatsapp(session2, userCompanyId)) {
+      return { error: denyCompanyWhatsappUseMessage(session2) };
+    }
+    const to2 = user.phone ? normalizeWhatsAppDigits(user.phone) : null;
+    if (!to2) {
+      return {
+        error: "Esta persona no tiene un tel\xE9fono v\xE1lido en su perfil"
+      };
+    }
+    const [latest] = await context.sudo().query.TechWhatsAppMessage.findMany({
+      where: {
+        company: { id: { equals: userCompanyId } },
+        teamMember: { id: { equals: teamMemberId } }
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 1,
+      query: "id internalInitiator { id }"
+    });
+    const initiatorId = latest?.internalInitiator?.id ?? sessionUserId ?? null;
+    return {
+      target: {
+        companyId: userCompanyId,
+        to: to2,
+        displayName: [user.name, user.lastName].filter(Boolean).join(" ") || "tu compa\xF1ero(a)",
+        link: {
+          teamMember: { connect: { id: teamMemberId } },
+          ...initiatorId ? { internalInitiator: { connect: { id: initiatorId } } } : {}
+        }
+      }
+    };
+  }
+  const lead = await context.query.TechBusinessLead.findOne({
+    where: { id: businessLeadId },
+    query: "id phone businessName saasCompany { id }"
+  });
+  if (!lead) {
+    return { error: "No se encontr\xF3 el lead, o no est\xE1 asignado a ti" };
+  }
+  const leadCompanyIds = (lead.saasCompany ?? []).map(
+    (c) => c.id
+  );
+  const companyId = sessionCompanyId && leadCompanyIds.includes(sessionCompanyId) ? sessionCompanyId : null;
+  if (!companyId || !canUseCompanyWhatsapp(session2, companyId)) {
+    return { error: denyCompanyWhatsappUseMessage(session2) };
+  }
+  const to = lead.phone ? normalizeWhatsAppDigits(lead.phone) : null;
+  if (!to) return { error: "Este lead no tiene un tel\xE9fono v\xE1lido" };
+  return {
+    target: {
+      companyId,
+      to,
+      displayName: lead.businessName?.trim() || "estimado(a)",
+      link: { businessLead: { connect: { id: businessLeadId } } }
+    }
+  };
+}
+
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
 var typeDefs33 = `
   type SendWhatsAppMessageResult {
@@ -19167,71 +19297,53 @@ var typeDefs33 = `
   }
 
   type Mutation {
-    sendWhatsAppMessage(businessLeadId: ID!, body: String!): SendWhatsAppMessageResult!
+    sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
   }
 `;
 var definition30 = `
-  sendWhatsAppMessage(businessLeadId: ID!, body: String!): SendWhatsAppMessageResult!
+  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
 `;
-function normalizeWhatsAppDigits(raw) {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return null;
-  if (digits.length === 10) return `52${digits}`;
-  return digits;
-}
 var resolver30 = {
-  sendWhatsAppMessage: async (_root, { businessLeadId, body }, context) => {
+  sendWhatsAppMessage: async (_root, {
+    businessLeadId,
+    teamMemberId,
+    body
+  }, context) => {
     const session2 = context.session;
-    const companyId = getSessionCompanyId(session2);
     const trimmedBody = body.trim();
     if (!trimmedBody) {
       return { success: false, message: "El mensaje no puede estar vac\xEDo" };
     }
-    if (!companyId && !session2?.data?.id) {
-      return { success: false, message: denyCompanyWhatsappUseMessage(session2) };
-    }
-    const lead = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: businessLeadId },
-      query: "id phone businessName saasCompany { id }"
-    });
-    if (!lead) {
-      return { success: false, message: "No se encontr\xF3 el lead" };
-    }
-    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
-    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
-    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
-      return { success: false, message: denyCompanyWhatsappUseMessage(session2) };
-    }
-    const to = lead.phone ? normalizeWhatsAppDigits(lead.phone) : null;
-    if (!to) {
-      return { success: false, message: "Este lead no tiene un tel\xE9fono v\xE1lido" };
-    }
+    const { target, error } = await resolveWhatsAppTarget(
+      { businessLeadId, teamMemberId },
+      context
+    );
+    if (!target) return { success: false, message: error };
     const company = await context.sudo().query.SaasCompany.findOne({
-      where: { id: effectiveCompanyId },
+      where: { id: target.companyId },
       query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted"
     });
     if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
       return { success: false, message: "WhatsApp no est\xE1 conectado para esta empresa" };
     }
+    const baseData = {
+      company: { connect: { id: target.companyId } },
+      ...target.link,
+      direction: "outbound",
+      toPhone: target.to,
+      body: trimmedBody,
+      sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+    };
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
       const result = await sendWhatsAppTextMessage({
         phoneNumberId: company.whatsappPhoneNumberId,
         accessToken,
-        to,
+        to: target.to,
         body: trimmedBody
       });
       await context.sudo().query.TechWhatsAppMessage.createOne({
-        data: {
-          company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
-          direction: "outbound",
-          waMessageId: result.id,
-          toPhone: to,
-          body: trimmedBody,
-          status: "sent",
-          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
-        }
+        data: { ...baseData, waMessageId: result.id, status: "sent" }
       });
       return { success: true, message: "Mensaje enviado", messageId: result.id };
     } catch (err) {
@@ -19239,19 +19351,14 @@ var resolver30 = {
       const isOutsideWindow = graphCode === 131047;
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: {
-          company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
-          direction: "outbound",
-          toPhone: to,
-          body: trimmedBody,
+          ...baseData,
           status: "failed",
-          errorMessage: err instanceof Error ? err.message : "Error desconocido",
-          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+          errorMessage: err instanceof Error ? err.message : "Error desconocido"
         }
       });
       return {
         success: false,
-        message: isOutsideWindow ? "Han pasado m\xE1s de 24h desde el \xFAltimo mensaje del lead. Se necesita una plantilla aprobada (no soportado todav\xEDa)." : err instanceof Error ? err.message : "Error al enviar el mensaje"
+        message: isOutsideWindow ? 'Han pasado m\xE1s de 24h desde el \xFAltimo mensaje. Usa "Iniciar conversaci\xF3n" para mandar la plantilla aprobada.' : err instanceof Error ? err.message : "Error al enviar el mensaje"
       };
     }
   }
@@ -19440,34 +19547,28 @@ var typeDefs35 = `
   }
 
   type Mutation {
-    startWhatsAppConversation(businessLeadId: ID!): StartWhatsAppConversationResult!
+    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
   }
 `;
 var definition32 = `
-  startWhatsAppConversation(businessLeadId: ID!): StartWhatsAppConversationResult!
+  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
   return { success, message };
 }
 var resolver32 = {
-  startWhatsAppConversation: async (_root, { businessLeadId }, context) => {
+  startWhatsAppConversation: async (_root, {
+    businessLeadId,
+    teamMemberId
+  }, context) => {
     const session2 = context.session;
-    const companyId = getSessionCompanyId(session2);
-    const lead = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: businessLeadId },
-      query: "id phone businessName saasCompany { id }"
-    });
-    if (!lead) return toResult7(false, "No se encontr\xF3 el lead");
-    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
-    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
-    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
-      return toResult7(false, denyCompanyWhatsappUseMessage(session2));
-    }
-    const to = lead.phone ? lead.phone.replace(/\D/g, "") : null;
-    if (!to) return toResult7(false, "Este lead no tiene un tel\xE9fono v\xE1lido");
-    const normalizedTo = to.length === 10 ? `52${to}` : to;
+    const { target, error } = await resolveWhatsAppTarget(
+      { businessLeadId, teamMemberId },
+      context
+    );
+    if (!target) return toResult7(false, error ?? "No se pudo resolver el destinatario");
     const company = await context.sudo().query.SaasCompany.findOne({
-      where: { id: effectiveCompanyId },
+      where: { id: target.companyId },
       query: "id name whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappTemplateName whatsappTemplateLanguage whatsappTemplateStatus"
     });
     if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
@@ -19477,43 +19578,36 @@ var resolver32 = {
       const statusMessage = company.whatsappTemplateStatus === "rejected" ? "La plantilla para iniciar conversaciones fue rechazada por Meta. Contacta a soporte de Kadesh." : "La plantilla para iniciar conversaciones todav\xEDa est\xE1 pendiente de aprobaci\xF3n de Meta. Intenta de nuevo en un rato.";
       return toResult7(false, statusMessage);
     }
-    const leadName = lead.businessName?.trim() || "estimado(a)";
+    const baseData = {
+      company: { connect: { id: target.companyId } },
+      ...target.link,
+      direction: "outbound",
+      messageKind: "template",
+      toPhone: target.to,
+      sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+    };
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
       await sendWhatsAppTemplateMessage({
         phoneNumberId: company.whatsappPhoneNumberId,
         accessToken,
-        to: normalizedTo,
+        to: target.to,
         templateName: company.whatsappTemplateName,
         language: company.whatsappTemplateLanguage || "es_MX",
-        bodyParams: [leadName, company.name]
+        bodyParams: [target.displayName, company.name]
       });
-      const renderedBody = `Hola ${leadName}, te escribe ${company.name}. \xBFTienes un momento para platicar?`;
+      const renderedBody = `Hola ${target.displayName}, te escribe ${company.name}. \xBFTienes un momento para platicar?`;
       await context.sudo().query.TechWhatsAppMessage.createOne({
-        data: {
-          company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
-          direction: "outbound",
-          messageKind: "template",
-          toPhone: normalizedTo,
-          body: renderedBody,
-          status: "sent",
-          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
-        }
+        data: { ...baseData, body: renderedBody, status: "sent" }
       });
       return toResult7(true, "Conversaci\xF3n iniciada");
     } catch (err) {
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: {
-          company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
-          direction: "outbound",
-          messageKind: "template",
-          toPhone: normalizedTo,
+          ...baseData,
           body: "(plantilla de inicio de conversaci\xF3n)",
           status: "failed",
-          errorMessage: err instanceof Error ? err.message : "Error desconocido",
-          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+          errorMessage: err instanceof Error ? err.message : "Error desconocido"
         }
       });
       return toResult7(
@@ -19580,11 +19674,11 @@ var typeDefs36 = `
   }
 
   type Mutation {
-    sendWhatsAppMediaMessage(businessLeadId: ID!, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+    sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
 var definition33 = `
-  sendWhatsAppMediaMessage(businessLeadId: ID!, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
   const chunks = [];
@@ -19599,24 +19693,18 @@ function toResult8(success, message, messageId = null) {
 var resolver33 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
+    teamMemberId,
     media,
     caption
   }, context) => {
     const session2 = context.session;
-    const companyId = getSessionCompanyId(session2);
-    const lead = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: businessLeadId },
-      query: "id phone saasCompany { id }"
-    });
-    if (!lead) return toResult8(false, "No se encontr\xF3 el lead");
-    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
-    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
-    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
-      return toResult8(false, denyCompanyWhatsappUseMessage(session2));
-    }
-    const toDigits = lead.phone ? lead.phone.replace(/\D/g, "") : null;
-    if (!toDigits) return toResult8(false, "Este lead no tiene un tel\xE9fono v\xE1lido");
-    const to = toDigits.length === 10 ? `52${toDigits}` : toDigits;
+    const { target, error } = await resolveWhatsAppTarget(
+      { businessLeadId, teamMemberId },
+      context
+    );
+    if (!target) return toResult8(false, error ?? "No se pudo resolver el destinatario");
+    const effectiveCompanyId = target.companyId;
+    const to = target.to;
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: effectiveCompanyId },
       query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted"
@@ -19654,7 +19742,7 @@ var resolver33 = {
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: {
           company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
+          ...target.link,
           direction: "outbound",
           toPhone: to,
           body: caption || "",
@@ -19670,7 +19758,7 @@ var resolver33 = {
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: {
           company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
+          ...target.link,
           direction: "outbound",
           toPhone: to,
           body: caption || "",
@@ -19686,6 +19774,66 @@ var resolver33 = {
   }
 };
 var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+
+// graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
+var typeDefs37 = `
+  type AssignWhatsAppConversationResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type Mutation {
+    assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
+  }
+`;
+var definition34 = `
+  assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
+`;
+function toResult9(success, message) {
+  return { success, message };
+}
+var resolver34 = {
+  assignWhatsAppConversation: async (_root, {
+    businessLeadId,
+    salesPersonId
+  }, context) => {
+    const session2 = context.session;
+    const companyId = getSessionCompanyId(session2);
+    const lead = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: businessLeadId },
+      query: "id businessName saasCompany { id }"
+    });
+    if (!lead) return toResult9(false, "No se encontr\xF3 el lead");
+    const leadCompanyIds = (lead.saasCompany ?? []).map(
+      (c) => c.id
+    );
+    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
+    if (!effectiveCompanyId || !canManageCompanyWhatsapp(session2, effectiveCompanyId)) {
+      return toResult9(false, denyCompanyWhatsappAccessMessage(session2));
+    }
+    if (salesPersonId) {
+      const person = await context.sudo().query.User.findOne({
+        where: { id: salesPersonId },
+        query: "id name lastName company { id }"
+      });
+      if (!person || person.company?.id !== effectiveCompanyId) {
+        return toResult9(false, "Esa persona no es de tu empresa");
+      }
+      await context.sudo().query.TechBusinessLead.updateOne({
+        where: { id: businessLeadId },
+        data: { salesPerson: { set: [{ id: salesPersonId }] } }
+      });
+      const name = [person.name, person.lastName].filter(Boolean).join(" ");
+      return toResult9(true, `Chat asignado a ${name || "el vendedor"}`);
+    }
+    await context.sudo().query.TechBusinessLead.updateOne({
+      where: { id: businessLeadId },
+      data: { salesPerson: { set: [] } }
+    });
+    return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
+  }
+};
+var assignWhatsAppConversation_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -19721,6 +19869,7 @@ var customMutation = {
     ${importWhatsAppChatExport_default.typeDefs}
     ${startWhatsAppConversation_default.typeDefs}
     ${sendWhatsAppMediaMessage_default.typeDefs}
+    ${assignWhatsAppConversation_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -19754,6 +19903,7 @@ var customMutation = {
     ${importWhatsAppChatExport_default.definition}
     ${startWhatsAppConversation_default.definition}
     ${sendWhatsAppMediaMessage_default.definition}
+    ${assignWhatsAppConversation_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -19786,7 +19936,8 @@ var customMutation = {
     ...sendWhatsAppMessage_default.resolver,
     ...importWhatsAppChatExport_default.resolver,
     ...startWhatsAppConversation_default.resolver,
-    ...sendWhatsAppMediaMessage_default.resolver
+    ...sendWhatsAppMediaMessage_default.resolver,
+    ...assignWhatsAppConversation_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -19797,7 +19948,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs37 = `
+var typeDefs38 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -19856,7 +20007,7 @@ var typeDefs37 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition34 = `
+var definition35 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -19906,7 +20057,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver34 = {
+var resolver35 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -20069,7 +20220,7 @@ var resolver34 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var nearbyAnimals_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -20382,7 +20533,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs38 = `
+var typeDefs39 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -20442,10 +20593,10 @@ var typeDefs38 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition35 = `
+var definition36 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver35 = {
+var resolver36 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -20527,10 +20678,10 @@ var resolver35 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs39 = `
+var typeDefs40 = `
   type StripeCard {
     brand: String
     country: String
@@ -20564,10 +20715,10 @@ var typeDefs39 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition36 = `
+var definition37 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver36 = {
+var resolver37 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -20603,7 +20754,7 @@ var resolver36 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var stripePaymentMethods_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -20656,7 +20807,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs40 = `
+var typeDefs41 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -20684,10 +20835,10 @@ var typeDefs40 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition37 = `
+var definition38 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver37 = {
+var resolver38 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -20814,11 +20965,11 @@ var resolver37 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var subscriptionStatus_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs41 = `
+var typeDefs42 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -20830,10 +20981,10 @@ var typeDefs41 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition38 = `
+var definition39 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver38 = {
+var resolver39 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -20866,10 +21017,10 @@ var resolver38 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs42 = `
+var typeDefs43 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -20881,10 +21032,10 @@ var typeDefs42 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition39 = `
+var definition40 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver39 = {
+var resolver40 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -20906,14 +21057,20 @@ var resolver39 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs43 = `
+var typeDefs44 = `
   type WhatsAppConversationSummary {
-    leadId: ID!
-    leadName: String!
+    """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
+    leadId: ID
+    """Id del compa\xF1ero de equipo \u2014 vac\xEDo en las conversaciones con clientes."""
+    teamMemberId: ID
+    kind: String!
+    name: String!
+    assignedToId: ID
+    assignedToName: String
     lastMessageBody: String!
     lastMessageAt: String!
     lastMessageDirection: String!
@@ -20929,10 +21086,14 @@ var typeDefs43 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition40 = `
+var definition41 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
-var resolver40 = {
+function fullName(person) {
+  if (!person) return "";
+  return [person.name, person.lastName].filter(Boolean).join(" ");
+}
+var resolver41 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -20942,21 +21103,30 @@ var resolver40 = {
         conversations: []
       };
     }
-    const messages = await context.sudo().query.TechWhatsAppMessage.findMany({
+    const messages = await context.query.TechWhatsAppMessage.findMany({
       where: { company: { id: { equals: companyId } } },
       orderBy: [{ createdAt: "desc" }],
       take: MAX_MESSAGES_SCANNED,
-      query: "id body direction createdAt businessLead { id businessName }"
+      query: "id body direction createdAt businessLead { id businessName salesPerson { id name lastName } } teamMember { id name lastName }"
     });
-    const seenLeadIds = /* @__PURE__ */ new Set();
+    const seenKeys = /* @__PURE__ */ new Set();
     const conversations = [];
     for (const msg of messages) {
-      const leadId = msg.businessLead?.id;
-      if (!leadId || !msg.createdAt || seenLeadIds.has(leadId)) continue;
-      seenLeadIds.add(leadId);
+      if (!msg.createdAt) continue;
+      const leadId = msg.businessLead?.id ?? null;
+      const teamMemberId = msg.teamMember?.id ?? null;
+      if (!leadId && !teamMemberId) continue;
+      const key = leadId ? `lead:${leadId}` : `team:${teamMemberId}`;
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      const assigned = msg.businessLead?.salesPerson?.[0] ?? null;
       conversations.push({
         leadId,
-        leadName: msg.businessLead?.businessName || "Sin nombre",
+        teamMemberId,
+        kind: leadId ? "lead" : "team",
+        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : fullName(msg.teamMember) || "Sin nombre",
+        assignedToId: assigned?.id ?? null,
+        assignedToName: assigned ? fullName(assigned) || null : null,
         lastMessageBody: msg.body || "",
         lastMessageAt: msg.createdAt,
         lastMessageDirection: msg.direction || "unknown"
@@ -20965,11 +21135,11 @@ var resolver40 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var whatsappConversations_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs44 = `
+var typeDefs45 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -20978,42 +21148,36 @@ var typeDefs44 = `
   }
 
   type Query {
-    businessLeadWhatsappStatus(businessLeadId: ID!): BusinessLeadWhatsappStatusResult!
+    businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition41 = `
-  businessLeadWhatsappStatus(businessLeadId: ID!): BusinessLeadWhatsappStatusResult!
+var definition42 = `
+  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
 `;
-var resolver41 = {
-  businessLeadWhatsappStatus: async (_root, { businessLeadId }, context) => {
-    const session2 = context.session;
-    const companyId = getSessionCompanyId(session2);
-    const lead = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: businessLeadId },
-      query: "id saasCompany { id }"
-    });
-    if (!lead) {
-      return { success: false, message: "No se encontr\xF3 el lead", canReplyFreely: false, templateStatus: null };
-    }
-    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
-    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
-    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
+var resolver42 = {
+  businessLeadWhatsappStatus: async (_root, {
+    businessLeadId,
+    teamMemberId
+  }, context) => {
+    const { target, error } = await resolveWhatsAppTarget(
+      { businessLeadId, teamMemberId },
+      context
+    );
+    if (!target) {
       return {
         success: false,
-        message: "No tienes acceso a WhatsApp de esta empresa",
+        message: error ?? "No se pudo resolver la conversaci\xF3n",
         canReplyFreely: false,
         templateStatus: null
       };
     }
     const company = await context.sudo().query.SaasCompany.findOne({
-      where: { id: effectiveCompanyId },
+      where: { id: target.companyId },
       query: "id whatsappTemplateStatus"
     });
+    const conversationWhere = businessLeadId ? { businessLead: { id: { equals: businessLeadId } } } : { teamMember: { id: { equals: teamMemberId } } };
     const [lastInbound] = await context.sudo().query.TechWhatsAppMessage.findMany({
-      where: {
-        businessLead: { id: { equals: businessLeadId } },
-        direction: { equals: "inbound" }
-      },
+      where: { ...conversationWhere, direction: { equals: "inbound" } },
       orderBy: [{ createdAt: "desc" }],
       query: "createdAt",
       take: 1
@@ -21027,7 +21191,57 @@ var resolver41 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+
+// graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
+var typeDefs46 = `
+  type WhatsAppTeamMember {
+    id: ID!
+    name: String!
+    phone: String
+    canReceiveWhatsapp: Boolean!
+  }
+
+  type CompanyWhatsappTeamResult {
+    success: Boolean!
+    message: String!
+    members: [WhatsAppTeamMember!]!
+  }
+
+  type Query {
+    companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
+  }
+`;
+var definition43 = `
+  companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
+`;
+var resolver43 = {
+  companyWhatsappTeam: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    if (!canUseCompanyWhatsapp(session2, companyId)) {
+      return {
+        success: false,
+        message: denyCompanyWhatsappUseMessage(session2),
+        members: []
+      };
+    }
+    const sessionUserId = getSessionUserId(session2);
+    const users = await context.sudo().query.User.findMany({
+      where: { company: { id: { equals: companyId } } },
+      orderBy: [{ name: "asc" }],
+      take: 300,
+      query: "id name lastName phone"
+    });
+    const members = users.filter((u) => u.id !== sessionUserId).map((u) => ({
+      id: u.id,
+      name: [u.name, u.lastName].filter(Boolean).join(" ") || "Sin nombre",
+      phone: u.phone || null,
+      canReceiveWhatsapp: Boolean(u.phone && u.phone.replace(/\D/g, "").length >= 10)
+    }));
+    return { success: true, message: "OK", members };
+  }
+};
+var companyWhatsappTeam_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -21040,6 +21254,7 @@ var customQuery = {
     ${companyWhatsappWebhookInfo_default.typeDefs}
     ${whatsappConversations_default.typeDefs}
     ${businessLeadWhatsappStatus_default.typeDefs}
+    ${companyWhatsappTeam_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -21053,6 +21268,7 @@ var customQuery = {
     ${companyWhatsappWebhookInfo_default.definition}
     ${whatsappConversations_default.definition}
     ${businessLeadWhatsappStatus_default.definition}
+    ${companyWhatsappTeam_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -21065,7 +21281,8 @@ var customQuery = {
     ...previewWhatsAppChatExport_default.resolver,
     ...companyWhatsappWebhookInfo_default.resolver,
     ...whatsappConversations_default.resolver,
-    ...businessLeadWhatsappStatus_default.resolver
+    ...businessLeadWhatsappStatus_default.resolver,
+    ...companyWhatsappTeam_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -21192,6 +21409,8 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
     if (existing) continue;
     const fromDigits = (msg.from || "").replace(/\D/g, "");
     let businessLeadId = null;
+    let teamMemberId = null;
+    let internalInitiatorId = null;
     if (fromDigits) {
       const candidates = await context.sudo().query.TechBusinessLead.findMany({
         where: {
@@ -21202,6 +21421,29 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
         take: 1
       });
       businessLeadId = candidates[0]?.id ?? null;
+      if (!businessLeadId) {
+        const teamCandidates = await context.sudo().query.User.findMany({
+          where: {
+            company: { id: { equals: companyId } },
+            phone: { contains: last10Digits(fromDigits) }
+          },
+          query: "id",
+          take: 1
+        });
+        teamMemberId = teamCandidates[0]?.id ?? null;
+        if (teamMemberId) {
+          const [latest] = await context.sudo().query.TechWhatsAppMessage.findMany({
+            where: {
+              company: { id: { equals: companyId } },
+              teamMember: { id: { equals: teamMemberId } }
+            },
+            orderBy: [{ createdAt: "desc" }],
+            take: 1,
+            query: "id internalInitiator { id }"
+          });
+          internalInitiatorId = latest?.internalInitiator?.id ?? null;
+        }
+      }
     }
     let body = "";
     let mediaKey = null;
@@ -21238,6 +21480,8 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
       data: {
         company: { connect: { id: companyId } },
         ...businessLeadId ? { businessLead: { connect: { id: businessLeadId } } } : {},
+        ...teamMemberId ? { teamMember: { connect: { id: teamMemberId } } } : {},
+        ...internalInitiatorId ? { internalInitiator: { connect: { id: internalInitiatorId } } } : {},
         direction: "inbound",
         waMessageId: msg.id,
         fromPhone: msg.from || null,

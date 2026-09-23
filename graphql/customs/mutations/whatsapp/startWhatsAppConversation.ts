@@ -1,8 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { decrypt } from "../../../../utils/helpers/encryption";
 import { sendWhatsAppTemplateMessage } from "../../../../utils/intregrations/whatsapp";
-import { getSessionCompanyId } from "../../../../utils/access/tenant";
-import { canUseCompanyWhatsapp, denyCompanyWhatsappUseMessage } from "./access";
+import { resolveWhatsAppTarget } from "./target";
 
 const typeDefs = `
   type StartWhatsAppConversationResult {
@@ -11,12 +10,12 @@ const typeDefs = `
   }
 
   type Mutation {
-    startWhatsAppConversation(businessLeadId: ID!): StartWhatsAppConversationResult!
+    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
   }
 `;
 
 const definition = `
-  startWhatsAppConversation(businessLeadId: ID!): StartWhatsAppConversationResult!
+  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
 `;
 
 function toResult(success: boolean, message: string) {
@@ -26,32 +25,22 @@ function toResult(success: boolean, message: string) {
 const resolver = {
   startWhatsAppConversation: async (
     _root: unknown,
-    { businessLeadId }: { businessLeadId: string },
+    {
+      businessLeadId,
+      teamMemberId,
+    }: { businessLeadId?: string | null; teamMemberId?: string | null },
     context: KeystoneContext,
   ) => {
     const session = context.session;
-    const companyId = getSessionCompanyId(session);
 
-    const lead = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: businessLeadId },
-      query: "id phone businessName saasCompany { id }",
-    });
-    if (!lead) return toResult(false, "No se encontró el lead");
-
-    const leadCompanyIds: string[] = (lead.saasCompany ?? []).map((c: any) => c.id);
-    const effectiveCompanyId =
-      companyId && leadCompanyIds.includes(companyId) ? companyId : null;
-
-    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session, effectiveCompanyId)) {
-      return toResult(false, denyCompanyWhatsappUseMessage(session));
-    }
-
-    const to = lead.phone ? lead.phone.replace(/\D/g, "") : null;
-    if (!to) return toResult(false, "Este lead no tiene un teléfono válido");
-    const normalizedTo = to.length === 10 ? `52${to}` : to;
+    const { target, error } = await resolveWhatsAppTarget(
+      { businessLeadId, teamMemberId },
+      context,
+    );
+    if (!target) return toResult(false, error ?? "No se pudo resolver el destinatario");
 
     const company = await context.sudo().query.SaasCompany.findOne({
-      where: { id: effectiveCompanyId },
+      where: { id: target.companyId },
       query:
         "id name whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappTemplateName whatsappTemplateLanguage whatsappTemplateStatus",
     });
@@ -68,49 +57,40 @@ const resolver = {
       return toResult(false, statusMessage);
     }
 
-    // Meta rechaza parámetros de plantilla vacíos, así que hace falta un relleno si el lead no
-    // tiene nombre guardado.
-    const leadName = lead.businessName?.trim() || "estimado(a)";
+    const baseData = {
+      company: { connect: { id: target.companyId } },
+      ...target.link,
+      direction: "outbound",
+      messageKind: "template",
+      toPhone: target.to,
+      sentBy: session?.data?.id ? { connect: { id: session.data.id } } : undefined,
+    };
 
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
       await sendWhatsAppTemplateMessage({
         phoneNumberId: company.whatsappPhoneNumberId,
         accessToken,
-        to: normalizedTo,
+        to: target.to,
         templateName: company.whatsappTemplateName,
         language: company.whatsappTemplateLanguage || "es_MX",
-        bodyParams: [leadName, company.name],
+        bodyParams: [target.displayName, company.name],
       });
 
-      const renderedBody = `Hola ${leadName}, te escribe ${company.name}. ¿Tienes un momento para platicar?`;
+      const renderedBody = `Hola ${target.displayName}, te escribe ${company.name}. ¿Tienes un momento para platicar?`;
 
       await context.sudo().query.TechWhatsAppMessage.createOne({
-        data: {
-          company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
-          direction: "outbound",
-          messageKind: "template",
-          toPhone: normalizedTo,
-          body: renderedBody,
-          status: "sent",
-          sentBy: session?.data?.id ? { connect: { id: session.data.id } } : undefined,
-        },
+        data: { ...baseData, body: renderedBody, status: "sent" },
       });
 
       return toResult(true, "Conversación iniciada");
     } catch (err) {
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: {
-          company: { connect: { id: effectiveCompanyId } },
-          businessLead: { connect: { id: businessLeadId } },
-          direction: "outbound",
-          messageKind: "template",
-          toPhone: normalizedTo,
+          ...baseData,
           body: "(plantilla de inicio de conversación)",
           status: "failed",
           errorMessage: err instanceof Error ? err.message : "Error desconocido",
-          sentBy: session?.data?.id ? { connect: { id: session.data.id } } : undefined,
         },
       });
       return toResult(

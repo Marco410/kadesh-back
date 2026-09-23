@@ -4,10 +4,10 @@ import {
   denyCompanyWhatsappUseMessage,
 } from "../../mutations/whatsapp/access";
 
-// Cuántos mensajes recientes de la empresa se recorren para armar la lista de conversaciones
-// (una fila por lead, quedándonos con su mensaje más reciente). Suficiente para una bandeja
-// de un solo número de WhatsApp por empresa; si algún día hace falta paginar de verdad, esto
-// se vuelve el primer cuello de botella.
+// Cuántos mensajes recientes se recorren para armar la lista de conversaciones (una fila por
+// lead / compañero de equipo, quedándonos con su mensaje más reciente). Suficiente para una
+// bandeja de un solo número de WhatsApp por empresa; si algún día hace falta paginar de
+// verdad, esto se vuelve el primer cuello de botella.
 const MAX_MESSAGES_SCANNED = 500;
 
 type ScannedMessage = {
@@ -15,13 +15,24 @@ type ScannedMessage = {
   body: string | null;
   direction: string | null;
   createdAt: string | null;
-  businessLead: { id: string; businessName: string | null } | null;
+  businessLead: {
+    id: string;
+    businessName: string | null;
+    salesPerson: Array<{ id: string; name: string | null; lastName: string | null }> | null;
+  } | null;
+  teamMember: { id: string; name: string | null; lastName: string | null } | null;
 };
 
 const typeDefs = `
   type WhatsAppConversationSummary {
-    leadId: ID!
-    leadName: String!
+    """Id del lead (conversación con un cliente) — vacío en las conversaciones internas."""
+    leadId: ID
+    """Id del compañero de equipo — vacío en las conversaciones con clientes."""
+    teamMemberId: ID
+    kind: String!
+    name: String!
+    assignedToId: ID
+    assignedToName: String
     lastMessageBody: String!
     lastMessageAt: String!
     lastMessageDirection: String!
@@ -42,6 +53,13 @@ const definition = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 
+function fullName(
+  person: { name: string | null; lastName: string | null } | null | undefined,
+): string {
+  if (!person) return "";
+  return [person.name, person.lastName].filter(Boolean).join(" ");
+}
+
 const resolver = {
   whatsappConversations: async (
     _root: unknown,
@@ -57,34 +75,44 @@ const resolver = {
       };
     }
 
-    // sudo: queremos TODAS las conversaciones de la empresa (cualquier miembro las ve), no
-    // solo los leads propios de quien pregunta — el filtro de compañía de abajo ya acota
-    // correctamente, canUseCompanyWhatsapp ya validó el acceso.
-    const messages = (await context
-      .sudo()
-      .query.TechWhatsAppMessage.findMany({
-        where: { company: { id: { equals: companyId } } },
-        orderBy: [{ createdAt: "desc" }],
-        take: MAX_MESSAGES_SCANNED,
-        query: "id body direction createdAt businessLead { id businessName }",
-      })) as ScannedMessage[];
+    // SIN sudo a propósito: el filtro del list (`whatsappMessageScopedWhere`) es el que hace
+    // que un vendedor solo vea los chats de sus leads asignados y sus chats internos, y que
+    // los mensajes sin matchear queden solo para los admins.
+    const messages = (await context.query.TechWhatsAppMessage.findMany({
+      where: { company: { id: { equals: companyId } } },
+      orderBy: [{ createdAt: "desc" }],
+      take: MAX_MESSAGES_SCANNED,
+      query:
+        "id body direction createdAt businessLead { id businessName salesPerson { id name lastName } } teamMember { id name lastName }",
+    })) as ScannedMessage[];
 
-    const seenLeadIds = new Set<string>();
-    const conversations: Array<{
-      leadId: string;
-      leadName: string;
-      lastMessageBody: string;
-      lastMessageAt: string;
-      lastMessageDirection: string;
-    }> = [];
+    const seenKeys = new Set<string>();
+    const conversations: Array<Record<string, unknown>> = [];
 
     for (const msg of messages) {
-      const leadId = msg.businessLead?.id;
-      if (!leadId || !msg.createdAt || seenLeadIds.has(leadId)) continue;
-      seenLeadIds.add(leadId);
+      if (!msg.createdAt) continue;
+
+      const leadId = msg.businessLead?.id ?? null;
+      const teamMemberId = msg.teamMember?.id ?? null;
+      // Sin lead ni compañero: número que no matcheó con nadie. No arma conversación (no hay
+      // a quién responderle desde el CRM); se sigue viendo en el admin de Keystone.
+      if (!leadId && !teamMemberId) continue;
+
+      const key = leadId ? `lead:${leadId}` : `team:${teamMemberId}`;
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+
+      const assigned = msg.businessLead?.salesPerson?.[0] ?? null;
+
       conversations.push({
         leadId,
-        leadName: msg.businessLead?.businessName || "Sin nombre",
+        teamMemberId,
+        kind: leadId ? "lead" : "team",
+        name: leadId
+          ? msg.businessLead?.businessName || "Sin nombre"
+          : fullName(msg.teamMember) || "Sin nombre",
+        assignedToId: assigned?.id ?? null,
+        assignedToName: assigned ? fullName(assigned) || null : null,
         lastMessageBody: msg.body || "",
         lastMessageAt: msg.createdAt,
         lastMessageDirection: msg.direction || "unknown",
