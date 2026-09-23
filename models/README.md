@@ -92,4 +92,6 @@ Además, crear plantillas exige que el access token tenga `whatsapp_business_man
 
 `parseGraphError` (`utils/intregrations/whatsapp.ts`) pliega `error_user_title`, `error_user_msg` y `error_subcode` al mensaje: Meta responde "Invalid parameter" a casi todo y el motivo real viaja en esos campos. No lo reduzcas otra vez a `error.message` — sin ellos un error de Meta no dice qué corregir.
 
+Antes de crear la plantilla, `ensureOutreachTemplate` consulta a Meta qué cuenta es el `whatsappBusinessAccountId` guardado y si incluye el `whatsappPhoneNumberId` conectado (`fetchWhatsAppBusinessAccountInfo`). Copiar un ID equivocado es el error más común de BYOK y Meta lo contesta con un genérico "Invalid parameter" que no dice cuál ID estaba mal; con esta comprobación el mensaje lo dice, y los demás errores de la plantilla llevan el **nombre de la cuenta** (permite distinguir, p. ej., la cuenta de prueba de Meta de una real).
+
 Qué no hacer: no volver a tragarse el error de la plantilla; no quitar los ejemplos (`OUTREACH_TEMPLATE_EXAMPLES`, uno por variable y en orden); no pedir en la guía del front solo el permiso de mensajería.

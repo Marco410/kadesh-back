@@ -140,6 +140,51 @@ export async function fetchWhatsAppPhoneNumberInfo({
 }
 
 /**
+ * Qué cuenta de WhatsApp Business es ese ID y qué números contiene. Sirve para comprobar que el
+ * "WhatsApp Business Account ID" que pegó la empresa es de verdad el de la cuenta dueña del
+ * número (el error más común de BYOK: copiar otro ID), y para poder nombrar la cuenta en los
+ * errores en vez de solo repetir el mensaje genérico de Meta.
+ */
+export async function fetchWhatsAppBusinessAccountInfo({
+  wabaId,
+  accessToken,
+}: {
+  wabaId: string;
+  accessToken: string;
+}): Promise<{ id: string; name: string; phoneNumberIds: string[] }> {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${wabaId}?fields=id,name,phone_numbers.limit(100){id}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  const bodyText = await response.text();
+
+  if (!response.ok) {
+    const { message } = parseGraphError(bodyText);
+    throw new Error(`[whatsapp] Graph API error: ${message}`);
+  }
+
+  let parsed: {
+    id?: string;
+    name?: string;
+    phone_numbers?: { data?: Array<{ id?: string }> };
+  } | null = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+
+  return {
+    id: parsed?.id || wabaId,
+    name: parsed?.name || "",
+    phoneNumberIds: (parsed?.phone_numbers?.data ?? [])
+      .map((n) => n.id)
+      .filter((id): id is string => Boolean(id)),
+  };
+}
+
+/**
  * Crea una plantilla de mensaje (necesaria para iniciar una conversación con un lead que no ha
  * escrito antes — regla de Meta, no de Kadesh). Categoría MARKETING: es contacto de ventas, no
  * transaccional. Un solo componente BODY con 2 variables ({{1}} nombre del lead, {{2}} nombre

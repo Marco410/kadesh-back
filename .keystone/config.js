@@ -18898,6 +18898,31 @@ async function fetchWhatsAppPhoneNumberInfo({
     verifiedName: parsed?.verified_name || ""
   };
 }
+async function fetchWhatsAppBusinessAccountInfo({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}?fields=id,name,phone_numbers.limit(100){id}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const { message } = parseGraphError(bodyText);
+    throw new Error(`[whatsapp] Graph API error: ${message}`);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return {
+    id: parsed?.id || wabaId,
+    name: parsed?.name || "",
+    phoneNumberIds: (parsed?.phone_numbers?.data ?? []).map((n) => n.id).filter((id) => Boolean(id))
+  };
+}
 async function createWhatsAppTemplate({
   wabaId,
   accessToken,
@@ -19144,6 +19169,13 @@ var OUTREACH_TEMPLATE_NAME = "kadesh_primer_contacto";
 var OUTREACH_TEMPLATE_LANGUAGE = "es_MX";
 var OUTREACH_TEMPLATE_BODY = "Hola {{1}}, te escribe {{2}}. \xBFTienes un momento para platicar?";
 var OUTREACH_TEMPLATE_EXAMPLES = ["Juan P\xE9rez", "Kadesh"];
+function cleanGraphMessage(err) {
+  const raw = err instanceof Error ? err.message : "Error desconocido";
+  return raw.replace(/^\[whatsapp\] Graph API error( creando plantilla)?:\s*/, "");
+}
+function withAccount(message, accountName) {
+  return accountName ? `${message} [Cuenta de WhatsApp Business: "${accountName}"]` : message;
+}
 async function ensureOutreachTemplate(company, context) {
   if (company.whatsappTemplateStatus && company.whatsappTemplateStatus !== "none") {
     return { error: null };
@@ -19154,8 +19186,19 @@ async function ensureOutreachTemplate(company, context) {
   if (!company.whatsappAccessTokenEncrypted) {
     return { error: "Falta el access token." };
   }
+  let accountName = null;
   try {
     const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
+    const account = await fetchWhatsAppBusinessAccountInfo({
+      wabaId: company.whatsappBusinessAccountId,
+      accessToken
+    });
+    accountName = account.name || null;
+    if (company.whatsappPhoneNumberId && !account.phoneNumberIds.includes(company.whatsappPhoneNumberId)) {
+      return {
+        error: `El WhatsApp Business Account ID que guardaste es de la cuenta "${account.name || account.id}", y esa cuenta no incluye el n\xFAmero que conectaste. Revisa que copiaste el ID de la cuenta (arriba a la derecha en Configuraci\xF3n de la API) y no otro.`
+      };
+    }
     const result = await createWhatsAppTemplate({
       wabaId: company.whatsappBusinessAccountId,
       accessToken,
@@ -19178,8 +19221,7 @@ async function ensureOutreachTemplate(company, context) {
       `[whatsapp] No se pudo crear la plantilla de inicio para la empresa ${company.id}:`,
       err
     );
-    const raw = err instanceof Error ? err.message : "Error desconocido";
-    return { error: raw.replace(/^\[whatsapp\] Graph API error creando plantilla:\s*/, "") };
+    return { error: withAccount(cleanGraphMessage(err), accountName) };
   }
 }
 
