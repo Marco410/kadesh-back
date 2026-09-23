@@ -18818,8 +18818,14 @@ var GRAPH_API_VERSION2 = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.
 function parseGraphError(bodyText) {
   try {
     const parsed = JSON.parse(bodyText);
-    if (parsed?.error?.message) {
-      return { message: parsed.error.message, code: parsed.error.code };
+    const err = parsed?.error;
+    if (err?.message) {
+      const detail = [err.error_user_title, err.error_user_msg].filter(Boolean).join(": ");
+      const subcode = err.error_subcode ? ` (subc\xF3digo ${err.error_subcode})` : "";
+      return {
+        message: `${err.message}${detail ? ` \u2014 ${detail}` : ""}${subcode}`,
+        code: err.code
+      };
     }
   } catch {
   }
@@ -18890,6 +18896,31 @@ async function fetchWhatsAppPhoneNumberInfo({
   return {
     displayPhoneNumber: parsed?.display_phone_number || "",
     verifiedName: parsed?.verified_name || ""
+  };
+}
+async function fetchWhatsAppBusinessAccountInfo({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}?fields=id,name,phone_numbers.limit(100){id}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const { message } = parseGraphError(bodyText);
+    throw new Error(`[whatsapp] Graph API error: ${message}`);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return {
+    id: parsed?.id || wabaId,
+    name: parsed?.name || "",
+    phoneNumberIds: (parsed?.phone_numbers?.data ?? []).map((n) => n.id).filter((id) => Boolean(id))
   };
 }
 async function createWhatsAppTemplate({
@@ -18999,7 +19030,11 @@ async function uploadMediaToWhatsApp({
 }) {
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
-  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimetype }), filename);
+  form.append(
+    "file",
+    new Blob([new Uint8Array(buffer)], { type: mimetype }),
+    filename
+  );
   const response = await fetch(
     `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/media`,
     {
@@ -19075,9 +19110,12 @@ async function fetchWhatsAppMediaUrl({
   mediaId,
   accessToken
 }) {
-  const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION2}/${mediaId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${mediaId}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }
+  );
   const bodyText = await response.text();
   if (!response.ok) {
     const { message } = parseGraphError(bodyText);
@@ -19092,7 +19130,10 @@ async function fetchWhatsAppMediaUrl({
   if (!parsed?.url) {
     throw new Error("[whatsapp] La API no regres\xF3 una URL de media");
   }
-  return { url: parsed.url, mimeType: parsed.mime_type || "application/octet-stream" };
+  return {
+    url: parsed.url,
+    mimeType: parsed.mime_type || "application/octet-stream"
+  };
 }
 async function downloadWhatsAppMedia({
   url,
@@ -19102,7 +19143,9 @@ async function downloadWhatsAppMedia({
     headers: { Authorization: `Bearer ${accessToken}` }
   });
   if (!response.ok) {
-    throw new Error(`[whatsapp] No se pudo descargar el media (HTTP ${response.status})`);
+    throw new Error(
+      `[whatsapp] No se pudo descargar el media (HTTP ${response.status})`
+    );
   }
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
@@ -19126,6 +19169,13 @@ var OUTREACH_TEMPLATE_NAME = "kadesh_primer_contacto";
 var OUTREACH_TEMPLATE_LANGUAGE = "es_MX";
 var OUTREACH_TEMPLATE_BODY = "Hola {{1}}, te escribe {{2}}. \xBFTienes un momento para platicar?";
 var OUTREACH_TEMPLATE_EXAMPLES = ["Juan P\xE9rez", "Kadesh"];
+function cleanGraphMessage(err) {
+  const raw = err instanceof Error ? err.message : "Error desconocido";
+  return raw.replace(/^\[whatsapp\] Graph API error( creando plantilla)?:\s*/, "");
+}
+function withAccount(message, accountName) {
+  return accountName ? `${message} [Cuenta de WhatsApp Business: "${accountName}"]` : message;
+}
 async function ensureOutreachTemplate(company, context) {
   if (company.whatsappTemplateStatus && company.whatsappTemplateStatus !== "none") {
     return { error: null };
@@ -19136,8 +19186,19 @@ async function ensureOutreachTemplate(company, context) {
   if (!company.whatsappAccessTokenEncrypted) {
     return { error: "Falta el access token." };
   }
+  let accountName = null;
   try {
     const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
+    const account = await fetchWhatsAppBusinessAccountInfo({
+      wabaId: company.whatsappBusinessAccountId,
+      accessToken
+    });
+    accountName = account.name || null;
+    if (company.whatsappPhoneNumberId && !account.phoneNumberIds.includes(company.whatsappPhoneNumberId)) {
+      return {
+        error: `El WhatsApp Business Account ID que guardaste es de la cuenta "${account.name || account.id}", y esa cuenta no incluye el n\xFAmero que conectaste. Revisa que copiaste el ID de la cuenta (arriba a la derecha en Configuraci\xF3n de la API) y no otro.`
+      };
+    }
     const result = await createWhatsAppTemplate({
       wabaId: company.whatsappBusinessAccountId,
       accessToken,
@@ -19160,8 +19221,7 @@ async function ensureOutreachTemplate(company, context) {
       `[whatsapp] No se pudo crear la plantilla de inicio para la empresa ${company.id}:`,
       err
     );
-    const raw = err instanceof Error ? err.message : "Error desconocido";
-    return { error: raw.replace(/^\[whatsapp\] Graph API error creando plantilla:\s*/, "") };
+    return { error: withAccount(cleanGraphMessage(err), accountName) };
   }
 }
 

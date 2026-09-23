@@ -4,15 +4,39 @@ const GRAPH_API_VERSION =
   process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
 
 type WhatsAppGraphErrorBody = {
-  error?: { message?: string; type?: string; code?: number; error_subcode?: number };
+  error?: {
+    message?: string;
+    type?: string;
+    code?: number;
+    error_subcode?: number;
+    error_user_title?: string;
+    error_user_msg?: string;
+  };
 };
 
-/** Extrae un mensaje de error legible del body de la Graph API (o del texto crudo si no es JSON). */
+/**
+ * Extrae un mensaje de error legible del body de la Graph API (o del texto crudo si no es JSON).
+ *
+ * Meta suele responder un `message` genérico ("Invalid parameter") y deja el motivo real en
+ * `error_user_title` / `error_user_msg` / `error_subcode`. Sin esos campos el error no dice qué
+ * corregir, así que se pliegan al `message`: todos los llamadores solo usan `message` y `code`,
+ * y `code` (que se usa para detectar 131047) queda intacto.
+ */
 function parseGraphError(bodyText: string): { message: string; code?: number } {
   try {
     const parsed = JSON.parse(bodyText) as WhatsAppGraphErrorBody;
-    if (parsed?.error?.message) {
-      return { message: parsed.error.message, code: parsed.error.code };
+    const err = parsed?.error;
+    if (err?.message) {
+      const detail = [err.error_user_title, err.error_user_msg]
+        .filter(Boolean)
+        .join(": ");
+      const subcode = err.error_subcode
+        ? ` (subcódigo ${err.error_subcode})`
+        : "";
+      return {
+        message: `${err.message}${detail ? ` — ${detail}` : ""}${subcode}`,
+        code: err.code,
+      };
     }
   } catch {
     // no era JSON
@@ -101,7 +125,8 @@ export async function fetchWhatsAppPhoneNumberInfo({
     throw new Error(`[whatsapp] Graph API error: ${message}`);
   }
 
-  let parsed: { display_phone_number?: string; verified_name?: string } | null = null;
+  let parsed: { display_phone_number?: string; verified_name?: string } | null =
+    null;
   try {
     parsed = JSON.parse(bodyText);
   } catch {
@@ -111,6 +136,51 @@ export async function fetchWhatsAppPhoneNumberInfo({
   return {
     displayPhoneNumber: parsed?.display_phone_number || "",
     verifiedName: parsed?.verified_name || "",
+  };
+}
+
+/**
+ * Qué cuenta de WhatsApp Business es ese ID y qué números contiene. Sirve para comprobar que el
+ * "WhatsApp Business Account ID" que pegó la empresa es de verdad el de la cuenta dueña del
+ * número (el error más común de BYOK: copiar otro ID), y para poder nombrar la cuenta en los
+ * errores en vez de solo repetir el mensaje genérico de Meta.
+ */
+export async function fetchWhatsAppBusinessAccountInfo({
+  wabaId,
+  accessToken,
+}: {
+  wabaId: string;
+  accessToken: string;
+}): Promise<{ id: string; name: string; phoneNumberIds: string[] }> {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${wabaId}?fields=id,name,phone_numbers.limit(100){id}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  const bodyText = await response.text();
+
+  if (!response.ok) {
+    const { message } = parseGraphError(bodyText);
+    throw new Error(`[whatsapp] Graph API error: ${message}`);
+  }
+
+  let parsed: {
+    id?: string;
+    name?: string;
+    phone_numbers?: { data?: Array<{ id?: string }> };
+  } | null = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+
+  return {
+    id: parsed?.id || wabaId,
+    name: parsed?.name || "",
+    phoneNumberIds: (parsed?.phone_numbers?.data ?? [])
+      .map((n) => n.id)
+      .filter((id): id is string => Boolean(id)),
   };
 }
 
@@ -154,7 +224,9 @@ export async function createWhatsAppTemplate({
           {
             type: "BODY",
             text: bodyText,
-            ...(bodyExamples.length > 0 ? { example: { body_text: [bodyExamples] } } : {}),
+            ...(bodyExamples.length > 0
+              ? { example: { body_text: [bodyExamples] } }
+              : {}),
           },
         ],
       }),
@@ -266,7 +338,11 @@ export async function uploadMediaToWhatsApp({
 }): Promise<{ id: string }> {
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
-  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimetype }), filename);
+  form.append(
+    "file",
+    new Blob([new Uint8Array(buffer)], { type: mimetype }),
+    filename,
+  );
 
   const response = await fetch(
     `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/media`,
@@ -371,9 +447,12 @@ export async function fetchWhatsAppMediaUrl({
   mediaId: string;
   accessToken: string;
 }): Promise<{ url: string; mimeType: string }> {
-  const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${mediaId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${mediaId}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
 
   const bodyText = await response.text();
 
@@ -393,7 +472,10 @@ export async function fetchWhatsAppMediaUrl({
     throw new Error("[whatsapp] La API no regresó una URL de media");
   }
 
-  return { url: parsed.url, mimeType: parsed.mime_type || "application/octet-stream" };
+  return {
+    url: parsed.url,
+    mimeType: parsed.mime_type || "application/octet-stream",
+  };
 }
 
 /** Descarga el binario de una URL temporal de media de Meta (requiere el mismo token, expira). */
@@ -409,7 +491,9 @@ export async function downloadWhatsAppMedia({
   });
 
   if (!response.ok) {
-    throw new Error(`[whatsapp] No se pudo descargar el media (HTTP ${response.status})`);
+    throw new Error(
+      `[whatsapp] No se pudo descargar el media (HTTP ${response.status})`,
+    );
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -431,7 +515,10 @@ export function verifyWhatsAppSignature({
 }): boolean {
   if (!signatureHeader) return false;
 
-  const expected = crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const expected = crypto
+    .createHmac("sha256", appSecret)
+    .update(rawBody)
+    .digest("hex");
   const received = signatureHeader.replace(/^sha256=/, "");
 
   const expectedBuf = Buffer.from(expected, "hex");
