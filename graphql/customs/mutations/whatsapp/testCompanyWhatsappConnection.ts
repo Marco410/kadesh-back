@@ -1,6 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { decrypt } from "../../../../utils/helpers/encryption";
 import { fetchWhatsAppPhoneNumberInfo } from "../../../../utils/intregrations/whatsapp";
+import { ensureOutreachTemplate } from "../../../../utils/whatsapp/ensureOutreachTemplate";
 import { canManageCompanyWhatsapp, denyCompanyWhatsappAccessMessage } from "./access";
 
 const typeDefs = `
@@ -33,7 +34,8 @@ const resolver = {
 
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: companyId },
-      query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted",
+      query:
+        "id whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappBusinessAccountId whatsappTemplateStatus",
     });
 
     if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
@@ -57,6 +59,9 @@ const resolver = {
           whatsappConnectedAt: new Date().toISOString(),
         },
       });
+
+      // Best-effort: no bloquea la respuesta de "probar conexión" si falla.
+      await ensureOutreachTemplate(company as any, context);
 
       return {
         success: true,

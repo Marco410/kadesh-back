@@ -1,27 +1,51 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
+import crypto from "crypto";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { decrypt } from "../utils/helpers/encryption";
-import { verifyWhatsAppSignature } from "../utils/intregrations/whatsapp";
+import {
+  downloadWhatsAppMedia,
+  fetchWhatsAppMediaUrl,
+  verifyWhatsAppSignature,
+} from "../utils/intregrations/whatsapp";
+import { uploadBufferToStorage } from "../utils/intregrations/s3Storage";
 
 const WEBHOOK_PATH = "/webhooks/whatsapp";
+
+type WhatsAppWebhookMediaRef = { id?: string; caption?: string; filename?: string; mime_type?: string };
 
 type WhatsAppWebhookMessage = {
   id?: string;
   from?: string;
   type?: string;
   text?: { body?: string };
+  image?: WhatsAppWebhookMediaRef;
+  document?: WhatsAppWebhookMediaRef;
+};
+
+type WhatsAppWebhookChange = {
+  field?: string;
+  value?: {
+    metadata?: { phone_number_id?: string };
+    messages?: WhatsAppWebhookMessage[];
+    event?: string;
+    message_template_name?: string;
+  };
 };
 
 type WhatsAppWebhookPayload = {
   entry?: Array<{
-    changes?: Array<{
-      value?: {
-        metadata?: { phone_number_id?: string };
-        messages?: WhatsAppWebhookMessage[];
-      };
-    }>;
+    id?: string; // WhatsApp Business Account ID
+    changes?: WhatsAppWebhookChange[];
   }>;
+};
+
+const TEMPLATE_STATUS_MAP: Record<string, string> = {
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  PENDING: "pending",
+  PENDING_DELETION: "rejected",
+  DISABLED: "rejected",
 };
 
 /** Últimos 10 dígitos: heurística para matchear contra `TechBusinessLead.phone` (texto libre, sin
@@ -30,9 +54,39 @@ function last10Digits(digits: string): string {
   return digits.slice(-10);
 }
 
-function extractMessageBody(msg: WhatsAppWebhookMessage): string {
-  if (msg.type === "text" && msg.text?.body) return msg.text.body;
-  return msg.type ? `[${msg.type}, no soportado todavía]` : "";
+function extToFilename(filename: string | undefined, mimeType: string): string {
+  if (filename) return filename;
+  const ext = mimeType.split("/")[1] || "bin";
+  return `archivo-${crypto.randomUUID()}.${ext}`;
+}
+
+/** Descarga y guarda en R2 la media de un mensaje entrante; regresa los campos a persistir. */
+async function persistIncomingMedia({
+  media,
+  mediaType,
+  accessToken,
+  companyId,
+}: {
+  media: WhatsAppWebhookMediaRef;
+  mediaType: "image" | "document";
+  accessToken: string;
+  companyId: string;
+}): Promise<{ mediaKey: string | null; mediaFileName: string | null; body: string }> {
+  if (!media.id) {
+    return { mediaKey: null, mediaFileName: null, body: media.caption || "" };
+  }
+
+  try {
+    const { url, mimeType } = await fetchWhatsAppMediaUrl({ mediaId: media.id, accessToken });
+    const buffer = await downloadWhatsAppMedia({ url, accessToken });
+    const filename = extToFilename(media.filename, mimeType);
+    const mediaKey = `whatsapp-media/${companyId}/${crypto.randomUUID()}-${filename}`;
+    await uploadBufferToStorage({ buffer, contentType: mimeType, key: mediaKey });
+    return { mediaKey, mediaFileName: filename, body: media.caption || "" };
+  } catch (err) {
+    console.error("[whatsapp webhook] no se pudo descargar/guardar media entrante:", err);
+    return { mediaKey: null, mediaFileName: media.filename || null, body: media.caption || "" };
+  }
 }
 
 function handleVerify(req: Request, res: Response) {
@@ -48,9 +102,27 @@ function handleVerify(req: Request, res: Response) {
   }
 }
 
+/** Actualiza el estatus de la plantilla de la empresa cuando Meta la revisa. */
+async function handleTemplateStatusUpdate(
+  companyId: string,
+  value: WhatsAppWebhookChange["value"],
+  context: KeystoneContext,
+) {
+  const event = value?.event;
+  if (!event) return;
+  const status = TEMPLATE_STATUS_MAP[event];
+  if (!status) return;
+
+  await context.sudo().db.SaasCompany.updateOne({
+    where: { id: companyId },
+    data: { whatsappTemplateStatus: status },
+  });
+}
+
 /** Procesa los mensajes de un payload ya verificado (firma OK, empresa ya resuelta). */
 async function persistIncomingMessages(
   companyId: string,
+  accessToken: string,
   messages: WhatsAppWebhookMessage[],
   context: KeystoneContext,
 ) {
@@ -77,6 +149,39 @@ async function persistIncomingMessages(
       businessLeadId = candidates[0]?.id ?? null;
     }
 
+    let body = "";
+    let mediaKey: string | null = null;
+    let mediaFileName: string | null = null;
+    let mediaType: "image" | "document" | null = null;
+
+    if (msg.type === "text" && msg.text?.body) {
+      body = msg.text.body;
+    } else if (msg.type === "image" && msg.image) {
+      mediaType = "image";
+      const result = await persistIncomingMedia({
+        media: msg.image,
+        mediaType: "image",
+        accessToken,
+        companyId,
+      });
+      mediaKey = result.mediaKey;
+      mediaFileName = result.mediaFileName;
+      body = result.body;
+    } else if (msg.type === "document" && msg.document) {
+      mediaType = "document";
+      const result = await persistIncomingMedia({
+        media: msg.document,
+        mediaType: "document",
+        accessToken,
+        companyId,
+      });
+      mediaKey = result.mediaKey;
+      mediaFileName = result.mediaFileName;
+      body = result.body;
+    } else {
+      body = msg.type ? `[${msg.type}, no soportado todavía]` : "";
+    }
+
     await context.sudo().db.TechWhatsAppMessage.createOne({
       data: {
         company: { connect: { id: companyId } },
@@ -84,7 +189,8 @@ async function persistIncomingMessages(
         direction: "inbound",
         waMessageId: msg.id,
         fromPhone: msg.from || null,
-        body: extractMessageBody(msg),
+        body,
+        ...(mediaType ? { mediaType, mediaKey, mediaFileName } : {}),
         status: "received",
       },
     });
@@ -108,29 +214,23 @@ async function handleIncoming(
       return; // body no es JSON, nada que hacer
     }
 
-    const value = payload.entry?.[0]?.changes?.[0]?.value;
-    const phoneNumberId = value?.metadata?.phone_number_id;
-    const messages = value?.messages ?? [];
-    if (!phoneNumberId || messages.length === 0) return;
+    // El WABA id siempre viene en entry[].id, tanto para mensajes como para eventos de plantilla.
+    const wabaId = payload.entry?.[0]?.id;
+    const change = payload.entry?.[0]?.changes?.[0];
+    if (!wabaId || !change) return;
 
     const company = await context.sudo().query.SaasCompany.findOne({
-      where: { whatsappPhoneNumberId: phoneNumberId },
-      query: "id whatsappAppSecretEncrypted",
+      where: { whatsappBusinessAccountId: wabaId },
+      query: "id whatsappAppSecretEncrypted whatsappAccessTokenEncrypted",
     });
     if (!company?.whatsappAppSecretEncrypted) {
-      console.warn(
-        `[whatsapp webhook] phone_number_id "${phoneNumberId}" no está conectado a ninguna empresa`,
-      );
+      console.warn(`[whatsapp webhook] WABA "${wabaId}" no está conectado a ninguna empresa`);
       return;
     }
 
     const appSecret = decrypt(company.whatsappAppSecretEncrypted);
     const signatureHeader = req.header("x-hub-signature-256");
-    const validSignature = verifyWhatsAppSignature({
-      appSecret,
-      rawBody,
-      signatureHeader,
-    });
+    const validSignature = verifyWhatsAppSignature({ appSecret, rawBody, signatureHeader });
 
     if (!validSignature) {
       console.error(
@@ -139,7 +239,20 @@ async function handleIncoming(
       return;
     }
 
-    await persistIncomingMessages(company.id, messages, context);
+    if (change.field === "message_template_status_update") {
+      await handleTemplateStatusUpdate(company.id, change.value, context);
+      return;
+    }
+
+    const messages = change.value?.messages ?? [];
+    if (messages.length === 0) return;
+
+    const accessToken = company.whatsappAccessTokenEncrypted
+      ? decrypt(company.whatsappAccessTokenEncrypted)
+      : null;
+    if (!accessToken) return;
+
+    await persistIncomingMessages(company.id, accessToken, messages, context);
   } catch (err) {
     console.error("[whatsapp webhook] error procesando el payload:", err);
   }

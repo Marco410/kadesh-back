@@ -4,6 +4,7 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import customMutation from "./customs/mutations";
 import customQuery from "./customs/queries";
 import { persistPetPlaceSlugIfMissing } from "../models/Pet/PetPlace/PetPlace.hooks";
+import { getSignedStorageUrl } from "../utils/intregrations/s3Storage";
 
 type PetPlaceSlugParent = {
   id?: string;
@@ -11,6 +12,10 @@ type PetPlaceSlugParent = {
   slug?: string | null;
   municipality?: string | null;
   state?: string | null;
+};
+
+type WhatsAppMessageMediaParent = {
+  mediaKey?: string | null;
 };
 
 export default function extendGraphqlSchema(baseSchema: GraphQLSchema) {
@@ -24,6 +29,10 @@ export default function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
       type Query {
         ${customQuery.definitions}
+      }
+      extend type TechWhatsAppMessage {
+        "URL firmada (1h) del archivo en R2, calculada al vuelo a partir de mediaKey."
+        mediaUrl: String
       }
     `,
     resolvers: {
@@ -51,6 +60,12 @@ export default function extendGraphqlSchema(baseSchema: GraphQLSchema) {
             },
             context,
           );
+        },
+      },
+      TechWhatsAppMessage: {
+        mediaUrl: async (item: WhatsAppMessageMediaParent) => {
+          if (!item?.mediaKey) return null;
+          return getSignedStorageUrl({ key: item.mediaKey });
         },
       },
       ...(customMutation.extraResolvers ?? {}),

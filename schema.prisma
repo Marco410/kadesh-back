@@ -556,13 +556,16 @@ model SaasCompany {
   aiApiKeyPreview                     String?
   aiKeyUpdatedAt                      DateTime?
   whatsappPhoneNumberId               String?                      @unique
-  whatsappBusinessAccountId           String?
+  whatsappBusinessAccountId           String?                      @unique
   whatsappDisplayPhoneNumber          String?
   whatsappAccessTokenEncrypted        String?
   whatsappAppSecretEncrypted          String?
   whatsappTokenPreview                String?
   whatsappConnectedAt                 DateTime?
   whatsappMessages                    TechWhatsAppMessage[]        @relation("TechWhatsAppMessage_company")
+  whatsappTemplateName                String?
+  whatsappTemplateLanguage            String?
+  whatsappTemplateStatus              String?                      @default("none")
   termsQuotation                      String?
   colorPrimary                        String?                      @default("#F7945E")
   colorSecondary                      String?                      @default("#E07C3A")
@@ -1372,6 +1375,10 @@ model TechWhatsAppMessage {
   fromPhone      String?
   toPhone        String?
   body           String            @default("")
+  messageKind    String?           @default("text")
+  mediaKey       String?
+  mediaType      String?
+  mediaFileName  String?
   status         String?           @default("sent")
   sentBy         User?             @relation("TechWhatsAppMessage_sentBy", fields: [sentById], references: [id])
   sentById       String?           @map("sentBy")
