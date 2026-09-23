@@ -83,5 +83,10 @@
     "key": "kadesh_ai",
     "name": "Kadesh AI",
     "description": "Asistente de ventas de tu empresa: resumen diario, playbook y Cerebro con el contexto de tu negocio."
+  },
+  {
+    "key": "whatsapp",
+    "name": "WhatsApp Business",
+    "description": "Conecta tu WhatsApp Business para mandar y recibir mensajes con tus leads desde el CRM."
   }
 ]

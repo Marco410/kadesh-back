@@ -66,6 +66,7 @@ export const LEAD_SOURCE = {
   SOCIAL_MEDIA: "Redes Sociales",
   EMAIL: "Email",
   CALL: "Llamada",
+  WHATSAPP: "WhatsApp",
   OTRO: "Otro",
 } as const;
 

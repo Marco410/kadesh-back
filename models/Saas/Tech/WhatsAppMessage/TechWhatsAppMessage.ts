@@ -62,6 +62,31 @@ export default list({
     fromPhone: text({ db: { isNullable: true } }),
     toPhone: text({ db: { isNullable: true } }),
     body: text({ ui: { displayMode: "textarea" } }),
+    messageKind: select({
+      type: "string",
+      options: [
+        { label: "Texto", value: "text" },
+        { label: "Plantilla (inicio de conversación)", value: "template" },
+      ],
+      defaultValue: "text",
+    }),
+    mediaKey: text({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Key del archivo en R2 (no la URL — se firma al vuelo, ver mediaUrl)",
+      },
+    }),
+    mediaType: select({
+      type: "string",
+      options: [
+        { label: "Imagen", value: "image" },
+        { label: "Documento", value: "document" },
+      ],
+      db: { isNullable: true },
+    }),
+    mediaFileName: text({ db: { isNullable: true } }),
     status: select({
       type: "string",
       options: [
