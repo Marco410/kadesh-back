@@ -119,6 +119,9 @@ export async function fetchWhatsAppPhoneNumberInfo({
  * escrito antes — regla de Meta, no de Kadesh). Categoría MARKETING: es contacto de ventas, no
  * transaccional. Un solo componente BODY con 2 variables ({{1}} nombre del lead, {{2}} nombre
  * de la empresa). Meta la deja en PENDING hasta que la revisa (minutos a un par de días).
+ *
+ * `bodyExamples` es obligatorio si el texto lleva variables: Meta rechaza la creación con
+ * `{{1}}` sin un valor de ejemplo por variable (en el mismo orden).
  */
 export async function createWhatsAppTemplate({
   wabaId,
@@ -126,12 +129,14 @@ export async function createWhatsAppTemplate({
   name,
   language,
   bodyText,
+  bodyExamples,
 }: {
   wabaId: string;
   accessToken: string;
   name: string;
   language: string;
   bodyText: string;
+  bodyExamples: string[];
 }): Promise<{ id: string; status: string }> {
   const response = await fetch(
     `https://graph.facebook.com/${GRAPH_API_VERSION}/${wabaId}/message_templates`,
@@ -145,7 +150,13 @@ export async function createWhatsAppTemplate({
         name,
         language,
         category: "MARKETING",
-        components: [{ type: "BODY", text: bodyText }],
+        components: [
+          {
+            type: "BODY",
+            text: bodyText,
+            ...(bodyExamples.length > 0 ? { example: { body_text: [bodyExamples] } } : {}),
+          },
+        ],
       }),
     },
   );
