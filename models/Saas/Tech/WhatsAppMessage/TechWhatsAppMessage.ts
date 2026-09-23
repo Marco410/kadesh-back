@@ -27,6 +27,27 @@ export default list({
       many: false,
       ui: { description: "Lead asociado (vacío si no matcheó ningún teléfono conocido)" },
     }),
+    /** Conversación interna con alguien del equipo (vendedor) en vez de con un lead. Un
+     * mensaje tiene `businessLead` O `teamMember`; si no tiene ninguno, no se pudo matchear
+     * el teléfono y solo lo ven los admins de la empresa. */
+    teamMember: relationship({
+      ref: "User.whatsappMessagesAsTeamMember",
+      many: false,
+      ui: {
+        description:
+          "Miembro del equipo con quien es esta conversación interna (en vez de un lead)",
+      },
+    }),
+    /** Quién abrió el chat interno. Junto con `teamMember` define quién puede verlo
+     * (ver whatsappMessageScopedWhere): solo esas dos personas, además de los admins. */
+    internalInitiator: relationship({
+      ref: "User.whatsappInternalChatsStarted",
+      many: false,
+      ui: {
+        description:
+          "Quién abrió la conversación interna. Con teamMember define quién la puede ver.",
+      },
+    }),
     direction: select({
       type: "string",
       options: [

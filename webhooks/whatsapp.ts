@@ -136,6 +136,8 @@ async function persistIncomingMessages(
 
     const fromDigits = (msg.from || "").replace(/\D/g, "");
     let businessLeadId: string | null = null;
+    let teamMemberId: string | null = null;
+    let internalInitiatorId: string | null = null;
 
     if (fromDigits) {
       const candidates = await context.sudo().query.TechBusinessLead.findMany({
@@ -147,6 +149,34 @@ async function persistIncomingMessages(
         take: 1,
       });
       businessLeadId = candidates[0]?.id ?? null;
+
+      // Si no es un lead, puede ser alguien del propio equipo respondiendo un chat interno.
+      if (!businessLeadId) {
+        const teamCandidates = await context.sudo().query.User.findMany({
+          where: {
+            company: { id: { equals: companyId } },
+            phone: { contains: last10Digits(fromDigits) },
+          },
+          query: "id",
+          take: 1,
+        });
+        teamMemberId = teamCandidates[0]?.id ?? null;
+
+        // El hilo interno lo ven el teamMember y quien lo abrió: la respuesta hereda al
+        // iniciador del último mensaje de ese hilo (ver whatsappMessageScopedWhere).
+        if (teamMemberId) {
+          const [latest] = (await context.sudo().query.TechWhatsAppMessage.findMany({
+            where: {
+              company: { id: { equals: companyId } },
+              teamMember: { id: { equals: teamMemberId } },
+            },
+            orderBy: [{ createdAt: "desc" }],
+            take: 1,
+            query: "id internalInitiator { id }",
+          })) as Array<{ internalInitiator: { id: string } | null }>;
+          internalInitiatorId = latest?.internalInitiator?.id ?? null;
+        }
+      }
     }
 
     let body = "";
@@ -186,6 +216,10 @@ async function persistIncomingMessages(
       data: {
         company: { connect: { id: companyId } },
         ...(businessLeadId ? { businessLead: { connect: { id: businessLeadId } } } : {}),
+        ...(teamMemberId ? { teamMember: { connect: { id: teamMemberId } } } : {}),
+        ...(internalInitiatorId
+          ? { internalInitiator: { connect: { id: internalInitiatorId } } }
+          : {}),
         direction: "inbound",
         waMessageId: msg.id,
         fromPhone: msg.from || null,
