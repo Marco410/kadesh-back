@@ -2835,6 +2835,9 @@ type SaasCompany {
   whatsappConnectedAt: DateTime
   whatsappMessages(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
   whatsappMessagesCount(where: TechWhatsAppMessageWhereInput! = {}): Int
+  whatsappTemplateName: String
+  whatsappTemplateLanguage: String
+  whatsappTemplateStatus: String
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -2853,6 +2856,7 @@ type FileFieldOutput {
 input SaasCompanyWhereUniqueInput {
   id: ID
   whatsappPhoneNumberId: String
+  whatsappBusinessAccountId: String
 }
 
 input SaasCompanyWhereInput {
@@ -2897,6 +2901,9 @@ input SaasCompanyWhereInput {
   whatsappTokenPreview: StringNullableFilter
   whatsappConnectedAt: DateTimeNullableFilter
   whatsappMessages: TechWhatsAppMessageManyRelationFilter
+  whatsappTemplateName: StringNullableFilter
+  whatsappTemplateLanguage: StringNullableFilter
+  whatsappTemplateStatus: StringNullableFilter
   termsQuotation: StringNullableFilter
   colorPrimary: StringNullableFilter
   colorSecondary: StringNullableFilter
@@ -3018,6 +3025,9 @@ input SaasCompanyOrderByInput {
   whatsappAppSecretEncrypted: OrderDirection
   whatsappTokenPreview: OrderDirection
   whatsappConnectedAt: OrderDirection
+  whatsappTemplateName: OrderDirection
+  whatsappTemplateLanguage: OrderDirection
+  whatsappTemplateStatus: OrderDirection
   termsQuotation: OrderDirection
   colorPrimary: OrderDirection
   colorSecondary: OrderDirection
@@ -3067,6 +3077,9 @@ input SaasCompanyUpdateInput {
   whatsappTokenPreview: String
   whatsappConnectedAt: DateTime
   whatsappMessages: TechWhatsAppMessageRelateToManyForUpdateInput
+  whatsappTemplateName: String
+  whatsappTemplateLanguage: String
+  whatsappTemplateStatus: String
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -3236,6 +3249,9 @@ input SaasCompanyCreateInput {
   whatsappTokenPreview: String
   whatsappConnectedAt: DateTime
   whatsappMessages: TechWhatsAppMessageRelateToManyForCreateInput
+  whatsappTemplateName: String
+  whatsappTemplateLanguage: String
+  whatsappTemplateStatus: String
   termsQuotation: String
   colorPrimary: String
   colorSecondary: String
@@ -6763,10 +6779,19 @@ type TechWhatsAppMessage {
   fromPhone: String
   toPhone: String
   body: String
+  messageKind: String
+  mediaKey: String
+  mediaType: String
+  mediaFileName: String
   status: String
   sentBy: User
   errorMessage: String
   createdAt: DateTime
+
+  """
+  URL firmada (1h) del archivo en R2, calculada al vuelo a partir de mediaKey.
+  """
+  mediaUrl: String
 }
 
 input TechWhatsAppMessageWhereUniqueInput {
@@ -6788,6 +6813,10 @@ input TechWhatsAppMessageWhereInput {
   fromPhone: StringNullableFilter
   toPhone: StringNullableFilter
   body: StringFilter
+  messageKind: StringNullableFilter
+  mediaKey: StringNullableFilter
+  mediaType: StringNullableFilter
+  mediaFileName: StringNullableFilter
   status: StringNullableFilter
   sentBy: UserWhereInput
   errorMessage: StringNullableFilter
@@ -6803,6 +6832,10 @@ input TechWhatsAppMessageOrderByInput {
   fromPhone: OrderDirection
   toPhone: OrderDirection
   body: OrderDirection
+  messageKind: OrderDirection
+  mediaKey: OrderDirection
+  mediaType: OrderDirection
+  mediaFileName: OrderDirection
   status: OrderDirection
   errorMessage: OrderDirection
   createdAt: OrderDirection
@@ -6818,6 +6851,10 @@ input TechWhatsAppMessageUpdateInput {
   fromPhone: String
   toPhone: String
   body: String
+  messageKind: String
+  mediaKey: String
+  mediaType: String
+  mediaFileName: String
   status: String
   sentBy: UserRelateToOneForUpdateInput
   errorMessage: String
@@ -6839,6 +6876,10 @@ input TechWhatsAppMessageCreateInput {
   fromPhone: String
   toPhone: String
   body: String
+  messageKind: String
+  mediaKey: String
+  mediaType: String
+  mediaFileName: String
   status: String
   sentBy: UserRelateToOneForCreateInput
   errorMessage: String
@@ -7877,6 +7918,8 @@ type Mutation {
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   sendWhatsAppMessage(businessLeadId: ID!, body: String!): SendWhatsAppMessageResult!
   importWhatsAppChatExport(businessLeadId: ID!, fileName: String, content: String!, leadSenderName: String): ImportWhatsAppChatExportResult!
+  startWhatsAppConversation(businessLeadId: ID!): StartWhatsAppConversationResult!
+  sendWhatsAppMediaMessage(businessLeadId: ID!, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -8130,6 +8173,9 @@ type Query {
   StripePaymentMethods(email: String!): StripePaymentMethodsType
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
+  companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
+  whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
+  businessLeadWhatsappStatus(businessLeadId: ID!): BusinessLeadWhatsappStatusResult!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
@@ -8793,6 +8839,17 @@ type ImportWhatsAppChatExportResult {
   skippedDuplicates: Int!
 }
 
+type StartWhatsAppConversationResult {
+  success: Boolean!
+  message: String!
+}
+
+type SendWhatsAppMediaMessageResult {
+  success: Boolean!
+  message: String!
+  messageId: String
+}
+
 type AnimalMultimediaImage {
   id: ID!
   url: String
@@ -8952,4 +9009,32 @@ type PreviewWhatsAppChatExportResult {
   message: String!
   messageCount: Int!
   senderNames: [String!]!
+}
+
+type CompanyWhatsappWebhookInfoResult {
+  success: Boolean!
+  message: String!
+  webhookUrl: String
+  verifyToken: String
+}
+
+type WhatsAppConversationSummary {
+  leadId: ID!
+  leadName: String!
+  lastMessageBody: String!
+  lastMessageAt: String!
+  lastMessageDirection: String!
+}
+
+type WhatsAppConversationsResult {
+  success: Boolean!
+  message: String!
+  conversations: [WhatsAppConversationSummary!]!
+}
+
+type BusinessLeadWhatsappStatusResult {
+  success: Boolean!
+  message: String!
+  canReplyFreely: Boolean!
+  templateStatus: String
 }

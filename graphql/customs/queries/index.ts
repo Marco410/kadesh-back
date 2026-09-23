@@ -6,6 +6,9 @@ import dailyDigest from "../ai/dailyDigest";
 import companyBrief from "../ai/companyBrief";
 import generateMarketInsight from "../ai/generateMarketInsight";
 import previewWhatsAppChatExport from "./whatsapp/previewWhatsAppChatExport";
+import companyWhatsappWebhookInfo from "./whatsapp/companyWhatsappWebhookInfo";
+import whatsappConversations from "./whatsapp/whatsappConversations";
+import businessLeadWhatsappStatus from "./whatsapp/businessLeadWhatsappStatus";
 
 const customQuery = {
   typeDefs: `
@@ -14,6 +17,9 @@ const customQuery = {
     ${stripePaymentMethods.typeDefs}
     ${subscriptionStatus.typeDefs}
     ${previewWhatsAppChatExport.typeDefs}
+    ${companyWhatsappWebhookInfo.typeDefs}
+    ${whatsappConversations.typeDefs}
+    ${businessLeadWhatsappStatus.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -24,6 +30,9 @@ const customQuery = {
     ${companyBrief.queryDefinition}
     ${generateMarketInsight.queryDefinition}
     ${previewWhatsAppChatExport.definition}
+    ${companyWhatsappWebhookInfo.definition}
+    ${whatsappConversations.definition}
+    ${businessLeadWhatsappStatus.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -34,6 +43,9 @@ const customQuery = {
     ...companyBrief.queryResolver,
     ...generateMarketInsight.queryResolver,
     ...previewWhatsAppChatExport.resolver,
+    ...companyWhatsappWebhookInfo.resolver,
+    ...whatsappConversations.resolver,
+    ...businessLeadWhatsappStatus.resolver,
   },
 };
 

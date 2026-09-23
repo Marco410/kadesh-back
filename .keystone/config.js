@@ -4698,6 +4698,7 @@ var LEAD_SOURCE = {
   SOCIAL_MEDIA: "Redes Sociales",
   EMAIL: "Email",
   CALL: "Llamada",
+  WHATSAPP: "WhatsApp",
   OTRO: "Otro"
 };
 
@@ -6881,7 +6882,10 @@ var SaasCompany_default = (0, import_core54.list)({
     }),
     whatsappBusinessAccountId: (0, import_fields54.text)({
       db: { isNullable: true },
-      ui: { description: "WhatsApp Business Account ID (WABA)" }
+      isIndexed: "unique",
+      ui: {
+        description: "WhatsApp Business Account ID (WABA). \xDAnico por empresa: se usa para enrutar el webhook de estado de plantillas."
+      }
     }),
     whatsappDisplayPhoneNumber: (0, import_fields54.text)({
       db: { isNullable: true },
@@ -6936,6 +6940,34 @@ var SaasCompany_default = (0, import_core54.list)({
       ref: "TechWhatsAppMessage.company",
       many: true,
       ui: { description: "Historial de mensajes de WhatsApp de esta empresa" }
+    }),
+    whatsappTemplateName: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Nombre de la plantilla creada autom\xE1ticamente para iniciar conversaciones"
+      }
+    }),
+    whatsappTemplateLanguage: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    whatsappTemplateStatus: (0, import_fields54.select)({
+      type: "string",
+      options: [
+        { label: "Ninguna", value: "none" },
+        { label: "Pendiente de aprobaci\xF3n", value: "pending" },
+        { label: "Aprobada", value: "approved" },
+        { label: "Rechazada", value: "rejected" }
+      ],
+      defaultValue: "none",
+      ui: {
+        description: "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexi\xF3n; se actualiza v\xEDa webhook cuando Meta la revisa."
+      }
     }),
     termsQuotation: (0, import_fields54.text)({
       db: { isNullable: true },
@@ -9473,6 +9505,31 @@ var TechWhatsAppMessage_default = (0, import_core70.list)({
     fromPhone: (0, import_fields70.text)({ db: { isNullable: true } }),
     toPhone: (0, import_fields70.text)({ db: { isNullable: true } }),
     body: (0, import_fields70.text)({ ui: { displayMode: "textarea" } }),
+    messageKind: (0, import_fields70.select)({
+      type: "string",
+      options: [
+        { label: "Texto", value: "text" },
+        { label: "Plantilla (inicio de conversaci\xF3n)", value: "template" }
+      ],
+      defaultValue: "text"
+    }),
+    mediaKey: (0, import_fields70.text)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Key del archivo en R2 (no la URL \u2014 se firma al vuelo, ver mediaUrl)"
+      }
+    }),
+    mediaType: (0, import_fields70.select)({
+      type: "string",
+      options: [
+        { label: "Imagen", value: "image" },
+        { label: "Documento", value: "document" }
+      ],
+      db: { isNullable: true }
+    }),
+    mediaFileName: (0, import_fields70.text)({ db: { isNullable: true } }),
     status: (0, import_fields70.select)({
       type: "string",
       options: [
@@ -18785,6 +18842,214 @@ async function fetchWhatsAppPhoneNumberInfo({
     verifiedName: parsed?.verified_name || ""
   };
 }
+async function createWhatsAppTemplate({
+  wabaId,
+  accessToken,
+  name,
+  language,
+  bodyText
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/message_templates`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name,
+        language,
+        category: "MARKETING",
+        components: [{ type: "BODY", text: bodyText }]
+      })
+    }
+  );
+  const bodyTextRes = await response.text();
+  if (!response.ok) {
+    const { message } = parseGraphError(bodyTextRes);
+    throw new Error(`[whatsapp] Graph API error creando plantilla: ${message}`);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyTextRes);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed?.id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de plantilla");
+  }
+  return { id: parsed.id, status: parsed.status || "PENDING" };
+}
+async function sendWhatsAppTemplateMessage({
+  phoneNumberId,
+  accessToken,
+  to,
+  templateName,
+  language,
+  bodyParams
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: language },
+          components: [
+            {
+              type: "body",
+              parameters: bodyParams.map((text60) => ({ type: "text", text: text60 }))
+            }
+          ]
+        }
+      })
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const { message, code } = parseGraphError(bodyText);
+    const err = new Error(`[whatsapp] Graph API error: ${message}`);
+    err.graphCode = code;
+    throw err;
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const id = parsed?.messages?.[0]?.id;
+  if (!id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
+  }
+  return { id };
+}
+async function uploadMediaToWhatsApp({
+  phoneNumberId,
+  accessToken,
+  buffer,
+  mimetype,
+  filename
+}) {
+  const form = new FormData();
+  form.append("messaging_product", "whatsapp");
+  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimetype }), filename);
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/media`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const { message } = parseGraphError(bodyText);
+    throw new Error(`[whatsapp] Graph API error subiendo media: ${message}`);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed?.id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de media");
+  }
+  return { id: parsed.id };
+}
+async function sendWhatsAppMediaMessage({
+  phoneNumberId,
+  accessToken,
+  to,
+  mediaId,
+  type,
+  filename,
+  caption
+}) {
+  const mediaPayload = { id: mediaId };
+  if (caption) mediaPayload.caption = caption;
+  if (type === "document" && filename) mediaPayload.filename = filename;
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type,
+        [type]: mediaPayload
+      })
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const { message, code } = parseGraphError(bodyText);
+    const err = new Error(`[whatsapp] Graph API error: ${message}`);
+    err.graphCode = code;
+    throw err;
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const id = parsed?.messages?.[0]?.id;
+  if (!id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
+  }
+  return { id };
+}
+async function fetchWhatsAppMediaUrl({
+  mediaId,
+  accessToken
+}) {
+  const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION2}/${mediaId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const { message } = parseGraphError(bodyText);
+    throw new Error(`[whatsapp] Graph API error consultando media: ${message}`);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed?.url) {
+    throw new Error("[whatsapp] La API no regres\xF3 una URL de media");
+  }
+  return { url: parsed.url, mimeType: parsed.mime_type || "application/octet-stream" };
+}
+async function downloadWhatsAppMedia({
+  url,
+  accessToken
+}) {
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) {
+    throw new Error(`[whatsapp] No se pudo descargar el media (HTTP ${response.status})`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
 function verifyWhatsAppSignature({
   appSecret,
   rawBody,
@@ -18797,6 +19062,38 @@ function verifyWhatsAppSignature({
   const receivedBuf = Buffer.from(received, "hex");
   if (expectedBuf.length !== receivedBuf.length) return false;
   return import_crypto5.default.timingSafeEqual(expectedBuf, receivedBuf);
+}
+
+// utils/whatsapp/ensureOutreachTemplate.ts
+var OUTREACH_TEMPLATE_NAME = "kadesh_primer_contacto";
+var OUTREACH_TEMPLATE_LANGUAGE = "es_MX";
+var OUTREACH_TEMPLATE_BODY = "Hola {{1}}, te escribe {{2}}. \xBFTienes un momento para platicar?";
+async function ensureOutreachTemplate(company, context) {
+  if (company.whatsappTemplateStatus && company.whatsappTemplateStatus !== "none") return;
+  if (!company.whatsappBusinessAccountId || !company.whatsappAccessTokenEncrypted) return;
+  try {
+    const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
+    const result = await createWhatsAppTemplate({
+      wabaId: company.whatsappBusinessAccountId,
+      accessToken,
+      name: OUTREACH_TEMPLATE_NAME,
+      language: OUTREACH_TEMPLATE_LANGUAGE,
+      bodyText: OUTREACH_TEMPLATE_BODY
+    });
+    await context.sudo().query.SaasCompany.updateOne({
+      where: { id: company.id },
+      data: {
+        whatsappTemplateName: OUTREACH_TEMPLATE_NAME,
+        whatsappTemplateLanguage: OUTREACH_TEMPLATE_LANGUAGE,
+        whatsappTemplateStatus: result.status === "APPROVED" ? "approved" : "pending"
+      }
+    });
+  } catch (err) {
+    console.error(
+      `[whatsapp] No se pudo crear la plantilla de inicio para la empresa ${company.id}:`,
+      err
+    );
+  }
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
@@ -18823,7 +19120,7 @@ var resolver29 = {
     }
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: companyId },
-      query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted"
+      query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappBusinessAccountId whatsappTemplateStatus"
     });
     if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
       return {
@@ -18844,6 +19141,7 @@ var resolver29 = {
           whatsappConnectedAt: (/* @__PURE__ */ new Date()).toISOString()
         }
       });
+      await ensureOutreachTemplate(company, context);
       return {
         success: true,
         message: "Conexi\xF3n OK con WhatsApp Business",
@@ -19134,6 +19432,261 @@ var resolver31 = {
 };
 var importWhatsAppChatExport_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
+// graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
+var typeDefs35 = `
+  type StartWhatsAppConversationResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type Mutation {
+    startWhatsAppConversation(businessLeadId: ID!): StartWhatsAppConversationResult!
+  }
+`;
+var definition32 = `
+  startWhatsAppConversation(businessLeadId: ID!): StartWhatsAppConversationResult!
+`;
+function toResult7(success, message) {
+  return { success, message };
+}
+var resolver32 = {
+  startWhatsAppConversation: async (_root, { businessLeadId }, context) => {
+    const session2 = context.session;
+    const companyId = getSessionCompanyId(session2);
+    const lead = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: businessLeadId },
+      query: "id phone businessName saasCompany { id }"
+    });
+    if (!lead) return toResult7(false, "No se encontr\xF3 el lead");
+    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
+    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
+    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
+      return toResult7(false, denyCompanyWhatsappUseMessage(session2));
+    }
+    const to = lead.phone ? lead.phone.replace(/\D/g, "") : null;
+    if (!to) return toResult7(false, "Este lead no tiene un tel\xE9fono v\xE1lido");
+    const normalizedTo = to.length === 10 ? `52${to}` : to;
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: effectiveCompanyId },
+      query: "id name whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappTemplateName whatsappTemplateLanguage whatsappTemplateStatus"
+    });
+    if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
+      return toResult7(false, "WhatsApp no est\xE1 conectado para esta empresa");
+    }
+    if (company.whatsappTemplateStatus !== "approved" || !company.whatsappTemplateName) {
+      const statusMessage = company.whatsappTemplateStatus === "rejected" ? "La plantilla para iniciar conversaciones fue rechazada por Meta. Contacta a soporte de Kadesh." : "La plantilla para iniciar conversaciones todav\xEDa est\xE1 pendiente de aprobaci\xF3n de Meta. Intenta de nuevo en un rato.";
+      return toResult7(false, statusMessage);
+    }
+    const leadName = lead.businessName?.trim() || "estimado(a)";
+    try {
+      const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
+      await sendWhatsAppTemplateMessage({
+        phoneNumberId: company.whatsappPhoneNumberId,
+        accessToken,
+        to: normalizedTo,
+        templateName: company.whatsappTemplateName,
+        language: company.whatsappTemplateLanguage || "es_MX",
+        bodyParams: [leadName, company.name]
+      });
+      const renderedBody = `Hola ${leadName}, te escribe ${company.name}. \xBFTienes un momento para platicar?`;
+      await context.sudo().query.TechWhatsAppMessage.createOne({
+        data: {
+          company: { connect: { id: effectiveCompanyId } },
+          businessLead: { connect: { id: businessLeadId } },
+          direction: "outbound",
+          messageKind: "template",
+          toPhone: normalizedTo,
+          body: renderedBody,
+          status: "sent",
+          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+        }
+      });
+      return toResult7(true, "Conversaci\xF3n iniciada");
+    } catch (err) {
+      await context.sudo().query.TechWhatsAppMessage.createOne({
+        data: {
+          company: { connect: { id: effectiveCompanyId } },
+          businessLead: { connect: { id: businessLeadId } },
+          direction: "outbound",
+          messageKind: "template",
+          toPhone: normalizedTo,
+          body: "(plantilla de inicio de conversaci\xF3n)",
+          status: "failed",
+          errorMessage: err instanceof Error ? err.message : "Error desconocido",
+          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+        }
+      });
+      return toResult7(
+        false,
+        err instanceof Error ? err.message : "No se pudo iniciar la conversaci\xF3n"
+      );
+    }
+  }
+};
+var startWhatsAppConversation_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+
+// graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
+var import_crypto6 = __toESM(require("crypto"));
+
+// utils/intregrations/s3Storage.ts
+var import_client_s3 = require("@aws-sdk/client-s3");
+var import_s3_request_presigner = require("@aws-sdk/s3-request-presigner");
+function getClient() {
+  const endpoint2 = process.env.S3_ENDPOINT?.trim();
+  return new import_client_s3.S3Client({
+    region: process.env.S3_REGION?.trim() || "auto",
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID?.trim() || "",
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY?.trim() || ""
+    },
+    ...endpoint2 ? { endpoint: endpoint2, forcePathStyle: true } : {}
+  });
+}
+function getBucketName() {
+  const bucket = process.env.S3_BUCKET_NAME?.trim();
+  if (!bucket) throw new Error("[storage] Falta S3_BUCKET_NAME");
+  return bucket;
+}
+async function uploadBufferToStorage({
+  buffer,
+  contentType,
+  key
+}) {
+  const client = getClient();
+  await client.send(
+    new import_client_s3.PutObjectCommand({
+      Bucket: getBucketName(),
+      Key: key,
+      Body: buffer,
+      ContentType: contentType
+    })
+  );
+}
+async function getSignedStorageUrl({
+  key,
+  expirySeconds = 3600
+}) {
+  const client = getClient();
+  const command = new import_client_s3.GetObjectCommand({ Bucket: getBucketName(), Key: key });
+  return (0, import_s3_request_presigner.getSignedUrl)(client, command, { expiresIn: expirySeconds });
+}
+
+// graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
+var typeDefs36 = `
+  type SendWhatsAppMediaMessageResult {
+    success: Boolean!
+    message: String!
+    messageId: String
+  }
+
+  type Mutation {
+    sendWhatsAppMediaMessage(businessLeadId: ID!, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+  }
+`;
+var definition33 = `
+  sendWhatsAppMediaMessage(businessLeadId: ID!, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+`;
+async function streamToBuffer(stream) {
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+function toResult8(success, message, messageId = null) {
+  return { success, message, messageId };
+}
+var resolver33 = {
+  sendWhatsAppMediaMessage: async (_root, {
+    businessLeadId,
+    media,
+    caption
+  }, context) => {
+    const session2 = context.session;
+    const companyId = getSessionCompanyId(session2);
+    const lead = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: businessLeadId },
+      query: "id phone saasCompany { id }"
+    });
+    if (!lead) return toResult8(false, "No se encontr\xF3 el lead");
+    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
+    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
+    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
+      return toResult8(false, denyCompanyWhatsappUseMessage(session2));
+    }
+    const toDigits = lead.phone ? lead.phone.replace(/\D/g, "") : null;
+    if (!toDigits) return toResult8(false, "Este lead no tiene un tel\xE9fono v\xE1lido");
+    const to = toDigits.length === 10 ? `52${toDigits}` : toDigits;
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: effectiveCompanyId },
+      query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted"
+    });
+    if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
+      return toResult8(false, "WhatsApp no est\xE1 conectado para esta empresa");
+    }
+    const { filename, mimetype, createReadStream } = await media;
+    const buffer = await streamToBuffer(createReadStream());
+    const mediaType = mimetype.startsWith("image/") ? "image" : "document";
+    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto6.default.randomUUID()}-${filename}`;
+    try {
+      const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
+      const uploaded = await uploadMediaToWhatsApp({
+        phoneNumberId: company.whatsappPhoneNumberId,
+        accessToken,
+        buffer,
+        mimetype,
+        filename
+      });
+      const sent = await sendWhatsAppMediaMessage({
+        phoneNumberId: company.whatsappPhoneNumberId,
+        accessToken,
+        to,
+        mediaId: uploaded.id,
+        type: mediaType,
+        filename: mediaType === "document" ? filename : void 0,
+        caption: caption || void 0
+      });
+      try {
+        await uploadBufferToStorage({ buffer, contentType: mimetype, key: mediaKey });
+      } catch (storageErr) {
+        console.error("[whatsapp] No se pudo guardar copia del media en R2:", storageErr);
+      }
+      await context.sudo().query.TechWhatsAppMessage.createOne({
+        data: {
+          company: { connect: { id: effectiveCompanyId } },
+          businessLead: { connect: { id: businessLeadId } },
+          direction: "outbound",
+          toPhone: to,
+          body: caption || "",
+          mediaKey,
+          mediaType,
+          mediaFileName: filename,
+          status: "sent",
+          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+        }
+      });
+      return toResult8(true, "Enviado", sent.id);
+    } catch (err) {
+      await context.sudo().query.TechWhatsAppMessage.createOne({
+        data: {
+          company: { connect: { id: effectiveCompanyId } },
+          businessLead: { connect: { id: businessLeadId } },
+          direction: "outbound",
+          toPhone: to,
+          body: caption || "",
+          mediaType,
+          mediaFileName: filename,
+          status: "failed",
+          errorMessage: err instanceof Error ? err.message : "Error desconocido",
+          sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
+        }
+      });
+      return toResult8(false, err instanceof Error ? err.message : "No se pudo enviar el archivo");
+    }
+  }
+};
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -19166,6 +19719,8 @@ var customMutation = {
     ${testCompanyWhatsappConnection_default.typeDefs}
     ${sendWhatsAppMessage_default.typeDefs}
     ${importWhatsAppChatExport_default.typeDefs}
+    ${startWhatsAppConversation_default.typeDefs}
+    ${sendWhatsAppMediaMessage_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -19197,6 +19752,8 @@ var customMutation = {
     ${testCompanyWhatsappConnection_default.definition}
     ${sendWhatsAppMessage_default.definition}
     ${importWhatsAppChatExport_default.definition}
+    ${startWhatsAppConversation_default.definition}
+    ${sendWhatsAppMediaMessage_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -19227,7 +19784,9 @@ var customMutation = {
     ...updateCompanyWhatsappSettings_default.resolver,
     ...testCompanyWhatsappConnection_default.resolver,
     ...sendWhatsAppMessage_default.resolver,
-    ...importWhatsAppChatExport_default.resolver
+    ...importWhatsAppChatExport_default.resolver,
+    ...startWhatsAppConversation_default.resolver,
+    ...sendWhatsAppMediaMessage_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -19238,7 +19797,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs35 = `
+var typeDefs37 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -19297,7 +19856,7 @@ var typeDefs35 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition32 = `
+var definition34 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -19347,7 +19906,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver32 = {
+var resolver34 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -19510,7 +20069,7 @@ var resolver32 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var nearbyAnimals_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -19823,7 +20382,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs36 = `
+var typeDefs38 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -19883,10 +20442,10 @@ var typeDefs36 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition33 = `
+var definition35 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver33 = {
+var resolver35 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -19968,10 +20527,10 @@ var resolver33 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs37 = `
+var typeDefs39 = `
   type StripeCard {
     brand: String
     country: String
@@ -20005,10 +20564,10 @@ var typeDefs37 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition34 = `
+var definition36 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver34 = {
+var resolver36 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -20044,7 +20603,7 @@ var resolver34 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var stripePaymentMethods_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -20097,7 +20656,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs38 = `
+var typeDefs40 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -20125,10 +20684,10 @@ var typeDefs38 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition35 = `
+var definition37 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver35 = {
+var resolver37 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -20255,11 +20814,11 @@ var resolver35 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var subscriptionStatus_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs39 = `
+var typeDefs41 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -20271,10 +20830,10 @@ var typeDefs39 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition36 = `
+var definition38 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver36 = {
+var resolver38 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -20307,7 +20866,168 @@ var resolver36 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+
+// graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
+var typeDefs42 = `
+  type CompanyWhatsappWebhookInfoResult {
+    success: Boolean!
+    message: String!
+    webhookUrl: String
+    verifyToken: String
+  }
+
+  type Query {
+    companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
+  }
+`;
+var definition39 = `
+  companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
+`;
+var resolver39 = {
+  companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    if (!canManageCompanyWhatsapp(session2, companyId)) {
+      return { success: false, message: denyCompanyWhatsappAccessMessage(session2) };
+    }
+    const verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
+    const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim().replace(/\/+$/, "");
+    if (!verifyToken || !baseUrl) {
+      return {
+        success: false,
+        message: "Falta configurar WHATSAPP_WEBHOOK_VERIFY_TOKEN o WHATSAPP_WEBHOOK_BASE_URL en el backend"
+      };
+    }
+    return {
+      success: true,
+      message: "OK",
+      webhookUrl: `${baseUrl}/webhooks/whatsapp`,
+      verifyToken
+    };
+  }
+};
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+
+// graphql/customs/queries/whatsapp/whatsappConversations.ts
+var MAX_MESSAGES_SCANNED = 500;
+var typeDefs43 = `
+  type WhatsAppConversationSummary {
+    leadId: ID!
+    leadName: String!
+    lastMessageBody: String!
+    lastMessageAt: String!
+    lastMessageDirection: String!
+  }
+
+  type WhatsAppConversationsResult {
+    success: Boolean!
+    message: String!
+    conversations: [WhatsAppConversationSummary!]!
+  }
+
+  type Query {
+    whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
+  }
+`;
+var definition40 = `
+  whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
+`;
+var resolver40 = {
+  whatsappConversations: async (_root, { companyId }, context) => {
+    const session2 = context.session;
+    if (!canUseCompanyWhatsapp(session2, companyId)) {
+      return {
+        success: false,
+        message: denyCompanyWhatsappUseMessage(session2),
+        conversations: []
+      };
+    }
+    const messages = await context.sudo().query.TechWhatsAppMessage.findMany({
+      where: { company: { id: { equals: companyId } } },
+      orderBy: [{ createdAt: "desc" }],
+      take: MAX_MESSAGES_SCANNED,
+      query: "id body direction createdAt businessLead { id businessName }"
+    });
+    const seenLeadIds = /* @__PURE__ */ new Set();
+    const conversations = [];
+    for (const msg of messages) {
+      const leadId = msg.businessLead?.id;
+      if (!leadId || !msg.createdAt || seenLeadIds.has(leadId)) continue;
+      seenLeadIds.add(leadId);
+      conversations.push({
+        leadId,
+        leadName: msg.businessLead?.businessName || "Sin nombre",
+        lastMessageBody: msg.body || "",
+        lastMessageAt: msg.createdAt,
+        lastMessageDirection: msg.direction || "unknown"
+      });
+    }
+    return { success: true, message: "OK", conversations };
+  }
+};
+var whatsappConversations_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+
+// graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
+var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
+var typeDefs44 = `
+  type BusinessLeadWhatsappStatusResult {
+    success: Boolean!
+    message: String!
+    canReplyFreely: Boolean!
+    templateStatus: String
+  }
+
+  type Query {
+    businessLeadWhatsappStatus(businessLeadId: ID!): BusinessLeadWhatsappStatusResult!
+  }
+`;
+var definition41 = `
+  businessLeadWhatsappStatus(businessLeadId: ID!): BusinessLeadWhatsappStatusResult!
+`;
+var resolver41 = {
+  businessLeadWhatsappStatus: async (_root, { businessLeadId }, context) => {
+    const session2 = context.session;
+    const companyId = getSessionCompanyId(session2);
+    const lead = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: businessLeadId },
+      query: "id saasCompany { id }"
+    });
+    if (!lead) {
+      return { success: false, message: "No se encontr\xF3 el lead", canReplyFreely: false, templateStatus: null };
+    }
+    const leadCompanyIds = (lead.saasCompany ?? []).map((c) => c.id);
+    const effectiveCompanyId = companyId && leadCompanyIds.includes(companyId) ? companyId : null;
+    if (!effectiveCompanyId || !canUseCompanyWhatsapp(session2, effectiveCompanyId)) {
+      return {
+        success: false,
+        message: "No tienes acceso a WhatsApp de esta empresa",
+        canReplyFreely: false,
+        templateStatus: null
+      };
+    }
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: effectiveCompanyId },
+      query: "id whatsappTemplateStatus"
+    });
+    const [lastInbound] = await context.sudo().query.TechWhatsAppMessage.findMany({
+      where: {
+        businessLead: { id: { equals: businessLeadId } },
+        direction: { equals: "inbound" }
+      },
+      orderBy: [{ createdAt: "desc" }],
+      query: "createdAt",
+      take: 1
+    });
+    const canReplyFreely = lastInbound?.createdAt ? Date.now() - new Date(lastInbound.createdAt).getTime() <= REPLY_WINDOW_MS : false;
+    return {
+      success: true,
+      message: "OK",
+      canReplyFreely,
+      templateStatus: company?.whatsappTemplateStatus ?? "none"
+    };
+  }
+};
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -20317,6 +21037,9 @@ var customQuery = {
     ${stripePaymentMethods_default.typeDefs}
     ${subscriptionStatus_default.typeDefs}
     ${previewWhatsAppChatExport_default.typeDefs}
+    ${companyWhatsappWebhookInfo_default.typeDefs}
+    ${whatsappConversations_default.typeDefs}
+    ${businessLeadWhatsappStatus_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -20327,6 +21050,9 @@ var customQuery = {
     ${companyBrief_default.queryDefinition}
     ${generateMarketInsight_default.queryDefinition}
     ${previewWhatsAppChatExport_default.definition}
+    ${companyWhatsappWebhookInfo_default.definition}
+    ${whatsappConversations_default.definition}
+    ${businessLeadWhatsappStatus_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -20336,7 +21062,10 @@ var customQuery = {
     ...dailyDigest_default.queryResolver,
     ...companyBrief_default.queryResolver,
     ...generateMarketInsight_default.queryResolver,
-    ...previewWhatsAppChatExport_default.resolver
+    ...previewWhatsAppChatExport_default.resolver,
+    ...companyWhatsappWebhookInfo_default.resolver,
+    ...whatsappConversations_default.resolver,
+    ...businessLeadWhatsappStatus_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -20353,6 +21082,10 @@ function extendGraphqlSchema(baseSchema) {
       }
       type Query {
         ${queries_default.definitions}
+      }
+      extend type TechWhatsAppMessage {
+        "URL firmada (1h) del archivo en R2, calculada al vuelo a partir de mediaKey."
+        mediaUrl: String
       }
     `,
     resolvers: {
@@ -20378,6 +21111,12 @@ function extendGraphqlSchema(baseSchema) {
           );
         }
       },
+      TechWhatsAppMessage: {
+        mediaUrl: async (item) => {
+          if (!item?.mediaKey) return null;
+          return getSignedStorageUrl({ key: item.mediaKey });
+        }
+      },
       ...mutations_default.extraResolvers ?? {}
     }
   });
@@ -20385,13 +21124,43 @@ function extendGraphqlSchema(baseSchema) {
 
 // webhooks/whatsapp.ts
 var import_express = __toESM(require("express"));
+var import_crypto7 = __toESM(require("crypto"));
 var WEBHOOK_PATH = "/webhooks/whatsapp";
+var TEMPLATE_STATUS_MAP = {
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  PENDING: "pending",
+  PENDING_DELETION: "rejected",
+  DISABLED: "rejected"
+};
 function last10Digits(digits) {
   return digits.slice(-10);
 }
-function extractMessageBody(msg) {
-  if (msg.type === "text" && msg.text?.body) return msg.text.body;
-  return msg.type ? `[${msg.type}, no soportado todav\xEDa]` : "";
+function extToFilename(filename, mimeType) {
+  if (filename) return filename;
+  const ext = mimeType.split("/")[1] || "bin";
+  return `archivo-${import_crypto7.default.randomUUID()}.${ext}`;
+}
+async function persistIncomingMedia({
+  media,
+  mediaType,
+  accessToken,
+  companyId
+}) {
+  if (!media.id) {
+    return { mediaKey: null, mediaFileName: null, body: media.caption || "" };
+  }
+  try {
+    const { url, mimeType } = await fetchWhatsAppMediaUrl({ mediaId: media.id, accessToken });
+    const buffer = await downloadWhatsAppMedia({ url, accessToken });
+    const filename = extToFilename(media.filename, mimeType);
+    const mediaKey = `whatsapp-media/${companyId}/${import_crypto7.default.randomUUID()}-${filename}`;
+    await uploadBufferToStorage({ buffer, contentType: mimeType, key: mediaKey });
+    return { mediaKey, mediaFileName: filename, body: media.caption || "" };
+  } catch (err) {
+    console.error("[whatsapp webhook] no se pudo descargar/guardar media entrante:", err);
+    return { mediaKey: null, mediaFileName: media.filename || null, body: media.caption || "" };
+  }
 }
 function handleVerify(req, res) {
   const mode = req.query["hub.mode"];
@@ -20404,7 +21173,17 @@ function handleVerify(req, res) {
     res.sendStatus(403);
   }
 }
-async function persistIncomingMessages(companyId, messages, context) {
+async function handleTemplateStatusUpdate(companyId, value, context) {
+  const event = value?.event;
+  if (!event) return;
+  const status = TEMPLATE_STATUS_MAP[event];
+  if (!status) return;
+  await context.sudo().db.SaasCompany.updateOne({
+    where: { id: companyId },
+    data: { whatsappTemplateStatus: status }
+  });
+}
+async function persistIncomingMessages(companyId, accessToken, messages, context) {
   for (const msg of messages) {
     if (!msg.id) continue;
     const existing = await context.sudo().db.TechWhatsAppMessage.findOne({
@@ -20424,6 +21203,37 @@ async function persistIncomingMessages(companyId, messages, context) {
       });
       businessLeadId = candidates[0]?.id ?? null;
     }
+    let body = "";
+    let mediaKey = null;
+    let mediaFileName = null;
+    let mediaType = null;
+    if (msg.type === "text" && msg.text?.body) {
+      body = msg.text.body;
+    } else if (msg.type === "image" && msg.image) {
+      mediaType = "image";
+      const result = await persistIncomingMedia({
+        media: msg.image,
+        mediaType: "image",
+        accessToken,
+        companyId
+      });
+      mediaKey = result.mediaKey;
+      mediaFileName = result.mediaFileName;
+      body = result.body;
+    } else if (msg.type === "document" && msg.document) {
+      mediaType = "document";
+      const result = await persistIncomingMedia({
+        media: msg.document,
+        mediaType: "document",
+        accessToken,
+        companyId
+      });
+      mediaKey = result.mediaKey;
+      mediaFileName = result.mediaFileName;
+      body = result.body;
+    } else {
+      body = msg.type ? `[${msg.type}, no soportado todav\xEDa]` : "";
+    }
     await context.sudo().db.TechWhatsAppMessage.createOne({
       data: {
         company: { connect: { id: companyId } },
@@ -20431,7 +21241,8 @@ async function persistIncomingMessages(companyId, messages, context) {
         direction: "inbound",
         waMessageId: msg.id,
         fromPhone: msg.from || null,
-        body: extractMessageBody(msg),
+        body,
+        ...mediaType ? { mediaType, mediaKey, mediaFileName } : {},
         status: "received"
       }
     });
@@ -20447,34 +21258,35 @@ async function handleIncoming(req, res, context) {
     } catch {
       return;
     }
-    const value = payload.entry?.[0]?.changes?.[0]?.value;
-    const phoneNumberId = value?.metadata?.phone_number_id;
-    const messages = value?.messages ?? [];
-    if (!phoneNumberId || messages.length === 0) return;
+    const wabaId = payload.entry?.[0]?.id;
+    const change = payload.entry?.[0]?.changes?.[0];
+    if (!wabaId || !change) return;
     const company = await context.sudo().query.SaasCompany.findOne({
-      where: { whatsappPhoneNumberId: phoneNumberId },
-      query: "id whatsappAppSecretEncrypted"
+      where: { whatsappBusinessAccountId: wabaId },
+      query: "id whatsappAppSecretEncrypted whatsappAccessTokenEncrypted"
     });
     if (!company?.whatsappAppSecretEncrypted) {
-      console.warn(
-        `[whatsapp webhook] phone_number_id "${phoneNumberId}" no est\xE1 conectado a ninguna empresa`
-      );
+      console.warn(`[whatsapp webhook] WABA "${wabaId}" no est\xE1 conectado a ninguna empresa`);
       return;
     }
     const appSecret = decrypt(company.whatsappAppSecretEncrypted);
     const signatureHeader = req.header("x-hub-signature-256");
-    const validSignature = verifyWhatsAppSignature({
-      appSecret,
-      rawBody,
-      signatureHeader
-    });
+    const validSignature = verifyWhatsAppSignature({ appSecret, rawBody, signatureHeader });
     if (!validSignature) {
       console.error(
         `[whatsapp webhook] firma inv\xE1lida para la empresa "${company.id}", se descarta el payload`
       );
       return;
     }
-    await persistIncomingMessages(company.id, messages, context);
+    if (change.field === "message_template_status_update") {
+      await handleTemplateStatusUpdate(company.id, change.value, context);
+      return;
+    }
+    const messages = change.value?.messages ?? [];
+    if (messages.length === 0) return;
+    const accessToken = company.whatsappAccessTokenEncrypted ? decrypt(company.whatsappAccessTokenEncrypted) : null;
+    if (!accessToken) return;
+    await persistIncomingMessages(company.id, accessToken, messages, context);
   } catch (err) {
     console.error("[whatsapp webhook] error procesando el payload:", err);
   }

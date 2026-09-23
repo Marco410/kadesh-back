@@ -251,7 +251,11 @@ export default list({
     }),
     whatsappBusinessAccountId: text({
       db: { isNullable: true },
-      ui: { description: "WhatsApp Business Account ID (WABA)" },
+      isIndexed: "unique",
+      ui: {
+        description:
+          "WhatsApp Business Account ID (WABA). Único por empresa: se usa para enrutar el webhook de estado de plantillas.",
+      },
     }),
     whatsappDisplayPhoneNumber: text({
       db: { isNullable: true },
@@ -307,6 +311,35 @@ export default list({
       ref: "TechWhatsAppMessage.company",
       many: true,
       ui: { description: "Historial de mensajes de WhatsApp de esta empresa" },
+    }),
+    whatsappTemplateName: text({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Nombre de la plantilla creada automáticamente para iniciar conversaciones",
+      },
+    }),
+    whatsappTemplateLanguage: text({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
+    whatsappTemplateStatus: select({
+      type: "string",
+      options: [
+        { label: "Ninguna", value: "none" },
+        { label: "Pendiente de aprobación", value: "pending" },
+        { label: "Aprobada", value: "approved" },
+        { label: "Rechazada", value: "rejected" },
+      ],
+      defaultValue: "none",
+      ui: {
+        description:
+          "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexión; se actualiza vía webhook cuando Meta la revisa.",
+      },
     }),
     termsQuotation: text({
       db: { isNullable: true },
