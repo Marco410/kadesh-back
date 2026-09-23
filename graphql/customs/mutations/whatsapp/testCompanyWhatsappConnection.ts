@@ -10,6 +10,8 @@ const typeDefs = `
     message: String!
     displayPhoneNumber: String
     verifiedName: String
+    """Por qué no se pudo crear la plantilla de inicio (mensaje de Meta). Vacío si salió bien."""
+    templateError: String
   }
 
   type Mutation {
@@ -60,14 +62,16 @@ const resolver = {
         },
       });
 
-      // Best-effort: no bloquea la respuesta de "probar conexión" si falla.
-      await ensureOutreachTemplate(company as any, context);
+      // Best-effort: no bloquea la respuesta de "probar conexión" si falla, pero el motivo se
+      // devuelve para que el front pueda mostrarlo.
+      const template = await ensureOutreachTemplate(company as any, context);
 
       return {
         success: true,
         message: "Conexión OK con WhatsApp Business",
         displayPhoneNumber: info.displayPhoneNumber,
         verifiedName: info.verifiedName,
+        templateError: template.error,
       };
     } catch (err) {
       return {

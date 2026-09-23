@@ -8844,6 +8844,11 @@ type TestCompanyWhatsappConnectionResult {
   message: String!
   displayPhoneNumber: String
   verifiedName: String
+
+  """
+  Por qué no se pudo crear la plantilla de inicio (mensaje de Meta). Vacío si salió bien.
+  """
+  templateError: String
 }
 
 type SendWhatsAppMessageResult {

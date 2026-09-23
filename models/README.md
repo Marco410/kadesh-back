@@ -83,3 +83,11 @@ Qué: la bandeja de WhatsApp ahora tiene dos tipos de conversación y reglas de 
 Limitación conocida: si dos personas distintas le escriben al mismo compañero, el hilo interno queda con el `internalInitiator` de quien escribió primero, y cada quien ve solo los mensajes que le tocan — no hay una entidad "conversación" con lista de participantes. Si eso empieza a estorbar, ese es el refactor.
 
 Qué no hacer: no volver a poner `sudo()` en `whatsappConversations` (ahí vive la regla de visibilidad); no agregar un campo "assignedTo" propio de WhatsApp sin quitar el que ya hay; no asumir que un mensaje siempre tiene lead.
+
+### 2026-09-23 — Plantilla de inicio: ejemplos obligatorios y error visible
+
+Qué: `createWhatsAppTemplate` ahora manda `example.body_text` con un valor por variable. Meta rechaza crear una plantilla con `{{1}}`/`{{2}}` si no lleva ejemplos, y como `ensureOutreachTemplate` es best-effort el fallo quedaba solo en un `console.error`: el usuario veía "No se pudo crear la plantilla" sin saber por qué. Ahora `ensureOutreachTemplate` **devuelve** el motivo (mensaje de Meta) y `testCompanyWhatsappConnection` lo expone en `templateError`; el front lo muestra. No se persiste (evita otro campo y otra migración): llega en la respuesta de cada prueba.
+
+Además, crear plantillas exige que el access token tenga `whatsapp_business_management`, no solo `whatsapp_business_messaging`. Con solo el segundo la conexión prueba OK y los chats funcionan, pero la plantilla nunca se crea — es el fallo más fácil de confundir con un bug nuestro.
+
+Qué no hacer: no volver a tragarse el error de la plantilla; no quitar los ejemplos (`OUTREACH_TEMPLATE_EXAMPLES`, uno por variable y en orden); no pedir en la guía del front solo el permiso de mensajería.

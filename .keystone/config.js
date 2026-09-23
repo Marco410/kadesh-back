@@ -18897,7 +18897,8 @@ async function createWhatsAppTemplate({
   accessToken,
   name,
   language,
-  bodyText
+  bodyText,
+  bodyExamples
 }) {
   const response = await fetch(
     `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/message_templates`,
@@ -18911,7 +18912,13 @@ async function createWhatsAppTemplate({
         name,
         language,
         category: "MARKETING",
-        components: [{ type: "BODY", text: bodyText }]
+        components: [
+          {
+            type: "BODY",
+            text: bodyText,
+            ...bodyExamples.length > 0 ? { example: { body_text: [bodyExamples] } } : {}
+          }
+        ]
       })
     }
   );
@@ -19118,9 +19125,17 @@ function verifyWhatsAppSignature({
 var OUTREACH_TEMPLATE_NAME = "kadesh_primer_contacto";
 var OUTREACH_TEMPLATE_LANGUAGE = "es_MX";
 var OUTREACH_TEMPLATE_BODY = "Hola {{1}}, te escribe {{2}}. \xBFTienes un momento para platicar?";
+var OUTREACH_TEMPLATE_EXAMPLES = ["Juan P\xE9rez", "Kadesh"];
 async function ensureOutreachTemplate(company, context) {
-  if (company.whatsappTemplateStatus && company.whatsappTemplateStatus !== "none") return;
-  if (!company.whatsappBusinessAccountId || !company.whatsappAccessTokenEncrypted) return;
+  if (company.whatsappTemplateStatus && company.whatsappTemplateStatus !== "none") {
+    return { error: null };
+  }
+  if (!company.whatsappBusinessAccountId) {
+    return { error: "Falta el WhatsApp Business Account ID." };
+  }
+  if (!company.whatsappAccessTokenEncrypted) {
+    return { error: "Falta el access token." };
+  }
   try {
     const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
     const result = await createWhatsAppTemplate({
@@ -19128,7 +19143,8 @@ async function ensureOutreachTemplate(company, context) {
       accessToken,
       name: OUTREACH_TEMPLATE_NAME,
       language: OUTREACH_TEMPLATE_LANGUAGE,
-      bodyText: OUTREACH_TEMPLATE_BODY
+      bodyText: OUTREACH_TEMPLATE_BODY,
+      bodyExamples: OUTREACH_TEMPLATE_EXAMPLES
     });
     await context.sudo().query.SaasCompany.updateOne({
       where: { id: company.id },
@@ -19138,11 +19154,14 @@ async function ensureOutreachTemplate(company, context) {
         whatsappTemplateStatus: result.status === "APPROVED" ? "approved" : "pending"
       }
     });
+    return { error: null };
   } catch (err) {
     console.error(
       `[whatsapp] No se pudo crear la plantilla de inicio para la empresa ${company.id}:`,
       err
     );
+    const raw = err instanceof Error ? err.message : "Error desconocido";
+    return { error: raw.replace(/^\[whatsapp\] Graph API error creando plantilla:\s*/, "") };
   }
 }
 
@@ -19153,6 +19172,8 @@ var typeDefs32 = `
     message: String!
     displayPhoneNumber: String
     verifiedName: String
+    """Por qu\xE9 no se pudo crear la plantilla de inicio (mensaje de Meta). Vac\xEDo si sali\xF3 bien."""
+    templateError: String
   }
 
   type Mutation {
@@ -19191,12 +19212,13 @@ var resolver29 = {
           whatsappConnectedAt: (/* @__PURE__ */ new Date()).toISOString()
         }
       });
-      await ensureOutreachTemplate(company, context);
+      const template = await ensureOutreachTemplate(company, context);
       return {
         success: true,
         message: "Conexi\xF3n OK con WhatsApp Business",
         displayPhoneNumber: info.displayPhoneNumber,
-        verifiedName: info.verifiedName
+        verifiedName: info.verifiedName,
+        templateError: template.error
       };
     } catch (err) {
       return {
