@@ -317,6 +317,7 @@ model PetPlace {
   verifiedAt             DateTime?
   claimStatus            String?               @default("unclaimed")
   claimRole              String?
+  pipelineStatus         String?               @default("01 - Detectado")
   claimPhone             String                @default("")
   claimNotes             String                @default("")
   claimedAt              DateTime?
@@ -332,6 +333,7 @@ model PetPlace {
   createdAt              DateTime?             @default(now())
 
   @@index([userId])
+  @@index([pipelineStatus])
 }
 
 model PetPlaceAppointment {

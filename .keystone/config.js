@@ -2383,7 +2383,70 @@ var petPlaceSlugAfterOperation = {
   }
 };
 
+// models/Saas/Tech/crm/constants.ts
+var PIPELINE_STATUS = {
+  DETECTADO: "01 - Detectado",
+  SELECCIONADO: "02 - Seleccionado",
+  CONTACTADO: "03 - Contactado",
+  SIN_RESPUESTA: "04 - Sin Respuesta",
+  INTERESADO: "05 - Interesado",
+  CREANDO_PROYECTO_PROPUESTA: "06 - Creando proyecto propuesta",
+  PROPUESTA_ENVIADA: "07 - Propuesta Enviada",
+  SEGUIMIENTO: "08 - Seguimiento",
+  EN_NEGOCIACION: "09 - En Negociaci\xF3n",
+  PROPUESTA_ACEPTADA: "10 - Propuesta Aceptada",
+  PROPUESTA_RECHAZADA: "11 - Propuesta Rechazada",
+  CERRADO_GANADO: "12 - Cerrado Ganado",
+  CERRADO_PERDIDO: "13 - Cerrado Perdido",
+  DESCARTADO: "14 - Descartado"
+};
+var OPPORTUNITY_LEVEL = {
+  ALTA: "Alta",
+  MEDIA: "Media",
+  BAJA: "Baja"
+};
+var SALES_ACTIVITY_TYPE = {
+  LLAMADA: "Llamada",
+  WHATSAPP: "WhatsApp",
+  EMAIL: "Email",
+  REUNION: "Reuni\xF3n",
+  OTRA: "Otra"
+};
+var PROPOSAL_STATUS = {
+  ENVIADA: "Enviada",
+  ACEPTADA: "Aceptada",
+  RECHAZADA: "Rechazada",
+  PENDIENTE: "Pendiente",
+  COMPRADA: "Comprada"
+};
+var FOLLOW_UP_TASK_STATUS = {
+  PENDIENTE: "Pendiente",
+  COMPLETADO: "Completado",
+  CANCELADO: "Cancelado",
+  POSPUESTO: "Pospuesto"
+};
+var TASK_PRIORITY = {
+  ALTA: "Alta",
+  MEDIA: "Media",
+  BAJA: "Baja"
+};
+var LEAD_SOURCE = {
+  GOOGLE_MAPS: "Google Maps",
+  INEGI: "INEGI",
+  REFERIDO: "Referido",
+  WEB: "Web",
+  SOCIAL_MEDIA: "Redes Sociales",
+  EMAIL: "Email",
+  CALL: "Llamada",
+  WHATSAPP: "WhatsApp",
+  OTRO: "Otro"
+};
+
 // models/Pet/PetPlace/PetPlace.ts
+var pipelineOptions = Object.values(PIPELINE_STATUS).map((value) => ({
+  label: value,
+  value
+}));
 var PetPlace_default = (0, import_core13.list)({
   access: access_default,
   ui: {
@@ -2504,6 +2567,15 @@ var PetPlace_default = (0, import_core13.list)({
     claimRole: (0, import_fields13.select)({
       options: PET_PLACE_CLAIM_ROLE_OPTIONS,
       ui: { description: "Rol declarado al reclamar" }
+    }),
+    pipelineStatus: (0, import_fields13.select)({
+      type: "string",
+      options: pipelineOptions,
+      defaultValue: PIPELINE_STATUS.DETECTADO,
+      isIndexed: true,
+      ui: {
+        description: "Estatus comercial interno (solo admin). No lo ve el due\xF1o de la ficha."
+      }
     }),
     claimPhone: (0, import_fields13.text)({
       ui: { description: "Tel\xE9fono que dej\xF3 en la solicitud" }
@@ -4674,65 +4746,6 @@ var businessLeadHooks = {
   }
 };
 
-// models/Saas/Tech/crm/constants.ts
-var PIPELINE_STATUS = {
-  DETECTADO: "01 - Detectado",
-  SELECCIONADO: "02 - Seleccionado",
-  CONTACTADO: "03 - Contactado",
-  SIN_RESPUESTA: "04 - Sin Respuesta",
-  INTERESADO: "05 - Interesado",
-  CREANDO_PROYECTO_PROPUESTA: "06 - Creando proyecto propuesta",
-  PROPUESTA_ENVIADA: "07 - Propuesta Enviada",
-  SEGUIMIENTO: "08 - Seguimiento",
-  EN_NEGOCIACION: "09 - En Negociaci\xF3n",
-  PROPUESTA_ACEPTADA: "10 - Propuesta Aceptada",
-  PROPUESTA_RECHAZADA: "11 - Propuesta Rechazada",
-  CERRADO_GANADO: "12 - Cerrado Ganado",
-  CERRADO_PERDIDO: "13 - Cerrado Perdido",
-  DESCARTADO: "14 - Descartado"
-};
-var OPPORTUNITY_LEVEL = {
-  ALTA: "Alta",
-  MEDIA: "Media",
-  BAJA: "Baja"
-};
-var SALES_ACTIVITY_TYPE = {
-  LLAMADA: "Llamada",
-  WHATSAPP: "WhatsApp",
-  EMAIL: "Email",
-  REUNION: "Reuni\xF3n",
-  OTRA: "Otra"
-};
-var PROPOSAL_STATUS = {
-  ENVIADA: "Enviada",
-  ACEPTADA: "Aceptada",
-  RECHAZADA: "Rechazada",
-  PENDIENTE: "Pendiente",
-  COMPRADA: "Comprada"
-};
-var FOLLOW_UP_TASK_STATUS = {
-  PENDIENTE: "Pendiente",
-  COMPLETADO: "Completado",
-  CANCELADO: "Cancelado",
-  POSPUESTO: "Pospuesto"
-};
-var TASK_PRIORITY = {
-  ALTA: "Alta",
-  MEDIA: "Media",
-  BAJA: "Baja"
-};
-var LEAD_SOURCE = {
-  GOOGLE_MAPS: "Google Maps",
-  INEGI: "INEGI",
-  REFERIDO: "Referido",
-  WEB: "Web",
-  SOCIAL_MEDIA: "Redes Sociales",
-  EMAIL: "Email",
-  CALL: "Llamada",
-  WHATSAPP: "WhatsApp",
-  OTRO: "Otro"
-};
-
 // models/Saas/Tech/BusinessLead/TechBusinessLead.ts
 var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
@@ -4936,7 +4949,7 @@ var statusBusinessLeadHooks = {
 };
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
-var pipelineOptions = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
+var pipelineOptions2 = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
   label: v,
   value: v
 }));
@@ -4972,7 +4985,7 @@ var TechStatusBusinessLead_default = (0, import_core40.list)({
     }),
     pipelineStatus: (0, import_fields40.select)({
       type: "string",
-      options: pipelineOptions,
+      options: pipelineOptions2,
       defaultValue: PIPELINE_STATUS.DETECTADO,
       isIndexed: true,
       ui: { description: "Estado en el pipeline" }

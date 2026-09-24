@@ -1541,6 +1541,7 @@ type PetPlace {
   verifiedAt: DateTime
   claimStatus: String
   claimRole: String
+  pipelineStatus: String
   claimPhone: String
   claimNotes: String
   claimedAt: DateTime
@@ -1603,6 +1604,7 @@ input PetPlaceWhereInput {
   verifiedAt: DateTimeNullableFilter
   claimStatus: StringNullableFilter
   claimRole: StringNullableFilter
+  pipelineStatus: StringNullableFilter
   claimPhone: StringFilter
   claimNotes: StringFilter
   claimedAt: DateTimeNullableFilter
@@ -1696,6 +1698,7 @@ input PetPlaceOrderByInput {
   verifiedAt: OrderDirection
   claimStatus: OrderDirection
   claimRole: OrderDirection
+  pipelineStatus: OrderDirection
   claimPhone: OrderDirection
   claimNotes: OrderDirection
   claimedAt: OrderDirection
@@ -1733,6 +1736,7 @@ input PetPlaceUpdateInput {
   verifiedAt: DateTime
   claimStatus: String
   claimRole: String
+  pipelineStatus: String
   claimPhone: String
   claimNotes: String
   claimedAt: DateTime
@@ -1844,6 +1848,7 @@ input PetPlaceCreateInput {
   verifiedAt: DateTime
   claimStatus: String
   claimRole: String
+  pipelineStatus: String
   claimPhone: String
   claimNotes: String
   claimedAt: DateTime
