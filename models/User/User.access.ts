@@ -80,6 +80,14 @@ export const userRolesFieldAccess = {
     isPlatformAdmin(session) || isCompanyAdmin(session),
 };
 
+export const userOnboardingFieldAccess = {
+  read: ({ session, item }: any) =>
+    isPlatformAdmin(session) || isSelf(session, item),
+  create: () => true,
+  update: ({ session, item }: any) =>
+    isPlatformAdmin(session) || isSelf(session, item),
+};
+
 function companyConnectId(inputData: any): string | null {
   const connect = inputData?.company?.connect;
   if (!connect) return null;

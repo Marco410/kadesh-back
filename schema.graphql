@@ -7045,6 +7045,7 @@ type User {
   techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
   createdAt: DateTime
   lastLoginAt: DateTime
+  onboardingState: JSON
 }
 
 type PasswordState {
@@ -7244,6 +7245,7 @@ input UserUpdateInput {
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForUpdateInput
   createdAt: DateTime
   lastLoginAt: DateTime
+  onboardingState: JSON
 }
 
 input RoleRelateToManyForUpdateInput {
@@ -7351,6 +7353,7 @@ input UserCreateInput {
   techStatusBusinessLeads: TechStatusBusinessLeadRelateToManyForCreateInput
   createdAt: DateTime
   lastLoginAt: DateTime
+  onboardingState: JSON
 }
 
 input RoleRelateToManyForCreateInput {

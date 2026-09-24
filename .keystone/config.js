@@ -1645,6 +1645,11 @@ var userRolesFieldAccess = {
   create: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2),
   update: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2)
 };
+var userOnboardingFieldAccess = {
+  read: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item),
+  create: () => true,
+  update: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item)
+};
 function companyConnectId(inputData) {
   const connect = inputData?.company?.connect;
   if (!connect) return null;
@@ -2023,6 +2028,14 @@ var User_default = (0, import_core7.list)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
+      }
+    }),
+    onboardingState: (0, import_fields7.json)({
+      defaultValue: {},
+      access: userOnboardingFieldAccess,
+      ui: {
+        description: "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
+        createView: { fieldMode: "hidden" }
       }
     })
   }

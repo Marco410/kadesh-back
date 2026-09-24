@@ -9,6 +9,7 @@ import {
   checkbox,
   relationship,
   integer,
+  json,
 } from "@keystone-6/core/fields";
 import {
   emailHooks,
@@ -23,6 +24,7 @@ import {
 } from "./User.hooks";
 import access, {
   userCompanyFieldAccess,
+  userOnboardingFieldAccess,
   userRolesFieldAccess,
   userSecretFieldAccess,
   userStripeFieldAccess,
@@ -370,6 +372,15 @@ export default list({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
+      },
+    }),
+    onboardingState: json({
+      defaultValue: {},
+      access: userOnboardingFieldAccess,
+      ui: {
+        description:
+          "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
+        createView: { fieldMode: "hidden" },
       },
     }),
   },
