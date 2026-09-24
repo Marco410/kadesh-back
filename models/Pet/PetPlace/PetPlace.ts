@@ -289,6 +289,7 @@ export default list({
     address: text(),
     google_place_id: text({
       isIndexed: "unique",
+      db: { isNullable: true },
       validation: { isRequired: false },
     }),
     google_opening_hours: text(),

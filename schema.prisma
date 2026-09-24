@@ -328,7 +328,7 @@ model PetPlace {
   pet_place_reviews      Review[]              @relation("Review_pet_place")
   pet_place_ads          Ad[]                  @relation("Ad_pet_place")
   address                String                @default("")
-  google_place_id        String                @unique @default("")
+  google_place_id        String?               @unique
   google_opening_hours   String                @default("")
   createdAt              DateTime?             @default(now())
 

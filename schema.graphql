@@ -1615,7 +1615,7 @@ input PetPlaceWhereInput {
   pet_place_reviews: ReviewManyRelationFilter
   pet_place_ads: AdManyRelationFilter
   address: StringFilter
-  google_place_id: StringFilter
+  google_place_id: StringNullableFilter
   google_opening_hours: StringFilter
   createdAt: DateTimeNullableFilter
 }

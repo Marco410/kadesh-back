@@ -2693,6 +2693,7 @@ var PetPlace_default = (0, import_core13.list)({
     address: (0, import_fields13.text)(),
     google_place_id: (0, import_fields13.text)({
       isIndexed: "unique",
+      db: { isNullable: true },
       validation: { isRequired: false }
     }),
     google_opening_hours: (0, import_fields13.text)(),
