@@ -9058,6 +9058,7 @@ type WhatsAppConversationSummary {
   teamMemberId: ID
   kind: String!
   name: String!
+  phone: String
   assignedToId: ID
   assignedToName: String
   lastMessageBody: String!

@@ -39,7 +39,11 @@ const resolver = {
     }
 
     const verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
-    const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim().replace(/\/+$/, "");
+    // Tolera que pongan la URL completa (con /webhooks/whatsapp) en vez del dominio: si no, la
+    // guía mostraría la ruta duplicada y Meta nunca lograría verificar el webhook.
+    const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim()
+      .replace(/\/+$/, "")
+      .replace(/\/webhooks\/whatsapp$/, "");
 
     if (!verifyToken || !baseUrl) {
       return {

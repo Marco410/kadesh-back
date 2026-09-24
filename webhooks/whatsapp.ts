@@ -9,6 +9,7 @@ import {
   verifyWhatsAppSignature,
 } from "../utils/intregrations/whatsapp";
 import { uploadBufferToStorage } from "../utils/intregrations/s3Storage";
+import { findByPhone } from "../utils/whatsapp/matchPhone";
 
 const WEBHOOK_PATH = "/webhooks/whatsapp";
 
@@ -47,12 +48,6 @@ const TEMPLATE_STATUS_MAP: Record<string, string> = {
   PENDING_DELETION: "rejected",
   DISABLED: "rejected",
 };
-
-/** Últimos 10 dígitos: heurística para matchear contra `TechBusinessLead.phone` (texto libre, sin
- * normalizar), sin importar si el lead lo tiene guardado con o sin lada/espacios/guiones. */
-function last10Digits(digits: string): string {
-  return digits.slice(-10);
-}
 
 function extToFilename(filename: string | undefined, mimeType: string): string {
   if (filename) return filename;
@@ -140,27 +135,35 @@ async function persistIncomingMessages(
     let internalInitiatorId: string | null = null;
 
     if (fromDigits) {
-      const candidates = await context.sudo().query.TechBusinessLead.findMany({
-        where: {
-          saasCompany: { some: { id: { equals: companyId } } },
-          phone: { contains: last10Digits(fromDigits) },
-        },
-        query: "id",
-        take: 1,
-      });
-      businessLeadId = candidates[0]?.id ?? null;
+      const lead = await findByPhone<{ id: string; phone?: string | null }>(
+        fromDigits,
+        async (fragment, take) =>
+          (await context.sudo().query.TechBusinessLead.findMany({
+            where: {
+              saasCompany: { some: { id: { equals: companyId } } },
+              phone: { contains: fragment },
+            },
+            query: "id phone",
+            take,
+          })) as Array<{ id: string; phone: string | null }>,
+      );
+      businessLeadId = lead?.id ?? null;
 
       // Si no es un lead, puede ser alguien del propio equipo respondiendo un chat interno.
       if (!businessLeadId) {
-        const teamCandidates = await context.sudo().query.User.findMany({
-          where: {
-            company: { id: { equals: companyId } },
-            phone: { contains: last10Digits(fromDigits) },
-          },
-          query: "id",
-          take: 1,
-        });
-        teamMemberId = teamCandidates[0]?.id ?? null;
+        const teammate = await findByPhone<{ id: string; phone?: string | null }>(
+          fromDigits,
+          async (fragment, take) =>
+            (await context.sudo().query.User.findMany({
+              where: {
+                company: { id: { equals: companyId } },
+                phone: { contains: fragment },
+              },
+              query: "id phone",
+              take,
+            })) as Array<{ id: string; phone: string | null }>,
+        );
+        teamMemberId = teammate?.id ?? null;
 
         // El hilo interno lo ven el teamMember y quien lo abrió: la respuesta hereda al
         // iniciador del último mensaje de ese hilo (ver whatsappMessageScopedWhere).
@@ -177,6 +180,13 @@ async function persistIncomingMessages(
           internalInitiatorId = latest?.internalInitiator?.id ?? null;
         }
       }
+    }
+
+    if (!businessLeadId && !teamMemberId) {
+      // Solo los últimos 4 dígitos: es el número de un tercero, no va completo a los logs.
+      console.warn(
+        `[whatsapp webhook] mensaje entrante de un número que no es lead ni compañero (…${fromDigits.slice(-4)}): se guarda sin conversación`,
+      );
     }
 
     let body = "";

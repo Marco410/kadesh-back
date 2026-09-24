@@ -21124,7 +21124,7 @@ var resolver40 = {
       return { success: false, message: denyCompanyWhatsappAccessMessage(session2) };
     }
     const verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
-    const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim().replace(/\/+$/, "");
+    const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim().replace(/\/+$/, "").replace(/\/webhooks\/whatsapp$/, "");
     if (!verifyToken || !baseUrl) {
       return {
         success: false,
@@ -21151,6 +21151,7 @@ var typeDefs44 = `
     teamMemberId: ID
     kind: String!
     name: String!
+    phone: String
     assignedToId: ID
     assignedToName: String
     lastMessageBody: String!
@@ -21189,7 +21190,7 @@ var resolver41 = {
       where: { company: { id: { equals: companyId } } },
       orderBy: [{ createdAt: "desc" }],
       take: MAX_MESSAGES_SCANNED,
-      query: "id body direction createdAt businessLead { id businessName salesPerson { id name lastName } } teamMember { id name lastName }"
+      query: "id body direction createdAt businessLead { id businessName phone salesPerson { id name lastName } } teamMember { id name lastName phone }"
     });
     const seenKeys = /* @__PURE__ */ new Set();
     const conversations = [];
@@ -21207,6 +21208,7 @@ var resolver41 = {
         teamMemberId,
         kind: leadId ? "lead" : "team",
         name: leadId ? msg.businessLead?.businessName || "Sin nombre" : fullName(msg.teamMember) || "Sin nombre",
+        phone: (leadId ? msg.businessLead?.phone : msg.teamMember?.phone) || null,
         assignedToId: assigned?.id ?? null,
         assignedToName: assigned ? fullName(assigned) || null : null,
         lastMessageBody: msg.body || "",
@@ -21424,6 +21426,33 @@ function extendGraphqlSchema(baseSchema) {
 // webhooks/whatsapp.ts
 var import_express = __toESM(require("express"));
 var import_crypto7 = __toESM(require("crypto"));
+
+// utils/whatsapp/matchPhone.ts
+function phoneTail(raw) {
+  return (raw ?? "").replace(/\D/g, "").slice(-10);
+}
+function phonesMatch(a, b) {
+  const x = phoneTail(a);
+  const y = phoneTail(b);
+  if (x.length < 8 || y.length < 8) return false;
+  return x.length >= y.length ? x.endsWith(y) : y.endsWith(x);
+}
+async function findByPhone(rawPhone, search) {
+  const tail = phoneTail(rawPhone);
+  if (tail.length < 8) return null;
+  const tiers = [
+    [tail.slice(-4), 100],
+    [tail.slice(-2), 1e3]
+  ];
+  for (const [fragment, take] of tiers) {
+    const candidates = await search(fragment, take);
+    const hit = candidates.find((c) => phonesMatch(c.phone, tail));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// webhooks/whatsapp.ts
 var WEBHOOK_PATH = "/webhooks/whatsapp";
 var TEMPLATE_STATUS_MAP = {
   APPROVED: "approved",
@@ -21432,9 +21461,6 @@ var TEMPLATE_STATUS_MAP = {
   PENDING_DELETION: "rejected",
   DISABLED: "rejected"
 };
-function last10Digits(digits) {
-  return digits.slice(-10);
-}
 function extToFilename(filename, mimeType) {
   if (filename) return filename;
   const ext = mimeType.split("/")[1] || "bin";
@@ -21494,25 +21520,31 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
     let teamMemberId = null;
     let internalInitiatorId = null;
     if (fromDigits) {
-      const candidates = await context.sudo().query.TechBusinessLead.findMany({
-        where: {
-          saasCompany: { some: { id: { equals: companyId } } },
-          phone: { contains: last10Digits(fromDigits) }
-        },
-        query: "id",
-        take: 1
-      });
-      businessLeadId = candidates[0]?.id ?? null;
-      if (!businessLeadId) {
-        const teamCandidates = await context.sudo().query.User.findMany({
+      const lead = await findByPhone(
+        fromDigits,
+        async (fragment, take) => await context.sudo().query.TechBusinessLead.findMany({
           where: {
-            company: { id: { equals: companyId } },
-            phone: { contains: last10Digits(fromDigits) }
+            saasCompany: { some: { id: { equals: companyId } } },
+            phone: { contains: fragment }
           },
-          query: "id",
-          take: 1
-        });
-        teamMemberId = teamCandidates[0]?.id ?? null;
+          query: "id phone",
+          take
+        })
+      );
+      businessLeadId = lead?.id ?? null;
+      if (!businessLeadId) {
+        const teammate = await findByPhone(
+          fromDigits,
+          async (fragment, take) => await context.sudo().query.User.findMany({
+            where: {
+              company: { id: { equals: companyId } },
+              phone: { contains: fragment }
+            },
+            query: "id phone",
+            take
+          })
+        );
+        teamMemberId = teammate?.id ?? null;
         if (teamMemberId) {
           const [latest] = await context.sudo().query.TechWhatsAppMessage.findMany({
             where: {
@@ -21526,6 +21558,11 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
           internalInitiatorId = latest?.internalInitiator?.id ?? null;
         }
       }
+    }
+    if (!businessLeadId && !teamMemberId) {
+      console.warn(
+        `[whatsapp webhook] mensaje entrante de un n\xFAmero que no es lead ni compa\xF1ero (\u2026${fromDigits.slice(-4)}): se guarda sin conversaci\xF3n`
+      );
     }
     let body = "";
     let mediaKey = null;

@@ -18,9 +18,15 @@ type ScannedMessage = {
   businessLead: {
     id: string;
     businessName: string | null;
+    phone: string | null;
     salesPerson: Array<{ id: string; name: string | null; lastName: string | null }> | null;
   } | null;
-  teamMember: { id: string; name: string | null; lastName: string | null } | null;
+  teamMember: {
+    id: string;
+    name: string | null;
+    lastName: string | null;
+    phone: string | null;
+  } | null;
 };
 
 const typeDefs = `
@@ -31,6 +37,7 @@ const typeDefs = `
     teamMemberId: ID
     kind: String!
     name: String!
+    phone: String
     assignedToId: ID
     assignedToName: String
     lastMessageBody: String!
@@ -83,7 +90,7 @@ const resolver = {
       orderBy: [{ createdAt: "desc" }],
       take: MAX_MESSAGES_SCANNED,
       query:
-        "id body direction createdAt businessLead { id businessName salesPerson { id name lastName } } teamMember { id name lastName }",
+        "id body direction createdAt businessLead { id businessName phone salesPerson { id name lastName } } teamMember { id name lastName phone }",
     })) as ScannedMessage[];
 
     const seenKeys = new Set<string>();
@@ -111,6 +118,7 @@ const resolver = {
         name: leadId
           ? msg.businessLead?.businessName || "Sin nombre"
           : fullName(msg.teamMember) || "Sin nombre",
+        phone: (leadId ? msg.businessLead?.phone : msg.teamMember?.phone) || null,
         assignedToId: assigned?.id ?? null,
         assignedToName: assigned ? fullName(assigned) || null : null,
         lastMessageBody: msg.body || "",

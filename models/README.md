@@ -52,7 +52,7 @@ Qué: cada `SaasCompany` conecta su propio WhatsApp Business (Cloud API de Meta)
 
 Un solo endpoint de webhook (`/webhooks/whatsapp`, registrado en `keystone.ts` vía `server.extendExpressApp` — primer uso de este hook en el repo, no había ningún endpoint no-GraphQL antes) recibe los mensajes de **todas** las empresas conectadas: identifica la empresa por `phone_number_id` del payload, descifra SU app secret, y valida la firma con eso. El body debe leerse crudo (`express.raw`) antes de verificar la firma — `extendExpressApp` corre antes de que Keystone monte su propio `bodyParser.json` (que solo aplica al path de GraphQL), así que no hay conflicto.
 
-Historial en `TechWhatsAppMessage` (nueva list, `models/Saas/Tech/WhatsAppMessage/`), acotado por lead con el mismo criterio que `TechStatusBusinessLead` (`whatsappMessageScopedWhere` en `utils/access/leadScopedFilter.ts`, envuelve `leadCompanyScopedWhere` bajo `businessLead:`). El matching de un mensaje entrante a un `TechBusinessLead` es una heurística (`phone: {contains: últimos10Dígitos}`) — no hay normalización real de teléfonos en este repo.
+Historial en `TechWhatsAppMessage` (nueva list, `models/Saas/Tech/WhatsAppMessage/`), acotado por lead con el mismo criterio que `TechStatusBusinessLead` (`whatsappMessageScopedWhere` en `utils/access/leadScopedFilter.ts`, envuelve `leadCompanyScopedWhere` bajo `businessLead:`). El matching de un mensaje entrante a un `TechBusinessLead` es una heurística sobre los últimos 10 dígitos (`utils/whatsapp/matchPhone.ts`, ver la entrada 2026-09-23 "Emparejar teléfonos") — no hay normalización real de teléfonos guardada en este repo.
 
 Envío solo de texto libre, solo dentro de la ventana de 24h desde el último mensaje del lead (limitación de la Cloud API sin plantillas aprobadas — fuera de alcance por ahora).
 
@@ -95,3 +95,15 @@ Además, crear plantillas exige que el access token tenga `whatsapp_business_man
 Antes de crear la plantilla, `ensureOutreachTemplate` consulta a Meta qué cuenta es el `whatsappBusinessAccountId` guardado y si incluye el `whatsappPhoneNumberId` conectado (`fetchWhatsAppBusinessAccountInfo`). Copiar un ID equivocado es el error más común de BYOK y Meta lo contesta con un genérico "Invalid parameter" que no dice cuál ID estaba mal; con esta comprobación el mensaje lo dice, y los demás errores de la plantilla llevan el **nombre de la cuenta** (permite distinguir, p. ej., la cuenta de prueba de Meta de una real).
 
 Qué no hacer: no volver a tragarse el error de la plantilla; no quitar los ejemplos (`OUTREACH_TEMPLATE_EXAMPLES`, uno por variable y en orden); no pedir en la guía del front solo el permiso de mensajería.
+
+### 2026-09-23 — Emparejar teléfonos entrantes y URL del webhook
+
+Qué: el webhook buscaba al remitente con `phone: { contains: <10 dígitos corridos> }`. Los teléfonos de los leads son texto libre y los que trae Google Maps llevan espacios, guiones o paréntesis (`55 1234 5678`, `(55) 1234-5678`), así que casi nunca coincidían y la respuesta de un cliente quedaba sin conversación. `findByPhone` (`utils/whatsapp/matchPhone.ts`) preselecciona con un fragmento corto que suele quedar corrido (últimos 4 dígitos; si no, los últimos 2, que sobreviven a `55-12-34-56-78`) y compara ya normalizado en memoria, exigiendo mínimo 8 dígitos. Aplica igual al buscar compañeros de equipo. Los leads que `addOwnLead` guarda "como se escribieron" ya no hay que normalizarlos.
+
+Límite: la preselección trae hasta 100 (fragmento de 4) o 1000 (de 2) candidatos por mensaje. Si una empresa llega a decenas de miles de leads, la salida es un `phoneDigits` indexado en el lead, no subir esos topes.
+
+`companyWhatsappWebhookInfo` ahora tolera que `WHATSAPP_WEBHOOK_BASE_URL` traiga ya `/webhooks/whatsapp`: la variable se llama "BASE" pero antes de ese cambio el valor natural era la URL completa, y al agregarle la ruta otra vez la guía mostraba `…/webhooks/whatsapp/webhooks/whatsapp` (con botón de copiar). Con esa URL Meta nunca verifica el webhook y no entra ningún mensaje.
+
+Un mensaje de un número que no es lead ni compañero se guarda sin conversación y deja un `console.warn` con solo los últimos 4 dígitos. Sigue sin aparecer en la bandeja (ver la decisión de arriba); es el primer sitio donde mirar si "escribí y no me llegó".
+
+Qué no hacer: no volver a un `contains` con los 10 dígitos corridos; no loguear el teléfono completo de un tercero.
