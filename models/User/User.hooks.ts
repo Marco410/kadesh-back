@@ -2,6 +2,7 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import {
   sendAdminUserBankDetailsUpdatedEmail,
   sendUserWelcomeEmail,
+  emailBrandForUser,
 } from "../../utils/helpers/sendgrid";
 import { Role } from "../Role/constants";
 import Stripe from "../../utils/intregrations/stripe";
@@ -305,6 +306,7 @@ export const userWelcomeEmailHook = {
       await sendUserWelcomeEmail({
         to: String(email),
         displayName,
+        brand: emailBrandForUser(Boolean(item.companyId)),
       });
     } catch (err) {
       console.error("Error enviando correo de bienvenida:", err);
@@ -335,6 +337,7 @@ export const userBankDetailsNotificationHook = {
         userEmail,
         userName,
         fieldsUpdated: [...fieldsUpdated],
+        brand: emailBrandForUser(Boolean(item.companyId)),
       });
     } catch (err) {
       console.error(
