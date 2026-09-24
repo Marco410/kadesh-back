@@ -72,7 +72,7 @@ export default list({
       db: { isNullable: true },
       ui: {
         description:
-          "Nombre del remitente tal cual venía en el .txt importado. Se usa cuando direction es 'unknown'.",
+          "Nombre del remitente: en un .txt importado, tal cual venía (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribió.",
       },
     }),
     waMessageId: text({

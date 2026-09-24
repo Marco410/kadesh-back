@@ -10,12 +10,12 @@ const typeDefs = `
   }
 
   type Mutation {
-    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
+    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
   }
 `;
 
 const definition = `
-  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
+  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
 `;
 
 function toResult(success: boolean, message: string) {
@@ -28,13 +28,18 @@ const resolver = {
     {
       businessLeadId,
       teamMemberId,
-    }: { businessLeadId?: string | null; teamMemberId?: string | null },
+      phone,
+    }: {
+      businessLeadId?: string | null;
+      teamMemberId?: string | null;
+      phone?: string | null;
+    },
     context: KeystoneContext,
   ) => {
     const session = context.session;
 
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context,
     );
     if (!target) return toResult(false, error ?? "No se pudo resolver el destinatario");

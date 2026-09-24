@@ -28,6 +28,8 @@ type WhatsAppWebhookChange = {
   field?: string;
   value?: {
     metadata?: { phone_number_id?: string };
+    /** Nombre de perfil de WhatsApp de quien escribe (no es el del CRM). */
+    contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
     messages?: WhatsAppWebhookMessage[];
     event?: string;
     message_template_name?: string;
@@ -119,6 +121,7 @@ async function persistIncomingMessages(
   companyId: string,
   accessToken: string,
   messages: WhatsAppWebhookMessage[],
+  contacts: NonNullable<WhatsAppWebhookChange["value"]>["contacts"],
   context: KeystoneContext,
 ) {
   for (const msg of messages) {
@@ -130,6 +133,11 @@ async function persistIncomingMessages(
     if (existing) continue; // reintento de Meta, ya procesado
 
     const fromDigits = (msg.from || "").replace(/\D/g, "");
+    // Sirve para poner nombre a un número que aún no es cliente (si no, solo se vería el teléfono).
+    const profileName =
+      (contacts ?? []).find((c) => c.wa_id === msg.from)?.profile?.name?.trim() ||
+      contacts?.[0]?.profile?.name?.trim() ||
+      null;
     let businessLeadId: string | null = null;
     let teamMemberId: string | null = null;
     let internalInitiatorId: string | null = null;
@@ -233,6 +241,7 @@ async function persistIncomingMessages(
         direction: "inbound",
         waMessageId: msg.id,
         fromPhone: msg.from || null,
+        ...(profileName ? { senderLabel: profileName } : {}),
         body,
         ...(mediaType ? { mediaType, mediaKey, mediaFileName } : {}),
         status: "received",
@@ -296,7 +305,7 @@ async function handleIncoming(
       : null;
     if (!accessToken) return;
 
-    await persistIncomingMessages(company.id, accessToken, messages, context);
+    await persistIncomingMessages(company.id, accessToken, messages, change.value?.contacts, context);
   } catch (err) {
     console.error("[whatsapp webhook] error procesando el payload:", err);
   }

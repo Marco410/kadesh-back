@@ -1,5 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { resolveWhatsAppTarget } from "../../mutations/whatsapp/target";
+import { phoneTail } from "../../../../utils/whatsapp/matchPhone";
 
 const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -17,12 +18,12 @@ const typeDefs = `
   }
 
   type Query {
-    businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
+    businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
 
 const definition = `
-  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
+  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
 
 const resolver = {
@@ -31,11 +32,16 @@ const resolver = {
     {
       businessLeadId,
       teamMemberId,
-    }: { businessLeadId?: string | null; teamMemberId?: string | null },
+      phone,
+    }: {
+      businessLeadId?: string | null;
+      teamMemberId?: string | null;
+      phone?: string | null;
+    },
     context: KeystoneContext,
   ) => {
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context,
     );
     if (!target) {
@@ -54,7 +60,12 @@ const resolver = {
 
     const conversationWhere = businessLeadId
       ? { businessLead: { id: { equals: businessLeadId } } }
-      : { teamMember: { id: { equals: teamMemberId as string } } };
+      : teamMemberId
+        ? { teamMember: { id: { equals: teamMemberId } } }
+        : {
+            company: { id: { equals: target.companyId } },
+            fromPhone: { endsWith: phoneTail(phone) },
+          };
 
     const [lastInbound] = await context.sudo().query.TechWhatsAppMessage.findMany({
       where: { ...conversationWhere, direction: { equals: "inbound" } },

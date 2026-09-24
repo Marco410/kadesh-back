@@ -3,11 +3,20 @@ import {
   getSessionCompanyId,
   getSessionUserId,
 } from "../../../../utils/access/tenant";
-import { canUseCompanyWhatsapp, denyCompanyWhatsappUseMessage } from "./access";
+import { phoneTail } from "../../../../utils/whatsapp/matchPhone";
+import {
+  canManageCompanyWhatsapp,
+  canUseCompanyWhatsapp,
+  denyCompanyWhatsappAccessMessage,
+  denyCompanyWhatsappUseMessage,
+} from "./access";
 
+/** A quién va el mensaje: un lead del CRM, alguien del equipo, o un número que todavía no es
+ * cliente (`phone`, solo admins — son los únicos que ven esas conversaciones). */
 export type WhatsAppTargetArgs = {
   businessLeadId?: string | null;
   teamMemberId?: string | null;
+  phone?: string | null;
 };
 
 export type ResolvedWhatsAppTarget = {
@@ -40,7 +49,7 @@ export function normalizeWhatsAppDigits(raw: string): string | null {
  * sudo (un vendedor no puede leer el perfil de otro) y se valida a mano que sea de su empresa.
  */
 export async function resolveWhatsAppTarget(
-  { businessLeadId, teamMemberId }: WhatsAppTargetArgs,
+  { businessLeadId, teamMemberId, phone }: WhatsAppTargetArgs,
   context: KeystoneContext,
 ): Promise<{ target?: ResolvedWhatsAppTarget; error?: string }> {
   const session = context.session;
@@ -49,8 +58,46 @@ export async function resolveWhatsAppTarget(
 
   const hasLead = Boolean(businessLeadId);
   const hasTeamMember = Boolean(teamMemberId);
-  if (hasLead === hasTeamMember) {
-    return { error: "Indica un lead o un miembro del equipo (uno de los dos)" };
+  const hasPhone = Boolean(phone);
+  if ([hasLead, hasTeamMember, hasPhone].filter(Boolean).length !== 1) {
+    return {
+      error: "Indica un lead, un miembro del equipo o un teléfono (solo uno de los tres)",
+    };
+  }
+
+  if (hasPhone) {
+    // Un número sin cliente lo ven solo los admins (whatsappMessageScopedWhere), así que solo
+    // ellos pueden contestarle.
+    if (!sessionCompanyId || !canManageCompanyWhatsapp(session, sessionCompanyId)) {
+      return { error: denyCompanyWhatsappAccessMessage(session) };
+    }
+    const tail = phoneTail(phone);
+    if (tail.length < 8) return { error: "Ese teléfono no es válido" };
+
+    // Se le contesta al número EXACTO con el que escribió (Meta manda, p. ej., 521… para
+    // celulares de México): normalizarlo a mano puede mandarlo a un número que no es.
+    const [latest] = (await context.sudo().query.TechWhatsAppMessage.findMany({
+      where: {
+        company: { id: { equals: sessionCompanyId } },
+        direction: { equals: "inbound" },
+        fromPhone: { endsWith: tail },
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 1,
+      query: "id fromPhone senderLabel",
+    })) as Array<{ fromPhone: string | null; senderLabel: string | null }>;
+
+    const to = latest?.fromPhone || normalizeWhatsAppDigits(phone as string);
+    if (!to) return { error: "Ese teléfono no es válido" };
+
+    return {
+      target: {
+        companyId: sessionCompanyId,
+        to,
+        displayName: latest?.senderLabel?.trim() || "estimado(a)",
+        link: {},
+      },
+    };
   }
 
   if (hasTeamMember) {

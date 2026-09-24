@@ -7934,11 +7934,12 @@ type Mutation {
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
-  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
+  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   importWhatsAppChatExport(businessLeadId: ID!, fileName: String, content: String!, leadSenderName: String): ImportWhatsAppChatExportResult!
-  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
-  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
+  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
+  linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -8194,7 +8195,7 @@ type Query {
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
-  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
+  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
@@ -8880,6 +8881,12 @@ type AssignWhatsAppConversationResult {
   message: String!
 }
 
+type LinkWhatsAppContactToLeadResult {
+  success: Boolean!
+  message: String!
+  linked: Int!
+}
+
 type AnimalMultimediaImage {
   id: ID!
   url: String
@@ -9056,6 +9063,15 @@ type WhatsAppConversationSummary {
 
   """Id del compañero de equipo — vacío en las conversaciones con clientes."""
   teamMemberId: ID
+
+  """
+  Últimos 10 dígitos del teléfono — solo en las conversaciones con un número que aún no es cliente.
+  """
+  phoneKey: String
+
+  """
+  lead | team | phone (número que aún no es cliente; solo lo ven los admins).
+  """
   kind: String!
   name: String!
   phone: String

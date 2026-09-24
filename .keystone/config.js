@@ -9544,7 +9544,7 @@ var TechWhatsAppMessage_default = (0, import_core70.list)({
     senderLabel: (0, import_fields70.text)({
       db: { isNullable: true },
       ui: {
-        description: "Nombre del remitente tal cual ven\xEDa en el .txt importado. Se usa cuando direction es 'unknown'."
+        description: "Nombre del remitente: en un .txt importado, tal cual ven\xEDa (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribi\xF3."
       }
     }),
     waMessageId: (0, import_fields70.text)({
@@ -19290,6 +19290,31 @@ var resolver29 = {
 };
 var testCompanyWhatsappConnection_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
+// utils/whatsapp/matchPhone.ts
+function phoneTail(raw) {
+  return (raw ?? "").replace(/\D/g, "").slice(-10);
+}
+function phonesMatch(a, b) {
+  const x = phoneTail(a);
+  const y = phoneTail(b);
+  if (x.length < 8 || y.length < 8) return false;
+  return x.length >= y.length ? x.endsWith(y) : y.endsWith(x);
+}
+async function findByPhone(rawPhone, search) {
+  const tail = phoneTail(rawPhone);
+  if (tail.length < 8) return null;
+  const tiers = [
+    [tail.slice(-4), 100],
+    [tail.slice(-2), 1e3]
+  ];
+  for (const [fragment, take] of tiers) {
+    const candidates = await search(fragment, take);
+    const hit = candidates.find((c) => phonesMatch(c.phone, tail));
+    if (hit) return hit;
+  }
+  return null;
+}
+
 // graphql/customs/mutations/whatsapp/target.ts
 function normalizeWhatsAppDigits(raw) {
   const digits = raw.replace(/\D/g, "");
@@ -19297,14 +19322,44 @@ function normalizeWhatsAppDigits(raw) {
   if (digits.length === 10) return `52${digits}`;
   return digits;
 }
-async function resolveWhatsAppTarget({ businessLeadId, teamMemberId }, context) {
+async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, context) {
   const session2 = context.session;
   const sessionCompanyId = getSessionCompanyId(session2);
   const sessionUserId = getSessionUserId(session2);
   const hasLead = Boolean(businessLeadId);
   const hasTeamMember = Boolean(teamMemberId);
-  if (hasLead === hasTeamMember) {
-    return { error: "Indica un lead o un miembro del equipo (uno de los dos)" };
+  const hasPhone = Boolean(phone);
+  if ([hasLead, hasTeamMember, hasPhone].filter(Boolean).length !== 1) {
+    return {
+      error: "Indica un lead, un miembro del equipo o un tel\xE9fono (solo uno de los tres)"
+    };
+  }
+  if (hasPhone) {
+    if (!sessionCompanyId || !canManageCompanyWhatsapp(session2, sessionCompanyId)) {
+      return { error: denyCompanyWhatsappAccessMessage(session2) };
+    }
+    const tail = phoneTail(phone);
+    if (tail.length < 8) return { error: "Ese tel\xE9fono no es v\xE1lido" };
+    const [latest] = await context.sudo().query.TechWhatsAppMessage.findMany({
+      where: {
+        company: { id: { equals: sessionCompanyId } },
+        direction: { equals: "inbound" },
+        fromPhone: { endsWith: tail }
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 1,
+      query: "id fromPhone senderLabel"
+    });
+    const to2 = latest?.fromPhone || normalizeWhatsAppDigits(phone);
+    if (!to2) return { error: "Ese tel\xE9fono no es v\xE1lido" };
+    return {
+      target: {
+        companyId: sessionCompanyId,
+        to: to2,
+        displayName: latest?.senderLabel?.trim() || "estimado(a)",
+        link: {}
+      }
+    };
   }
   if (hasTeamMember) {
     const user = await context.sudo().query.User.findOne({
@@ -19379,16 +19434,17 @@ var typeDefs33 = `
   }
 
   type Mutation {
-    sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
+    sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
 var definition30 = `
-  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
+  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
 var resolver30 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
+    phone,
     body
   }, context) => {
     const session2 = context.session;
@@ -19397,7 +19453,7 @@ var resolver30 = {
       return { success: false, message: "El mensaje no puede estar vac\xEDo" };
     }
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context
     );
     if (!target) return { success: false, message: error };
@@ -19629,11 +19685,11 @@ var typeDefs35 = `
   }
 
   type Mutation {
-    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
+    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
   }
 `;
 var definition32 = `
-  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
+  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
   return { success, message };
@@ -19641,11 +19697,12 @@ function toResult7(success, message) {
 var resolver32 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
-    teamMemberId
+    teamMemberId,
+    phone
   }, context) => {
     const session2 = context.session;
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context
     );
     if (!target) return toResult7(false, error ?? "No se pudo resolver el destinatario");
@@ -19756,11 +19813,11 @@ var typeDefs36 = `
   }
 
   type Mutation {
-    sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+    sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
 var definition33 = `
-  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
   const chunks = [];
@@ -19776,12 +19833,13 @@ var resolver33 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
+    phone,
     media,
     caption
   }, context) => {
     const session2 = context.session;
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context
     );
     if (!target) return toResult8(false, error ?? "No se pudo resolver el destinatario");
@@ -19917,6 +19975,55 @@ var resolver34 = {
 };
 var assignWhatsAppConversation_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
+// graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
+var typeDefs38 = `
+  type LinkWhatsAppContactToLeadResult {
+    success: Boolean!
+    message: String!
+    linked: Int!
+  }
+
+  type Mutation {
+    linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
+  }
+`;
+var definition35 = `
+  linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
+`;
+function toResult10(success, message, linked = 0) {
+  return { success, message, linked };
+}
+var resolver35 = {
+  linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
+    const session2 = context.session;
+    const companyId = getSessionCompanyId(session2);
+    if (!companyId || !canManageCompanyWhatsapp(session2, companyId)) {
+      return toResult10(false, denyCompanyWhatsappAccessMessage(session2));
+    }
+    const tail = phoneTail(phone);
+    if (tail.length < 8) return toResult10(false, "Ese tel\xE9fono no es v\xE1lido");
+    const lead = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: businessLeadId },
+      query: "id saasCompany { id }"
+    });
+    const inCompany = (lead?.saasCompany ?? []).some(
+      (c) => c.id === companyId
+    );
+    if (!lead || !inCompany) return toResult10(false, "No se encontr\xF3 el cliente");
+    const { count } = await context.sudo().prisma.techWhatsAppMessage.updateMany({
+      where: {
+        companyId,
+        businessLeadId: null,
+        teamMemberId: null,
+        OR: [{ fromPhone: { endsWith: tail } }, { toPhone: { endsWith: tail } }]
+      },
+      data: { businessLeadId }
+    });
+    return toResult10(true, "Conversaci\xF3n enlazada al cliente", count);
+  }
+};
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -19952,6 +20059,7 @@ var customMutation = {
     ${startWhatsAppConversation_default.typeDefs}
     ${sendWhatsAppMediaMessage_default.typeDefs}
     ${assignWhatsAppConversation_default.typeDefs}
+    ${linkWhatsAppContactToLead_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -19986,6 +20094,7 @@ var customMutation = {
     ${startWhatsAppConversation_default.definition}
     ${sendWhatsAppMediaMessage_default.definition}
     ${assignWhatsAppConversation_default.definition}
+    ${linkWhatsAppContactToLead_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -20019,7 +20128,8 @@ var customMutation = {
     ...importWhatsAppChatExport_default.resolver,
     ...startWhatsAppConversation_default.resolver,
     ...sendWhatsAppMediaMessage_default.resolver,
-    ...assignWhatsAppConversation_default.resolver
+    ...assignWhatsAppConversation_default.resolver,
+    ...linkWhatsAppContactToLead_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -20030,7 +20140,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs38 = `
+var typeDefs39 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -20089,7 +20199,7 @@ var typeDefs38 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition35 = `
+var definition36 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -20139,7 +20249,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver35 = {
+var resolver36 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -20302,7 +20412,7 @@ var resolver35 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var nearbyAnimals_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -20615,7 +20725,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs39 = `
+var typeDefs40 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -20675,10 +20785,10 @@ var typeDefs39 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition36 = `
+var definition37 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver36 = {
+var resolver37 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -20760,10 +20870,10 @@ var resolver36 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs40 = `
+var typeDefs41 = `
   type StripeCard {
     brand: String
     country: String
@@ -20797,10 +20907,10 @@ var typeDefs40 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition37 = `
+var definition38 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver37 = {
+var resolver38 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -20836,7 +20946,7 @@ var resolver37 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var stripePaymentMethods_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -20889,7 +20999,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs41 = `
+var typeDefs42 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -20917,10 +21027,10 @@ var typeDefs41 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition38 = `
+var definition39 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver38 = {
+var resolver39 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -21047,11 +21157,11 @@ var resolver38 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var subscriptionStatus_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs42 = `
+var typeDefs43 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -21063,10 +21173,10 @@ var typeDefs42 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition39 = `
+var definition40 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver39 = {
+var resolver40 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -21099,10 +21209,10 @@ var resolver39 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs43 = `
+var typeDefs44 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -21114,10 +21224,10 @@ var typeDefs43 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition40 = `
+var definition41 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver40 = {
+var resolver41 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -21139,16 +21249,19 @@ var resolver40 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs44 = `
+var typeDefs45 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
     """Id del compa\xF1ero de equipo \u2014 vac\xEDo en las conversaciones con clientes."""
     teamMemberId: ID
+    """\xDAltimos 10 d\xEDgitos del tel\xE9fono \u2014 solo en las conversaciones con un n\xFAmero que a\xFAn no es cliente."""
+    phoneKey: String
+    """lead | team | phone (n\xFAmero que a\xFAn no es cliente; solo lo ven los admins)."""
     kind: String!
     name: String!
     phone: String
@@ -21169,14 +21282,14 @@ var typeDefs44 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition41 = `
+var definition42 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver41 = {
+var resolver42 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -21190,25 +21303,33 @@ var resolver41 = {
       where: { company: { id: { equals: companyId } } },
       orderBy: [{ createdAt: "desc" }],
       take: MAX_MESSAGES_SCANNED,
-      query: "id body direction createdAt businessLead { id businessName phone salesPerson { id name lastName } } teamMember { id name lastName phone }"
+      query: "id body direction createdAt fromPhone toPhone senderLabel businessLead { id businessName phone salesPerson { id name lastName } } teamMember { id name lastName phone }"
     });
     const seenKeys = /* @__PURE__ */ new Set();
     const conversations = [];
+    const phoneNames = /* @__PURE__ */ new Map();
     for (const msg of messages) {
       if (!msg.createdAt) continue;
       const leadId = msg.businessLead?.id ?? null;
       const teamMemberId = msg.teamMember?.id ?? null;
-      if (!leadId && !teamMemberId) continue;
-      const key = leadId ? `lead:${leadId}` : `team:${teamMemberId}`;
+      const phoneKey = !leadId && !teamMemberId ? phoneTail(msg.fromPhone || msg.toPhone) : "";
+      if (!leadId && !teamMemberId && phoneKey.length < 8) continue;
+      const key = leadId ? `lead:${leadId}` : teamMemberId ? `team:${teamMemberId}` : `phone:${phoneKey}`;
+      if (phoneKey && msg.senderLabel && !phoneNames.has(phoneKey)) {
+        phoneNames.set(phoneKey, msg.senderLabel);
+      }
       if (seenKeys.has(key)) continue;
       seenKeys.add(key);
       const assigned = msg.businessLead?.salesPerson?.[0] ?? null;
+      const rawPhone = msg.fromPhone || msg.toPhone || null;
       conversations.push({
         leadId,
         teamMemberId,
-        kind: leadId ? "lead" : "team",
-        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : fullName(msg.teamMember) || "Sin nombre",
-        phone: (leadId ? msg.businessLead?.phone : msg.teamMember?.phone) || null,
+        phoneKey: phoneKey || null,
+        kind: leadId ? "lead" : teamMemberId ? "team" : "phone",
+        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : teamMemberId ? fullName(msg.teamMember) || "Sin nombre" : "",
+        // se completa abajo con el nombre de perfil o el teléfono
+        phone: (leadId ? msg.businessLead?.phone : teamMemberId ? msg.teamMember?.phone : rawPhone && `+${rawPhone.replace(/\D/g, "")}`) || null,
         assignedToId: assigned?.id ?? null,
         assignedToName: assigned ? fullName(assigned) || null : null,
         lastMessageBody: msg.body || "",
@@ -21216,14 +21337,19 @@ var resolver41 = {
         lastMessageDirection: msg.direction || "unknown"
       });
     }
+    for (const c of conversations) {
+      if (c.kind === "phone") {
+        c.name = phoneNames.get(c.phoneKey) || c.phone || "N\xFAmero sin nombre";
+      }
+    }
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var whatsappConversations_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs45 = `
+var typeDefs46 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -21232,19 +21358,20 @@ var typeDefs45 = `
   }
 
   type Query {
-    businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
+    businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition42 = `
-  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
+var definition43 = `
+  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver42 = {
+var resolver43 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
-    teamMemberId
+    teamMemberId,
+    phone
   }, context) => {
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context
     );
     if (!target) {
@@ -21259,7 +21386,10 @@ var resolver42 = {
       where: { id: target.companyId },
       query: "id whatsappTemplateStatus"
     });
-    const conversationWhere = businessLeadId ? { businessLead: { id: { equals: businessLeadId } } } : { teamMember: { id: { equals: teamMemberId } } };
+    const conversationWhere = businessLeadId ? { businessLead: { id: { equals: businessLeadId } } } : teamMemberId ? { teamMember: { id: { equals: teamMemberId } } } : {
+      company: { id: { equals: target.companyId } },
+      fromPhone: { endsWith: phoneTail(phone) }
+    };
     const [lastInbound] = await context.sudo().query.TechWhatsAppMessage.findMany({
       where: { ...conversationWhere, direction: { equals: "inbound" } },
       orderBy: [{ createdAt: "desc" }],
@@ -21275,10 +21405,10 @@ var resolver42 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs46 = `
+var typeDefs47 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -21296,10 +21426,10 @@ var typeDefs46 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition43 = `
+var definition44 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver43 = {
+var resolver44 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -21325,7 +21455,7 @@ var resolver43 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -21426,33 +21556,6 @@ function extendGraphqlSchema(baseSchema) {
 // webhooks/whatsapp.ts
 var import_express = __toESM(require("express"));
 var import_crypto7 = __toESM(require("crypto"));
-
-// utils/whatsapp/matchPhone.ts
-function phoneTail(raw) {
-  return (raw ?? "").replace(/\D/g, "").slice(-10);
-}
-function phonesMatch(a, b) {
-  const x = phoneTail(a);
-  const y = phoneTail(b);
-  if (x.length < 8 || y.length < 8) return false;
-  return x.length >= y.length ? x.endsWith(y) : y.endsWith(x);
-}
-async function findByPhone(rawPhone, search) {
-  const tail = phoneTail(rawPhone);
-  if (tail.length < 8) return null;
-  const tiers = [
-    [tail.slice(-4), 100],
-    [tail.slice(-2), 1e3]
-  ];
-  for (const [fragment, take] of tiers) {
-    const candidates = await search(fragment, take);
-    const hit = candidates.find((c) => phonesMatch(c.phone, tail));
-    if (hit) return hit;
-  }
-  return null;
-}
-
-// webhooks/whatsapp.ts
 var WEBHOOK_PATH = "/webhooks/whatsapp";
 var TEMPLATE_STATUS_MAP = {
   APPROVED: "approved",
@@ -21508,7 +21611,7 @@ async function handleTemplateStatusUpdate(companyId, value, context) {
     data: { whatsappTemplateStatus: status }
   });
 }
-async function persistIncomingMessages(companyId, accessToken, messages, context) {
+async function persistIncomingMessages(companyId, accessToken, messages, contacts, context) {
   for (const msg of messages) {
     if (!msg.id) continue;
     const existing = await context.sudo().db.TechWhatsAppMessage.findOne({
@@ -21516,6 +21619,7 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
     });
     if (existing) continue;
     const fromDigits = (msg.from || "").replace(/\D/g, "");
+    const profileName = (contacts ?? []).find((c) => c.wa_id === msg.from)?.profile?.name?.trim() || contacts?.[0]?.profile?.name?.trim() || null;
     let businessLeadId = null;
     let teamMemberId = null;
     let internalInitiatorId = null;
@@ -21604,6 +21708,7 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
         direction: "inbound",
         waMessageId: msg.id,
         fromPhone: msg.from || null,
+        ...profileName ? { senderLabel: profileName } : {},
         body,
         ...mediaType ? { mediaType, mediaKey, mediaFileName } : {},
         status: "received"
@@ -21649,7 +21754,7 @@ async function handleIncoming(req, res, context) {
     if (messages.length === 0) return;
     const accessToken = company.whatsappAccessTokenEncrypted ? decrypt(company.whatsappAccessTokenEncrypted) : null;
     if (!accessToken) return;
-    await persistIncomingMessages(company.id, accessToken, messages, context);
+    await persistIncomingMessages(company.id, accessToken, messages, change.value?.contacts, context);
   } catch (err) {
     console.error("[whatsapp webhook] error procesando el payload:", err);
   }

@@ -104,6 +104,18 @@ Límite: la preselección trae hasta 100 (fragmento de 4) o 1000 (de 2) candidat
 
 `companyWhatsappWebhookInfo` ahora tolera que `WHATSAPP_WEBHOOK_BASE_URL` traiga ya `/webhooks/whatsapp`: la variable se llama "BASE" pero antes de ese cambio el valor natural era la URL completa, y al agregarle la ruta otra vez la guía mostraba `…/webhooks/whatsapp/webhooks/whatsapp` (con botón de copiar). Con esa URL Meta nunca verifica el webhook y no entra ningún mensaje.
 
-Un mensaje de un número que no es lead ni compañero se guarda sin conversación y deja un `console.warn` con solo los últimos 4 dígitos. Sigue sin aparecer en la bandeja (ver la decisión de arriba); es el primer sitio donde mirar si "escribí y no me llegó".
+Un mensaje de un número que no es lead ni compañero se guarda sin relaciones y deja un `console.warn` con solo los últimos 4 dígitos (útil para saber si el webhook está llegando; ver la entrada "Números nuevos en la bandeja"). Si en los logs no aparece **nada**, Meta no está llamando: casi siempre la App del cliente sigue en modo Desarrollo (solo entrega webhooks de prueba; hay que publicarla).
 
 Qué no hacer: no volver a un `contains` con los 10 dígitos corridos; no loguear el teléfono completo de un tercero.
+
+### 2026-09-23 — Números nuevos en la bandeja (solo admins)
+
+Qué: un mensaje con ni `businessLead` ni `teamMember` (alguien que escribió sin estar en Clientes ni en el equipo) antes se guardaba y no se veía en ningún lado, o sea que el primer contacto de cualquier prospecto nuevo era invisible. Ahora `whatsappConversations` los agrupa por teléfono (`kind: "phone"`, `phoneKey` = últimos 10 dígitos) y salen como **Número nuevo**. No hizo falta migración ni campo nuevo: la visibilidad ya era "solo admins" por `whatsappMessageScopedWhere` (el filtro de un vendedor exige lead o compañero), así que basta con **no** usar `sudo()` en la lista y dejar que ese filtro haga el trabajo.
+
+El nombre sale del **nombre de perfil de WhatsApp** (`contacts[].profile.name` del webhook), que se guarda en `senderLabel` — el mismo campo que en un .txt importado guarda el nombre del remitente; solo se muestra cuando la dirección es `unknown`, así que no choca. Sin nombre, se muestra el teléfono.
+
+Responder a un número sin cliente pasa por `resolveWhatsAppTarget` en modo `phone`: solo admin de empresa (igual que quien lo ve) y siempre al `fromPhone` **exacto** del último mensaje entrante — Meta manda, p. ej., `521…` para celulares de México y normalizarlo a mano puede mandarlo a otro número. Los mensajes de esa conversación se buscan por `fromPhone`/`toPhone` terminado en `phoneKey`, porque no hay relación que filtrar.
+
+`linkWhatsAppContactToLead` (admin) se llama al "Guardar como cliente": pasa de `businessLeadId: null` a ese lead todos los mensajes de la empresa de ese teléfono que no tengan ni lead ni compañero (`updateMany` de Prisma, sin hooks porque esa list no tiene). Idempotente, y nunca reasigna un chat que ya es de alguien. Los mensajes futuros ya caen en el lead solos por `findByPhone`.
+
+Qué no hacer: no usar `sudo()` en `whatsappConversations` (ahí vive la regla de que un vendedor no vea números nuevos); no crear el lead automáticamente por cada número que escribe (es una decisión de producto —cuenta contra el plan y llena el CRM de contactos que no son prospectos— y hoy el admin decide con **Guardar como cliente**); no normalizar el teléfono al contestar.

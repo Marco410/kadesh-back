@@ -30,6 +30,7 @@ import importWhatsAppChatExport from "./whatsapp/importWhatsAppChatExport";
 import startWhatsAppConversation from "./whatsapp/startWhatsAppConversation";
 import sendWhatsAppMediaMessage from "./whatsapp/sendWhatsAppMediaMessage";
 import assignWhatsAppConversation from "./whatsapp/assignWhatsAppConversation";
+import linkWhatsAppContactToLead from "./whatsapp/linkWhatsAppContactToLead";
 
 const customMutation = {
   typeDefs: `
@@ -65,6 +66,7 @@ const customMutation = {
     ${startWhatsAppConversation.typeDefs}
     ${sendWhatsAppMediaMessage.typeDefs}
     ${assignWhatsAppConversation.typeDefs}
+    ${linkWhatsAppContactToLead.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -99,6 +101,7 @@ const customMutation = {
     ${startWhatsAppConversation.definition}
     ${sendWhatsAppMediaMessage.definition}
     ${assignWhatsAppConversation.definition}
+    ${linkWhatsAppContactToLead.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -133,6 +136,7 @@ const customMutation = {
     ...startWhatsAppConversation.resolver,
     ...sendWhatsAppMediaMessage.resolver,
     ...assignWhatsAppConversation.resolver,
+    ...linkWhatsAppContactToLead.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
