@@ -562,6 +562,9 @@ model SaasCompany {
   whatsappAppSecretEncrypted          String?
   whatsappTokenPreview                String?
   whatsappConnectedAt                 DateTime?
+  whatsappAppId                       String?
+  whatsappWebhookConfiguredAt         DateTime?
+  whatsappLastWebhookAt               DateTime?
   whatsappMessages                    TechWhatsAppMessage[]        @relation("TechWhatsAppMessage_company")
   whatsappTemplateName                String?
   whatsappTemplateLanguage            String?

@@ -305,6 +305,15 @@ async function handleIncoming(
       : null;
     if (!accessToken) return;
 
+    // Señal de salud: ya llegó un mensaje real (firma válida) por este webhook.
+    await context
+      .sudo()
+      .prisma.saasCompany.update({
+        where: { id: String(company.id) },
+        data: { whatsappLastWebhookAt: new Date() },
+      })
+      .catch((e: unknown) => console.warn("[whatsapp webhook] no se pudo guardar lastWebhookAt", e));
+
     await persistIncomingMessages(company.id, accessToken, messages, change.value?.contacts, context);
   } catch (err) {
     console.error("[whatsapp webhook] error procesando el payload:", err);

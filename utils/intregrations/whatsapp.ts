@@ -22,7 +22,11 @@ type WhatsAppGraphErrorBody = {
  * corregir, así que se pliegan al `message`: todos los llamadores solo usan `message` y `code`,
  * y `code` (que se usa para detectar 131047) queda intacto.
  */
-function parseGraphError(bodyText: string): { message: string; code?: number } {
+function parseGraphError(bodyText: string): {
+  message: string;
+  code?: number;
+  subcode?: number;
+} {
   try {
     const parsed = JSON.parse(bodyText) as WhatsAppGraphErrorBody;
     const err = parsed?.error;
@@ -36,12 +40,24 @@ function parseGraphError(bodyText: string): { message: string; code?: number } {
       return {
         message: `${err.message}${detail ? ` — ${detail}` : ""}${subcode}`,
         code: err.code,
+        subcode: err.error_subcode,
       };
     }
   } catch {
     // no era JSON
   }
   return { message: bodyText || "Error desconocido de la Graph API" };
+}
+
+/** Error de la Graph API con código y subcódigo como datos (no solo pegados en el texto). */
+export type GraphApiError = Error & { graphCode?: number; graphSubcode?: number };
+
+function graphError(prefix: string, bodyText: string): GraphApiError {
+  const { message, code, subcode } = parseGraphError(bodyText);
+  const err = new Error(`${prefix} ${message}`) as GraphApiError;
+  err.graphCode = code;
+  err.graphSubcode = subcode;
+  return err;
 }
 
 /**
@@ -80,12 +96,7 @@ export async function sendWhatsAppTextMessage({
   const bodyText = await response.text();
 
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`) as Error & {
-      graphCode?: number;
-    };
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
 
   let parsed: { messages?: { id?: string }[] } | null = null;
@@ -121,8 +132,7 @@ export async function fetchWhatsAppPhoneNumberInfo({
   const bodyText = await response.text();
 
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error: ${message}`);
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
 
   let parsed: { display_phone_number?: string; verified_name?: string } | null =
@@ -160,8 +170,7 @@ export async function fetchWhatsAppBusinessAccountInfo({
   const bodyText = await response.text();
 
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error: ${message}`);
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
 
   let parsed: {
@@ -236,8 +245,7 @@ export async function createWhatsAppTemplate({
   const bodyTextRes = await response.text();
 
   if (!response.ok) {
-    const { message } = parseGraphError(bodyTextRes);
-    throw new Error(`[whatsapp] Graph API error creando plantilla: ${message}`);
+    throw graphError("[whatsapp] Graph API error creando plantilla:", bodyTextRes);
   }
 
   let parsed: { id?: string; status?: string } | null = null;
@@ -299,12 +307,7 @@ export async function sendWhatsAppTemplateMessage({
   const bodyText = await response.text();
 
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`) as Error & {
-      graphCode?: number;
-    };
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
 
   let parsed: { messages?: { id?: string }[] } | null = null;
@@ -356,8 +359,7 @@ export async function uploadMediaToWhatsApp({
   const bodyText = await response.text();
 
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error subiendo media: ${message}`);
+    throw graphError("[whatsapp] Graph API error subiendo media:", bodyText);
   }
 
   let parsed: { id?: string } | null = null;
@@ -416,12 +418,7 @@ export async function sendWhatsAppMediaMessage({
   const bodyText = await response.text();
 
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`) as Error & {
-      graphCode?: number;
-    };
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
 
   let parsed: { messages?: { id?: string }[] } | null = null;
@@ -457,8 +454,7 @@ export async function fetchWhatsAppMediaUrl({
   const bodyText = await response.text();
 
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error consultando media: ${message}`);
+    throw graphError("[whatsapp] Graph API error consultando media:", bodyText);
   }
 
   let parsed: { url?: string; mime_type?: string } | null = null;
@@ -498,6 +494,177 @@ export async function downloadWhatsAppMedia({
 
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
+}
+
+export type WhatsAppTokenInfo = {
+  isValid: boolean;
+  /** App dueña del token (debe coincidir con el App ID que pegó la empresa). */
+  appId: string | null;
+  /** 0 = no expira. */
+  expiresAt: number;
+  scopes: string[];
+  /** WABA IDs a los que el token da acceso (granular_scopes de whatsapp_business_management). */
+  wabaIds: string[];
+  /** Motivo de invalidez que Meta reporta dentro de `data.error`, si lo hay. */
+  invalidReason: string | null;
+};
+
+/**
+ * Inspecciona un token con `GET /debug_token`, autenticado con el token de la App
+ * (`appId|appSecret`). Es lo que permite decir "el token es de otra App", "expiró" o "le falta
+ * el permiso X" en vez de un error genérico, y descubrir los WABA IDs sin pedírselos al usuario.
+ * (No verificado con una llamada real todavía: probar antes de darlo por bueno.)
+ */
+export async function debugWhatsAppToken({
+  appId,
+  appSecret,
+  accessToken,
+}: {
+  appId: string;
+  appSecret: string;
+  accessToken: string;
+}): Promise<WhatsAppTokenInfo> {
+  const params = new URLSearchParams({
+    input_token: accessToken,
+    access_token: `${appId}|${appSecret}`,
+  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/debug_token?${params.toString()}`,
+  );
+
+  const bodyText = await response.text();
+
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+
+  let parsed: {
+    data?: {
+      app_id?: string;
+      is_valid?: boolean;
+      expires_at?: number;
+      scopes?: string[];
+      granular_scopes?: Array<{ scope?: string; target_ids?: string[] }>;
+      error?: { message?: string };
+    };
+  } | null = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+
+  const data = parsed?.data;
+  const wabaIds = new Set<string>();
+  for (const g of data?.granular_scopes ?? []) {
+    if (g.scope === "whatsapp_business_management") {
+      for (const id of g.target_ids ?? []) wabaIds.add(id);
+    }
+  }
+
+  return {
+    isValid: data?.is_valid === true,
+    appId: data?.app_id ?? null,
+    expiresAt: data?.expires_at ?? 0,
+    scopes: data?.scopes ?? [],
+    wabaIds: Array.from(wabaIds),
+    invalidReason: data?.error?.message ?? null,
+  };
+}
+
+/** Números de una cuenta de WhatsApp Business (para elegir el correcto si hay varios). */
+export async function listWhatsAppPhoneNumbers({
+  wabaId,
+  accessToken,
+}: {
+  wabaId: string;
+  accessToken: string;
+}): Promise<Array<{ id: string; displayPhoneNumber: string; verifiedName: string }>> {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&limit=100`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  const bodyText = await response.text();
+
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+
+  let parsed: {
+    data?: Array<{ id?: string; display_phone_number?: string; verified_name?: string }>;
+  } | null = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+
+  return (parsed?.data ?? [])
+    .filter((n): n is { id: string; display_phone_number?: string; verified_name?: string } =>
+      Boolean(n.id),
+    )
+    .map((n) => ({
+      id: n.id,
+      displayPhoneNumber: n.display_phone_number || "",
+      verifiedName: n.verified_name || "",
+    }));
+}
+
+/** Suscribe la App a los eventos de esa cuenta de WhatsApp Business (`POST /{waba}/subscribed_apps`). */
+export async function subscribeAppToWaba({
+  wabaId,
+  accessToken,
+}: {
+  wabaId: string;
+  accessToken: string;
+}): Promise<void> {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${wabaId}/subscribed_apps`,
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", await response.text());
+  }
+}
+
+/**
+ * Configura el webhook de la App (`POST /{appId}/subscriptions`, autenticado con `appId|appSecret`):
+ * es lo que evita que la empresa tenga que pegar la Callback URL y el Verify Token a mano en su
+ * panel de Meta. NO publica la App: en modo desarrollo Meta sigue sin entregar mensajes reales.
+ * (No verificado con una llamada real todavía: si falla, el front cae al modo manual.)
+ */
+export async function configureAppWebhook({
+  appId,
+  appSecret,
+  callbackUrl,
+  verifyToken,
+}: {
+  appId: string;
+  appSecret: string;
+  callbackUrl: string;
+  verifyToken: string;
+}): Promise<void> {
+  const body = new URLSearchParams({
+    object: "whatsapp_business_account",
+    callback_url: callbackUrl,
+    verify_token: verifyToken,
+    fields: "messages,message_template_status_update",
+    access_token: `${appId}|${appSecret}`,
+  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${appId}/subscriptions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    },
+  );
+
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", await response.text());
+  }
 }
 
 /**

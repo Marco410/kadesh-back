@@ -1,6 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { decrypt } from "../../../../utils/helpers/encryption";
 import { fetchWhatsAppPhoneNumberInfo } from "../../../../utils/intregrations/whatsapp";
+import { friendlyWhatsappError } from "../../../../utils/whatsapp/friendlyError";
 import { ensureOutreachTemplate } from "../../../../utils/whatsapp/ensureOutreachTemplate";
 import { canManageCompanyWhatsapp, denyCompanyWhatsappAccessMessage } from "./access";
 
@@ -76,7 +77,7 @@ const resolver = {
     } catch (err) {
       return {
         success: false,
-        message: err instanceof Error ? err.message : "Error al probar la conexión",
+        message: friendlyWhatsappError(err).message,
       };
     }
   },

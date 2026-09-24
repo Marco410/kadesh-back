@@ -1,5 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { encrypt, maskApiKey } from "../../../../utils/helpers/encryption";
+import { friendlyWhatsappError } from "../../../../utils/whatsapp/friendlyError";
 import { canManageCompanyWhatsapp, denyCompanyWhatsappAccessMessage } from "./access";
 
 const typeDefs = `
@@ -129,9 +130,7 @@ const resolver = {
         } catch (err) {
           return toResult(
             false,
-            err instanceof Error
-              ? err.message
-              : "No se pudo cifrar el access token. Revisa AI_ENCRYPTION_KEY.",
+            friendlyWhatsappError(err).message,
             existing,
           );
         }
@@ -149,9 +148,7 @@ const resolver = {
         } catch (err) {
           return toResult(
             false,
-            err instanceof Error
-              ? err.message
-              : "No se pudo cifrar el App Secret. Revisa AI_ENCRYPTION_KEY.",
+            friendlyWhatsappError(err).message,
             existing,
           );
         }

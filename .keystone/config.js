@@ -6967,6 +6967,29 @@ var SaasCompany_default = (0, import_core54.list)({
         description: "\xDAltima vez que se conect\xF3 o desconect\xF3 WhatsApp"
       }
     }),
+    whatsappAppId: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "App ID de la App de Meta de esta empresa (para configurar su webhook por API)"
+      }
+    }),
+    whatsappWebhookConfiguredAt: (0, import_fields54.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Cu\xE1ndo Kadesh dej\xF3 configurado el webhook de su App por API (no implica que ya lleguen mensajes)"
+      }
+    }),
+    whatsappLastWebhookAt: (0, import_fields54.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "\xDAltimo evento real de mensajes recibido con firma v\xE1lida. Vac\xEDo = nunca ha llegado uno (\xBFApp sin publicar en modo Live?)"
+      }
+    }),
     whatsappMessages: (0, import_fields54.relationship)({
       ref: "TechWhatsAppMessage.company",
       many: true,
@@ -18660,6 +18683,66 @@ var resolver27 = {
 };
 var upsertDraftSystemRelease_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
+// utils/whatsapp/friendlyError.ts
+function cleanMessage(raw) {
+  return raw.replace(/^\[whatsapp\] Graph API error[^:]*:\s*/, "");
+}
+function friendlyWhatsappError(err) {
+  const raw = err instanceof Error ? err.message : "Error desconocido";
+  const detail = cleanMessage(raw);
+  const { graphCode: code, graphSubcode: subcode } = err ?? {};
+  const lower = detail.toLowerCase();
+  if (lower.includes("ai_encryption_key")) {
+    return {
+      message: "Falta configurar la clave de cifrado en el servidor de Kadesh, as\xED que no se puede guardar el token. Avisa a soporte de Kadesh.",
+      detail
+    };
+  }
+  if (lower.includes("api access blocked")) {
+    return {
+      message: "Meta bloque\xF3 el acceso de esta App a la API de WhatsApp. Revisa en developers.facebook.com que la App no tenga avisos de restricci\xF3n, que el token salga de esa misma App y que el usuario del sistema tenga asignadas la App y la cuenta de WhatsApp Business.",
+      detail
+    };
+  }
+  if (subcode === 2388339) {
+    return {
+      message: "Ese n\xFAmero es de una cuenta de WhatsApp normal y no se puede usar con la API. Tiene que ser un n\xFAmero registrado en una cuenta de WhatsApp Business dentro de tu App de Meta.",
+      detail
+    };
+  }
+  if (subcode === 2388023 || subcode === 2388024) {
+    return {
+      message: 'Meta no dej\xF3 crear la plantilla de inicio de conversaci\xF3n. Normalmente es porque ya existe una con ese nombre e idioma o porque se est\xE1 eliminando: espera unos minutos y vuelve a darle "Probar conexi\xF3n".',
+      detail
+    };
+  }
+  if (code === 190) {
+    return {
+      message: "El token ya no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema y p\xE9galo de nuevo.",
+      detail
+    };
+  }
+  if (code === 131047) {
+    return {
+      message: "Han pasado m\xE1s de 24h desde el \xFAltimo mensaje del lead. Para escribirle primero hace falta iniciar la conversaci\xF3n con la plantilla.",
+      detail
+    };
+  }
+  if (code === 200 || code === 10 || code === 3) {
+    return {
+      message: "El token no tiene los permisos necesarios. Genera uno nuevo con los dos permisos: whatsapp_business_messaging y whatsapp_business_management.",
+      detail
+    };
+  }
+  if (code === 100) {
+    return {
+      message: "Meta no reconoci\xF3 alguno de los datos o el token no tiene acceso a ellos. Revisa el App ID, el App Secret y que el token sea de esa misma App.",
+      detail
+    };
+  }
+  return { message: detail, detail };
+}
+
 // graphql/customs/mutations/whatsapp/access.ts
 function canManageCompanyWhatsapp(session2, companyId) {
   if (!isSignedIn(session2)) return false;
@@ -18776,7 +18859,7 @@ var resolver28 = {
         } catch (err) {
           return toResult5(
             false,
-            err instanceof Error ? err.message : "No se pudo cifrar el access token. Revisa AI_ENCRYPTION_KEY.",
+            friendlyWhatsappError(err).message,
             existing
           );
         }
@@ -18793,7 +18876,7 @@ var resolver28 = {
         } catch (err) {
           return toResult5(
             false,
-            err instanceof Error ? err.message : "No se pudo cifrar el App Secret. Revisa AI_ENCRYPTION_KEY.",
+            friendlyWhatsappError(err).message,
             existing
           );
         }
@@ -18824,12 +18907,20 @@ function parseGraphError(bodyText) {
       const subcode = err.error_subcode ? ` (subc\xF3digo ${err.error_subcode})` : "";
       return {
         message: `${err.message}${detail ? ` \u2014 ${detail}` : ""}${subcode}`,
-        code: err.code
+        code: err.code,
+        subcode: err.error_subcode
       };
     }
   } catch {
   }
   return { message: bodyText || "Error desconocido de la Graph API" };
+}
+function graphError(prefix2, bodyText) {
+  const { message, code, subcode } = parseGraphError(bodyText);
+  const err = new Error(`${prefix2} ${message}`);
+  err.graphCode = code;
+  err.graphSubcode = subcode;
+  return err;
 }
 async function sendWhatsAppTextMessage({
   phoneNumberId,
@@ -18855,10 +18946,7 @@ async function sendWhatsAppTextMessage({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`);
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -18884,8 +18972,7 @@ async function fetchWhatsAppPhoneNumberInfo({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error: ${message}`);
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -18908,8 +18995,7 @@ async function fetchWhatsAppBusinessAccountInfo({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error: ${message}`);
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -18955,8 +19041,7 @@ async function createWhatsAppTemplate({
   );
   const bodyTextRes = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyTextRes);
-    throw new Error(`[whatsapp] Graph API error creando plantilla: ${message}`);
+    throw graphError("[whatsapp] Graph API error creando plantilla:", bodyTextRes);
   }
   let parsed = null;
   try {
@@ -19004,10 +19089,7 @@ async function sendWhatsAppTemplateMessage({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`);
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -19045,8 +19127,7 @@ async function uploadMediaToWhatsApp({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error subiendo media: ${message}`);
+    throw graphError("[whatsapp] Graph API error subiendo media:", bodyText);
   }
   let parsed = null;
   try {
@@ -19089,10 +19170,7 @@ async function sendWhatsAppMediaMessage({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`);
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -19118,8 +19196,7 @@ async function fetchWhatsAppMediaUrl({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error consultando media: ${message}`);
+    throw graphError("[whatsapp] Graph API error consultando media:", bodyText);
   }
   let parsed = null;
   try {
@@ -19149,6 +19226,107 @@ async function downloadWhatsAppMedia({
   }
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
+}
+async function debugWhatsAppToken({
+  appId,
+  appSecret,
+  accessToken
+}) {
+  const params = new URLSearchParams({
+    input_token: accessToken,
+    access_token: `${appId}|${appSecret}`
+  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/debug_token?${params.toString()}`
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const data = parsed?.data;
+  const wabaIds = /* @__PURE__ */ new Set();
+  for (const g of data?.granular_scopes ?? []) {
+    if (g.scope === "whatsapp_business_management") {
+      for (const id of g.target_ids ?? []) wabaIds.add(id);
+    }
+  }
+  return {
+    isValid: data?.is_valid === true,
+    appId: data?.app_id ?? null,
+    expiresAt: data?.expires_at ?? 0,
+    scopes: data?.scopes ?? [],
+    wabaIds: Array.from(wabaIds),
+    invalidReason: data?.error?.message ?? null
+  };
+}
+async function listWhatsAppPhoneNumbers({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&limit=100`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return (parsed?.data ?? []).filter(
+    (n) => Boolean(n.id)
+  ).map((n) => ({
+    id: n.id,
+    displayPhoneNumber: n.display_phone_number || "",
+    verifiedName: n.verified_name || ""
+  }));
+}
+async function subscribeAppToWaba({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/subscribed_apps`,
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", await response.text());
+  }
+}
+async function configureAppWebhook({
+  appId,
+  appSecret,
+  callbackUrl,
+  verifyToken
+}) {
+  const body = new URLSearchParams({
+    object: "whatsapp_business_account",
+    callback_url: callbackUrl,
+    verify_token: verifyToken,
+    fields: "messages,message_template_status_update",
+    access_token: `${appId}|${appSecret}`
+  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${appId}/subscriptions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    }
+  );
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", await response.text());
+  }
 }
 function verifyWhatsAppSignature({
   appSecret,
@@ -19283,7 +19461,7 @@ var resolver29 = {
     } catch (err) {
       return {
         success: false,
-        message: err instanceof Error ? err.message : "Error al probar la conexi\xF3n"
+        message: friendlyWhatsappError(err).message
       };
     }
   }
@@ -20024,6 +20202,246 @@ var resolver35 = {
 };
 var linkWhatsAppContactToLead_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
+// utils/whatsapp/webhookConfig.ts
+function getWebhookConfig() {
+  const verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
+  const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim().replace(/\/+$/, "").replace(/\/webhooks\/whatsapp$/, "");
+  if (!verifyToken || !baseUrl) return null;
+  return { webhookUrl: `${baseUrl}/webhooks/whatsapp`, verifyToken };
+}
+
+// graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
+var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
+var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
+var typeDefs39 = `
+  input DiscoverWhatsappAccountInput {
+    companyId: ID!
+    appId: String!
+    appSecret: String!
+    accessToken: String!
+    """Si el token da acceso a varios n\xFAmeros, cu\xE1l conectar. Vac\xEDo = se elige solo si hay uno."""
+    phoneNumberId: String
+  }
+
+  type WhatsappPhoneOption {
+    id: ID!
+    displayPhoneNumber: String!
+    verifiedName: String!
+    wabaId: String!
+  }
+
+  type DiscoverWhatsappAccountResult {
+    success: Boolean!
+    message: String!
+    """Texto original de Meta (soporte); vac\xEDo si el error es nuestro."""
+    detail: String
+    """true = el token da acceso a varios n\xFAmeros: mostrar phoneOptions y reintentar con phoneNumberId."""
+    needsSelection: Boolean!
+    phoneOptions: [WhatsappPhoneOption!]!
+    displayPhoneNumber: String
+    verifiedName: String
+    webhookConfigured: Boolean!
+    webhookError: String
+    templateError: String
+  }
+
+  type Mutation {
+    discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
+  }
+`;
+var definition36 = `
+  discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
+`;
+function fail2(message, detail = null) {
+  return {
+    success: false,
+    message,
+    detail,
+    needsSelection: false,
+    phoneOptions: [],
+    displayPhoneNumber: null,
+    verifiedName: null,
+    webhookConfigured: false,
+    webhookError: null,
+    templateError: null
+  };
+}
+var resolver36 = {
+  /**
+   * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
+   * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
+   * webhook de la App por API y crea la plantilla de inicio. NO publica la App: en modo
+   * desarrollo Meta no entrega mensajes reales (eso lo hace el usuario en el panel de Meta).
+   */
+  discoverWhatsappAccount: async (_root, { input }, context) => {
+    const session2 = context.session;
+    if (!canManageCompanyWhatsapp(session2, input.companyId)) {
+      return fail2(denyCompanyWhatsappAccessMessage(session2));
+    }
+    const appId = input.appId.trim();
+    const appSecret = input.appSecret.trim();
+    const accessToken = input.accessToken.trim();
+    if (!appId || !appSecret || !accessToken) {
+      return fail2("Faltan datos: pega el App ID, el App Secret y el token.");
+    }
+    const existing = await context.sudo().query.SaasCompany.findOne({
+      where: { id: input.companyId },
+      query: "id whatsappBusinessAccountId whatsappPhoneNumberId"
+    });
+    if (!existing) return fail2("No se encontr\xF3 la empresa");
+    let wabaIds;
+    try {
+      const info = await debugWhatsAppToken({ appId, appSecret, accessToken });
+      if (!info.isValid) {
+        return fail2(
+          "El token no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema.",
+          info.invalidReason
+        );
+      }
+      if (info.appId && info.appId !== appId) {
+        return fail2(
+          `Ese token es de otra App de Meta (ID ${info.appId}), no de la App con ID ${appId}. Genera el token desde la misma App.`
+        );
+      }
+      if (info.expiresAt !== 0 && info.expiresAt * 1e3 - Date.now() < MIN_TOKEN_LIFETIME_MS) {
+        return fail2(
+          "Ese token es temporal y va a dejar de funcionar pronto. Genera uno permanente (sin fecha de expiraci\xF3n) con un usuario del sistema."
+        );
+      }
+      const missing = REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
+      if (missing.length > 0) {
+        return fail2(
+          `Al token le falta el permiso: ${missing.join(" y ")}. Genera uno nuevo con los dos permisos (whatsapp_business_messaging y whatsapp_business_management).`
+        );
+      }
+      if (info.wabaIds.length === 0) {
+        return fail2(
+          "El token no da acceso a ninguna cuenta de WhatsApp Business. Al generarlo, asigna la cuenta de WhatsApp Business al usuario del sistema."
+        );
+      }
+      wabaIds = info.wabaIds;
+    } catch (err) {
+      const f = friendlyWhatsappError(err);
+      return fail2(f.message, f.detail);
+    }
+    const options = [];
+    let firstListError = null;
+    for (const wabaId of wabaIds) {
+      try {
+        const numbers = await listWhatsAppPhoneNumbers({ wabaId, accessToken });
+        for (const n of numbers) options.push({ ...n, wabaId });
+      } catch (err) {
+        firstListError ??= err;
+      }
+    }
+    if (options.length === 0) {
+      if (firstListError) {
+        const f = friendlyWhatsappError(firstListError);
+        return fail2(f.message, f.detail);
+      }
+      return fail2(
+        "Encontramos tu cuenta de WhatsApp Business pero no tiene ning\xFAn n\xFAmero. Agrega uno en WhatsApp \u2192 Configuraci\xF3n de la API y vuelve a intentar."
+      );
+    }
+    const wantedId = input.phoneNumberId?.trim() || null;
+    let chosen;
+    if (wantedId) {
+      chosen = options.find((o) => o.id === wantedId);
+      if (!chosen) return fail2("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
+    } else if (options.length === 1) {
+      chosen = options[0];
+    } else {
+      return {
+        ...fail2("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
+        success: true,
+        needsSelection: true,
+        phoneOptions: options
+      };
+    }
+    const clash = await context.sudo().query.SaasCompany.findMany({
+      where: {
+        id: { not: { equals: input.companyId } },
+        OR: [
+          { whatsappPhoneNumberId: { equals: chosen.id } },
+          { whatsappBusinessAccountId: { equals: chosen.wabaId } }
+        ]
+      },
+      query: "id",
+      take: 1
+    });
+    if (clash.length > 0) {
+      return fail2("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
+    }
+    const changedAccount = existing.whatsappBusinessAccountId !== chosen.wabaId || existing.whatsappPhoneNumberId !== chosen.id;
+    try {
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: input.companyId },
+        data: {
+          whatsappAppId: appId,
+          whatsappPhoneNumberId: chosen.id,
+          whatsappBusinessAccountId: chosen.wabaId,
+          whatsappDisplayPhoneNumber: chosen.displayPhoneNumber || null,
+          whatsappAccessTokenEncrypted: encrypt(accessToken),
+          whatsappAppSecretEncrypted: encrypt(appSecret),
+          whatsappTokenPreview: maskApiKey(accessToken),
+          whatsappConnectedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          ...changedAccount ? {
+            whatsappTemplateName: null,
+            whatsappTemplateStatus: "none",
+            whatsappLastWebhookAt: null,
+            whatsappWebhookConfiguredAt: null
+          } : {}
+        }
+      });
+    } catch (err) {
+      const f = friendlyWhatsappError(err);
+      return fail2(f.message, f.detail);
+    }
+    let webhookConfigured = false;
+    let webhookError = null;
+    const webhook = getWebhookConfig();
+    if (!webhook) {
+      webhookError = "Falta configurar WHATSAPP_WEBHOOK_VERIFY_TOKEN o WHATSAPP_WEBHOOK_BASE_URL en el servidor de Kadesh.";
+    } else {
+      try {
+        await subscribeAppToWaba({ wabaId: chosen.wabaId, accessToken });
+        await configureAppWebhook({
+          appId,
+          appSecret,
+          callbackUrl: webhook.webhookUrl,
+          verifyToken: webhook.verifyToken
+        });
+        webhookConfigured = true;
+        await context.sudo().query.SaasCompany.updateOne({
+          where: { id: input.companyId },
+          data: { whatsappWebhookConfiguredAt: (/* @__PURE__ */ new Date()).toISOString() }
+        });
+      } catch (err) {
+        const f = friendlyWhatsappError(err);
+        webhookError = f.detail === f.message ? f.message : `${f.message} (${f.detail})`;
+      }
+    }
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: input.companyId },
+      query: "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappAccessTokenEncrypted whatsappTemplateStatus"
+    });
+    const template = await ensureOutreachTemplate(company, context);
+    return {
+      success: true,
+      message: "WhatsApp conectado",
+      detail: null,
+      needsSelection: false,
+      phoneOptions: [],
+      displayPhoneNumber: chosen.displayPhoneNumber,
+      verifiedName: chosen.verifiedName,
+      webhookConfigured,
+      webhookError,
+      templateError: template.error
+    };
+  }
+};
+var discoverWhatsappAccount_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -20060,6 +20478,7 @@ var customMutation = {
     ${sendWhatsAppMediaMessage_default.typeDefs}
     ${assignWhatsAppConversation_default.typeDefs}
     ${linkWhatsAppContactToLead_default.typeDefs}
+    ${discoverWhatsappAccount_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -20095,6 +20514,7 @@ var customMutation = {
     ${sendWhatsAppMediaMessage_default.definition}
     ${assignWhatsAppConversation_default.definition}
     ${linkWhatsAppContactToLead_default.definition}
+    ${discoverWhatsappAccount_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -20129,7 +20549,8 @@ var customMutation = {
     ...startWhatsAppConversation_default.resolver,
     ...sendWhatsAppMediaMessage_default.resolver,
     ...assignWhatsAppConversation_default.resolver,
-    ...linkWhatsAppContactToLead_default.resolver
+    ...linkWhatsAppContactToLead_default.resolver,
+    ...discoverWhatsappAccount_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -20140,7 +20561,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs39 = `
+var typeDefs40 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -20199,7 +20620,7 @@ var typeDefs39 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition36 = `
+var definition37 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -20249,7 +20670,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver36 = {
+var resolver37 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -20412,7 +20833,7 @@ var resolver36 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var nearbyAnimals_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -20725,7 +21146,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs40 = `
+var typeDefs41 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -20785,10 +21206,10 @@ var typeDefs40 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition37 = `
+var definition38 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver37 = {
+var resolver38 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -20870,10 +21291,10 @@ var resolver37 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs41 = `
+var typeDefs42 = `
   type StripeCard {
     brand: String
     country: String
@@ -20907,10 +21328,10 @@ var typeDefs41 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition38 = `
+var definition39 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver38 = {
+var resolver39 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -20946,7 +21367,7 @@ var resolver38 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var stripePaymentMethods_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -20999,7 +21420,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs42 = `
+var typeDefs43 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -21027,10 +21448,10 @@ var typeDefs42 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition39 = `
+var definition40 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver39 = {
+var resolver40 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -21157,11 +21578,11 @@ var resolver39 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var subscriptionStatus_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs43 = `
+var typeDefs44 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -21173,10 +21594,10 @@ var typeDefs43 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition40 = `
+var definition41 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver40 = {
+var resolver41 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -21209,10 +21630,10 @@ var resolver40 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs44 = `
+var typeDefs45 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -21224,10 +21645,10 @@ var typeDefs44 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition41 = `
+var definition42 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver41 = {
+var resolver42 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -21249,11 +21670,11 @@ var resolver41 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs45 = `
+var typeDefs46 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -21282,14 +21703,14 @@ var typeDefs45 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition42 = `
+var definition43 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver42 = {
+var resolver43 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -21345,11 +21766,11 @@ var resolver42 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var whatsappConversations_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs46 = `
+var typeDefs47 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -21361,10 +21782,10 @@ var typeDefs46 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition43 = `
+var definition44 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver43 = {
+var resolver44 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -21405,10 +21826,10 @@ var resolver43 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs47 = `
+var typeDefs48 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -21426,10 +21847,10 @@ var typeDefs47 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition44 = `
+var definition45 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver44 = {
+var resolver45 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -21455,7 +21876,7 @@ var resolver44 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -21754,6 +22175,10 @@ async function handleIncoming(req, res, context) {
     if (messages.length === 0) return;
     const accessToken = company.whatsappAccessTokenEncrypted ? decrypt(company.whatsappAccessTokenEncrypted) : null;
     if (!accessToken) return;
+    await context.sudo().prisma.saasCompany.update({
+      where: { id: String(company.id) },
+      data: { whatsappLastWebhookAt: /* @__PURE__ */ new Date() }
+    }).catch((e) => console.warn("[whatsapp webhook] no se pudo guardar lastWebhookAt", e));
     await persistIncomingMessages(company.id, accessToken, messages, change.value?.contacts, context);
   } catch (err) {
     console.error("[whatsapp webhook] error procesando el payload:", err);

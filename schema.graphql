@@ -2833,6 +2833,9 @@ type SaasCompany {
   whatsappAppSecretEncrypted: String
   whatsappTokenPreview: String
   whatsappConnectedAt: DateTime
+  whatsappAppId: String
+  whatsappWebhookConfiguredAt: DateTime
+  whatsappLastWebhookAt: DateTime
   whatsappMessages(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
   whatsappMessagesCount(where: TechWhatsAppMessageWhereInput! = {}): Int
   whatsappTemplateName: String
@@ -2900,6 +2903,9 @@ input SaasCompanyWhereInput {
   whatsappAppSecretEncrypted: StringNullableFilter
   whatsappTokenPreview: StringNullableFilter
   whatsappConnectedAt: DateTimeNullableFilter
+  whatsappAppId: StringNullableFilter
+  whatsappWebhookConfiguredAt: DateTimeNullableFilter
+  whatsappLastWebhookAt: DateTimeNullableFilter
   whatsappMessages: TechWhatsAppMessageManyRelationFilter
   whatsappTemplateName: StringNullableFilter
   whatsappTemplateLanguage: StringNullableFilter
@@ -3025,6 +3031,9 @@ input SaasCompanyOrderByInput {
   whatsappAppSecretEncrypted: OrderDirection
   whatsappTokenPreview: OrderDirection
   whatsappConnectedAt: OrderDirection
+  whatsappAppId: OrderDirection
+  whatsappWebhookConfiguredAt: OrderDirection
+  whatsappLastWebhookAt: OrderDirection
   whatsappTemplateName: OrderDirection
   whatsappTemplateLanguage: OrderDirection
   whatsappTemplateStatus: OrderDirection
@@ -3076,6 +3085,9 @@ input SaasCompanyUpdateInput {
   whatsappAppSecretEncrypted: String
   whatsappTokenPreview: String
   whatsappConnectedAt: DateTime
+  whatsappAppId: String
+  whatsappWebhookConfiguredAt: DateTime
+  whatsappLastWebhookAt: DateTime
   whatsappMessages: TechWhatsAppMessageRelateToManyForUpdateInput
   whatsappTemplateName: String
   whatsappTemplateLanguage: String
@@ -3248,6 +3260,9 @@ input SaasCompanyCreateInput {
   whatsappAppSecretEncrypted: String
   whatsappTokenPreview: String
   whatsappConnectedAt: DateTime
+  whatsappAppId: String
+  whatsappWebhookConfiguredAt: DateTime
+  whatsappLastWebhookAt: DateTime
   whatsappMessages: TechWhatsAppMessageRelateToManyForCreateInput
   whatsappTemplateName: String
   whatsappTemplateLanguage: String
@@ -7940,6 +7955,7 @@ type Mutation {
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
+  discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -8885,6 +8901,44 @@ type LinkWhatsAppContactToLeadResult {
   success: Boolean!
   message: String!
   linked: Int!
+}
+
+input DiscoverWhatsappAccountInput {
+  companyId: ID!
+  appId: String!
+  appSecret: String!
+  accessToken: String!
+
+  """
+  Si el token da acceso a varios números, cuál conectar. Vacío = se elige solo si hay uno.
+  """
+  phoneNumberId: String
+}
+
+type WhatsappPhoneOption {
+  id: ID!
+  displayPhoneNumber: String!
+  verifiedName: String!
+  wabaId: String!
+}
+
+type DiscoverWhatsappAccountResult {
+  success: Boolean!
+  message: String!
+
+  """Texto original de Meta (soporte); vacío si el error es nuestro."""
+  detail: String
+
+  """
+  true = el token da acceso a varios números: mostrar phoneOptions y reintentar con phoneNumberId.
+  """
+  needsSelection: Boolean!
+  phoneOptions: [WhatsappPhoneOption!]!
+  displayPhoneNumber: String
+  verifiedName: String
+  webhookConfigured: Boolean!
+  webhookError: String
+  templateError: String
 }
 
 type AnimalMultimediaImage {

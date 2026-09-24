@@ -119,3 +119,15 @@ Responder a un número sin cliente pasa por `resolveWhatsAppTarget` en modo `pho
 `linkWhatsAppContactToLead` (admin) se llama al "Guardar como cliente": pasa de `businessLeadId: null` a ese lead todos los mensajes de la empresa de ese teléfono que no tengan ni lead ni compañero (`updateMany` de Prisma, sin hooks porque esa list no tiene). Idempotente, y nunca reasigna un chat que ya es de alguien. Los mensajes futuros ya caen en el lead solos por `findByPhone`.
 
 Qué no hacer: no usar `sudo()` en `whatsappConversations` (ahí vive la regla de que un vendedor no vea números nuevos); no crear el lead automáticamente por cada número que escribe (es una decisión de producto —cuenta contra el plan y llena el CRM de contactos que no son prospectos— y hoy el admin decide con **Guardar como cliente**); no normalizar el teléfono al contestar.
+
+### 2026-09-23 — WhatsApp: asistente guiado (descubrir en vez de pedir)
+
+Qué: el usuario pega 3 cosas (App ID, App Secret, token permanente) y `discoverWhatsappAccount` averigua el resto: `debug_token` (token válido, de esa App, con **los dos** permisos `whatsapp_business_messaging` y `whatsapp_business_management`, WABAs autorizados), `/{waba}/phone_numbers` (un número se elige solo; si hay varios devuelve `needsSelection` y NO guarda nada), guarda todo cifrado, y —best-effort— `subscribed_apps` + `/{appId}/subscriptions` con `getWebhookConfig()`. Luego `ensureOutreachTemplate`. Los errores de Meta pasan por `friendlyWhatsappError` (mensaje en español + `detail` crudo); `parseGraphError` ahora entrega `graphSubcode` como dato estructurado.
+
+Campos nuevos en `SaasCompany` (requieren `yarn migrate`, humano): `whatsappAppId`, `whatsappWebhookConfiguredAt` (Kadesh dejó el webhook por API), `whatsappLastWebhookAt` (llegó un mensaje REAL con firma válida; lo pone `webhooks/whatsapp.ts`). Son dos señales distintas a propósito.
+
+Hallazgo clave: con la App de Meta en modo Desarrollo, Meta **no entrega mensajes reales** al webhook, así que "webhook configurado" ≠ "llegan mensajes". Publicar la App (Live) es un paso manual del panel de Meta; el asistente lo lista como paso 5 y el panel sugiere "¿Publicaste la App?" cuando hay webhook configurado pero `whatsappLastWebhookAt` es null. No se sabe si la API expone el modo de la App, así que no se promete detectarlo.
+
+Sin verificar contra Meta real: `debug_token` y `/{appId}/subscriptions`. Si fallan, el front cae a "Configuración manual (avanzado)" (URL + Verify Token desde `companyWhatsappWebhookInfo`, nunca hardcodeados). Los conectados a mano siguen funcionando.
+
+Qué no hacer: no escribir el Verify Token en instrucciones/copias del front; no dar por buena la conexión sin probar con una App publicada. Fase B: `docs/whatsapp/embedded-signup.md`.
