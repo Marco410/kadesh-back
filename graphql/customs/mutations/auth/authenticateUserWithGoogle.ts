@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 import { checkUserName } from "../../../../models/User/User.hooks";
 import { Role } from "../../../../models/Role/constants";
+import { PRODUCT } from "../../../../utils/constants/product";
 
 const typeDefs = `
   type UserAuthenticationWithGoogleSuccess {
@@ -23,6 +24,7 @@ const definition = `
   authenticateUserWithGoogle(
     idToken: String!
     referrerCode: String
+    product: String
   ): AuthenticateUserWithGoogleResult!
 `;
 
@@ -57,9 +59,11 @@ const resolver = {
     {
       idToken,
       referrerCode,
+      product,
     }: {
       idToken: string;
       referrerCode?: string | null;
+      product?: string | null;
     },
     context: KeystoneContext,
   ) => {
@@ -112,6 +116,7 @@ const resolver = {
             lastName: "",
             username,
             verified: true,
+            product: product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET,
             referredBy: referredByConnect,
             roles: userRole ? { connect: [{ id: userRole.id }] } : undefined,
           },

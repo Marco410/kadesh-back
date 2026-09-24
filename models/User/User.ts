@@ -10,7 +10,12 @@ import {
   relationship,
   integer,
   json,
+  select,
 } from "@keystone-6/core/fields";
+import {
+  PRODUCT,
+  SINGLE_PRODUCT_OPTIONS,
+} from "../../utils/constants/product";
 import {
   emailHooks,
   phoneHooks,
@@ -308,6 +313,17 @@ export default list({
     }),
     smsRegistrationId: text(),
     verified: checkbox(),
+    product: select({
+      options: SINGLE_PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description:
+          "Producto en el que se registró (Pet o SaaS). Define la marca de sus correos y su suscripción al blog.",
+      },
+    }),
     userTest: checkbox(),
     salesPersonVerified: checkbox(),
     salesComission: integer({

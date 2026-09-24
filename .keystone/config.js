@@ -571,6 +571,22 @@ var AnimalComment_default = (0, import_core6.list)({
 var import_core7 = require("@keystone-6/core");
 var import_fields7 = require("@keystone-6/core/fields");
 
+// utils/constants/product.ts
+var PRODUCT = {
+  PET: "pet",
+  SAAS: "saas",
+  ALL: "all"
+};
+var PRODUCT_OPTIONS = [
+  { label: "Pet", value: PRODUCT.PET },
+  { label: "SaaS", value: PRODUCT.SAAS },
+  { label: "Ambas", value: PRODUCT.ALL }
+];
+var SINGLE_PRODUCT_OPTIONS = [
+  { label: "Pet", value: PRODUCT.PET },
+  { label: "SaaS", value: PRODUCT.SAAS }
+];
+
 // utils/intregrations/smtpMail.ts
 var MAILTRAP_SEND_URL = process.env.MAILTRAP_SEND_URL?.trim() || "https://send.api.mailtrap.io/api/send";
 var PLACEHOLDER_PASS = /* @__PURE__ */ new Set(["<tu_password>", "your_smtp_password", "changeme"]);
@@ -1397,6 +1413,11 @@ var stripeCustomerHook = {
     return resolvedData;
   }
 };
+function userEmailBrand(item) {
+  return emailBrandForUser(
+    item.product === PRODUCT.SAAS || Boolean(item.companyId)
+  );
+}
 var userWelcomeEmailHook = {
   afterOperation: async (args) => {
     const { listKey, operation, item } = args;
@@ -1408,7 +1429,7 @@ var userWelcomeEmailHook = {
       await sendUserWelcomeEmail({
         to: String(email),
         displayName,
-        brand: emailBrandForUser(Boolean(item.companyId))
+        brand: userEmailBrand(item)
       });
     } catch (err) {
       console.error("Error enviando correo de bienvenida:", err);
@@ -1433,7 +1454,7 @@ var userBankDetailsNotificationHook = {
         userEmail,
         userName,
         fieldsUpdated: [...fieldsUpdated],
-        brand: emailBrandForUser(Boolean(item.companyId))
+        brand: userEmailBrand(item)
       });
     } catch (err) {
       console.error(
@@ -1448,18 +1469,21 @@ var userBlogSubscriptionHook = {
     if (operation === "create" && item && item.email) {
       try {
         const sudo = context.sudo();
-        const existingSubscription = await sudo.db.BlogSubscription.findOne({
-          where: { email: item.email }
+        const product = item.product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET;
+        const [existingSubscription] = await sudo.db.BlogSubscription.findMany({
+          where: { email: { equals: item.email }, product: { equals: product } },
+          take: 1
         });
         if (!existingSubscription) {
           await sudo.db.BlogSubscription.createOne({
             data: {
               email: item.email,
+              product,
               user: { connect: { id: item.id } },
               active: true
             }
           });
-        } else if (existingSubscription && !existingSubscription.userId) {
+        } else if (!existingSubscription.userId) {
           await sudo.db.BlogSubscription.updateOne({
             where: { id: existingSubscription.id },
             data: {
@@ -1857,6 +1881,16 @@ var User_default = (0, import_core7.list)({
     }),
     smsRegistrationId: (0, import_fields7.text)(),
     verified: (0, import_fields7.checkbox)(),
+    product: (0, import_fields7.select)({
+      options: SINGLE_PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description: "Producto en el que se registr\xF3 (Pet o SaaS). Define la marca de sus correos y su suscripci\xF3n al blog."
+      }
+    }),
     userTest: (0, import_fields7.checkbox)(),
     salesPersonVerified: (0, import_fields7.checkbox)(),
     salesComission: (0, import_fields7.integer)({
@@ -3071,22 +3105,6 @@ var systemReleaseAccess = {
     delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
-
-// utils/constants/product.ts
-var PRODUCT = {
-  PET: "pet",
-  SAAS: "saas",
-  ALL: "all"
-};
-var PRODUCT_OPTIONS = [
-  { label: "Pet", value: PRODUCT.PET },
-  { label: "SaaS", value: PRODUCT.SAAS },
-  { label: "Ambas", value: PRODUCT.ALL }
-];
-var SINGLE_PRODUCT_OPTIONS = [
-  { label: "Pet", value: PRODUCT.PET },
-  { label: "SaaS", value: PRODUCT.SAAS }
-];
 
 // models/SystemRelease/constants.ts
 var SYSTEM_RELEASE_PRODUCT = PRODUCT;
@@ -9832,6 +9850,7 @@ var definition2 = `
   authenticateUserWithGoogle(
     idToken: String!
     referrerCode: String
+    product: String
   ): AuthenticateUserWithGoogleResult!
 `;
 async function verifyGoogleIdToken(idToken) {
@@ -9854,7 +9873,8 @@ var USER_QUERY = "id lastName name phone email profileImage { url } roles { name
 var resolver2 = {
   authenticateUserWithGoogle: async (_root, {
     idToken,
-    referrerCode
+    referrerCode,
+    product
   }, context) => {
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
@@ -9893,6 +9913,7 @@ var resolver2 = {
             lastName: "",
             username,
             verified: true,
+            product: product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET,
             referredBy: referredByConnect,
             roles: userRole ? { connect: [{ id: userRole.id }] } : void 0
           },
@@ -10058,6 +10079,8 @@ var resolver3 = {
       const user = await context.sudo().query.User.createOne({
         data: {
           ...safeUserData,
+          // Este registro es el de Kadesh Negocios: define la marca de sus correos.
+          product: PRODUCT.SAAS,
           referredBy: referredByConnect,
           roles: { connect: signupRoleIds.map((id) => ({ id })) }
         },

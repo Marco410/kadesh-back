@@ -7030,6 +7030,7 @@ type User {
   age: String
   smsRegistrationId: String
   verified: Boolean
+  product: String
   userTest: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
@@ -7108,6 +7109,7 @@ input UserWhereInput {
   birthday: CalendarDayNullableFilter
   smsRegistrationId: StringFilter
   verified: BooleanFilter
+  product: StringFilter
   userTest: BooleanFilter
   salesPersonVerified: BooleanFilter
   salesComission: IntNullableFilter
@@ -7176,6 +7178,7 @@ input UserOrderByInput {
   birthday: OrderDirection
   smsRegistrationId: OrderDirection
   verified: OrderDirection
+  product: OrderDirection
   userTest: OrderDirection
   salesPersonVerified: OrderDirection
   salesComission: OrderDirection
@@ -7233,6 +7236,7 @@ input UserUpdateInput {
   birthday: CalendarDay
   smsRegistrationId: String
   verified: Boolean
+  product: String
   userTest: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
@@ -7341,6 +7345,7 @@ input UserCreateInput {
   birthday: CalendarDay
   smsRegistrationId: String
   verified: Boolean
+  product: String
   userTest: Boolean
   salesPersonVerified: Boolean
   salesComission: Int
@@ -7965,7 +7970,7 @@ type Mutation {
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
-  authenticateUserWithGoogle(idToken: String!, referrerCode: String): AuthenticateUserWithGoogleResult!
+  authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
   generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!

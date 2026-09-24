@@ -1465,6 +1465,7 @@ model User {
   birthday                                 DateTime?                @postgresql.Date
   smsRegistrationId                        String                   @default("")
   verified                                 Boolean                  @default(false)
+  product                                  String                   @default("pet")
   userTest                                 Boolean                  @default(false)
   salesPersonVerified                      Boolean                  @default(false)
   salesComission                           Int?                     @default(10)
@@ -1500,6 +1501,7 @@ model User {
 
   @@index([referredById])
   @@index([companyId])
+  @@index([product])
 }
 
 model UserAuthLog {
