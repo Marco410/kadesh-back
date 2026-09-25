@@ -18,4 +18,4 @@ Kadesh AI entra al catálogo y va **incluida** en Free, Starter, Pro y Agencia. 
 
 ### 2026-09-25 — Edición desde Operaciones + verify Stripe
 
-El catálogo se edita en el front de Operaciones (`?tab=planes`), no solo en Keystone Admin. Antes de guardar un cambio de cobro, el front llama `stripePlanCheck` (solo lectura). Los Prices de Stripe no se mutan desde Kadesh.
+El catálogo se edita en Operaciones (`?tab=planes`): Catálogo = precio/included; Módulos = nombre/descripción globales (`updatePlanFeatureCatalog`). Antes de guardar un cambio de cobro, el front llama `stripePlanCheck` (solo lectura).
