@@ -1,6 +1,7 @@
 import nearbyAnimals from "./nearbyAnimals";
 import nearbyPetPlaces from "./nearbyPetPlaces";
 import stripePaymentMethods from "./saas/stripePaymentMethods";
+import stripePlanCheck from "./saas/stripePlanCheck";
 import subscriptionStatus from "./saas/subscriptionStatus";
 import dailyDigest from "../ai/dailyDigest";
 import companyBrief from "../ai/companyBrief";
@@ -17,6 +18,7 @@ const customQuery = {
     ${nearbyAnimals.typeDefs}
     ${nearbyPetPlaces.typeDefs}
     ${stripePaymentMethods.typeDefs}
+    ${stripePlanCheck.typeDefs}
     ${subscriptionStatus.typeDefs}
     ${previewWhatsAppChatExport.typeDefs}
     ${companyWhatsappWebhookInfo.typeDefs}
@@ -29,6 +31,7 @@ const customQuery = {
     ${nearbyAnimals.definition}
     ${nearbyPetPlaces.definition}
     ${stripePaymentMethods.definition}
+    ${stripePlanCheck.definition}
     ${subscriptionStatus.definition}
     ${dailyDigest.queryDefinition}
     ${companyBrief.queryDefinition}
@@ -44,6 +47,7 @@ const customQuery = {
     ...nearbyAnimals.resolver,
     ...nearbyPetPlaces.resolver,
     ...stripePaymentMethods.resolver,
+    ...stripePlanCheck.resolver,
     ...subscriptionStatus.resolver,
     ...dailyDigest.queryResolver,
     ...companyBrief.queryResolver,
