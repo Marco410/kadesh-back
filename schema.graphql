@@ -8616,6 +8616,7 @@ type Mutation {
   remainingCredits(companyId: ID): RemainingCreditsResult!
   purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
   grantAdminCredits(input: GrantAdminCreditsInput!): GrantAdminCreditsResult!
+  updatePlanFeatureCatalog(input: UpdatePlanFeatureCatalogInput!): UpdatePlanFeatureCatalogResult!
   sendTestEmail(email: String!): SendTestEmailResult!
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
@@ -9226,6 +9227,23 @@ type GrantAdminCreditsResult {
   creditsAdded: Int
   remainingQuota: Int
   extraCredits: Int
+}
+
+input PlanFeatureCatalogItemInput {
+  key: String!
+  name: String!
+  description: String!
+}
+
+input UpdatePlanFeatureCatalogInput {
+  features: [PlanFeatureCatalogItemInput!]!
+}
+
+type UpdatePlanFeatureCatalogResult {
+  success: Boolean!
+  message: String!
+  plansUpdated: Int
+  subscriptionsUpdated: Int
 }
 
 type SendTestEmailResult {
