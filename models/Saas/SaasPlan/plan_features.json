@@ -57,7 +57,7 @@
   {
     "key": "calendar_crm",
     "name": "Gestión de calendario",
-    "description": "Vista unificada de todas tus citas, tareas y propuestas para organizar tu semana."
+    "description": "Un solo calendario con tus actividades, seguimientos, tareas y propuestas. Conecta tu Google Calendar o una cuenta compartida del equipo, elige qué calendarios ver y envía tus eventos automáticamente."
   },
   {
     "key": "upload_files",

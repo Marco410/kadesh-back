@@ -31,6 +31,7 @@ async function ensureAdminCompany(
   if (companyId) return;
   await provisionSignupCompany(context, userId, ADMIN_COMPANY_NAME);
   const companyRoleIds = await findRoleIds(context, [
+    Role.ADMIN,
     Role.ADMIN_COMPANY,
     Role.VENDEDOR,
   ]);

@@ -7287,14 +7287,12 @@ var import_fields55 = require("@keystone-6/core/fields");
 var saasPlanAccess = {
   operation: {
     query: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
   },
   filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
+    query: () => true
   }
 };
 
@@ -23264,6 +23262,168 @@ var resolver45 = {
 };
 var stripePaymentMethods_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
+// graphql/customs/queries/saas/stripePlanCheck.ts
+var typeDefs49 = `
+  input StripePlanCheckInput {
+    planId: ID!
+    """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
+    stripePriceId: String
+    """Valores del borrador que se va a guardar. Si no se mandan, se comparan los guardados."""
+    cost: Float
+    currency: String
+    frequency: String
+  }
+
+  type StripePlanCheckField {
+    field: String!
+    label: String!
+    local: String
+    stripe: String
+    match: Boolean!
+  }
+
+  type StripePlanCheckResult {
+    success: Boolean!
+    message: String!
+    allMatch: Boolean!
+    checkedAt: String
+    priceId: String
+    priceActive: Boolean
+    productId: String
+    productName: String
+    productActive: Boolean
+    livemode: Boolean
+    subscriptionsCount: Int
+    fields: [StripePlanCheckField!]!
+  }
+
+  type Query {
+    stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
+  }
+`;
+var definition46 = `
+  stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
+`;
+var INTERVAL_BY_FREQUENCY = {
+  [PLAN_FREQUENCY.WEEKLY]: "week",
+  [PLAN_FREQUENCY.MONTHLY]: "month",
+  [PLAN_FREQUENCY.ANNUAL]: "year",
+  [PLAN_FREQUENCY.ONCE]: null
+};
+function fail6(message) {
+  return { success: false, message, allMatch: false, fields: [] };
+}
+function toMinorUnits(amount) {
+  return Math.round(amount * 100);
+}
+function formatAmount(minorUnits, currency) {
+  if (minorUnits == null) return null;
+  const value = (minorUnits / 100).toFixed(2);
+  return currency ? `${value} ${currency.toUpperCase()}` : value;
+}
+var resolver46 = {
+  stripePlanCheck: async (_root, { input }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return fail6("Solo operaciones puede verificar planes con Stripe.");
+    }
+    const plan = await context.sudo().query.SaasPlan.findOne({
+      where: { id: input.planId },
+      query: "id name cost currency frequency stripePriceId stripeProductId active"
+    });
+    if (!plan) return fail6("No encontramos ese plan.");
+    const priceId = (input.stripePriceId ?? plan.stripePriceId ?? "").trim();
+    if (!priceId) {
+      return fail6(
+        "Este plan no tiene un precio de Stripe ligado. Pega el ID del precio para poder verificarlo."
+      );
+    }
+    const localCost = input.cost ?? plan.cost ?? null;
+    const localCurrency = (input.currency ?? plan.currency ?? "").trim();
+    const localFrequency = (input.frequency ?? plan.frequency ?? "").trim();
+    const localProductId = (plan.stripeProductId ?? "").trim();
+    let price;
+    try {
+      price = await stripe_default.prices.retrieve(priceId, { expand: ["product"] });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return fail6(`Stripe no reconoci\xF3 ese precio: ${message}`);
+    }
+    const product = price.product && typeof price.product === "object" ? price.product : null;
+    const stripeProductId = product?.id ?? (typeof price.product === "string" ? price.product : null);
+    const stripeInterval = price.recurring?.interval ?? null;
+    const expectedInterval = INTERVAL_BY_FREQUENCY[localFrequency] ?? null;
+    const fields = [
+      {
+        field: "cost",
+        label: "Monto",
+        local: formatAmount(
+          localCost == null ? null : toMinorUnits(localCost),
+          localCurrency || price.currency
+        ),
+        stripe: formatAmount(price.unit_amount ?? null, price.currency),
+        match: localCost != null && price.unit_amount != null && toMinorUnits(localCost) === price.unit_amount
+      },
+      {
+        field: "currency",
+        label: "Moneda",
+        local: localCurrency ? localCurrency.toUpperCase() : null,
+        stripe: price.currency ? String(price.currency).toUpperCase() : null,
+        match: Boolean(localCurrency) && localCurrency.toLowerCase() === String(price.currency).toLowerCase()
+      },
+      {
+        field: "frequency",
+        label: "Frecuencia",
+        local: localFrequency || null,
+        stripe: stripeInterval ? `cada ${price.recurring?.interval_count ?? 1} ${stripeInterval}` : "pago \xFAnico",
+        match: expectedInterval === stripeInterval
+      },
+      {
+        field: "priceActive",
+        label: "Precio activo en Stripe",
+        local: plan.active ? "Plan activo" : "Plan apagado",
+        stripe: price.active ? "Activo" : "Archivado",
+        match: Boolean(price.active)
+      },
+      {
+        field: "product",
+        label: "Producto",
+        local: localProductId || null,
+        stripe: stripeProductId,
+        match: Boolean(
+          stripeProductId && (!localProductId || localProductId === stripeProductId)
+        )
+      }
+    ];
+    let subscriptionsCount = null;
+    try {
+      const subs = await stripe_default.subscriptions.list({
+        price: priceId,
+        status: "active",
+        limit: 100
+      });
+      subscriptionsCount = subs.data?.length ?? 0;
+    } catch {
+      subscriptionsCount = null;
+    }
+    const allMatch = fields.every((f) => f.match);
+    return {
+      success: true,
+      message: allMatch ? "Todo coincide con Stripe." : "Hay diferencias entre este plan y Stripe.",
+      allMatch,
+      checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      priceId,
+      priceActive: Boolean(price.active),
+      productId: stripeProductId,
+      productName: product?.name ?? null,
+      productActive: product ? Boolean(product.active) : null,
+      livemode: Boolean(price.livemode),
+      subscriptionsCount,
+      fields
+    };
+  }
+};
+var stripePlanCheck_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
 async function getStripeSubscription(subscriptionId) {
@@ -23315,7 +23475,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs49 = `
+var typeDefs50 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -23343,10 +23503,10 @@ var typeDefs49 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition46 = `
+var definition47 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver46 = {
+var resolver47 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -23473,11 +23633,11 @@ var resolver46 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var subscriptionStatus_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs50 = `
+var typeDefs51 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -23489,10 +23649,10 @@ var typeDefs50 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition47 = `
+var definition48 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver47 = {
+var resolver48 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -23525,10 +23685,10 @@ var resolver47 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs51 = `
+var typeDefs52 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -23540,10 +23700,10 @@ var typeDefs51 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition48 = `
+var definition49 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver48 = {
+var resolver49 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -23565,11 +23725,11 @@ var resolver48 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs52 = `
+var typeDefs53 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -23598,14 +23758,14 @@ var typeDefs52 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition49 = `
+var definition50 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver49 = {
+var resolver50 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -23661,11 +23821,11 @@ var resolver49 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var whatsappConversations_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs53 = `
+var typeDefs54 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -23677,10 +23837,10 @@ var typeDefs53 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition50 = `
+var definition51 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver50 = {
+var resolver51 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -23721,10 +23881,10 @@ var resolver50 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs54 = `
+var typeDefs55 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -23742,10 +23902,10 @@ var typeDefs54 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition51 = `
+var definition52 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver51 = {
+var resolver52 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -23771,11 +23931,11 @@ var resolver51 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs55 = `
+var typeDefs56 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -23803,25 +23963,25 @@ var typeDefs55 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition52 = `
+var definition53 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver52 = {
+var resolver53 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
     timeMax
   }, context) => {
-    const fail6 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail6(denyGoogleCalendarAccessMessage(context.session));
+    const fail7 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail7(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail6(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail7(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail6("Rango de fechas inv\xE1lido");
+      return fail7("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -23838,7 +23998,7 @@ var resolver52 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail6(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail7(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -23858,7 +24018,7 @@ var resolver52 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -23866,6 +24026,7 @@ var customQuery = {
     ${nearbyAnimals_default.typeDefs}
     ${nearbyPetPlaces_default.typeDefs}
     ${stripePaymentMethods_default.typeDefs}
+    ${stripePlanCheck_default.typeDefs}
     ${subscriptionStatus_default.typeDefs}
     ${previewWhatsAppChatExport_default.typeDefs}
     ${companyWhatsappWebhookInfo_default.typeDefs}
@@ -23878,6 +24039,7 @@ var customQuery = {
     ${nearbyAnimals_default.definition}
     ${nearbyPetPlaces_default.definition}
     ${stripePaymentMethods_default.definition}
+    ${stripePlanCheck_default.definition}
     ${subscriptionStatus_default.definition}
     ${dailyDigest_default.queryDefinition}
     ${companyBrief_default.queryDefinition}
@@ -23893,6 +24055,7 @@ var customQuery = {
     ...nearbyAnimals_default.resolver,
     ...nearbyPetPlaces_default.resolver,
     ...stripePaymentMethods_default.resolver,
+    ...stripePlanCheck_default.resolver,
     ...subscriptionStatus_default.resolver,
     ...dailyDigest_default.queryResolver,
     ...companyBrief_default.queryResolver,

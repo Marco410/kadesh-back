@@ -8907,6 +8907,7 @@ type Query {
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   StripePaymentMethods(email: String!): StripePaymentMethodsType
+  stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
@@ -9820,6 +9821,43 @@ type StripePaymentMethodsType {
   message: String
   success: Boolean
   data: StripePaymentMethodsData
+}
+
+input StripePlanCheckInput {
+  planId: ID!
+
+  """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
+  stripePriceId: String
+
+  """
+  Valores del borrador que se va a guardar. Si no se mandan, se comparan los guardados.
+  """
+  cost: Float
+  currency: String
+  frequency: String
+}
+
+type StripePlanCheckField {
+  field: String!
+  label: String!
+  local: String
+  stripe: String
+  match: Boolean!
+}
+
+type StripePlanCheckResult {
+  success: Boolean!
+  message: String!
+  allMatch: Boolean!
+  checkedAt: String
+  priceId: String
+  priceActive: Boolean
+  productId: String
+  productName: String
+  productActive: Boolean
+  livemode: Boolean
+  subscriptionsCount: Int
+  fields: [StripePlanCheckField!]!
 }
 
 type SubscriptionData {
