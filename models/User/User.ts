@@ -239,6 +239,21 @@ export default list({
       many: true,
       ui: { description: "Llamadas a IA disparadas por este usuario" },
     }),
+    googleCalendarAccounts: relationship({
+      ref: "GoogleCalendarAccount.user",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar personales de este usuario" },
+    }),
+    connectedGoogleCalendarAccounts: relationship({
+      ref: "GoogleCalendarAccount.connectedByUser",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar que este usuario autorizó" },
+    }),
+    createdCalendarEvents: relationship({
+      ref: "TechCalendarEvent.createdBy",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de calendario de este usuario" },
+    }),
     whatsappMessagesSent: relationship({
       ref: "TechWhatsAppMessage.sentBy",
       many: true,

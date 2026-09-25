@@ -73,6 +73,11 @@ export default list({
       many: false,
       ui: { description: "Estado CRM dinámico (workspace + tipo tarea)" },
     }),
+    calendarEvent: relationship({
+      ref: "TechCalendarEvent.followUpTask",
+      many: false,
+      ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" },
+    }),
     notes: text({ ui: { displayMode: "textarea" } }),
     hiddenInWorkspace: checkbox({
       defaultValue: false,

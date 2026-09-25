@@ -79,6 +79,11 @@ export default list({
       ref: "User.createdByTasks",
       many: false,
     }),
+    calendarEvent: relationship({
+      ref: "TechCalendarEvent.task",
+      many: false,
+      ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" },
+    }),
     hiddenInWorkspace: checkbox({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" },

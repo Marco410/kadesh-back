@@ -1,6 +1,8 @@
 import { validateTechStatusCrmInput } from "../../../../utils/validation/validateTechStatusCrm";
+import { crmCalendarHooks } from "../../../../utils/googleCalendar/crmEvents";
 
 export const followUpTaskHooks = {
+  ...crmCalendarHooks,
   validateInput: async ({
     context,
     resolvedData,

@@ -567,6 +567,8 @@ model SaasCompany {
   whatsappAppId                       String?
   whatsappWebhookConfiguredAt         DateTime?
   whatsappLastWebhookAt               DateTime?
+  googleCalendarAccounts              GoogleCalendarAccount[]      @relation("GoogleCalendarAccount_company")
+  calendarEvents                      TechCalendarEvent[]          @relation("TechCalendarEvent_company")
   whatsappMessages                    TechWhatsAppMessage[]        @relation("TechWhatsAppMessage_company")
   whatsappTemplateName                String?
   whatsappTemplateLanguage            String?
@@ -922,6 +924,7 @@ model SaasWorkspace {
   salesActivities   TechSalesActivity[]      @relation("TechSalesActivity_workspace")
   tasks             TechTask[]               @relation("TechTask_workspace")
   proposals         TechProposal[]           @relation("TechProposal_workspace")
+  calendarEvents    TechCalendarEvent[]      @relation("TechCalendarEvent_workspace")
   followUpTasks     TechFollowUpTask[]       @relation("TechFollowUpTask_workspace")
   crmStatuses       SaasWorkspaceCrmStatus[] @relation("SaasWorkspaceCrmStatus_workspace")
 
@@ -1238,6 +1241,7 @@ model TechFollowUpTask {
   workspaceId       String?                 @map("workspace")
   statusCrm         SaasWorkspaceCrmStatus? @relation("TechFollowUpTask_statusCrm", fields: [statusCrmId], references: [id])
   statusCrmId       String?                 @map("statusCrm")
+  calendarEvent     TechCalendarEvent?      @relation("TechCalendarEvent_followUpTask")
   notes             String                  @default("")
   hiddenInWorkspace Boolean                 @default(false)
   createdAt         DateTime?               @default(now())
@@ -1272,6 +1276,7 @@ model TechProposal {
   workspaceId       String?                 @map("workspace")
   statusCrm         SaasWorkspaceCrmStatus? @relation("TechProposal_statusCrm", fields: [statusCrmId], references: [id])
   statusCrmId       String?                 @map("statusCrm")
+  calendarEvent     TechCalendarEvent?      @relation("TechCalendarEvent_proposal")
   project           SaasProject?            @relation("SaasProject_proposal")
   hiddenInWorkspace Boolean                 @default(false)
   createdAt         DateTime?               @default(now())
@@ -1304,6 +1309,7 @@ model TechSalesActivity {
   workspaceId       String?                 @map("workspace")
   statusCrm         SaasWorkspaceCrmStatus? @relation("TechSalesActivity_statusCrm", fields: [statusCrmId], references: [id])
   statusCrmId       String?                 @map("statusCrm")
+  calendarEvent     TechCalendarEvent?      @relation("TechCalendarEvent_salesActivity")
   hiddenInWorkspace Boolean                 @default(false)
   createdAt         DateTime?               @default(now())
 
@@ -1334,6 +1340,7 @@ model TechTask {
   statusCrmId       String?                 @map("statusCrm")
   createdBy         User?                   @relation("TechTask_createdBy", fields: [createdById], references: [id])
   createdById       String?                 @map("createdBy")
+  calendarEvent     TechCalendarEvent?      @relation("TechCalendarEvent_task")
   hiddenInWorkspace Boolean                 @default(false)
   createdAt         DateTime?               @default(now())
 
@@ -1403,6 +1410,121 @@ model TechWhatsAppMessage {
   @@index([sentById])
 }
 
+model GoogleCalendarAccount {
+  id                    String                      @id @default(cuid())
+  scopeType             String                      @default("personal")
+  user                  User?                       @relation("GoogleCalendarAccount_user", fields: [userId], references: [id])
+  userId                String?                     @map("user")
+  company               SaasCompany?                @relation("GoogleCalendarAccount_company", fields: [companyId], references: [id])
+  companyId             String?                     @map("company")
+  connectedByUser       User?                       @relation("GoogleCalendarAccount_connectedByUser", fields: [connectedByUserId], references: [id])
+  connectedByUserId     String?                     @map("connectedByUser")
+  googleAccountEmail    String                      @default("")
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  scope                 String?
+  isActive              Boolean                     @default(true)
+  lastSyncedAt          DateTime?
+  lastSyncError         String?
+  calendars             GoogleCalendarSelection[]   @relation("GoogleCalendarSelection_account")
+  syncLogs              TechGoogleCalendarSyncLog[] @relation("TechGoogleCalendarSyncLog_account")
+  createdAt             DateTime?                   @default(now())
+
+  @@index([scopeType])
+  @@index([userId])
+  @@index([companyId])
+  @@index([connectedByUserId])
+  @@index([googleAccountEmail])
+}
+
+model GoogleCalendarSelection {
+  id               String                        @id @default(cuid())
+  account          GoogleCalendarAccount?        @relation("GoogleCalendarSelection_account", fields: [accountId], references: [id])
+  accountId        String?                       @map("account")
+  googleCalendarId String                        @default("")
+  calendarName     String                        @default("")
+  isPrimary        Boolean                       @default(false)
+  isSelected       Boolean                       @default(false)
+  colorHex         String?
+  pushActivities   Boolean                       @default(true)
+  pushProposals    Boolean                       @default(true)
+  pushFollowUps    Boolean                       @default(true)
+  pushTasks        Boolean                       @default(true)
+  targetedEvents   TechCalendarEvent[]           @relation("GoogleCalendarSelection_targetedEvents")
+  eventLinks       TechCalendarEventGoogleLink[] @relation("TechCalendarEventGoogleLink_calendarSelection")
+
+  @@index([accountId])
+  @@index([googleCalendarId])
+}
+
+model TechCalendarEvent {
+  id              String                        @id @default(cuid())
+  title           String                        @default("")
+  description     String?
+  startAt         DateTime
+  endAt           DateTime?
+  allDay          Boolean                       @default(false)
+  location        String?
+  sourceType      String                        @default("native")
+  salesActivity   TechSalesActivity?            @relation("TechCalendarEvent_salesActivity", fields: [salesActivityId], references: [id])
+  salesActivityId String?                       @unique @map("salesActivity")
+  followUpTask    TechFollowUpTask?             @relation("TechCalendarEvent_followUpTask", fields: [followUpTaskId], references: [id])
+  followUpTaskId  String?                       @unique @map("followUpTask")
+  task            TechTask?                     @relation("TechCalendarEvent_task", fields: [taskId], references: [id])
+  taskId          String?                       @unique @map("task")
+  proposal        TechProposal?                 @relation("TechCalendarEvent_proposal", fields: [proposalId], references: [id])
+  proposalId      String?                       @unique @map("proposal")
+  createdBy       User?                         @relation("TechCalendarEvent_createdBy", fields: [createdById], references: [id])
+  createdById     String?                       @map("createdBy")
+  company         SaasCompany?                  @relation("TechCalendarEvent_company", fields: [companyId], references: [id])
+  companyId       String?                       @map("company")
+  workspace       SaasWorkspace?                @relation("TechCalendarEvent_workspace", fields: [workspaceId], references: [id])
+  workspaceId     String?                       @map("workspace")
+  googleTargets   GoogleCalendarSelection[]     @relation("GoogleCalendarSelection_targetedEvents")
+  googleLinks     TechCalendarEventGoogleLink[] @relation("TechCalendarEventGoogleLink_event")
+  createdAt       DateTime?                     @default(now())
+  updatedAt       DateTime?                     @updatedAt
+
+  @@index([startAt])
+  @@index([sourceType])
+  @@index([createdById])
+  @@index([companyId])
+  @@index([workspaceId])
+}
+
+model TechCalendarEventGoogleLink {
+  id                  String                   @id @default(cuid())
+  event               TechCalendarEvent?       @relation("TechCalendarEventGoogleLink_event", fields: [eventId], references: [id])
+  eventId             String?                  @map("event")
+  calendarSelection   GoogleCalendarSelection? @relation("TechCalendarEventGoogleLink_calendarSelection", fields: [calendarSelectionId], references: [id])
+  calendarSelectionId String?                  @map("calendarSelection")
+  googleEventId       String?
+  lastPushedAt        DateTime?
+  lastPushStatus      String?                  @default("pending")
+  lastPushError       String?
+
+  @@index([eventId])
+  @@index([calendarSelectionId])
+  @@index([googleEventId])
+}
+
+model TechGoogleCalendarSyncLog {
+  id           String                 @id @default(cuid())
+  account      GoogleCalendarAccount? @relation("TechGoogleCalendarSyncLog_account", fields: [accountId], references: [id])
+  accountId    String?                @map("account")
+  direction    String
+  operation    String
+  success      Boolean                @default(false)
+  errorMessage String?
+  durationMs   Int?
+  createdAt    DateTime?              @default(now())
+
+  @@index([accountId])
+  @@index([direction])
+  @@index([operation])
+}
+
 model TokenNotification {
   id     String  @id @default(cuid())
   token  String  @default("")
@@ -1449,6 +1571,9 @@ model User {
   leadSyncLogs                             TechLeadSyncLog[]        @relation("TechLeadSyncLog_user")
   inegiSyncLogs                            TechInegiSyncLog[]       @relation("TechInegiSyncLog_user")
   aiCallLogs                               TechAiCallLog[]          @relation("TechAiCallLog_user")
+  googleCalendarAccounts                   GoogleCalendarAccount[]  @relation("GoogleCalendarAccount_user")
+  connectedGoogleCalendarAccounts          GoogleCalendarAccount[]  @relation("GoogleCalendarAccount_connectedByUser")
+  createdCalendarEvents                    TechCalendarEvent[]      @relation("TechCalendarEvent_createdBy")
   whatsappMessagesSent                     TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_sentBy")
   whatsappMessagesAsTeamMember             TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_teamMember")
   whatsappInternalChatsStarted             TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_internalInitiator")
