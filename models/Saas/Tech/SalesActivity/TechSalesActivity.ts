@@ -86,6 +86,11 @@ export default list({
       many: false,
       ui: { description: "Estado CRM dinámico (workspace + tipo actividad)" },
     }),
+    calendarEvent: relationship({
+      ref: "TechCalendarEvent.salesActivity",
+      many: false,
+      ui: { hideCreate: true, description: "Evento de calendario generado (solo actividades nuevas)" },
+    }),
     hiddenInWorkspace: checkbox({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" },

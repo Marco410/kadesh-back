@@ -2841,6 +2841,10 @@ type SaasCompany {
   whatsappAppId: String
   whatsappWebhookConfiguredAt: DateTime
   whatsappLastWebhookAt: DateTime
+  googleCalendarAccounts(where: GoogleCalendarAccountWhereInput! = {}, orderBy: [GoogleCalendarAccountOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: GoogleCalendarAccountWhereUniqueInput): [GoogleCalendarAccount!]
+  googleCalendarAccountsCount(where: GoogleCalendarAccountWhereInput! = {}): Int
+  calendarEvents(where: TechCalendarEventWhereInput! = {}, orderBy: [TechCalendarEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechCalendarEventWhereUniqueInput): [TechCalendarEvent!]
+  calendarEventsCount(where: TechCalendarEventWhereInput! = {}): Int
   whatsappMessages(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
   whatsappMessagesCount(where: TechWhatsAppMessageWhereInput! = {}): Int
   whatsappTemplateName: String
@@ -2911,6 +2915,8 @@ input SaasCompanyWhereInput {
   whatsappAppId: StringNullableFilter
   whatsappWebhookConfiguredAt: DateTimeNullableFilter
   whatsappLastWebhookAt: DateTimeNullableFilter
+  googleCalendarAccounts: GoogleCalendarAccountManyRelationFilter
+  calendarEvents: TechCalendarEventManyRelationFilter
   whatsappMessages: TechWhatsAppMessageManyRelationFilter
   whatsappTemplateName: StringNullableFilter
   whatsappTemplateLanguage: StringNullableFilter
@@ -3008,6 +3014,18 @@ input SaasQuotationManyRelationFilter {
   none: SaasQuotationWhereInput
 }
 
+input GoogleCalendarAccountManyRelationFilter {
+  every: GoogleCalendarAccountWhereInput
+  some: GoogleCalendarAccountWhereInput
+  none: GoogleCalendarAccountWhereInput
+}
+
+input TechCalendarEventManyRelationFilter {
+  every: TechCalendarEventWhereInput
+  some: TechCalendarEventWhereInput
+  none: TechCalendarEventWhereInput
+}
+
 input TechWhatsAppMessageManyRelationFilter {
   every: TechWhatsAppMessageWhereInput
   some: TechWhatsAppMessageWhereInput
@@ -3093,6 +3111,8 @@ input SaasCompanyUpdateInput {
   whatsappAppId: String
   whatsappWebhookConfiguredAt: DateTime
   whatsappLastWebhookAt: DateTime
+  googleCalendarAccounts: GoogleCalendarAccountRelateToManyForUpdateInput
+  calendarEvents: TechCalendarEventRelateToManyForUpdateInput
   whatsappMessages: TechWhatsAppMessageRelateToManyForUpdateInput
   whatsappTemplateName: String
   whatsappTemplateLanguage: String
@@ -3214,6 +3234,20 @@ input FileFieldInput {
   upload: Upload!
 }
 
+input GoogleCalendarAccountRelateToManyForUpdateInput {
+  disconnect: [GoogleCalendarAccountWhereUniqueInput!]
+  set: [GoogleCalendarAccountWhereUniqueInput!]
+  create: [GoogleCalendarAccountCreateInput!]
+  connect: [GoogleCalendarAccountWhereUniqueInput!]
+}
+
+input TechCalendarEventRelateToManyForUpdateInput {
+  disconnect: [TechCalendarEventWhereUniqueInput!]
+  set: [TechCalendarEventWhereUniqueInput!]
+  create: [TechCalendarEventCreateInput!]
+  connect: [TechCalendarEventWhereUniqueInput!]
+}
+
 input TechWhatsAppMessageRelateToManyForUpdateInput {
   disconnect: [TechWhatsAppMessageWhereUniqueInput!]
   set: [TechWhatsAppMessageWhereUniqueInput!]
@@ -3268,6 +3302,8 @@ input SaasCompanyCreateInput {
   whatsappAppId: String
   whatsappWebhookConfiguredAt: DateTime
   whatsappLastWebhookAt: DateTime
+  googleCalendarAccounts: GoogleCalendarAccountRelateToManyForCreateInput
+  calendarEvents: TechCalendarEventRelateToManyForCreateInput
   whatsappMessages: TechWhatsAppMessageRelateToManyForCreateInput
   whatsappTemplateName: String
   whatsappTemplateLanguage: String
@@ -3354,6 +3390,16 @@ input SaasSubscriptionLogRelateToManyForCreateInput {
 input SaasQuotationRelateToManyForCreateInput {
   create: [SaasQuotationCreateInput!]
   connect: [SaasQuotationWhereUniqueInput!]
+}
+
+input GoogleCalendarAccountRelateToManyForCreateInput {
+  create: [GoogleCalendarAccountCreateInput!]
+  connect: [GoogleCalendarAccountWhereUniqueInput!]
+}
+
+input TechCalendarEventRelateToManyForCreateInput {
+  create: [TechCalendarEventCreateInput!]
+  connect: [TechCalendarEventWhereUniqueInput!]
 }
 
 input TechWhatsAppMessageRelateToManyForCreateInput {
@@ -4822,6 +4868,8 @@ type SaasWorkspace {
   tasksCount(where: TechTaskWhereInput! = {}): Int
   proposals(where: TechProposalWhereInput! = {}, orderBy: [TechProposalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechProposalWhereUniqueInput): [TechProposal!]
   proposalsCount(where: TechProposalWhereInput! = {}): Int
+  calendarEvents(where: TechCalendarEventWhereInput! = {}, orderBy: [TechCalendarEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechCalendarEventWhereUniqueInput): [TechCalendarEvent!]
+  calendarEventsCount(where: TechCalendarEventWhereInput! = {}): Int
   followUpTasks(where: TechFollowUpTaskWhereInput! = {}, orderBy: [TechFollowUpTaskOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechFollowUpTaskWhereUniqueInput): [TechFollowUpTask!]
   followUpTasksCount(where: TechFollowUpTaskWhereInput! = {}): Int
   crmStatuses(where: SaasWorkspaceCrmStatusWhereInput! = {}, orderBy: [SaasWorkspaceCrmStatusOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasWorkspaceCrmStatusWhereUniqueInput): [SaasWorkspaceCrmStatus!]
@@ -4847,6 +4895,7 @@ input SaasWorkspaceWhereInput {
   salesActivities: TechSalesActivityManyRelationFilter
   tasks: TechTaskManyRelationFilter
   proposals: TechProposalManyRelationFilter
+  calendarEvents: TechCalendarEventManyRelationFilter
   followUpTasks: TechFollowUpTaskManyRelationFilter
   crmStatuses: SaasWorkspaceCrmStatusManyRelationFilter
 }
@@ -4901,6 +4950,7 @@ input SaasWorkspaceUpdateInput {
   salesActivities: TechSalesActivityRelateToManyForUpdateInput
   tasks: TechTaskRelateToManyForUpdateInput
   proposals: TechProposalRelateToManyForUpdateInput
+  calendarEvents: TechCalendarEventRelateToManyForUpdateInput
   followUpTasks: TechFollowUpTaskRelateToManyForUpdateInput
   crmStatuses: SaasWorkspaceCrmStatusRelateToManyForUpdateInput
 }
@@ -4956,6 +5006,7 @@ input SaasWorkspaceCreateInput {
   salesActivities: TechSalesActivityRelateToManyForCreateInput
   tasks: TechTaskRelateToManyForCreateInput
   proposals: TechProposalRelateToManyForCreateInput
+  calendarEvents: TechCalendarEventRelateToManyForCreateInput
   followUpTasks: TechFollowUpTaskRelateToManyForCreateInput
   crmStatuses: SaasWorkspaceCrmStatusRelateToManyForCreateInput
 }
@@ -6334,6 +6385,7 @@ type TechFollowUpTask {
   createdBy: User
   workspace: SaasWorkspace
   statusCrm: SaasWorkspaceCrmStatus
+  calendarEvent: TechCalendarEvent
   notes: String
   hiddenInWorkspace: Boolean
   createdAt: DateTime
@@ -6342,6 +6394,7 @@ type TechFollowUpTask {
 
 input TechFollowUpTaskWhereUniqueInput {
   id: ID
+  calendarEvent: TechCalendarEventWhereUniqueInput
 }
 
 input TechFollowUpTaskWhereInput {
@@ -6357,6 +6410,7 @@ input TechFollowUpTaskWhereInput {
   createdBy: UserWhereInput
   workspace: SaasWorkspaceWhereInput
   statusCrm: SaasWorkspaceCrmStatusWhereInput
+  calendarEvent: TechCalendarEventWhereInput
   notes: StringFilter
   hiddenInWorkspace: BooleanFilter
   createdAt: DateTimeNullableFilter
@@ -6383,6 +6437,7 @@ input TechFollowUpTaskUpdateInput {
   createdBy: UserRelateToOneForUpdateInput
   workspace: SaasWorkspaceRelateToOneForUpdateInput
   statusCrm: SaasWorkspaceCrmStatusRelateToOneForUpdateInput
+  calendarEvent: TechCalendarEventRelateToOneForUpdateInput
   notes: String
   hiddenInWorkspace: Boolean
   createdAt: DateTime
@@ -6392,6 +6447,12 @@ input TechFollowUpTaskUpdateInput {
 input SaasWorkspaceCrmStatusRelateToOneForUpdateInput {
   create: SaasWorkspaceCrmStatusCreateInput
   connect: SaasWorkspaceCrmStatusWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechCalendarEventRelateToOneForUpdateInput {
+  create: TechCalendarEventCreateInput
+  connect: TechCalendarEventWhereUniqueInput
   disconnect: Boolean
 }
 
@@ -6409,6 +6470,7 @@ input TechFollowUpTaskCreateInput {
   createdBy: UserRelateToOneForCreateInput
   workspace: SaasWorkspaceRelateToOneForCreateInput
   statusCrm: SaasWorkspaceCrmStatusRelateToOneForCreateInput
+  calendarEvent: TechCalendarEventRelateToOneForCreateInput
   notes: String
   hiddenInWorkspace: Boolean
   createdAt: DateTime
@@ -6418,6 +6480,11 @@ input TechFollowUpTaskCreateInput {
 input SaasWorkspaceCrmStatusRelateToOneForCreateInput {
   create: SaasWorkspaceCrmStatusCreateInput
   connect: SaasWorkspaceCrmStatusWhereUniqueInput
+}
+
+input TechCalendarEventRelateToOneForCreateInput {
+  create: TechCalendarEventCreateInput
+  connect: TechCalendarEventWhereUniqueInput
 }
 
 type TechProposal {
@@ -6435,6 +6502,7 @@ type TechProposal {
   createdBy: User
   workspace: SaasWorkspace
   statusCrm: SaasWorkspaceCrmStatus
+  calendarEvent: TechCalendarEvent
   project: SaasProject
   hiddenInWorkspace: Boolean
   createdAt: DateTime
@@ -6443,6 +6511,7 @@ type TechProposal {
 
 input TechProposalWhereUniqueInput {
   id: ID
+  calendarEvent: TechCalendarEventWhereUniqueInput
   project: SaasProjectWhereUniqueInput
 }
 
@@ -6464,6 +6533,7 @@ input TechProposalWhereInput {
   createdBy: UserWhereInput
   workspace: SaasWorkspaceWhereInput
   statusCrm: SaasWorkspaceCrmStatusWhereInput
+  calendarEvent: TechCalendarEventWhereInput
   project: SaasProjectWhereInput
   hiddenInWorkspace: BooleanFilter
   createdAt: DateTimeNullableFilter
@@ -6499,6 +6569,7 @@ input TechProposalUpdateInput {
   createdBy: UserRelateToOneForUpdateInput
   workspace: SaasWorkspaceRelateToOneForUpdateInput
   statusCrm: SaasWorkspaceCrmStatusRelateToOneForUpdateInput
+  calendarEvent: TechCalendarEventRelateToOneForUpdateInput
   project: SaasProjectRelateToOneForUpdateInput
   hiddenInWorkspace: Boolean
   createdAt: DateTime
@@ -6524,6 +6595,7 @@ input TechProposalCreateInput {
   createdBy: UserRelateToOneForCreateInput
   workspace: SaasWorkspaceRelateToOneForCreateInput
   statusCrm: SaasWorkspaceCrmStatusRelateToOneForCreateInput
+  calendarEvent: TechCalendarEventRelateToOneForCreateInput
   project: SaasProjectRelateToOneForCreateInput
   hiddenInWorkspace: Boolean
   createdAt: DateTime
@@ -6544,12 +6616,14 @@ type TechSalesActivity {
   createdBy: User
   workspace: SaasWorkspace
   statusCrm: SaasWorkspaceCrmStatus
+  calendarEvent: TechCalendarEvent
   hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
 
 input TechSalesActivityWhereUniqueInput {
   id: ID
+  calendarEvent: TechCalendarEventWhereUniqueInput
 }
 
 input TechSalesActivityWhereInput {
@@ -6569,6 +6643,7 @@ input TechSalesActivityWhereInput {
   createdBy: UserWhereInput
   workspace: SaasWorkspaceWhereInput
   statusCrm: SaasWorkspaceCrmStatusWhereInput
+  calendarEvent: TechCalendarEventWhereInput
   hiddenInWorkspace: BooleanFilter
   createdAt: DateTimeNullableFilter
 }
@@ -6599,6 +6674,7 @@ input TechSalesActivityUpdateInput {
   createdBy: UserRelateToOneForUpdateInput
   workspace: SaasWorkspaceRelateToOneForUpdateInput
   statusCrm: SaasWorkspaceCrmStatusRelateToOneForUpdateInput
+  calendarEvent: TechCalendarEventRelateToOneForUpdateInput
   hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
@@ -6621,6 +6697,7 @@ input TechSalesActivityCreateInput {
   createdBy: UserRelateToOneForCreateInput
   workspace: SaasWorkspaceRelateToOneForCreateInput
   statusCrm: SaasWorkspaceCrmStatusRelateToOneForCreateInput
+  calendarEvent: TechCalendarEventRelateToOneForCreateInput
   hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
@@ -6638,12 +6715,14 @@ type TechTask {
   workspace: SaasWorkspace
   statusCrm: SaasWorkspaceCrmStatus
   createdBy: User
+  calendarEvent: TechCalendarEvent
   hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
 
 input TechTaskWhereUniqueInput {
   id: ID
+  calendarEvent: TechCalendarEventWhereUniqueInput
 }
 
 input TechTaskWhereInput {
@@ -6662,6 +6741,7 @@ input TechTaskWhereInput {
   workspace: SaasWorkspaceWhereInput
   statusCrm: SaasWorkspaceCrmStatusWhereInput
   createdBy: UserWhereInput
+  calendarEvent: TechCalendarEventWhereInput
   hiddenInWorkspace: BooleanFilter
   createdAt: DateTimeNullableFilter
 }
@@ -6690,6 +6770,7 @@ input TechTaskUpdateInput {
   workspace: SaasWorkspaceRelateToOneForUpdateInput
   statusCrm: SaasWorkspaceCrmStatusRelateToOneForUpdateInput
   createdBy: UserRelateToOneForUpdateInput
+  calendarEvent: TechCalendarEventRelateToOneForUpdateInput
   hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
@@ -6711,6 +6792,7 @@ input TechTaskCreateInput {
   workspace: SaasWorkspaceRelateToOneForCreateInput
   statusCrm: SaasWorkspaceCrmStatusRelateToOneForCreateInput
   createdBy: UserRelateToOneForCreateInput
+  calendarEvent: TechCalendarEventRelateToOneForCreateInput
   hiddenInWorkspace: Boolean
   createdAt: DateTime
 }
@@ -6914,6 +6996,545 @@ input TechWhatsAppMessageCreateInput {
   createdAt: DateTime
 }
 
+type GoogleCalendarAccount {
+  id: ID!
+  scopeType: String
+  user: User
+  company: SaasCompany
+  connectedByUser: User
+  googleAccountEmail: String
+  accessTokenEncrypted: String
+  refreshTokenEncrypted: String
+  tokenExpiresAt: DateTime
+  scope: String
+  isActive: Boolean
+  lastSyncedAt: DateTime
+  lastSyncError: String
+  calendars(where: GoogleCalendarSelectionWhereInput! = {}, orderBy: [GoogleCalendarSelectionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: GoogleCalendarSelectionWhereUniqueInput): [GoogleCalendarSelection!]
+  calendarsCount(where: GoogleCalendarSelectionWhereInput! = {}): Int
+  syncLogs(where: TechGoogleCalendarSyncLogWhereInput! = {}, orderBy: [TechGoogleCalendarSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechGoogleCalendarSyncLogWhereUniqueInput): [TechGoogleCalendarSyncLog!]
+  syncLogsCount(where: TechGoogleCalendarSyncLogWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input GoogleCalendarAccountWhereUniqueInput {
+  id: ID
+}
+
+input GoogleCalendarAccountWhereInput {
+  AND: [GoogleCalendarAccountWhereInput!]
+  OR: [GoogleCalendarAccountWhereInput!]
+  NOT: [GoogleCalendarAccountWhereInput!]
+  id: IDFilter
+  scopeType: StringFilter
+  user: UserWhereInput
+  company: SaasCompanyWhereInput
+  connectedByUser: UserWhereInput
+  googleAccountEmail: StringFilter
+  accessTokenEncrypted: StringNullableFilter
+  refreshTokenEncrypted: StringNullableFilter
+  tokenExpiresAt: DateTimeNullableFilter
+  scope: StringNullableFilter
+  isActive: BooleanFilter
+  lastSyncedAt: DateTimeNullableFilter
+  lastSyncError: StringNullableFilter
+  calendars: GoogleCalendarSelectionManyRelationFilter
+  syncLogs: TechGoogleCalendarSyncLogManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input GoogleCalendarSelectionManyRelationFilter {
+  every: GoogleCalendarSelectionWhereInput
+  some: GoogleCalendarSelectionWhereInput
+  none: GoogleCalendarSelectionWhereInput
+}
+
+input TechGoogleCalendarSyncLogManyRelationFilter {
+  every: TechGoogleCalendarSyncLogWhereInput
+  some: TechGoogleCalendarSyncLogWhereInput
+  none: TechGoogleCalendarSyncLogWhereInput
+}
+
+input GoogleCalendarAccountOrderByInput {
+  id: OrderDirection
+  scopeType: OrderDirection
+  googleAccountEmail: OrderDirection
+  accessTokenEncrypted: OrderDirection
+  refreshTokenEncrypted: OrderDirection
+  tokenExpiresAt: OrderDirection
+  scope: OrderDirection
+  isActive: OrderDirection
+  lastSyncedAt: OrderDirection
+  lastSyncError: OrderDirection
+  createdAt: OrderDirection
+}
+
+input GoogleCalendarAccountUpdateInput {
+  scopeType: String
+  user: UserRelateToOneForUpdateInput
+  company: SaasCompanyRelateToOneForUpdateInput
+  connectedByUser: UserRelateToOneForUpdateInput
+  googleAccountEmail: String
+  accessTokenEncrypted: String
+  refreshTokenEncrypted: String
+  tokenExpiresAt: DateTime
+  scope: String
+  isActive: Boolean
+  lastSyncedAt: DateTime
+  lastSyncError: String
+  calendars: GoogleCalendarSelectionRelateToManyForUpdateInput
+  syncLogs: TechGoogleCalendarSyncLogRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input GoogleCalendarSelectionRelateToManyForUpdateInput {
+  disconnect: [GoogleCalendarSelectionWhereUniqueInput!]
+  set: [GoogleCalendarSelectionWhereUniqueInput!]
+  create: [GoogleCalendarSelectionCreateInput!]
+  connect: [GoogleCalendarSelectionWhereUniqueInput!]
+}
+
+input TechGoogleCalendarSyncLogRelateToManyForUpdateInput {
+  disconnect: [TechGoogleCalendarSyncLogWhereUniqueInput!]
+  set: [TechGoogleCalendarSyncLogWhereUniqueInput!]
+  create: [TechGoogleCalendarSyncLogCreateInput!]
+  connect: [TechGoogleCalendarSyncLogWhereUniqueInput!]
+}
+
+input GoogleCalendarAccountUpdateArgs {
+  where: GoogleCalendarAccountWhereUniqueInput!
+  data: GoogleCalendarAccountUpdateInput!
+}
+
+input GoogleCalendarAccountCreateInput {
+  scopeType: String
+  user: UserRelateToOneForCreateInput
+  company: SaasCompanyRelateToOneForCreateInput
+  connectedByUser: UserRelateToOneForCreateInput
+  googleAccountEmail: String
+  accessTokenEncrypted: String
+  refreshTokenEncrypted: String
+  tokenExpiresAt: DateTime
+  scope: String
+  isActive: Boolean
+  lastSyncedAt: DateTime
+  lastSyncError: String
+  calendars: GoogleCalendarSelectionRelateToManyForCreateInput
+  syncLogs: TechGoogleCalendarSyncLogRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input GoogleCalendarSelectionRelateToManyForCreateInput {
+  create: [GoogleCalendarSelectionCreateInput!]
+  connect: [GoogleCalendarSelectionWhereUniqueInput!]
+}
+
+input TechGoogleCalendarSyncLogRelateToManyForCreateInput {
+  create: [TechGoogleCalendarSyncLogCreateInput!]
+  connect: [TechGoogleCalendarSyncLogWhereUniqueInput!]
+}
+
+type GoogleCalendarSelection {
+  id: ID!
+  account: GoogleCalendarAccount
+  googleCalendarId: String
+  calendarName: String
+  isPrimary: Boolean
+  isSelected: Boolean
+  colorHex: String
+  pushActivities: Boolean
+  pushProposals: Boolean
+  pushFollowUps: Boolean
+  pushTasks: Boolean
+  targetedEvents(where: TechCalendarEventWhereInput! = {}, orderBy: [TechCalendarEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechCalendarEventWhereUniqueInput): [TechCalendarEvent!]
+  targetedEventsCount(where: TechCalendarEventWhereInput! = {}): Int
+  eventLinks(where: TechCalendarEventGoogleLinkWhereInput! = {}, orderBy: [TechCalendarEventGoogleLinkOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechCalendarEventGoogleLinkWhereUniqueInput): [TechCalendarEventGoogleLink!]
+  eventLinksCount(where: TechCalendarEventGoogleLinkWhereInput! = {}): Int
+}
+
+input GoogleCalendarSelectionWhereUniqueInput {
+  id: ID
+}
+
+input GoogleCalendarSelectionWhereInput {
+  AND: [GoogleCalendarSelectionWhereInput!]
+  OR: [GoogleCalendarSelectionWhereInput!]
+  NOT: [GoogleCalendarSelectionWhereInput!]
+  id: IDFilter
+  account: GoogleCalendarAccountWhereInput
+  googleCalendarId: StringFilter
+  calendarName: StringFilter
+  isPrimary: BooleanFilter
+  isSelected: BooleanFilter
+  colorHex: StringNullableFilter
+  pushActivities: BooleanFilter
+  pushProposals: BooleanFilter
+  pushFollowUps: BooleanFilter
+  pushTasks: BooleanFilter
+  targetedEvents: TechCalendarEventManyRelationFilter
+  eventLinks: TechCalendarEventGoogleLinkManyRelationFilter
+}
+
+input TechCalendarEventGoogleLinkManyRelationFilter {
+  every: TechCalendarEventGoogleLinkWhereInput
+  some: TechCalendarEventGoogleLinkWhereInput
+  none: TechCalendarEventGoogleLinkWhereInput
+}
+
+input GoogleCalendarSelectionOrderByInput {
+  id: OrderDirection
+  googleCalendarId: OrderDirection
+  calendarName: OrderDirection
+  isPrimary: OrderDirection
+  isSelected: OrderDirection
+  colorHex: OrderDirection
+  pushActivities: OrderDirection
+  pushProposals: OrderDirection
+  pushFollowUps: OrderDirection
+  pushTasks: OrderDirection
+}
+
+input GoogleCalendarSelectionUpdateInput {
+  account: GoogleCalendarAccountRelateToOneForUpdateInput
+  googleCalendarId: String
+  calendarName: String
+  isPrimary: Boolean
+  isSelected: Boolean
+  colorHex: String
+  pushActivities: Boolean
+  pushProposals: Boolean
+  pushFollowUps: Boolean
+  pushTasks: Boolean
+  targetedEvents: TechCalendarEventRelateToManyForUpdateInput
+  eventLinks: TechCalendarEventGoogleLinkRelateToManyForUpdateInput
+}
+
+input GoogleCalendarAccountRelateToOneForUpdateInput {
+  create: GoogleCalendarAccountCreateInput
+  connect: GoogleCalendarAccountWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechCalendarEventGoogleLinkRelateToManyForUpdateInput {
+  disconnect: [TechCalendarEventGoogleLinkWhereUniqueInput!]
+  set: [TechCalendarEventGoogleLinkWhereUniqueInput!]
+  create: [TechCalendarEventGoogleLinkCreateInput!]
+  connect: [TechCalendarEventGoogleLinkWhereUniqueInput!]
+}
+
+input GoogleCalendarSelectionUpdateArgs {
+  where: GoogleCalendarSelectionWhereUniqueInput!
+  data: GoogleCalendarSelectionUpdateInput!
+}
+
+input GoogleCalendarSelectionCreateInput {
+  account: GoogleCalendarAccountRelateToOneForCreateInput
+  googleCalendarId: String
+  calendarName: String
+  isPrimary: Boolean
+  isSelected: Boolean
+  colorHex: String
+  pushActivities: Boolean
+  pushProposals: Boolean
+  pushFollowUps: Boolean
+  pushTasks: Boolean
+  targetedEvents: TechCalendarEventRelateToManyForCreateInput
+  eventLinks: TechCalendarEventGoogleLinkRelateToManyForCreateInput
+}
+
+input GoogleCalendarAccountRelateToOneForCreateInput {
+  create: GoogleCalendarAccountCreateInput
+  connect: GoogleCalendarAccountWhereUniqueInput
+}
+
+input TechCalendarEventGoogleLinkRelateToManyForCreateInput {
+  create: [TechCalendarEventGoogleLinkCreateInput!]
+  connect: [TechCalendarEventGoogleLinkWhereUniqueInput!]
+}
+
+type TechCalendarEvent {
+  id: ID!
+  title: String
+  description: String
+  startAt: DateTime
+  endAt: DateTime
+  allDay: Boolean
+  location: String
+  sourceType: String
+  salesActivity: TechSalesActivity
+  followUpTask: TechFollowUpTask
+  task: TechTask
+  proposal: TechProposal
+  createdBy: User
+  company: SaasCompany
+  workspace: SaasWorkspace
+  googleTargets(where: GoogleCalendarSelectionWhereInput! = {}, orderBy: [GoogleCalendarSelectionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: GoogleCalendarSelectionWhereUniqueInput): [GoogleCalendarSelection!]
+  googleTargetsCount(where: GoogleCalendarSelectionWhereInput! = {}): Int
+  googleLinks(where: TechCalendarEventGoogleLinkWhereInput! = {}, orderBy: [TechCalendarEventGoogleLinkOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechCalendarEventGoogleLinkWhereUniqueInput): [TechCalendarEventGoogleLink!]
+  googleLinksCount(where: TechCalendarEventGoogleLinkWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechCalendarEventWhereUniqueInput {
+  id: ID
+  salesActivity: TechSalesActivityWhereUniqueInput
+  followUpTask: TechFollowUpTaskWhereUniqueInput
+  task: TechTaskWhereUniqueInput
+  proposal: TechProposalWhereUniqueInput
+}
+
+input TechCalendarEventWhereInput {
+  AND: [TechCalendarEventWhereInput!]
+  OR: [TechCalendarEventWhereInput!]
+  NOT: [TechCalendarEventWhereInput!]
+  id: IDFilter
+  title: StringFilter
+  description: StringNullableFilter
+  startAt: DateTimeFilter
+  endAt: DateTimeNullableFilter
+  allDay: BooleanFilter
+  location: StringNullableFilter
+  sourceType: StringFilter
+  salesActivity: TechSalesActivityWhereInput
+  followUpTask: TechFollowUpTaskWhereInput
+  task: TechTaskWhereInput
+  proposal: TechProposalWhereInput
+  createdBy: UserWhereInput
+  company: SaasCompanyWhereInput
+  workspace: SaasWorkspaceWhereInput
+  googleTargets: GoogleCalendarSelectionManyRelationFilter
+  googleLinks: TechCalendarEventGoogleLinkManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input TechCalendarEventOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  description: OrderDirection
+  startAt: OrderDirection
+  endAt: OrderDirection
+  allDay: OrderDirection
+  location: OrderDirection
+  sourceType: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TechCalendarEventUpdateInput {
+  title: String
+  description: String
+  startAt: DateTime
+  endAt: DateTime
+  allDay: Boolean
+  location: String
+  sourceType: String
+  salesActivity: TechSalesActivityRelateToOneForUpdateInput
+  followUpTask: TechFollowUpTaskRelateToOneForUpdateInput
+  task: TechTaskRelateToOneForUpdateInput
+  proposal: TechProposalRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  company: SaasCompanyRelateToOneForUpdateInput
+  workspace: SaasWorkspaceRelateToOneForUpdateInput
+  googleTargets: GoogleCalendarSelectionRelateToManyForUpdateInput
+  googleLinks: TechCalendarEventGoogleLinkRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechSalesActivityRelateToOneForUpdateInput {
+  create: TechSalesActivityCreateInput
+  connect: TechSalesActivityWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechFollowUpTaskRelateToOneForUpdateInput {
+  create: TechFollowUpTaskCreateInput
+  connect: TechFollowUpTaskWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechTaskRelateToOneForUpdateInput {
+  create: TechTaskCreateInput
+  connect: TechTaskWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechCalendarEventUpdateArgs {
+  where: TechCalendarEventWhereUniqueInput!
+  data: TechCalendarEventUpdateInput!
+}
+
+input TechCalendarEventCreateInput {
+  title: String
+  description: String
+  startAt: DateTime
+  endAt: DateTime
+  allDay: Boolean
+  location: String
+  sourceType: String
+  salesActivity: TechSalesActivityRelateToOneForCreateInput
+  followUpTask: TechFollowUpTaskRelateToOneForCreateInput
+  task: TechTaskRelateToOneForCreateInput
+  proposal: TechProposalRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  company: SaasCompanyRelateToOneForCreateInput
+  workspace: SaasWorkspaceRelateToOneForCreateInput
+  googleTargets: GoogleCalendarSelectionRelateToManyForCreateInput
+  googleLinks: TechCalendarEventGoogleLinkRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TechSalesActivityRelateToOneForCreateInput {
+  create: TechSalesActivityCreateInput
+  connect: TechSalesActivityWhereUniqueInput
+}
+
+input TechFollowUpTaskRelateToOneForCreateInput {
+  create: TechFollowUpTaskCreateInput
+  connect: TechFollowUpTaskWhereUniqueInput
+}
+
+input TechTaskRelateToOneForCreateInput {
+  create: TechTaskCreateInput
+  connect: TechTaskWhereUniqueInput
+}
+
+type TechCalendarEventGoogleLink {
+  id: ID!
+  event: TechCalendarEvent
+  calendarSelection: GoogleCalendarSelection
+  googleEventId: String
+  lastPushedAt: DateTime
+  lastPushStatus: String
+  lastPushError: String
+}
+
+input TechCalendarEventGoogleLinkWhereUniqueInput {
+  id: ID
+}
+
+input TechCalendarEventGoogleLinkWhereInput {
+  AND: [TechCalendarEventGoogleLinkWhereInput!]
+  OR: [TechCalendarEventGoogleLinkWhereInput!]
+  NOT: [TechCalendarEventGoogleLinkWhereInput!]
+  id: IDFilter
+  event: TechCalendarEventWhereInput
+  calendarSelection: GoogleCalendarSelectionWhereInput
+  googleEventId: StringNullableFilter
+  lastPushedAt: DateTimeNullableFilter
+  lastPushStatus: StringNullableFilter
+  lastPushError: StringNullableFilter
+}
+
+input TechCalendarEventGoogleLinkOrderByInput {
+  id: OrderDirection
+  googleEventId: OrderDirection
+  lastPushedAt: OrderDirection
+  lastPushStatus: OrderDirection
+  lastPushError: OrderDirection
+}
+
+input TechCalendarEventGoogleLinkUpdateInput {
+  event: TechCalendarEventRelateToOneForUpdateInput
+  calendarSelection: GoogleCalendarSelectionRelateToOneForUpdateInput
+  googleEventId: String
+  lastPushedAt: DateTime
+  lastPushStatus: String
+  lastPushError: String
+}
+
+input GoogleCalendarSelectionRelateToOneForUpdateInput {
+  create: GoogleCalendarSelectionCreateInput
+  connect: GoogleCalendarSelectionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TechCalendarEventGoogleLinkUpdateArgs {
+  where: TechCalendarEventGoogleLinkWhereUniqueInput!
+  data: TechCalendarEventGoogleLinkUpdateInput!
+}
+
+input TechCalendarEventGoogleLinkCreateInput {
+  event: TechCalendarEventRelateToOneForCreateInput
+  calendarSelection: GoogleCalendarSelectionRelateToOneForCreateInput
+  googleEventId: String
+  lastPushedAt: DateTime
+  lastPushStatus: String
+  lastPushError: String
+}
+
+input GoogleCalendarSelectionRelateToOneForCreateInput {
+  create: GoogleCalendarSelectionCreateInput
+  connect: GoogleCalendarSelectionWhereUniqueInput
+}
+
+type TechGoogleCalendarSyncLog {
+  id: ID!
+  account: GoogleCalendarAccount
+  direction: String
+  operation: String
+  success: Boolean
+  errorMessage: String
+  durationMs: Int
+  createdAt: DateTime
+}
+
+input TechGoogleCalendarSyncLogWhereUniqueInput {
+  id: ID
+}
+
+input TechGoogleCalendarSyncLogWhereInput {
+  AND: [TechGoogleCalendarSyncLogWhereInput!]
+  OR: [TechGoogleCalendarSyncLogWhereInput!]
+  NOT: [TechGoogleCalendarSyncLogWhereInput!]
+  id: IDFilter
+  account: GoogleCalendarAccountWhereInput
+  direction: StringFilter
+  operation: StringFilter
+  success: BooleanFilter
+  errorMessage: StringNullableFilter
+  durationMs: IntNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input TechGoogleCalendarSyncLogOrderByInput {
+  id: OrderDirection
+  direction: OrderDirection
+  operation: OrderDirection
+  success: OrderDirection
+  errorMessage: OrderDirection
+  durationMs: OrderDirection
+  createdAt: OrderDirection
+}
+
+input TechGoogleCalendarSyncLogUpdateInput {
+  account: GoogleCalendarAccountRelateToOneForUpdateInput
+  direction: String
+  operation: String
+  success: Boolean
+  errorMessage: String
+  durationMs: Int
+  createdAt: DateTime
+}
+
+input TechGoogleCalendarSyncLogUpdateArgs {
+  where: TechGoogleCalendarSyncLogWhereUniqueInput!
+  data: TechGoogleCalendarSyncLogUpdateInput!
+}
+
+input TechGoogleCalendarSyncLogCreateInput {
+  account: GoogleCalendarAccountRelateToOneForCreateInput
+  direction: String
+  operation: String
+  success: Boolean
+  errorMessage: String
+  durationMs: Int
+  createdAt: DateTime
+}
+
 type TokenNotification {
   id: ID!
   token: String
@@ -7009,6 +7630,12 @@ type User {
   inegiSyncLogsCount(where: TechInegiSyncLogWhereInput! = {}): Int
   aiCallLogs(where: TechAiCallLogWhereInput! = {}, orderBy: [TechAiCallLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechAiCallLogWhereUniqueInput): [TechAiCallLog!]
   aiCallLogsCount(where: TechAiCallLogWhereInput! = {}): Int
+  googleCalendarAccounts(where: GoogleCalendarAccountWhereInput! = {}, orderBy: [GoogleCalendarAccountOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: GoogleCalendarAccountWhereUniqueInput): [GoogleCalendarAccount!]
+  googleCalendarAccountsCount(where: GoogleCalendarAccountWhereInput! = {}): Int
+  connectedGoogleCalendarAccounts(where: GoogleCalendarAccountWhereInput! = {}, orderBy: [GoogleCalendarAccountOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: GoogleCalendarAccountWhereUniqueInput): [GoogleCalendarAccount!]
+  connectedGoogleCalendarAccountsCount(where: GoogleCalendarAccountWhereInput! = {}): Int
+  createdCalendarEvents(where: TechCalendarEventWhereInput! = {}, orderBy: [TechCalendarEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechCalendarEventWhereUniqueInput): [TechCalendarEvent!]
+  createdCalendarEventsCount(where: TechCalendarEventWhereInput! = {}): Int
   whatsappMessagesSent(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
   whatsappMessagesSentCount(where: TechWhatsAppMessageWhereInput! = {}): Int
   whatsappMessagesAsTeamMember(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
@@ -7098,6 +7725,9 @@ input UserWhereInput {
   leadSyncLogs: TechLeadSyncLogManyRelationFilter
   inegiSyncLogs: TechInegiSyncLogManyRelationFilter
   aiCallLogs: TechAiCallLogManyRelationFilter
+  googleCalendarAccounts: GoogleCalendarAccountManyRelationFilter
+  connectedGoogleCalendarAccounts: GoogleCalendarAccountManyRelationFilter
+  createdCalendarEvents: TechCalendarEventManyRelationFilter
   whatsappMessagesSent: TechWhatsAppMessageManyRelationFilter
   whatsappMessagesAsTeamMember: TechWhatsAppMessageManyRelationFilter
   whatsappInternalChatsStarted: TechWhatsAppMessageManyRelationFilter
@@ -7224,6 +7854,9 @@ input UserUpdateInput {
   leadSyncLogs: TechLeadSyncLogRelateToManyForUpdateInput
   inegiSyncLogs: TechInegiSyncLogRelateToManyForUpdateInput
   aiCallLogs: TechAiCallLogRelateToManyForUpdateInput
+  googleCalendarAccounts: GoogleCalendarAccountRelateToManyForUpdateInput
+  connectedGoogleCalendarAccounts: GoogleCalendarAccountRelateToManyForUpdateInput
+  createdCalendarEvents: TechCalendarEventRelateToManyForUpdateInput
   whatsappMessagesSent: TechWhatsAppMessageRelateToManyForUpdateInput
   whatsappMessagesAsTeamMember: TechWhatsAppMessageRelateToManyForUpdateInput
   whatsappInternalChatsStarted: TechWhatsAppMessageRelateToManyForUpdateInput
@@ -7333,6 +7966,9 @@ input UserCreateInput {
   leadSyncLogs: TechLeadSyncLogRelateToManyForCreateInput
   inegiSyncLogs: TechInegiSyncLogRelateToManyForCreateInput
   aiCallLogs: TechAiCallLogRelateToManyForCreateInput
+  googleCalendarAccounts: GoogleCalendarAccountRelateToManyForCreateInput
+  connectedGoogleCalendarAccounts: GoogleCalendarAccountRelateToManyForCreateInput
+  createdCalendarEvents: TechCalendarEventRelateToManyForCreateInput
   whatsappMessagesSent: TechWhatsAppMessageRelateToManyForCreateInput
   whatsappMessagesAsTeamMember: TechWhatsAppMessageRelateToManyForCreateInput
   whatsappInternalChatsStarted: TechWhatsAppMessageRelateToManyForCreateInput
@@ -7914,6 +8550,36 @@ type Mutation {
   updateTechWhatsAppMessages(data: [TechWhatsAppMessageUpdateArgs!]!): [TechWhatsAppMessage]
   deleteTechWhatsAppMessage(where: TechWhatsAppMessageWhereUniqueInput!): TechWhatsAppMessage
   deleteTechWhatsAppMessages(where: [TechWhatsAppMessageWhereUniqueInput!]!): [TechWhatsAppMessage]
+  createGoogleCalendarAccount(data: GoogleCalendarAccountCreateInput!): GoogleCalendarAccount
+  createGoogleCalendarAccounts(data: [GoogleCalendarAccountCreateInput!]!): [GoogleCalendarAccount]
+  updateGoogleCalendarAccount(where: GoogleCalendarAccountWhereUniqueInput!, data: GoogleCalendarAccountUpdateInput!): GoogleCalendarAccount
+  updateGoogleCalendarAccounts(data: [GoogleCalendarAccountUpdateArgs!]!): [GoogleCalendarAccount]
+  deleteGoogleCalendarAccount(where: GoogleCalendarAccountWhereUniqueInput!): GoogleCalendarAccount
+  deleteGoogleCalendarAccounts(where: [GoogleCalendarAccountWhereUniqueInput!]!): [GoogleCalendarAccount]
+  createGoogleCalendarSelection(data: GoogleCalendarSelectionCreateInput!): GoogleCalendarSelection
+  createGoogleCalendarSelections(data: [GoogleCalendarSelectionCreateInput!]!): [GoogleCalendarSelection]
+  updateGoogleCalendarSelection(where: GoogleCalendarSelectionWhereUniqueInput!, data: GoogleCalendarSelectionUpdateInput!): GoogleCalendarSelection
+  updateGoogleCalendarSelections(data: [GoogleCalendarSelectionUpdateArgs!]!): [GoogleCalendarSelection]
+  deleteGoogleCalendarSelection(where: GoogleCalendarSelectionWhereUniqueInput!): GoogleCalendarSelection
+  deleteGoogleCalendarSelections(where: [GoogleCalendarSelectionWhereUniqueInput!]!): [GoogleCalendarSelection]
+  createTechCalendarEvent(data: TechCalendarEventCreateInput!): TechCalendarEvent
+  createTechCalendarEvents(data: [TechCalendarEventCreateInput!]!): [TechCalendarEvent]
+  updateTechCalendarEvent(where: TechCalendarEventWhereUniqueInput!, data: TechCalendarEventUpdateInput!): TechCalendarEvent
+  updateTechCalendarEvents(data: [TechCalendarEventUpdateArgs!]!): [TechCalendarEvent]
+  deleteTechCalendarEvent(where: TechCalendarEventWhereUniqueInput!): TechCalendarEvent
+  deleteTechCalendarEvents(where: [TechCalendarEventWhereUniqueInput!]!): [TechCalendarEvent]
+  createTechCalendarEventGoogleLink(data: TechCalendarEventGoogleLinkCreateInput!): TechCalendarEventGoogleLink
+  createTechCalendarEventGoogleLinks(data: [TechCalendarEventGoogleLinkCreateInput!]!): [TechCalendarEventGoogleLink]
+  updateTechCalendarEventGoogleLink(where: TechCalendarEventGoogleLinkWhereUniqueInput!, data: TechCalendarEventGoogleLinkUpdateInput!): TechCalendarEventGoogleLink
+  updateTechCalendarEventGoogleLinks(data: [TechCalendarEventGoogleLinkUpdateArgs!]!): [TechCalendarEventGoogleLink]
+  deleteTechCalendarEventGoogleLink(where: TechCalendarEventGoogleLinkWhereUniqueInput!): TechCalendarEventGoogleLink
+  deleteTechCalendarEventGoogleLinks(where: [TechCalendarEventGoogleLinkWhereUniqueInput!]!): [TechCalendarEventGoogleLink]
+  createTechGoogleCalendarSyncLog(data: TechGoogleCalendarSyncLogCreateInput!): TechGoogleCalendarSyncLog
+  createTechGoogleCalendarSyncLogs(data: [TechGoogleCalendarSyncLogCreateInput!]!): [TechGoogleCalendarSyncLog]
+  updateTechGoogleCalendarSyncLog(where: TechGoogleCalendarSyncLogWhereUniqueInput!, data: TechGoogleCalendarSyncLogUpdateInput!): TechGoogleCalendarSyncLog
+  updateTechGoogleCalendarSyncLogs(data: [TechGoogleCalendarSyncLogUpdateArgs!]!): [TechGoogleCalendarSyncLog]
+  deleteTechGoogleCalendarSyncLog(where: TechGoogleCalendarSyncLogWhereUniqueInput!): TechGoogleCalendarSyncLog
+  deleteTechGoogleCalendarSyncLogs(where: [TechGoogleCalendarSyncLogWhereUniqueInput!]!): [TechGoogleCalendarSyncLog]
   createTokenNotification(data: TokenNotificationCreateInput!): TokenNotification
   createTokenNotifications(data: [TokenNotificationCreateInput!]!): [TokenNotification]
   updateTokenNotification(where: TokenNotificationWhereUniqueInput!, data: TokenNotificationUpdateInput!): TokenNotification
@@ -7969,6 +8635,12 @@ type Mutation {
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
+  getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
+  connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
+  disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
+  refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
+  toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
+  setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   customAuth(email: String!, name: String, lastName: String): customAuthType
   authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -8203,6 +8875,21 @@ type Query {
   techWhatsAppMessage(where: TechWhatsAppMessageWhereUniqueInput!): TechWhatsAppMessage
   techWhatsAppMessages(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
   techWhatsAppMessagesCount(where: TechWhatsAppMessageWhereInput! = {}): Int
+  googleCalendarAccount(where: GoogleCalendarAccountWhereUniqueInput!): GoogleCalendarAccount
+  googleCalendarAccounts(where: GoogleCalendarAccountWhereInput! = {}, orderBy: [GoogleCalendarAccountOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: GoogleCalendarAccountWhereUniqueInput): [GoogleCalendarAccount!]
+  googleCalendarAccountsCount(where: GoogleCalendarAccountWhereInput! = {}): Int
+  googleCalendarSelection(where: GoogleCalendarSelectionWhereUniqueInput!): GoogleCalendarSelection
+  googleCalendarSelections(where: GoogleCalendarSelectionWhereInput! = {}, orderBy: [GoogleCalendarSelectionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: GoogleCalendarSelectionWhereUniqueInput): [GoogleCalendarSelection!]
+  googleCalendarSelectionsCount(where: GoogleCalendarSelectionWhereInput! = {}): Int
+  techCalendarEvent(where: TechCalendarEventWhereUniqueInput!): TechCalendarEvent
+  techCalendarEvents(where: TechCalendarEventWhereInput! = {}, orderBy: [TechCalendarEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechCalendarEventWhereUniqueInput): [TechCalendarEvent!]
+  techCalendarEventsCount(where: TechCalendarEventWhereInput! = {}): Int
+  techCalendarEventGoogleLink(where: TechCalendarEventGoogleLinkWhereUniqueInput!): TechCalendarEventGoogleLink
+  techCalendarEventGoogleLinks(where: TechCalendarEventGoogleLinkWhereInput! = {}, orderBy: [TechCalendarEventGoogleLinkOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechCalendarEventGoogleLinkWhereUniqueInput): [TechCalendarEventGoogleLink!]
+  techCalendarEventGoogleLinksCount(where: TechCalendarEventGoogleLinkWhereInput! = {}): Int
+  techGoogleCalendarSyncLog(where: TechGoogleCalendarSyncLogWhereUniqueInput!): TechGoogleCalendarSyncLog
+  techGoogleCalendarSyncLogs(where: TechGoogleCalendarSyncLogWhereInput! = {}, orderBy: [TechGoogleCalendarSyncLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechGoogleCalendarSyncLogWhereUniqueInput): [TechGoogleCalendarSyncLog!]
+  techGoogleCalendarSyncLogsCount(where: TechGoogleCalendarSyncLogWhereInput! = {}): Int
   tokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
   tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
   tokenNotificationsCount(where: TokenNotificationWhereInput! = {}): Int
@@ -8226,6 +8913,7 @@ type Query {
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
+  syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
@@ -8954,6 +9642,55 @@ type DiscoverWhatsappAccountResult {
   templateError: String
 }
 
+type GoogleCalendarAuthUrlResult {
+  success: Boolean!
+  message: String
+  url: String
+}
+
+type ConnectGoogleCalendarResult {
+  success: Boolean!
+  message: String!
+  accountId: ID
+  googleAccountEmail: String
+  calendarsCount: Int
+}
+
+type GoogleCalendarActionResult {
+  success: Boolean!
+  message: String!
+}
+
+type RefreshGoogleCalendarListResult {
+  success: Boolean!
+  message: String!
+  calendarsCount: Int
+}
+
+type ToggleGoogleCalendarSelectionResult {
+  success: Boolean!
+  message: String!
+  selectionId: ID
+  isSelected: Boolean
+}
+
+input GoogleCalendarPushSettingsInput {
+  pushActivities: Boolean
+  pushProposals: Boolean
+  pushFollowUps: Boolean
+  pushTasks: Boolean
+}
+
+type SetGoogleCalendarPushSettingsResult {
+  success: Boolean!
+  message: String!
+  selectionId: ID
+  pushActivities: Boolean
+  pushProposals: Boolean
+  pushFollowUps: Boolean
+  pushTasks: Boolean
+}
+
 type AnimalMultimediaImage {
   id: ID!
   url: String
@@ -9173,4 +9910,27 @@ type CompanyWhatsappTeamResult {
   success: Boolean!
   message: String!
   members: [WhatsAppTeamMember!]!
+}
+
+type GoogleCalendarPulledEvent {
+  id: String!
+  selectionId: ID!
+  calendarId: String!
+  calendarName: String!
+  accountEmail: String!
+  colorHex: String
+  title: String!
+  description: String
+  location: String
+  start: String!
+  end: String
+  allDay: Boolean!
+  htmlLink: String
+  kadeshEventId: ID
+}
+
+type SyncGoogleCalendarNowResult {
+  success: Boolean!
+  message: String
+  events: [GoogleCalendarPulledEvent!]!
 }

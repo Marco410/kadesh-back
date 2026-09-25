@@ -68,6 +68,11 @@ import SaasSubscriptionLog from "./Saas/SaasSubscriptionLog/SaasSubscriptionLog"
 import SaasWorkspace from "./Saas/SaasWorkspace/SaasWorkspace";
 import SaasWorkspaceCrmStatus from "./Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus";
 import TechWhatsAppMessage from "./Saas/Tech/WhatsAppMessage/TechWhatsAppMessage";
+import GoogleCalendarAccount from "./Saas/GoogleCalendarAccount/GoogleCalendarAccount";
+import GoogleCalendarSelection from "./Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection";
+import TechCalendarEvent from "./Saas/Tech/CalendarEvent/TechCalendarEvent";
+import TechCalendarEventGoogleLink from "./Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink";
+import TechGoogleCalendarSyncLog from "./Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog";
 
 export default {
   Ad,
@@ -136,6 +141,11 @@ export default {
   TechTask,
   TechStatusBusinessLead,
   TechWhatsAppMessage,
+  GoogleCalendarAccount,
+  GoogleCalendarSelection,
+  TechCalendarEvent,
+  TechCalendarEventGoogleLink,
+  TechGoogleCalendarSyncLog,
   TokenNotification,
   User,
   UserAuthLog,

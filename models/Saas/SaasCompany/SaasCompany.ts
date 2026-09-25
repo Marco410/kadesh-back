@@ -330,6 +330,16 @@ export default list({
         description: "Último evento real de mensajes recibido con firma válida. Vacío = nunca ha llegado uno (¿App sin publicar en modo Live?)",
       },
     }),
+    googleCalendarAccounts: relationship({
+      ref: "GoogleCalendarAccount.company",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar compartidas por la empresa" },
+    }),
+    calendarEvents: relationship({
+      ref: "TechCalendarEvent.company",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de calendario de la empresa" },
+    }),
     whatsappMessages: relationship({
       ref: "TechWhatsAppMessage.company",
       many: true,

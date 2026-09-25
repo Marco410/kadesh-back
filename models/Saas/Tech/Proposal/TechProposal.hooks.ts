@@ -1,11 +1,13 @@
 import { PROPOSAL_STATUS } from "../crm/constants";
 import { PIPELINE_STATUS } from "../crm/constants";
 import { validateTechStatusCrmInput } from "../../../../utils/validation/validateTechStatusCrm";
+import { crmCalendarHooks } from "../../../../utils/googleCalendar/crmEvents";
 
 /**
  * Cuando una propuesta pasa a "Aceptada", marcar el BusinessLead como "Cerrado Ganado".
  */
 export const proposalHooks = {
+  beforeOperation: crmCalendarHooks.beforeOperation,
   validateInput: async ({
     context,
     resolvedData,
@@ -28,6 +30,9 @@ export const proposalHooks = {
     listKey,
   }: any) => {
     if (listKey !== "TechProposal" || !item?.id) return;
+
+    // Evento de calendario ligado a la propuesta (nunca lanza).
+    await crmCalendarHooks.afterOperation({ operation, item, context, listKey });
 
     if (
       operation === "update" &&
