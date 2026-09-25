@@ -14570,6 +14570,132 @@ var resolver12 = {
 };
 var grantAdminCredits_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
 
+// graphql/customs/mutations/saas/updatePlanFeatureCatalog.ts
+var typeDefs13 = `
+  input PlanFeatureCatalogItemInput {
+    key: String!
+    name: String!
+    description: String!
+  }
+
+  input UpdatePlanFeatureCatalogInput {
+    features: [PlanFeatureCatalogItemInput!]!
+  }
+
+  type UpdatePlanFeatureCatalogResult {
+    success: Boolean!
+    message: String!
+    plansUpdated: Int
+    subscriptionsUpdated: Int
+  }
+
+  type Mutation {
+    updatePlanFeatureCatalog(
+      input: UpdatePlanFeatureCatalogInput!
+    ): UpdatePlanFeatureCatalogResult!
+  }
+`;
+var definition13 = `
+  updatePlanFeatureCatalog(input: UpdatePlanFeatureCatalogInput!): UpdatePlanFeatureCatalogResult!
+`;
+function fail(message) {
+  return {
+    success: false,
+    message,
+    plansUpdated: null,
+    subscriptionsUpdated: null
+  };
+}
+function asFeatureArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (v) => Boolean(v) && typeof v === "object" && typeof v.key === "string" && Boolean(v.key)
+  );
+}
+function applyFeatureCatalog(current, catalogByKey) {
+  const rows = asFeatureArray(current);
+  let changed = false;
+  const next = rows.map((row) => {
+    const meta = catalogByKey.get(row.key);
+    if (!meta) return row;
+    if (row.name === meta.name && row.description === meta.description) {
+      return row;
+    }
+    changed = true;
+    return {
+      ...row,
+      name: meta.name,
+      description: meta.description
+    };
+  });
+  return { next, changed };
+}
+var resolver13 = {
+  updatePlanFeatureCatalog: async (_root, { input }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return fail("Solo operaciones puede editar los m\xF3dulos.");
+    }
+    const raw = Array.isArray(input?.features) ? input.features : [];
+    if (raw.length === 0) {
+      return fail("Manda al menos un m\xF3dulo para actualizar.");
+    }
+    const catalogByKey = /* @__PURE__ */ new Map();
+    for (const item of raw) {
+      const key = String(item?.key ?? "").trim();
+      const name = String(item?.name ?? "").trim();
+      const description = String(item?.description ?? "").trim();
+      if (!key) continue;
+      if (!name) {
+        return fail(`El m\xF3dulo "${key}" necesita un nombre.`);
+      }
+      catalogByKey.set(key, { key, name, description });
+    }
+    if (catalogByKey.size === 0) {
+      return fail("No hay m\xF3dulos v\xE1lidos para actualizar.");
+    }
+    const sudo = context.sudo();
+    const plans = await sudo.query.SaasPlan.findMany({
+      query: "id planFeatures"
+    });
+    let plansUpdated = 0;
+    for (const plan of plans) {
+      const { next, changed } = applyFeatureCatalog(
+        plan.planFeatures,
+        catalogByKey
+      );
+      if (!changed) continue;
+      await sudo.query.SaasPlan.updateOne({
+        where: { id: plan.id },
+        data: { planFeatures: next }
+      });
+      plansUpdated += 1;
+    }
+    const subscriptions = await sudo.query.SaasCompanySubscription.findMany({
+      query: "id planFeatures"
+    });
+    let subscriptionsUpdated = 0;
+    for (const sub of subscriptions) {
+      const { next, changed } = applyFeatureCatalog(
+        sub.planFeatures,
+        catalogByKey
+      );
+      if (!changed) continue;
+      await sudo.query.SaasCompanySubscription.updateOne({
+        where: { id: sub.id },
+        data: { planFeatures: next }
+      });
+      subscriptionsUpdated += 1;
+    }
+    return {
+      success: true,
+      message: plansUpdated === 0 && subscriptionsUpdated === 0 ? "Sin cambios: el texto ya era el mismo en todos lados." : `Actualizado en ${plansUpdated} plan${plansUpdated === 1 ? "" : "es"} y ${subscriptionsUpdated} suscripci\xF3n${subscriptionsUpdated === 1 ? "" : "es"}.`,
+      plansUpdated,
+      subscriptionsUpdated
+    };
+  }
+};
+var updatePlanFeatureCatalog_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+
 // graphql/customs/mutations/sendTestEmail.ts
 var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function mailDiagnostics() {
@@ -14596,7 +14722,7 @@ function buildTestEmailHtml() {
     </div>
   `;
 }
-var typeDefs13 = `
+var typeDefs14 = `
   type SendTestEmailResult {
     success: Boolean!
     message: String!
@@ -14610,10 +14736,10 @@ var typeDefs13 = `
     sendTestEmail(email: String!): SendTestEmailResult!
   }
 `;
-var definition13 = `
+var definition14 = `
   sendTestEmail(email: String!): SendTestEmailResult!
 `;
-var resolver13 = {
+var resolver14 = {
   sendTestEmail: async (_root, { email }, context) => {
     const session2 = context.session;
     const diagnostics = mailDiagnostics();
@@ -14675,7 +14801,7 @@ var resolver13 = {
     }
   }
 };
-var sendTestEmail_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+var sendTestEmail_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
 
 // utils/ai/errors.ts
 var AiNotConfiguredError = class extends Error {
@@ -15378,7 +15504,7 @@ function denyCompanyAiUseMessage(session2) {
 }
 
 // graphql/customs/mutations/ai/updateCompanyAiSettings.ts
-var typeDefs14 = `
+var typeDefs15 = `
   input UpdateCompanyAiSettingsInput {
     companyId: ID!
     billingMode: String
@@ -15407,7 +15533,7 @@ var typeDefs14 = `
     testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
   }
 `;
-var definition14 = `
+var definition15 = `
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
 `;
@@ -15432,7 +15558,7 @@ function friendlyAiError(err) {
   }
   return err instanceof Error ? err.message : "Error al llamar a la IA";
 }
-var resolver14 = {
+var resolver15 = {
   updateCompanyAiSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyAi(session2, input.companyId)) {
@@ -15533,7 +15659,7 @@ var resolver14 = {
     }
   }
 };
-var updateCompanyAiSettings_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
+var updateCompanyAiSettings_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
 
 // utils/ai/dailyDigest.ts
 var DIGEST_TIMEZONE = "America/Mexico_City";
@@ -16037,7 +16163,7 @@ function parseMarketInsight(text65) {
 }
 
 // graphql/customs/ai/generateMarketInsight.ts
-var typeDefs15 = `
+var typeDefs16 = `
   type MarketInsightAction {
     title: String!
     detail: String!
@@ -16176,7 +16302,7 @@ var mutationResolver = {
   }
 };
 var generateMarketInsight_default = {
-  typeDefs: typeDefs15,
+  typeDefs: typeDefs16,
   queryDefinition,
   mutationDefinition,
   queryResolver,
@@ -16265,7 +16391,7 @@ async function saveProfilePlaybook(context, params) {
 }
 
 // graphql/customs/ai/dailyDigest.ts
-var typeDefs16 = `
+var typeDefs17 = `
   type DailyDigestAction {
     title: String!
     detail: String!
@@ -16486,7 +16612,7 @@ var mutationResolver2 = {
   }
 };
 var dailyDigest_default = {
-  typeDefs: typeDefs16,
+  typeDefs: typeDefs17,
   queryDefinition: queryDefinition2,
   mutationDefinition: mutationDefinition2,
   queryResolver: queryResolver2,
@@ -16699,7 +16825,7 @@ async function saveCompanyBrief(context, params) {
 }
 
 // graphql/customs/ai/companyBrief.ts
-var typeDefs17 = `
+var typeDefs18 = `
   type CompanyAiBriefPillar {
     key: String!
     title: String!
@@ -16849,7 +16975,7 @@ var mutationResolver3 = {
   }
 };
 var companyBrief_default = {
-  typeDefs: typeDefs17,
+  typeDefs: typeDefs18,
   queryDefinition: queryDefinition3,
   mutationDefinition: mutationDefinition3,
   queryResolver: queryResolver3,
@@ -17238,7 +17364,7 @@ async function fetchAndCacheIndicator(context, indicatorId, geographicCode, rece
 }
 
 // graphql/customs/mutations/inegi/syncEstablishmentsFromInegi.ts
-var typeDefs18 = `
+var typeDefs19 = `
   input SyncEstablishmentsFromInegiInput {
     lat: Float
     lng: Float
@@ -17264,7 +17390,7 @@ var typeDefs18 = `
     syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
   }
 `;
-var definition15 = `
+var definition16 = `
   syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
 `;
 function emptyResult(message, extras) {
@@ -17323,7 +17449,7 @@ async function fetchRows(input, cap) {
     "Indica lat/lng (b\xFAsqueda por radio) o stateCode (b\xFAsqueda por \xE1rea)"
   );
 }
-var resolver15 = {
+var resolver16 = {
   syncEstablishmentsFromInegi: async (_root, { input }, context) => {
     if (!isSignedIn(context.session)) {
       return emptyResult("Debes iniciar sesi\xF3n para sincronizar DENUE");
@@ -17377,7 +17503,7 @@ var resolver15 = {
     }
   }
 };
-var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs18, definition: definition15, resolver: resolver15 };
+var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs19, definition: definition16, resolver: resolver16 };
 
 // utils/constants/googlePlaceCategories.ts
 var GOOGLE_PLACE_CATEGORIES = [
@@ -17996,7 +18122,7 @@ var ESTABLISHMENT_QUERY = `
   lng
   economicActivity { id name scianCode }
 `;
-var typeDefs19 = `
+var typeDefs20 = `
   input SyncLeadsFromInegiInput {
     lat: Float!
     lng: Float!
@@ -18020,7 +18146,7 @@ var typeDefs19 = `
     syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
   }
 `;
-var definition16 = `
+var definition17 = `
   syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
 `;
 function emptyFields() {
@@ -18173,7 +18299,7 @@ async function assignEstablishment(context, establishment, companyId, userId, ca
   await ensureStatus(context, lead.id, companyId, userId);
   return "created";
 }
-var resolver16 = {
+var resolver17 = {
   syncLeadsFromInegi: async (_root, {
     input
   }, context) => {
@@ -18513,10 +18639,10 @@ var resolver16 = {
     return result;
   }
 };
-var syncLeadsFromInegi_default = { typeDefs: typeDefs19, definition: definition16, resolver: resolver16 };
+var syncLeadsFromInegi_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
 
 // graphql/customs/mutations/inegi/promoteInegiEstablishmentToLead.ts
-var typeDefs20 = `
+var typeDefs21 = `
   input PromoteInegiEstablishmentToLeadInput {
     establishmentId: ID!
     assignedSellerId: ID
@@ -18534,10 +18660,10 @@ var typeDefs20 = `
     promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
   }
 `;
-var definition17 = `
+var definition18 = `
   promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
 `;
-function fail(message) {
+function fail2(message) {
   return { success: false, message, businessLeadId: null, creditsCharged: 0 };
 }
 var ESTABLISHMENT_QUERY2 = `
@@ -18608,24 +18734,24 @@ function quotaMessage(blockingReason, remainingQuota, syncedCount, leadLimit) {
   }
   return null;
 }
-var resolver17 = {
+var resolver18 = {
   promoteInegiEstablishmentToLead: async (_root, { input }, context) => {
     if (!isSignedIn(context.session)) {
-      return fail("Debes iniciar sesi\xF3n para promover un establecimiento");
+      return fail2("Debes iniciar sesi\xF3n para promover un establecimiento");
     }
     const companyId = resolveAuthorizedCompanyId(
       context.session,
       input.companyId
     );
     if (!companyId) {
-      return fail(denyOtherCompanyMessage());
+      return fail2(denyOtherCompanyMessage());
     }
     const establishment = await context.sudo().query.TechInegiEstablishment.findOne({
       where: { id: input.establishmentId },
       query: ESTABLISHMENT_QUERY2
     });
     if (!establishment) {
-      return fail("Establecimiento INEGI no encontrado");
+      return fail2("Establecimiento INEGI no encontrado");
     }
     const credits = await getRemainingCredits(context, companyId);
     const blocked = quotaMessage(
@@ -18634,7 +18760,7 @@ var resolver17 = {
       credits.syncedCount,
       credits.leadLimit
     );
-    if (blocked) return fail(blocked);
+    if (blocked) return fail2(blocked);
     const userId = getSessionUserId(context.session);
     let sellerId = input.assignedSellerId ?? userId;
     if (input.assignedSellerId) {
@@ -18643,7 +18769,7 @@ var resolver17 = {
         query: "id company { id }"
       });
       if (!seller || seller.company?.id !== companyId) {
-        return fail("El vendedor no pertenece a tu empresa");
+        return fail2("El vendedor no pertenece a tu empresa");
       }
       sellerId = seller.id;
     } else {
@@ -18699,7 +18825,7 @@ var resolver17 = {
         notes: "Lead asignado desde cat\xE1logo INEGI DENUE"
       });
       if (!consumeResult.success) {
-        return fail("No se pudieron descontar cr\xE9ditos para asignar el lead");
+        return fail2("No se pudieron descontar cr\xE9ditos para asignar el lead");
       }
       return {
         success: true,
@@ -18763,7 +18889,7 @@ var resolver17 = {
         notes: "Lead promovido desde cat\xE1logo INEGI DENUE"
       });
       if (!consumeResult.success) {
-        return fail("No se pudieron descontar cr\xE9ditos para crear el lead");
+        return fail2("No se pudieron descontar cr\xE9ditos para crear el lead");
       }
       return {
         success: true,
@@ -18772,14 +18898,14 @@ var resolver17 = {
         creditsCharged: 1
       };
     } catch (err) {
-      return fail(err instanceof Error ? err.message : "Error creando lead");
+      return fail2(err instanceof Error ? err.message : "Error creando lead");
     }
   }
 };
-var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
+var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
 
 // graphql/customs/mutations/inegi/fetchInegiIndicator.ts
-var typeDefs21 = `
+var typeDefs22 = `
   input FetchInegiIndicatorInput {
     indicatorId: String!
     geographicCode: String!
@@ -18809,7 +18935,7 @@ var typeDefs21 = `
     fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   }
 `;
-var definition18 = `
+var definition19 = `
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
 `;
 var empty = {
@@ -18817,7 +18943,7 @@ var empty = {
   updated: 0,
   indicators: []
 };
-var resolver18 = {
+var resolver19 = {
   fetchInegiIndicator: async (_root, {
     input
   }, context) => {
@@ -18861,7 +18987,7 @@ var resolver18 = {
     }
   }
 };
-var fetchInegiIndicator_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
+var fetchInegiIndicator_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
 
 // graphql/customs/mutations/pet/veterinary/claimPetPlace.ts
 var PHONE_PATTERN = /^\+?\d{10,}$/;
@@ -18873,7 +18999,7 @@ function normalizePhone(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var typeDefs22 = `
+var typeDefs23 = `
   input ClaimPetPlaceInput {
     petPlaceId: String!
     role: String!
@@ -18888,10 +19014,10 @@ var typeDefs22 = `
     petPlaceId: String
   }
 `;
-var definition19 = `
+var definition20 = `
   claimPetPlace(input: ClaimPetPlaceInput!): ClaimPetPlaceResult!
 `;
-var resolver19 = {
+var resolver20 = {
   claimPetPlace: async (_root, {
     input
   }, context) => {
@@ -18984,7 +19110,7 @@ var resolver19 = {
     };
   }
 };
-var claimPetPlace_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
+var claimPetPlace_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
 
 // graphql/customs/mutations/pet/veterinary/ensurePetPlaceType.ts
 async function ensurePetPlaceType(context, value) {
@@ -19037,7 +19163,7 @@ function normalizePhone2(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var typeDefs23 = `
+var typeDefs24 = `
   input UpdateMyPetPlaceInput {
     petPlaceId: String!
     name: String
@@ -19078,10 +19204,10 @@ var typeDefs23 = `
     petPlaceId: String
   }
 `;
-var definition20 = `
+var definition21 = `
   updateMyPetPlace(input: UpdateMyPetPlaceInput!): UpdateMyPetPlaceResult!
 `;
-var resolver20 = {
+var resolver21 = {
   updateMyPetPlace: async (_root, {
     input
   }, context) => {
@@ -19340,10 +19466,10 @@ var resolver20 = {
     };
   }
 };
-var updateMyPetPlace_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
+var updateMyPetPlace_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
 
 // graphql/customs/mutations/pet/veterinary/verifyPetPlace.ts
-var typeDefs24 = `
+var typeDefs25 = `
   input VerifyPetPlaceInput {
     petPlaceId: String!
     approved: Boolean!
@@ -19356,10 +19482,10 @@ var typeDefs24 = `
     verified: Boolean
   }
 `;
-var definition21 = `
+var definition22 = `
   verifyPetPlace(input: VerifyPetPlaceInput!): VerifyPetPlaceResult!
 `;
-var resolver21 = {
+var resolver22 = {
   verifyPetPlace: async (_root, {
     input
   }, context) => {
@@ -19442,7 +19568,7 @@ var resolver21 = {
     }
   }
 };
-var verifyPetPlace_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
+var verifyPetPlace_default = { typeDefs: typeDefs25, definition: definition22, resolver: resolver22 };
 
 // graphql/customs/mutations/pet/veterinary/ownedPlace.ts
 async function requireOwnedVerifiedPlace(context, petPlaceId, query = "id name verified claimStatus user { id }") {
@@ -19478,7 +19604,7 @@ async function requireOwnedVerifiedPlace(context, petPlaceId, query = "id name v
 }
 
 // graphql/customs/mutations/pet/veterinary/requestPetPlaceService.ts
-var typeDefs25 = `
+var typeDefs26 = `
   input RequestPetPlaceServiceInput {
     petPlaceId: String!
     name: String!
@@ -19492,13 +19618,13 @@ var typeDefs25 = `
     status: String
   }
 `;
-var definition22 = `
+var definition23 = `
   requestPetPlaceService(input: RequestPetPlaceServiceInput!): RequestPetPlaceServiceResult!
 `;
 function normalizeName(value) {
   return value.trim().replace(/\s+/g, " ");
 }
-var resolver22 = {
+var resolver23 = {
   requestPetPlaceService: async (_root, { input }, context) => {
     const owned = await requireOwnedVerifiedPlace(context, input.petPlaceId);
     if ("success" in owned) return { ...owned, serviceId: null, status: null };
@@ -19577,12 +19703,12 @@ var resolver22 = {
     };
   }
 };
-var requestPetPlaceService_default = { typeDefs: typeDefs25, definition: definition22, resolver: resolver22 };
+var requestPetPlaceService_default = { typeDefs: typeDefs26, definition: definition23, resolver: resolver23 };
 
 // graphql/customs/mutations/pet/veterinary/createPetPlacePatient.ts
 var PHONE_PATTERN3 = /^\+?\d{10,}$/;
 var EMAIL_PATTERN = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-var typeDefs26 = `
+var typeDefs27 = `
   input CreatePetPlacePatientInput {
     petPlaceId: String!
     name: String!
@@ -19606,7 +19732,7 @@ var typeDefs26 = `
     patient: PetPlacePatient
   }
 `;
-var definition23 = `
+var definition24 = `
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
 `;
 function normalizePhone3(value) {
@@ -19616,7 +19742,7 @@ function normalizePhone3(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var resolver23 = {
+var resolver24 = {
   createPetPlacePatient: async (_root, {
     input
   }, context) => {
@@ -19701,10 +19827,10 @@ var resolver23 = {
     };
   }
 };
-var createPetPlacePatient_default = { typeDefs: typeDefs26, definition: definition23, resolver: resolver23 };
+var createPetPlacePatient_default = { typeDefs: typeDefs27, definition: definition24, resolver: resolver24 };
 
 // graphql/customs/mutations/pet/veterinary/createClinicAppointment.ts
-var typeDefs27 = `
+var typeDefs28 = `
   input CreateClinicAppointmentInput {
     petPlaceId: String!
     customerId: ID!
@@ -19722,10 +19848,10 @@ var typeDefs27 = `
     appointmentId: String
   }
 `;
-var definition24 = `
+var definition25 = `
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
 `;
-var resolver24 = {
+var resolver25 = {
   createClinicAppointment: async (_root, {
     input
   }, context) => {
@@ -19803,7 +19929,7 @@ var resolver24 = {
     }
   }
 };
-var createClinicAppointment_default = { typeDefs: typeDefs27, definition: definition24, resolver: resolver24 };
+var createClinicAppointment_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
 
 // graphql/customs/mutations/pet/veterinary/index.ts
 var veterinaryMutations = {
@@ -19835,7 +19961,7 @@ var veterinaryMutations = {
 var veterinary_default = veterinaryMutations;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs28 = `
+var typeDefs29 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -19845,10 +19971,10 @@ var typeDefs28 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition25 = `
+var definition26 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver25 = {
+var resolver26 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -19897,10 +20023,10 @@ var resolver25 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
+var unsubscribeBlog_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs29 = `
+var typeDefs30 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -19911,10 +20037,10 @@ var typeDefs29 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition26 = `
+var definition27 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver26 = {
+var resolver27 = {
   /**
    * Pensada para un cron externo (GitHub Actions, ver .github/workflows/publish-scheduled-posts.yml),
    * no para un usuario logueado: se autoriza con `CRON_SECRET`, no con sesión/rol.
@@ -19962,10 +20088,10 @@ var resolver26 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+var publishScheduledPosts_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs30 = `
+var typeDefs31 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -19976,7 +20102,7 @@ var typeDefs30 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition27 = `
+var definition28 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -19985,7 +20111,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver27 = {
+var resolver28 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -20053,7 +20179,7 @@ var resolver27 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -20141,7 +20267,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs31 = `
+var typeDefs32 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -20165,7 +20291,7 @@ var typeDefs31 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition28 = `
+var definition29 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -20181,7 +20307,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver28 = {
+var resolver29 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -20265,7 +20391,7 @@ var resolver28 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // utils/intregrations/whatsapp.ts
 var import_crypto5 = __toESM(require("crypto"));
@@ -20776,7 +20902,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs32 = `
+var typeDefs33 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -20790,10 +20916,10 @@ var typeDefs32 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition29 = `
+var definition30 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver29 = {
+var resolver30 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -20838,7 +20964,7 @@ var resolver29 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -20976,7 +21102,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs33 = `
+var typeDefs34 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -20987,10 +21113,10 @@ var typeDefs33 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition30 = `
+var definition31 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver30 = {
+var resolver31 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -21051,7 +21177,7 @@ var resolver30 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -21119,7 +21245,7 @@ function distinctSenders(messages) {
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs34 = `
+var typeDefs35 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -21136,7 +21262,7 @@ var typeDefs34 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition31 = `
+var definition32 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -21147,7 +21273,7 @@ var definition31 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver31 = {
+var resolver32 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -21225,10 +21351,10 @@ var resolver31 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs35 = `
+var typeDefs36 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -21238,13 +21364,13 @@ var typeDefs35 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
   }
 `;
-var definition32 = `
+var definition33 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
   return { success, message };
 }
-var resolver32 = {
+var resolver33 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -21306,7 +21432,7 @@ var resolver32 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
 var import_crypto6 = __toESM(require("crypto"));
@@ -21355,7 +21481,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs36 = `
+var typeDefs37 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -21366,7 +21492,7 @@ var typeDefs36 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition33 = `
+var definition34 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -21379,7 +21505,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver33 = {
+var resolver34 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -21463,10 +21589,10 @@ var resolver33 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs37 = `
+var typeDefs38 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -21476,13 +21602,13 @@ var typeDefs37 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition34 = `
+var definition35 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver34 = {
+var resolver35 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -21523,10 +21649,10 @@ var resolver34 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs38 = `
+var typeDefs39 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -21537,13 +21663,13 @@ var typeDefs38 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition35 = `
+var definition36 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver35 = {
+var resolver36 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -21572,7 +21698,7 @@ var resolver35 = {
     return toResult10(true, "Conversaci\xF3n enlazada al cliente", count);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -21585,7 +21711,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs39 = `
+var typeDefs40 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -21621,10 +21747,10 @@ var typeDefs39 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition36 = `
+var definition37 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
-function fail2(message, detail = null) {
+function fail3(message, detail = null) {
   return {
     success: false,
     message,
@@ -21638,7 +21764,7 @@ function fail2(message, detail = null) {
     templateError: null
   };
 }
-var resolver36 = {
+var resolver37 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -21648,53 +21774,53 @@ var resolver36 = {
   discoverWhatsappAccount: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
-      return fail2(denyCompanyWhatsappAccessMessage(session2));
+      return fail3(denyCompanyWhatsappAccessMessage(session2));
     }
     const appId = input.appId.trim();
     const appSecret = input.appSecret.trim();
     const accessToken = input.accessToken.trim();
     if (!appId || !appSecret || !accessToken) {
-      return fail2("Faltan datos: pega el App ID, el App Secret y el token.");
+      return fail3("Faltan datos: pega el App ID, el App Secret y el token.");
     }
     const existing = await context.sudo().query.SaasCompany.findOne({
       where: { id: input.companyId },
       query: "id whatsappBusinessAccountId whatsappPhoneNumberId"
     });
-    if (!existing) return fail2("No se encontr\xF3 la empresa");
+    if (!existing) return fail3("No se encontr\xF3 la empresa");
     let wabaIds;
     try {
       const info = await debugWhatsAppToken({ appId, appSecret, accessToken });
       if (!info.isValid) {
-        return fail2(
+        return fail3(
           "El token no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema.",
           info.invalidReason
         );
       }
       if (info.appId && info.appId !== appId) {
-        return fail2(
+        return fail3(
           `Ese token es de otra App de Meta (ID ${info.appId}), no de la App con ID ${appId}. Genera el token desde la misma App.`
         );
       }
       if (info.expiresAt !== 0 && info.expiresAt * 1e3 - Date.now() < MIN_TOKEN_LIFETIME_MS) {
-        return fail2(
+        return fail3(
           "Ese token es temporal y va a dejar de funcionar pronto. Genera uno permanente (sin fecha de expiraci\xF3n) con un usuario del sistema."
         );
       }
       const missing = REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
       if (missing.length > 0) {
-        return fail2(
+        return fail3(
           `Al token le falta el permiso: ${missing.join(" y ")}. Genera uno nuevo con los dos permisos (whatsapp_business_messaging y whatsapp_business_management).`
         );
       }
       if (info.wabaIds.length === 0) {
-        return fail2(
+        return fail3(
           "El token no da acceso a ninguna cuenta de WhatsApp Business. Al generarlo, asigna la cuenta de WhatsApp Business al usuario del sistema."
         );
       }
       wabaIds = info.wabaIds;
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail2(f.message, f.detail);
+      return fail3(f.message, f.detail);
     }
     const options = [];
     let firstListError = null;
@@ -21709,9 +21835,9 @@ var resolver36 = {
     if (options.length === 0) {
       if (firstListError) {
         const f = friendlyWhatsappError(firstListError);
-        return fail2(f.message, f.detail);
+        return fail3(f.message, f.detail);
       }
-      return fail2(
+      return fail3(
         "Encontramos tu cuenta de WhatsApp Business pero no tiene ning\xFAn n\xFAmero. Agrega uno en WhatsApp \u2192 Configuraci\xF3n de la API y vuelve a intentar."
       );
     }
@@ -21719,12 +21845,12 @@ var resolver36 = {
     let chosen;
     if (wantedId) {
       chosen = options.find((o) => o.id === wantedId);
-      if (!chosen) return fail2("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
+      if (!chosen) return fail3("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
     } else if (options.length === 1) {
       chosen = options[0];
     } else {
       return {
-        ...fail2("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
+        ...fail3("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
         success: true,
         needsSelection: true,
         phoneOptions: options
@@ -21742,7 +21868,7 @@ var resolver36 = {
       take: 1
     });
     if (clash.length > 0) {
-      return fail2("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
+      return fail3("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
     }
     const changedAccount = existing.whatsappBusinessAccountId !== chosen.wabaId || existing.whatsappPhoneNumberId !== chosen.id;
     try {
@@ -21767,7 +21893,7 @@ var resolver36 = {
       });
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail2(f.message, f.detail);
+      return fail3(f.message, f.detail);
     }
     let webhookConfigured = false;
     let webhookError = null;
@@ -21812,7 +21938,7 @@ var resolver36 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/googleCalendar/state.ts
 var import_jsonwebtoken3 = __toESM(require("jsonwebtoken"));
@@ -21879,7 +22005,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs40 = `
+var typeDefs41 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -21890,27 +22016,27 @@ var typeDefs40 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition37 = `
+var definition38 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
-var fail3 = (message) => ({ success: false, message, url: null });
-var resolver37 = {
+var fail4 = (message) => ({ success: false, message, url: null });
+var resolver38 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail3(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail4(denyGoogleCalendarAccessMessage(session2));
     if (scopeType !== "personal" /* PERSONAL */ && scopeType !== "company" /* COMPANY */) {
-      return fail3("Tipo de cuenta inv\xE1lido (personal o company)");
+      return fail4("Tipo de cuenta inv\xE1lido (personal o company)");
     }
     const targetCompanyId = isPlatformAdmin(session2) && companyId || getSessionCompanyId(session2);
-    if (!targetCompanyId) return fail3("Tu usuario no tiene una empresa asignada");
+    if (!targetCompanyId) return fail4("Tu usuario no tiene una empresa asignada");
     if (!canConnectGoogleCalendar(session2, scopeType, targetCompanyId)) {
-      return fail3(
+      return fail4(
         scopeType === "company" /* COMPANY */ ? "Solo el administrador de la empresa puede conectar la cuenta compartida" : denyGoogleCalendarAccessMessage(session2)
       );
     }
     if (!await companyHasCalendarFeature(context, targetCompanyId)) {
-      return fail3(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail4(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const state = signGoogleCalendarState({
@@ -21920,11 +22046,11 @@ var resolver37 = {
       });
       return { success: true, message: null, url: buildGoogleAuthUrl(state) };
     } catch (err) {
-      return fail3(friendlyGoogleCalendarError(err));
+      return fail4(friendlyGoogleCalendarError(err));
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -21979,7 +22105,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs41 = `
+var typeDefs42 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -21992,37 +22118,37 @@ var typeDefs41 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition38 = `
+var definition39 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
-var fail4 = (message) => ({
+var fail5 = (message) => ({
   success: false,
   message,
   accountId: null,
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver38 = {
+var resolver39 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail4(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail5(denyGoogleCalendarAccessMessage(session2));
     const payload = verifyGoogleCalendarState(state);
     if (!payload || payload.uid !== userId) {
-      return fail4("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
+      return fail5("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
     }
     const { cid: companyId, st: scopeType } = payload;
     if (!canConnectGoogleCalendar(session2, scopeType, companyId)) {
-      return fail4(denyGoogleCalendarAccessMessage(session2));
+      return fail5(denyGoogleCalendarAccessMessage(session2));
     }
     if (!await companyHasCalendarFeature(context, companyId)) {
-      return fail4(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail5(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const tokens = await exchangeCodeForTokens(code);
       const calendars = await listCalendarList(tokens.accessToken);
       const email = calendars.find((c) => c.primary)?.id;
-      if (!email) return fail4("No se pudo identificar la cuenta de Google conectada");
+      if (!email) return fail5("No se pudo identificar la cuenta de Google conectada");
       const sudo = context.sudo();
       const ownerWhere = scopeType === "personal" /* PERSONAL */ ? { user: { id: { equals: userId } } } : { company: { id: { equals: companyId } } };
       const [existing] = await sudo.query.GoogleCalendarAccount.findMany({
@@ -22036,7 +22162,7 @@ var resolver38 = {
       });
       const refreshToken = tokens.refreshToken ?? (existing?.refreshTokenEncrypted ? decrypt(existing.refreshTokenEncrypted) : null);
       if (!refreshToken) {
-        return fail4(
+        return fail5(
           "Google no entreg\xF3 acceso permanente. Revoca el acceso de Kadesh en tu cuenta de Google y vuelve a conectar."
         );
       }
@@ -22079,14 +22205,14 @@ var resolver38 = {
       };
     } catch (err) {
       console.error("connectGoogleCalendarAccount:", err);
-      return fail4(friendlyGoogleCalendarError(err));
+      return fail5(friendlyGoogleCalendarError(err));
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs42 = `
+var typeDefs43 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -22096,10 +22222,10 @@ var typeDefs42 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition39 = `
+var definition40 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver39 = {
+var resolver40 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -22127,10 +22253,10 @@ var resolver39 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs43 = `
+var typeDefs44 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -22141,10 +22267,10 @@ var typeDefs43 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition40 = `
+var definition41 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver40 = {
+var resolver41 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -22190,10 +22316,10 @@ var resolver40 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs44 = `
+var typeDefs45 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -22205,10 +22331,10 @@ var typeDefs44 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition41 = `
+var definition42 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver41 = {
+var resolver42 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -22242,10 +22368,10 @@ var resolver41 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs45 = `
+var typeDefs46 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -22267,11 +22393,11 @@ var typeDefs45 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition42 = `
+var definition43 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
-var fail5 = (message) => ({
+var fail6 = (message) => ({
   success: false,
   message,
   selectionId: null,
@@ -22280,19 +22406,19 @@ var fail5 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver42 = {
+var resolver43 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
       query: `id account { ${ACCOUNT_SCOPE_QUERY} }`
     });
-    if (!selection?.account) return fail5("Calendario no encontrado");
+    if (!selection?.account) return fail6("Calendario no encontrado");
     if (!canManageGoogleCalendarAccount(context.session, selection.account)) {
-      return fail5(denyGoogleCalendarAccessMessage(context.session));
+      return fail6(denyGoogleCalendarAccessMessage(context.session));
     }
     const companyId = accountCompanyId(selection.account);
     if (companyId && !await companyHasCalendarFeature(context, companyId)) {
-      return fail5(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail6(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     const data = {};
     for (const flag of FLAGS) {
@@ -22315,7 +22441,7 @@ var resolver42 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -22332,6 +22458,7 @@ var customMutation = {
     ${remainingCredits_default.typeDefs}
     ${purchaseCredits_default.typeDefs}
     ${grantAdminCredits_default.typeDefs}
+    ${updatePlanFeatureCatalog_default.typeDefs}
     ${sendTestEmail_default.typeDefs}
     ${updateCompanyAiSettings_default.typeDefs}
     ${dailyDigest_default.typeDefs}
@@ -22374,6 +22501,7 @@ var customMutation = {
     ${remainingCredits_default.definition}
     ${purchaseCredits_default.definition}
     ${grantAdminCredits_default.definition}
+    ${updatePlanFeatureCatalog_default.definition}
     ${sendTestEmail_default.definition}
     ${updateCompanyAiSettings_default.definition}
     ${dailyDigest_default.mutationDefinition}
@@ -22416,6 +22544,7 @@ var customMutation = {
     ...remainingCredits_default.resolver,
     ...purchaseCredits_default.resolver,
     ...grantAdminCredits_default.resolver,
+    ...updatePlanFeatureCatalog_default.resolver,
     ...sendTestEmail_default.resolver,
     ...updateCompanyAiSettings_default.resolver,
     ...dailyDigest_default.mutationResolver,
@@ -22454,7 +22583,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs46 = `
+var typeDefs47 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -22513,7 +22642,7 @@ var typeDefs46 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition43 = `
+var definition44 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -22563,7 +22692,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver43 = {
+var resolver44 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -22726,7 +22855,7 @@ var resolver43 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var nearbyAnimals_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -23039,7 +23168,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs47 = `
+var typeDefs48 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -23099,10 +23228,10 @@ var typeDefs47 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition44 = `
+var definition45 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver44 = {
+var resolver45 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -23184,10 +23313,10 @@ var resolver44 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs48 = `
+var typeDefs49 = `
   type StripeCard {
     brand: String
     country: String
@@ -23221,10 +23350,10 @@ var typeDefs48 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition45 = `
+var definition46 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver45 = {
+var resolver46 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -23260,10 +23389,10 @@ var resolver45 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var stripePaymentMethods_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs49 = `
+var typeDefs50 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -23301,7 +23430,7 @@ var typeDefs49 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition46 = `
+var definition47 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -23310,7 +23439,7 @@ var INTERVAL_BY_FREQUENCY = {
   [PLAN_FREQUENCY.ANNUAL]: "year",
   [PLAN_FREQUENCY.ONCE]: null
 };
-function fail6(message) {
+function fail7(message) {
   return { success: false, message, allMatch: false, fields: [] };
 }
 function toMinorUnits(amount) {
@@ -23321,19 +23450,19 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver46 = {
+var resolver47 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
-      return fail6("Solo operaciones puede verificar planes con Stripe.");
+      return fail7("Solo operaciones puede verificar planes con Stripe.");
     }
     const plan = await context.sudo().query.SaasPlan.findOne({
       where: { id: input.planId },
       query: "id name cost currency frequency stripePriceId stripeProductId active"
     });
-    if (!plan) return fail6("No encontramos ese plan.");
+    if (!plan) return fail7("No encontramos ese plan.");
     const priceId = (input.stripePriceId ?? plan.stripePriceId ?? "").trim();
     if (!priceId) {
-      return fail6(
+      return fail7(
         "Este plan no tiene un precio de Stripe ligado. Pega el ID del precio para poder verificarlo."
       );
     }
@@ -23346,7 +23475,7 @@ var resolver46 = {
       price = await stripe_default.prices.retrieve(priceId, { expand: ["product"] });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      return fail6(`Stripe no reconoci\xF3 ese precio: ${message}`);
+      return fail7(`Stripe no reconoci\xF3 ese precio: ${message}`);
     }
     const product = price.product && typeof price.product === "object" ? price.product : null;
     const stripeProductId = product?.id ?? (typeof price.product === "string" ? price.product : null);
@@ -23422,7 +23551,7 @@ var resolver46 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var stripePlanCheck_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -23475,7 +23604,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs50 = `
+var typeDefs51 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -23503,10 +23632,10 @@ var typeDefs50 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition47 = `
+var definition48 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver47 = {
+var resolver48 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -23633,11 +23762,11 @@ var resolver47 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var subscriptionStatus_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs51 = `
+var typeDefs52 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -23649,10 +23778,10 @@ var typeDefs51 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition48 = `
+var definition49 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver48 = {
+var resolver49 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -23685,10 +23814,10 @@ var resolver48 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs52 = `
+var typeDefs53 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -23700,10 +23829,10 @@ var typeDefs52 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition49 = `
+var definition50 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver49 = {
+var resolver50 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -23725,11 +23854,11 @@ var resolver49 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs53 = `
+var typeDefs54 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -23758,14 +23887,14 @@ var typeDefs53 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition50 = `
+var definition51 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver50 = {
+var resolver51 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -23821,11 +23950,11 @@ var resolver50 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var whatsappConversations_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs54 = `
+var typeDefs55 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -23837,10 +23966,10 @@ var typeDefs54 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition51 = `
+var definition52 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver51 = {
+var resolver52 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -23881,10 +24010,10 @@ var resolver51 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs55 = `
+var typeDefs56 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -23902,10 +24031,10 @@ var typeDefs55 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition52 = `
+var definition53 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver52 = {
+var resolver53 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -23931,11 +24060,11 @@ var resolver52 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs56 = `
+var typeDefs57 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -23963,25 +24092,25 @@ var typeDefs56 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition53 = `
+var definition54 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver53 = {
+var resolver54 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
     timeMax
   }, context) => {
-    const fail7 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail7(denyGoogleCalendarAccessMessage(context.session));
+    const fail8 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail8(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail7(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail8(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail7("Rango de fechas inv\xE1lido");
+      return fail8("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -23998,7 +24127,7 @@ var resolver53 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail7(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail8(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -24018,7 +24147,7 @@ var resolver53 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
