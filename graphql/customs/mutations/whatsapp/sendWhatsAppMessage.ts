@@ -11,12 +11,12 @@ const typeDefs = `
   }
 
   type Mutation {
-    sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
+    sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
 
 const definition = `
-  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
+  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
 
 const resolver = {
@@ -25,8 +25,14 @@ const resolver = {
     {
       businessLeadId,
       teamMemberId,
+      phone,
       body,
-    }: { businessLeadId?: string | null; teamMemberId?: string | null; body: string },
+    }: {
+      businessLeadId?: string | null;
+      teamMemberId?: string | null;
+      phone?: string | null;
+      body: string;
+    },
     context: KeystoneContext,
   ) => {
     const session = context.session;
@@ -37,7 +43,7 @@ const resolver = {
     }
 
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context,
     );
     if (!target) return { success: false, message: error };

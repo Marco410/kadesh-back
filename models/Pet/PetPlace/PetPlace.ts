@@ -17,6 +17,12 @@ import {
   PET_PLACE_CLAIM_ROLE_OPTIONS,
 } from "./claim";
 import { petPlaceSlugAfterOperation } from "./PetPlace.hooks";
+import { PIPELINE_STATUS } from "../../Saas/Tech/crm/constants";
+
+const pipelineOptions = Object.values(PIPELINE_STATUS).map((value) => ({
+  label: value,
+  value,
+}));
 
 export default list({
   access,
@@ -148,6 +154,16 @@ export default list({
       options: PET_PLACE_CLAIM_ROLE_OPTIONS,
       ui: { description: "Rol declarado al reclamar" },
     }),
+    pipelineStatus: select({
+      type: "string",
+      options: pipelineOptions,
+      defaultValue: PIPELINE_STATUS.DETECTADO,
+      isIndexed: true,
+      ui: {
+        description:
+          "Estatus comercial interno (solo admin). No lo ve el dueño de la ficha.",
+      },
+    }),
     claimPhone: text({
       ui: { description: "Teléfono que dejó en la solicitud" },
     }),
@@ -273,6 +289,7 @@ export default list({
     address: text(),
     google_place_id: text({
       isIndexed: "unique",
+      db: { isNullable: true },
       validation: { isRequired: false },
     }),
     google_opening_hours: text(),

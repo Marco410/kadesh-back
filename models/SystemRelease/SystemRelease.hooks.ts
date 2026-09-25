@@ -1,5 +1,9 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { sendSystemReleaseEmail } from "../../utils/helpers/sendgrid";
+import {
+  emailBrandForUser,
+  sendSystemReleaseEmail,
+  type EmailBrand,
+} from "../../utils/helpers/sendgrid";
 import { isSmtpConfigured } from "../../utils/intregrations/smtpMail";
 import {
   SYSTEM_RELEASE_PRODUCT,
@@ -18,6 +22,7 @@ type ReleaseItem = {
 type UserRecipient = {
   email: string;
   displayName: string;
+  brand: EmailBrand;
 };
 
 function buildDisplayName(user: {
@@ -66,6 +71,7 @@ async function getReleaseRecipients(
     recipients.push({
       email,
       displayName: buildDisplayName(user),
+      brand: emailBrandForUser(hasCompany),
     });
   }
 
@@ -88,8 +94,6 @@ function formatSendError(err: unknown): string {
 async function sendReleaseEmailWithTimeout(
   recipient: UserRecipient,
   release: ReleaseItem,
-  product: SystemReleaseProduct,
-  appUrl: string,
 ): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -111,8 +115,7 @@ async function sendReleaseEmailWithTimeout(
         version: release.version ?? "",
         title: release.title ?? null,
         body: release.body ?? null,
-        product,
-        appUrl,
+        brand: recipient.brand,
       }),
       timeout,
     ]);
@@ -148,16 +151,12 @@ async function notifyUsersForRelease(
     return;
   }
 
-  const appUrl =
-    process.env.FRONTEND_URL?.trim() ||
-    "https://kadesh.com.mx/auth/login";
-
   let sent = 0;
   let failed = 0;
 
   for (const recipient of recipients) {
     try {
-      await sendReleaseEmailWithTimeout(recipient, release, product, appUrl);
+      await sendReleaseEmailWithTimeout(recipient, release);
       sent++;
     } catch (err) {
       failed++;

@@ -17,12 +17,12 @@ const typeDefs = `
   }
 
   type Mutation {
-    sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+    sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
 
 const definition = `
-  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 
 type UploadValue = {
@@ -49,11 +49,13 @@ const resolver = {
     {
       businessLeadId,
       teamMemberId,
+      phone,
       media,
       caption,
     }: {
       businessLeadId?: string | null;
       teamMemberId?: string | null;
+      phone?: string | null;
       media: Promise<UploadValue>;
       caption?: string | null;
     },
@@ -62,7 +64,7 @@ const resolver = {
     const session = context.session;
 
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context,
     );
     if (!target) return toResult(false, error ?? "No se pudo resolver el destinatario");

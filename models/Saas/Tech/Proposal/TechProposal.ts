@@ -79,6 +79,11 @@ export default list({
       many: false,
       ui: { description: "Estado CRM dinámico (workspace + tipo propuesta)" },
     }),
+    calendarEvent: relationship({
+      ref: "TechCalendarEvent.proposal",
+      many: false,
+      ui: { hideCreate: true, description: "Evento de calendario generado (solo propuestas nuevas)" },
+    }),
     project: relationship({
       ref: "SaasProject.proposal",
       many: false,

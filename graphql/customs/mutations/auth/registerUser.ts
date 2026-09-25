@@ -5,6 +5,7 @@ import {
   USER_AUTH_LOG_STEP,
 } from "../../../../models/User/UserAuthLog/constants";
 import { writeUserAuthLog } from "../../../../utils/auth/userAuthLogWrite";
+import { PRODUCT } from "../../../../utils/constants/product";
 import { provisionSignupCompany } from "../../../../utils/access/provisionSignupCompany";
 
 const SIGNUP_ROLE_NAMES = [Role.VENDEDOR, Role.ADMIN_COMPANY] as const;
@@ -88,6 +89,8 @@ const resolver = {
       const user = await context.sudo().query.User.createOne({
         data: {
           ...safeUserData,
+          // Este registro es el de Kadesh Negocios: define la marca de sus correos.
+          product: PRODUCT.SAAS,
           referredBy: referredByConnect,
           roles: { connect: signupRoleIds.map((id) => ({ id })) },
         },

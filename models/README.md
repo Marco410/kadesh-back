@@ -52,7 +52,7 @@ Qué: cada `SaasCompany` conecta su propio WhatsApp Business (Cloud API de Meta)
 
 Un solo endpoint de webhook (`/webhooks/whatsapp`, registrado en `keystone.ts` vía `server.extendExpressApp` — primer uso de este hook en el repo, no había ningún endpoint no-GraphQL antes) recibe los mensajes de **todas** las empresas conectadas: identifica la empresa por `phone_number_id` del payload, descifra SU app secret, y valida la firma con eso. El body debe leerse crudo (`express.raw`) antes de verificar la firma — `extendExpressApp` corre antes de que Keystone monte su propio `bodyParser.json` (que solo aplica al path de GraphQL), así que no hay conflicto.
 
-Historial en `TechWhatsAppMessage` (nueva list, `models/Saas/Tech/WhatsAppMessage/`), acotado por lead con el mismo criterio que `TechStatusBusinessLead` (`whatsappMessageScopedWhere` en `utils/access/leadScopedFilter.ts`, envuelve `leadCompanyScopedWhere` bajo `businessLead:`). El matching de un mensaje entrante a un `TechBusinessLead` es una heurística (`phone: {contains: últimos10Dígitos}`) — no hay normalización real de teléfonos en este repo.
+Historial en `TechWhatsAppMessage` (nueva list, `models/Saas/Tech/WhatsAppMessage/`), acotado por lead con el mismo criterio que `TechStatusBusinessLead` (`whatsappMessageScopedWhere` en `utils/access/leadScopedFilter.ts`, envuelve `leadCompanyScopedWhere` bajo `businessLead:`). El matching de un mensaje entrante a un `TechBusinessLead` es una heurística sobre los últimos 10 dígitos (`utils/whatsapp/matchPhone.ts`, ver la entrada 2026-09-23 "Emparejar teléfonos") — no hay normalización real de teléfonos guardada en este repo.
 
 Envío solo de texto libre, solo dentro de la ventana de 24h desde el último mensaje del lead (limitación de la Cloud API sin plantillas aprobadas — fuera de alcance por ahora).
 
@@ -95,3 +95,39 @@ Además, crear plantillas exige que el access token tenga `whatsapp_business_man
 Antes de crear la plantilla, `ensureOutreachTemplate` consulta a Meta qué cuenta es el `whatsappBusinessAccountId` guardado y si incluye el `whatsappPhoneNumberId` conectado (`fetchWhatsAppBusinessAccountInfo`). Copiar un ID equivocado es el error más común de BYOK y Meta lo contesta con un genérico "Invalid parameter" que no dice cuál ID estaba mal; con esta comprobación el mensaje lo dice, y los demás errores de la plantilla llevan el **nombre de la cuenta** (permite distinguir, p. ej., la cuenta de prueba de Meta de una real).
 
 Qué no hacer: no volver a tragarse el error de la plantilla; no quitar los ejemplos (`OUTREACH_TEMPLATE_EXAMPLES`, uno por variable y en orden); no pedir en la guía del front solo el permiso de mensajería.
+
+### 2026-09-23 — Emparejar teléfonos entrantes y URL del webhook
+
+Qué: el webhook buscaba al remitente con `phone: { contains: <10 dígitos corridos> }`. Los teléfonos de los leads son texto libre y los que trae Google Maps llevan espacios, guiones o paréntesis (`55 1234 5678`, `(55) 1234-5678`), así que casi nunca coincidían y la respuesta de un cliente quedaba sin conversación. `findByPhone` (`utils/whatsapp/matchPhone.ts`) preselecciona con un fragmento corto que suele quedar corrido (últimos 4 dígitos; si no, los últimos 2, que sobreviven a `55-12-34-56-78`) y compara ya normalizado en memoria, exigiendo mínimo 8 dígitos. Aplica igual al buscar compañeros de equipo. Los leads que `addOwnLead` guarda "como se escribieron" ya no hay que normalizarlos.
+
+Límite: la preselección trae hasta 100 (fragmento de 4) o 1000 (de 2) candidatos por mensaje. Si una empresa llega a decenas de miles de leads, la salida es un `phoneDigits` indexado en el lead, no subir esos topes.
+
+`companyWhatsappWebhookInfo` ahora tolera que `WHATSAPP_WEBHOOK_BASE_URL` traiga ya `/webhooks/whatsapp`: la variable se llama "BASE" pero antes de ese cambio el valor natural era la URL completa, y al agregarle la ruta otra vez la guía mostraba `…/webhooks/whatsapp/webhooks/whatsapp` (con botón de copiar). Con esa URL Meta nunca verifica el webhook y no entra ningún mensaje.
+
+Un mensaje de un número que no es lead ni compañero se guarda sin relaciones y deja un `console.warn` con solo los últimos 4 dígitos (útil para saber si el webhook está llegando; ver la entrada "Números nuevos en la bandeja"). Si en los logs no aparece **nada**, Meta no está llamando: casi siempre la App del cliente sigue en modo Desarrollo (solo entrega webhooks de prueba; hay que publicarla).
+
+Qué no hacer: no volver a un `contains` con los 10 dígitos corridos; no loguear el teléfono completo de un tercero.
+
+### 2026-09-23 — Números nuevos en la bandeja (solo admins)
+
+Qué: un mensaje con ni `businessLead` ni `teamMember` (alguien que escribió sin estar en Clientes ni en el equipo) antes se guardaba y no se veía en ningún lado, o sea que el primer contacto de cualquier prospecto nuevo era invisible. Ahora `whatsappConversations` los agrupa por teléfono (`kind: "phone"`, `phoneKey` = últimos 10 dígitos) y salen como **Número nuevo**. No hizo falta migración ni campo nuevo: la visibilidad ya era "solo admins" por `whatsappMessageScopedWhere` (el filtro de un vendedor exige lead o compañero), así que basta con **no** usar `sudo()` en la lista y dejar que ese filtro haga el trabajo.
+
+El nombre sale del **nombre de perfil de WhatsApp** (`contacts[].profile.name` del webhook), que se guarda en `senderLabel` — el mismo campo que en un .txt importado guarda el nombre del remitente; solo se muestra cuando la dirección es `unknown`, así que no choca. Sin nombre, se muestra el teléfono.
+
+Responder a un número sin cliente pasa por `resolveWhatsAppTarget` en modo `phone`: solo admin de empresa (igual que quien lo ve) y siempre al `fromPhone` **exacto** del último mensaje entrante — Meta manda, p. ej., `521…` para celulares de México y normalizarlo a mano puede mandarlo a otro número. Los mensajes de esa conversación se buscan por `fromPhone`/`toPhone` terminado en `phoneKey`, porque no hay relación que filtrar.
+
+`linkWhatsAppContactToLead` (admin) se llama al "Guardar como cliente": pasa de `businessLeadId: null` a ese lead todos los mensajes de la empresa de ese teléfono que no tengan ni lead ni compañero (`updateMany` de Prisma, sin hooks porque esa list no tiene). Idempotente, y nunca reasigna un chat que ya es de alguien. Los mensajes futuros ya caen en el lead solos por `findByPhone`.
+
+Qué no hacer: no usar `sudo()` en `whatsappConversations` (ahí vive la regla de que un vendedor no vea números nuevos); no crear el lead automáticamente por cada número que escribe (es una decisión de producto —cuenta contra el plan y llena el CRM de contactos que no son prospectos— y hoy el admin decide con **Guardar como cliente**); no normalizar el teléfono al contestar.
+
+### 2026-09-23 — WhatsApp: asistente guiado (descubrir en vez de pedir)
+
+Qué: el usuario pega 3 cosas (App ID, App Secret, token permanente) y `discoverWhatsappAccount` averigua el resto: `debug_token` (token válido, de esa App, con **los dos** permisos `whatsapp_business_messaging` y `whatsapp_business_management`, WABAs autorizados), `/{waba}/phone_numbers` (un número se elige solo; si hay varios devuelve `needsSelection` y NO guarda nada), guarda todo cifrado, y —best-effort— `subscribed_apps` + `/{appId}/subscriptions` con `getWebhookConfig()`. Luego `ensureOutreachTemplate`. Los errores de Meta pasan por `friendlyWhatsappError` (mensaje en español + `detail` crudo); `parseGraphError` ahora entrega `graphSubcode` como dato estructurado.
+
+Campos nuevos en `SaasCompany` (requieren `yarn migrate`, humano): `whatsappAppId`, `whatsappWebhookConfiguredAt` (Kadesh dejó el webhook por API), `whatsappLastWebhookAt` (llegó un mensaje REAL con firma válida; lo pone `webhooks/whatsapp.ts`). Son dos señales distintas a propósito.
+
+Hallazgo clave: con la App de Meta en modo Desarrollo, Meta **no entrega mensajes reales** al webhook, así que "webhook configurado" ≠ "llegan mensajes". Publicar la App (Live) es un paso manual del panel de Meta; el asistente lo lista como paso 5 y el panel sugiere "¿Publicaste la App?" cuando hay webhook configurado pero `whatsappLastWebhookAt` es null. No se sabe si la API expone el modo de la App, así que no se promete detectarlo.
+
+Sin verificar contra Meta real: `debug_token` y `/{appId}/subscriptions`. Si fallan, el front cae a "Configuración manual (avanzado)" (URL + Verify Token desde `companyWhatsappWebhookInfo`, nunca hardcodeados). Los conectados a mano siguen funcionando.
+
+Qué no hacer: no escribir el Verify Token en instrucciones/copias del front; no dar por buena la conexión sin probar con una App publicada. Fase B: `docs/whatsapp/embedded-signup.md`.

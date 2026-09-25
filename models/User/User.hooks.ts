@@ -2,8 +2,10 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import {
   sendAdminUserBankDetailsUpdatedEmail,
   sendUserWelcomeEmail,
+  emailBrandForUser,
 } from "../../utils/helpers/sendgrid";
 import { Role } from "../Role/constants";
+import { PRODUCT } from "../../utils/constants/product";
 import Stripe from "../../utils/intregrations/stripe";
 import { hasRole } from "../../auth/permissions";
 import {
@@ -291,6 +293,16 @@ export const stripeCustomerHook = {
   },
 };
 
+/**
+ * Marca de los correos de un usuario. `product` es la fuente de verdad (lo manda cada front
+ * al registrarse); `companyId` cubre usuarios anteriores al campo, que quedaron como "pet".
+ */
+function userEmailBrand(item: { product?: string | null; companyId?: unknown }) {
+  return emailBrandForUser(
+    item.product === PRODUCT.SAAS || Boolean(item.companyId),
+  );
+}
+
 export const userWelcomeEmailHook = {
   afterOperation: async (args: any) => {
     const { listKey, operation, item } = args;
@@ -305,6 +317,7 @@ export const userWelcomeEmailHook = {
       await sendUserWelcomeEmail({
         to: String(email),
         displayName,
+        brand: userEmailBrand(item),
       });
     } catch (err) {
       console.error("Error enviando correo de bienvenida:", err);
@@ -335,6 +348,7 @@ export const userBankDetailsNotificationHook = {
         userEmail,
         userName,
         fieldsUpdated: [...fieldsUpdated],
+        brand: userEmailBrand(item),
       });
     } catch (err) {
       console.error(
@@ -350,19 +364,23 @@ export const userBlogSubscriptionHook = {
     if (operation === "create" && item && item.email) {
       try {
         const sudo = context.sudo();
-        const existingSubscription = await sudo.db.BlogSubscription.findOne({
-          where: { email: item.email },
+        // La unicidad es (email, product): no existe where único por email.
+        const product = item.product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET;
+        const [existingSubscription] = await sudo.db.BlogSubscription.findMany({
+          where: { email: { equals: item.email }, product: { equals: product } },
+          take: 1,
         });
 
         if (!existingSubscription) {
           await sudo.db.BlogSubscription.createOne({
             data: {
               email: item.email,
+              product,
               user: { connect: { id: item.id } },
               active: true,
             },
           });
-        } else if (existingSubscription && !existingSubscription.userId) {
+        } else if (!existingSubscription.userId) {
           await sudo.db.BlogSubscription.updateOne({
             where: { id: existingSubscription.id },
             data: {

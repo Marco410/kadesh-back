@@ -1,21 +1,25 @@
 import { sendEmail } from "../intregrations/smtpMail";
 import {
-  SYSTEM_RELEASE_PRODUCT,
-  type SystemReleaseProduct,
-} from "../../models/SystemRelease/constants";
+  EMAIL_BRANDS,
+  EMAIL_TEXT,
+  emailButton,
+  emailCallout,
+  emailGreeting,
+  emailInfoTable,
+  emailParagraph,
+  emailPill,
+  escapeHtml,
+  renderEmailLayout,
+  type EmailBrand,
+} from "./emailLayout";
 
 export { sendEmail };
+export type { EmailBrand };
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+/** Producto de un usuario: con empresa es Negocios (SaaS), sin empresa es Pet. */
+export function emailBrandForUser(hasCompany: boolean): EmailBrand {
+  return hasCompany ? "saas" : "pet";
 }
-
-const BRAND_ORANGE = "#FF8C42";
-const BRAND_ORANGE_DARK = "#E6732E";
 
 function parseAdminNotificationEmails(): string[] {
   const raw =
@@ -28,76 +32,55 @@ function parseAdminNotificationEmails(): string[] {
     .filter(Boolean);
 }
 
-function buildWelcomeEmailHtml(displayName: string, appUrl?: string): string {
-  const name = escapeHtml(displayName || "ahí");
-  const ctaRow = appUrl
-    ? `
-        <tr>
-          <td style="padding: 8px 0 0 0;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0;">
-              <tr>
-                <td style="border-radius: 8px; background: ${BRAND_ORANGE};">
-                  <a href="${escapeHtml(appUrl)}" target="_blank" rel="noopener noreferrer"
-                    style="display: inline-block; padding: 14px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none;">
-                    Ir a la plataforma
-                  </a>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>`
-    : "";
+function stripTags(s: string): string {
+  return s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
 
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>Bienvenido</title>
-</head>
-<body style="margin:0; padding:0; background-color:#eef0f4; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4; padding: 40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);">
-          <tr>
-            <td style="background: linear-gradient(135deg, ${BRAND_ORANGE} 0%, ${BRAND_ORANGE_DARK} 100%); padding: 28px 32px;">
-              <p style="margin:0; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.9);">Kadesh</p>
-              <h1 style="margin: 8px 0 0 0; font-size: 26px; font-weight: 700; line-height: 1.25; color: #ffffff;">¡Bienvenido!</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 32px 32px 28px 32px;">
-              <p style="margin:0 0 16px 0; font-size: 18px; line-height: 1.5; color: #0f172a;">Hola <strong>${name}</strong>,</p>
-              <p style="margin:0 0 20px 0; font-size: 16px; line-height: 1.65; color: #475569;">
-                Gracias por unirte. Tu cuenta ya está activa y puedes empezar a usar la plataforma cuando quieras.
-              </p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                ${ctaRow}
-                <tr>
-                  <td style="padding-top: 28px; border-top: 1px solid #e2e8f0;">
-                    <p style="margin:0; font-size: 14px; line-height: 1.6; color: #64748b;">
-                      Si no creaste esta cuenta, puedes ignorar este mensaje.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 32px 28px 32px; background: #f8fafc;">
-              <p style="margin:0; font-size: 13px; line-height: 1.5; color: #94a3b8; text-align: center;">
-                © ${new Date().getFullYear()} Kadesh · Equipo de soporte
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+const SECTION_LABEL_STYLE = `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${EMAIL_TEXT.muted};`;
+
+function buildWelcomeEmailHtml(displayName: string, brand: EmailBrand): string {
+  const { name: brandName, color, soft } = EMAIL_BRANDS[brand];
+  const steps =
+    brand === "saas"
+      ? [
+          "Configura los datos de tu negocio",
+          "Agrega a tu equipo y tus servicios",
+          "Empieza a gestionar clientes y agenda",
+        ]
+      : [
+          "Registra a tu mascota",
+          "Explora clínicas y servicios cerca de ti",
+          "Agenda citas y guarda su historial",
+        ];
+
+  const stepsHtml = steps
+    .map(
+      (step, i) => `
+      <tr>
+        <td valign="top" style="padding:0 14px 14px 0;width:32px;">
+          <div style="width:28px;height:28px;line-height:28px;border-radius:50%;background:${soft};color:${color};font-family:Arial,sans-serif;font-size:14px;font-weight:700;text-align:center;">${i + 1}</div>
+        </td>
+        <td valign="top" style="padding:3px 0 14px 0;font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:${EMAIL_TEXT.heading};">${escapeHtml(step)}</td>
+      </tr>`,
+    )
+    .join("");
+
+  return renderEmailLayout({
+    brand,
+    preheader: `Tu cuenta en ${brandName} ya está lista.`,
+    eyebrow: "Cuenta creada",
+    title: "¡Bienvenido a bordo!",
+    bodyHtml: `
+      ${emailGreeting(displayName || "ahí")}
+      ${emailParagraph(
+        `Gracias por unirte a <strong>${escapeHtml(brandName)}</strong>. Tu cuenta ya está activa y lista para usarse.`,
+      )}
+      <p style="margin:24px 0 14px 0;${SECTION_LABEL_STYLE}">Para empezar</p>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0">${stepsHtml}</table>
+      ${emailButton(brand, "Ir a la plataforma", EMAIL_BRANDS[brand].appUrl())}`,
+    footerNote:
+      "Si no creaste esta cuenta, puedes ignorar este mensaje con tranquilidad.",
+  });
 }
 
 function buildBankAlertEmailHtml(
@@ -105,61 +88,25 @@ function buildBankAlertEmailHtml(
   userName: string,
   userEmail: string,
   fieldsList: string,
+  brand: EmailBrand,
 ): string {
-  const rows = [
-    ["ID de usuario", userId],
-    ["Nombre", userName],
-    ["Email", userEmail],
-    ["Campos actualizados", fieldsList],
-  ] as const;
-
-  const tableRows = rows
-    .map(
-      ([label, value]) => `
-          <tr>
-            <td style="padding: 12px 16px; border-bottom: 1px solid #334155; font-size: 13px; font-weight: 600; color: #94a3b8; width: 38%; vertical-align: top;">${escapeHtml(label)}</td>
-            <td style="padding: 12px 16px; border-bottom: 1px solid #334155; font-size: 14px; color: #e2e8f0; vertical-align: top;">${escapeHtml(value)}</td>
-          </tr>`,
-    )
-    .join("");
-
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-</head>
-<body style="margin:0; padding:0; background-color:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#0f172a; padding: 40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background: #1e293b; border-radius: 14px; overflow: hidden; border: 1px solid #334155;">
-          <tr>
-            <td style="padding: 22px 24px; border-bottom: 1px solid #334155;">
-              <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; background: rgba(255,140,66,0.2); color: ${BRAND_ORANGE}; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Alerta admin</span>
-              <h1 style="margin: 12px 0 0 0; font-size: 20px; font-weight: 700; color: #f8fafc;">Datos bancarios actualizados</h1>
-              <p style="margin: 8px 0 0 0; font-size: 14px; line-height: 1.5; color: #94a3b8;">Un usuario guardó cambios en banco, CLABE o tarjeta. Revisa el registro en el Admin de Keystone.</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 0;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                ${tableRows}
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 24px 24px 24px;">
-              <p style="margin:0; font-size: 12px; color: #64748b; line-height: 1.5;">Este mensaje se generó automáticamente. No respondas a este correo.</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  return renderEmailLayout({
+    brand,
+    preheader: `${userName} actualizó sus datos bancarios.`,
+    eyebrow: `Alerta admin · ${EMAIL_BRANDS[brand].name}`,
+    title: "Datos bancarios actualizados",
+    bodyHtml: `
+      ${emailParagraph(
+        "Un usuario guardó cambios en banco, CLABE o tarjeta. Revisa el registro en el Admin de Keystone.",
+      )}
+      ${emailInfoTable([
+        ["ID de usuario", escapeHtml(userId)],
+        ["Nombre", escapeHtml(userName)],
+        ["Email", escapeHtml(userEmail)],
+        ["Campos", escapeHtml(fieldsList)],
+      ])}`,
+    footerNote: "Mensaje automático. No respondas a este correo.",
+  });
 }
 
 /**
@@ -169,9 +116,11 @@ function buildBankAlertEmailHtml(
 export async function sendUserWelcomeEmail({
   to,
   displayName,
+  brand,
 }: {
   to: string;
   displayName: string;
+  brand: EmailBrand;
 }): Promise<void> {
   const trimmedTo = to?.trim();
   if (!trimmedTo) {
@@ -179,11 +128,13 @@ export async function sendUserWelcomeEmail({
     return;
   }
 
-  const subject = "Bienvenido a Kadesh";
-  const appUrl = "https://negocios.kadesh.com.mx/auth/login";
-  const html = buildWelcomeEmailHtml(displayName, appUrl);
-
-  await sendEmail({ to: trimmedTo, subject, html, fromName: "Kadesh" });
+  const { name: brandName } = EMAIL_BRANDS[brand];
+  await sendEmail({
+    to: trimmedTo,
+    subject: `Bienvenido a ${brandName}`,
+    html: buildWelcomeEmailHtml(displayName, brand),
+    fromName: brandName,
+  });
 }
 
 /**
@@ -195,11 +146,13 @@ export async function sendAdminUserBankDetailsUpdatedEmail({
   userEmail,
   userName,
   fieldsUpdated,
+  brand,
 }: {
   userId: string;
   userEmail: string;
   userName: string;
   fieldsUpdated: string[];
+  brand: EmailBrand;
 }): Promise<void> {
   const recipients = parseAdminNotificationEmails();
   if (recipients.length === 0) {
@@ -209,11 +162,19 @@ export async function sendAdminUserBankDetailsUpdatedEmail({
     return;
   }
 
-  const fieldsList = fieldsUpdated.join(", ");
-  const subject = "[Kadesh] Usuario actualizó datos bancarios";
-  const html = buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList);
-
-  await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
+  const { name: brandName } = EMAIL_BRANDS[brand];
+  await sendEmail({
+    to: recipients,
+    subject: `[${brandName}] Usuario actualizó datos bancarios`,
+    html: buildBankAlertEmailHtml(
+      userId,
+      userName,
+      userEmail,
+      fieldsUpdated.join(", "),
+      brand,
+    ),
+    fromName: brandName,
+  });
 }
 
 export async function sendAdminPetPlaceServiceRequestEmail({
@@ -239,50 +200,41 @@ export async function sendAdminPetPlaceServiceRequestEmail({
     return;
   }
 
-  const name = escapeHtml(serviceName);
-  const place = escapeHtml(petPlaceName);
-  const who = escapeHtml(requesterName);
-  const mail = escapeHtml(requesterEmail || "(sin correo)");
-  const desc = escapeHtml(description || "(sin descripción)");
-  const subject = `[Kadesh] Nuevo servicio para revisar: ${serviceName}`;
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<body style="margin:0;padding:0;background:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;">
-          <tr>
-            <td style="background:${BRAND_ORANGE};padding:24px 32px;color:#fff;">
-              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;">Kadesh</p>
-              <h1 style="margin:8px 0 0;font-size:22px;">Servicio pendiente de aprobación</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:28px 32px;color:#0f172a;font-size:16px;line-height:1.6;">
-              <p style="margin:0 0 12px;"><strong>${who}</strong> (${mail}) pidió un servicio para <strong>${place}</strong>.</p>
-              <p style="margin:0 0 8px;"><strong>Nombre:</strong> ${name}</p>
-              <p style="margin:0 0 8px;"><strong>Descripción:</strong> ${desc}</p>
-              <p style="margin:16px 0 0;font-size:14px;color:#64748b;">Apruébalo o recházalo en Keystone → PetPlaceService (id de clínica ${escapeHtml(petPlaceId)}). Solo si lo apruebas aparece en el catálogo.</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  const brand: EmailBrand = "pet";
+  const { name: brandName } = EMAIL_BRANDS[brand];
 
-  await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
+  const html = renderEmailLayout({
+    brand,
+    preheader: `${requesterName} pidió agregar "${serviceName}" a ${petPlaceName}.`,
+    eyebrow: "Pendiente de aprobación",
+    title: "Nuevo servicio para revisar",
+    bodyHtml: `
+      ${emailParagraph(
+        `<strong>${escapeHtml(requesterName)}</strong> pidió agregar un servicio a <strong>${escapeHtml(petPlaceName)}</strong>.`,
+      )}
+      ${emailInfoTable([
+        ["Servicio", escapeHtml(serviceName)],
+        ["Descripción", escapeHtml(description || "(sin descripción)")],
+        ["Solicitante", escapeHtml(requesterName)],
+        ["Correo", escapeHtml(requesterEmail || "(sin correo)")],
+        ["ID de clínica", escapeHtml(petPlaceId)],
+      ])}
+      ${emailCallout(
+        brand,
+        "Apruébalo o recházalo en Keystone → <strong>PetPlaceService</strong>. Solo si lo apruebas aparece en el catálogo.",
+      )}`,
+    footerNote: "Mensaje automático. No respondas a este correo.",
+  });
+
+  await sendEmail({
+    to: recipients,
+    subject: `[${brandName}] Nuevo servicio para revisar: ${serviceName}`,
+    html,
+    fromName: brandName,
+  });
 }
 
-/** Marca del correo de "nuevo post": cada producto tiene su propio blog y audiencia. */
-const NEW_POST_EMAIL_BRANDS = {
-  pet: { name: "Kadesh Pet", color: "#FF8C42", hover: "#E67A35" },
-  saas: { name: "Kadesh Negocios", color: "#FF8C42", hover: "#E67A35" },
-} as const;
-
-export type NewPostEmailBrand = keyof typeof NEW_POST_EMAIL_BRANDS;
+export type NewPostEmailBrand = EmailBrand;
 
 /**
  * Send email notification for new blog post
@@ -311,111 +263,38 @@ export async function sendNewPostEmail({
     return;
   }
 
-  const { name: brandName, color, hover } = NEW_POST_EMAIL_BRANDS[brand];
+  const { name: brandName, color } = EMAIL_BRANDS[brand];
   const subject = `Nuevo artículo en ${brandName}: ${postTitle}`;
+  const excerpt = postExcerpt ? stripTags(postExcerpt) : "";
 
-  const buildHtml = (unsubscribeUrl: string | null) => `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="color-scheme" content="dark">
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #BBBBBB;
-          background-color: #1A1A1A;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .header {
-          background-color: ${color};
-          color: #FFFFFF;
-          padding: 20px;
-          text-align: center;
-          border-radius: 5px 5px 0 0;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 22px;
-        }
-        .content {
-          background-color: #2C2C2C;
-          padding: 20px;
-          border-radius: 0 0 5px 5px;
-          border: 1px solid #404040;
-          border-top: none;
-        }
-        .post-title {
-          font-size: 24px;
-          font-weight: bold;
-          margin-bottom: 15px;
-          color: #FFFFFF;
-        }
-        .post-excerpt {
-          font-size: 16px;
-          color: #BBBBBB;
-          margin-bottom: 20px;
-          line-height: 1.8;
-        }
-        .post-meta {
-          font-size: 14px;
-          color: #87CEEB;
-          margin-bottom: 20px;
-        }
-        .button {
-          display: inline-block;
-          padding: 12px 30px;
-          background-color: ${color};
-          color: #FFFFFF;
-          text-decoration: none;
-          border-radius: 5px;
-          font-weight: bold;
-          margin-top: 20px;
-        }
-        .button:hover {
-          background-color: ${hover};
-        }
-        .footer {
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #404040;
-          font-size: 12px;
-          color: #BBBBBB;
-          text-align: center;
-        }
-        .footer a {
-          color: #87CEEB;
-          text-decoration: underline;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>¡Nuevo artículo en ${brandName}!</h1>
-      </div>
-      <div class="content">
-        <div class="post-title">${postTitle}</div>
-        ${postExcerpt ? `<div class="post-excerpt">${postExcerpt}</div>` : ""}
-        <div class="post-meta">
-          ${authorName ? `<strong>Autor:</strong> ${authorName}<br>` : ""}
-          ${categoryName ? `<strong>Categoría:</strong> ${categoryName}` : ""}
-        </div>
-        <a href="${postUrl}" class="button">Leer Post Completo</a>
-      </div>
-      <div class="footer">
-        <p>Gracias por suscribirte a nuestro blog.</p>
+  const meta = [
+    categoryName ? emailPill(brand, categoryName) : "",
+    authorName
+      ? `<span style="font-family:Arial,sans-serif;font-size:14px;color:${EMAIL_TEXT.muted};">Por <strong style="color:${EMAIL_TEXT.heading};">${escapeHtml(authorName)}</strong></span>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(`<span style="display:inline-block;width:10px;"></span>`);
+
+  const buildHtml = (unsubscribeUrl: string | null) =>
+    renderEmailLayout({
+      brand,
+      preheader: excerpt || `Ya puedes leer "${postTitle}".`,
+      eyebrow: "Nuevo en el blog",
+      title: postTitle,
+      bodyHtml: `
+        ${meta ? `<div style="margin:0 0 20px 0;">${meta}</div>` : ""}
         ${
-          unsubscribeUrl
-            ? `<p>Si no deseas recibir más notificaciones, <a href="${escapeHtml(unsubscribeUrl)}">cancela tu suscripción aquí</a>.</p>`
-            : `<p>Si no deseas recibir más notificaciones, puedes cancelar tu suscripción en cualquier momento.</p>`
+          excerpt
+            ? `<p style="margin:0;padding:0 0 0 16px;border-left:4px solid ${color};font-family:Arial,sans-serif;font-size:17px;line-height:1.7;color:${EMAIL_TEXT.body};">${escapeHtml(excerpt)}</p>`
+            : ""
         }
-      </div>
-    </body>
-    </html>
-  `;
+        ${emailButton(brand, "Leer artículo completo", postUrl)}`,
+      footerNote: "Recibes este correo porque te suscribiste a nuestro blog.",
+      footerExtraHtml: unsubscribeUrl
+        ? `<p style="margin:0 0 14px 0;font-family:Arial,sans-serif;font-size:13px;color:${EMAIL_TEXT.muted};"><a href="${escapeHtml(unsubscribeUrl)}" style="color:${EMAIL_TEXT.muted};text-decoration:underline;">Cancelar suscripción</a></p>`
+        : "",
+    });
 
   for (const email of recipientEmails) {
     const unsubscribeUrl = unsubscribeBaseUrl
@@ -437,14 +316,8 @@ function formatReleaseBodyHtml(body: string | null | undefined): string {
   }
 
   return escapeHtml(body.trim())
-    .replace(/\n{2,}/g, "</p><p style=\"margin:0 0 12px 0;font-size:15px;line-height:1.65;color:#475569;\">")
+    .replace(/\n{2,}/g, "<br><br>")
     .replace(/\n/g, "<br>");
-}
-
-function releaseProductLabel(product: SystemReleaseProduct): string {
-  if (product === SYSTEM_RELEASE_PRODUCT.PET) return "Pet";
-  if (product === SYSTEM_RELEASE_PRODUCT.SAAS) return "Negocios";
-  return "Kadesh";
 }
 
 function buildSystemReleaseEmailHtml(params: {
@@ -452,73 +325,33 @@ function buildSystemReleaseEmailHtml(params: {
   version: string;
   title: string | null;
   bodyHtml: string;
-  product: SystemReleaseProduct;
+  brand: EmailBrand;
   appUrl: string;
 }): string {
-  const name = escapeHtml(params.displayName || "ahí");
-  const version = escapeHtml(params.version || "—");
-  const title = params.title?.trim()
-    ? escapeHtml(params.title.trim())
-    : "Nueva actualización disponible";
-  const productLabel = releaseProductLabel(params.product);
-  const bodySection = params.bodyHtml
-    ? `<div style="margin:20px 0 0 0;padding:16px 18px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
-        <p style="margin:0 0 8px 0;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#64748b;">Novedades</p>
-        <p style="margin:0;font-size:15px;line-height:1.65;color:#475569;">${params.bodyHtml}</p>
-      </div>`
+  const { name: brandName } = EMAIL_BRANDS[params.brand];
+  const version = params.version || "—";
+  const title = params.title?.trim() || "Nueva actualización disponible";
+
+  const notes = params.bodyHtml
+    ? `<p style="margin:24px 0 0 0;${SECTION_LABEL_STYLE}">Novedades</p>
+       ${emailCallout(params.brand, params.bodyHtml)}`
     : "";
 
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>${title}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
-          <tr>
-            <td style="background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_ORANGE_DARK} 100%);padding:28px 32px;">
-              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.9);">${escapeHtml(productLabel)} · v${version}</p>
-              <h1 style="margin:8px 0 0 0;font-size:24px;font-weight:700;line-height:1.25;color:#ffffff;">${title}</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:32px 32px 28px 32px;">
-              <p style="margin:0 0 16px 0;font-size:18px;line-height:1.5;color:#0f172a;">Hola <strong>${name}</strong>,</p>
-              <p style="margin:0;font-size:16px;line-height:1.65;color:#475569;">
-                Publicamos una nueva versión de la plataforma con mejoras y cambios que te pueden interesar.
-              </p>
-              ${bodySection}
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0 0;">
-                <tr>
-                  <td style="border-radius:8px;background:${BRAND_ORANGE};">
-                    <a href="${escapeHtml(params.appUrl)}" target="_blank" rel="noopener noreferrer"
-                      style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;">
-                      Ir a la plataforma
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:20px 32px 28px 32px;background:#f8fafc;">
-              <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;text-align:center;">
-                © ${new Date().getFullYear()} Kadesh · Actualización ${version}
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  return renderEmailLayout({
+    brand: params.brand,
+    preheader: `${title} · versión ${version}`,
+    eyebrow: `Versión ${version}`,
+    title,
+    bodyHtml: `
+      ${emailGreeting(params.displayName || "ahí")}
+      ${emailParagraph(
+        `Publicamos una nueva versión de <strong>${escapeHtml(brandName)}</strong> con mejoras y cambios que te pueden interesar.`,
+      )}
+      <div>${emailPill(params.brand, `v${version}`)}</div>
+      ${notes}
+      ${emailButton(params.brand, "Ver las novedades", params.appUrl)}`,
+    footerNote: "Recibes este correo porque tienes una cuenta activa.",
+  });
 }
 
 /**
@@ -531,16 +364,14 @@ export async function sendSystemReleaseEmail({
   version,
   title,
   body,
-  product,
-  appUrl,
+  brand,
 }: {
   to: string;
   displayName: string;
   version: string;
   title: string | null;
   body: string | null;
-  product: SystemReleaseProduct;
-  appUrl: string;
+  brand: EmailBrand;
 }): Promise<void> {
   const trimmedTo = to?.trim();
   if (!trimmedTo) {
@@ -548,22 +379,21 @@ export async function sendSystemReleaseEmail({
     return;
   }
 
+  const { name: brandName, appUrl } = EMAIL_BRANDS[brand];
   const subjectTitle = title?.trim() || `Actualización v${version}`;
-  const subject = `Novedades en Kadesh: ${subjectTitle}`;
-  const html = buildSystemReleaseEmailHtml({
-    displayName,
-    version,
-    title,
-    bodyHtml: formatReleaseBodyHtml(body),
-    product,
-    appUrl,
-  });
 
   await sendEmail({
     to: trimmedTo,
-    subject,
-    html,
-    fromName: "Kadesh",
+    subject: `Novedades en ${brandName}: ${subjectTitle}`,
+    html: buildSystemReleaseEmailHtml({
+      displayName,
+      version,
+      title,
+      bodyHtml: formatReleaseBodyHtml(body),
+      brand,
+      appUrl: appUrl(),
+    }),
+    fromName: brandName,
   });
 }
 
@@ -598,79 +428,39 @@ function buildPetPlaceAppointmentEmailHtml(params: {
   endsAt: string | Date;
   status: string;
 }): string {
+  const brand: EmailBrand = "pet";
   const isOwner = params.audience === "owner";
-  const heading = isOwner ? "Nueva cita reservada" : "Actualización de tu cita";
-  const greetingName = escapeHtml(isOwner ? params.ownerName : params.customerName);
+  const statusLabel = appointmentStatusLabel(params.status);
   const petPlaceName = escapeHtml(params.petPlaceName);
   const customerName = escapeHtml(params.customerName);
   const petName = params.petName ? escapeHtml(params.petName) : null;
-  const statusLabel = escapeHtml(appointmentStatusLabel(params.status));
-  const startsAtLabel = escapeHtml(formatAppointmentDate(params.startsAt));
-  const endsAtLabel = escapeHtml(formatAppointmentDate(params.endsAt));
 
   const bodyText = isOwner
     ? `<strong>${customerName}</strong> reservó una cita${petName ? ` para <strong>${petName}</strong>` : ""} en <strong>${petPlaceName}</strong>.`
-    : `Tu cita en <strong>${petPlaceName}</strong> ahora está <strong>${statusLabel}</strong>.`;
+    : `Tu cita en <strong>${petPlaceName}</strong> ahora está <strong>${escapeHtml(statusLabel)}</strong>.`;
 
   const rows: Array<[string, string]> = [
     ["Negocio", petPlaceName],
+    ...(isOwner ? ([["Cliente", customerName]] as Array<[string, string]>) : []),
     ...(petName ? ([["Mascota", petName]] as Array<[string, string]>) : []),
-    ["Inicio", startsAtLabel],
-    ["Fin", endsAtLabel],
-    ["Estatus", statusLabel],
+    ["Inicio", escapeHtml(formatAppointmentDate(params.startsAt))],
+    ["Fin", escapeHtml(formatAppointmentDate(params.endsAt))],
+    ["Estatus", emailPill(brand, statusLabel)],
   ];
 
-  const tableRows = rows
-    .map(
-      ([label, value]) => `
-        <tr>
-          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#64748b;width:35%;">${label}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;">${value}</td>
-        </tr>`,
-    )
-    .join("");
-
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>${heading}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
-          <tr>
-            <td style="background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_ORANGE_DARK} 100%);padding:28px 32px;">
-              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.9);">Kadesh</p>
-              <h1 style="margin:8px 0 0 0;font-size:24px;font-weight:700;line-height:1.25;color:#ffffff;">${heading}</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:32px 32px 28px 32px;">
-              <p style="margin:0 0 16px 0;font-size:18px;line-height:1.5;color:#0f172a;">Hola <strong>${greetingName}</strong>,</p>
-              <p style="margin:0 0 20px 0;font-size:16px;line-height:1.65;color:#475569;">${bodyText}</p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-                ${tableRows}
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:20px 32px 28px 32px;background:#f8fafc;">
-              <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;text-align:center;">
-                © ${new Date().getFullYear()} Kadesh · Equipo de soporte
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  return renderEmailLayout({
+    brand,
+    preheader: isOwner
+      ? `${params.customerName} reservó una cita en ${params.petPlaceName}.`
+      : `Tu cita en ${params.petPlaceName}: ${statusLabel}.`,
+    eyebrow: isOwner ? "Agenda" : "Tu cita",
+    title: isOwner ? "Nueva cita reservada" : "Actualización de tu cita",
+    bodyHtml: `
+      ${emailGreeting(isOwner ? params.ownerName : params.customerName)}
+      ${emailParagraph(bodyText)}
+      ${emailInfoTable(rows)}`,
+    footerNote: "Mensaje automático de tu agenda. No respondas a este correo.",
+  });
 }
 
 /**
@@ -709,21 +499,19 @@ export async function sendPetPlaceAppointmentEmail({
       ? `Nueva cita en ${petPlaceName}`
       : `Tu cita en ${petPlaceName}: ${appointmentStatusLabel(status)}`;
 
-  const html = buildPetPlaceAppointmentEmailHtml({
-    audience,
-    ownerName,
-    petPlaceName,
-    customerName,
-    petName,
-    startsAt,
-    endsAt,
-    status,
-  });
-
   await sendEmail({
     to: trimmedTo,
     subject,
-    html,
-    fromName: "Kadesh",
+    html: buildPetPlaceAppointmentEmailHtml({
+      audience,
+      ownerName,
+      petPlaceName,
+      customerName,
+      petName,
+      startsAt,
+      endsAt,
+      status,
+    }),
+    fromName: EMAIL_BRANDS.pet.name,
   });
 }

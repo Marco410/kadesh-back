@@ -60,6 +60,11 @@ export default list({
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" },
     }),
+    calendarEvents: relationship({
+      ref: "TechCalendarEvent.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de calendario del workspace" },
+    }),
     followUpTasks: relationship({
       ref: "TechFollowUpTask.workspace",
       many: true,

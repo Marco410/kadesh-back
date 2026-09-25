@@ -307,6 +307,39 @@ export default list({
         description: "Última vez que se conectó o desconectó WhatsApp",
       },
     }),
+    whatsappAppId: text({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "App ID de la App de Meta de esta empresa (para configurar su webhook por API)",
+      },
+    }),
+    whatsappWebhookConfiguredAt: timestamp({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Cuándo Kadesh dejó configurado el webhook de su App por API (no implica que ya lleguen mensajes)",
+      },
+    }),
+    whatsappLastWebhookAt: timestamp({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Último evento real de mensajes recibido con firma válida. Vacío = nunca ha llegado uno (¿App sin publicar en modo Live?)",
+      },
+    }),
+    googleCalendarAccounts: relationship({
+      ref: "GoogleCalendarAccount.company",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar compartidas por la empresa" },
+    }),
+    calendarEvents: relationship({
+      ref: "TechCalendarEvent.company",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de calendario de la empresa" },
+    }),
     whatsappMessages: relationship({
       ref: "TechWhatsAppMessage.company",
       many: true,

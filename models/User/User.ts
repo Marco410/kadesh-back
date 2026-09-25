@@ -9,7 +9,13 @@ import {
   checkbox,
   relationship,
   integer,
+  json,
+  select,
 } from "@keystone-6/core/fields";
+import {
+  PRODUCT,
+  SINGLE_PRODUCT_OPTIONS,
+} from "../../utils/constants/product";
 import {
   emailHooks,
   phoneHooks,
@@ -23,6 +29,7 @@ import {
 } from "./User.hooks";
 import access, {
   userCompanyFieldAccess,
+  userOnboardingFieldAccess,
   userRolesFieldAccess,
   userSecretFieldAccess,
   userStripeFieldAccess,
@@ -232,6 +239,21 @@ export default list({
       many: true,
       ui: { description: "Llamadas a IA disparadas por este usuario" },
     }),
+    googleCalendarAccounts: relationship({
+      ref: "GoogleCalendarAccount.user",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar personales de este usuario" },
+    }),
+    connectedGoogleCalendarAccounts: relationship({
+      ref: "GoogleCalendarAccount.connectedByUser",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar que este usuario autorizó" },
+    }),
+    createdCalendarEvents: relationship({
+      ref: "TechCalendarEvent.createdBy",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de calendario de este usuario" },
+    }),
     whatsappMessagesSent: relationship({
       ref: "TechWhatsAppMessage.sentBy",
       many: true,
@@ -306,6 +328,17 @@ export default list({
     }),
     smsRegistrationId: text(),
     verified: checkbox(),
+    product: select({
+      options: SINGLE_PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description:
+          "Producto en el que se registró (Pet o SaaS). Define la marca de sus correos y su suscripción al blog.",
+      },
+    }),
     userTest: checkbox(),
     salesPersonVerified: checkbox(),
     salesComission: integer({
@@ -370,6 +403,15 @@ export default list({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
+      },
+    }),
+    onboardingState: json({
+      defaultValue: {},
+      access: userOnboardingFieldAccess,
+      ui: {
+        description:
+          "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
+        createView: { fieldMode: "hidden" },
       },
     }),
   },

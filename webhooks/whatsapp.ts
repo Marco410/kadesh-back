@@ -9,6 +9,7 @@ import {
   verifyWhatsAppSignature,
 } from "../utils/intregrations/whatsapp";
 import { uploadBufferToStorage } from "../utils/intregrations/s3Storage";
+import { findByPhone } from "../utils/whatsapp/matchPhone";
 
 const WEBHOOK_PATH = "/webhooks/whatsapp";
 
@@ -27,6 +28,8 @@ type WhatsAppWebhookChange = {
   field?: string;
   value?: {
     metadata?: { phone_number_id?: string };
+    /** Nombre de perfil de WhatsApp de quien escribe (no es el del CRM). */
+    contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
     messages?: WhatsAppWebhookMessage[];
     event?: string;
     message_template_name?: string;
@@ -47,12 +50,6 @@ const TEMPLATE_STATUS_MAP: Record<string, string> = {
   PENDING_DELETION: "rejected",
   DISABLED: "rejected",
 };
-
-/** Últimos 10 dígitos: heurística para matchear contra `TechBusinessLead.phone` (texto libre, sin
- * normalizar), sin importar si el lead lo tiene guardado con o sin lada/espacios/guiones. */
-function last10Digits(digits: string): string {
-  return digits.slice(-10);
-}
 
 function extToFilename(filename: string | undefined, mimeType: string): string {
   if (filename) return filename;
@@ -124,6 +121,7 @@ async function persistIncomingMessages(
   companyId: string,
   accessToken: string,
   messages: WhatsAppWebhookMessage[],
+  contacts: NonNullable<WhatsAppWebhookChange["value"]>["contacts"],
   context: KeystoneContext,
 ) {
   for (const msg of messages) {
@@ -135,32 +133,45 @@ async function persistIncomingMessages(
     if (existing) continue; // reintento de Meta, ya procesado
 
     const fromDigits = (msg.from || "").replace(/\D/g, "");
+    // Sirve para poner nombre a un número que aún no es cliente (si no, solo se vería el teléfono).
+    const profileName =
+      (contacts ?? []).find((c) => c.wa_id === msg.from)?.profile?.name?.trim() ||
+      contacts?.[0]?.profile?.name?.trim() ||
+      null;
     let businessLeadId: string | null = null;
     let teamMemberId: string | null = null;
     let internalInitiatorId: string | null = null;
 
     if (fromDigits) {
-      const candidates = await context.sudo().query.TechBusinessLead.findMany({
-        where: {
-          saasCompany: { some: { id: { equals: companyId } } },
-          phone: { contains: last10Digits(fromDigits) },
-        },
-        query: "id",
-        take: 1,
-      });
-      businessLeadId = candidates[0]?.id ?? null;
+      const lead = await findByPhone<{ id: string; phone?: string | null }>(
+        fromDigits,
+        async (fragment, take) =>
+          (await context.sudo().query.TechBusinessLead.findMany({
+            where: {
+              saasCompany: { some: { id: { equals: companyId } } },
+              phone: { contains: fragment },
+            },
+            query: "id phone",
+            take,
+          })) as Array<{ id: string; phone: string | null }>,
+      );
+      businessLeadId = lead?.id ?? null;
 
       // Si no es un lead, puede ser alguien del propio equipo respondiendo un chat interno.
       if (!businessLeadId) {
-        const teamCandidates = await context.sudo().query.User.findMany({
-          where: {
-            company: { id: { equals: companyId } },
-            phone: { contains: last10Digits(fromDigits) },
-          },
-          query: "id",
-          take: 1,
-        });
-        teamMemberId = teamCandidates[0]?.id ?? null;
+        const teammate = await findByPhone<{ id: string; phone?: string | null }>(
+          fromDigits,
+          async (fragment, take) =>
+            (await context.sudo().query.User.findMany({
+              where: {
+                company: { id: { equals: companyId } },
+                phone: { contains: fragment },
+              },
+              query: "id phone",
+              take,
+            })) as Array<{ id: string; phone: string | null }>,
+        );
+        teamMemberId = teammate?.id ?? null;
 
         // El hilo interno lo ven el teamMember y quien lo abrió: la respuesta hereda al
         // iniciador del último mensaje de ese hilo (ver whatsappMessageScopedWhere).
@@ -177,6 +188,13 @@ async function persistIncomingMessages(
           internalInitiatorId = latest?.internalInitiator?.id ?? null;
         }
       }
+    }
+
+    if (!businessLeadId && !teamMemberId) {
+      // Solo los últimos 4 dígitos: es el número de un tercero, no va completo a los logs.
+      console.warn(
+        `[whatsapp webhook] mensaje entrante de un número que no es lead ni compañero (…${fromDigits.slice(-4)}): se guarda sin conversación`,
+      );
     }
 
     let body = "";
@@ -223,6 +241,7 @@ async function persistIncomingMessages(
         direction: "inbound",
         waMessageId: msg.id,
         fromPhone: msg.from || null,
+        ...(profileName ? { senderLabel: profileName } : {}),
         body,
         ...(mediaType ? { mediaType, mediaKey, mediaFileName } : {}),
         status: "received",
@@ -286,7 +305,16 @@ async function handleIncoming(
       : null;
     if (!accessToken) return;
 
-    await persistIncomingMessages(company.id, accessToken, messages, context);
+    // Señal de salud: ya llegó un mensaje real (firma válida) por este webhook.
+    await context
+      .sudo()
+      .prisma.saasCompany.update({
+        where: { id: String(company.id) },
+        data: { whatsappLastWebhookAt: new Date() },
+      })
+      .catch((e: unknown) => console.warn("[whatsapp webhook] no se pudo guardar lastWebhookAt", e));
+
+    await persistIncomingMessages(company.id, accessToken, messages, change.value?.contacts, context);
   } catch (err) {
     console.error("[whatsapp webhook] error procesando el payload:", err);
   }

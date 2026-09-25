@@ -571,6 +571,22 @@ var AnimalComment_default = (0, import_core6.list)({
 var import_core7 = require("@keystone-6/core");
 var import_fields7 = require("@keystone-6/core/fields");
 
+// utils/constants/product.ts
+var PRODUCT = {
+  PET: "pet",
+  SAAS: "saas",
+  ALL: "all"
+};
+var PRODUCT_OPTIONS = [
+  { label: "Pet", value: PRODUCT.PET },
+  { label: "SaaS", value: PRODUCT.SAAS },
+  { label: "Ambas", value: PRODUCT.ALL }
+];
+var SINGLE_PRODUCT_OPTIONS = [
+  { label: "Pet", value: PRODUCT.PET },
+  { label: "SaaS", value: PRODUCT.SAAS }
+];
+
 // utils/intregrations/smtpMail.ts
 var MAILTRAP_SEND_URL = process.env.MAILTRAP_SEND_URL?.trim() || "https://send.api.mailtrap.io/api/send";
 var PLACEHOLDER_PASS = /* @__PURE__ */ new Set(["<tu_password>", "your_smtp_password", "changeme"]);
@@ -662,95 +678,130 @@ async function sendEmail({
   }
 }
 
-// utils/constants/product.ts
-var PRODUCT = {
-  PET: "pet",
-  SAAS: "saas",
-  ALL: "all"
-};
-var PRODUCT_OPTIONS = [
-  { label: "Pet", value: PRODUCT.PET },
-  { label: "SaaS", value: PRODUCT.SAAS },
-  { label: "Ambas", value: PRODUCT.ALL }
-];
-var SINGLE_PRODUCT_OPTIONS = [
-  { label: "Pet", value: PRODUCT.PET },
-  { label: "SaaS", value: PRODUCT.SAAS }
-];
-
-// models/SystemRelease/constants.ts
-var SYSTEM_RELEASE_PRODUCT = PRODUCT;
-var SYSTEM_RELEASE_PRODUCT_OPTIONS = PRODUCT_OPTIONS;
-
-// utils/helpers/sendgrid.ts
+// utils/helpers/emailLayout.ts
 function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-var BRAND_ORANGE = "#FF8C42";
-var BRAND_ORANGE_DARK = "#E6732E";
-function parseAdminNotificationEmails() {
-  const raw = process.env.SMTP_ADMIN_NOTIFICATION_EMAILS?.trim() || process.env.SENDGRID_FROM_EMAIL?.trim();
-  if (!raw) return [];
-  return raw.split(",").map((e) => e.trim()).filter(Boolean);
+var EMAIL_BRANDS = {
+  pet: {
+    name: "Kadesh Pet",
+    tagline: "El cuidado de tu mascota, en un solo lugar",
+    color: "#216BFA",
+    dark: "#1C5CD7",
+    soft: "#EAF1FF",
+    appUrl: () => process.env.PET_FRONTEND_URL?.trim() || process.env.FRONTEND_URL?.trim() || "https://pet.kadesh.com.mx/auth/login"
+  },
+  saas: {
+    name: "Kadesh Negocios",
+    tagline: "Gestiona tu negocio sin complicaciones",
+    color: "#FF8C42",
+    dark: "#E6732E",
+    soft: "#FFF1E6",
+    appUrl: () => process.env.SAAS_FRONTEND_URL?.trim() || "https://kadesh.com.mx/auth/login"
+  }
+};
+var FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+var EMAIL_TEXT = {
+  heading: "#0f172a",
+  body: "#475569",
+  muted: "#64748b",
+  faint: "#94a3b8",
+  line: "#e2e8f0",
+  surface: "#f8fafc",
+  page: "#eef0f4"
+};
+function emailButton(brand, label, href) {
+  const { color } = EMAIL_BRANDS[brand];
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0 0;">
+    <tr>
+      <td align="center" bgcolor="${color}" style="border-radius:10px;background:${color};">
+        <a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer"
+          style="display:inline-block;padding:14px 32px;font-family:${FONT};font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">
+          ${escapeHtml(label)} &rarr;
+        </a>
+      </td>
+    </tr>
+  </table>`;
 }
-function buildWelcomeEmailHtml(displayName, appUrl) {
-  const name = escapeHtml(displayName || "ah\xED");
-  const ctaRow = appUrl ? `
-        <tr>
-          <td style="padding: 8px 0 0 0;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0;">
-              <tr>
-                <td style="border-radius: 8px; background: ${BRAND_ORANGE};">
-                  <a href="${escapeHtml(appUrl)}" target="_blank" rel="noopener noreferrer"
-                    style="display: inline-block; padding: 14px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none;">
-                    Ir a la plataforma
-                  </a>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>` : "";
+function emailInfoTable(rows) {
+  const body = rows.map(
+    ([label, value], i) => `
+      <tr>
+        <td style="padding:12px 16px;${i < rows.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:${EMAIL_TEXT.muted};width:36%;vertical-align:top;">${escapeHtml(label)}</td>
+        <td style="padding:12px 16px;${i < rows.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:15px;font-weight:500;color:${EMAIL_TEXT.heading};vertical-align:top;">${value}</td>
+      </tr>`
+  ).join("");
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0 0;background:${EMAIL_TEXT.surface};border:1px solid ${EMAIL_TEXT.line};border-radius:12px;border-collapse:separate;">${body}</table>`;
+}
+function emailCallout(brand, html) {
+  const { color, soft } = EMAIL_BRANDS[brand];
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0 0;">
+    <tr>
+      <td style="padding:16px 18px;background:${soft};border-left:4px solid ${color};border-radius:8px;font-family:${FONT};font-size:15px;line-height:1.65;color:${EMAIL_TEXT.body};">${html}</td>
+    </tr>
+  </table>`;
+}
+function emailPill(brand, text65) {
+  const { color, soft } = EMAIL_BRANDS[brand];
+  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text65)}</span>`;
+}
+function emailParagraph(html) {
+  return `<p style="margin:0 0 16px 0;font-family:${FONT};font-size:16px;line-height:1.7;color:${EMAIL_TEXT.body};">${html}</p>`;
+}
+function emailGreeting(name) {
+  return `<p style="margin:0 0 16px 0;font-family:${FONT};font-size:20px;line-height:1.4;color:${EMAIL_TEXT.heading};">Hola <strong>${escapeHtml(name)}</strong> \u{1F44B}</p>`;
+}
+function renderEmailLayout(params) {
+  const { name, tagline, color, dark } = EMAIL_BRANDS[params.brand];
+  const title = escapeHtml(params.title);
+  const year = (/* @__PURE__ */ new Date()).getFullYear();
+  const eyebrow = params.eyebrow ? `<p style="margin:0 0 10px 0;font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.85);">${escapeHtml(params.eyebrow)}</p>` : "";
+  const footerNote = params.footerNote ? `<p style="margin:0 0 10px 0;font-family:${FONT};font-size:13px;line-height:1.6;color:${EMAIL_TEXT.muted};">${escapeHtml(params.footerNote)}</p>` : "";
   return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>Bienvenido</title>
+  <meta name="supported-color-schemes" content="light">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${title}</title>
 </head>
-<body style="margin:0; padding:0; background-color:#eef0f4; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4; padding: 40px 16px;">
+<body style="margin:0;padding:0;background-color:${EMAIL_TEXT.page};-webkit-text-size-adjust:100%;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(params.preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:${EMAIL_TEXT.page};">
     <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);">
+      <td align="center" style="padding:32px 16px 40px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;">
           <tr>
-            <td style="background: linear-gradient(135deg, ${BRAND_ORANGE} 0%, ${BRAND_ORANGE_DARK} 100%); padding: 28px 32px;">
-              <p style="margin:0; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.9);">Kadesh</p>
-              <h1 style="margin: 8px 0 0 0; font-size: 26px; font-weight: 700; line-height: 1.25; color: #ffffff;">\xA1Bienvenido!</h1>
+            <td style="padding:0 4px 16px 4px;font-family:${FONT};font-size:18px;font-weight:800;letter-spacing:-0.01em;color:${EMAIL_TEXT.heading};">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:8px;"></span>${escapeHtml(name)}
             </td>
           </tr>
           <tr>
-            <td style="padding: 32px 32px 28px 32px;">
-              <p style="margin:0 0 16px 0; font-size: 18px; line-height: 1.5; color: #0f172a;">Hola <strong>${name}</strong>,</p>
-              <p style="margin:0 0 20px 0; font-size: 16px; line-height: 1.65; color: #475569;">
-                Gracias por unirte. Tu cuenta ya est\xE1 activa y puedes empezar a usar la plataforma cuando quieras.
-              </p>
+            <td style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(15,23,42,0.08);">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                ${ctaRow}
                 <tr>
-                  <td style="padding-top: 28px; border-top: 1px solid #e2e8f0;">
-                    <p style="margin:0; font-size: 14px; line-height: 1.6; color: #64748b;">
-                      Si no creaste esta cuenta, puedes ignorar este mensaje.
-                    </p>
+                  <td bgcolor="${color}" style="background:${color};background-image:linear-gradient(135deg,${color} 0%,${dark} 100%);padding:36px 36px 32px 36px;">
+                    ${eyebrow}
+                    <h1 style="margin:0;font-family:${FONT};font-size:28px;font-weight:800;line-height:1.25;color:#ffffff;">${title}</h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:36px 36px 40px 36px;">
+                    ${params.bodyHtml}
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
-            <td style="padding: 20px 32px 28px 32px; background: #f8fafc;">
-              <p style="margin:0; font-size: 13px; line-height: 1.5; color: #94a3b8; text-align: center;">
-                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Kadesh \xB7 Equipo de soporte
+            <td align="center" style="padding:24px 16px 0 16px;">
+              ${footerNote}
+              ${params.footerExtraHtml ?? ""}
+              <p style="margin:0;font-family:${FONT};font-size:12px;line-height:1.6;color:${EMAIL_TEXT.faint};">
+                <strong style="color:${EMAIL_TEXT.muted};">${escapeHtml(name)}</strong> \xB7 ${escapeHtml(tagline)}<br>
+                \xA9 ${year} Kadesh. Todos los derechos reservados.
               </p>
             </td>
           </tr>
@@ -761,77 +812,99 @@ function buildWelcomeEmailHtml(displayName, appUrl) {
 </body>
 </html>`;
 }
-function buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList) {
-  const rows = [
-    ["ID de usuario", userId],
-    ["Nombre", userName],
-    ["Email", userEmail],
-    ["Campos actualizados", fieldsList]
+
+// utils/helpers/sendgrid.ts
+function emailBrandForUser(hasCompany) {
+  return hasCompany ? "saas" : "pet";
+}
+function parseAdminNotificationEmails() {
+  const raw = process.env.SMTP_ADMIN_NOTIFICATION_EMAILS?.trim() || process.env.SENDGRID_FROM_EMAIL?.trim();
+  if (!raw) return [];
+  return raw.split(",").map((e) => e.trim()).filter(Boolean);
+}
+function stripTags(s) {
+  return s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+var SECTION_LABEL_STYLE = `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${EMAIL_TEXT.muted};`;
+function buildWelcomeEmailHtml(displayName, brand) {
+  const { name: brandName, color, soft } = EMAIL_BRANDS[brand];
+  const steps = brand === "saas" ? [
+    "Configura los datos de tu negocio",
+    "Agrega a tu equipo y tus servicios",
+    "Empieza a gestionar clientes y agenda"
+  ] : [
+    "Registra a tu mascota",
+    "Explora cl\xEDnicas y servicios cerca de ti",
+    "Agenda citas y guarda su historial"
   ];
-  const tableRows = rows.map(
-    ([label, value]) => `
-          <tr>
-            <td style="padding: 12px 16px; border-bottom: 1px solid #334155; font-size: 13px; font-weight: 600; color: #94a3b8; width: 38%; vertical-align: top;">${escapeHtml(label)}</td>
-            <td style="padding: 12px 16px; border-bottom: 1px solid #334155; font-size: 14px; color: #e2e8f0; vertical-align: top;">${escapeHtml(value)}</td>
-          </tr>`
+  const stepsHtml = steps.map(
+    (step, i) => `
+      <tr>
+        <td valign="top" style="padding:0 14px 14px 0;width:32px;">
+          <div style="width:28px;height:28px;line-height:28px;border-radius:50%;background:${soft};color:${color};font-family:Arial,sans-serif;font-size:14px;font-weight:700;text-align:center;">${i + 1}</div>
+        </td>
+        <td valign="top" style="padding:3px 0 14px 0;font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:${EMAIL_TEXT.heading};">${escapeHtml(step)}</td>
+      </tr>`
   ).join("");
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-</head>
-<body style="margin:0; padding:0; background-color:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#0f172a; padding: 40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background: #1e293b; border-radius: 14px; overflow: hidden; border: 1px solid #334155;">
-          <tr>
-            <td style="padding: 22px 24px; border-bottom: 1px solid #334155;">
-              <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; background: rgba(255,140,66,0.2); color: ${BRAND_ORANGE}; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Alerta admin</span>
-              <h1 style="margin: 12px 0 0 0; font-size: 20px; font-weight: 700; color: #f8fafc;">Datos bancarios actualizados</h1>
-              <p style="margin: 8px 0 0 0; font-size: 14px; line-height: 1.5; color: #94a3b8;">Un usuario guard\xF3 cambios en banco, CLABE o tarjeta. Revisa el registro en el Admin de Keystone.</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 0;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                ${tableRows}
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 24px 24px 24px;">
-              <p style="margin:0; font-size: 12px; color: #64748b; line-height: 1.5;">Este mensaje se gener\xF3 autom\xE1ticamente. No respondas a este correo.</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  return renderEmailLayout({
+    brand,
+    preheader: `Tu cuenta en ${brandName} ya est\xE1 lista.`,
+    eyebrow: "Cuenta creada",
+    title: "\xA1Bienvenido a bordo!",
+    bodyHtml: `
+      ${emailGreeting(displayName || "ah\xED")}
+      ${emailParagraph(
+      `Gracias por unirte a <strong>${escapeHtml(brandName)}</strong>. Tu cuenta ya est\xE1 activa y lista para usarse.`
+    )}
+      <p style="margin:24px 0 14px 0;${SECTION_LABEL_STYLE}">Para empezar</p>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0">${stepsHtml}</table>
+      ${emailButton(brand, "Ir a la plataforma", EMAIL_BRANDS[brand].appUrl())}`,
+    footerNote: "Si no creaste esta cuenta, puedes ignorar este mensaje con tranquilidad."
+  });
+}
+function buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList, brand) {
+  return renderEmailLayout({
+    brand,
+    preheader: `${userName} actualiz\xF3 sus datos bancarios.`,
+    eyebrow: `Alerta admin \xB7 ${EMAIL_BRANDS[brand].name}`,
+    title: "Datos bancarios actualizados",
+    bodyHtml: `
+      ${emailParagraph(
+      "Un usuario guard\xF3 cambios en banco, CLABE o tarjeta. Revisa el registro en el Admin de Keystone."
+    )}
+      ${emailInfoTable([
+      ["ID de usuario", escapeHtml(userId)],
+      ["Nombre", escapeHtml(userName)],
+      ["Email", escapeHtml(userEmail)],
+      ["Campos", escapeHtml(fieldsList)]
+    ])}`,
+    footerNote: "Mensaje autom\xE1tico. No respondas a este correo."
+  });
 }
 async function sendUserWelcomeEmail({
   to,
-  displayName
+  displayName,
+  brand
 }) {
   const trimmedTo = to?.trim();
   if (!trimmedTo) {
     console.warn("sendUserWelcomeEmail: sin email destino.");
     return;
   }
-  const subject = "Bienvenido a Kadesh";
-  const appUrl = "https://negocios.kadesh.com.mx/auth/login";
-  const html = buildWelcomeEmailHtml(displayName, appUrl);
-  await sendEmail({ to: trimmedTo, subject, html, fromName: "Kadesh" });
+  const { name: brandName } = EMAIL_BRANDS[brand];
+  await sendEmail({
+    to: trimmedTo,
+    subject: `Bienvenido a ${brandName}`,
+    html: buildWelcomeEmailHtml(displayName, brand),
+    fromName: brandName
+  });
 }
 async function sendAdminUserBankDetailsUpdatedEmail({
   userId,
   userEmail,
   userName,
-  fieldsUpdated
+  fieldsUpdated,
+  brand
 }) {
   const recipients = parseAdminNotificationEmails();
   if (recipients.length === 0) {
@@ -840,10 +913,19 @@ async function sendAdminUserBankDetailsUpdatedEmail({
     );
     return;
   }
-  const fieldsList = fieldsUpdated.join(", ");
-  const subject = "[Kadesh] Usuario actualiz\xF3 datos bancarios";
-  const html = buildBankAlertEmailHtml(userId, userName, userEmail, fieldsList);
-  await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
+  const { name: brandName } = EMAIL_BRANDS[brand];
+  await sendEmail({
+    to: recipients,
+    subject: `[${brandName}] Usuario actualiz\xF3 datos bancarios`,
+    html: buildBankAlertEmailHtml(
+      userId,
+      userName,
+      userEmail,
+      fieldsUpdated.join(", "),
+      brand
+    ),
+    fromName: brandName
+  });
 }
 async function sendAdminPetPlaceServiceRequestEmail({
   serviceName,
@@ -860,45 +942,37 @@ async function sendAdminPetPlaceServiceRequestEmail({
     );
     return;
   }
-  const name = escapeHtml(serviceName);
-  const place = escapeHtml(petPlaceName);
-  const who = escapeHtml(requesterName);
-  const mail = escapeHtml(requesterEmail || "(sin correo)");
-  const desc = escapeHtml(description || "(sin descripci\xF3n)");
-  const subject = `[Kadesh] Nuevo servicio para revisar: ${serviceName}`;
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<body style="margin:0;padding:0;background:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;">
-          <tr>
-            <td style="background:${BRAND_ORANGE};padding:24px 32px;color:#fff;">
-              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;">Kadesh</p>
-              <h1 style="margin:8px 0 0;font-size:22px;">Servicio pendiente de aprobaci\xF3n</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:28px 32px;color:#0f172a;font-size:16px;line-height:1.6;">
-              <p style="margin:0 0 12px;"><strong>${who}</strong> (${mail}) pidi\xF3 un servicio para <strong>${place}</strong>.</p>
-              <p style="margin:0 0 8px;"><strong>Nombre:</strong> ${name}</p>
-              <p style="margin:0 0 8px;"><strong>Descripci\xF3n:</strong> ${desc}</p>
-              <p style="margin:16px 0 0;font-size:14px;color:#64748b;">Apru\xE9balo o rech\xE1zalo en Keystone \u2192 PetPlaceService (id de cl\xEDnica ${escapeHtml(petPlaceId)}). Solo si lo apruebas aparece en el cat\xE1logo.</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-  await sendEmail({ to: recipients, subject, html, fromName: "Kadesh" });
+  const brand = "pet";
+  const { name: brandName } = EMAIL_BRANDS[brand];
+  const html = renderEmailLayout({
+    brand,
+    preheader: `${requesterName} pidi\xF3 agregar "${serviceName}" a ${petPlaceName}.`,
+    eyebrow: "Pendiente de aprobaci\xF3n",
+    title: "Nuevo servicio para revisar",
+    bodyHtml: `
+      ${emailParagraph(
+      `<strong>${escapeHtml(requesterName)}</strong> pidi\xF3 agregar un servicio a <strong>${escapeHtml(petPlaceName)}</strong>.`
+    )}
+      ${emailInfoTable([
+      ["Servicio", escapeHtml(serviceName)],
+      ["Descripci\xF3n", escapeHtml(description || "(sin descripci\xF3n)")],
+      ["Solicitante", escapeHtml(requesterName)],
+      ["Correo", escapeHtml(requesterEmail || "(sin correo)")],
+      ["ID de cl\xEDnica", escapeHtml(petPlaceId)]
+    ])}
+      ${emailCallout(
+      brand,
+      "Apru\xE9balo o rech\xE1zalo en Keystone \u2192 <strong>PetPlaceService</strong>. Solo si lo apruebas aparece en el cat\xE1logo."
+    )}`,
+    footerNote: "Mensaje autom\xE1tico. No respondas a este correo."
+  });
+  await sendEmail({
+    to: recipients,
+    subject: `[${brandName}] Nuevo servicio para revisar: ${serviceName}`,
+    html,
+    fromName: brandName
+  });
 }
-var NEW_POST_EMAIL_BRANDS = {
-  pet: { name: "Kadesh Pet", color: "#FF8C42", hover: "#E67A35" },
-  saas: { name: "Kadesh Negocios", color: "#FF8C42", hover: "#E67A35" }
-};
 async function sendNewPostEmail({
   postTitle,
   postUrl,
@@ -912,106 +986,25 @@ async function sendNewPostEmail({
   if (recipientEmails.length === 0) {
     return;
   }
-  const { name: brandName, color, hover } = NEW_POST_EMAIL_BRANDS[brand];
+  const { name: brandName, color } = EMAIL_BRANDS[brand];
   const subject = `Nuevo art\xEDculo en ${brandName}: ${postTitle}`;
-  const buildHtml = (unsubscribeUrl) => `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="color-scheme" content="dark">
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #BBBBBB;
-          background-color: #1A1A1A;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .header {
-          background-color: ${color};
-          color: #FFFFFF;
-          padding: 20px;
-          text-align: center;
-          border-radius: 5px 5px 0 0;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 22px;
-        }
-        .content {
-          background-color: #2C2C2C;
-          padding: 20px;
-          border-radius: 0 0 5px 5px;
-          border: 1px solid #404040;
-          border-top: none;
-        }
-        .post-title {
-          font-size: 24px;
-          font-weight: bold;
-          margin-bottom: 15px;
-          color: #FFFFFF;
-        }
-        .post-excerpt {
-          font-size: 16px;
-          color: #BBBBBB;
-          margin-bottom: 20px;
-          line-height: 1.8;
-        }
-        .post-meta {
-          font-size: 14px;
-          color: #87CEEB;
-          margin-bottom: 20px;
-        }
-        .button {
-          display: inline-block;
-          padding: 12px 30px;
-          background-color: ${color};
-          color: #FFFFFF;
-          text-decoration: none;
-          border-radius: 5px;
-          font-weight: bold;
-          margin-top: 20px;
-        }
-        .button:hover {
-          background-color: ${hover};
-        }
-        .footer {
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #404040;
-          font-size: 12px;
-          color: #BBBBBB;
-          text-align: center;
-        }
-        .footer a {
-          color: #87CEEB;
-          text-decoration: underline;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>\xA1Nuevo art\xEDculo en ${brandName}!</h1>
-      </div>
-      <div class="content">
-        <div class="post-title">${postTitle}</div>
-        ${postExcerpt ? `<div class="post-excerpt">${postExcerpt}</div>` : ""}
-        <div class="post-meta">
-          ${authorName ? `<strong>Autor:</strong> ${authorName}<br>` : ""}
-          ${categoryName ? `<strong>Categor\xEDa:</strong> ${categoryName}` : ""}
-        </div>
-        <a href="${postUrl}" class="button">Leer Post Completo</a>
-      </div>
-      <div class="footer">
-        <p>Gracias por suscribirte a nuestro blog.</p>
-        ${unsubscribeUrl ? `<p>Si no deseas recibir m\xE1s notificaciones, <a href="${escapeHtml(unsubscribeUrl)}">cancela tu suscripci\xF3n aqu\xED</a>.</p>` : `<p>Si no deseas recibir m\xE1s notificaciones, puedes cancelar tu suscripci\xF3n en cualquier momento.</p>`}
-      </div>
-    </body>
-    </html>
-  `;
+  const excerpt = postExcerpt ? stripTags(postExcerpt) : "";
+  const meta = [
+    categoryName ? emailPill(brand, categoryName) : "",
+    authorName ? `<span style="font-family:Arial,sans-serif;font-size:14px;color:${EMAIL_TEXT.muted};">Por <strong style="color:${EMAIL_TEXT.heading};">${escapeHtml(authorName)}</strong></span>` : ""
+  ].filter(Boolean).join(`<span style="display:inline-block;width:10px;"></span>`);
+  const buildHtml = (unsubscribeUrl) => renderEmailLayout({
+    brand,
+    preheader: excerpt || `Ya puedes leer "${postTitle}".`,
+    eyebrow: "Nuevo en el blog",
+    title: postTitle,
+    bodyHtml: `
+        ${meta ? `<div style="margin:0 0 20px 0;">${meta}</div>` : ""}
+        ${excerpt ? `<p style="margin:0;padding:0 0 0 16px;border-left:4px solid ${color};font-family:Arial,sans-serif;font-size:17px;line-height:1.7;color:${EMAIL_TEXT.body};">${escapeHtml(excerpt)}</p>` : ""}
+        ${emailButton(brand, "Leer art\xEDculo completo", postUrl)}`,
+    footerNote: "Recibes este correo porque te suscribiste a nuestro blog.",
+    footerExtraHtml: unsubscribeUrl ? `<p style="margin:0 0 14px 0;font-family:Arial,sans-serif;font-size:13px;color:${EMAIL_TEXT.muted};"><a href="${escapeHtml(unsubscribeUrl)}" style="color:${EMAIL_TEXT.muted};text-decoration:underline;">Cancelar suscripci\xF3n</a></p>` : ""
+  });
   for (const email of recipientEmails) {
     const unsubscribeUrl = unsubscribeBaseUrl ? `${unsubscribeBaseUrl}?email=${encodeURIComponent(email)}` : null;
     await sendEmail({
@@ -1026,73 +1019,29 @@ function formatReleaseBodyHtml(body) {
   if (!body?.trim()) {
     return "";
   }
-  return escapeHtml(body.trim()).replace(/\n{2,}/g, '</p><p style="margin:0 0 12px 0;font-size:15px;line-height:1.65;color:#475569;">').replace(/\n/g, "<br>");
-}
-function releaseProductLabel(product) {
-  if (product === SYSTEM_RELEASE_PRODUCT.PET) return "Pet";
-  if (product === SYSTEM_RELEASE_PRODUCT.SAAS) return "Negocios";
-  return "Kadesh";
+  return escapeHtml(body.trim()).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
 }
 function buildSystemReleaseEmailHtml(params) {
-  const name = escapeHtml(params.displayName || "ah\xED");
-  const version = escapeHtml(params.version || "\u2014");
-  const title = params.title?.trim() ? escapeHtml(params.title.trim()) : "Nueva actualizaci\xF3n disponible";
-  const productLabel = releaseProductLabel(params.product);
-  const bodySection = params.bodyHtml ? `<div style="margin:20px 0 0 0;padding:16px 18px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
-        <p style="margin:0 0 8px 0;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#64748b;">Novedades</p>
-        <p style="margin:0;font-size:15px;line-height:1.65;color:#475569;">${params.bodyHtml}</p>
-      </div>` : "";
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>${title}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
-          <tr>
-            <td style="background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_ORANGE_DARK} 100%);padding:28px 32px;">
-              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.9);">${escapeHtml(productLabel)} \xB7 v${version}</p>
-              <h1 style="margin:8px 0 0 0;font-size:24px;font-weight:700;line-height:1.25;color:#ffffff;">${title}</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:32px 32px 28px 32px;">
-              <p style="margin:0 0 16px 0;font-size:18px;line-height:1.5;color:#0f172a;">Hola <strong>${name}</strong>,</p>
-              <p style="margin:0;font-size:16px;line-height:1.65;color:#475569;">
-                Publicamos una nueva versi\xF3n de la plataforma con mejoras y cambios que te pueden interesar.
-              </p>
-              ${bodySection}
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0 0;">
-                <tr>
-                  <td style="border-radius:8px;background:${BRAND_ORANGE};">
-                    <a href="${escapeHtml(params.appUrl)}" target="_blank" rel="noopener noreferrer"
-                      style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;">
-                      Ir a la plataforma
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:20px 32px 28px 32px;background:#f8fafc;">
-              <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;text-align:center;">
-                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Kadesh \xB7 Actualizaci\xF3n ${version}
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  const { name: brandName } = EMAIL_BRANDS[params.brand];
+  const version = params.version || "\u2014";
+  const title = params.title?.trim() || "Nueva actualizaci\xF3n disponible";
+  const notes = params.bodyHtml ? `<p style="margin:24px 0 0 0;${SECTION_LABEL_STYLE}">Novedades</p>
+       ${emailCallout(params.brand, params.bodyHtml)}` : "";
+  return renderEmailLayout({
+    brand: params.brand,
+    preheader: `${title} \xB7 versi\xF3n ${version}`,
+    eyebrow: `Versi\xF3n ${version}`,
+    title,
+    bodyHtml: `
+      ${emailGreeting(params.displayName || "ah\xED")}
+      ${emailParagraph(
+      `Publicamos una nueva versi\xF3n de <strong>${escapeHtml(brandName)}</strong> con mejoras y cambios que te pueden interesar.`
+    )}
+      <div>${emailPill(params.brand, `v${version}`)}</div>
+      ${notes}
+      ${emailButton(params.brand, "Ver las novedades", params.appUrl)}`,
+    footerNote: "Recibes este correo porque tienes una cuenta activa."
+  });
 }
 async function sendSystemReleaseEmail({
   to,
@@ -1100,29 +1049,27 @@ async function sendSystemReleaseEmail({
   version,
   title,
   body,
-  product,
-  appUrl
+  brand
 }) {
   const trimmedTo = to?.trim();
   if (!trimmedTo) {
     console.warn("sendSystemReleaseEmail: sin email destino.");
     return;
   }
+  const { name: brandName, appUrl } = EMAIL_BRANDS[brand];
   const subjectTitle = title?.trim() || `Actualizaci\xF3n v${version}`;
-  const subject = `Novedades en Kadesh: ${subjectTitle}`;
-  const html = buildSystemReleaseEmailHtml({
-    displayName,
-    version,
-    title,
-    bodyHtml: formatReleaseBodyHtml(body),
-    product,
-    appUrl
-  });
   await sendEmail({
     to: trimmedTo,
-    subject,
-    html,
-    fromName: "Kadesh"
+    subject: `Novedades en ${brandName}: ${subjectTitle}`,
+    html: buildSystemReleaseEmailHtml({
+      displayName,
+      version,
+      title,
+      bodyHtml: formatReleaseBodyHtml(body),
+      brand,
+      appUrl: appUrl()
+    }),
+    fromName: brandName
   });
 }
 var PET_PLACE_APPOINTMENT_STATUS_LABELS = {
@@ -1144,71 +1091,32 @@ function formatAppointmentDate(value) {
   });
 }
 function buildPetPlaceAppointmentEmailHtml(params) {
+  const brand = "pet";
   const isOwner = params.audience === "owner";
-  const heading = isOwner ? "Nueva cita reservada" : "Actualizaci\xF3n de tu cita";
-  const greetingName = escapeHtml(isOwner ? params.ownerName : params.customerName);
+  const statusLabel = appointmentStatusLabel(params.status);
   const petPlaceName = escapeHtml(params.petPlaceName);
   const customerName = escapeHtml(params.customerName);
   const petName = params.petName ? escapeHtml(params.petName) : null;
-  const statusLabel = escapeHtml(appointmentStatusLabel(params.status));
-  const startsAtLabel = escapeHtml(formatAppointmentDate(params.startsAt));
-  const endsAtLabel = escapeHtml(formatAppointmentDate(params.endsAt));
-  const bodyText = isOwner ? `<strong>${customerName}</strong> reserv\xF3 una cita${petName ? ` para <strong>${petName}</strong>` : ""} en <strong>${petPlaceName}</strong>.` : `Tu cita en <strong>${petPlaceName}</strong> ahora est\xE1 <strong>${statusLabel}</strong>.`;
+  const bodyText = isOwner ? `<strong>${customerName}</strong> reserv\xF3 una cita${petName ? ` para <strong>${petName}</strong>` : ""} en <strong>${petPlaceName}</strong>.` : `Tu cita en <strong>${petPlaceName}</strong> ahora est\xE1 <strong>${escapeHtml(statusLabel)}</strong>.`;
   const rows = [
     ["Negocio", petPlaceName],
+    ...isOwner ? [["Cliente", customerName]] : [],
     ...petName ? [["Mascota", petName]] : [],
-    ["Inicio", startsAtLabel],
-    ["Fin", endsAtLabel],
-    ["Estatus", statusLabel]
+    ["Inicio", escapeHtml(formatAppointmentDate(params.startsAt))],
+    ["Fin", escapeHtml(formatAppointmentDate(params.endsAt))],
+    ["Estatus", emailPill(brand, statusLabel)]
   ];
-  const tableRows = rows.map(
-    ([label, value]) => `
-        <tr>
-          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#64748b;width:35%;">${label}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;">${value}</td>
-        </tr>`
-  ).join("");
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>${heading}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef0f4;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
-          <tr>
-            <td style="background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_ORANGE_DARK} 100%);padding:28px 32px;">
-              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.9);">Kadesh</p>
-              <h1 style="margin:8px 0 0 0;font-size:24px;font-weight:700;line-height:1.25;color:#ffffff;">${heading}</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:32px 32px 28px 32px;">
-              <p style="margin:0 0 16px 0;font-size:18px;line-height:1.5;color:#0f172a;">Hola <strong>${greetingName}</strong>,</p>
-              <p style="margin:0 0 20px 0;font-size:16px;line-height:1.65;color:#475569;">${bodyText}</p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-                ${tableRows}
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:20px 32px 28px 32px;background:#f8fafc;">
-              <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;text-align:center;">
-                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Kadesh \xB7 Equipo de soporte
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  return renderEmailLayout({
+    brand,
+    preheader: isOwner ? `${params.customerName} reserv\xF3 una cita en ${params.petPlaceName}.` : `Tu cita en ${params.petPlaceName}: ${statusLabel}.`,
+    eyebrow: isOwner ? "Agenda" : "Tu cita",
+    title: isOwner ? "Nueva cita reservada" : "Actualizaci\xF3n de tu cita",
+    bodyHtml: `
+      ${emailGreeting(isOwner ? params.ownerName : params.customerName)}
+      ${emailParagraph(bodyText)}
+      ${emailInfoTable(rows)}`,
+    footerNote: "Mensaje autom\xE1tico de tu agenda. No respondas a este correo."
+  });
 }
 async function sendPetPlaceAppointmentEmail({
   to,
@@ -1227,21 +1135,20 @@ async function sendPetPlaceAppointmentEmail({
     return;
   }
   const subject = audience === "owner" ? `Nueva cita en ${petPlaceName}` : `Tu cita en ${petPlaceName}: ${appointmentStatusLabel(status)}`;
-  const html = buildPetPlaceAppointmentEmailHtml({
-    audience,
-    ownerName,
-    petPlaceName,
-    customerName,
-    petName,
-    startsAt,
-    endsAt,
-    status
-  });
   await sendEmail({
     to: trimmedTo,
     subject,
-    html,
-    fromName: "Kadesh"
+    html: buildPetPlaceAppointmentEmailHtml({
+      audience,
+      ownerName,
+      petPlaceName,
+      customerName,
+      petName,
+      startsAt,
+      endsAt,
+      status
+    }),
+    fromName: EMAIL_BRANDS.pet.name
   });
 }
 
@@ -1506,6 +1413,11 @@ var stripeCustomerHook = {
     return resolvedData;
   }
 };
+function userEmailBrand(item) {
+  return emailBrandForUser(
+    item.product === PRODUCT.SAAS || Boolean(item.companyId)
+  );
+}
 var userWelcomeEmailHook = {
   afterOperation: async (args) => {
     const { listKey, operation, item } = args;
@@ -1516,7 +1428,8 @@ var userWelcomeEmailHook = {
     try {
       await sendUserWelcomeEmail({
         to: String(email),
-        displayName
+        displayName,
+        brand: userEmailBrand(item)
       });
     } catch (err) {
       console.error("Error enviando correo de bienvenida:", err);
@@ -1540,7 +1453,8 @@ var userBankDetailsNotificationHook = {
         userId,
         userEmail,
         userName,
-        fieldsUpdated: [...fieldsUpdated]
+        fieldsUpdated: [...fieldsUpdated],
+        brand: userEmailBrand(item)
       });
     } catch (err) {
       console.error(
@@ -1555,18 +1469,21 @@ var userBlogSubscriptionHook = {
     if (operation === "create" && item && item.email) {
       try {
         const sudo = context.sudo();
-        const existingSubscription = await sudo.db.BlogSubscription.findOne({
-          where: { email: item.email }
+        const product = item.product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET;
+        const [existingSubscription] = await sudo.db.BlogSubscription.findMany({
+          where: { email: { equals: item.email }, product: { equals: product } },
+          take: 1
         });
         if (!existingSubscription) {
           await sudo.db.BlogSubscription.createOne({
             data: {
               email: item.email,
+              product,
               user: { connect: { id: item.id } },
               active: true
             }
           });
-        } else if (existingSubscription && !existingSubscription.userId) {
+        } else if (!existingSubscription.userId) {
           await sudo.db.BlogSubscription.updateOne({
             where: { id: existingSubscription.id },
             data: {
@@ -1644,6 +1561,11 @@ var userRolesFieldAccess = {
   read: ({ session: session2 }) => isSignedIn(session2),
   create: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2),
   update: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2)
+};
+var userOnboardingFieldAccess = {
+  read: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item),
+  create: () => true,
+  update: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item)
 };
 function companyConnectId(inputData) {
   const connect = inputData?.company?.connect;
@@ -1885,6 +1807,21 @@ var User_default = (0, import_core7.list)({
       many: true,
       ui: { description: "Llamadas a IA disparadas por este usuario" }
     }),
+    googleCalendarAccounts: (0, import_fields7.relationship)({
+      ref: "GoogleCalendarAccount.user",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar personales de este usuario" }
+    }),
+    connectedGoogleCalendarAccounts: (0, import_fields7.relationship)({
+      ref: "GoogleCalendarAccount.connectedByUser",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar que este usuario autoriz\xF3" }
+    }),
+    createdCalendarEvents: (0, import_fields7.relationship)({
+      ref: "TechCalendarEvent.createdBy",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de calendario de este usuario" }
+    }),
     whatsappMessagesSent: (0, import_fields7.relationship)({
       ref: "TechWhatsAppMessage.sentBy",
       many: true,
@@ -1959,6 +1896,16 @@ var User_default = (0, import_core7.list)({
     }),
     smsRegistrationId: (0, import_fields7.text)(),
     verified: (0, import_fields7.checkbox)(),
+    product: (0, import_fields7.select)({
+      options: SINGLE_PRODUCT_OPTIONS,
+      defaultValue: PRODUCT.PET,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        displayMode: "select",
+        description: "Producto en el que se registr\xF3 (Pet o SaaS). Define la marca de sus correos y su suscripci\xF3n al blog."
+      }
+    }),
     userTest: (0, import_fields7.checkbox)(),
     salesPersonVerified: (0, import_fields7.checkbox)(),
     salesComission: (0, import_fields7.integer)({
@@ -2023,6 +1970,14 @@ var User_default = (0, import_core7.list)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
+      }
+    }),
+    onboardingState: (0, import_fields7.json)({
+      defaultValue: {},
+      access: userOnboardingFieldAccess,
+      ui: {
+        description: "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
+        createView: { fieldMode: "hidden" }
       }
     })
   }
@@ -2383,7 +2338,70 @@ var petPlaceSlugAfterOperation = {
   }
 };
 
+// models/Saas/Tech/crm/constants.ts
+var PIPELINE_STATUS = {
+  DETECTADO: "01 - Detectado",
+  SELECCIONADO: "02 - Seleccionado",
+  CONTACTADO: "03 - Contactado",
+  SIN_RESPUESTA: "04 - Sin Respuesta",
+  INTERESADO: "05 - Interesado",
+  CREANDO_PROYECTO_PROPUESTA: "06 - Creando proyecto propuesta",
+  PROPUESTA_ENVIADA: "07 - Propuesta Enviada",
+  SEGUIMIENTO: "08 - Seguimiento",
+  EN_NEGOCIACION: "09 - En Negociaci\xF3n",
+  PROPUESTA_ACEPTADA: "10 - Propuesta Aceptada",
+  PROPUESTA_RECHAZADA: "11 - Propuesta Rechazada",
+  CERRADO_GANADO: "12 - Cerrado Ganado",
+  CERRADO_PERDIDO: "13 - Cerrado Perdido",
+  DESCARTADO: "14 - Descartado"
+};
+var OPPORTUNITY_LEVEL = {
+  ALTA: "Alta",
+  MEDIA: "Media",
+  BAJA: "Baja"
+};
+var SALES_ACTIVITY_TYPE = {
+  LLAMADA: "Llamada",
+  WHATSAPP: "WhatsApp",
+  EMAIL: "Email",
+  REUNION: "Reuni\xF3n",
+  OTRA: "Otra"
+};
+var PROPOSAL_STATUS = {
+  ENVIADA: "Enviada",
+  ACEPTADA: "Aceptada",
+  RECHAZADA: "Rechazada",
+  PENDIENTE: "Pendiente",
+  COMPRADA: "Comprada"
+};
+var FOLLOW_UP_TASK_STATUS = {
+  PENDIENTE: "Pendiente",
+  COMPLETADO: "Completado",
+  CANCELADO: "Cancelado",
+  POSPUESTO: "Pospuesto"
+};
+var TASK_PRIORITY = {
+  ALTA: "Alta",
+  MEDIA: "Media",
+  BAJA: "Baja"
+};
+var LEAD_SOURCE = {
+  GOOGLE_MAPS: "Google Maps",
+  INEGI: "INEGI",
+  REFERIDO: "Referido",
+  WEB: "Web",
+  SOCIAL_MEDIA: "Redes Sociales",
+  EMAIL: "Email",
+  CALL: "Llamada",
+  WHATSAPP: "WhatsApp",
+  OTRO: "Otro"
+};
+
 // models/Pet/PetPlace/PetPlace.ts
+var pipelineOptions = Object.values(PIPELINE_STATUS).map((value) => ({
+  label: value,
+  value
+}));
 var PetPlace_default = (0, import_core13.list)({
   access: access_default,
   ui: {
@@ -2505,6 +2523,15 @@ var PetPlace_default = (0, import_core13.list)({
       options: PET_PLACE_CLAIM_ROLE_OPTIONS,
       ui: { description: "Rol declarado al reclamar" }
     }),
+    pipelineStatus: (0, import_fields13.select)({
+      type: "string",
+      options: pipelineOptions,
+      defaultValue: PIPELINE_STATUS.DETECTADO,
+      isIndexed: true,
+      ui: {
+        description: "Estatus comercial interno (solo admin). No lo ve el due\xF1o de la ficha."
+      }
+    }),
     claimPhone: (0, import_fields13.text)({
       ui: { description: "Tel\xE9fono que dej\xF3 en la solicitud" }
     }),
@@ -2621,6 +2648,7 @@ var PetPlace_default = (0, import_core13.list)({
     address: (0, import_fields13.text)(),
     google_place_id: (0, import_fields13.text)({
       isIndexed: "unique",
+      db: { isNullable: true },
       validation: { isRequired: false }
     }),
     google_opening_hours: (0, import_fields13.text)(),
@@ -3093,6 +3121,10 @@ var systemReleaseAccess = {
   }
 };
 
+// models/SystemRelease/constants.ts
+var SYSTEM_RELEASE_PRODUCT = PRODUCT;
+var SYSTEM_RELEASE_PRODUCT_OPTIONS = PRODUCT_OPTIONS;
+
 // models/SystemRelease/SystemRelease.hooks.ts
 function buildDisplayName(user) {
   return [user.name, user.lastName].filter(Boolean).join(" ").trim() || "ah\xED";
@@ -3117,7 +3149,8 @@ async function getReleaseRecipients(context, product) {
     seen.add(email.toLowerCase());
     recipients.push({
       email,
-      displayName: buildDisplayName(user)
+      displayName: buildDisplayName(user),
+      brand: emailBrandForUser(hasCompany)
     });
   }
   return recipients;
@@ -3132,7 +3165,7 @@ function formatSendError(err) {
   }
   return String(err);
 }
-async function sendReleaseEmailWithTimeout(recipient, release, product, appUrl) {
+async function sendReleaseEmailWithTimeout(recipient, release) {
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => {
@@ -3151,8 +3184,7 @@ async function sendReleaseEmailWithTimeout(recipient, release, product, appUrl) 
         version: release.version ?? "",
         title: release.title ?? null,
         body: release.body ?? null,
-        product,
-        appUrl
+        brand: recipient.brand
       }),
       timeout
     ]);
@@ -3178,12 +3210,11 @@ async function notifyUsersForRelease(context, release) {
     console.log("[SystemRelease] Sin destinatarios con email v\xE1lido.");
     return;
   }
-  const appUrl = process.env.FRONTEND_URL?.trim() || "https://kadesh.com.mx/auth/login";
   let sent = 0;
   let failed = 0;
   for (const recipient of recipients) {
     try {
-      await sendReleaseEmailWithTimeout(recipient, release, product, appUrl);
+      await sendReleaseEmailWithTimeout(recipient, release);
       sent++;
     } catch (err) {
       failed++;
@@ -4205,9 +4236,9 @@ var import_core34 = require("@keystone-6/core");
 var import_fields34 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text60) {
+function sanitizeUrl2(text65) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text60.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text65.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -4674,65 +4705,6 @@ var businessLeadHooks = {
   }
 };
 
-// models/Saas/Tech/crm/constants.ts
-var PIPELINE_STATUS = {
-  DETECTADO: "01 - Detectado",
-  SELECCIONADO: "02 - Seleccionado",
-  CONTACTADO: "03 - Contactado",
-  SIN_RESPUESTA: "04 - Sin Respuesta",
-  INTERESADO: "05 - Interesado",
-  CREANDO_PROYECTO_PROPUESTA: "06 - Creando proyecto propuesta",
-  PROPUESTA_ENVIADA: "07 - Propuesta Enviada",
-  SEGUIMIENTO: "08 - Seguimiento",
-  EN_NEGOCIACION: "09 - En Negociaci\xF3n",
-  PROPUESTA_ACEPTADA: "10 - Propuesta Aceptada",
-  PROPUESTA_RECHAZADA: "11 - Propuesta Rechazada",
-  CERRADO_GANADO: "12 - Cerrado Ganado",
-  CERRADO_PERDIDO: "13 - Cerrado Perdido",
-  DESCARTADO: "14 - Descartado"
-};
-var OPPORTUNITY_LEVEL = {
-  ALTA: "Alta",
-  MEDIA: "Media",
-  BAJA: "Baja"
-};
-var SALES_ACTIVITY_TYPE = {
-  LLAMADA: "Llamada",
-  WHATSAPP: "WhatsApp",
-  EMAIL: "Email",
-  REUNION: "Reuni\xF3n",
-  OTRA: "Otra"
-};
-var PROPOSAL_STATUS = {
-  ENVIADA: "Enviada",
-  ACEPTADA: "Aceptada",
-  RECHAZADA: "Rechazada",
-  PENDIENTE: "Pendiente",
-  COMPRADA: "Comprada"
-};
-var FOLLOW_UP_TASK_STATUS = {
-  PENDIENTE: "Pendiente",
-  COMPLETADO: "Completado",
-  CANCELADO: "Cancelado",
-  POSPUESTO: "Pospuesto"
-};
-var TASK_PRIORITY = {
-  ALTA: "Alta",
-  MEDIA: "Media",
-  BAJA: "Baja"
-};
-var LEAD_SOURCE = {
-  GOOGLE_MAPS: "Google Maps",
-  INEGI: "INEGI",
-  REFERIDO: "Referido",
-  WEB: "Web",
-  SOCIAL_MEDIA: "Redes Sociales",
-  EMAIL: "Email",
-  CALL: "Llamada",
-  WHATSAPP: "WhatsApp",
-  OTRO: "Otro"
-};
-
 // models/Saas/Tech/BusinessLead/TechBusinessLead.ts
 var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
@@ -4936,7 +4908,7 @@ var statusBusinessLeadHooks = {
 };
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
-var pipelineOptions = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
+var pipelineOptions2 = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
   label: v,
   value: v
 }));
@@ -4972,7 +4944,7 @@ var TechStatusBusinessLead_default = (0, import_core40.list)({
     }),
     pipelineStatus: (0, import_fields40.select)({
       type: "string",
-      options: pipelineOptions,
+      options: pipelineOptions2,
       defaultValue: PIPELINE_STATUS.DETECTADO,
       isIndexed: true,
       ui: { description: "Estado en el pipeline" }
@@ -5162,8 +5134,208 @@ async function validateTechStatusCrmInput(args) {
   }
 }
 
+// utils/googleCalendar/constants.ts
+var GOOGLE_CALENDAR_FEATURE_KEY = "calendar_crm";
+var GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
+var GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+var GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+var GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
+var GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
+var GOOGLE_CALENDAR_SCOPE_TYPE_OPTIONS = [
+  { label: "Personal", value: "personal" /* PERSONAL */ },
+  { label: "Compartida (empresa)", value: "company" /* COMPANY */ }
+];
+var CALENDAR_EVENT_SOURCE_OPTIONS = [
+  { label: "Nativo", value: "native" /* NATIVE */ },
+  { label: "Actividad de venta", value: "sales_activity" /* SALES_ACTIVITY */ },
+  { label: "Tarea de seguimiento", value: "follow_up_task" /* FOLLOW_UP_TASK */ },
+  { label: "Tarea", value: "task" /* TASK */ },
+  { label: "Propuesta", value: "proposal" /* PROPOSAL */ }
+];
+var GOOGLE_LINK_STATUS_OPTIONS = [
+  { label: "Pendiente", value: "pending" /* PENDING */ },
+  { label: "Exitoso", value: "success" /* SUCCESS */ },
+  { label: "Error", value: "error" /* ERROR */ }
+];
+var GOOGLE_SYNC_DIRECTION_OPTIONS = [
+  { label: "Push (Kadesh \u2192 Google)", value: "push" },
+  { label: "Pull (Google \u2192 Kadesh)", value: "pull" }
+];
+var GOOGLE_SYNC_OPERATION_OPTIONS = [
+  { label: "Crear", value: "create" },
+  { label: "Actualizar", value: "update" },
+  { label: "Eliminar", value: "delete" },
+  { label: "Listar eventos", value: "list_events" },
+  { label: "Listar calendarios", value: "list_calendars" },
+  { label: "Refrescar token", value: "token_refresh" }
+];
+var DEFAULT_EVENT_DURATION_MINUTES = 60;
+
+// utils/googleCalendar/crmEvents.ts
+var COMMON_QUERY = "workspace { id company { id } } businessLead { businessName saasCompany { id } } createdBy { id company { id } }";
+function dayToIso(day) {
+  return day ? `${day}T00:00:00.000Z` : null;
+}
+function withLead(base, item) {
+  const lead = item.businessLead?.businessName;
+  return lead ? `${base} \u2014 ${lead}` : base;
+}
+var CONFIGS = {
+  TechSalesActivity: {
+    sourceType: "sales_activity" /* SALES_ACTIVITY */,
+    relationField: "salesActivity",
+    ownerField: "assignedSeller",
+    query: `id title type activityDate comments assignedSeller { id company { id } } ${COMMON_QUERY}`,
+    build: (item) => {
+      if (!item.activityDate) return null;
+      const start = new Date(item.activityDate);
+      return {
+        title: withLead(item.title || item.type || "Actividad", item),
+        description: item.comments ?? null,
+        startAt: start.toISOString(),
+        endAt: new Date(
+          start.getTime() + DEFAULT_EVENT_DURATION_MINUTES * 6e4
+        ).toISOString(),
+        allDay: false
+      };
+    }
+  },
+  TechFollowUpTask: {
+    sourceType: "follow_up_task" /* FOLLOW_UP_TASK */,
+    relationField: "followUpTask",
+    ownerField: "assignedSeller",
+    query: `id scheduledDate notes assignedSeller { id company { id } } ${COMMON_QUERY}`,
+    build: (item) => {
+      const startAt = dayToIso(item.scheduledDate);
+      if (!startAt) return null;
+      return {
+        title: withLead("Seguimiento", item),
+        description: item.notes ?? null,
+        startAt,
+        endAt: null,
+        allDay: true
+      };
+    }
+  },
+  TechTask: {
+    sourceType: "task" /* TASK */,
+    relationField: "task",
+    ownerField: "responsible",
+    query: `id title startDate dueDate comments responsible { id company { id } } ${COMMON_QUERY}`,
+    build: (item) => {
+      if (!item.startDate) return null;
+      const start = new Date(item.startDate);
+      const due = item.dueDate ? new Date(item.dueDate) : null;
+      return {
+        title: withLead(item.title || "Tarea", item),
+        description: item.comments ?? null,
+        startAt: start.toISOString(),
+        // Solo si el fin es válido; si no, el push usa la duración por defecto.
+        endAt: due && due.getTime() >= start.getTime() ? due.toISOString() : null,
+        allDay: false
+      };
+    }
+  },
+  TechProposal: {
+    sourceType: "proposal" /* PROPOSAL */,
+    relationField: "proposal",
+    ownerField: "assignedSeller",
+    query: `id sentDate product notes assignedSeller { id company { id } } ${COMMON_QUERY}`,
+    build: (item) => {
+      const startAt = dayToIso(item.sentDate);
+      if (!startAt) return null;
+      return {
+        title: withLead(`Propuesta${item.product ? `: ${item.product}` : ""}`, item),
+        description: item.notes ?? null,
+        startAt,
+        endAt: null,
+        allDay: true
+      };
+    }
+  }
+};
+function isCrmListKey(listKey) {
+  return listKey in CONFIGS;
+}
+function resolveCompanyId(item, ownerField) {
+  return item.workspace?.company?.id ?? item.businessLead?.saasCompany?.[0]?.id ?? item[ownerField]?.company?.id ?? item.createdBy?.company?.id ?? null;
+}
+function sameInstant(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return new Date(a).getTime() === new Date(b).getTime();
+}
+async function findLinkedEvent(context, cfg, itemId) {
+  const [existing] = await context.sudo().query.TechCalendarEvent.findMany({
+    where: { [cfg.relationField]: { id: { equals: itemId } } },
+    take: 1,
+    query: "id title description startAt endAt allDay"
+  });
+  return existing ?? null;
+}
+async function syncCalendarEventFromCrm(context, listKey, operation, itemId) {
+  const cfg = CONFIGS[listKey];
+  const item = await context.sudo().query[listKey].findOne({
+    where: { id: itemId },
+    query: cfg.query
+  });
+  if (!item) return;
+  const draft = cfg.build(item);
+  const existing = await findLinkedEvent(context, cfg, itemId);
+  if (!existing) {
+    if (operation !== "create" || !draft) return;
+    const companyId = resolveCompanyId(item, cfg.ownerField);
+    const ownerId = item[cfg.ownerField]?.id ?? item.createdBy?.id ?? context.session?.data?.id ?? null;
+    if (!companyId || !ownerId) return;
+    await context.sudo().query.TechCalendarEvent.createOne({
+      data: {
+        ...draft,
+        sourceType: cfg.sourceType,
+        [cfg.relationField]: { connect: { id: itemId } },
+        createdBy: { connect: { id: ownerId } },
+        company: { connect: { id: companyId } },
+        ...item.workspace?.id && {
+          workspace: { connect: { id: item.workspace.id } }
+        }
+      }
+    });
+    return;
+  }
+  if (!draft) return;
+  const unchanged = existing.title === draft.title && (existing.description ?? null) === draft.description && existing.allDay === draft.allDay && sameInstant(existing.startAt, draft.startAt) && sameInstant(existing.endAt, draft.endAt);
+  if (unchanged) return;
+  await context.sudo().query.TechCalendarEvent.updateOne({
+    where: { id: existing.id },
+    data: draft
+  });
+}
+async function deleteLinkedCalendarEvent(context, listKey, itemId) {
+  const existing = await findLinkedEvent(context, CONFIGS[listKey], itemId);
+  if (!existing) return;
+  await context.sudo().query.TechCalendarEvent.deleteOne({ where: { id: existing.id } });
+}
+var crmCalendarHooks = {
+  beforeOperation: async ({ operation, item, context, listKey }) => {
+    if (operation !== "delete" || !item?.id || !isCrmListKey(listKey)) return;
+    try {
+      await deleteLinkedCalendarEvent(context, listKey, item.id);
+    } catch (err) {
+      console.error(`Error borrando evento de calendario (${listKey}):`, err);
+    }
+  },
+  afterOperation: async ({ operation, item, context, listKey }) => {
+    if (operation === "delete" || !item?.id || !isCrmListKey(listKey)) return;
+    try {
+      await syncCalendarEventFromCrm(context, listKey, operation, item.id);
+    } catch (err) {
+      console.error(`Error sincronizando evento de calendario (${listKey}):`, err);
+    }
+  }
+};
+
 // models/Saas/Tech/FollowUpTask/TechFollowUpTask.hooks.ts
 var followUpTaskHooks = {
+  ...crmCalendarHooks,
   validateInput: async ({
     context,
     resolvedData,
@@ -5242,6 +5414,11 @@ var TechFollowUpTask_default = (0, import_core41.list)({
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo tarea)" }
     }),
+    calendarEvent: (0, import_fields41.relationship)({
+      ref: "TechCalendarEvent.followUpTask",
+      many: false,
+      ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
+    }),
     notes: (0, import_fields41.text)({ ui: { displayMode: "textarea" } }),
     hiddenInWorkspace: (0, import_fields41.checkbox)({
       defaultValue: false,
@@ -5286,6 +5463,7 @@ var proposalAccess = {
 
 // models/Saas/Tech/Proposal/TechProposal.hooks.ts
 var proposalHooks = {
+  beforeOperation: crmCalendarHooks.beforeOperation,
   validateInput: async ({
     context,
     resolvedData,
@@ -5308,6 +5486,7 @@ var proposalHooks = {
     listKey
   }) => {
     if (listKey !== "TechProposal" || !item?.id) return;
+    await crmCalendarHooks.afterOperation({ operation, item, context, listKey });
     if (operation === "update" && resolvedData?.status === PROPOSAL_STATUS.COMPRADA) {
       const proposal = await context.query.TechProposal.findOne({
         where: { id: item.id },
@@ -5400,6 +5579,11 @@ var TechProposal_default = (0, import_core42.list)({
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo propuesta)" }
     }),
+    calendarEvent: (0, import_fields42.relationship)({
+      ref: "TechCalendarEvent.proposal",
+      many: false,
+      ui: { hideCreate: true, description: "Evento de calendario generado (solo propuestas nuevas)" }
+    }),
     project: (0, import_fields42.relationship)({
       ref: "SaasProject.proposal",
       many: false,
@@ -5448,6 +5632,7 @@ var salesActivityAccess = {
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.hooks.ts
 var salesActivityHooks = {
+  ...crmCalendarHooks,
   validateInput: async ({
     context,
     resolvedData,
@@ -5539,6 +5724,11 @@ var TechSalesActivity_default = (0, import_core43.list)({
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo actividad)" }
     }),
+    calendarEvent: (0, import_fields43.relationship)({
+      ref: "TechCalendarEvent.salesActivity",
+      many: false,
+      ui: { hideCreate: true, description: "Evento de calendario generado (solo actividades nuevas)" }
+    }),
     hiddenInWorkspace: (0, import_fields43.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
@@ -5575,6 +5765,7 @@ var techTaskAccess = {
 
 // models/Saas/Tech/Task/TechTask.hooks.ts
 var techTaskHooks = {
+  ...crmCalendarHooks,
   validateInput: async ({
     context,
     resolvedData,
@@ -5658,6 +5849,11 @@ var TechTask_default = (0, import_core44.list)({
     createdBy: (0, import_fields44.relationship)({
       ref: "User.createdByTasks",
       many: false
+    }),
+    calendarEvent: (0, import_fields44.relationship)({
+      ref: "TechCalendarEvent.task",
+      many: false,
+      ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
     hiddenInWorkspace: (0, import_fields44.checkbox)({
       defaultValue: false,
@@ -6966,6 +7162,39 @@ var SaasCompany_default = (0, import_core54.list)({
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se conect\xF3 o desconect\xF3 WhatsApp"
       }
+    }),
+    whatsappAppId: (0, import_fields54.text)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "App ID de la App de Meta de esta empresa (para configurar su webhook por API)"
+      }
+    }),
+    whatsappWebhookConfiguredAt: (0, import_fields54.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Cu\xE1ndo Kadesh dej\xF3 configurado el webhook de su App por API (no implica que ya lleguen mensajes)"
+      }
+    }),
+    whatsappLastWebhookAt: (0, import_fields54.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "\xDAltimo evento real de mensajes recibido con firma v\xE1lida. Vac\xEDo = nunca ha llegado uno (\xBFApp sin publicar en modo Live?)"
+      }
+    }),
+    googleCalendarAccounts: (0, import_fields54.relationship)({
+      ref: "GoogleCalendarAccount.company",
+      many: true,
+      ui: { hideCreate: true, description: "Cuentas de Google Calendar compartidas por la empresa" }
+    }),
+    calendarEvents: (0, import_fields54.relationship)({
+      ref: "TechCalendarEvent.company",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de calendario de la empresa" }
     }),
     whatsappMessages: (0, import_fields54.relationship)({
       ref: "TechWhatsAppMessage.company",
@@ -9130,6 +9359,11 @@ var SaasWorkspace_default = (0, import_core68.list)({
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
+    calendarEvents: (0, import_fields68.relationship)({
+      ref: "TechCalendarEvent.workspace",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de calendario del workspace" }
+    }),
     followUpTasks: (0, import_fields68.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
@@ -9544,7 +9778,7 @@ var TechWhatsAppMessage_default = (0, import_core70.list)({
     senderLabel: (0, import_fields70.text)({
       db: { isNullable: true },
       ui: {
-        description: "Nombre del remitente tal cual ven\xEDa en el .txt importado. Se usa cuando direction es 'unknown'."
+        description: "Nombre del remitente: en un .txt importado, tal cual ven\xEDa (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribi\xF3."
       }
     }),
     waMessageId: (0, import_fields70.text)({
@@ -9602,6 +9836,1212 @@ var TechWhatsAppMessage_default = (0, import_core70.list)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del mensaje" }
     })
+  }
+});
+
+// models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.ts
+var import_core71 = require("@keystone-6/core");
+var import_fields71 = require("@keystone-6/core/fields");
+
+// models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.access.ts
+function googleCalendarAccountVisibleWhere(session2) {
+  if (isPlatformAdmin(session2)) return true;
+  const userId = getSessionUserId(session2);
+  const companyId = getSessionCompanyId(session2);
+  const or = [];
+  if (userId) or.push({ user: { id: { equals: userId } } });
+  if (companyId) or.push({ company: { id: { equals: companyId } } });
+  if (or.length === 0) return false;
+  return { OR: or };
+}
+var googleCalendarAccountAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: () => false,
+    update: () => false,
+    delete: () => false
+  },
+  filter: {
+    query: ({ session: session2 }) => googleCalendarAccountVisibleWhere(session2)
+  }
+};
+
+// models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.hooks.ts
+var googleCalendarAccountHooks = {
+  validateInput: async ({
+    operation,
+    resolvedData,
+    addValidationError
+  }) => {
+    if (operation !== "create") return;
+    const hasUser = !!resolvedData?.user?.connect;
+    const hasCompany = !!resolvedData?.company?.connect;
+    if (resolvedData?.scopeType === "personal" /* PERSONAL */) {
+      if (!hasUser || hasCompany) {
+        addValidationError("Una cuenta personal debe tener usuario y no empresa");
+      }
+    } else if (resolvedData?.scopeType === "company" /* COMPANY */) {
+      if (!hasCompany || hasUser) {
+        addValidationError("Una cuenta compartida debe tener empresa y no usuario");
+      }
+    }
+  }
+};
+
+// models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.ts
+var hiddenTokenAccess = {
+  read: () => false,
+  create: () => false,
+  update: () => false
+};
+var GoogleCalendarAccount_default = (0, import_core71.list)({
+  access: googleCalendarAccountAccess,
+  hooks: googleCalendarAccountHooks,
+  ui: {
+    labelField: "googleAccountEmail",
+    listView: {
+      initialColumns: [
+        "googleAccountEmail",
+        "scopeType",
+        "user",
+        "company",
+        "isActive",
+        "lastSyncedAt"
+      ]
+    }
+  },
+  fields: {
+    scopeType: (0, import_fields71.select)({
+      type: "string",
+      options: [...GOOGLE_CALENDAR_SCOPE_TYPE_OPTIONS],
+      defaultValue: "personal" /* PERSONAL */,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Personal (de un usuario) o compartida por toda la empresa" }
+    }),
+    user: (0, import_fields71.relationship)({
+      ref: "User.googleCalendarAccounts",
+      many: false,
+      ui: { description: "Due\xF1o de la cuenta (solo si es personal)" }
+    }),
+    company: (0, import_fields71.relationship)({
+      ref: "SaasCompany.googleCalendarAccounts",
+      many: false,
+      ui: { description: "Empresa due\xF1a de la cuenta (solo si es compartida)" }
+    }),
+    connectedByUser: (0, import_fields71.relationship)({
+      ref: "User.connectedGoogleCalendarAccounts",
+      many: false,
+      ui: { description: "Qui\xE9n autoriz\xF3 la conexi\xF3n en Google (auditor\xEDa)" }
+    }),
+    googleAccountEmail: (0, import_fields71.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Correo de la cuenta de Google conectada" }
+    }),
+    accessTokenEncrypted: (0, import_fields71.text)({
+      db: { isNullable: true },
+      access: hiddenTokenAccess,
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "Solo mutaciones custom v\xEDa sudo"
+      }
+    }),
+    refreshTokenEncrypted: (0, import_fields71.text)({
+      db: { isNullable: true },
+      access: hiddenTokenAccess,
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "hidden" },
+        listView: { fieldMode: "hidden" },
+        description: "Solo mutaciones custom v\xEDa sudo"
+      }
+    }),
+    tokenExpiresAt: (0, import_fields71.timestamp)({
+      db: { isNullable: true },
+      ui: { description: "Cu\xE1ndo expira el access token actual" }
+    }),
+    scope: (0, import_fields71.text)({
+      db: { isNullable: true },
+      ui: { description: "Scopes de Google otorgados" }
+    }),
+    isActive: (0, import_fields71.checkbox)({
+      defaultValue: true,
+      ui: {
+        description: "false si Google revoc\xF3 el acceso: el usuario debe reconectar la cuenta"
+      }
+    }),
+    lastSyncedAt: (0, import_fields71.timestamp)({
+      db: { isNullable: true },
+      ui: { description: "\xDAltima lectura exitosa desde Google" }
+    }),
+    lastSyncError: (0, import_fields71.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea", description: "\xDAltimo error al hablar con Google" }
+    }),
+    calendars: (0, import_fields71.relationship)({
+      ref: "GoogleCalendarSelection.account",
+      many: true,
+      ui: { hideCreate: true, description: "Calendarios de esta cuenta" }
+    }),
+    syncLogs: (0, import_fields71.relationship)({
+      ref: "TechGoogleCalendarSyncLog.account",
+      many: true,
+      ui: { hideCreate: true, description: "Historial de llamadas a Google" }
+    }),
+    createdAt: (0, import_fields71.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
+var import_core72 = require("@keystone-6/core");
+var import_fields72 = require("@keystone-6/core/fields");
+
+// models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.access.ts
+var googleCalendarSelectionAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: () => false,
+    update: () => false,
+    delete: () => false
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      const where = googleCalendarAccountVisibleWhere(session2);
+      if (where === true || where === false) return where;
+      return { account: where };
+    }
+  }
+};
+
+// models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
+var GoogleCalendarSelection_default = (0, import_core72.list)({
+  access: googleCalendarSelectionAccess,
+  ui: {
+    labelField: "calendarName",
+    listView: {
+      initialColumns: ["calendarName", "account", "isPrimary", "isSelected"]
+    }
+  },
+  fields: {
+    account: (0, import_fields72.relationship)({
+      ref: "GoogleCalendarAccount.calendars",
+      many: false,
+      ui: { description: "Cuenta de Google a la que pertenece este calendario" }
+    }),
+    googleCalendarId: (0, import_fields72.text)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "calendarId en Google (el principal suele ser el correo)" }
+    }),
+    calendarName: (0, import_fields72.text)({
+      validation: { isRequired: true },
+      ui: { description: "Nombre visible del calendario" }
+    }),
+    isPrimary: (0, import_fields72.checkbox)({ defaultValue: false }),
+    isSelected: (0, import_fields72.checkbox)({
+      defaultValue: false,
+      ui: {
+        description: "Si est\xE1 marcado, se ve en el calendario unificado y recibe los eventos creados en Kadesh"
+      }
+    }),
+    colorHex: (0, import_fields72.text)({ db: { isNullable: true } }),
+    // Qué registros del CRM se envían a este calendario (los eventos creados a mano eligen
+    // sus calendarios destino uno a uno en `TechCalendarEvent.googleTargets`).
+    pushActivities: (0, import_fields72.checkbox)({
+      defaultValue: true,
+      ui: { description: "Enviar actividades de venta nuevas a este calendario" }
+    }),
+    pushProposals: (0, import_fields72.checkbox)({
+      defaultValue: true,
+      ui: { description: "Enviar propuestas nuevas a este calendario" }
+    }),
+    pushFollowUps: (0, import_fields72.checkbox)({
+      defaultValue: true,
+      ui: { description: "Enviar tareas de seguimiento nuevas a este calendario" }
+    }),
+    pushTasks: (0, import_fields72.checkbox)({
+      defaultValue: true,
+      ui: { description: "Enviar tareas nuevas a este calendario" }
+    }),
+    targetedEvents: (0, import_fields72.relationship)({
+      ref: "TechCalendarEvent.googleTargets",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos creados a mano que eligieron este calendario" }
+    }),
+    eventLinks: (0, import_fields72.relationship)({
+      ref: "TechCalendarEventGoogleLink.calendarSelection",
+      many: true,
+      ui: { hideCreate: true, description: "Eventos de Kadesh enviados a este calendario" }
+    })
+  }
+});
+
+// models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
+var import_core73 = require("@keystone-6/core");
+var import_fields73 = require("@keystone-6/core/fields");
+
+// models/Saas/Tech/CalendarEvent/TechCalendarEvent.access.ts
+function calendarEventScopedWhere(session2) {
+  if (isPlatformAdmin(session2)) return true;
+  const companyId = getSessionCompanyId(session2);
+  const userId = getSessionUserId(session2);
+  if (!companyId || !userId) return false;
+  if (isCompanyAdmin(session2)) {
+    return { company: { id: { equals: companyId } } };
+  }
+  return {
+    AND: [
+      { company: { id: { equals: companyId } } },
+      { createdBy: { id: { equals: userId } } }
+    ]
+  };
+}
+var techCalendarEventAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionCompanyId(session2),
+    update: ({ session: session2 }) => isSignedIn(session2),
+    delete: ({ session: session2 }) => isSignedIn(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => calendarEventScopedWhere(session2),
+    update: ({ session: session2 }) => calendarEventScopedWhere(session2),
+    delete: ({ session: session2 }) => calendarEventScopedWhere(session2)
+  }
+};
+
+// utils/googleCalendar/callLog.ts
+async function persistGoogleCalendarSyncLog(params) {
+  if (!params.accountId) return;
+  try {
+    await params.context.sudo().query.TechGoogleCalendarSyncLog.createOne({
+      data: {
+        account: { connect: { id: params.accountId } },
+        direction: params.direction,
+        operation: params.operation,
+        success: params.success,
+        errorMessage: params.errorMessage ?? null,
+        durationMs: params.durationMs ?? null
+      }
+    });
+  } catch (err) {
+    console.error("Failed to persist TechGoogleCalendarSyncLog:", err);
+  }
+}
+
+// utils/googleCalendar/errors.ts
+var GoogleCalendarError = class extends Error {
+  status;
+  /** Código de error de Google (ej. `invalid_grant`) cuando viene en la respuesta. */
+  code;
+  constructor(message, status = null, code = null) {
+    super(message);
+    this.name = "GoogleCalendarError";
+    this.status = status;
+    this.code = code;
+  }
+  /** El refresh token ya no sirve (revocado/expirado): hay que reconectar la cuenta. */
+  get isAuthRevoked() {
+    return this.code === "invalid_grant" || this.status === 401;
+  }
+};
+var GoogleCalendarNotConfiguredError = class extends GoogleCalendarError {
+  constructor() {
+    super(
+      "Google Calendar no est\xE1 configurado en el servidor (GOOGLE_CALENDAR_CLIENT_ID / CLIENT_SECRET / REDIRECT_URI)"
+    );
+    this.name = "GoogleCalendarNotConfiguredError";
+  }
+};
+function friendlyGoogleCalendarError(err) {
+  if (err instanceof GoogleCalendarNotConfiguredError) {
+    return "Google Calendar no est\xE1 disponible en este momento. Contacta a soporte.";
+  }
+  if (err instanceof GoogleCalendarError) {
+    if (err.isAuthRevoked) {
+      return "Google revoc\xF3 el acceso a esta cuenta. Vuelve a conectarla.";
+    }
+    return `Google Calendar: ${err.message}`;
+  }
+  return err instanceof Error ? err.message : "Error inesperado con Google Calendar";
+}
+
+// utils/googleCalendar/client.ts
+async function googleFetch(accessToken, path3, init = {}, { allowStatuses = [] } = {}) {
+  const res = await fetch(`${GOOGLE_CALENDAR_API}${path3}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...init.headers ?? {}
+    }
+  });
+  if (allowStatuses.includes(res.status)) return null;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new GoogleCalendarError(
+      data?.error?.message || `Google Calendar respondi\xF3 ${res.status}`,
+      res.status,
+      data?.error?.errors?.[0]?.reason ?? null
+    );
+  }
+  if (res.status === 204) return null;
+  return await res.json();
+}
+async function listCalendarList(accessToken) {
+  const out = [];
+  let pageToken;
+  do {
+    const params = new URLSearchParams({ maxResults: "250", minAccessRole: "reader" });
+    if (pageToken) params.set("pageToken", pageToken);
+    const data = await googleFetch(accessToken, `/users/me/calendarList?${params}`);
+    for (const item of data?.items ?? []) {
+      out.push({
+        id: item.id,
+        summary: item.summaryOverride || item.summary || item.id,
+        primary: !!item.primary,
+        backgroundColor: item.backgroundColor ?? null,
+        accessRole: item.accessRole ?? null
+      });
+    }
+    pageToken = data?.nextPageToken;
+  } while (pageToken);
+  return out;
+}
+async function listEvents(accessToken, calendarId, timeMin, timeMax) {
+  const out = [];
+  let pageToken;
+  do {
+    const params = new URLSearchParams({
+      timeMin,
+      timeMax,
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "250"
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+    const data = await googleFetch(
+      accessToken,
+      `/calendars/${encodeURIComponent(calendarId)}/events?${params}`
+    );
+    for (const item of data?.items ?? []) {
+      if (item.status === "cancelled") continue;
+      out.push(item);
+    }
+    pageToken = data?.nextPageToken;
+  } while (pageToken);
+  return out;
+}
+async function insertEvent(accessToken, calendarId, body) {
+  const data = await googleFetch(
+    accessToken,
+    `/calendars/${encodeURIComponent(calendarId)}/events`,
+    { method: "POST", body: JSON.stringify(body) }
+  );
+  return data;
+}
+async function updateEvent(accessToken, calendarId, eventId, body) {
+  return googleFetch(
+    accessToken,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: "PUT", body: JSON.stringify(body) },
+    { allowStatuses: [404, 410] }
+  );
+}
+async function deleteEvent(accessToken, calendarId, eventId) {
+  await googleFetch(
+    accessToken,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: "DELETE" },
+    { allowStatuses: [404, 410] }
+  );
+}
+
+// utils/googleCalendar/planFeature.ts
+async function companyHasCalendarFeature(context, companyId) {
+  const [subscription] = await context.sudo().query.SaasCompanySubscription.findMany({
+    where: {
+      company: { id: { equals: companyId } },
+      status: { in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.TRIALING] }
+    },
+    orderBy: [{ activatedAt: "desc" }],
+    take: 1,
+    query: "id planFeatures"
+  });
+  const features = subscription?.planFeatures;
+  if (!Array.isArray(features)) return false;
+  return features.some(
+    (f) => f.key === GOOGLE_CALENDAR_FEATURE_KEY && f.included !== false
+  );
+}
+var CALENDAR_FEATURE_DENIED_MESSAGE = "Tu plan actual no incluye la gesti\xF3n de calendario. Actualiza tu suscripci\xF3n para conectar Google Calendar.";
+
+// utils/helpers/encryption.ts
+var import_crypto = require("crypto");
+var ALGORITHM = "aes-256-gcm";
+var IV_LENGTH = 12;
+var AUTH_TAG_LENGTH = 16;
+var KEY_HEX_LENGTH = 64;
+function getEncryptionKey() {
+  const hex = process.env.AI_ENCRYPTION_KEY?.trim() ?? "";
+  if (hex.length !== KEY_HEX_LENGTH) {
+    throw new Error(
+      "AI_ENCRYPTION_KEY must be 32 bytes encoded as 64 hex characters (openssl rand -hex 32)"
+    );
+  }
+  return Buffer.from(hex, "hex");
+}
+function encrypt(plainText) {
+  const key = getEncryptionKey();
+  const iv = (0, import_crypto.randomBytes)(IV_LENGTH);
+  const cipher = (0, import_crypto.createCipheriv)(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([
+    cipher.update(plainText, "utf8"),
+    cipher.final()
+  ]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
+}
+function decrypt(payload) {
+  const parts = payload.split(":");
+  if (parts.length !== 3) {
+    throw new Error("Invalid encrypted payload");
+  }
+  const [ivHex, authTagHex, encryptedHex] = parts;
+  const key = getEncryptionKey();
+  const iv = Buffer.from(ivHex, "hex");
+  const authTag = Buffer.from(authTagHex, "hex");
+  const encrypted = Buffer.from(encryptedHex, "hex");
+  if (iv.length !== IV_LENGTH || authTag.length !== AUTH_TAG_LENGTH) {
+    throw new Error("Invalid encrypted payload");
+  }
+  const decipher = (0, import_crypto.createDecipheriv)(ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+  const decrypted = Buffer.concat([
+    decipher.update(encrypted),
+    decipher.final()
+  ]);
+  return decrypted.toString("utf8");
+}
+function maskApiKey(apiKey) {
+  const trimmed = apiKey.trim();
+  if (trimmed.length <= 8) return "\u2022\u2022\u2022\u2022";
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
+}
+
+// utils/googleCalendar/oauth.ts
+function getConfig() {
+  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET?.trim();
+  const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI?.trim();
+  if (!clientId || !clientSecret || !redirectUri) {
+    throw new GoogleCalendarNotConfiguredError();
+  }
+  return { clientId, clientSecret, redirectUri };
+}
+function buildGoogleAuthUrl(state) {
+  const { clientId, redirectUri } = getConfig();
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: GOOGLE_CALENDAR_SCOPE,
+    access_type: "offline",
+    prompt: "consent",
+    include_granted_scopes: "true",
+    state
+  });
+  return `${GOOGLE_AUTH_URL}?${params.toString()}`;
+}
+async function postToken(body) {
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.error) {
+    throw new GoogleCalendarError(
+      data.error_description || data.error || `Google token endpoint respondi\xF3 ${res.status}`,
+      res.status,
+      typeof data.error === "string" ? data.error : null
+    );
+  }
+  return data;
+}
+async function exchangeCodeForTokens(code) {
+  const { clientId, clientSecret, redirectUri } = getConfig();
+  const data = await postToken(
+    new URLSearchParams({
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code"
+    })
+  );
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token ?? null,
+    expiresInSeconds: Number(data.expires_in) || 3600,
+    scope: data.scope ?? GOOGLE_CALENDAR_SCOPE
+  };
+}
+async function refreshAccessToken(refreshToken) {
+  const { clientId, clientSecret } = getConfig();
+  const data = await postToken(
+    new URLSearchParams({
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "refresh_token"
+    })
+  );
+  return {
+    accessToken: data.access_token,
+    expiresInSeconds: Number(data.expires_in) || 3600
+  };
+}
+async function revokeGoogleToken(token) {
+  try {
+    await fetch(GOOGLE_REVOKE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token })
+    });
+  } catch (err) {
+    console.error("No se pudo revocar el token de Google:", err);
+  }
+}
+
+// utils/googleCalendar/tokenManager.ts
+var ACCOUNT_TOKEN_QUERY = "id isActive accessTokenEncrypted refreshTokenEncrypted tokenExpiresAt";
+var EXPIRY_SKEW_MS = 6e4;
+async function getValidAccessToken(context, account) {
+  if (account.isActive === false) {
+    throw new GoogleCalendarError(
+      "La cuenta de Google est\xE1 desconectada; vuelve a conectarla",
+      401,
+      "invalid_grant"
+    );
+  }
+  const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt).getTime() : 0;
+  if (account.accessTokenEncrypted && expiresAt - Date.now() > EXPIRY_SKEW_MS) {
+    return decrypt(account.accessTokenEncrypted);
+  }
+  if (!account.refreshTokenEncrypted) {
+    throw new GoogleCalendarError("La cuenta no tiene refresh token", 401, "invalid_grant");
+  }
+  const startedAt = Date.now();
+  try {
+    const refreshed = await refreshAccessToken(decrypt(account.refreshTokenEncrypted));
+    await context.sudo().query.GoogleCalendarAccount.updateOne({
+      where: { id: account.id },
+      data: {
+        accessTokenEncrypted: encrypt(refreshed.accessToken),
+        tokenExpiresAt: new Date(Date.now() + refreshed.expiresInSeconds * 1e3).toISOString()
+      }
+    });
+    await persistGoogleCalendarSyncLog({
+      context,
+      accountId: account.id,
+      direction: "pull",
+      operation: "token_refresh",
+      success: true,
+      durationMs: Date.now() - startedAt
+    });
+    return refreshed.accessToken;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Error al refrescar token";
+    if (err instanceof GoogleCalendarError && err.isAuthRevoked) {
+      await context.sudo().query.GoogleCalendarAccount.updateOne({
+        where: { id: account.id },
+        data: { isActive: false, lastSyncError: message }
+      }).catch((e) => console.error("No se pudo desactivar la cuenta:", e));
+    }
+    await persistGoogleCalendarSyncLog({
+      context,
+      accountId: account.id,
+      direction: "pull",
+      operation: "token_refresh",
+      success: false,
+      errorMessage: message,
+      durationMs: Date.now() - startedAt
+    });
+    throw err;
+  }
+}
+
+// utils/googleCalendar/sync.ts
+var EVENT_QUERY = "id title description startAt endAt allDay location sourceType googleTargets { id } createdBy { id } company { id }";
+var PUSH_FLAG_BY_SOURCE = {
+  ["sales_activity" /* SALES_ACTIVITY */]: "pushActivities",
+  ["proposal" /* PROPOSAL */]: "pushProposals",
+  ["follow_up_task" /* FOLLOW_UP_TASK */]: "pushFollowUps",
+  ["task" /* TASK */]: "pushTasks"
+};
+var SELECTION_TARGET_QUERY = `id googleCalendarId account { ${ACCOUNT_TOKEN_QUERY} }`;
+var DAY_MS = 24 * 60 * 60 * 1e3;
+function toDateOnly(iso) {
+  return new Date(iso).toISOString().slice(0, 10);
+}
+function buildGoogleEventBody(event) {
+  const base = {
+    summary: event.title,
+    ...event.description ? { description: event.description } : {},
+    ...event.location ? { location: event.location } : {}
+  };
+  if (event.allDay) {
+    const startDate = toDateOnly(event.startAt);
+    const lastDay = event.endAt ? toDateOnly(event.endAt) : startDate;
+    const endExclusive = new Date((/* @__PURE__ */ new Date(`${lastDay}T00:00:00Z`)).getTime() + DAY_MS).toISOString().slice(0, 10);
+    return { ...base, start: { date: startDate }, end: { date: endExclusive } };
+  }
+  const start = new Date(event.startAt);
+  const end = event.endAt ? new Date(event.endAt) : new Date(start.getTime() + DEFAULT_EVENT_DURATION_MINUTES * 6e4);
+  return {
+    ...base,
+    start: { dateTime: start.toISOString() },
+    end: { dateTime: end.toISOString() }
+  };
+}
+async function resolveTargetSelections(context, event) {
+  const userId = event.createdBy?.id;
+  const companyId = event.company?.id;
+  const owners = [];
+  if (userId) {
+    owners.push({
+      scopeType: { equals: "personal" /* PERSONAL */ },
+      user: { id: { equals: userId } }
+    });
+  }
+  if (companyId) {
+    owners.push({
+      scopeType: { equals: "company" /* COMPANY */ },
+      company: { id: { equals: companyId } }
+    });
+  }
+  if (owners.length === 0) return [];
+  const sourceFilter = {};
+  if (!event.sourceType || event.sourceType === "native" /* NATIVE */) {
+    const targetIds = (event.googleTargets ?? []).map((t) => t.id);
+    if (targetIds.length === 0) return [];
+    sourceFilter.id = { in: targetIds };
+  } else {
+    const flag = PUSH_FLAG_BY_SOURCE[event.sourceType];
+    if (!flag) return [];
+    sourceFilter[flag] = { equals: true };
+  }
+  return context.sudo().query.GoogleCalendarSelection.findMany({
+    where: {
+      ...sourceFilter,
+      isSelected: { equals: true },
+      account: { isActive: { equals: true }, OR: owners }
+    },
+    query: SELECTION_TARGET_QUERY
+  });
+}
+async function upsertLink(context, params) {
+  const data = {
+    ...params.googleEventId ? { googleEventId: params.googleEventId } : {},
+    lastPushStatus: params.status,
+    lastPushError: params.error ?? null,
+    ...params.status === "success" /* SUCCESS */ ? { lastPushedAt: (/* @__PURE__ */ new Date()).toISOString() } : {}
+  };
+  if (params.linkId) {
+    await context.sudo().query.TechCalendarEventGoogleLink.updateOne({
+      where: { id: params.linkId },
+      data
+    });
+    return;
+  }
+  await context.sudo().query.TechCalendarEventGoogleLink.createOne({
+    data: {
+      ...data,
+      event: { connect: { id: params.eventId } },
+      calendarSelection: { connect: { id: params.selectionId } }
+    }
+  });
+}
+async function pushEventToGoogle(context, eventId) {
+  const event = await context.sudo().query.TechCalendarEvent.findOne({
+    where: { id: eventId },
+    query: EVENT_QUERY
+  });
+  if (!event) return;
+  if (event.company?.id && !await companyHasCalendarFeature(context, event.company.id)) {
+    return;
+  }
+  const selections = await resolveTargetSelections(context, event);
+  if (selections.length === 0) return;
+  const body = buildGoogleEventBody(event);
+  for (const selection of selections) {
+    const startedAt = Date.now();
+    let operation = "create";
+    let linkId = null;
+    try {
+      const [link] = await context.sudo().query.TechCalendarEventGoogleLink.findMany({
+        where: {
+          event: { id: { equals: event.id } },
+          calendarSelection: { id: { equals: selection.id } }
+        },
+        take: 1,
+        query: "id googleEventId"
+      });
+      linkId = link?.id ?? null;
+      const accessToken = await getValidAccessToken(context, selection.account);
+      let remote = null;
+      if (link?.googleEventId) {
+        operation = "update";
+        remote = await updateEvent(
+          accessToken,
+          selection.googleCalendarId,
+          link.googleEventId,
+          body
+        );
+      }
+      if (!remote) {
+        operation = "create";
+        remote = await insertEvent(accessToken, selection.googleCalendarId, body);
+      }
+      await upsertLink(context, {
+        linkId,
+        eventId: event.id,
+        selectionId: selection.id,
+        googleEventId: remote.id,
+        status: "success" /* SUCCESS */
+      });
+      await persistGoogleCalendarSyncLog({
+        context,
+        accountId: selection.account.id,
+        direction: "push",
+        operation,
+        success: true,
+        durationMs: Date.now() - startedAt
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al enviar a Google";
+      console.error(`Push a Google Calendar fall\xF3 (selecci\xF3n ${selection.id}):`, message);
+      await upsertLink(context, {
+        linkId,
+        eventId: event.id,
+        selectionId: selection.id,
+        status: "error" /* ERROR */,
+        error: message
+      }).catch((e) => console.error("No se pudo guardar el link:", e));
+      await persistGoogleCalendarSyncLog({
+        context,
+        accountId: selection.account?.id,
+        direction: "push",
+        operation,
+        success: false,
+        errorMessage: message,
+        durationMs: Date.now() - startedAt
+      });
+    }
+  }
+}
+async function deleteEventFromGoogle(context, eventId) {
+  const links = await context.sudo().query.TechCalendarEventGoogleLink.findMany({
+    where: { event: { id: { equals: eventId } } },
+    query: `id googleEventId calendarSelection { ${SELECTION_TARGET_QUERY} }`
+  });
+  for (const link of links) {
+    const selection = link.calendarSelection;
+    if (!link.googleEventId || !selection) continue;
+    const startedAt = Date.now();
+    try {
+      const accessToken = await getValidAccessToken(context, selection.account);
+      await deleteEvent(accessToken, selection.googleCalendarId, link.googleEventId);
+      await persistGoogleCalendarSyncLog({
+        context,
+        accountId: selection.account.id,
+        direction: "push",
+        operation: "delete",
+        success: true,
+        durationMs: Date.now() - startedAt
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al borrar en Google";
+      console.error("Borrado en Google Calendar fall\xF3:", message);
+      await persistGoogleCalendarSyncLog({
+        context,
+        accountId: selection.account?.id,
+        direction: "push",
+        operation: "delete",
+        success: false,
+        errorMessage: message,
+        durationMs: Date.now() - startedAt
+      });
+    }
+  }
+  if (links.length > 0) {
+    await context.sudo().query.TechCalendarEventGoogleLink.deleteMany({
+      where: links.map((l) => ({ id: l.id }))
+    }).catch((e) => console.error("No se pudieron limpiar los links:", e));
+  }
+}
+var PULL_SELECTION_QUERY = `id googleCalendarId calendarName colorHex account { googleAccountEmail ${ACCOUNT_TOKEN_QUERY} }`;
+async function pullEventsForSelection(context, selection, timeMin, timeMax) {
+  const startedAt = Date.now();
+  try {
+    const accessToken = await getValidAccessToken(context, selection.account);
+    const items = await listEvents(accessToken, selection.googleCalendarId, timeMin, timeMax);
+    const remoteIds = items.map((i) => i.id);
+    const links = remoteIds.length ? await context.sudo().query.TechCalendarEventGoogleLink.findMany({
+      where: {
+        calendarSelection: { id: { equals: selection.id } },
+        googleEventId: { in: remoteIds }
+      },
+      query: "googleEventId event { id }"
+    }) : [];
+    const kadeshByGoogleId = new Map(
+      links.map((l) => [l.googleEventId, l.event?.id ?? null])
+    );
+    await context.sudo().query.GoogleCalendarAccount.updateOne({
+      where: { id: selection.account.id },
+      data: { lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString(), lastSyncError: null }
+    });
+    await persistGoogleCalendarSyncLog({
+      context,
+      accountId: selection.account.id,
+      direction: "pull",
+      operation: "list_events",
+      success: true,
+      durationMs: Date.now() - startedAt
+    });
+    return items.map((item) => normalizeItem(item, selection, kadeshByGoogleId));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Error al leer Google Calendar";
+    await context.sudo().query.GoogleCalendarAccount.updateOne({
+      where: { id: selection.account.id },
+      data: { lastSyncError: message }
+    }).catch((e) => console.error("No se pudo guardar lastSyncError:", e));
+    await persistGoogleCalendarSyncLog({
+      context,
+      accountId: selection.account.id,
+      direction: "pull",
+      operation: "list_events",
+      success: false,
+      errorMessage: message,
+      durationMs: Date.now() - startedAt
+    });
+    throw err;
+  }
+}
+function normalizeItem(item, selection, kadeshByGoogleId) {
+  const allDay = !!item.start?.date && !item.start?.dateTime;
+  return {
+    id: item.id,
+    selectionId: selection.id,
+    calendarId: selection.googleCalendarId,
+    calendarName: selection.calendarName ?? selection.googleCalendarId,
+    accountEmail: selection.account.googleAccountEmail ?? "",
+    colorHex: selection.colorHex ?? null,
+    title: item.summary || "(Sin t\xEDtulo)",
+    description: item.description ?? null,
+    location: item.location ?? null,
+    start: item.start?.dateTime ?? item.start?.date,
+    end: item.end?.dateTime ?? item.end?.date ?? null,
+    allDay,
+    htmlLink: item.htmlLink ?? null,
+    kadeshEventId: kadeshByGoogleId.get(item.id) ?? null
+  };
+}
+
+// models/Saas/Tech/CalendarEvent/TechCalendarEvent.hooks.ts
+var techCalendarEventHooks = {
+  /** Al crear a mano, el evento queda a nombre del usuario y de su empresa. */
+  resolveInput: async ({ operation, resolvedData, context }) => {
+    if (operation !== "create") return resolvedData;
+    const userId = getSessionUserId(context.session);
+    const companyId = getSessionCompanyId(context.session);
+    if (!resolvedData.createdBy && userId) {
+      resolvedData.createdBy = { connect: { id: userId } };
+    }
+    if (!resolvedData.company && companyId) {
+      resolvedData.company = { connect: { id: companyId } };
+    }
+    return resolvedData;
+  },
+  validateInput: async ({
+    operation,
+    item,
+    resolvedData,
+    addValidationError
+  }) => {
+    if (operation === "delete") return;
+    const startAt = resolvedData.startAt ?? item?.startAt;
+    const endAt = resolvedData.endAt !== void 0 ? resolvedData.endAt : item?.endAt;
+    if (startAt && endAt && new Date(endAt).getTime() < new Date(startAt).getTime()) {
+      addValidationError("La fecha de fin no puede ser anterior a la de inicio");
+    }
+    if (operation === "create" && !resolvedData.company) {
+      addValidationError("El evento debe pertenecer a una empresa");
+    }
+    if (operation === "create" && !resolvedData.createdBy) {
+      addValidationError("El evento debe tener un usuario due\xF1o");
+    }
+  },
+  /** Antes de borrar hay que borrar las copias en Google: después ya no hay links que seguir. */
+  beforeOperation: async ({ operation, item, context }) => {
+    if (operation !== "delete" || !item?.id) return;
+    try {
+      await deleteEventFromGoogle(context, item.id);
+    } catch (err) {
+      console.error("Error borrando evento en Google Calendar:", err);
+    }
+  },
+  afterOperation: async ({ operation, item, context }) => {
+    if (operation === "delete" || !item?.id) return;
+    try {
+      await pushEventToGoogle(context, item.id);
+    } catch (err) {
+      console.error("Error enviando evento a Google Calendar:", err);
+    }
+  }
+};
+
+// models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
+var TechCalendarEvent_default = (0, import_core73.list)({
+  access: techCalendarEventAccess,
+  hooks: techCalendarEventHooks,
+  ui: {
+    labelField: "title",
+    listView: {
+      initialColumns: ["title", "startAt", "endAt", "allDay", "sourceType", "createdBy"]
+    }
+  },
+  fields: {
+    title: (0, import_fields73.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields73.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea" }
+    }),
+    startAt: (0, import_fields73.timestamp)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: {
+        description: "Inicio. En eventos de d\xEDa completo se usa la fecha en UTC (00:00Z)"
+      }
+    }),
+    endAt: (0, import_fields73.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        description: "Fin (opcional). Sin fin, el evento dura 60 min; en d\xEDa completo, es el \xFAltimo d\xEDa incluido"
+      }
+    }),
+    allDay: (0, import_fields73.checkbox)({ defaultValue: false }),
+    location: (0, import_fields73.text)({ db: { isNullable: true } }),
+    sourceType: (0, import_fields73.select)({
+      type: "string",
+      options: [...CALENDAR_EVENT_SOURCE_OPTIONS],
+      defaultValue: "native" /* NATIVE */,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Creado a mano o generado desde un registro del CRM" }
+    }),
+    salesActivity: (0, import_fields73.relationship)({
+      ref: "TechSalesActivity.calendarEvent",
+      many: false,
+      db: { foreignKey: true },
+      ui: { hideCreate: true }
+    }),
+    followUpTask: (0, import_fields73.relationship)({
+      ref: "TechFollowUpTask.calendarEvent",
+      many: false,
+      db: { foreignKey: true },
+      ui: { hideCreate: true }
+    }),
+    task: (0, import_fields73.relationship)({
+      ref: "TechTask.calendarEvent",
+      many: false,
+      db: { foreignKey: true },
+      ui: { hideCreate: true }
+    }),
+    proposal: (0, import_fields73.relationship)({
+      ref: "TechProposal.calendarEvent",
+      many: false,
+      db: { foreignKey: true },
+      ui: { hideCreate: true }
+    }),
+    createdBy: (0, import_fields73.relationship)({
+      ref: "User.createdCalendarEvents",
+      many: false,
+      ui: { description: "Usuario due\xF1o del evento (su cuenta personal recibe el push)" }
+    }),
+    company: (0, import_fields73.relationship)({
+      ref: "SaasCompany.calendarEvents",
+      many: false,
+      ui: { description: "Empresa (su cuenta compartida recibe el push)" }
+    }),
+    workspace: (0, import_fields73.relationship)({
+      ref: "SaasWorkspace.calendarEvents",
+      many: false,
+      ui: { description: "Workspace del CRM, si aplica" }
+    }),
+    googleTargets: (0, import_fields73.relationship)({
+      ref: "GoogleCalendarSelection.targetedEvents",
+      many: true,
+      ui: {
+        hideCreate: true,
+        description: "Calendarios de Google elegidos al crear el evento (solo eventos nativos; los del CRM siguen la configuraci\xF3n de cada calendario)"
+      }
+    }),
+    googleLinks: (0, import_fields73.relationship)({
+      ref: "TechCalendarEventGoogleLink.event",
+      many: true,
+      ui: { hideCreate: true, description: "Copias de este evento en Google Calendar" }
+    }),
+    createdAt: (0, import_fields73.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields73.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
+var import_core74 = require("@keystone-6/core");
+var import_fields74 = require("@keystone-6/core/fields");
+
+// models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.access.ts
+var techCalendarEventGoogleLinkAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: () => false,
+    update: () => false,
+    delete: () => false
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      const where = calendarEventScopedWhere(session2);
+      if (where === true || where === false) return where;
+      return { event: where };
+    }
+  }
+};
+
+// models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
+var TechCalendarEventGoogleLink_default = (0, import_core74.list)({
+  access: techCalendarEventGoogleLinkAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "event",
+        "calendarSelection",
+        "lastPushStatus",
+        "lastPushedAt"
+      ]
+    }
+  },
+  fields: {
+    event: (0, import_fields74.relationship)({
+      ref: "TechCalendarEvent.googleLinks",
+      many: false
+    }),
+    calendarSelection: (0, import_fields74.relationship)({
+      ref: "GoogleCalendarSelection.eventLinks",
+      many: false
+    }),
+    googleEventId: (0, import_fields74.text)({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "id del evento en Google (se llena tras el push exitoso)" }
+    }),
+    lastPushedAt: (0, import_fields74.timestamp)({ db: { isNullable: true } }),
+    lastPushStatus: (0, import_fields74.select)({
+      type: "string",
+      options: [...GOOGLE_LINK_STATUS_OPTIONS],
+      defaultValue: "pending" /* PENDING */
+    }),
+    lastPushError: (0, import_fields74.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea" }
+    })
+  }
+});
+
+// models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
+var import_core75 = require("@keystone-6/core");
+var import_fields75 = require("@keystone-6/core/fields");
+
+// models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.access.ts
+var techGoogleCalendarSyncLogAccess = {
+  operation: {
+    query: ({ session: session2 }) => isSignedIn(session2),
+    create: () => false,
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      const where = googleCalendarAccountVisibleWhere(session2);
+      if (where === true || where === false) return where;
+      return { account: where };
+    },
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2) ? true : false
+  }
+};
+
+// models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
+var TechGoogleCalendarSyncLog_default = (0, import_core75.list)({
+  access: techGoogleCalendarSyncLogAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "createdAt",
+        "account",
+        "direction",
+        "operation",
+        "success",
+        "durationMs"
+      ]
+    }
+  },
+  fields: {
+    account: (0, import_fields75.relationship)({
+      ref: "GoogleCalendarAccount.syncLogs",
+      many: false
+    }),
+    direction: (0, import_fields75.select)({
+      type: "string",
+      options: [...GOOGLE_SYNC_DIRECTION_OPTIONS],
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    operation: (0, import_fields75.select)({
+      type: "string",
+      options: [...GOOGLE_SYNC_OPERATION_OPTIONS],
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    success: (0, import_fields75.checkbox)({ defaultValue: false }),
+    errorMessage: (0, import_fields75.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea", description: "Error si la llamada fall\xF3 (sin tokens)" }
+    }),
+    durationMs: (0, import_fields75.integer)({ db: { isNullable: true } }),
+    createdAt: (0, import_fields75.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
@@ -9673,6 +11113,11 @@ var schema_default = {
   TechTask: TechTask_default,
   TechStatusBusinessLead: TechStatusBusinessLead_default,
   TechWhatsAppMessage: TechWhatsAppMessage_default,
+  GoogleCalendarAccount: GoogleCalendarAccount_default,
+  GoogleCalendarSelection: GoogleCalendarSelection_default,
+  TechCalendarEvent: TechCalendarEvent_default,
+  TechCalendarEventGoogleLink: TechCalendarEventGoogleLink_default,
+  TechGoogleCalendarSyncLog: TechGoogleCalendarSyncLog_default,
   TokenNotification: TokenNotification_default,
   User: User_default,
   UserAuthLog: UserAuthLog_default,
@@ -9680,15 +11125,15 @@ var schema_default = {
 };
 
 // keystone.ts
-var import_core71 = require("@keystone-6/core");
+var import_core76 = require("@keystone-6/core");
 
 // auth/auth.ts
-var import_crypto = require("crypto");
+var import_crypto2 = require("crypto");
 var import_auth = require("@keystone-6/auth");
 var import_session = require("@keystone-6/core/session");
 var sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret && process.env.NODE_ENV !== "production") {
-  sessionSecret = (0, import_crypto.randomBytes)(32).toString("hex");
+  sessionSecret = (0, import_crypto2.randomBytes)(32).toString("hex");
 }
 var { withAuth } = (0, import_auth.createAuth)({
   listKey: "User",
@@ -9715,7 +11160,7 @@ var import_schema = require("@graphql-tools/schema");
 
 // graphql/customs/mutations/auth/customAuth.ts
 var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
-var import_crypto2 = require("crypto");
+var import_crypto3 = require("crypto");
 
 // utils/auth/userAuthLogWrite.ts
 function maskEmail(email) {
@@ -9795,7 +11240,7 @@ var resolver = {
       }
       let sessionSecret2 = process.env.SESSION_SECRET;
       if (!sessionSecret2) {
-        sessionSecret2 = (0, import_crypto2.randomBytes)(32).toString("hex");
+        sessionSecret2 = (0, import_crypto3.randomBytes)(32).toString("hex");
       }
       const sessionToken = import_jsonwebtoken.default.sign(
         {
@@ -9851,7 +11296,7 @@ var customAuth_default = { typeDefs, definition, resolver };
 
 // graphql/customs/mutations/auth/authenticateUserWithGoogle.ts
 var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
-var import_crypto3 = require("crypto");
+var import_crypto4 = require("crypto");
 var typeDefs2 = `
   type UserAuthenticationWithGoogleSuccess {
     sessionToken: String!
@@ -9870,6 +11315,7 @@ var definition2 = `
   authenticateUserWithGoogle(
     idToken: String!
     referrerCode: String
+    product: String
   ): AuthenticateUserWithGoogleResult!
 `;
 async function verifyGoogleIdToken(idToken) {
@@ -9892,7 +11338,8 @@ var USER_QUERY = "id lastName name phone email profileImage { url } roles { name
 var resolver2 = {
   authenticateUserWithGoogle: async (_root, {
     idToken,
-    referrerCode
+    referrerCode,
+    product
   }, context) => {
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
@@ -9931,6 +11378,7 @@ var resolver2 = {
             lastName: "",
             username,
             verified: true,
+            product: product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET,
             referredBy: referredByConnect,
             roles: userRole ? { connect: [{ id: userRole.id }] } : void 0
           },
@@ -9979,7 +11427,7 @@ var resolver2 = {
     });
     let sessionSecret2 = process.env.SESSION_SECRET;
     if (!sessionSecret2 && process.env.NODE_ENV !== "production") {
-      sessionSecret2 = (0, import_crypto3.randomBytes)(32).toString("hex");
+      sessionSecret2 = (0, import_crypto4.randomBytes)(32).toString("hex");
     }
     const sessionToken = import_jsonwebtoken2.default.sign(
       {
@@ -10096,6 +11544,8 @@ var resolver3 = {
       const user = await context.sudo().query.User.createOne({
         data: {
           ...safeUserData,
+          // Este registro es el de Kadesh Negocios: define la marca de sus correos.
+          product: PRODUCT.SAAS,
           referredBy: referredByConnect,
           roles: { connect: signupRoleIds.map((id) => ({ id })) }
         },
@@ -10584,8 +12034,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text60 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text60}`;
+  const text65 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text65}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -11690,8 +13140,8 @@ async function getPlaceDetails3(placeId, apiKey) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text60 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text60}`;
+  const text65 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text65}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -13229,59 +14679,6 @@ var resolver13 = {
 };
 var sendTestEmail_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
 
-// utils/helpers/encryption.ts
-var import_crypto4 = require("crypto");
-var ALGORITHM = "aes-256-gcm";
-var IV_LENGTH = 12;
-var AUTH_TAG_LENGTH = 16;
-var KEY_HEX_LENGTH = 64;
-function getEncryptionKey() {
-  const hex = process.env.AI_ENCRYPTION_KEY?.trim() ?? "";
-  if (hex.length !== KEY_HEX_LENGTH) {
-    throw new Error(
-      "AI_ENCRYPTION_KEY must be 32 bytes encoded as 64 hex characters (openssl rand -hex 32)"
-    );
-  }
-  return Buffer.from(hex, "hex");
-}
-function encrypt(plainText) {
-  const key = getEncryptionKey();
-  const iv = (0, import_crypto4.randomBytes)(IV_LENGTH);
-  const cipher = (0, import_crypto4.createCipheriv)(ALGORITHM, key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plainText, "utf8"),
-    cipher.final()
-  ]);
-  const authTag = cipher.getAuthTag();
-  return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
-}
-function decrypt(payload) {
-  const parts = payload.split(":");
-  if (parts.length !== 3) {
-    throw new Error("Invalid encrypted payload");
-  }
-  const [ivHex, authTagHex, encryptedHex] = parts;
-  const key = getEncryptionKey();
-  const iv = Buffer.from(ivHex, "hex");
-  const authTag = Buffer.from(authTagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-  if (iv.length !== IV_LENGTH || authTag.length !== AUTH_TAG_LENGTH) {
-    throw new Error("Invalid encrypted payload");
-  }
-  const decipher = (0, import_crypto4.createDecipheriv)(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
-  const decrypted = Buffer.concat([
-    decipher.update(encrypted),
-    decipher.final()
-  ]);
-  return decrypted.toString("utf8");
-}
-function maskApiKey(apiKey) {
-  const trimmed = apiKey.trim();
-  if (trimmed.length <= 8) return "\u2022\u2022\u2022\u2022";
-  return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
-}
-
 // utils/ai/errors.ts
 var AiNotConfiguredError = class extends Error {
   code = "AI_NOT_CONFIGURED";
@@ -13332,11 +14729,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text60) {
-  return text60.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text65) {
+  return text65.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text60) {
-  const cleaned = stripSpoofedDelimiters(text60 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text65) {
+  const cleaned = stripSpoofedDelimiters(text65 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -13376,9 +14773,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text60) {
-  if (!text60) return 0;
-  return Math.max(1, Math.ceil(text60.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text65) {
+  if (!text65) return 0;
+  return Math.max(1, Math.ceil(text65.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -13412,15 +14809,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text60 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text60) {
+  const text65 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text65) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text60,
+    text: text65,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text60)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text65)
     }
   };
 }
@@ -13465,15 +14862,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text60 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text60) {
+  const text65 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text65) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text60,
+    text: text65,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text60)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text65)
     }
   };
 }
@@ -13510,15 +14907,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text60 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text60) {
+  const text65 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text65) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text60,
+    text: text65,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text60)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text65)
     }
   };
 }
@@ -14174,8 +15571,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text60) {
-  const stripped = text60.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text65) {
+  const stripped = text65.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -14615,11 +16012,11 @@ async function saveMarketInsight(context, params) {
     query: INSIGHT_QUERY2
   });
 }
-function parseMarketInsight(text60) {
-  const match = text60.match(/\{[\s\S]*\}/);
+function parseMarketInsight(text65) {
+  const match = text65.match(/\{[\s\S]*\}/);
   if (!match) {
     return {
-      summary: text60.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      summary: text65.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
       actions: []
     };
   }
@@ -14630,12 +16027,12 @@ function parseMarketInsight(text60) {
       detail: String(item.detail ?? "").trim()
     })).filter((item) => item.title && item.detail).slice(0, 3);
     return {
-      summary: String(parsed.summary ?? "").trim() || text60.trim().slice(0, 800),
+      summary: String(parsed.summary ?? "").trim() || text65.trim().slice(0, 800),
       actions
     };
   } catch {
     return {
-      summary: text60.trim().slice(0, 800),
+      summary: text65.trim().slice(0, 800),
       actions: []
     };
   }
@@ -15189,8 +16586,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text60) {
-  const stripped = text60.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text65) {
+  const stripped = text65.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -15200,8 +16597,8 @@ function parseJsonObject(text60) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text60, company) {
-  const parsed = parseJsonObject(text60);
+function parseCompanyBriefPillars(text65, company) {
+  const parsed = parseJsonObject(text65);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -15511,23 +16908,23 @@ function encodeDenueCondition(value, fallback) {
   const words = parts.length ? parts : [fallback];
   return words.map((word) => encodeURIComponent(word)).join(",");
 }
-function isDenueEmptyBody(text60) {
-  const trimmed = text60.trim().toLowerCase();
+function isDenueEmptyBody(text65) {
+  const trimmed = text65.trim().toLowerCase();
   if (!trimmed) return true;
   return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
 }
 async function parseDenueList(res) {
-  const text60 = await res.text();
-  if (isDenueEmptyBody(text60)) return [];
+  const text65 = await res.text();
+  if (isDenueEmptyBody(text65)) return [];
   if (!res.ok) {
-    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text60.slice(0, 200)}`);
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text65.slice(0, 200)}`);
   }
   let data;
   try {
-    data = JSON.parse(text60);
+    data = JSON.parse(text65);
   } catch {
     throw new Error(
-      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text60.slice(0, 200)}`
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text65.slice(0, 200)}`
     );
   }
   if (!Array.isArray(data)) {
@@ -15613,17 +17010,17 @@ async function getIndicator(indicatorId, geographicArea, recent = true, source =
   const area = geographicArea.trim() || "00";
   const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
   const res = await inegiFetch(url);
-  const text60 = await res.text();
+  const text65 = await res.text();
   if (!res.ok) {
     throw new Error(
-      `INEGI Indicadores HTTP ${res.status}: ${text60.slice(0, 200)}`
+      `INEGI Indicadores HTTP ${res.status}: ${text65.slice(0, 200)}`
     );
   }
   try {
-    return JSON.parse(text60);
+    return JSON.parse(text65);
   } catch {
     throw new Error(
-      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text60.slice(0, 200)}`
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text65.slice(0, 200)}`
     );
   }
 }
@@ -18660,6 +20057,66 @@ var resolver27 = {
 };
 var upsertDraftSystemRelease_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
+// utils/whatsapp/friendlyError.ts
+function cleanMessage(raw) {
+  return raw.replace(/^\[whatsapp\] Graph API error[^:]*:\s*/, "");
+}
+function friendlyWhatsappError(err) {
+  const raw = err instanceof Error ? err.message : "Error desconocido";
+  const detail = cleanMessage(raw);
+  const { graphCode: code, graphSubcode: subcode } = err ?? {};
+  const lower = detail.toLowerCase();
+  if (lower.includes("ai_encryption_key")) {
+    return {
+      message: "Falta configurar la clave de cifrado en el servidor de Kadesh, as\xED que no se puede guardar el token. Avisa a soporte de Kadesh.",
+      detail
+    };
+  }
+  if (lower.includes("api access blocked")) {
+    return {
+      message: "Meta bloque\xF3 el acceso de esta App a la API de WhatsApp. Revisa en developers.facebook.com que la App no tenga avisos de restricci\xF3n, que el token salga de esa misma App y que el usuario del sistema tenga asignadas la App y la cuenta de WhatsApp Business.",
+      detail
+    };
+  }
+  if (subcode === 2388339) {
+    return {
+      message: "Ese n\xFAmero es de una cuenta de WhatsApp normal y no se puede usar con la API. Tiene que ser un n\xFAmero registrado en una cuenta de WhatsApp Business dentro de tu App de Meta.",
+      detail
+    };
+  }
+  if (subcode === 2388023 || subcode === 2388024) {
+    return {
+      message: 'Meta no dej\xF3 crear la plantilla de inicio de conversaci\xF3n. Normalmente es porque ya existe una con ese nombre e idioma o porque se est\xE1 eliminando: espera unos minutos y vuelve a darle "Probar conexi\xF3n".',
+      detail
+    };
+  }
+  if (code === 190) {
+    return {
+      message: "El token ya no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema y p\xE9galo de nuevo.",
+      detail
+    };
+  }
+  if (code === 131047) {
+    return {
+      message: "Han pasado m\xE1s de 24h desde el \xFAltimo mensaje del lead. Para escribirle primero hace falta iniciar la conversaci\xF3n con la plantilla.",
+      detail
+    };
+  }
+  if (code === 200 || code === 10 || code === 3) {
+    return {
+      message: "El token no tiene los permisos necesarios. Genera uno nuevo con los dos permisos: whatsapp_business_messaging y whatsapp_business_management.",
+      detail
+    };
+  }
+  if (code === 100) {
+    return {
+      message: "Meta no reconoci\xF3 alguno de los datos o el token no tiene acceso a ellos. Revisa el App ID, el App Secret y que el token sea de esa misma App.",
+      detail
+    };
+  }
+  return { message: detail, detail };
+}
+
 // graphql/customs/mutations/whatsapp/access.ts
 function canManageCompanyWhatsapp(session2, companyId) {
   if (!isSignedIn(session2)) return false;
@@ -18776,7 +20233,7 @@ var resolver28 = {
         } catch (err) {
           return toResult5(
             false,
-            err instanceof Error ? err.message : "No se pudo cifrar el access token. Revisa AI_ENCRYPTION_KEY.",
+            friendlyWhatsappError(err).message,
             existing
           );
         }
@@ -18793,7 +20250,7 @@ var resolver28 = {
         } catch (err) {
           return toResult5(
             false,
-            err instanceof Error ? err.message : "No se pudo cifrar el App Secret. Revisa AI_ENCRYPTION_KEY.",
+            friendlyWhatsappError(err).message,
             existing
           );
         }
@@ -18824,12 +20281,20 @@ function parseGraphError(bodyText) {
       const subcode = err.error_subcode ? ` (subc\xF3digo ${err.error_subcode})` : "";
       return {
         message: `${err.message}${detail ? ` \u2014 ${detail}` : ""}${subcode}`,
-        code: err.code
+        code: err.code,
+        subcode: err.error_subcode
       };
     }
   } catch {
   }
   return { message: bodyText || "Error desconocido de la Graph API" };
+}
+function graphError(prefix2, bodyText) {
+  const { message, code, subcode } = parseGraphError(bodyText);
+  const err = new Error(`${prefix2} ${message}`);
+  err.graphCode = code;
+  err.graphSubcode = subcode;
+  return err;
 }
 async function sendWhatsAppTextMessage({
   phoneNumberId,
@@ -18855,10 +20320,7 @@ async function sendWhatsAppTextMessage({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`);
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -18884,8 +20346,7 @@ async function fetchWhatsAppPhoneNumberInfo({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error: ${message}`);
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -18908,8 +20369,7 @@ async function fetchWhatsAppBusinessAccountInfo({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error: ${message}`);
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -18955,8 +20415,7 @@ async function createWhatsAppTemplate({
   );
   const bodyTextRes = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyTextRes);
-    throw new Error(`[whatsapp] Graph API error creando plantilla: ${message}`);
+    throw graphError("[whatsapp] Graph API error creando plantilla:", bodyTextRes);
   }
   let parsed = null;
   try {
@@ -18995,7 +20454,7 @@ async function sendWhatsAppTemplateMessage({
           components: [
             {
               type: "body",
-              parameters: bodyParams.map((text60) => ({ type: "text", text: text60 }))
+              parameters: bodyParams.map((text65) => ({ type: "text", text: text65 }))
             }
           ]
         }
@@ -19004,10 +20463,7 @@ async function sendWhatsAppTemplateMessage({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`);
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -19045,8 +20501,7 @@ async function uploadMediaToWhatsApp({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error subiendo media: ${message}`);
+    throw graphError("[whatsapp] Graph API error subiendo media:", bodyText);
   }
   let parsed = null;
   try {
@@ -19089,10 +20544,7 @@ async function sendWhatsAppMediaMessage({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message, code } = parseGraphError(bodyText);
-    const err = new Error(`[whatsapp] Graph API error: ${message}`);
-    err.graphCode = code;
-    throw err;
+    throw graphError("[whatsapp] Graph API error:", bodyText);
   }
   let parsed = null;
   try {
@@ -19118,8 +20570,7 @@ async function fetchWhatsAppMediaUrl({
   );
   const bodyText = await response.text();
   if (!response.ok) {
-    const { message } = parseGraphError(bodyText);
-    throw new Error(`[whatsapp] Graph API error consultando media: ${message}`);
+    throw graphError("[whatsapp] Graph API error consultando media:", bodyText);
   }
   let parsed = null;
   try {
@@ -19149,6 +20600,107 @@ async function downloadWhatsAppMedia({
   }
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
+}
+async function debugWhatsAppToken({
+  appId,
+  appSecret,
+  accessToken
+}) {
+  const params = new URLSearchParams({
+    input_token: accessToken,
+    access_token: `${appId}|${appSecret}`
+  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/debug_token?${params.toString()}`
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const data = parsed?.data;
+  const wabaIds = /* @__PURE__ */ new Set();
+  for (const g of data?.granular_scopes ?? []) {
+    if (g.scope === "whatsapp_business_management") {
+      for (const id of g.target_ids ?? []) wabaIds.add(id);
+    }
+  }
+  return {
+    isValid: data?.is_valid === true,
+    appId: data?.app_id ?? null,
+    expiresAt: data?.expires_at ?? 0,
+    scopes: data?.scopes ?? [],
+    wabaIds: Array.from(wabaIds),
+    invalidReason: data?.error?.message ?? null
+  };
+}
+async function listWhatsAppPhoneNumbers({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&limit=100`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return (parsed?.data ?? []).filter(
+    (n) => Boolean(n.id)
+  ).map((n) => ({
+    id: n.id,
+    displayPhoneNumber: n.display_phone_number || "",
+    verifiedName: n.verified_name || ""
+  }));
+}
+async function subscribeAppToWaba({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/subscribed_apps`,
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", await response.text());
+  }
+}
+async function configureAppWebhook({
+  appId,
+  appSecret,
+  callbackUrl,
+  verifyToken
+}) {
+  const body = new URLSearchParams({
+    object: "whatsapp_business_account",
+    callback_url: callbackUrl,
+    verify_token: verifyToken,
+    fields: "messages,message_template_status_update",
+    access_token: `${appId}|${appSecret}`
+  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${appId}/subscriptions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    }
+  );
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", await response.text());
+  }
 }
 function verifyWhatsAppSignature({
   appSecret,
@@ -19283,12 +20835,37 @@ var resolver29 = {
     } catch (err) {
       return {
         success: false,
-        message: err instanceof Error ? err.message : "Error al probar la conexi\xF3n"
+        message: friendlyWhatsappError(err).message
       };
     }
   }
 };
 var testCompanyWhatsappConnection_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+
+// utils/whatsapp/matchPhone.ts
+function phoneTail(raw) {
+  return (raw ?? "").replace(/\D/g, "").slice(-10);
+}
+function phonesMatch(a, b) {
+  const x = phoneTail(a);
+  const y = phoneTail(b);
+  if (x.length < 8 || y.length < 8) return false;
+  return x.length >= y.length ? x.endsWith(y) : y.endsWith(x);
+}
+async function findByPhone(rawPhone, search) {
+  const tail = phoneTail(rawPhone);
+  if (tail.length < 8) return null;
+  const tiers = [
+    [tail.slice(-4), 100],
+    [tail.slice(-2), 1e3]
+  ];
+  for (const [fragment, take] of tiers) {
+    const candidates = await search(fragment, take);
+    const hit = candidates.find((c) => phonesMatch(c.phone, tail));
+    if (hit) return hit;
+  }
+  return null;
+}
 
 // graphql/customs/mutations/whatsapp/target.ts
 function normalizeWhatsAppDigits(raw) {
@@ -19297,14 +20874,44 @@ function normalizeWhatsAppDigits(raw) {
   if (digits.length === 10) return `52${digits}`;
   return digits;
 }
-async function resolveWhatsAppTarget({ businessLeadId, teamMemberId }, context) {
+async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, context) {
   const session2 = context.session;
   const sessionCompanyId = getSessionCompanyId(session2);
   const sessionUserId = getSessionUserId(session2);
   const hasLead = Boolean(businessLeadId);
   const hasTeamMember = Boolean(teamMemberId);
-  if (hasLead === hasTeamMember) {
-    return { error: "Indica un lead o un miembro del equipo (uno de los dos)" };
+  const hasPhone = Boolean(phone);
+  if ([hasLead, hasTeamMember, hasPhone].filter(Boolean).length !== 1) {
+    return {
+      error: "Indica un lead, un miembro del equipo o un tel\xE9fono (solo uno de los tres)"
+    };
+  }
+  if (hasPhone) {
+    if (!sessionCompanyId || !canManageCompanyWhatsapp(session2, sessionCompanyId)) {
+      return { error: denyCompanyWhatsappAccessMessage(session2) };
+    }
+    const tail = phoneTail(phone);
+    if (tail.length < 8) return { error: "Ese tel\xE9fono no es v\xE1lido" };
+    const [latest] = await context.sudo().query.TechWhatsAppMessage.findMany({
+      where: {
+        company: { id: { equals: sessionCompanyId } },
+        direction: { equals: "inbound" },
+        fromPhone: { endsWith: tail }
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 1,
+      query: "id fromPhone senderLabel"
+    });
+    const to2 = latest?.fromPhone || normalizeWhatsAppDigits(phone);
+    if (!to2) return { error: "Ese tel\xE9fono no es v\xE1lido" };
+    return {
+      target: {
+        companyId: sessionCompanyId,
+        to: to2,
+        displayName: latest?.senderLabel?.trim() || "estimado(a)",
+        link: {}
+      }
+    };
   }
   if (hasTeamMember) {
     const user = await context.sudo().query.User.findOne({
@@ -19379,16 +20986,17 @@ var typeDefs33 = `
   }
 
   type Mutation {
-    sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
+    sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
 var definition30 = `
-  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, body: String!): SendWhatsAppMessageResult!
+  sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
 var resolver30 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
+    phone,
     body
   }, context) => {
     const session2 = context.session;
@@ -19397,7 +21005,7 @@ var resolver30 = {
       return { success: false, message: "El mensaje no puede estar vac\xEDo" };
     }
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context
     );
     if (!target) return { success: false, message: error };
@@ -19473,8 +21081,8 @@ function buildDate(d1, d2, yearRaw, timeRaw) {
   const { hour, minute, second } = parseTimeParts(timeRaw);
   return new Date(year, month - 1, day, hour, minute, second);
 }
-function parseWhatsAppChatExport(text60) {
-  const lines = text60.split(/\r?\n/);
+function parseWhatsAppChatExport(text65) {
+  const lines = text65.split(/\r?\n/);
   const messages = [];
   for (const rawLine of lines) {
     const line = rawLine.replace(/^‎/, "");
@@ -19629,11 +21237,11 @@ var typeDefs35 = `
   }
 
   type Mutation {
-    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
+    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
   }
 `;
 var definition32 = `
-  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID): StartWhatsAppConversationResult!
+  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
   return { success, message };
@@ -19641,11 +21249,12 @@ function toResult7(success, message) {
 var resolver32 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
-    teamMemberId
+    teamMemberId,
+    phone
   }, context) => {
     const session2 = context.session;
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context
     );
     if (!target) return toResult7(false, error ?? "No se pudo resolver el destinatario");
@@ -19756,11 +21365,11 @@ var typeDefs36 = `
   }
 
   type Mutation {
-    sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+    sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
 var definition33 = `
-  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
+  sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
   const chunks = [];
@@ -19776,12 +21385,13 @@ var resolver33 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
+    phone,
     media,
     caption
   }, context) => {
     const session2 = context.session;
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context
     );
     if (!target) return toResult8(false, error ?? "No se pudo resolver el destinatario");
@@ -19917,6 +21527,798 @@ var resolver34 = {
 };
 var assignWhatsAppConversation_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
+// graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
+var typeDefs38 = `
+  type LinkWhatsAppContactToLeadResult {
+    success: Boolean!
+    message: String!
+    linked: Int!
+  }
+
+  type Mutation {
+    linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
+  }
+`;
+var definition35 = `
+  linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
+`;
+function toResult10(success, message, linked = 0) {
+  return { success, message, linked };
+}
+var resolver35 = {
+  linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
+    const session2 = context.session;
+    const companyId = getSessionCompanyId(session2);
+    if (!companyId || !canManageCompanyWhatsapp(session2, companyId)) {
+      return toResult10(false, denyCompanyWhatsappAccessMessage(session2));
+    }
+    const tail = phoneTail(phone);
+    if (tail.length < 8) return toResult10(false, "Ese tel\xE9fono no es v\xE1lido");
+    const lead = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: businessLeadId },
+      query: "id saasCompany { id }"
+    });
+    const inCompany = (lead?.saasCompany ?? []).some(
+      (c) => c.id === companyId
+    );
+    if (!lead || !inCompany) return toResult10(false, "No se encontr\xF3 el cliente");
+    const { count } = await context.sudo().prisma.techWhatsAppMessage.updateMany({
+      where: {
+        companyId,
+        businessLeadId: null,
+        teamMemberId: null,
+        OR: [{ fromPhone: { endsWith: tail } }, { toPhone: { endsWith: tail } }]
+      },
+      data: { businessLeadId }
+    });
+    return toResult10(true, "Conversaci\xF3n enlazada al cliente", count);
+  }
+};
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+
+// utils/whatsapp/webhookConfig.ts
+function getWebhookConfig() {
+  const verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
+  const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim().replace(/\/+$/, "").replace(/\/webhooks\/whatsapp$/, "");
+  if (!verifyToken || !baseUrl) return null;
+  return { webhookUrl: `${baseUrl}/webhooks/whatsapp`, verifyToken };
+}
+
+// graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
+var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
+var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
+var typeDefs39 = `
+  input DiscoverWhatsappAccountInput {
+    companyId: ID!
+    appId: String!
+    appSecret: String!
+    accessToken: String!
+    """Si el token da acceso a varios n\xFAmeros, cu\xE1l conectar. Vac\xEDo = se elige solo si hay uno."""
+    phoneNumberId: String
+  }
+
+  type WhatsappPhoneOption {
+    id: ID!
+    displayPhoneNumber: String!
+    verifiedName: String!
+    wabaId: String!
+  }
+
+  type DiscoverWhatsappAccountResult {
+    success: Boolean!
+    message: String!
+    """Texto original de Meta (soporte); vac\xEDo si el error es nuestro."""
+    detail: String
+    """true = el token da acceso a varios n\xFAmeros: mostrar phoneOptions y reintentar con phoneNumberId."""
+    needsSelection: Boolean!
+    phoneOptions: [WhatsappPhoneOption!]!
+    displayPhoneNumber: String
+    verifiedName: String
+    webhookConfigured: Boolean!
+    webhookError: String
+    templateError: String
+  }
+
+  type Mutation {
+    discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
+  }
+`;
+var definition36 = `
+  discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
+`;
+function fail2(message, detail = null) {
+  return {
+    success: false,
+    message,
+    detail,
+    needsSelection: false,
+    phoneOptions: [],
+    displayPhoneNumber: null,
+    verifiedName: null,
+    webhookConfigured: false,
+    webhookError: null,
+    templateError: null
+  };
+}
+var resolver36 = {
+  /**
+   * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
+   * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
+   * webhook de la App por API y crea la plantilla de inicio. NO publica la App: en modo
+   * desarrollo Meta no entrega mensajes reales (eso lo hace el usuario en el panel de Meta).
+   */
+  discoverWhatsappAccount: async (_root, { input }, context) => {
+    const session2 = context.session;
+    if (!canManageCompanyWhatsapp(session2, input.companyId)) {
+      return fail2(denyCompanyWhatsappAccessMessage(session2));
+    }
+    const appId = input.appId.trim();
+    const appSecret = input.appSecret.trim();
+    const accessToken = input.accessToken.trim();
+    if (!appId || !appSecret || !accessToken) {
+      return fail2("Faltan datos: pega el App ID, el App Secret y el token.");
+    }
+    const existing = await context.sudo().query.SaasCompany.findOne({
+      where: { id: input.companyId },
+      query: "id whatsappBusinessAccountId whatsappPhoneNumberId"
+    });
+    if (!existing) return fail2("No se encontr\xF3 la empresa");
+    let wabaIds;
+    try {
+      const info = await debugWhatsAppToken({ appId, appSecret, accessToken });
+      if (!info.isValid) {
+        return fail2(
+          "El token no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema.",
+          info.invalidReason
+        );
+      }
+      if (info.appId && info.appId !== appId) {
+        return fail2(
+          `Ese token es de otra App de Meta (ID ${info.appId}), no de la App con ID ${appId}. Genera el token desde la misma App.`
+        );
+      }
+      if (info.expiresAt !== 0 && info.expiresAt * 1e3 - Date.now() < MIN_TOKEN_LIFETIME_MS) {
+        return fail2(
+          "Ese token es temporal y va a dejar de funcionar pronto. Genera uno permanente (sin fecha de expiraci\xF3n) con un usuario del sistema."
+        );
+      }
+      const missing = REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
+      if (missing.length > 0) {
+        return fail2(
+          `Al token le falta el permiso: ${missing.join(" y ")}. Genera uno nuevo con los dos permisos (whatsapp_business_messaging y whatsapp_business_management).`
+        );
+      }
+      if (info.wabaIds.length === 0) {
+        return fail2(
+          "El token no da acceso a ninguna cuenta de WhatsApp Business. Al generarlo, asigna la cuenta de WhatsApp Business al usuario del sistema."
+        );
+      }
+      wabaIds = info.wabaIds;
+    } catch (err) {
+      const f = friendlyWhatsappError(err);
+      return fail2(f.message, f.detail);
+    }
+    const options = [];
+    let firstListError = null;
+    for (const wabaId of wabaIds) {
+      try {
+        const numbers = await listWhatsAppPhoneNumbers({ wabaId, accessToken });
+        for (const n of numbers) options.push({ ...n, wabaId });
+      } catch (err) {
+        firstListError ??= err;
+      }
+    }
+    if (options.length === 0) {
+      if (firstListError) {
+        const f = friendlyWhatsappError(firstListError);
+        return fail2(f.message, f.detail);
+      }
+      return fail2(
+        "Encontramos tu cuenta de WhatsApp Business pero no tiene ning\xFAn n\xFAmero. Agrega uno en WhatsApp \u2192 Configuraci\xF3n de la API y vuelve a intentar."
+      );
+    }
+    const wantedId = input.phoneNumberId?.trim() || null;
+    let chosen;
+    if (wantedId) {
+      chosen = options.find((o) => o.id === wantedId);
+      if (!chosen) return fail2("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
+    } else if (options.length === 1) {
+      chosen = options[0];
+    } else {
+      return {
+        ...fail2("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
+        success: true,
+        needsSelection: true,
+        phoneOptions: options
+      };
+    }
+    const clash = await context.sudo().query.SaasCompany.findMany({
+      where: {
+        id: { not: { equals: input.companyId } },
+        OR: [
+          { whatsappPhoneNumberId: { equals: chosen.id } },
+          { whatsappBusinessAccountId: { equals: chosen.wabaId } }
+        ]
+      },
+      query: "id",
+      take: 1
+    });
+    if (clash.length > 0) {
+      return fail2("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
+    }
+    const changedAccount = existing.whatsappBusinessAccountId !== chosen.wabaId || existing.whatsappPhoneNumberId !== chosen.id;
+    try {
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: input.companyId },
+        data: {
+          whatsappAppId: appId,
+          whatsappPhoneNumberId: chosen.id,
+          whatsappBusinessAccountId: chosen.wabaId,
+          whatsappDisplayPhoneNumber: chosen.displayPhoneNumber || null,
+          whatsappAccessTokenEncrypted: encrypt(accessToken),
+          whatsappAppSecretEncrypted: encrypt(appSecret),
+          whatsappTokenPreview: maskApiKey(accessToken),
+          whatsappConnectedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          ...changedAccount ? {
+            whatsappTemplateName: null,
+            whatsappTemplateStatus: "none",
+            whatsappLastWebhookAt: null,
+            whatsappWebhookConfiguredAt: null
+          } : {}
+        }
+      });
+    } catch (err) {
+      const f = friendlyWhatsappError(err);
+      return fail2(f.message, f.detail);
+    }
+    let webhookConfigured = false;
+    let webhookError = null;
+    const webhook = getWebhookConfig();
+    if (!webhook) {
+      webhookError = "Falta configurar WHATSAPP_WEBHOOK_VERIFY_TOKEN o WHATSAPP_WEBHOOK_BASE_URL en el servidor de Kadesh.";
+    } else {
+      try {
+        await subscribeAppToWaba({ wabaId: chosen.wabaId, accessToken });
+        await configureAppWebhook({
+          appId,
+          appSecret,
+          callbackUrl: webhook.webhookUrl,
+          verifyToken: webhook.verifyToken
+        });
+        webhookConfigured = true;
+        await context.sudo().query.SaasCompany.updateOne({
+          where: { id: input.companyId },
+          data: { whatsappWebhookConfiguredAt: (/* @__PURE__ */ new Date()).toISOString() }
+        });
+      } catch (err) {
+        const f = friendlyWhatsappError(err);
+        webhookError = f.detail === f.message ? f.message : `${f.message} (${f.detail})`;
+      }
+    }
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: input.companyId },
+      query: "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappAccessTokenEncrypted whatsappTemplateStatus"
+    });
+    const template = await ensureOutreachTemplate(company, context);
+    return {
+      success: true,
+      message: "WhatsApp conectado",
+      detail: null,
+      needsSelection: false,
+      phoneOptions: [],
+      displayPhoneNumber: chosen.displayPhoneNumber,
+      verifiedName: chosen.verifiedName,
+      webhookConfigured,
+      webhookError,
+      templateError: template.error
+    };
+  }
+};
+var discoverWhatsappAccount_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+
+// utils/googleCalendar/state.ts
+var import_jsonwebtoken3 = __toESM(require("jsonwebtoken"));
+var import_crypto7 = require("crypto");
+var PURPOSE = "google-calendar-connect";
+var devFallbackSecret = null;
+function getSecret() {
+  const secret = process.env.SESSION_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("SESSION_SECRET es requerido para firmar el state de Google Calendar");
+  }
+  devFallbackSecret ??= (0, import_crypto7.randomBytes)(32).toString("hex");
+  return devFallbackSecret;
+}
+function signGoogleCalendarState(payload) {
+  return import_jsonwebtoken3.default.sign({ ...payload, purpose: PURPOSE }, getSecret(), { expiresIn: "15m" });
+}
+function verifyGoogleCalendarState(state) {
+  try {
+    const decoded = import_jsonwebtoken3.default.verify(state, getSecret());
+    if (decoded.purpose !== PURPOSE || typeof decoded.uid !== "string" || typeof decoded.cid !== "string" || typeof decoded.st !== "string") {
+      return null;
+    }
+    return { uid: decoded.uid, cid: decoded.cid, st: decoded.st };
+  } catch {
+    return null;
+  }
+}
+
+// graphql/customs/mutations/googleCalendar/access.ts
+var ACCOUNT_SCOPE_QUERY = "scopeType user { id company { id } } company { id }";
+function accountCompanyId(account) {
+  return account.company?.id ?? account.user?.company?.id ?? null;
+}
+function canConnectGoogleCalendar(session2, scopeType, companyId) {
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
+  if (getSessionCompanyId(session2) !== companyId) return false;
+  if (scopeType === "company" /* COMPANY */) {
+    return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
+  }
+  return scopeType === "personal" /* PERSONAL */;
+}
+function canManageGoogleCalendarAccount(session2, account) {
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
+  if (account.scopeType === "personal" /* PERSONAL */) {
+    return !!account.user?.id && account.user.id === getSessionUserId(session2);
+  }
+  return !!account.company?.id && account.company.id === getSessionCompanyId(session2) && hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
+}
+function canViewGoogleCalendarAccount(session2, account) {
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
+  if (account.scopeType === "personal" /* PERSONAL */) {
+    return !!account.user?.id && account.user.id === getSessionUserId(session2);
+  }
+  return !!account.company?.id && account.company.id === getSessionCompanyId(session2);
+}
+function denyGoogleCalendarAccessMessage(session2) {
+  if (!session2?.data?.id) return "Debes iniciar sesi\xF3n para usar Google Calendar";
+  return "No tienes permiso para administrar esta cuenta de Google Calendar";
+}
+
+// graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
+var typeDefs40 = `
+  type GoogleCalendarAuthUrlResult {
+    success: Boolean!
+    message: String
+    url: String
+  }
+
+  type Mutation {
+    getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
+  }
+`;
+var definition37 = `
+  getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
+`;
+var fail3 = (message) => ({ success: false, message, url: null });
+var resolver37 = {
+  getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
+    const session2 = context.session;
+    const userId = getSessionUserId(session2);
+    if (!userId) return fail3(denyGoogleCalendarAccessMessage(session2));
+    if (scopeType !== "personal" /* PERSONAL */ && scopeType !== "company" /* COMPANY */) {
+      return fail3("Tipo de cuenta inv\xE1lido (personal o company)");
+    }
+    const targetCompanyId = isPlatformAdmin(session2) && companyId || getSessionCompanyId(session2);
+    if (!targetCompanyId) return fail3("Tu usuario no tiene una empresa asignada");
+    if (!canConnectGoogleCalendar(session2, scopeType, targetCompanyId)) {
+      return fail3(
+        scopeType === "company" /* COMPANY */ ? "Solo el administrador de la empresa puede conectar la cuenta compartida" : denyGoogleCalendarAccessMessage(session2)
+      );
+    }
+    if (!await companyHasCalendarFeature(context, targetCompanyId)) {
+      return fail3(CALENDAR_FEATURE_DENIED_MESSAGE);
+    }
+    try {
+      const state = signGoogleCalendarState({
+        uid: userId,
+        cid: targetCompanyId,
+        st: scopeType
+      });
+      return { success: true, message: null, url: buildGoogleAuthUrl(state) };
+    } catch (err) {
+      return fail3(friendlyGoogleCalendarError(err));
+    }
+  }
+};
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+
+// utils/googleCalendar/calendars.ts
+async function syncCalendarList(context, accountId, calendars) {
+  const sudo = context.sudo();
+  const existing = await sudo.query.GoogleCalendarSelection.findMany({
+    where: { account: { id: { equals: accountId } } },
+    query: "id googleCalendarId"
+  });
+  const existingByCalendarId = new Map(existing.map((s) => [s.googleCalendarId, s.id]));
+  for (const cal of calendars) {
+    const data = {
+      calendarName: cal.summary,
+      isPrimary: cal.primary,
+      colorHex: cal.backgroundColor
+    };
+    const existingId = existingByCalendarId.get(cal.id);
+    if (existingId) {
+      await sudo.query.GoogleCalendarSelection.updateOne({ where: { id: existingId }, data });
+    } else {
+      await sudo.query.GoogleCalendarSelection.createOne({
+        data: {
+          ...data,
+          googleCalendarId: cal.id,
+          isSelected: false,
+          account: { connect: { id: accountId } }
+        }
+      });
+    }
+  }
+  const remoteIds = new Set(calendars.map((c) => c.id));
+  const stale = existing.filter((s) => !remoteIds.has(s.googleCalendarId));
+  if (stale.length > 0) {
+    await deleteSelections(context, stale.map((s) => s.id));
+  }
+  return calendars.length;
+}
+async function deleteSelections(context, selectionIds) {
+  if (selectionIds.length === 0) return;
+  const sudo = context.sudo();
+  const links = await sudo.query.TechCalendarEventGoogleLink.findMany({
+    where: { calendarSelection: { id: { in: selectionIds } } },
+    query: "id"
+  });
+  if (links.length > 0) {
+    await sudo.query.TechCalendarEventGoogleLink.deleteMany({
+      where: links.map((l) => ({ id: l.id }))
+    });
+  }
+  await sudo.query.GoogleCalendarSelection.deleteMany({
+    where: selectionIds.map((id) => ({ id }))
+  });
+}
+
+// graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
+var typeDefs41 = `
+  type ConnectGoogleCalendarResult {
+    success: Boolean!
+    message: String!
+    accountId: ID
+    googleAccountEmail: String
+    calendarsCount: Int
+  }
+
+  type Mutation {
+    connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
+  }
+`;
+var definition38 = `
+  connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
+`;
+var fail4 = (message) => ({
+  success: false,
+  message,
+  accountId: null,
+  googleAccountEmail: null,
+  calendarsCount: null
+});
+var resolver38 = {
+  connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
+    const session2 = context.session;
+    const userId = getSessionUserId(session2);
+    if (!userId) return fail4(denyGoogleCalendarAccessMessage(session2));
+    const payload = verifyGoogleCalendarState(state);
+    if (!payload || payload.uid !== userId) {
+      return fail4("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
+    }
+    const { cid: companyId, st: scopeType } = payload;
+    if (!canConnectGoogleCalendar(session2, scopeType, companyId)) {
+      return fail4(denyGoogleCalendarAccessMessage(session2));
+    }
+    if (!await companyHasCalendarFeature(context, companyId)) {
+      return fail4(CALENDAR_FEATURE_DENIED_MESSAGE);
+    }
+    try {
+      const tokens = await exchangeCodeForTokens(code);
+      const calendars = await listCalendarList(tokens.accessToken);
+      const email = calendars.find((c) => c.primary)?.id;
+      if (!email) return fail4("No se pudo identificar la cuenta de Google conectada");
+      const sudo = context.sudo();
+      const ownerWhere = scopeType === "personal" /* PERSONAL */ ? { user: { id: { equals: userId } } } : { company: { id: { equals: companyId } } };
+      const [existing] = await sudo.query.GoogleCalendarAccount.findMany({
+        where: {
+          scopeType: { equals: scopeType },
+          googleAccountEmail: { equals: email },
+          ...ownerWhere
+        },
+        take: 1,
+        query: "id refreshTokenEncrypted"
+      });
+      const refreshToken = tokens.refreshToken ?? (existing?.refreshTokenEncrypted ? decrypt(existing.refreshTokenEncrypted) : null);
+      if (!refreshToken) {
+        return fail4(
+          "Google no entreg\xF3 acceso permanente. Revoca el acceso de Kadesh en tu cuenta de Google y vuelve a conectar."
+        );
+      }
+      const tokenData = {
+        googleAccountEmail: email,
+        accessTokenEncrypted: encrypt(tokens.accessToken),
+        refreshTokenEncrypted: encrypt(refreshToken),
+        tokenExpiresAt: new Date(Date.now() + tokens.expiresInSeconds * 1e3).toISOString(),
+        scope: tokens.scope,
+        isActive: true,
+        lastSyncError: null,
+        connectedByUser: { connect: { id: userId } }
+      };
+      const account = existing ? await sudo.query.GoogleCalendarAccount.updateOne({
+        where: { id: existing.id },
+        data: tokenData,
+        query: "id googleAccountEmail"
+      }) : await sudo.query.GoogleCalendarAccount.createOne({
+        data: {
+          ...tokenData,
+          scopeType,
+          ...scopeType === "personal" /* PERSONAL */ ? { user: { connect: { id: userId } } } : { company: { connect: { id: companyId } } }
+        },
+        query: "id googleAccountEmail"
+      });
+      const calendarsCount = await syncCalendarList(context, account.id, calendars);
+      await persistGoogleCalendarSyncLog({
+        context,
+        accountId: account.id,
+        direction: "pull",
+        operation: "list_calendars",
+        success: true
+      });
+      return {
+        success: true,
+        message: "Cuenta de Google conectada",
+        accountId: account.id,
+        googleAccountEmail: account.googleAccountEmail,
+        calendarsCount
+      };
+    } catch (err) {
+      console.error("connectGoogleCalendarAccount:", err);
+      return fail4(friendlyGoogleCalendarError(err));
+    }
+  }
+};
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+
+// graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
+var typeDefs42 = `
+  type GoogleCalendarActionResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type Mutation {
+    disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
+  }
+`;
+var definition39 = `
+  disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
+`;
+var resolver39 = {
+  disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
+    const sudo = context.sudo();
+    const account = await sudo.query.GoogleCalendarAccount.findOne({
+      where: { id: accountId },
+      query: `id refreshTokenEncrypted ${ACCOUNT_SCOPE_QUERY}`
+    });
+    if (!account) return { success: false, message: "Cuenta no encontrada" };
+    if (!canManageGoogleCalendarAccount(context.session, account)) {
+      return { success: false, message: denyGoogleCalendarAccessMessage(context.session) };
+    }
+    try {
+      if (account.refreshTokenEncrypted) {
+        await revokeGoogleToken(decrypt(account.refreshTokenEncrypted));
+      }
+      const selections = await sudo.query.GoogleCalendarSelection.findMany({
+        where: { account: { id: { equals: accountId } } },
+        query: "id"
+      });
+      await deleteSelections(context, selections.map((s) => s.id));
+      await sudo.query.GoogleCalendarAccount.deleteOne({ where: { id: accountId } });
+      return { success: true, message: "Cuenta de Google desconectada" };
+    } catch (err) {
+      console.error("disconnectGoogleCalendarAccount:", err);
+      return { success: false, message: "No se pudo desconectar la cuenta" };
+    }
+  }
+};
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+
+// graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
+var typeDefs43 = `
+  type RefreshGoogleCalendarListResult {
+    success: Boolean!
+    message: String!
+    calendarsCount: Int
+  }
+
+  type Mutation {
+    refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
+  }
+`;
+var definition40 = `
+  refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
+`;
+var resolver40 = {
+  refreshGoogleCalendarList: async (_root, { accountId }, context) => {
+    const account = await context.sudo().query.GoogleCalendarAccount.findOne({
+      where: { id: accountId },
+      query: `${ACCOUNT_TOKEN_QUERY} ${ACCOUNT_SCOPE_QUERY}`
+    });
+    if (!account) return { success: false, message: "Cuenta no encontrada", calendarsCount: null };
+    if (!canManageGoogleCalendarAccount(context.session, account)) {
+      return {
+        success: false,
+        message: denyGoogleCalendarAccessMessage(context.session),
+        calendarsCount: null
+      };
+    }
+    const companyId = accountCompanyId(account);
+    if (companyId && !await companyHasCalendarFeature(context, companyId)) {
+      return { success: false, message: CALENDAR_FEATURE_DENIED_MESSAGE, calendarsCount: null };
+    }
+    const startedAt = Date.now();
+    try {
+      const accessToken = await getValidAccessToken(context, account);
+      const calendars = await listCalendarList(accessToken);
+      const calendarsCount = await syncCalendarList(context, accountId, calendars);
+      await persistGoogleCalendarSyncLog({
+        context,
+        accountId,
+        direction: "pull",
+        operation: "list_calendars",
+        success: true,
+        durationMs: Date.now() - startedAt
+      });
+      return { success: true, message: "Calendarios actualizados", calendarsCount };
+    } catch (err) {
+      await persistGoogleCalendarSyncLog({
+        context,
+        accountId,
+        direction: "pull",
+        operation: "list_calendars",
+        success: false,
+        errorMessage: err instanceof Error ? err.message : String(err),
+        durationMs: Date.now() - startedAt
+      });
+      return { success: false, message: friendlyGoogleCalendarError(err), calendarsCount: null };
+    }
+  }
+};
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+
+// graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
+var typeDefs44 = `
+  type ToggleGoogleCalendarSelectionResult {
+    success: Boolean!
+    message: String!
+    selectionId: ID
+    isSelected: Boolean
+  }
+
+  type Mutation {
+    toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
+  }
+`;
+var definition41 = `
+  toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
+`;
+var resolver41 = {
+  toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
+    const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
+      where: { id: selectionId },
+      query: `id account { ${ACCOUNT_SCOPE_QUERY} }`
+    });
+    if (!selection?.account) {
+      return { success: false, message: "Calendario no encontrado", selectionId: null, isSelected: null };
+    }
+    if (!canManageGoogleCalendarAccount(context.session, selection.account)) {
+      return {
+        success: false,
+        message: denyGoogleCalendarAccessMessage(context.session),
+        selectionId: null,
+        isSelected: null
+      };
+    }
+    const companyId = accountCompanyId(selection.account);
+    if (companyId && !await companyHasCalendarFeature(context, companyId)) {
+      return { success: false, message: CALENDAR_FEATURE_DENIED_MESSAGE, selectionId: null, isSelected: null };
+    }
+    const updated = await context.sudo().query.GoogleCalendarSelection.updateOne({
+      where: { id: selectionId },
+      data: { isSelected },
+      query: "id isSelected"
+    });
+    return {
+      success: true,
+      message: isSelected ? "Calendario seleccionado" : "Calendario deseleccionado",
+      selectionId: updated.id,
+      isSelected: updated.isSelected
+    };
+  }
+};
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+
+// graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
+var typeDefs45 = `
+  input GoogleCalendarPushSettingsInput {
+    pushActivities: Boolean
+    pushProposals: Boolean
+    pushFollowUps: Boolean
+    pushTasks: Boolean
+  }
+
+  type SetGoogleCalendarPushSettingsResult {
+    success: Boolean!
+    message: String!
+    selectionId: ID
+    pushActivities: Boolean
+    pushProposals: Boolean
+    pushFollowUps: Boolean
+    pushTasks: Boolean
+  }
+
+  type Mutation {
+    setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
+  }
+`;
+var definition42 = `
+  setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
+`;
+var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
+var fail5 = (message) => ({
+  success: false,
+  message,
+  selectionId: null,
+  pushActivities: null,
+  pushProposals: null,
+  pushFollowUps: null,
+  pushTasks: null
+});
+var resolver42 = {
+  setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
+    const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
+      where: { id: selectionId },
+      query: `id account { ${ACCOUNT_SCOPE_QUERY} }`
+    });
+    if (!selection?.account) return fail5("Calendario no encontrado");
+    if (!canManageGoogleCalendarAccount(context.session, selection.account)) {
+      return fail5(denyGoogleCalendarAccessMessage(context.session));
+    }
+    const companyId = accountCompanyId(selection.account);
+    if (companyId && !await companyHasCalendarFeature(context, companyId)) {
+      return fail5(CALENDAR_FEATURE_DENIED_MESSAGE);
+    }
+    const data = {};
+    for (const flag of FLAGS) {
+      const value = settings[flag];
+      if (typeof value === "boolean") data[flag] = value;
+    }
+    const updated = await context.sudo().query.GoogleCalendarSelection.updateOne({
+      where: { id: selectionId },
+      data,
+      query: "id pushActivities pushProposals pushFollowUps pushTasks"
+    });
+    return {
+      success: true,
+      message: "Preferencias guardadas",
+      selectionId: updated.id,
+      pushActivities: updated.pushActivities,
+      pushProposals: updated.pushProposals,
+      pushFollowUps: updated.pushFollowUps,
+      pushTasks: updated.pushTasks
+    };
+  }
+};
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
@@ -19952,6 +22354,14 @@ var customMutation = {
     ${startWhatsAppConversation_default.typeDefs}
     ${sendWhatsAppMediaMessage_default.typeDefs}
     ${assignWhatsAppConversation_default.typeDefs}
+    ${linkWhatsAppContactToLead_default.typeDefs}
+    ${discoverWhatsappAccount_default.typeDefs}
+    ${getGoogleCalendarAuthUrl_default.typeDefs}
+    ${connectGoogleCalendarAccount_default.typeDefs}
+    ${disconnectGoogleCalendarAccount_default.typeDefs}
+    ${refreshGoogleCalendarList_default.typeDefs}
+    ${toggleGoogleCalendarSelection_default.typeDefs}
+    ${setGoogleCalendarPushSettings_default.typeDefs}
   `,
   definitions: `
     ${customAuth_default.definition}
@@ -19986,6 +22396,14 @@ var customMutation = {
     ${startWhatsAppConversation_default.definition}
     ${sendWhatsAppMediaMessage_default.definition}
     ${assignWhatsAppConversation_default.definition}
+    ${linkWhatsAppContactToLead_default.definition}
+    ${discoverWhatsappAccount_default.definition}
+    ${getGoogleCalendarAuthUrl_default.definition}
+    ${connectGoogleCalendarAccount_default.definition}
+    ${disconnectGoogleCalendarAccount_default.definition}
+    ${refreshGoogleCalendarList_default.definition}
+    ${toggleGoogleCalendarSelection_default.definition}
+    ${setGoogleCalendarPushSettings_default.definition}
   `,
   resolvers: {
     ...customAuth_default.resolver,
@@ -20019,7 +22437,15 @@ var customMutation = {
     ...importWhatsAppChatExport_default.resolver,
     ...startWhatsAppConversation_default.resolver,
     ...sendWhatsAppMediaMessage_default.resolver,
-    ...assignWhatsAppConversation_default.resolver
+    ...assignWhatsAppConversation_default.resolver,
+    ...linkWhatsAppContactToLead_default.resolver,
+    ...discoverWhatsappAccount_default.resolver,
+    ...getGoogleCalendarAuthUrl_default.resolver,
+    ...connectGoogleCalendarAccount_default.resolver,
+    ...disconnectGoogleCalendarAccount_default.resolver,
+    ...refreshGoogleCalendarList_default.resolver,
+    ...toggleGoogleCalendarSelection_default.resolver,
+    ...setGoogleCalendarPushSettings_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -20030,7 +22456,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs38 = `
+var typeDefs46 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -20089,7 +22515,7 @@ var typeDefs38 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition35 = `
+var definition43 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -20139,7 +22565,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver35 = {
+var resolver43 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -20302,7 +22728,7 @@ var resolver35 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var nearbyAnimals_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -20615,7 +23041,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs39 = `
+var typeDefs47 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -20675,10 +23101,10 @@ var typeDefs39 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition36 = `
+var definition44 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver36 = {
+var resolver44 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -20760,10 +23186,10 @@ var resolver36 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs40 = `
+var typeDefs48 = `
   type StripeCard {
     brand: String
     country: String
@@ -20797,10 +23223,10 @@ var typeDefs40 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition37 = `
+var definition45 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver37 = {
+var resolver45 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -20836,7 +23262,7 @@ var resolver37 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var stripePaymentMethods_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -20889,7 +23315,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs41 = `
+var typeDefs49 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -20917,10 +23343,10 @@ var typeDefs41 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition38 = `
+var definition46 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver38 = {
+var resolver46 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -21047,11 +23473,11 @@ var resolver38 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var subscriptionStatus_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs42 = `
+var typeDefs50 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -21063,10 +23489,10 @@ var typeDefs42 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition39 = `
+var definition47 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver39 = {
+var resolver47 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -21099,10 +23525,10 @@ var resolver39 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs43 = `
+var typeDefs51 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -21114,17 +23540,17 @@ var typeDefs43 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition40 = `
+var definition48 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver40 = {
+var resolver48 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
       return { success: false, message: denyCompanyWhatsappAccessMessage(session2) };
     }
     const verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
-    const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim().replace(/\/+$/, "");
+    const baseUrl = process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim().replace(/\/+$/, "").replace(/\/webhooks\/whatsapp$/, "");
     if (!verifyToken || !baseUrl) {
       return {
         success: false,
@@ -21139,18 +23565,22 @@ var resolver40 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs44 = `
+var typeDefs52 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
     """Id del compa\xF1ero de equipo \u2014 vac\xEDo en las conversaciones con clientes."""
     teamMemberId: ID
+    """\xDAltimos 10 d\xEDgitos del tel\xE9fono \u2014 solo en las conversaciones con un n\xFAmero que a\xFAn no es cliente."""
+    phoneKey: String
+    """lead | team | phone (n\xFAmero que a\xFAn no es cliente; solo lo ven los admins)."""
     kind: String!
     name: String!
+    phone: String
     assignedToId: ID
     assignedToName: String
     lastMessageBody: String!
@@ -21168,14 +23598,14 @@ var typeDefs44 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition41 = `
+var definition49 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver41 = {
+var resolver49 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -21189,24 +23619,33 @@ var resolver41 = {
       where: { company: { id: { equals: companyId } } },
       orderBy: [{ createdAt: "desc" }],
       take: MAX_MESSAGES_SCANNED,
-      query: "id body direction createdAt businessLead { id businessName salesPerson { id name lastName } } teamMember { id name lastName }"
+      query: "id body direction createdAt fromPhone toPhone senderLabel businessLead { id businessName phone salesPerson { id name lastName } } teamMember { id name lastName phone }"
     });
     const seenKeys = /* @__PURE__ */ new Set();
     const conversations = [];
+    const phoneNames = /* @__PURE__ */ new Map();
     for (const msg of messages) {
       if (!msg.createdAt) continue;
       const leadId = msg.businessLead?.id ?? null;
       const teamMemberId = msg.teamMember?.id ?? null;
-      if (!leadId && !teamMemberId) continue;
-      const key = leadId ? `lead:${leadId}` : `team:${teamMemberId}`;
+      const phoneKey = !leadId && !teamMemberId ? phoneTail(msg.fromPhone || msg.toPhone) : "";
+      if (!leadId && !teamMemberId && phoneKey.length < 8) continue;
+      const key = leadId ? `lead:${leadId}` : teamMemberId ? `team:${teamMemberId}` : `phone:${phoneKey}`;
+      if (phoneKey && msg.senderLabel && !phoneNames.has(phoneKey)) {
+        phoneNames.set(phoneKey, msg.senderLabel);
+      }
       if (seenKeys.has(key)) continue;
       seenKeys.add(key);
       const assigned = msg.businessLead?.salesPerson?.[0] ?? null;
+      const rawPhone = msg.fromPhone || msg.toPhone || null;
       conversations.push({
         leadId,
         teamMemberId,
-        kind: leadId ? "lead" : "team",
-        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : fullName(msg.teamMember) || "Sin nombre",
+        phoneKey: phoneKey || null,
+        kind: leadId ? "lead" : teamMemberId ? "team" : "phone",
+        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : teamMemberId ? fullName(msg.teamMember) || "Sin nombre" : "",
+        // se completa abajo con el nombre de perfil o el teléfono
+        phone: (leadId ? msg.businessLead?.phone : teamMemberId ? msg.teamMember?.phone : rawPhone && `+${rawPhone.replace(/\D/g, "")}`) || null,
         assignedToId: assigned?.id ?? null,
         assignedToName: assigned ? fullName(assigned) || null : null,
         lastMessageBody: msg.body || "",
@@ -21214,14 +23653,19 @@ var resolver41 = {
         lastMessageDirection: msg.direction || "unknown"
       });
     }
+    for (const c of conversations) {
+      if (c.kind === "phone") {
+        c.name = phoneNames.get(c.phoneKey) || c.phone || "N\xFAmero sin nombre";
+      }
+    }
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var whatsappConversations_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs45 = `
+var typeDefs53 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -21230,19 +23674,20 @@ var typeDefs45 = `
   }
 
   type Query {
-    businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
+    businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition42 = `
-  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID): BusinessLeadWhatsappStatusResult!
+var definition50 = `
+  businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver42 = {
+var resolver50 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
-    teamMemberId
+    teamMemberId,
+    phone
   }, context) => {
     const { target, error } = await resolveWhatsAppTarget(
-      { businessLeadId, teamMemberId },
+      { businessLeadId, teamMemberId, phone },
       context
     );
     if (!target) {
@@ -21257,7 +23702,10 @@ var resolver42 = {
       where: { id: target.companyId },
       query: "id whatsappTemplateStatus"
     });
-    const conversationWhere = businessLeadId ? { businessLead: { id: { equals: businessLeadId } } } : { teamMember: { id: { equals: teamMemberId } } };
+    const conversationWhere = businessLeadId ? { businessLead: { id: { equals: businessLeadId } } } : teamMemberId ? { teamMember: { id: { equals: teamMemberId } } } : {
+      company: { id: { equals: target.companyId } },
+      fromPhone: { endsWith: phoneTail(phone) }
+    };
     const [lastInbound] = await context.sudo().query.TechWhatsAppMessage.findMany({
       where: { ...conversationWhere, direction: { equals: "inbound" } },
       orderBy: [{ createdAt: "desc" }],
@@ -21273,10 +23721,10 @@ var resolver42 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs46 = `
+var typeDefs54 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -21294,10 +23742,10 @@ var typeDefs46 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition43 = `
+var definition51 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver43 = {
+var resolver51 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -21323,7 +23771,94 @@ var resolver43 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+
+// graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
+var MAX_SELECTIONS = 25;
+var typeDefs55 = `
+  type GoogleCalendarPulledEvent {
+    id: String!
+    selectionId: ID!
+    calendarId: String!
+    calendarName: String!
+    accountEmail: String!
+    colorHex: String
+    title: String!
+    description: String
+    location: String
+    start: String!
+    end: String
+    allDay: Boolean!
+    htmlLink: String
+    kadeshEventId: ID
+  }
+
+  type SyncGoogleCalendarNowResult {
+    success: Boolean!
+    message: String
+    events: [GoogleCalendarPulledEvent!]!
+  }
+
+  type Query {
+    syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
+  }
+`;
+var definition52 = `
+  syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
+`;
+var resolver52 = {
+  syncGoogleCalendarNow: async (_root, {
+    selectionIds,
+    timeMin,
+    timeMax
+  }, context) => {
+    const fail6 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail6(denyGoogleCalendarAccessMessage(context.session));
+    if (selectionIds.length === 0) return { success: true, message: null, events: [] };
+    if (selectionIds.length > MAX_SELECTIONS) {
+      return fail6(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+    }
+    const min = new Date(timeMin);
+    const max = new Date(timeMax);
+    if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
+      return fail6("Rango de fechas inv\xE1lido");
+    }
+    const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
+      where: { id: { in: selectionIds } },
+      query: `${PULL_SELECTION_QUERY} account { ${ACCOUNT_SCOPE_QUERY} }`
+    });
+    const events = [];
+    const errors = [];
+    const featureByCompany = /* @__PURE__ */ new Map();
+    for (const selection of selections) {
+      const scope = selection.account;
+      if (!canViewGoogleCalendarAccount(context.session, scope)) continue;
+      const companyId = accountCompanyId(scope);
+      if (companyId) {
+        if (!featureByCompany.has(companyId)) {
+          featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
+        }
+        if (!featureByCompany.get(companyId)) return fail6(CALENDAR_FEATURE_DENIED_MESSAGE);
+      }
+      try {
+        events.push(
+          ...await pullEventsForSelection(context, selection, min.toISOString(), max.toISOString())
+        );
+      } catch (err) {
+        errors.push(
+          `${selection.calendarName ?? selection.googleCalendarId}: ${friendlyGoogleCalendarError(err)}`
+        );
+      }
+    }
+    events.sort((a, b) => a.start.localeCompare(b.start));
+    return {
+      success: errors.length === 0,
+      message: errors.length ? errors.join(" | ") : null,
+      events
+    };
+  }
+};
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -21337,6 +23872,7 @@ var customQuery = {
     ${whatsappConversations_default.typeDefs}
     ${businessLeadWhatsappStatus_default.typeDefs}
     ${companyWhatsappTeam_default.typeDefs}
+    ${syncGoogleCalendarNow_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -21351,6 +23887,7 @@ var customQuery = {
     ${whatsappConversations_default.definition}
     ${businessLeadWhatsappStatus_default.definition}
     ${companyWhatsappTeam_default.definition}
+    ${syncGoogleCalendarNow_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -21364,7 +23901,8 @@ var customQuery = {
     ...companyWhatsappWebhookInfo_default.resolver,
     ...whatsappConversations_default.resolver,
     ...businessLeadWhatsappStatus_default.resolver,
-    ...companyWhatsappTeam_default.resolver
+    ...companyWhatsappTeam_default.resolver,
+    ...syncGoogleCalendarNow_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -21423,7 +23961,7 @@ function extendGraphqlSchema(baseSchema) {
 
 // webhooks/whatsapp.ts
 var import_express = __toESM(require("express"));
-var import_crypto7 = __toESM(require("crypto"));
+var import_crypto8 = __toESM(require("crypto"));
 var WEBHOOK_PATH = "/webhooks/whatsapp";
 var TEMPLATE_STATUS_MAP = {
   APPROVED: "approved",
@@ -21432,13 +23970,10 @@ var TEMPLATE_STATUS_MAP = {
   PENDING_DELETION: "rejected",
   DISABLED: "rejected"
 };
-function last10Digits(digits) {
-  return digits.slice(-10);
-}
 function extToFilename(filename, mimeType) {
   if (filename) return filename;
   const ext = mimeType.split("/")[1] || "bin";
-  return `archivo-${import_crypto7.default.randomUUID()}.${ext}`;
+  return `archivo-${import_crypto8.default.randomUUID()}.${ext}`;
 }
 async function persistIncomingMedia({
   media,
@@ -21453,7 +23988,7 @@ async function persistIncomingMedia({
     const { url, mimeType } = await fetchWhatsAppMediaUrl({ mediaId: media.id, accessToken });
     const buffer = await downloadWhatsAppMedia({ url, accessToken });
     const filename = extToFilename(media.filename, mimeType);
-    const mediaKey = `whatsapp-media/${companyId}/${import_crypto7.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${companyId}/${import_crypto8.default.randomUUID()}-${filename}`;
     await uploadBufferToStorage({ buffer, contentType: mimeType, key: mediaKey });
     return { mediaKey, mediaFileName: filename, body: media.caption || "" };
   } catch (err) {
@@ -21482,7 +24017,7 @@ async function handleTemplateStatusUpdate(companyId, value, context) {
     data: { whatsappTemplateStatus: status }
   });
 }
-async function persistIncomingMessages(companyId, accessToken, messages, context) {
+async function persistIncomingMessages(companyId, accessToken, messages, contacts, context) {
   for (const msg of messages) {
     if (!msg.id) continue;
     const existing = await context.sudo().db.TechWhatsAppMessage.findOne({
@@ -21490,29 +24025,36 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
     });
     if (existing) continue;
     const fromDigits = (msg.from || "").replace(/\D/g, "");
+    const profileName = (contacts ?? []).find((c) => c.wa_id === msg.from)?.profile?.name?.trim() || contacts?.[0]?.profile?.name?.trim() || null;
     let businessLeadId = null;
     let teamMemberId = null;
     let internalInitiatorId = null;
     if (fromDigits) {
-      const candidates = await context.sudo().query.TechBusinessLead.findMany({
-        where: {
-          saasCompany: { some: { id: { equals: companyId } } },
-          phone: { contains: last10Digits(fromDigits) }
-        },
-        query: "id",
-        take: 1
-      });
-      businessLeadId = candidates[0]?.id ?? null;
-      if (!businessLeadId) {
-        const teamCandidates = await context.sudo().query.User.findMany({
+      const lead = await findByPhone(
+        fromDigits,
+        async (fragment, take) => await context.sudo().query.TechBusinessLead.findMany({
           where: {
-            company: { id: { equals: companyId } },
-            phone: { contains: last10Digits(fromDigits) }
+            saasCompany: { some: { id: { equals: companyId } } },
+            phone: { contains: fragment }
           },
-          query: "id",
-          take: 1
-        });
-        teamMemberId = teamCandidates[0]?.id ?? null;
+          query: "id phone",
+          take
+        })
+      );
+      businessLeadId = lead?.id ?? null;
+      if (!businessLeadId) {
+        const teammate = await findByPhone(
+          fromDigits,
+          async (fragment, take) => await context.sudo().query.User.findMany({
+            where: {
+              company: { id: { equals: companyId } },
+              phone: { contains: fragment }
+            },
+            query: "id phone",
+            take
+          })
+        );
+        teamMemberId = teammate?.id ?? null;
         if (teamMemberId) {
           const [latest] = await context.sudo().query.TechWhatsAppMessage.findMany({
             where: {
@@ -21526,6 +24068,11 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
           internalInitiatorId = latest?.internalInitiator?.id ?? null;
         }
       }
+    }
+    if (!businessLeadId && !teamMemberId) {
+      console.warn(
+        `[whatsapp webhook] mensaje entrante de un n\xFAmero que no es lead ni compa\xF1ero (\u2026${fromDigits.slice(-4)}): se guarda sin conversaci\xF3n`
+      );
     }
     let body = "";
     let mediaKey = null;
@@ -21567,6 +24114,7 @@ async function persistIncomingMessages(companyId, accessToken, messages, context
         direction: "inbound",
         waMessageId: msg.id,
         fromPhone: msg.from || null,
+        ...profileName ? { senderLabel: profileName } : {},
         body,
         ...mediaType ? { mediaType, mediaKey, mediaFileName } : {},
         status: "received"
@@ -21612,7 +24160,11 @@ async function handleIncoming(req, res, context) {
     if (messages.length === 0) return;
     const accessToken = company.whatsappAccessTokenEncrypted ? decrypt(company.whatsappAccessTokenEncrypted) : null;
     if (!accessToken) return;
-    await persistIncomingMessages(company.id, accessToken, messages, context);
+    await context.sudo().prisma.saasCompany.update({
+      where: { id: String(company.id) },
+      data: { whatsappLastWebhookAt: /* @__PURE__ */ new Date() }
+    }).catch((e) => console.warn("[whatsapp webhook] no se pudo guardar lastWebhookAt", e));
+    await persistIncomingMessages(company.id, accessToken, messages, change.value?.contacts, context);
   } catch (err) {
     console.error("[whatsapp webhook] error procesando el payload:", err);
   }
@@ -21760,7 +24312,7 @@ var storage = {
   }
 };
 var keystone_default = withAuth(
-  (0, import_core71.config)({
+  (0, import_core76.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,

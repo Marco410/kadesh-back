@@ -30,6 +30,14 @@ import importWhatsAppChatExport from "./whatsapp/importWhatsAppChatExport";
 import startWhatsAppConversation from "./whatsapp/startWhatsAppConversation";
 import sendWhatsAppMediaMessage from "./whatsapp/sendWhatsAppMediaMessage";
 import assignWhatsAppConversation from "./whatsapp/assignWhatsAppConversation";
+import linkWhatsAppContactToLead from "./whatsapp/linkWhatsAppContactToLead";
+import discoverWhatsappAccount from "./whatsapp/discoverWhatsappAccount";
+import getGoogleCalendarAuthUrl from "./googleCalendar/getGoogleCalendarAuthUrl";
+import connectGoogleCalendarAccount from "./googleCalendar/connectGoogleCalendarAccount";
+import disconnectGoogleCalendarAccount from "./googleCalendar/disconnectGoogleCalendarAccount";
+import refreshGoogleCalendarList from "./googleCalendar/refreshGoogleCalendarList";
+import toggleGoogleCalendarSelection from "./googleCalendar/toggleGoogleCalendarSelection";
+import setGoogleCalendarPushSettings from "./googleCalendar/setGoogleCalendarPushSettings";
 
 const customMutation = {
   typeDefs: `
@@ -65,6 +73,14 @@ const customMutation = {
     ${startWhatsAppConversation.typeDefs}
     ${sendWhatsAppMediaMessage.typeDefs}
     ${assignWhatsAppConversation.typeDefs}
+    ${linkWhatsAppContactToLead.typeDefs}
+    ${discoverWhatsappAccount.typeDefs}
+    ${getGoogleCalendarAuthUrl.typeDefs}
+    ${connectGoogleCalendarAccount.typeDefs}
+    ${disconnectGoogleCalendarAccount.typeDefs}
+    ${refreshGoogleCalendarList.typeDefs}
+    ${toggleGoogleCalendarSelection.typeDefs}
+    ${setGoogleCalendarPushSettings.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -99,6 +115,14 @@ const customMutation = {
     ${startWhatsAppConversation.definition}
     ${sendWhatsAppMediaMessage.definition}
     ${assignWhatsAppConversation.definition}
+    ${linkWhatsAppContactToLead.definition}
+    ${discoverWhatsappAccount.definition}
+    ${getGoogleCalendarAuthUrl.definition}
+    ${connectGoogleCalendarAccount.definition}
+    ${disconnectGoogleCalendarAccount.definition}
+    ${refreshGoogleCalendarList.definition}
+    ${toggleGoogleCalendarSelection.definition}
+    ${setGoogleCalendarPushSettings.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -133,6 +157,14 @@ const customMutation = {
     ...startWhatsAppConversation.resolver,
     ...sendWhatsAppMediaMessage.resolver,
     ...assignWhatsAppConversation.resolver,
+    ...linkWhatsAppContactToLead.resolver,
+    ...discoverWhatsappAccount.resolver,
+    ...getGoogleCalendarAuthUrl.resolver,
+    ...connectGoogleCalendarAccount.resolver,
+    ...disconnectGoogleCalendarAccount.resolver,
+    ...refreshGoogleCalendarList.resolver,
+    ...toggleGoogleCalendarSelection.resolver,
+    ...setGoogleCalendarPushSettings.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
