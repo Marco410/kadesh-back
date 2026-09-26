@@ -262,6 +262,105 @@ export async function createWhatsAppTemplate({
   return { id: parsed.id, status: parsed.status || "PENDING" };
 }
 
+export type WhatsAppTemplateSummary = {
+  name: string;
+  language: string;
+  status: string;
+  category: string;
+  /** Sólo si el encabezado es de texto; los de imagen/documento no se soportan al iniciar. */
+  headerText: string | null;
+  bodyText: string;
+  footerText: string | null;
+  /** Cuántas `{{n}}` hay que rellenar en el cuerpo. */
+  variableCount: number;
+};
+
+type GraphTemplateComponent = {
+  type?: string;
+  format?: string;
+  text?: string;
+};
+
+/** `{{1}} … {{3}}` → 3. Meta numera desde 1 y exige un parámetro por variable, en orden. */
+export function countTemplateVariables(bodyText: string): number {
+  let max = 0;
+  for (const m of bodyText.matchAll(/\{\{\s*(\d+)\s*\}\}/g)) {
+    max = Math.max(max, Number(m[1]) || 0);
+  }
+  return max;
+}
+
+function toTemplateSummary(raw: {
+  name?: string;
+  language?: string;
+  status?: string;
+  category?: string;
+  components?: GraphTemplateComponent[];
+}): WhatsAppTemplateSummary | null {
+  if (!raw.name) return null;
+
+  const components = raw.components ?? [];
+  const body = components.find((c) => c.type?.toUpperCase() === "BODY");
+  const header = components.find((c) => c.type?.toUpperCase() === "HEADER");
+  const footer = components.find((c) => c.type?.toUpperCase() === "FOOTER");
+  const bodyText = body?.text || "";
+
+  return {
+    name: raw.name,
+    language: raw.language || "",
+    status: (raw.status || "PENDING").toUpperCase(),
+    category: (raw.category || "").toUpperCase(),
+    headerText: header?.format?.toUpperCase() === "TEXT" ? header.text || null : null,
+    bodyText,
+    footerText: footer?.text || null,
+    variableCount: countTemplateVariables(bodyText),
+  };
+}
+
+/**
+ * Lista las plantillas de una cuenta de WhatsApp Business, con su cuerpo y cuántas variables
+ * pide cada una — es lo que permite ofrecerle al usuario un selector en vez de una sola
+ * plantilla fija. `name` filtra del lado de Meta, pero por coincidencia parcial: quien necesite
+ * una plantilla concreta debe comparar el nombre exacto.
+ */
+export async function listWhatsAppTemplates({
+  wabaId,
+  accessToken,
+  name,
+}: {
+  wabaId: string;
+  accessToken: string;
+  name?: string;
+}): Promise<WhatsAppTemplateSummary[]> {
+  const params = new URLSearchParams({
+    fields: "name,language,status,category,components",
+    limit: "200",
+  });
+  if (name) params.set("name", name);
+
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${wabaId}/message_templates?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  const bodyText = await response.text();
+
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error consultando plantillas:", bodyText);
+  }
+
+  let parsed: { data?: Array<Parameters<typeof toTemplateSummary>[0]> } | null = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+
+  return (parsed?.data ?? [])
+    .map(toTemplateSummary)
+    .filter((t): t is WhatsAppTemplateSummary => t !== null);
+}
+
 /**
  * Consulta el estado real de una plantilla en Meta (APPROVED / PENDING / REJECTED / …).
  *
@@ -283,39 +382,16 @@ export async function fetchWhatsAppTemplateStatus({
   name: string;
   language?: string | null;
 }): Promise<{ status: string; language: string } | null> {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION}/${wabaId}/message_templates` +
-      `?name=${encodeURIComponent(name)}&fields=name,language,status&limit=50`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  );
-
-  const bodyText = await response.text();
-
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error consultando plantilla:", bodyText);
-  }
-
-  let parsed: {
-    data?: Array<{ name?: string; language?: string; status?: string }>;
-  } | null = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
+  const templates = await listWhatsAppTemplates({ wabaId, accessToken, name });
 
   // El filtro `name` de Meta es por coincidencia parcial, así que puede regresar otras plantillas
   // (y una por idioma): hay que quedarse con la del nombre exacto, prefiriendo el idioma guardado.
-  const matches = (parsed?.data ?? []).filter((t) => t.name === name);
+  const matches = templates.filter((t) => t.name === name);
   if (matches.length === 0) return null;
 
-  const match =
-    (language && matches.find((t) => t.language === language)) || matches[0];
+  const match = (language && matches.find((t) => t.language === language)) || matches[0];
 
-  return {
-    status: (match.status || "PENDING").toUpperCase(),
-    language: match.language || language || "",
-  };
+  return { status: match.status, language: match.language || language || "" };
 }
 
 /** Manda una plantilla ya aprobada — único tipo de mensaje permitido para iniciar conversación. */
@@ -349,12 +425,18 @@ export async function sendWhatsAppTemplateMessage({
         template: {
           name: templateName,
           language: { code: language },
-          components: [
-            {
-              type: "body",
-              parameters: bodyParams.map((text) => ({ type: "text", text })),
-            },
-          ],
+          // Una plantilla sin variables tiene que ir SIN `components`: Meta rechaza un
+          // `parameters: []` con "number of parameters does not match".
+          ...(bodyParams.length > 0
+            ? {
+                components: [
+                  {
+                    type: "body",
+                    parameters: bodyParams.map((text) => ({ type: "text", text })),
+                  },
+                ],
+              }
+            : {}),
         },
       }),
     },
