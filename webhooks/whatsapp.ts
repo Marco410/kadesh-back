@@ -32,6 +32,8 @@ type WhatsAppWebhookChange = {
     /** Nombre de perfil de WhatsApp de quien escribe (no es el del CRM). */
     contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
     messages?: WhatsAppWebhookMessage[];
+    /** Acuses de entrega/lectura de lo que mandamos. No se persisten; sólo se registran. */
+    statuses?: Array<{ id?: string; status?: string }>;
     event?: string;
     message_template_name?: string;
   };
@@ -86,10 +88,20 @@ function handleVerify(req: Request, res: Response) {
 
   const expected = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
   if (mode === "subscribe" && expected && token === expected) {
+    console.log("[whatsapp webhook] verificación OK (Meta dio de alta la Callback URL)");
     res.status(200).send(challenge);
-  } else {
-    res.sendStatus(403);
+    return;
   }
+
+  // Meta muestra un error genérico al verificar; el motivo real sólo se ve aquí.
+  console.warn(
+    `[whatsapp webhook] verificación RECHAZADA: mode=${String(mode)}, ${
+      !expected
+        ? "falta WHATSAPP_WEBHOOK_VERIFY_TOKEN en el servidor"
+        : "el verify token no coincide con el que pegaron en Meta"
+    }`,
+  );
+  res.sendStatus(403);
 }
 
 /** Actualiza el estatus de la plantilla de la empresa cuando Meta la revisa. */
@@ -253,24 +265,51 @@ async function handleIncoming(
 
   try {
     const rawBody = req.body as Buffer;
+
+    // Traza de entrada: sin esto, "no me llegan los mensajes" es indistinguible entre "Meta
+    // nunca llamó" (App en modo Desarrollo, webhook sin dar de alta, campo `messages` sin
+    // suscribir) y "llamó pero lo descartamos". Es una línea por evento, no por mensaje.
+    console.log(
+      `[whatsapp webhook] POST recibido (${rawBody?.length ?? 0} bytes, firma: ${
+        req.header("x-hub-signature-256") ? "presente" : "AUSENTE"
+      })`,
+    );
+
     let payload: WhatsAppWebhookPayload;
     try {
       payload = JSON.parse(rawBody.toString("utf8"));
     } catch {
-      return; // body no es JSON, nada que hacer
+      console.warn("[whatsapp webhook] descartado: el body no es JSON");
+      return;
     }
 
     // El WABA id siempre viene en entry[].id, tanto para mensajes como para eventos de plantilla.
     const wabaId = payload.entry?.[0]?.id;
     const change = payload.entry?.[0]?.changes?.[0];
-    if (!wabaId || !change) return;
+    if (!wabaId || !change) {
+      console.warn(
+        `[whatsapp webhook] descartado: payload sin entry/changes utilizables (wabaId: ${
+          wabaId ?? "—"
+        })`,
+      );
+      return;
+    }
+
+    console.log(
+      `[whatsapp webhook] wabaId=${wabaId} field=${change.field ?? "—"} mensajes=${
+        change.value?.messages?.length ?? 0
+      } statuses=${change.value?.statuses?.length ?? 0}`,
+    );
 
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { whatsappBusinessAccountId: wabaId },
       query: "id whatsappAppSecretEncrypted whatsappAccessTokenEncrypted",
     });
     if (!company?.whatsappAppSecretEncrypted) {
-      console.warn(`[whatsapp webhook] WABA "${wabaId}" no está conectado a ninguna empresa`);
+      console.warn(
+        `[whatsapp webhook] descartado: el WABA "${wabaId}" no está conectado a ninguna empresa` +
+          (company ? " (la empresa existe pero no tiene App Secret guardado)" : ""),
+      );
       return;
     }
 
@@ -280,23 +319,44 @@ async function handleIncoming(
 
     if (!validSignature) {
       console.error(
-        `[whatsapp webhook] firma inválida para la empresa "${company.id}", se descarta el payload`,
+        `[whatsapp webhook] descartado: firma inválida para la empresa "${company.id}". ` +
+          "El App Secret guardado no es el de la App de Meta que manda este webhook.",
       );
       return;
     }
 
     if (change.field === "message_template_status_update") {
+      console.log(
+        `[whatsapp webhook] plantilla "${change.value?.message_template_name ?? "—"}" → ${
+          change.value?.event ?? "—"
+        } (empresa ${company.id})`,
+      );
       await handleTemplateStatusUpdate(company.id, change.value, context);
       return;
     }
 
     const messages = change.value?.messages ?? [];
-    if (messages.length === 0) return;
+    if (messages.length === 0) {
+      // Lo normal aquí son los `statuses` (sent/delivered/read) de lo que mandamos nosotros.
+      console.log(
+        `[whatsapp webhook] sin mensajes entrantes que guardar (field=${change.field ?? "—"})`,
+      );
+      return;
+    }
 
     const accessToken = company.whatsappAccessTokenEncrypted
       ? decrypt(company.whatsappAccessTokenEncrypted)
       : null;
-    if (!accessToken) return;
+    if (!accessToken) {
+      console.error(
+        `[whatsapp webhook] descartado: la empresa "${company.id}" no tiene access token guardado`,
+      );
+      return;
+    }
+
+    console.log(
+      `[whatsapp webhook] guardando ${messages.length} mensaje(s) entrante(s) de la empresa ${company.id}`,
+    );
 
     // Señal de salud: ya llegó un mensaje real (firma válida) por este webhook.
     await context

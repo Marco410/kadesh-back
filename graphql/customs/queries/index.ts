@@ -11,6 +11,7 @@ import companyWhatsappWebhookInfo from "./whatsapp/companyWhatsappWebhookInfo";
 import whatsappConversations from "./whatsapp/whatsappConversations";
 import businessLeadWhatsappStatus from "./whatsapp/businessLeadWhatsappStatus";
 import companyWhatsappTeam from "./whatsapp/companyWhatsappTeam";
+import companyWhatsappTemplates from "./whatsapp/companyWhatsappTemplates";
 import syncGoogleCalendarNow from "./googleCalendar/syncGoogleCalendarNow";
 
 const customQuery = {
@@ -25,6 +26,7 @@ const customQuery = {
     ${whatsappConversations.typeDefs}
     ${businessLeadWhatsappStatus.typeDefs}
     ${companyWhatsappTeam.typeDefs}
+    ${companyWhatsappTemplates.typeDefs}
     ${syncGoogleCalendarNow.typeDefs}
   `,
   definitions: `
@@ -41,6 +43,7 @@ const customQuery = {
     ${whatsappConversations.definition}
     ${businessLeadWhatsappStatus.definition}
     ${companyWhatsappTeam.definition}
+    ${companyWhatsappTemplates.definition}
     ${syncGoogleCalendarNow.definition}
   `,
   resolvers: {
@@ -57,6 +60,7 @@ const customQuery = {
     ...whatsappConversations.resolver,
     ...businessLeadWhatsappStatus.resolver,
     ...companyWhatsappTeam.resolver,
+    ...companyWhatsappTemplates.resolver,
     ...syncGoogleCalendarNow.resolver,
   },
 };
