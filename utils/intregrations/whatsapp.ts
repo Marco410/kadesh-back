@@ -262,6 +262,62 @@ export async function createWhatsAppTemplate({
   return { id: parsed.id, status: parsed.status || "PENDING" };
 }
 
+/**
+ * Consulta el estado real de una plantilla en Meta (APPROVED / PENDING / REJECTED / …).
+ *
+ * Existe porque el webhook `message_template_status_update` es la única otra fuente del estado, y
+ * si la empresa no lo configuró (o el evento se perdió) la plantilla se queda marcada como
+ * pendiente para siempre aunque Meta ya la haya aprobado.
+ *
+ * Devuelve `null` si esa plantilla no existe en la cuenta — no es un error: significa que hay que
+ * crearla.
+ */
+export async function fetchWhatsAppTemplateStatus({
+  wabaId,
+  accessToken,
+  name,
+  language,
+}: {
+  wabaId: string;
+  accessToken: string;
+  name: string;
+  language?: string | null;
+}): Promise<{ status: string; language: string } | null> {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${wabaId}/message_templates` +
+      `?name=${encodeURIComponent(name)}&fields=name,language,status&limit=50`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  const bodyText = await response.text();
+
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error consultando plantilla:", bodyText);
+  }
+
+  let parsed: {
+    data?: Array<{ name?: string; language?: string; status?: string }>;
+  } | null = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+
+  // El filtro `name` de Meta es por coincidencia parcial, así que puede regresar otras plantillas
+  // (y una por idioma): hay que quedarse con la del nombre exacto, prefiriendo el idioma guardado.
+  const matches = (parsed?.data ?? []).filter((t) => t.name === name);
+  if (matches.length === 0) return null;
+
+  const match =
+    (language && matches.find((t) => t.language === language)) || matches[0];
+
+  return {
+    status: (match.status || "PENDING").toUpperCase(),
+    language: match.language || language || "",
+  };
+}
+
 /** Manda una plantilla ya aprobada — único tipo de mensaje permitido para iniciar conversación. */
 export async function sendWhatsAppTemplateMessage({
   phoneNumberId,

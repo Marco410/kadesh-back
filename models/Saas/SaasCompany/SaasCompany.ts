@@ -371,7 +371,7 @@ export default list({
       defaultValue: "none",
       ui: {
         description:
-          "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexión; se actualiza vía webhook cuando Meta la revisa.",
+          "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexión, y se actualiza vía webhook cuando Meta la revisa o releyéndolo de Meta en cada prueba de conexión (por si el webhook no está configurado).",
       },
     }),
     termsQuotation: text({
