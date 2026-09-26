@@ -10,6 +10,7 @@ import {
 } from "../utils/intregrations/whatsapp";
 import { uploadBufferToStorage } from "../utils/intregrations/s3Storage";
 import { findByPhone } from "../utils/whatsapp/matchPhone";
+import { mapTemplateStatus } from "../utils/whatsapp/templateStatus";
 
 const WEBHOOK_PATH = "/webhooks/whatsapp";
 
@@ -41,14 +42,6 @@ type WhatsAppWebhookPayload = {
     id?: string; // WhatsApp Business Account ID
     changes?: WhatsAppWebhookChange[];
   }>;
-};
-
-const TEMPLATE_STATUS_MAP: Record<string, string> = {
-  APPROVED: "approved",
-  REJECTED: "rejected",
-  PENDING: "pending",
-  PENDING_DELETION: "rejected",
-  DISABLED: "rejected",
 };
 
 function extToFilename(filename: string | undefined, mimeType: string): string {
@@ -107,7 +100,7 @@ async function handleTemplateStatusUpdate(
 ) {
   const event = value?.event;
   if (!event) return;
-  const status = TEMPLATE_STATUS_MAP[event];
+  const status = mapTemplateStatus(event);
   if (!status) return;
 
   await context.sudo().db.SaasCompany.updateOne({
