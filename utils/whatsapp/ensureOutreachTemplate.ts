@@ -3,7 +3,9 @@ import { decrypt } from "../helpers/encryption";
 import {
   createWhatsAppTemplate,
   fetchWhatsAppBusinessAccountInfo,
+  fetchWhatsAppTemplateStatus,
 } from "../intregrations/whatsapp";
+import { mapTemplateStatus } from "./templateStatus";
 
 export const OUTREACH_TEMPLATE_NAME = "kadesh_primer_contacto";
 export const OUTREACH_TEMPLATE_LANGUAGE = "es_MX";
@@ -19,6 +21,8 @@ type TemplateOwner = {
   whatsappBusinessAccountId?: string | null;
   whatsappAccessTokenEncrypted?: string | null;
   whatsappTemplateStatus?: string | null;
+  whatsappTemplateName?: string | null;
+  whatsappTemplateLanguage?: string | null;
 };
 
 /** Quita el prefijo interno `[whatsapp] Graph API error…:` para mostrarle al usuario solo lo de Meta. */
@@ -30,6 +34,68 @@ function cleanGraphMessage(err: unknown): string {
 /** Nombra la cuenta en el error: distingue, p. ej., la cuenta de prueba de Meta de una real. */
 function withAccount(message: string, accountName: string | null): string {
   return accountName ? `${message} [Cuenta de WhatsApp Business: "${accountName}"]` : message;
+}
+
+/**
+ * Relee en Meta el estado de la plantilla ya creada y lo guarda si cambió.
+ *
+ * El webhook `message_template_status_update` no es fiable como única fuente: si la empresa no lo
+ * configuró (es un paso manual) o el evento se perdió, la plantilla se queda en "pending" para
+ * siempre aunque Meta ya la haya aprobado. Por eso se consulta al probar la conexión.
+ *
+ * `found: false` significa que esa plantilla ya no existe en la cuenta (la borraron, o se cambió
+ * de WABA): el llamador la vuelve a crear.
+ */
+export async function syncOutreachTemplateStatus(
+  company: TemplateOwner,
+  context: KeystoneContext,
+): Promise<{ found: boolean; error: string | null }> {
+  if (!company.whatsappBusinessAccountId || !company.whatsappAccessTokenEncrypted) {
+    // Sin cuenta o sin token no hay nada que consultar; los errores de configuración los reporta
+    // la prueba de conexión, no esto.
+    return { found: true, error: null };
+  }
+
+  const name = company.whatsappTemplateName || OUTREACH_TEMPLATE_NAME;
+
+  try {
+    const remote = await fetchWhatsAppTemplateStatus({
+      wabaId: company.whatsappBusinessAccountId,
+      accessToken: decrypt(company.whatsappAccessTokenEncrypted),
+      name,
+      language: company.whatsappTemplateLanguage || OUTREACH_TEMPLATE_LANGUAGE,
+    });
+
+    if (!remote) return { found: false, error: null };
+
+    const status = mapTemplateStatus(remote.status);
+    if (!status) return { found: true, error: null };
+
+    const changed =
+      status !== company.whatsappTemplateStatus ||
+      name !== company.whatsappTemplateName ||
+      (remote.language && remote.language !== company.whatsappTemplateLanguage);
+
+    if (changed) {
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: company.id },
+        data: {
+          whatsappTemplateName: name,
+          whatsappTemplateLanguage: remote.language || company.whatsappTemplateLanguage || null,
+          whatsappTemplateStatus: status,
+        },
+      });
+    }
+
+    return { found: true, error: null };
+  } catch (err) {
+    console.error(
+      `[whatsapp] No se pudo consultar el estado de la plantilla de la empresa ${company.id}:`,
+      err,
+    );
+    // No se toca lo guardado: un token caducado no significa que la plantilla se haya caído.
+    return { found: true, error: cleanGraphMessage(err) };
+  }
 }
 
 /**
@@ -46,9 +112,13 @@ export async function ensureOutreachTemplate(
   company: TemplateOwner,
   context: KeystoneContext,
 ): Promise<{ error: string | null }> {
+  // Ya se creó antes: no se recrea, pero sí se relee su estado en Meta (el webhook puede no
+  // haber llegado nunca). Si resulta que ya no existe allá, se cae al camino de creación.
   if (company.whatsappTemplateStatus && company.whatsappTemplateStatus !== "none") {
-    return { error: null };
+    const synced = await syncOutreachTemplateStatus(company, context);
+    if (synced.found || synced.error) return { error: synced.error };
   }
+
   if (!company.whatsappBusinessAccountId) {
     return { error: "Falta el WhatsApp Business Account ID." };
   }
@@ -81,6 +151,28 @@ export async function ensureOutreachTemplate(
       };
     }
 
+    // Puede existir ya en Meta sin estar registrada de este lado (se creó antes de guardar el
+    // estado, o se reconectó la cuenta). Adoptarla evita el "template already exists" de Meta,
+    // que dejaría a la empresa sin plantilla utilizable aunque esté aprobada.
+    const existing = await fetchWhatsAppTemplateStatus({
+      wabaId: company.whatsappBusinessAccountId,
+      accessToken,
+      name: OUTREACH_TEMPLATE_NAME,
+      language: OUTREACH_TEMPLATE_LANGUAGE,
+    });
+
+    if (existing) {
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: company.id },
+        data: {
+          whatsappTemplateName: OUTREACH_TEMPLATE_NAME,
+          whatsappTemplateLanguage: existing.language || OUTREACH_TEMPLATE_LANGUAGE,
+          whatsappTemplateStatus: mapTemplateStatus(existing.status) ?? "pending",
+        },
+      });
+      return { error: null };
+    }
+
     const result = await createWhatsAppTemplate({
       wabaId: company.whatsappBusinessAccountId,
       accessToken,
@@ -95,7 +187,7 @@ export async function ensureOutreachTemplate(
       data: {
         whatsappTemplateName: OUTREACH_TEMPLATE_NAME,
         whatsappTemplateLanguage: OUTREACH_TEMPLATE_LANGUAGE,
-        whatsappTemplateStatus: result.status === "APPROVED" ? "approved" : "pending",
+        whatsappTemplateStatus: mapTemplateStatus(result.status) ?? "pending",
       },
     });
     return { error: null };

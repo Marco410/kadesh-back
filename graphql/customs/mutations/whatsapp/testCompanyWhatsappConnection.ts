@@ -38,7 +38,7 @@ const resolver = {
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: companyId },
       query:
-        "id whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappBusinessAccountId whatsappTemplateStatus",
+        "id whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappBusinessAccountId whatsappTemplateStatus whatsappTemplateName whatsappTemplateLanguage",
     });
 
     if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
