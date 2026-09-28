@@ -8631,7 +8631,7 @@ type Mutation {
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   importWhatsAppChatExport(businessLeadId: ID!, fileName: String, content: String!, leadSenderName: String): ImportWhatsAppChatExportResult!
-  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
+  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
@@ -8915,6 +8915,7 @@ type Query {
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
+  companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
@@ -9064,6 +9065,7 @@ type customAuthType {
 type UserAuthenticationWithGoogleSuccess {
   sessionToken: String!
   item: User!
+  isNewUser: Boolean!
 }
 
 type UserAuthenticationWithGoogleFailure {
@@ -9966,6 +9968,32 @@ type CompanyWhatsappTeamResult {
   success: Boolean!
   message: String!
   members: [WhatsAppTeamMember!]!
+}
+
+type WhatsappTemplateOption {
+  name: String!
+  language: String!
+  category: String!
+
+  """Encabezado, sólo si es de texto."""
+  headerText: String
+  bodyText: String!
+  footerText: String
+
+  """Cuántas {{n}} hay que rellenar en el cuerpo."""
+  variableCount: Int!
+}
+
+type CompanyWhatsappTemplatesResult {
+  success: Boolean!
+  message: String!
+  templates: [WhatsappTemplateOption!]!
+
+  """
+  Nombre del destinatario y de la empresa, para proponer valores de las variables.
+  """
+  recipientName: String
+  companyName: String
 }
 
 type GoogleCalendarPulledEvent {

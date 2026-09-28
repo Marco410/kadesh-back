@@ -2017,7 +2017,8 @@ var userAuthLogAccess = {
 // models/User/UserAuthLog/constants.ts
 var USER_AUTH_LOG_SOURCE = {
   REGISTER_USER: "REGISTER_USER",
-  CUSTOM_AUTH: "CUSTOM_AUTH"
+  CUSTOM_AUTH: "CUSTOM_AUTH",
+  GOOGLE_AUTH: "GOOGLE_AUTH"
 };
 var USER_AUTH_LOG_STEP = {
   REGISTER_SUCCESS: "REGISTER_SUCCESS",
@@ -2025,7 +2026,10 @@ var USER_AUTH_LOG_STEP = {
   REGISTER_FAIL: "REGISTER_FAIL",
   CUSTOM_AUTH_SIGNUP: "CUSTOM_AUTH_SIGNUP",
   CUSTOM_AUTH_LOGIN: "CUSTOM_AUTH_LOGIN",
-  CUSTOM_AUTH_FAIL: "CUSTOM_AUTH_FAIL"
+  CUSTOM_AUTH_FAIL: "CUSTOM_AUTH_FAIL",
+  GOOGLE_AUTH_SIGNUP: "GOOGLE_AUTH_SIGNUP",
+  GOOGLE_AUTH_LOGIN: "GOOGLE_AUTH_LOGIN",
+  GOOGLE_AUTH_FAIL: "GOOGLE_AUTH_FAIL"
 };
 
 // models/User/UserAuthLog/UserAuthLog.ts
@@ -2054,7 +2058,11 @@ var UserAuthLog_default = (0, import_core8.list)({
       type: "string",
       options: [
         { label: "registerUser", value: USER_AUTH_LOG_SOURCE.REGISTER_USER },
-        { label: "customAuth", value: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH }
+        { label: "customAuth", value: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH },
+        {
+          label: "authenticateUserWithGoogle",
+          value: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH
+        }
       ],
       ui: { description: "Mutaci\xF3n / flujo" }
     }),
@@ -7226,7 +7234,7 @@ var SaasCompany_default = (0, import_core54.list)({
       ],
       defaultValue: "none",
       ui: {
-        description: "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexi\xF3n; se actualiza v\xEDa webhook cuando Meta la revisa."
+        description: "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexi\xF3n, y se actualiza v\xEDa webhook cuando Meta la revisa o reley\xE9ndolo de Meta en cada prueba de conexi\xF3n (por si el webhook no est\xE1 configurado)."
       }
     }),
     termsQuotation: (0, import_fields54.text)({
@@ -10337,9 +10345,19 @@ function maskApiKey(apiKey) {
 }
 
 // utils/googleCalendar/oauth.ts
+function envValue(...names) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return void 0;
+}
 function getConfig() {
-  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim();
-  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET?.trim();
+  const clientId = envValue("GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CLIENT_ID");
+  const clientSecret = envValue(
+    "GOOGLE_CALENDAR_CLIENT_SECRET",
+    "GOOGLE_CLIENT_SECRET"
+  );
   const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI?.trim();
   if (!clientId || !clientSecret || !redirectUri) {
     throw new GoogleCalendarNotConfiguredError();
@@ -11292,168 +11310,17 @@ var resolver = {
 };
 var customAuth_default = { typeDefs, definition, resolver };
 
-// graphql/customs/mutations/auth/authenticateUserWithGoogle.ts
-var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
-var import_crypto4 = require("crypto");
-var typeDefs2 = `
-  type UserAuthenticationWithGoogleSuccess {
-    sessionToken: String!
-    item: User!
-  }
-
-  type UserAuthenticationWithGoogleFailure {
-    message: String!
-  }
-
-  union AuthenticateUserWithGoogleResult =
-    UserAuthenticationWithGoogleSuccess
-    | UserAuthenticationWithGoogleFailure
-`;
-var definition2 = `
-  authenticateUserWithGoogle(
-    idToken: String!
-    referrerCode: String
-    product: String
-  ): AuthenticateUserWithGoogleResult!
-`;
-async function verifyGoogleIdToken(idToken) {
-  try {
-    const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.error || !data.email) return null;
-    return {
-      email: data.email,
-      name: data.name ?? void 0,
-      picture: data.picture ?? void 0,
-      sub: data.sub
-    };
-  } catch {
-    return null;
-  }
+// utils/auth/signupRoles.ts
+var SIGNUP_ROLE_NAMES = ["vendedor" /* VENDEDOR */, "admin_company" /* ADMIN_COMPANY */];
+async function findSignupRoleIds(context) {
+  const roles = await context.sudo().query.Role.findMany({
+    where: { name: { in: [...SIGNUP_ROLE_NAMES] } },
+    query: "id name"
+  });
+  return SIGNUP_ROLE_NAMES.map(
+    (name) => roles.find((role) => role.name === name)?.id
+  ).filter((id) => Boolean(id));
 }
-var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified lastLoginAt";
-var resolver2 = {
-  authenticateUserWithGoogle: async (_root, {
-    idToken,
-    referrerCode,
-    product
-  }, context) => {
-    const payload = await verifyGoogleIdToken(idToken);
-    if (!payload) {
-      return {
-        __typename: "UserAuthenticationWithGoogleFailure",
-        message: "Token de Google inv\xE1lido o expirado"
-      };
-    }
-    let user = await context.sudo().query.User.findOne({
-      where: { email: payload.email },
-      query: USER_QUERY
-    });
-    if (!user) {
-      try {
-        const [userRole] = await context.sudo().query.Role.findMany({
-          where: { name: { equals: "user" /* USER */ } },
-          take: 1,
-          query: "id"
-        });
-        let referredByConnect;
-        if (referrerCode) {
-          const referrer = await context.sudo().query.User.findOne({
-            where: { referralCode: referrerCode.toUpperCase() },
-            query: "id"
-          });
-          if (referrer) {
-            referredByConnect = { connect: { id: referrer.id } };
-          }
-        }
-        const baseName = payload.name?.trim() || payload.email.split("@")[0];
-        const username = await checkUserName(baseName, "", context);
-        user = await context.sudo().query.User.createOne({
-          data: {
-            email: payload.email,
-            name: baseName,
-            lastName: "",
-            username,
-            verified: true,
-            product: product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET,
-            referredBy: referredByConnect,
-            roles: userRole ? { connect: [{ id: userRole.id }] } : void 0
-          },
-          query: USER_QUERY
-        });
-        const company = await context.sudo().query.SaasCompany.createOne({
-          data: {
-            name: baseName
-          },
-          query: "id"
-        });
-        try {
-          const [adminCompanyRole] = await context.sudo().query.Role.findMany({
-            where: { name: { equals: "admin_company" /* ADMIN_COMPANY */ } },
-            take: 1,
-            query: "id"
-          });
-          await context.sudo().query.User.updateOne({
-            where: { id: user.id },
-            data: {
-              company: { connect: { id: company.id } },
-              ...adminCompanyRole && {
-                roles: {
-                  connect: [{ id: adminCompanyRole.id }]
-                }
-              }
-            }
-          });
-        } catch (error) {
-          console.error(
-            "Error al asignar compa\xF1\xEDa y rol ADMIN_COMPANY al usuario de Google:",
-            error
-          );
-        }
-      } catch (err) {
-        return {
-          __typename: "UserAuthenticationWithGoogleFailure",
-          message: err instanceof Error ? err.message : "Error al crear usuario"
-        };
-      }
-    }
-    user = await context.sudo().query.User.updateOne({
-      where: { id: user.id },
-      data: { lastLoginAt: (/* @__PURE__ */ new Date()).toISOString() },
-      query: USER_QUERY
-    });
-    let sessionSecret2 = process.env.SESSION_SECRET;
-    if (!sessionSecret2 && process.env.NODE_ENV !== "production") {
-      sessionSecret2 = (0, import_crypto4.randomBytes)(32).toString("hex");
-    }
-    const sessionToken = import_jsonwebtoken2.default.sign(
-      {
-        data: {
-          id: user.id,
-          email: user.email
-        }
-      },
-      sessionSecret2
-    );
-    const sessionStrategy = context.sessionStrategy;
-    if (sessionStrategy?.start && context.res) {
-      try {
-        await sessionStrategy.start({
-          context,
-          data: { listKey: "User", itemId: user.id }
-        });
-      } catch (_) {
-      }
-    }
-    return {
-      __typename: "UserAuthenticationWithGoogleSuccess",
-      sessionToken,
-      item: user
-    };
-  }
-};
-var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
 
 // utils/access/provisionSignupCompany.ts
 async function provisionSignupCompany(context, userId, companyName) {
@@ -11479,17 +11346,180 @@ async function provisionSignupCompany(context, userId, companyName) {
   return company.id;
 }
 
-// graphql/customs/mutations/auth/registerUser.ts
-var SIGNUP_ROLE_NAMES = ["vendedor" /* VENDEDOR */, "admin_company" /* ADMIN_COMPANY */];
-async function findSignupRoleIds(context) {
-  const roles = await context.sudo().query.Role.findMany({
-    where: { name: { in: [...SIGNUP_ROLE_NAMES] } },
-    query: "id name"
-  });
-  return SIGNUP_ROLE_NAMES.map(
-    (name) => roles.find((role) => role.name === name)?.id
-  ).filter((id) => Boolean(id));
+// graphql/customs/mutations/auth/authenticateUserWithGoogle.ts
+var typeDefs2 = `
+  # isNewUser: alta nueva, no el inicio de sesi\xF3n de una cuenta ya existente.
+  # El front lo usa para mandar la conversi\xF3n de registro solo en las altas.
+  type UserAuthenticationWithGoogleSuccess {
+    sessionToken: String!
+    item: User!
+    isNewUser: Boolean!
+  }
+
+  type UserAuthenticationWithGoogleFailure {
+    message: String!
+  }
+
+  union AuthenticateUserWithGoogleResult =
+    UserAuthenticationWithGoogleSuccess
+    | UserAuthenticationWithGoogleFailure
+`;
+var definition2 = `
+  authenticateUserWithGoogle(
+    idToken: String!
+    referrerCode: String
+    product: String
+  ): AuthenticateUserWithGoogleResult!
+`;
+var VALID_ISSUERS = ["accounts.google.com", "https://accounts.google.com"];
+async function verifyGoogleIdToken(idToken) {
+  const expectedAudience = process.env.GOOGLE_CLIENT_ID?.trim();
+  if (!expectedAudience) {
+    console.error(
+      "GOOGLE_CLIENT_ID no est\xE1 configurado: no se puede validar el ID token de Google."
+    );
+    return null;
+  }
+  try {
+    const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error || !data.email) return null;
+    if (data.aud !== expectedAudience) return null;
+    if (String(data.email_verified) !== "true") return null;
+    if (!VALID_ISSUERS.includes(data.iss)) return null;
+    return {
+      email: data.email,
+      name: data.name ?? void 0,
+      picture: data.picture ?? void 0,
+      sub: data.sub
+    };
+  } catch {
+    return null;
+  }
 }
+var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified lastLoginAt";
+var resolver2 = {
+  authenticateUserWithGoogle: async (_root, {
+    idToken,
+    referrerCode,
+    product
+  }, context) => {
+    const startedAt = Date.now();
+    const isSaas = product === PRODUCT.SAAS;
+    const fail9 = async (message, email, userId) => {
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
+        step: USER_AUTH_LOG_STEP.GOOGLE_AUTH_FAIL,
+        success: false,
+        message,
+        email,
+        userId: userId ?? null,
+        responseSnapshot: { product: isSaas ? PRODUCT.SAAS : PRODUCT.PET }
+      });
+      return {
+        __typename: "UserAuthenticationWithGoogleFailure",
+        message
+      };
+    };
+    const payload = await verifyGoogleIdToken(idToken);
+    if (!payload) {
+      return fail9("Token de Google inv\xE1lido o expirado", "");
+    }
+    let user = await context.sudo().query.User.findOne({
+      where: { email: payload.email },
+      query: USER_QUERY
+    });
+    const isNewUser = !user;
+    if (!user) {
+      try {
+        let referredByConnect;
+        if (referrerCode) {
+          const referrer = await context.sudo().query.User.findOne({
+            where: { referralCode: referrerCode.toUpperCase() },
+            query: "id"
+          });
+          if (referrer) {
+            referredByConnect = { connect: { id: referrer.id } };
+          }
+        }
+        const baseName = payload.name?.trim() || payload.email.split("@")[0];
+        const username = await checkUserName(baseName, "", context);
+        let signupRoles;
+        if (isSaas) {
+          const signupRoleIds = await findSignupRoleIds(context);
+          if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
+            return fail9(
+              "No se pudieron asignar los roles de empresa. Contacta a soporte.",
+              payload.email
+            );
+          }
+          signupRoles = { connect: signupRoleIds.map((id) => ({ id })) };
+        }
+        user = await context.sudo().query.User.createOne({
+          data: {
+            email: payload.email,
+            name: baseName,
+            lastName: "",
+            username,
+            verified: true,
+            product: isSaas ? PRODUCT.SAAS : PRODUCT.PET,
+            referredBy: referredByConnect,
+            roles: signupRoles
+          },
+          query: USER_QUERY
+        });
+        if (isSaas) {
+          await provisionSignupCompany(context, user.id, baseName);
+        }
+      } catch (err) {
+        return fail9(
+          err instanceof Error ? err.message : "Error al crear usuario",
+          payload.email
+        );
+      }
+    }
+    user = await context.sudo().query.User.updateOne({
+      where: { id: user.id },
+      data: { lastLoginAt: (/* @__PURE__ */ new Date()).toISOString() },
+      query: USER_QUERY
+    });
+    if (!context.sessionStrategy) {
+      return fail9("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+    }
+    const sessionToken = await context.sessionStrategy.start({
+      data: { listKey: "User", itemId: user.id },
+      context
+    });
+    if (typeof sessionToken !== "string" || sessionToken.length === 0) {
+      return fail9("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+    }
+    await writeUserAuthLog(context, {
+      startedAt,
+      source: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
+      step: isNewUser ? USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP : USER_AUTH_LOG_STEP.GOOGLE_AUTH_LOGIN,
+      success: true,
+      message: isNewUser ? "Alta con Google correcta." : "Inicio de sesi\xF3n con Google correcto.",
+      email: payload.email,
+      userId: user.id,
+      responseSnapshot: {
+        userId: user.id,
+        isNewUser,
+        product: isSaas ? PRODUCT.SAAS : PRODUCT.PET
+      }
+    });
+    return {
+      __typename: "UserAuthenticationWithGoogleSuccess",
+      sessionToken,
+      item: user,
+      isNewUser
+    };
+  }
+};
+var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
+
+// graphql/customs/mutations/auth/registerUser.ts
 var typeDefs3 = ``;
 var definition3 = `
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
@@ -20394,7 +20424,7 @@ var resolver29 = {
 var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // utils/intregrations/whatsapp.ts
-var import_crypto5 = __toESM(require("crypto"));
+var import_crypto4 = __toESM(require("crypto"));
 var GRAPH_API_VERSION2 = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
 function parseGraphError(bodyText) {
   try {
@@ -20552,6 +20582,69 @@ async function createWhatsAppTemplate({
   }
   return { id: parsed.id, status: parsed.status || "PENDING" };
 }
+function countTemplateVariables(bodyText) {
+  let max = 0;
+  for (const m of bodyText.matchAll(/\{\{\s*(\d+)\s*\}\}/g)) {
+    max = Math.max(max, Number(m[1]) || 0);
+  }
+  return max;
+}
+function toTemplateSummary(raw) {
+  if (!raw.name) return null;
+  const components = raw.components ?? [];
+  const body = components.find((c) => c.type?.toUpperCase() === "BODY");
+  const header = components.find((c) => c.type?.toUpperCase() === "HEADER");
+  const footer = components.find((c) => c.type?.toUpperCase() === "FOOTER");
+  const bodyText = body?.text || "";
+  return {
+    name: raw.name,
+    language: raw.language || "",
+    status: (raw.status || "PENDING").toUpperCase(),
+    category: (raw.category || "").toUpperCase(),
+    headerText: header?.format?.toUpperCase() === "TEXT" ? header.text || null : null,
+    bodyText,
+    footerText: footer?.text || null,
+    variableCount: countTemplateVariables(bodyText)
+  };
+}
+async function listWhatsAppTemplates({
+  wabaId,
+  accessToken,
+  name
+}) {
+  const params = new URLSearchParams({
+    fields: "name,language,status,category,components",
+    limit: "200"
+  });
+  if (name) params.set("name", name);
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/message_templates?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error consultando plantillas:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return (parsed?.data ?? []).map(toTemplateSummary).filter((t) => t !== null);
+}
+async function fetchWhatsAppTemplateStatus({
+  wabaId,
+  accessToken,
+  name,
+  language
+}) {
+  const templates = await listWhatsAppTemplates({ wabaId, accessToken, name });
+  const matches = templates.filter((t) => t.name === name);
+  if (matches.length === 0) return null;
+  const match = language && matches.find((t) => t.language === language) || matches[0];
+  return { status: match.status, language: match.language || language || "" };
+}
 async function sendWhatsAppTemplateMessage({
   phoneNumberId,
   accessToken,
@@ -20575,12 +20668,16 @@ async function sendWhatsAppTemplateMessage({
         template: {
           name: templateName,
           language: { code: language },
-          components: [
-            {
-              type: "body",
-              parameters: bodyParams.map((text65) => ({ type: "text", text: text65 }))
-            }
-          ]
+          // Una plantilla sin variables tiene que ir SIN `components`: Meta rechaza un
+          // `parameters: []` con "number of parameters does not match".
+          ...bodyParams.length > 0 ? {
+            components: [
+              {
+                type: "body",
+                parameters: bodyParams.map((text65) => ({ type: "text", text: text65 }))
+              }
+            ]
+          } : {}
         }
       })
     }
@@ -20832,12 +20929,29 @@ function verifyWhatsAppSignature({
   signatureHeader
 }) {
   if (!signatureHeader) return false;
-  const expected = import_crypto5.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const expected = import_crypto4.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
   const received = signatureHeader.replace(/^sha256=/, "");
   const expectedBuf = Buffer.from(expected, "hex");
   const receivedBuf = Buffer.from(received, "hex");
   if (expectedBuf.length !== receivedBuf.length) return false;
-  return import_crypto5.default.timingSafeEqual(expectedBuf, receivedBuf);
+  return import_crypto4.default.timingSafeEqual(expectedBuf, receivedBuf);
+}
+
+// utils/whatsapp/templateStatus.ts
+var TEMPLATE_STATUS_MAP = {
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  PENDING: "pending",
+  IN_APPEAL: "pending",
+  PENDING_DELETION: "rejected",
+  DELETED: "rejected",
+  DISABLED: "rejected",
+  PAUSED: "approved"
+  // pausada por calidad: sigue existiendo y aprobada, Meta la reactiva sola
+};
+function mapTemplateStatus(metaStatus) {
+  if (!metaStatus) return null;
+  return TEMPLATE_STATUS_MAP[metaStatus.toUpperCase()] ?? null;
 }
 
 // utils/whatsapp/ensureOutreachTemplate.ts
@@ -20852,9 +20966,45 @@ function cleanGraphMessage(err) {
 function withAccount(message, accountName) {
   return accountName ? `${message} [Cuenta de WhatsApp Business: "${accountName}"]` : message;
 }
+async function syncOutreachTemplateStatus(company, context) {
+  if (!company.whatsappBusinessAccountId || !company.whatsappAccessTokenEncrypted) {
+    return { found: true, error: null };
+  }
+  const name = company.whatsappTemplateName || OUTREACH_TEMPLATE_NAME;
+  try {
+    const remote = await fetchWhatsAppTemplateStatus({
+      wabaId: company.whatsappBusinessAccountId,
+      accessToken: decrypt(company.whatsappAccessTokenEncrypted),
+      name,
+      language: company.whatsappTemplateLanguage || OUTREACH_TEMPLATE_LANGUAGE
+    });
+    if (!remote) return { found: false, error: null };
+    const status = mapTemplateStatus(remote.status);
+    if (!status) return { found: true, error: null };
+    const changed = status !== company.whatsappTemplateStatus || name !== company.whatsappTemplateName || remote.language && remote.language !== company.whatsappTemplateLanguage;
+    if (changed) {
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: company.id },
+        data: {
+          whatsappTemplateName: name,
+          whatsappTemplateLanguage: remote.language || company.whatsappTemplateLanguage || null,
+          whatsappTemplateStatus: status
+        }
+      });
+    }
+    return { found: true, error: null };
+  } catch (err) {
+    console.error(
+      `[whatsapp] No se pudo consultar el estado de la plantilla de la empresa ${company.id}:`,
+      err
+    );
+    return { found: true, error: cleanGraphMessage(err) };
+  }
+}
 async function ensureOutreachTemplate(company, context) {
   if (company.whatsappTemplateStatus && company.whatsappTemplateStatus !== "none") {
-    return { error: null };
+    const synced = await syncOutreachTemplateStatus(company, context);
+    if (synced.found || synced.error) return { error: synced.error };
   }
   if (!company.whatsappBusinessAccountId) {
     return { error: "Falta el WhatsApp Business Account ID." };
@@ -20875,6 +21025,23 @@ async function ensureOutreachTemplate(company, context) {
         error: `El WhatsApp Business Account ID que guardaste es de la cuenta "${account.name || account.id}", y esa cuenta no incluye el n\xFAmero que conectaste. Revisa que copiaste el ID de la cuenta (arriba a la derecha en Configuraci\xF3n de la API) y no otro.`
       };
     }
+    const existing = await fetchWhatsAppTemplateStatus({
+      wabaId: company.whatsappBusinessAccountId,
+      accessToken,
+      name: OUTREACH_TEMPLATE_NAME,
+      language: OUTREACH_TEMPLATE_LANGUAGE
+    });
+    if (existing) {
+      await context.sudo().query.SaasCompany.updateOne({
+        where: { id: company.id },
+        data: {
+          whatsappTemplateName: OUTREACH_TEMPLATE_NAME,
+          whatsappTemplateLanguage: existing.language || OUTREACH_TEMPLATE_LANGUAGE,
+          whatsappTemplateStatus: mapTemplateStatus(existing.status) ?? "pending"
+        }
+      });
+      return { error: null };
+    }
     const result = await createWhatsAppTemplate({
       wabaId: company.whatsappBusinessAccountId,
       accessToken,
@@ -20888,7 +21055,7 @@ async function ensureOutreachTemplate(company, context) {
       data: {
         whatsappTemplateName: OUTREACH_TEMPLATE_NAME,
         whatsappTemplateLanguage: OUTREACH_TEMPLATE_LANGUAGE,
-        whatsappTemplateStatus: result.status === "APPROVED" ? "approved" : "pending"
+        whatsappTemplateStatus: mapTemplateStatus(result.status) ?? "pending"
       }
     });
     return { error: null };
@@ -20927,7 +21094,7 @@ var resolver30 = {
     }
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: companyId },
-      query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappBusinessAccountId whatsappTemplateStatus"
+      query: "id whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappBusinessAccountId whatsappTemplateStatus whatsappTemplateName whatsappTemplateLanguage"
     });
     if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
       return {
@@ -21361,20 +21528,29 @@ var typeDefs36 = `
   }
 
   type Mutation {
-    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
+    startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
 var definition33 = `
-  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String): StartWhatsAppConversationResult!
+  startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
   return { success, message };
+}
+function renderTemplateBody(bodyText, params) {
+  return bodyText.replace(/\{\{\s*(\d+)\s*\}\}/g, (match, index) => {
+    const value = params[Number(index) - 1];
+    return value === void 0 ? match : value;
+  });
 }
 var resolver33 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
-    phone
+    phone,
+    templateName,
+    templateLanguage,
+    templateParams
   }, context) => {
     const session2 = context.session;
     const { target, error } = await resolveWhatsAppTarget(
@@ -21384,15 +21560,57 @@ var resolver33 = {
     if (!target) return toResult7(false, error ?? "No se pudo resolver el destinatario");
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: target.companyId },
-      query: "id name whatsappPhoneNumberId whatsappAccessTokenEncrypted whatsappTemplateName whatsappTemplateLanguage whatsappTemplateStatus"
+      query: "id name whatsappPhoneNumberId whatsappBusinessAccountId whatsappAccessTokenEncrypted whatsappTemplateName whatsappTemplateLanguage whatsappTemplateStatus"
     });
     if (!company?.whatsappPhoneNumberId || !company?.whatsappAccessTokenEncrypted) {
       return toResult7(false, "WhatsApp no est\xE1 conectado para esta empresa");
     }
-    if (company.whatsappTemplateStatus !== "approved" || !company.whatsappTemplateName) {
+    const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
+    const requestedName = templateName?.trim() || null;
+    let chosen = null;
+    if (requestedName) {
+      if (!company.whatsappBusinessAccountId) {
+        return toResult7(false, "Falta el WhatsApp Business Account ID de la empresa");
+      }
+      try {
+        const candidates = await listWhatsAppTemplates({
+          wabaId: company.whatsappBusinessAccountId,
+          accessToken,
+          name: requestedName
+        });
+        const exact = candidates.filter((t) => t.name === requestedName);
+        chosen = templateLanguage && exact.find((t) => t.language === templateLanguage) || exact[0] || null;
+      } catch (err) {
+        return toResult7(
+          false,
+          err instanceof Error ? err.message.replace(/^\[whatsapp\] Graph API error[^:]*:\s*/, "") : "No se pudo leer la plantilla en Meta"
+        );
+      }
+      if (!chosen) {
+        return toResult7(false, `La plantilla "${requestedName}" ya no existe en tu cuenta de Meta`);
+      }
+      if (chosen.status !== "APPROVED") {
+        return toResult7(
+          false,
+          `La plantilla "${requestedName}" no est\xE1 aprobada por Meta (estado: ${chosen.status})`
+        );
+      }
+    } else if (company.whatsappTemplateStatus !== "approved" || !company.whatsappTemplateName) {
       const statusMessage = company.whatsappTemplateStatus === "rejected" ? "La plantilla para iniciar conversaciones fue rechazada por Meta. Contacta a soporte de Kadesh." : "La plantilla para iniciar conversaciones todav\xEDa est\xE1 pendiente de aprobaci\xF3n de Meta. Intenta de nuevo en un rato.";
       return toResult7(false, statusMessage);
     }
+    const params = chosen ? (templateParams ?? []).map((p) => p.trim()) : [target.displayName, company.name];
+    if (chosen && params.length !== chosen.variableCount) {
+      return toResult7(
+        false,
+        `La plantilla "${chosen.name}" pide ${chosen.variableCount} dato(s) y se mandaron ${params.length}`
+      );
+    }
+    if (params.some((p) => !p)) {
+      return toResult7(false, "Faltan datos por llenar en la plantilla");
+    }
+    const sendName = chosen?.name ?? company.whatsappTemplateName;
+    const sendLanguage = chosen?.language || company.whatsappTemplateLanguage || "es_MX";
     const baseData = {
       company: { connect: { id: target.companyId } },
       ...target.link,
@@ -21402,16 +21620,15 @@ var resolver33 = {
       sentBy: session2?.data?.id ? { connect: { id: session2.data.id } } : void 0
     };
     try {
-      const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
       await sendWhatsAppTemplateMessage({
         phoneNumberId: company.whatsappPhoneNumberId,
         accessToken,
         to: target.to,
-        templateName: company.whatsappTemplateName,
-        language: company.whatsappTemplateLanguage || "es_MX",
-        bodyParams: [target.displayName, company.name]
+        templateName: sendName,
+        language: sendLanguage,
+        bodyParams: params
       });
-      const renderedBody = `Hola ${target.displayName}, te escribe ${company.name}. \xBFTienes un momento para platicar?`;
+      const renderedBody = chosen ? renderTemplateBody(chosen.bodyText, params) : `Hola ${target.displayName}, te escribe ${company.name}. \xBFTienes un momento para platicar?`;
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: { ...baseData, body: renderedBody, status: "sent" }
       });
@@ -21420,7 +21637,7 @@ var resolver33 = {
       await context.sudo().query.TechWhatsAppMessage.createOne({
         data: {
           ...baseData,
-          body: "(plantilla de inicio de conversaci\xF3n)",
+          body: `(plantilla "${sendName}")`,
           status: "failed",
           errorMessage: err instanceof Error ? err.message : "Error desconocido"
         }
@@ -21435,7 +21652,7 @@ var resolver33 = {
 var startWhatsAppConversation_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var import_crypto6 = __toESM(require("crypto"));
+var import_crypto5 = __toESM(require("crypto"));
 
 // utils/intregrations/s3Storage.ts
 var import_client_s3 = require("@aws-sdk/client-s3");
@@ -21531,7 +21748,7 @@ var resolver34 = {
     const { filename, mimetype, createReadStream } = await media;
     const buffer = await streamToBuffer(createReadStream());
     const mediaType = mimetype.startsWith("image/") ? "image" : "document";
-    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto6.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto5.default.randomUUID()}-${filename}`;
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
       const uploaded = await uploadMediaToWhatsApp({
@@ -21941,8 +22158,8 @@ var resolver37 = {
 var discoverWhatsappAccount_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/googleCalendar/state.ts
-var import_jsonwebtoken3 = __toESM(require("jsonwebtoken"));
-var import_crypto7 = require("crypto");
+var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
+var import_crypto6 = require("crypto");
 var PURPOSE = "google-calendar-connect";
 var devFallbackSecret = null;
 function getSecret() {
@@ -21951,15 +22168,15 @@ function getSecret() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("SESSION_SECRET es requerido para firmar el state de Google Calendar");
   }
-  devFallbackSecret ??= (0, import_crypto7.randomBytes)(32).toString("hex");
+  devFallbackSecret ??= (0, import_crypto6.randomBytes)(32).toString("hex");
   return devFallbackSecret;
 }
 function signGoogleCalendarState(payload) {
-  return import_jsonwebtoken3.default.sign({ ...payload, purpose: PURPOSE }, getSecret(), { expiresIn: "15m" });
+  return import_jsonwebtoken2.default.sign({ ...payload, purpose: PURPOSE }, getSecret(), { expiresIn: "15m" });
 }
 function verifyGoogleCalendarState(state) {
   try {
-    const decoded = import_jsonwebtoken3.default.verify(state, getSecret());
+    const decoded = import_jsonwebtoken2.default.verify(state, getSecret());
     if (decoded.purpose !== PURPOSE || typeof decoded.uid !== "string" || typeof decoded.cid !== "string" || typeof decoded.st !== "string") {
       return null;
     }
@@ -24062,9 +24279,101 @@ var resolver53 = {
 };
 var companyWhatsappTeam_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
+// graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
+var typeDefs57 = `
+  type WhatsappTemplateOption {
+    name: String!
+    language: String!
+    category: String!
+    """Encabezado, s\xF3lo si es de texto."""
+    headerText: String
+    bodyText: String!
+    footerText: String
+    """Cu\xE1ntas {{n}} hay que rellenar en el cuerpo."""
+    variableCount: Int!
+  }
+
+  type CompanyWhatsappTemplatesResult {
+    success: Boolean!
+    message: String!
+    templates: [WhatsappTemplateOption!]!
+    """Nombre del destinatario y de la empresa, para proponer valores de las variables."""
+    recipientName: String
+    companyName: String
+  }
+
+  type Query {
+    companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
+  }
+`;
+var definition54 = `
+  companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
+`;
+function fail8(message) {
+  return { success: false, message, templates: [], recipientName: null, companyName: null };
+}
+var resolver54 = {
+  companyWhatsappTemplates: async (_root, {
+    companyId,
+    businessLeadId,
+    teamMemberId,
+    phone
+  }, context) => {
+    let resolvedCompanyId = companyId ?? null;
+    let recipientName = null;
+    if (businessLeadId || teamMemberId || phone) {
+      const { target, error } = await resolveWhatsAppTarget(
+        { businessLeadId, teamMemberId, phone },
+        context
+      );
+      if (!target && !resolvedCompanyId) {
+        return fail8(error ?? "No se pudo resolver la conversaci\xF3n");
+      }
+      if (target) {
+        resolvedCompanyId = resolvedCompanyId ?? target.companyId;
+        recipientName = target.displayName;
+      }
+    }
+    if (!resolvedCompanyId) return fail8("Falta indicar la empresa o la conversaci\xF3n");
+    if (!canUseCompanyWhatsapp(context.session, resolvedCompanyId)) {
+      return fail8("No tienes acceso al WhatsApp de esta empresa");
+    }
+    const company = await context.sudo().query.SaasCompany.findOne({
+      where: { id: resolvedCompanyId },
+      query: "id name whatsappBusinessAccountId whatsappAccessTokenEncrypted"
+    });
+    if (!company?.whatsappBusinessAccountId || !company?.whatsappAccessTokenEncrypted) {
+      return fail8("WhatsApp no est\xE1 conectado para esta empresa");
+    }
+    try {
+      const templates = await listWhatsAppTemplates({
+        wabaId: company.whatsappBusinessAccountId,
+        accessToken: decrypt(company.whatsappAccessTokenEncrypted)
+      });
+      const usable = templates.filter((t) => t.status === "APPROVED" && t.bodyText).sort((a, b) => a.name.localeCompare(b.name));
+      return {
+        success: true,
+        message: "OK",
+        templates: usable,
+        recipientName,
+        companyName: company.name ?? null
+      };
+    } catch (err) {
+      console.error(
+        `[whatsapp] No se pudieron listar las plantillas de la empresa ${resolvedCompanyId}:`,
+        err
+      );
+      return fail8(
+        err instanceof Error ? err.message.replace(/^\[whatsapp\] Graph API error[^:]*:\s*/, "") : "No se pudieron leer las plantillas de Meta"
+      );
+    }
+  }
+};
+var companyWhatsappTemplates_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs57 = `
+var typeDefs58 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -24092,25 +24401,25 @@ var typeDefs57 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition54 = `
+var definition55 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver54 = {
+var resolver55 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
     timeMax
   }, context) => {
-    const fail8 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail8(denyGoogleCalendarAccessMessage(context.session));
+    const fail9 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail9(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail8(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail9(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail8("Rango de fechas inv\xE1lido");
+      return fail9("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -24127,7 +24436,7 @@ var resolver54 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail8(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail9(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -24147,7 +24456,7 @@ var resolver54 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -24162,6 +24471,7 @@ var customQuery = {
     ${whatsappConversations_default.typeDefs}
     ${businessLeadWhatsappStatus_default.typeDefs}
     ${companyWhatsappTeam_default.typeDefs}
+    ${companyWhatsappTemplates_default.typeDefs}
     ${syncGoogleCalendarNow_default.typeDefs}
   `,
   definitions: `
@@ -24178,6 +24488,7 @@ var customQuery = {
     ${whatsappConversations_default.definition}
     ${businessLeadWhatsappStatus_default.definition}
     ${companyWhatsappTeam_default.definition}
+    ${companyWhatsappTemplates_default.definition}
     ${syncGoogleCalendarNow_default.definition}
   `,
   resolvers: {
@@ -24194,6 +24505,7 @@ var customQuery = {
     ...whatsappConversations_default.resolver,
     ...businessLeadWhatsappStatus_default.resolver,
     ...companyWhatsappTeam_default.resolver,
+    ...companyWhatsappTemplates_default.resolver,
     ...syncGoogleCalendarNow_default.resolver
   }
 };
@@ -24253,19 +24565,12 @@ function extendGraphqlSchema(baseSchema) {
 
 // webhooks/whatsapp.ts
 var import_express = __toESM(require("express"));
-var import_crypto8 = __toESM(require("crypto"));
+var import_crypto7 = __toESM(require("crypto"));
 var WEBHOOK_PATH = "/webhooks/whatsapp";
-var TEMPLATE_STATUS_MAP = {
-  APPROVED: "approved",
-  REJECTED: "rejected",
-  PENDING: "pending",
-  PENDING_DELETION: "rejected",
-  DISABLED: "rejected"
-};
 function extToFilename(filename, mimeType) {
   if (filename) return filename;
   const ext = mimeType.split("/")[1] || "bin";
-  return `archivo-${import_crypto8.default.randomUUID()}.${ext}`;
+  return `archivo-${import_crypto7.default.randomUUID()}.${ext}`;
 }
 async function persistIncomingMedia({
   media,
@@ -24280,7 +24585,7 @@ async function persistIncomingMedia({
     const { url, mimeType } = await fetchWhatsAppMediaUrl({ mediaId: media.id, accessToken });
     const buffer = await downloadWhatsAppMedia({ url, accessToken });
     const filename = extToFilename(media.filename, mimeType);
-    const mediaKey = `whatsapp-media/${companyId}/${import_crypto8.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${companyId}/${import_crypto7.default.randomUUID()}-${filename}`;
     await uploadBufferToStorage({ buffer, contentType: mimeType, key: mediaKey });
     return { mediaKey, mediaFileName: filename, body: media.caption || "" };
   } catch (err) {
@@ -24294,15 +24599,19 @@ function handleVerify(req, res) {
   const challenge = req.query["hub.challenge"];
   const expected = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim();
   if (mode === "subscribe" && expected && token === expected) {
+    console.log("[whatsapp webhook] verificaci\xF3n OK (Meta dio de alta la Callback URL)");
     res.status(200).send(challenge);
-  } else {
-    res.sendStatus(403);
+    return;
   }
+  console.warn(
+    `[whatsapp webhook] verificaci\xF3n RECHAZADA: mode=${String(mode)}, ${!expected ? "falta WHATSAPP_WEBHOOK_VERIFY_TOKEN en el servidor" : "el verify token no coincide con el que pegaron en Meta"}`
+  );
+  res.sendStatus(403);
 }
 async function handleTemplateStatusUpdate(companyId, value, context) {
   const event = value?.event;
   if (!event) return;
-  const status = TEMPLATE_STATUS_MAP[event];
+  const status = mapTemplateStatus(event);
   if (!status) return;
   await context.sudo().db.SaasCompany.updateOne({
     where: { id: companyId },
@@ -24418,21 +24727,35 @@ async function handleIncoming(req, res, context) {
   res.sendStatus(200);
   try {
     const rawBody = req.body;
+    console.log(
+      `[whatsapp webhook] POST recibido (${rawBody?.length ?? 0} bytes, firma: ${req.header("x-hub-signature-256") ? "presente" : "AUSENTE"})`
+    );
     let payload;
     try {
       payload = JSON.parse(rawBody.toString("utf8"));
     } catch {
+      console.warn("[whatsapp webhook] descartado: el body no es JSON");
       return;
     }
     const wabaId = payload.entry?.[0]?.id;
     const change = payload.entry?.[0]?.changes?.[0];
-    if (!wabaId || !change) return;
+    if (!wabaId || !change) {
+      console.warn(
+        `[whatsapp webhook] descartado: payload sin entry/changes utilizables (wabaId: ${wabaId ?? "\u2014"})`
+      );
+      return;
+    }
+    console.log(
+      `[whatsapp webhook] wabaId=${wabaId} field=${change.field ?? "\u2014"} mensajes=${change.value?.messages?.length ?? 0} statuses=${change.value?.statuses?.length ?? 0}`
+    );
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { whatsappBusinessAccountId: wabaId },
       query: "id whatsappAppSecretEncrypted whatsappAccessTokenEncrypted"
     });
     if (!company?.whatsappAppSecretEncrypted) {
-      console.warn(`[whatsapp webhook] WABA "${wabaId}" no est\xE1 conectado a ninguna empresa`);
+      console.warn(
+        `[whatsapp webhook] descartado: el WABA "${wabaId}" no est\xE1 conectado a ninguna empresa` + (company ? " (la empresa existe pero no tiene App Secret guardado)" : "")
+      );
       return;
     }
     const appSecret = decrypt(company.whatsappAppSecretEncrypted);
@@ -24440,18 +24763,34 @@ async function handleIncoming(req, res, context) {
     const validSignature = verifyWhatsAppSignature({ appSecret, rawBody, signatureHeader });
     if (!validSignature) {
       console.error(
-        `[whatsapp webhook] firma inv\xE1lida para la empresa "${company.id}", se descarta el payload`
+        `[whatsapp webhook] descartado: firma inv\xE1lida para la empresa "${company.id}". El App Secret guardado no es el de la App de Meta que manda este webhook.`
       );
       return;
     }
     if (change.field === "message_template_status_update") {
+      console.log(
+        `[whatsapp webhook] plantilla "${change.value?.message_template_name ?? "\u2014"}" \u2192 ${change.value?.event ?? "\u2014"} (empresa ${company.id})`
+      );
       await handleTemplateStatusUpdate(company.id, change.value, context);
       return;
     }
     const messages = change.value?.messages ?? [];
-    if (messages.length === 0) return;
+    if (messages.length === 0) {
+      console.log(
+        `[whatsapp webhook] sin mensajes entrantes que guardar (field=${change.field ?? "\u2014"})`
+      );
+      return;
+    }
     const accessToken = company.whatsappAccessTokenEncrypted ? decrypt(company.whatsappAccessTokenEncrypted) : null;
-    if (!accessToken) return;
+    if (!accessToken) {
+      console.error(
+        `[whatsapp webhook] descartado: la empresa "${company.id}" no tiene access token guardado`
+      );
+      return;
+    }
+    console.log(
+      `[whatsapp webhook] guardando ${messages.length} mensaje(s) entrante(s) de la empresa ${company.id}`
+    );
     await context.sudo().prisma.saasCompany.update({
       where: { id: String(company.id) },
       data: { whatsappLastWebhookAt: /* @__PURE__ */ new Date() }
