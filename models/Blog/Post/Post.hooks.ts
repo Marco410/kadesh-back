@@ -248,13 +248,21 @@ export async function notifyNewPostIfDue(
       ? `${fullPost.author.name} ${fullPost.author.lastName || ''}`.trim()
       : null;
 
-    // Un correo por producto: cada uno con su URL de front y su marca
+    // Un correo por producto: cada uno con su URL de front y su marca.
+    // Dedup por email en minúsculas por si quedaron filas históricas con distinto casing.
     let sent = 0;
     for (const product of subscriberProductsFor(postProduct)) {
-      const recipientEmails = subscriptions
-        .filter((sub: any) => sub.product === product)
-        .map((sub: any) => sub.email)
-        .filter((email: string) => email && email.trim() !== '');
+      const seen = new Set<string>();
+      const recipientEmails: string[] = [];
+      for (const sub of subscriptions as Array<{ product?: string | null; email?: string | null }>) {
+        if (sub.product !== product) continue;
+        const email = sub.email?.trim();
+        if (!email) continue;
+        const key = email.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        recipientEmails.push(email.toLowerCase());
+      }
 
       if (recipientEmails.length === 0) {
         continue;

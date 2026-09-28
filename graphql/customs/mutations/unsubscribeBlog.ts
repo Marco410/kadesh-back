@@ -20,13 +20,14 @@ const resolver = {
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
    * Es idempotente: darse de baja dos veces no falla.
+   * Match de email case-insensitive (y apaga duplicados con distinto casing).
    */
   unsubscribeBlog: async (
     _root: unknown,
     { email, product }: { email: string; product: string },
     context: any,
   ) => {
-    const normalizedEmail = email.trim();
+    const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
       return { success: false, message: "El correo es obligatorio." };
     }
@@ -35,11 +36,12 @@ const resolver = {
     }
 
     try {
-      const subscriptions = await context.sudo().db.BlogSubscription.findMany({
+      const subscriptions = await context.sudo().query.BlogSubscription.findMany({
         where: {
-          email: { equals: normalizedEmail },
+          email: { equals: normalizedEmail, mode: "insensitive" },
           product: { equals: product },
         },
+        query: "id active email",
       });
 
       if (subscriptions.length === 0) {
@@ -49,10 +51,10 @@ const resolver = {
         };
       }
 
-      const active = subscriptions.filter((sub: any) => sub.active);
+      const active = subscriptions.filter((sub: { active?: boolean | null }) => sub.active);
       if (active.length > 0) {
         await context.sudo().db.BlogSubscription.updateMany({
-          data: active.map((sub: any) => ({
+          data: active.map((sub: { id: string }) => ({
             where: { id: sub.id },
             data: { active: false },
           })),
