@@ -25,3 +25,12 @@ Qué: `createUserAdmin` llama `provisionSignupCompany` si el user no tiene empre
 Por qué: sin company el seed dejaba un admin que no podía usar el CRM.
 
 Qué no hacer: no crear la company antes de `createSaasPlan`; el hook de `SaasCompany` busca el plan free.
+
+### 2026-09-28 — Roles de admin siempre al re-seed
+
+Qué: `ensureAdminRoles` conecta `admin` + `admin_company` + `vendedor` en cada seed, aunque el user y la company ya existan.
+
+Por qué: si el user ya tenía company, el early-return saltaba la asignación y el admin de plataforma no entraba a Operaciones.
+
+Qué no hacer: no asumir que “user existe” implica que ya tiene `Role.ADMIN`.
+
