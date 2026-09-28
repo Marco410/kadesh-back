@@ -9,7 +9,7 @@ function subscriberProductsFor(product: Product): string[] {
   return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
 }
 
-/** `Category.name` es un `select`: la API regresa el `value` (ej. "product_updates"), no el label. */
+/** Nombres viejos guardan el valor fijo (ej. "product_updates"). Los nuevos son el texto que se escribió. */
 function categoryLabelFor(categoryName: string | null | undefined): string | null {
   if (!categoryName) return null;
   return (
