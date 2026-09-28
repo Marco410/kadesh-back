@@ -19,9 +19,25 @@ export type GoogleTokenResponse = {
   scope: string;
 };
 
+/** Primera variable con valor real: una var declarada pero vacía cuenta como ausente. */
+function envValue(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
+/**
+ * Kadesh usa un solo OAuth client de Google para Sign-In y Calendar. Los nombres
+ * GOOGLE_CALENDAR_* se siguen leyendo primero para no romper deploys viejos.
+ */
 function getConfig(): GoogleOAuthConfig {
-  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim();
-  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET?.trim();
+  const clientId = envValue("GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CLIENT_ID");
+  const clientSecret = envValue(
+    "GOOGLE_CALENDAR_CLIENT_SECRET",
+    "GOOGLE_CLIENT_SECRET",
+  );
   const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI?.trim();
   if (!clientId || !clientSecret || !redirectUri) {
     throw new GoogleCalendarNotConfiguredError();

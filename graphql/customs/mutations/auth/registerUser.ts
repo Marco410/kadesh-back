@@ -1,24 +1,15 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { Role } from "../../../../models/Role/constants";
 import {
   USER_AUTH_LOG_SOURCE,
   USER_AUTH_LOG_STEP,
 } from "../../../../models/User/UserAuthLog/constants";
 import { writeUserAuthLog } from "../../../../utils/auth/userAuthLogWrite";
+import {
+  SIGNUP_ROLE_NAMES,
+  findSignupRoleIds,
+} from "../../../../utils/auth/signupRoles";
 import { PRODUCT } from "../../../../utils/constants/product";
 import { provisionSignupCompany } from "../../../../utils/access/provisionSignupCompany";
-
-const SIGNUP_ROLE_NAMES = [Role.VENDEDOR, Role.ADMIN_COMPANY] as const;
-
-async function findSignupRoleIds(context: KeystoneContext): Promise<string[]> {
-  const roles = (await context.sudo().query.Role.findMany({
-    where: { name: { in: [...SIGNUP_ROLE_NAMES] } },
-    query: "id name",
-  })) as { id: string; name: string }[];
-  return SIGNUP_ROLE_NAMES.map(
-    (name) => roles.find((role) => role.name === name)?.id,
-  ).filter((id): id is string => Boolean(id));
-}
 
 const typeDefs = ``;
 

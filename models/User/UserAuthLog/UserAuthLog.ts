@@ -37,6 +37,10 @@ export default list({
       options: [
         { label: "registerUser", value: USER_AUTH_LOG_SOURCE.REGISTER_USER },
         { label: "customAuth", value: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH },
+        {
+          label: "authenticateUserWithGoogle",
+          value: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
+        },
       ],
       ui: { description: "Mutación / flujo" },
     }),
