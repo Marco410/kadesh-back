@@ -1,0 +1,30 @@
+---
+description: Flujo de ramas y PRs — features a develop, release a main
+alwaysApply: true
+---
+
+# Git flow (Kadesh Back)
+
+## Ramas
+
+| Rama | Rol |
+|------|-----|
+| `main` | Producción. Solo recibe merges desde `develop` (PR de release). |
+| `develop` | Integración / staging. Destino por defecto de todo feature/fix. |
+| `feat/*`, `fix/*`, `chore/*` | Trabajo diario. Salen de `develop` y abren PR **hacia `develop`**. |
+
+> En kadesh-business la staging se llama `dev`. Aquí es **`develop`** (igual que kadesh-landing).
+
+## Al crear un PR (regla dura)
+
+1. Base = **`develop`**, nunca `main`, salvo que el usuario pida explícitamente un hotfix a producción.
+2. Comando típico: `gh pr create --base develop ...`
+3. Hotfix urgente a `main`: solo si el usuario lo pide; luego cherry-pick o merge de vuelta a `develop`.
+
+## Release a producción
+
+No abras un PR feature → `main`. El workflow `Promote develop → main` abre (o actualiza) el PR `develop` → `main`. El humano mergea ese PR cuando el CI está verde y validó en `develop`.
+
+## Migraciones
+
+Los agentes no corren `pnpm migrate`. Si el PR incluye cambios de schema, el humano aplica migraciones en el entorno correspondiente antes o al desplegar.

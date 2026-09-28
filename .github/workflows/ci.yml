@@ -1,0 +1,54 @@
+name: CI
+
+# Corre en cada PR hacia develop o main, y en pushes a esas ramas.
+# Si falla aquí, no merges: es la señal de que "todo está ok".
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Placeholders: keystone build / postinstall generan schemas sin DB real.
+  IS_BUILDING: "true"
+  POSTGRES_DB: ci
+  POSTGRES_USER: ci
+  POSTGRES_PASSWORD: ci
+  DB_HOST: 127.0.0.1
+  DB_PORT: "5432"
+  GOOGLE_MAPS_API_KEY: ci-placeholder
+
+jobs:
+  check:
+    name: Typecheck y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.6.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build Keystone (schemas)
+        run: pnpm exec keystone build --no-ui
