@@ -10,6 +10,8 @@
     "start": "keystone start",
     "build": "keystone build",
     "postinstall": "keystone build --no-ui",
+    "typecheck": "tsc --noEmit",
+    "ci": "pnpm typecheck && pnpm exec keystone build --no-ui",
     "db:seed": "cross-env IS_BUILDING=true tsx seed.ts",
     "inegi:import:denue": "cross-env IS_BUILDING=true tsx inegi-denue-import.ts",
     "inegi:import:indicadores": "cross-env IS_BUILDING=true tsx inegi-indicadores-import.ts",
