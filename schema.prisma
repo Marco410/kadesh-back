@@ -177,7 +177,7 @@ model Cart {
 model Category {
   id              String    @id @default(cuid())
   product         String    @default("pet")
-  name            String?   @unique
+  name            String    @unique @default("")
   url             String    @unique @default("")
   image_id        String?
   image_filesize  Int?

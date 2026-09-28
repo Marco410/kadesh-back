@@ -593,6 +593,7 @@ export const STATUS_AD = [
   }
 ];
 
+/** Etiquetas de categorías creadas cuando el nombre era un valor fijo. Las nuevas guardan el texto visible. */
 export const POST_CATEGORIES = [
   { label: "Cuidado y Salud", value: "care_health" },
   { label: "Alimentación", value: "nutrition" },
@@ -602,7 +603,7 @@ export const POST_CATEGORIES = [
   { label: "Noticias", value: "news" },
   { label: "Consejos", value: "tips" },
   { label: "Otro", value: "other" },
-  // Blog de Kadesh Negocios (SaaS). Cada valor pertenece a un solo producto: `Category.name` es único.
+  // Nombres históricos del blog de Kadesh Negocios. `Category.name` sigue siendo único.
   { label: "Prospección B2B", value: "prospecting" },
   { label: "CRM y ventas", value: "crm_sales" },
   { label: "Generación de leads", value: "lead_gen" },

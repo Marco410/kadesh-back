@@ -4,6 +4,8 @@ import { provisionSignupCompany } from "../access/provisionSignupCompany";
 
 const ADMIN_EMAIL = "marco_pascual410@hotmail.com";
 const ADMIN_COMPANY_NAME = "Kadesh";
+
+/** Roles del user de seed: plataforma + empresa. */
 const ADMIN_ROLE_NAMES = [
   Role.ADMIN,
   Role.ADMIN_COMPANY,
@@ -23,6 +25,34 @@ async function findRoleIds(
     .filter((id): id is string => Boolean(id));
 }
 
+/**
+ * Conecta admin / admin_company / vendedor si faltan.
+ * Keystone `connect` en many-to-many no duplica si ya está ligado.
+ */
+async function ensureAdminRoles(
+  context: KeystoneContext,
+  userId: string,
+): Promise<void> {
+  const roleIds = await findRoleIds(context, ADMIN_ROLE_NAMES);
+  if (roleIds.length === 0) {
+    console.warn(
+      "⚠️  No se encontraron roles admin/admin_company/vendedor. Corre el seed de roles primero.",
+    );
+    return;
+  }
+  if (roleIds.length !== ADMIN_ROLE_NAMES.length) {
+    console.warn(
+      `⚠️  Solo se encontraron ${roleIds.length}/${ADMIN_ROLE_NAMES.length} roles de admin. Se conectan los que hay.`,
+    );
+  }
+  await context.sudo().query.User.updateOne({
+    where: { id: userId },
+    data: {
+      roles: { connect: roleIds.map((id) => ({ id })) },
+    },
+  });
+}
+
 async function ensureAdminCompany(
   context: KeystoneContext,
   userId: string,
@@ -30,19 +60,6 @@ async function ensureAdminCompany(
 ): Promise<void> {
   if (companyId) return;
   await provisionSignupCompany(context, userId, ADMIN_COMPANY_NAME);
-  const companyRoleIds = await findRoleIds(context, [
-    Role.ADMIN,
-    Role.ADMIN_COMPANY,
-    Role.VENDEDOR,
-  ]);
-  if (companyRoleIds.length > 0) {
-    await context.sudo().query.User.updateOne({
-      where: { id: userId },
-      data: {
-        roles: { connect: companyRoleIds.map((id) => ({ id })) },
-      },
-    });
-  }
   console.log("✅ Admin SaasCompany seeding complete.");
 }
 
@@ -59,7 +76,10 @@ export async function createUserAdmin(context: KeystoneContext) {
       existingUser.id,
       existingUser.company?.id,
     );
-    console.log("♻️  Skipped User seeding (already exists).");
+    await ensureAdminRoles(context, existingUser.id);
+    console.log(
+      "♻️  User de seed ya existía: roles admin + admin_company + vendedor asegurados.",
+    );
     return existingUser.id;
   }
 
@@ -79,7 +99,8 @@ export async function createUserAdmin(context: KeystoneContext) {
   });
 
   await ensureAdminCompany(context, data.id);
-  console.log("✅ User seeding complete.");
+  await ensureAdminRoles(context, data.id);
+  console.log("✅ User seeding complete (admin + admin_company + vendedor).");
 
   return data.id;
 }
