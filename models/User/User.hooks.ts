@@ -366,24 +366,30 @@ export const userBlogSubscriptionHook = {
         const sudo = context.sudo();
         // La unicidad es (email, product): no existe where único por email.
         const product = item.product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET;
-        const [existingSubscription] = await sudo.db.BlogSubscription.findMany({
-          where: { email: { equals: item.email }, product: { equals: product } },
+        const email = String(item.email).trim().toLowerCase();
+        const [existingSubscription] = await sudo.query.BlogSubscription.findMany({
+          where: {
+            email: { equals: email, mode: "insensitive" },
+            product: { equals: product },
+          },
           take: 1,
+          query: "id user { id }",
         });
 
         if (!existingSubscription) {
           await sudo.db.BlogSubscription.createOne({
             data: {
-              email: item.email,
+              email,
               product,
               user: { connect: { id: item.id } },
               active: true,
             },
           });
-        } else if (!existingSubscription.userId) {
+        } else if (!existingSubscription.user?.id) {
           await sudo.db.BlogSubscription.updateOne({
             where: { id: existingSubscription.id },
             data: {
+              email,
               user: { connect: { id: item.id } },
             },
           });
