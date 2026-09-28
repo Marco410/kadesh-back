@@ -916,7 +916,7 @@ input CategoryWhereInput {
   NOT: [CategoryWhereInput!]
   id: IDFilter
   product: StringFilter
-  name: StringNullableFilter
+  name: StringFilter
   url: StringFilter
   posts: PostManyRelationFilter
   createdAt: DateTimeNullableFilter

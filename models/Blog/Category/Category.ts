@@ -7,7 +7,6 @@ import {
   select,
 } from "@keystone-6/core/fields";
 import access from "../../../utils/generalAccess/access";
-import { POST_CATEGORIES } from "../../../utils/constants/constants";
 import { PRODUCT, PRODUCT_OPTIONS } from "../../../utils/constants/product";
 import { categoryUrlHook } from "./Category.hooks";
 
@@ -27,9 +26,12 @@ export default list({
         description: "Pet, SaaS o ambas apps. Define dónde aparece la categoría.",
       },
     }),
-    name: select({
-      options: POST_CATEGORIES,
+    name: text({
       isIndexed: "unique",
+      ui: {
+        description:
+          "Nombre visible. La dirección se arma sola y no conviene cambiarla si ya hay artículos.",
+      },
     }),
     url: text({
       isIndexed: "unique",

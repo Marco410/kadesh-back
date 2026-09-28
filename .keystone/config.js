@@ -213,7 +213,7 @@ var POST_CATEGORIES = [
   { label: "Noticias", value: "news" },
   { label: "Consejos", value: "tips" },
   { label: "Otro", value: "other" },
-  // Blog de Kadesh Negocios (SaaS). Cada valor pertenece a un solo producto: `Category.name` es único.
+  // Nombres históricos del blog de Kadesh Negocios. `Category.name` sigue siendo único.
   { label: "Prospecci\xF3n B2B", value: "prospecting" },
   { label: "CRM y ventas", value: "crm_sales" },
   { label: "Generaci\xF3n de leads", value: "lead_gen" },
@@ -4299,9 +4299,11 @@ var Category_default = (0, import_core34.list)({
         description: "Pet, SaaS o ambas apps. Define d\xF3nde aparece la categor\xEDa."
       }
     }),
-    name: (0, import_fields34.select)({
-      options: POST_CATEGORIES,
-      isIndexed: "unique"
+    name: (0, import_fields34.text)({
+      isIndexed: "unique",
+      ui: {
+        description: "Nombre visible. La direcci\xF3n se arma sola y no conviene cambiarla si ya hay art\xEDculos."
+      }
     }),
     url: (0, import_fields34.text)({
       isIndexed: "unique",
