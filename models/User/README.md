@@ -27,3 +27,9 @@ Qué: `checkUserName` consulta usernames ocupados con `context.sudo()` y, si `ma
 Por qué: el registro público no tiene sesión. `User.query` no lista a otros usuarios, el hook creía que el slug estaba libre y Prisma fallaba: `Unique constraint failed on the fields: (\`username\`)`.
 
 Qué no hacer: no usar `context.db.User.findOne` sin sudo para esta comprobación; no devolver el username pedido en create sin verificar unicidad.
+
+### 2026-09-28 — BlogSubscription: email en minúsculas al crear/vincular
+
+Qué: `userBlogSubscriptionHook` normaliza el email a minúsculas y busca con `mode: insensitive` antes de crear o vincular.
+
+Por qué: evita un segundo `BlogSubscription` activo si el usuario ya se había suscrito al blog con otro casing. Ver `models/Blog/BlogSubscription/README.md`.

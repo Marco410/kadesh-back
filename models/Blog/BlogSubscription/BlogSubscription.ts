@@ -16,7 +16,9 @@ import { blogSubscriptionHooks } from "./BlogSubscription.hooks";
 export default list({
   access,
   hooks: {
+    resolveInput: blogSubscriptionHooks.resolveInput,
     validateInput: blogSubscriptionHooks.validateInput,
+    afterOperation: blogSubscriptionHooks.afterOperation,
   },
   fields: {
     email: text({

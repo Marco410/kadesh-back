@@ -36,6 +36,12 @@ El correo de nuevo post sí sale automáticamente en la fecha programada: `notif
 
 Qué no hacer: no bajar `NOTIFY_GRACE_MS` sin pensar en el caso "el cron estuvo caído unos días"; no quitarle el chequeo de `CRON_SECRET` a `publishScheduledPosts` (no tiene otra autorización); si el repo de `kadesh-back` se vuelve privado, revisar la cuota de minutos gratis de GitHub Actions antes de mantener el cron cada hora.
 
+### 2026-09-28 — BlogSubscription: email case-insensitive
+
+Qué: el email de `BlogSubscription` se normaliza a minúsculas; unicidad, unsubscribe y pause en cascada usan match insensitive. Detalle en `Blog/BlogSubscription/README.md`.
+
+Por qué: pausar una fila no bastaba si existía otra activa con el mismo correo en otro casing; el aviso de nuevo post seguía saliendo.
+
 ### 2026-09-22 — Publicar posts en Facebook
 
 Qué: al publicarse un post (mismo trigger que el correo), también se publica en la Página de Facebook del producto (`pet`/`saas`; `all` publica en las dos). `publishedToFacebookAt` (nuevo campo, editable en el Admin UI) es el flag de "ya se intentó", con la misma ventana de gracia (`NOTIFY_GRACE_MS`) y el mismo trade-off que el correo: se marca _antes_ de intentar, así que un fallo (ej. token vencido) no reintenta solo — hay que vaciar el campo a mano para forzar un reintento. `postPublishSideEffectsHook` (antes `newPostEmailHook`) en `Post.hooks.ts` llama a `notifyNewPostIfDue` y a `publishPostToFacebookIfDue`; la mutación `publishScheduledPosts` llama a las dos por cada post pendiente de cualquiera de los dos flags.
