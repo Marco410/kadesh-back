@@ -1,4 +1,8 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { isPlatformAdmin } from "../../../utils/access/tenant";
+import { PRODUCT } from "../../../utils/constants/product";
+import { postToFacebookPage } from "../../../utils/intregrations/facebook";
+import { sendAdminNewAnimalEmail } from "../../../utils/helpers/sendgrid";
 
 const EMOJI_RE =
   /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
@@ -165,11 +169,86 @@ export async function persistAnimalSlugIfMissing(
   }
 }
 
+function petFrontendBaseUrl(): string {
+  return (
+    process.env.PET_FRONTEND_URL?.trim() ||
+    process.env.FRONTEND_URL?.trim() ||
+    "https://pet.kadesh.com.mx"
+  ).replace(/\/$/, "");
+}
+
+function animalPublicUrl(slug: string): string {
+  return `${petFrontendBaseUrl()}/animales/${slug}`;
+}
+
+function sessionCreator(session: KeystoneContext["session"]): {
+  name: string;
+  email: string;
+} {
+  const data = session?.data as
+    | { name?: string; lastName?: string; email?: string }
+    | undefined;
+  const name = [data?.name, data?.lastName].filter(Boolean).join(" ").trim();
+  return {
+    name: name || "Usuario",
+    email: data?.email?.trim() || "",
+  };
+}
+
+async function publishAnimalToFacebook(animal: {
+  name?: string | null;
+  physical_description?: string | null;
+  slug?: string | null;
+}): Promise<void> {
+  if (!animal.slug) {
+    console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
+    return;
+  }
+
+  const message = animal.physical_description
+    ? `${animal.name}\n\n${animal.physical_description}`
+    : animal.name || "Nuevo animal en Kadesh";
+
+  const result = await postToFacebookPage({
+    product: PRODUCT.PET,
+    message,
+    link: animalPublicUrl(animal.slug),
+  });
+
+  if (result?.id) {
+    console.log(
+      `[facebook] Animal publicado en la Página de Pet: ${result.id}`,
+    );
+  }
+}
+
+async function notifyAdminsNewAnimal(
+  animal: {
+    id: string;
+    name?: string | null;
+    slug?: string | null;
+    animal_type?: { name?: string | null } | null;
+  },
+  creator: { name: string; email: string },
+): Promise<void> {
+  const slug = animal.slug || undefined;
+  await sendAdminNewAnimalEmail({
+    animalId: animal.id,
+    animalName: animal.name || "(sin nombre)",
+    animalType: animal.animal_type?.name || undefined,
+    slug,
+    publicUrl: slug ? animalPublicUrl(slug) : undefined,
+    creatorName: creator.name,
+    creatorEmail: creator.email,
+  });
+}
+
 /**
- * Assigns a stable unique slug on create. Never regenerates on later edits
- * of the name — shared URLs must not break.
+ * On create: assign a stable unique slug, then side effects —
+ * platform admin → Facebook Pet page; other signed-in users → admin email.
+ * No session (seed/scripts) skips Facebook and email.
  */
-export const animalSlugAfterOperation = {
+export const animalCreateSideEffectsHook = {
   afterOperation: async ({
     operation,
     item,
@@ -179,28 +258,81 @@ export const animalSlugAfterOperation = {
     item: any;
     context: KeystoneContext;
   }) => {
-    if (operation !== "create" || !item?.id || item.slug) return;
+    if (operation !== "create" || !item?.id) return;
+
+    let slug: string | null = item.slug ?? null;
+
+    try {
+      if (!slug) {
+        const animal = await context.sudo().query.Animal.findOne({
+          where: { id: item.id },
+          query: "id name animal_type { name }",
+        });
+        if (!animal) return;
+
+        slug = await persistAnimalSlug(
+          item.id,
+          {
+            name: animal.name,
+            type: animal.animal_type?.name,
+          },
+          context,
+        );
+      }
+    } catch (error) {
+      console.error("Error generating animal slug:", error);
+    }
+
+    if (!context.session?.data) return;
 
     try {
       const animal = await context.sudo().query.Animal.findOne({
         where: { id: item.id },
-        query: "id name animal_type { name }",
+        query:
+          "id name physical_description slug animal_type { name } user { name email }",
       });
       if (!animal) return;
 
-      await persistAnimalSlug(
-        item.id,
-        {
-          name: animal.name,
-          type: animal.animal_type?.name,
-        },
-        context,
-      );
+      const resolved: {
+        id: string;
+        name?: string | null;
+        physical_description?: string | null;
+        slug?: string | null;
+        animal_type?: { name?: string | null } | null;
+        user?: { name?: string | null; email?: string | null } | null;
+      } = {
+        id: String(animal.id),
+        name: animal.name ?? null,
+        physical_description: animal.physical_description ?? null,
+        slug: animal.slug || slug,
+        animal_type: animal.animal_type ?? null,
+        user: animal.user ?? null,
+      };
+
+      if (isPlatformAdmin(context.session)) {
+        await publishAnimalToFacebook(resolved);
+      } else {
+        const fromSession = sessionCreator(context.session);
+        const creator = {
+          name:
+            fromSession.name !== "Usuario"
+              ? fromSession.name
+              : resolved.user?.name?.trim() || "Usuario",
+          email: fromSession.email || resolved.user?.email?.trim() || "",
+        };
+        await notifyAdminsNewAnimal(resolved, creator);
+      }
     } catch (error) {
-      console.error("Error generating animal slug:", error);
+      console.error(
+        "[animal] Error en side effect de create (Facebook/correo):",
+        error,
+      );
     }
   },
 };
+
+/** @deprecated Use animalCreateSideEffectsHook — kept as alias for callers. */
+export const animalSlugAfterOperation = animalCreateSideEffectsHook;
 
 /**
  * On the first log, enrich the slug with status and city. Later logs leave

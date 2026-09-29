@@ -234,6 +234,76 @@ export async function sendAdminPetPlaceServiceRequestEmail({
   });
 }
 
+/**
+ * Aviso a admin cuando un usuario no-admin registra un Animal.
+ * Destinatarios: SMTP_ADMIN_NOTIFICATION_EMAILS.
+ */
+export async function sendAdminNewAnimalEmail({
+  animalId,
+  animalName,
+  animalType,
+  slug,
+  publicUrl,
+  creatorName,
+  creatorEmail,
+}: {
+  animalId: string;
+  animalName: string;
+  animalType?: string;
+  slug?: string;
+  publicUrl?: string;
+  creatorName: string;
+  creatorEmail: string;
+}): Promise<void> {
+  const recipients = parseAdminNotificationEmails();
+  if (recipients.length === 0) {
+    console.warn(
+      "SMTP_ADMIN_NOTIFICATION_EMAILS no configurado. No se envía aviso de animal nuevo.",
+    );
+    return;
+  }
+
+  const brand: EmailBrand = "pet";
+  const { name: brandName } = EMAIL_BRANDS[brand];
+
+  const rows: [string, string][] = [
+    ["Nombre", escapeHtml(animalName)],
+    ["Tipo", escapeHtml(animalType || "(sin tipo)")],
+    ["Slug", escapeHtml(slug || "(pendiente)")],
+    ["ID", escapeHtml(animalId)],
+    ["Creado por", escapeHtml(creatorName)],
+    ["Correo", escapeHtml(creatorEmail || "(sin correo)")],
+  ];
+
+  const html = renderEmailLayout({
+    brand,
+    preheader: `${creatorName} registró el animal "${animalName}".`,
+    eyebrow: "Nuevo registro",
+    title: "Alguien agregó un animal",
+    bodyHtml: `
+      ${emailParagraph(
+        `<strong>${escapeHtml(creatorName)}</strong> registró un animal nuevo en Kadesh Pet.`,
+      )}
+      ${emailInfoTable(rows)}
+      ${
+        publicUrl
+          ? emailButton(brand, "Ver en la app", publicUrl)
+          : emailCallout(
+              brand,
+              "Revísalo en Keystone → <strong>Animal</strong>.",
+            )
+      }`,
+    footerNote: "Mensaje automático. No respondas a este correo.",
+  });
+
+  await sendEmail({
+    to: recipients,
+    subject: `[${brandName}] Nuevo animal: ${animalName}`,
+    html,
+    fromName: brandName,
+  });
+}
+
 export type NewPostEmailBrand = EmailBrand;
 
 /**
