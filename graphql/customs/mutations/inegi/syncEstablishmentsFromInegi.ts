@@ -165,8 +165,22 @@ const resolver = {
       return result;
     }
 
+    console.log("[syncEstablishmentsFromInegi] START", {
+      userId,
+      hasDenueToken: Boolean(process.env.INEGI_DENUE_TOKEN?.trim()),
+      lat: input.lat ?? null,
+      lng: input.lng ?? null,
+      radiusMeters: input.radiusMeters ?? null,
+      stateCode: input.stateCode ?? null,
+      keyword: input.keyword ?? null,
+      cap,
+    });
+
     try {
       const rows = (await fetchRows(input, cap)).slice(0, cap);
+      console.log("[syncEstablishmentsFromInegi] fetched", {
+        totalFetched: rows.length,
+      });
       let created = 0;
       let updated = 0;
       let skipped = 0;
@@ -193,6 +207,10 @@ const resolver = {
       await logSync(context, userId, input, result);
       return result;
     } catch (err) {
+      console.error("[syncEstablishmentsFromInegi] failed", {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
       const result = emptyResult(
         err instanceof Error ? err.message : "Error al consultar DENUE",
       );

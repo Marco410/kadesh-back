@@ -34,11 +34,21 @@ export async function inegiFetch(
       const res = await fetch(url);
       if (isRetryableStatus(res.status) && attempt < retries) {
         lastError = new Error(`INEGI HTTP ${res.status}`);
+        console.warn("[INEGI fetch] retryable HTTP status", {
+          status: res.status,
+          attempt: attempt + 1,
+          maxAttempts: retries + 1,
+        });
         continue;
       }
       return res;
     } catch (err) {
       lastError = err;
+      console.warn("[INEGI fetch] network error", {
+        attempt: attempt + 1,
+        maxAttempts: retries + 1,
+        message: err instanceof Error ? err.message : String(err),
+      });
       if (attempt >= retries) break;
     }
   }

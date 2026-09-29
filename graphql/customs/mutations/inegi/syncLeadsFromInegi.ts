@@ -344,6 +344,16 @@ const resolver = {
     const session = context.session as { data?: { id: string } } | undefined;
     const userId = session?.data?.id;
 
+    console.log("[syncLeadsFromInegi] START", {
+      userId: userId ?? null,
+      lat: input.lat,
+      lng: input.lng,
+      radiusKm: input.radius,
+      category: input.category,
+      maxResults: input.maxResults,
+      hasDenueToken: Boolean(process.env.INEGI_DENUE_TOKEN?.trim()),
+    });
+
     if (!userId) {
       return {
         success: false,
@@ -371,6 +381,14 @@ const resolver = {
 
     const credits = await getRemainingCredits(context, company.id);
     const { remainingQuota, syncedCount, leadLimit } = credits;
+
+    console.log("[syncLeadsFromInegi] credits", {
+      companyId: company.id,
+      remainingQuota,
+      syncedCount,
+      leadLimit,
+      blockingReason: credits.blockingReason ?? null,
+    });
 
     if (credits.blockingReason === "no_subscription") {
       const result = {
@@ -432,6 +450,14 @@ const resolver = {
     const search = resolveDenueSearch(category);
     const { lat, lng, radius: radiusKm } = input;
 
+    console.log("[syncLeadsFromInegi] resolved search", {
+      category,
+      denueKeyword: search.keyword,
+      isCatchAll: search.isCatchAll,
+      label: search.label,
+      maxResults,
+    });
+
     const existingLeads = (await context
       .sudo()
       .query.TechBusinessLead.findMany({
@@ -472,6 +498,11 @@ const resolver = {
       if (already) continue;
       toAssignFromCrm.push(lead.id);
     }
+
+    console.log("[syncLeadsFromInegi] CRM INEGI leads in box", {
+      existingLeadsInBox: existingLeads.length,
+      toAssignFromCrm: toAssignFromCrm.length,
+    });
 
     let assignedFromDb = 0;
     for (const leadId of toAssignFromCrm) {
@@ -516,6 +547,12 @@ const resolver = {
       }
       currentSyncedCount = consumeResult.syncedCount;
     }
+
+    console.log("[syncLeadsFromInegi] after CRM assign", {
+      assignedFromDb,
+      syncedThisRequest,
+      currentSyncedCount,
+    });
 
     if (
       syncedThisRequest >= maxResults ||
@@ -587,19 +624,47 @@ const resolver = {
         return da - db;
       });
 
+    console.log("[syncLeadsFromInegi] catalog Haversine", {
+      catalogRowsInBox: catalogRows.length,
+      nearbyInRadius: nearbyCatalog.length,
+    });
+
     const token = process.env.INEGI_DENUE_TOKEN?.trim();
     const stillNeed = maxResults - syncedThisRequest;
+    const willCallDenue = nearbyCatalog.length < stillNeed && Boolean(token);
+    console.log("[syncLeadsFromInegi] DENUE live sync decision", {
+      stillNeed,
+      nearbyCatalog: nearbyCatalog.length,
+      willCallDenue,
+      radiusKm,
+      radiusMetersCap: DENUE_MAX_RADIUS_METERS,
+      reasonSkipDenue: !token
+        ? "no_token"
+        : nearbyCatalog.length >= stillNeed
+          ? "catalog_sufficient"
+          : null,
+    });
+
     if (nearbyCatalog.length < stillNeed && token) {
       const radiusMeters = Math.min(
         Math.max(1, Math.round(radiusKm * 1000)),
         DENUE_MAX_RADIUS_METERS,
       );
       try {
+        console.log("[syncLeadsFromInegi] DENUE API call", {
+          lat,
+          lng,
+          radiusMeters,
+          keyword: search.keyword,
+        });
         const apiRows = await searchByLocation({
           lat,
           lng,
           radiusMeters,
           keyword: search.keyword,
+        });
+        console.log("[syncLeadsFromInegi] DENUE API rows", {
+          apiRowCount: apiRows.length,
         });
         const upsertedClees: string[] = [];
         for (const raw of apiRows) {
@@ -639,8 +704,17 @@ const resolver = {
           );
           return da - db;
         });
+        console.log("[syncLeadsFromInegi] after DENUE upsert", {
+          upsertedClees: uniqueClees.length,
+          mergedNearbyCatalog: nearbyCatalog.length,
+        });
       } catch (err) {
-        console.error("[syncLeadsFromInegi] DENUE search failed", err);
+        console.error("[syncLeadsFromInegi] DENUE search failed", {
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+          nearbyCatalog: nearbyCatalog.length,
+          syncedThisRequest,
+        });
         if (nearbyCatalog.length === 0 && syncedThisRequest === 0) {
           const result = {
             success: false,
@@ -658,6 +732,7 @@ const resolver = {
       !token &&
       syncedThisRequest === 0
     ) {
+      console.warn("[syncLeadsFromInegi] abort: empty catalog and no INEGI_DENUE_TOKEN");
       const result = {
         success: false,
         message: MSG.searchFailed,
@@ -718,6 +793,14 @@ const resolver = {
       syncedCount: currentSyncedCount,
       leadLimit,
     };
+    console.log("[syncLeadsFromInegi] DONE", {
+      success: result.success,
+      syncedThisRequest,
+      created,
+      alreadyInDb,
+      assignedFromCatalog,
+      message: result.message,
+    });
     await logResult(context, userId, company.id, input, result);
     return result;
   },
