@@ -42,8 +42,18 @@ function isDenueEmptyBody(text: string): boolean {
 
 async function parseDenueList(res: Response): Promise<DenueEstablishment[]> {
   const text = await res.text();
-  if (isDenueEmptyBody(text)) return [];
+  if (isDenueEmptyBody(text)) {
+    console.log("[INEGI DENUE] empty body treated as no results", {
+      status: res.status,
+      preview: text.slice(0, 120),
+    });
+    return [];
+  }
   if (!res.ok) {
+    console.error("[INEGI DENUE] HTTP error body", {
+      status: res.status,
+      preview: text.slice(0, 200),
+    });
     throw new Error(`INEGI DENUE HTTP ${res.status}: ${text.slice(0, 200)}`);
   }
   let data: unknown;
@@ -74,8 +84,21 @@ export async function searchByLocation(
   );
   const condition = encodeDenueCondition(params.keyword ?? "", "todos");
   const url = `${DENUE_BASE}/Buscar/${condition}/${params.lat},${params.lng}/${radius}/${token}`;
+  console.log("[INEGI DENUE] searchByLocation request", {
+    lat: params.lat,
+    lng: params.lng,
+    radiusMeters: radius,
+    keyword: params.keyword ?? null,
+    condition,
+  });
   const res = await inegiFetch(url);
-  return parseDenueList(res);
+  console.log("[INEGI DENUE] searchByLocation HTTP", {
+    status: res.status,
+    ok: res.ok,
+  });
+  const rows = await parseDenueList(res);
+  console.log("[INEGI DENUE] searchByLocation parsed", { rowCount: rows.length });
+  return rows;
 }
 
 /**
