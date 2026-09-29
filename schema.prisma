@@ -414,6 +414,7 @@ model Post {
   publishedAt           DateTime?
   publishedNotifiedAt   DateTime?
   publishedToFacebookAt DateTime?
+  publishedToLinkedInAt DateTime?
   category              Category?      @relation("Post_category", fields: [categoryId], references: [id])
   categoryId            String?        @map("category")
   tags                  Tag[]          @relation("Post_tags")

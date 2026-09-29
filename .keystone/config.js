@@ -221,355 +221,71 @@ var POST_CATEGORIES = [
   { label: "Producto", value: "product_updates" }
 ];
 
-// models/Pet/Animal/Animal.hooks.ts
-var EMOJI_RE = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-var UNNAMED_RE = /^(sin-?nombre|n-?a|na|unnamed)?$/;
-var TYPE_SLUG = {
-  dog: "perro",
-  perro: "perro",
-  cat: "gato",
-  gato: "gato",
-  bird: "ave",
-  ave: "ave",
-  fish: "pez",
-  pez: "pez",
-  reptil: "reptil",
-  mammal: "mamifero",
-  mamifero: "mamifero"
-};
-var STATUS_SLUG = {
-  lost: "perdido",
-  found: "encontrado",
-  in_adoption: "adopcion",
-  abandoned: "abandonado",
-  rescued: "rescatado",
-  adopted: "adoptado",
-  in_family: "en-familia"
-};
-var STATUS_SLUG_VALUES = Object.values(STATUS_SLUG);
-function slugify(value) {
-  const cleaned = value.replace(EMOJI_RE, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
-  if (cleaned.length <= 40) return cleaned;
-  return cleaned.slice(0, 40).replace(/-+$/g, "");
-}
-function shortAnimalId(id) {
-  return id.slice(-6).toLowerCase();
-}
-function animalSlugHasStatus(slug) {
-  if (!slug) return false;
-  return STATUS_SLUG_VALUES.some(
-    (status) => slug.includes(`-${status}-`) || slug.startsWith(`${status}-`)
-  );
-}
-function buildAnimalSlug(input) {
-  const nameSlug = slugify(input.name ?? "");
-  const isUnnamed = !nameSlug || UNNAMED_RE.test(nameSlug);
-  const typeKey = (input.type ?? "").toLowerCase();
-  const typeSlug = TYPE_SLUG[typeKey] || slugify(input.type ?? "");
-  const statusKey = (input.status ?? "").toLowerCase();
-  const statusSlug = !statusKey || statusKey === "register" ? "" : STATUS_SLUG[statusKey] || slugify(input.status ?? "");
-  const citySlug = slugify(input.city ?? "");
-  const shortId = shortAnimalId(input.id);
-  const parts = [];
-  if (!isUnnamed) {
-    parts.push(nameSlug);
-    if (!statusSlug && typeSlug) parts.push(typeSlug);
-  } else {
-    parts.push(typeSlug || "animal");
-  }
-  if (statusSlug) parts.push(statusSlug);
-  if (citySlug) parts.push(citySlug);
-  parts.push(shortId);
-  const slug = parts.filter(Boolean).join("-").replace(/-+/g, "-");
-  if (slug === "nuevo") return "animal-nuevo";
-  return slug;
-}
-async function ensureUniqueAnimalSlug(base, animalId, context) {
-  let candidate = base;
-  let counter = 1;
-  while (true) {
-    const existing = await context.sudo().db.Animal.findOne({
-      where: { slug: candidate }
-    });
-    if (!existing || existing.id === animalId) return candidate;
-    counter += 1;
-    candidate = `${base}-${counter}`;
-  }
-}
-async function persistAnimalSlug(animalId, input, context) {
-  const slug = await ensureUniqueAnimalSlug(
-    buildAnimalSlug({ ...input, id: animalId }),
-    animalId,
-    context
-  );
-  await context.sudo().db.Animal.updateOne({
-    where: { id: animalId },
-    data: { slug }
-  });
-  return slug;
-}
-var animalSlugAfterOperation = {
-  afterOperation: async ({
-    operation,
-    item,
-    context
-  }) => {
-    if (operation !== "create" || !item?.id || item.slug) return;
-    try {
-      const animal = await context.sudo().query.Animal.findOne({
-        where: { id: item.id },
-        query: "id name animal_type { name }"
-      });
-      if (!animal) return;
-      await persistAnimalSlug(
-        item.id,
-        {
-          name: animal.name,
-          type: animal.animal_type?.name
-        },
-        context
-      );
-    } catch (error) {
-      console.error("Error generating animal slug:", error);
+// models/Role/constants.ts
+var ROLES = [
+  { label: "Admin", value: "admin" /* ADMIN */ },
+  { label: "User", value: "user" /* USER */ },
+  { label: "Author", value: "author" /* AUTHOR */ },
+  { label: "Admin (Company)", value: "admin_company" /* ADMIN_COMPANY */ },
+  { label: "User (Company)", value: "user_company" /* USER_COMPANY */ },
+  { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
+];
+
+// auth/permissions.ts
+function sessionRoleNames(session2) {
+  const names = [];
+  const roles = session2?.data?.roles;
+  if (Array.isArray(roles)) {
+    for (const r of roles) {
+      if (r && typeof r.name === "string" && r.name) {
+        names.push(r.name);
+      }
     }
   }
-};
-var animalLogSlugAfterOperation = {
-  afterOperation: async ({
-    operation,
-    item,
-    context
-  }) => {
-    if (operation !== "create") return;
-    const animalId = item?.animalId ?? item?.animal;
-    if (!animalId || typeof animalId !== "string") return;
-    try {
-      const logs = await context.sudo().query.AnimalLog.findMany({
-        where: { animal: { id: { equals: animalId } } },
-        query: "id"
-      });
-      if (logs.length !== 1) return;
-      const animal = await context.sudo().query.Animal.findOne({
-        where: { id: animalId },
-        query: "id name slug animal_type { name }"
-      });
-      if (!animal || animalSlugHasStatus(animal.slug)) return;
-      await persistAnimalSlug(
-        animalId,
-        {
-          name: animal.name,
-          type: animal.animal_type?.name,
-          status: item.status,
-          city: item.city
-        },
-        context
-      );
-    } catch (error) {
-      console.error("Error enriching animal slug from log:", error);
-    }
+  const single = session2?.data?.role;
+  if (typeof single === "string" && single) {
+    names.push(single);
   }
+  return names;
+}
+var hasRole = (session2, allowedRoles) => {
+  if (!session2?.data) return false;
+  const allowed = /* @__PURE__ */ new Set([...allowedRoles, "admin" /* ADMIN */]);
+  return sessionRoleNames(session2).some((name) => allowed.has(name));
 };
 
-// models/Pet/Animal/Animal.ts
-var Animal_default = (0, import_core.list)({
-  access: access_default,
-  hooks: animalSlugAfterOperation,
-  ui: {
-    listView: {
-      initialColumns: ["name", "slug", "createdAt"]
-    }
-  },
-  fields: {
-    name: (0, import_fields.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields.text)({
-      isIndexed: "unique",
-      db: { isNullable: true },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" },
-        description: "URL amigable. Se genera sola y no cambia si editas el nombre."
-      }
-    }),
-    physical_description: (0, import_fields.text)(),
-    age: (0, import_fields.text)(),
-    sex: (0, import_fields.select)({
-      options: ANIMAL_SEX_OPTIONS,
-      defaultValue: "male"
-    }),
-    color: (0, import_fields.text)(),
-    size: (0, import_fields.text)(),
-    contactNumber: (0, import_fields.text)(),
-    animal_type: (0, import_fields.relationship)({
-      ref: "AnimalType",
-      many: false
-    }),
-    animal_breed: (0, import_fields.relationship)({
-      ref: "AnimalBreed",
-      many: false
-    }),
-    user: (0, import_fields.relationship)({
-      ref: "User",
-      many: false
-    }),
-    multimedia: (0, import_fields.relationship)({
-      ref: "AnimalMultimedia.animal",
-      many: true
-    }),
-    logs: (0, import_fields.relationship)({
-      ref: "AnimalLog.animal",
-      many: true
-    }),
-    createdAt: (0, import_fields.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
+// utils/access/tenant.ts
+function getSessionUserId(session2) {
+  return session2?.data?.id ?? null;
+}
+function getSessionCompanyId(session2) {
+  return session2?.data?.company?.id ?? null;
+}
+function isSignedIn(session2) {
+  return !!getSessionUserId(session2);
+}
+function isPlatformAdmin(session2) {
+  return hasRole(session2, ["admin" /* ADMIN */]);
+}
+function isCompanyAdmin(session2) {
+  return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
+}
+function resolveAuthorizedCompanyId(session2, requestedCompanyId) {
+  if (!isSignedIn(session2)) return null;
+  if (isPlatformAdmin(session2)) {
+    const requested = requestedCompanyId?.trim();
+    return requested || getSessionCompanyId(session2);
   }
-});
-
-// models/Pet/Animal/AnimalType/AnimalType.ts
-var import_core2 = require("@keystone-6/core");
-var import_fields2 = require("@keystone-6/core/fields");
-var AnimalType_default = (0, import_core2.list)({
-  access: access_default,
-  fields: {
-    name: (0, import_fields2.select)({
-      defaultValue: "dog" /* DOG */,
-      options: ANIMAL_TYPE_OPTIONS,
-      isIndexed: "unique",
-      validation: { isRequired: true }
-    }),
-    animal_breed: (0, import_fields2.relationship)({
-      ref: "AnimalBreed.animal_type",
-      many: true
-    }),
-    order: (0, import_fields2.integer)()
-  },
-  ui: {
-    labelField: "name"
+  const sessionCompanyId = getSessionCompanyId(session2);
+  if (!sessionCompanyId) return null;
+  if (requestedCompanyId && requestedCompanyId !== sessionCompanyId) {
+    return null;
   }
-});
-
-// models/Pet/Animal/AnimalMultimedia/AnimalMultimedia.ts
-var import_core3 = require("@keystone-6/core");
-var import_fields3 = require("@keystone-6/core/fields");
-var AnimalMultimedia_default = (0, import_core3.list)({
-  access: access_default,
-  fields: {
-    image: (0, import_fields3.image)({
-      storage: "s3_animals"
-    }),
-    animal: (0, import_fields3.relationship)({
-      ref: "Animal.multimedia"
-    }),
-    order: (0, import_fields3.integer)({
-      defaultValue: 1,
-      validation: { isRequired: true },
-      ui: {
-        description: "1 es la portada de la ficha. 2, 3\u2026 el resto."
-      }
-    }),
-    createdAt: (0, import_fields3.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/Pet/Animal/AnimalFavorite/AnimalFavorite.ts
-var import_core4 = require("@keystone-6/core");
-var import_fields4 = require("@keystone-6/core/fields");
-var AnimalFavorite_default = (0, import_core4.list)({
-  access: access_default,
-  fields: {
-    animal: (0, import_fields4.relationship)({
-      ref: "Animal",
-      many: false
-    }),
-    user: (0, import_fields4.relationship)({
-      ref: "User",
-      many: false
-    }),
-    createdAt: (0, import_fields4.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/Pet/Animal/AnimalLog/AnimalLog.ts
-var import_core5 = require("@keystone-6/core");
-var import_fields5 = require("@keystone-6/core/fields");
-var AnimalLog_default = (0, import_core5.list)({
-  access: access_default,
-  hooks: animalLogSlugAfterOperation,
-  fields: {
-    animal: (0, import_fields5.relationship)({
-      ref: "Animal.logs"
-    }),
-    status: (0, import_fields5.select)({
-      defaultValue: "Registrado",
-      options: ANIMAL_LOGS_OPTIONS
-    }),
-    // Could be a different date when lost
-    date_status: (0, import_fields5.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    }),
-    notes: (0, import_fields5.text)({
-      ui: { displayMode: "textarea" }
-    }),
-    lat: (0, import_fields5.text)(),
-    lng: (0, import_fields5.text)(),
-    address: (0, import_fields5.text)(),
-    city: (0, import_fields5.text)(),
-    state: (0, import_fields5.text)(),
-    country: (0, import_fields5.text)(),
-    last_seen: (0, import_fields5.checkbox)(),
-    createdAt: (0, import_fields5.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/Pet/Animal/AnimalComment/AnimalComment.ts
-var import_core6 = require("@keystone-6/core");
-var import_fields6 = require("@keystone-6/core/fields");
-var AnimalComment_default = (0, import_core6.list)({
-  access: access_default,
-  fields: {
-    comment: (0, import_fields6.text)({
-      validation: { isRequired: true },
-      ui: { displayMode: "textarea" }
-    }),
-    animal: (0, import_fields6.relationship)({
-      ref: "Animal",
-      many: false
-    }),
-    user: (0, import_fields6.relationship)({
-      ref: "User",
-      many: false
-    }),
-    createdAt: (0, import_fields6.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/User/User.ts
-var import_core7 = require("@keystone-6/core");
-var import_fields7 = require("@keystone-6/core/fields");
+  return sessionCompanyId;
+}
+function denyOtherCompanyMessage() {
+  return "No puedes acceder a datos de otra empresa";
+}
 
 // utils/constants/product.ts
 var PRODUCT = {
@@ -586,6 +302,57 @@ var SINGLE_PRODUCT_OPTIONS = [
   { label: "Pet", value: PRODUCT.PET },
   { label: "SaaS", value: PRODUCT.SAAS }
 ];
+
+// utils/intregrations/facebook.ts
+var GRAPH_API_VERSION = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
+function facebookPageEnv(product) {
+  if (product === PRODUCT.SAAS) {
+    return {
+      pageId: process.env.FACEBOOK_SAAS_PAGE_ID?.trim(),
+      accessToken: process.env.FACEBOOK_SAAS_PAGE_ACCESS_TOKEN?.trim()
+    };
+  }
+  return {
+    pageId: process.env.FACEBOOK_PET_PAGE_ID?.trim(),
+    accessToken: process.env.FACEBOOK_PET_PAGE_ACCESS_TOKEN?.trim()
+  };
+}
+async function postToFacebookPage({
+  product,
+  message,
+  link
+}) {
+  const { pageId, accessToken } = facebookPageEnv(product);
+  if (!pageId || !accessToken) {
+    console.warn(
+      `[facebook] P\xE1gina de "${product}" no configurada (FACEBOOK_${product.toUpperCase()}_PAGE_ID / _ACCESS_TOKEN). Post no publicado.`
+    );
+    return void 0;
+  }
+  const body = new URLSearchParams({ message, link, access_token: accessToken });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageId}/feed`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    }
+  );
+  const bodyText = await response.text();
+  let parsed = null;
+  if (bodyText) {
+    try {
+      parsed = JSON.parse(bodyText);
+    } catch {
+      parsed = null;
+    }
+  }
+  if (!response.ok || !parsed?.id) {
+    const detail = parsed?.error?.message || bodyText || `HTTP ${response.status}`;
+    throw new Error(`[facebook] Graph API error (${product}): ${detail}`);
+  }
+  return { id: parsed.id };
+}
 
 // utils/intregrations/smtpMail.ts
 var MAILTRAP_SEND_URL = process.env.MAILTRAP_SEND_URL?.trim() || "https://send.api.mailtrap.io/api/send";
@@ -973,6 +740,55 @@ async function sendAdminPetPlaceServiceRequestEmail({
     fromName: brandName
   });
 }
+async function sendAdminNewAnimalEmail({
+  animalId,
+  animalName,
+  animalType,
+  slug,
+  publicUrl,
+  creatorName,
+  creatorEmail
+}) {
+  const recipients = parseAdminNotificationEmails();
+  if (recipients.length === 0) {
+    console.warn(
+      "SMTP_ADMIN_NOTIFICATION_EMAILS no configurado. No se env\xEDa aviso de animal nuevo."
+    );
+    return;
+  }
+  const brand = "pet";
+  const { name: brandName } = EMAIL_BRANDS[brand];
+  const rows = [
+    ["Nombre", escapeHtml(animalName)],
+    ["Tipo", escapeHtml(animalType || "(sin tipo)")],
+    ["Slug", escapeHtml(slug || "(pendiente)")],
+    ["ID", escapeHtml(animalId)],
+    ["Creado por", escapeHtml(creatorName)],
+    ["Correo", escapeHtml(creatorEmail || "(sin correo)")]
+  ];
+  const html = renderEmailLayout({
+    brand,
+    preheader: `${creatorName} registr\xF3 el animal "${animalName}".`,
+    eyebrow: "Nuevo registro",
+    title: "Alguien agreg\xF3 un animal",
+    bodyHtml: `
+      ${emailParagraph(
+      `<strong>${escapeHtml(creatorName)}</strong> registr\xF3 un animal nuevo en Kadesh Pet.`
+    )}
+      ${emailInfoTable(rows)}
+      ${publicUrl ? emailButton(brand, "Ver en la app", publicUrl) : emailCallout(
+      brand,
+      "Rev\xEDsalo en Keystone \u2192 <strong>Animal</strong>."
+    )}`,
+    footerNote: "Mensaje autom\xE1tico. No respondas a este correo."
+  });
+  await sendEmail({
+    to: recipients,
+    subject: `[${brandName}] Nuevo animal: ${animalName}`,
+    html,
+    fromName: brandName
+  });
+}
 async function sendNewPostEmail({
   postTitle,
   postUrl,
@@ -1152,75 +968,438 @@ async function sendPetPlaceAppointmentEmail({
   });
 }
 
-// models/Role/constants.ts
-var ROLES = [
-  { label: "Admin", value: "admin" /* ADMIN */ },
-  { label: "User", value: "user" /* USER */ },
-  { label: "Author", value: "author" /* AUTHOR */ },
-  { label: "Admin (Company)", value: "admin_company" /* ADMIN_COMPANY */ },
-  { label: "User (Company)", value: "user_company" /* USER_COMPANY */ },
-  { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
-];
+// models/Pet/Animal/Animal.hooks.ts
+var EMOJI_RE = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
+var UNNAMED_RE = /^(sin-?nombre|n-?a|na|unnamed)?$/;
+var TYPE_SLUG = {
+  dog: "perro",
+  perro: "perro",
+  cat: "gato",
+  gato: "gato",
+  bird: "ave",
+  ave: "ave",
+  fish: "pez",
+  pez: "pez",
+  reptil: "reptil",
+  mammal: "mamifero",
+  mamifero: "mamifero"
+};
+var STATUS_SLUG = {
+  lost: "perdido",
+  found: "encontrado",
+  in_adoption: "adopcion",
+  abandoned: "abandonado",
+  rescued: "rescatado",
+  adopted: "adoptado",
+  in_family: "en-familia"
+};
+var STATUS_SLUG_VALUES = Object.values(STATUS_SLUG);
+function slugify(value) {
+  const cleaned = value.replace(EMOJI_RE, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  if (cleaned.length <= 40) return cleaned;
+  return cleaned.slice(0, 40).replace(/-+$/g, "");
+}
+function shortAnimalId(id) {
+  return id.slice(-6).toLowerCase();
+}
+function animalSlugHasStatus(slug) {
+  if (!slug) return false;
+  return STATUS_SLUG_VALUES.some(
+    (status) => slug.includes(`-${status}-`) || slug.startsWith(`${status}-`)
+  );
+}
+function buildAnimalSlug(input) {
+  const nameSlug = slugify(input.name ?? "");
+  const isUnnamed = !nameSlug || UNNAMED_RE.test(nameSlug);
+  const typeKey = (input.type ?? "").toLowerCase();
+  const typeSlug = TYPE_SLUG[typeKey] || slugify(input.type ?? "");
+  const statusKey = (input.status ?? "").toLowerCase();
+  const statusSlug = !statusKey || statusKey === "register" ? "" : STATUS_SLUG[statusKey] || slugify(input.status ?? "");
+  const citySlug = slugify(input.city ?? "");
+  const shortId = shortAnimalId(input.id);
+  const parts = [];
+  if (!isUnnamed) {
+    parts.push(nameSlug);
+    if (!statusSlug && typeSlug) parts.push(typeSlug);
+  } else {
+    parts.push(typeSlug || "animal");
+  }
+  if (statusSlug) parts.push(statusSlug);
+  if (citySlug) parts.push(citySlug);
+  parts.push(shortId);
+  const slug = parts.filter(Boolean).join("-").replace(/-+/g, "-");
+  if (slug === "nuevo") return "animal-nuevo";
+  return slug;
+}
+async function ensureUniqueAnimalSlug(base, animalId, context) {
+  let candidate = base;
+  let counter = 1;
+  while (true) {
+    const existing = await context.sudo().db.Animal.findOne({
+      where: { slug: candidate }
+    });
+    if (!existing || existing.id === animalId) return candidate;
+    counter += 1;
+    candidate = `${base}-${counter}`;
+  }
+}
+async function persistAnimalSlug(animalId, input, context) {
+  const slug = await ensureUniqueAnimalSlug(
+    buildAnimalSlug({ ...input, id: animalId }),
+    animalId,
+    context
+  );
+  await context.sudo().db.Animal.updateOne({
+    where: { id: animalId },
+    data: { slug }
+  });
+  return slug;
+}
+function petFrontendBaseUrl() {
+  return (process.env.PET_FRONTEND_URL?.trim() || process.env.FRONTEND_URL?.trim() || "https://pet.kadesh.com.mx").replace(/\/$/, "");
+}
+function animalPublicUrl(slug) {
+  return `${petFrontendBaseUrl()}/animales/${slug}`;
+}
+function sessionCreator(session2) {
+  const data = session2?.data;
+  const name = [data?.name, data?.lastName].filter(Boolean).join(" ").trim();
+  return {
+    name: name || "Usuario",
+    email: data?.email?.trim() || ""
+  };
+}
+async function publishAnimalToFacebook(animal) {
+  if (!animal.slug) {
+    console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
+    return;
+  }
+  const message = animal.physical_description ? `${animal.name}
+
+${animal.physical_description}` : animal.name || "Nuevo animal en Kadesh";
+  const result = await postToFacebookPage({
+    product: PRODUCT.PET,
+    message,
+    link: animalPublicUrl(animal.slug)
+  });
+  if (result?.id) {
+    console.log(
+      `[facebook] Animal publicado en la P\xE1gina de Pet: ${result.id}`
+    );
+  }
+}
+async function notifyAdminsNewAnimal(animal, creator) {
+  const slug = animal.slug || void 0;
+  await sendAdminNewAnimalEmail({
+    animalId: animal.id,
+    animalName: animal.name || "(sin nombre)",
+    animalType: animal.animal_type?.name || void 0,
+    slug,
+    publicUrl: slug ? animalPublicUrl(slug) : void 0,
+    creatorName: creator.name,
+    creatorEmail: creator.email
+  });
+}
+var animalCreateSideEffectsHook = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation !== "create" || !item?.id) return;
+    let slug = item.slug ?? null;
+    try {
+      if (!slug) {
+        const animal = await context.sudo().query.Animal.findOne({
+          where: { id: item.id },
+          query: "id name animal_type { name }"
+        });
+        if (!animal) return;
+        slug = await persistAnimalSlug(
+          item.id,
+          {
+            name: animal.name,
+            type: animal.animal_type?.name
+          },
+          context
+        );
+      }
+    } catch (error) {
+      console.error("Error generating animal slug:", error);
+    }
+    if (!context.session?.data) return;
+    try {
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: item.id },
+        query: "id name physical_description slug animal_type { name } user { name email }"
+      });
+      if (!animal) return;
+      const resolved = {
+        id: String(animal.id),
+        name: animal.name ?? null,
+        physical_description: animal.physical_description ?? null,
+        slug: animal.slug || slug,
+        animal_type: animal.animal_type ?? null,
+        user: animal.user ?? null
+      };
+      if (isPlatformAdmin(context.session)) {
+        await publishAnimalToFacebook(resolved);
+      } else {
+        const fromSession = sessionCreator(context.session);
+        const creator = {
+          name: fromSession.name !== "Usuario" ? fromSession.name : resolved.user?.name?.trim() || "Usuario",
+          email: fromSession.email || resolved.user?.email?.trim() || ""
+        };
+        await notifyAdminsNewAnimal(resolved, creator);
+      }
+    } catch (error) {
+      console.error(
+        "[animal] Error en side effect de create (Facebook/correo):",
+        error
+      );
+    }
+  }
+};
+var animalLogSlugAfterOperation = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation !== "create") return;
+    const animalId = item?.animalId ?? item?.animal;
+    if (!animalId || typeof animalId !== "string") return;
+    try {
+      const logs = await context.sudo().query.AnimalLog.findMany({
+        where: { animal: { id: { equals: animalId } } },
+        query: "id"
+      });
+      if (logs.length !== 1) return;
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: animalId },
+        query: "id name slug animal_type { name }"
+      });
+      if (!animal || animalSlugHasStatus(animal.slug)) return;
+      await persistAnimalSlug(
+        animalId,
+        {
+          name: animal.name,
+          type: animal.animal_type?.name,
+          status: item.status,
+          city: item.city
+        },
+        context
+      );
+    } catch (error) {
+      console.error("Error enriching animal slug from log:", error);
+    }
+  }
+};
+
+// models/Pet/Animal/Animal.ts
+var Animal_default = (0, import_core.list)({
+  access: access_default,
+  hooks: animalCreateSideEffectsHook,
+  ui: {
+    listView: {
+      initialColumns: ["name", "slug", "createdAt"]
+    }
+  },
+  fields: {
+    name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "URL amigable. Se genera sola y no cambia si editas el nombre."
+      }
+    }),
+    physical_description: (0, import_fields.text)(),
+    age: (0, import_fields.text)(),
+    sex: (0, import_fields.select)({
+      options: ANIMAL_SEX_OPTIONS,
+      defaultValue: "male"
+    }),
+    color: (0, import_fields.text)(),
+    size: (0, import_fields.text)(),
+    contactNumber: (0, import_fields.text)(),
+    animal_type: (0, import_fields.relationship)({
+      ref: "AnimalType",
+      many: false
+    }),
+    animal_breed: (0, import_fields.relationship)({
+      ref: "AnimalBreed",
+      many: false
+    }),
+    user: (0, import_fields.relationship)({
+      ref: "User",
+      many: false
+    }),
+    multimedia: (0, import_fields.relationship)({
+      ref: "AnimalMultimedia.animal",
+      many: true
+    }),
+    logs: (0, import_fields.relationship)({
+      ref: "AnimalLog.animal",
+      many: true
+    }),
+    createdAt: (0, import_fields.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalType/AnimalType.ts
+var import_core2 = require("@keystone-6/core");
+var import_fields2 = require("@keystone-6/core/fields");
+var AnimalType_default = (0, import_core2.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields2.select)({
+      defaultValue: "dog" /* DOG */,
+      options: ANIMAL_TYPE_OPTIONS,
+      isIndexed: "unique",
+      validation: { isRequired: true }
+    }),
+    animal_breed: (0, import_fields2.relationship)({
+      ref: "AnimalBreed.animal_type",
+      many: true
+    }),
+    order: (0, import_fields2.integer)()
+  },
+  ui: {
+    labelField: "name"
+  }
+});
+
+// models/Pet/Animal/AnimalMultimedia/AnimalMultimedia.ts
+var import_core3 = require("@keystone-6/core");
+var import_fields3 = require("@keystone-6/core/fields");
+var AnimalMultimedia_default = (0, import_core3.list)({
+  access: access_default,
+  fields: {
+    image: (0, import_fields3.image)({
+      storage: "s3_animals"
+    }),
+    animal: (0, import_fields3.relationship)({
+      ref: "Animal.multimedia"
+    }),
+    order: (0, import_fields3.integer)({
+      defaultValue: 1,
+      validation: { isRequired: true },
+      ui: {
+        description: "1 es la portada de la ficha. 2, 3\u2026 el resto."
+      }
+    }),
+    createdAt: (0, import_fields3.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalFavorite/AnimalFavorite.ts
+var import_core4 = require("@keystone-6/core");
+var import_fields4 = require("@keystone-6/core/fields");
+var AnimalFavorite_default = (0, import_core4.list)({
+  access: access_default,
+  fields: {
+    animal: (0, import_fields4.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    user: (0, import_fields4.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields4.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalLog/AnimalLog.ts
+var import_core5 = require("@keystone-6/core");
+var import_fields5 = require("@keystone-6/core/fields");
+var AnimalLog_default = (0, import_core5.list)({
+  access: access_default,
+  hooks: animalLogSlugAfterOperation,
+  fields: {
+    animal: (0, import_fields5.relationship)({
+      ref: "Animal.logs"
+    }),
+    status: (0, import_fields5.select)({
+      defaultValue: "Registrado",
+      options: ANIMAL_LOGS_OPTIONS
+    }),
+    // Could be a different date when lost
+    date_status: (0, import_fields5.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    }),
+    notes: (0, import_fields5.text)({
+      ui: { displayMode: "textarea" }
+    }),
+    lat: (0, import_fields5.text)(),
+    lng: (0, import_fields5.text)(),
+    address: (0, import_fields5.text)(),
+    city: (0, import_fields5.text)(),
+    state: (0, import_fields5.text)(),
+    country: (0, import_fields5.text)(),
+    last_seen: (0, import_fields5.checkbox)(),
+    createdAt: (0, import_fields5.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalComment/AnimalComment.ts
+var import_core6 = require("@keystone-6/core");
+var import_fields6 = require("@keystone-6/core/fields");
+var AnimalComment_default = (0, import_core6.list)({
+  access: access_default,
+  fields: {
+    comment: (0, import_fields6.text)({
+      validation: { isRequired: true },
+      ui: { displayMode: "textarea" }
+    }),
+    animal: (0, import_fields6.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    user: (0, import_fields6.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields6.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/User/User.ts
+var import_core7 = require("@keystone-6/core");
+var import_fields7 = require("@keystone-6/core/fields");
 
 // utils/intregrations/stripe.ts
 var Stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 var stripe_default = Stripe;
-
-// auth/permissions.ts
-function sessionRoleNames(session2) {
-  const names = [];
-  const roles = session2?.data?.roles;
-  if (Array.isArray(roles)) {
-    for (const r of roles) {
-      if (r && typeof r.name === "string" && r.name) {
-        names.push(r.name);
-      }
-    }
-  }
-  const single = session2?.data?.role;
-  if (typeof single === "string" && single) {
-    names.push(single);
-  }
-  return names;
-}
-var hasRole = (session2, allowedRoles) => {
-  if (!session2?.data) return false;
-  const allowed = /* @__PURE__ */ new Set([...allowedRoles, "admin" /* ADMIN */]);
-  return sessionRoleNames(session2).some((name) => allowed.has(name));
-};
-
-// utils/access/tenant.ts
-function getSessionUserId(session2) {
-  return session2?.data?.id ?? null;
-}
-function getSessionCompanyId(session2) {
-  return session2?.data?.company?.id ?? null;
-}
-function isSignedIn(session2) {
-  return !!getSessionUserId(session2);
-}
-function isPlatformAdmin(session2) {
-  return hasRole(session2, ["admin" /* ADMIN */]);
-}
-function isCompanyAdmin(session2) {
-  return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
-}
-function resolveAuthorizedCompanyId(session2, requestedCompanyId) {
-  if (!isSignedIn(session2)) return null;
-  if (isPlatformAdmin(session2)) {
-    const requested = requestedCompanyId?.trim();
-    return requested || getSessionCompanyId(session2);
-  }
-  const sessionCompanyId = getSessionCompanyId(session2);
-  if (!sessionCompanyId) return null;
-  if (requestedCompanyId && requestedCompanyId !== sessionCompanyId) {
-    return null;
-  }
-  return sessionCompanyId;
-}
-function denyOtherCompanyMessage() {
-  return "No puedes acceder a datos de otra empresa";
-}
 
 // models/User/User.hooks.ts
 var USER_BANK_NOTIFICATION_FIELDS = ["bank", "clabe", "cardNumber"];
@@ -1470,23 +1649,29 @@ var userBlogSubscriptionHook = {
       try {
         const sudo = context.sudo();
         const product = item.product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET;
-        const [existingSubscription] = await sudo.db.BlogSubscription.findMany({
-          where: { email: { equals: item.email }, product: { equals: product } },
-          take: 1
+        const email = String(item.email).trim().toLowerCase();
+        const [existingSubscription] = await sudo.query.BlogSubscription.findMany({
+          where: {
+            email: { equals: email, mode: "insensitive" },
+            product: { equals: product }
+          },
+          take: 1,
+          query: "id user { id }"
         });
         if (!existingSubscription) {
           await sudo.db.BlogSubscription.createOne({
             data: {
-              email: item.email,
+              email,
               product,
               user: { connect: { id: item.id } },
               active: true
             }
           });
-        } else if (!existingSubscription.userId) {
+        } else if (!existingSubscription.user?.id) {
           await sudo.db.BlogSubscription.updateOne({
             where: { id: existingSubscription.id },
             data: {
+              email,
               user: { connect: { id: item.id } }
             }
           });
@@ -3688,41 +3873,61 @@ var Ad_default = (0, import_core27.list)({
 var import_core28 = require("@keystone-6/core");
 var import_fields28 = require("@keystone-6/core/fields");
 
-// utils/intregrations/facebook.ts
-var GRAPH_API_VERSION = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
-function facebookPageEnv(product) {
+// utils/intregrations/linkedin.ts
+var LINKEDIN_API_VERSION = process.env.LINKEDIN_API_VERSION?.trim() || "202401";
+function linkedInPageEnv(product) {
   if (product === PRODUCT.SAAS) {
     return {
-      pageId: process.env.FACEBOOK_SAAS_PAGE_ID?.trim(),
-      accessToken: process.env.FACEBOOK_SAAS_PAGE_ACCESS_TOKEN?.trim()
+      organizationId: process.env.LINKEDIN_SAAS_ORGANIZATION_ID?.trim(),
+      accessToken: process.env.LINKEDIN_SAAS_ACCESS_TOKEN?.trim()
     };
   }
   return {
-    pageId: process.env.FACEBOOK_PET_PAGE_ID?.trim(),
-    accessToken: process.env.FACEBOOK_PET_PAGE_ACCESS_TOKEN?.trim()
+    organizationId: process.env.LINKEDIN_PET_ORGANIZATION_ID?.trim(),
+    accessToken: process.env.LINKEDIN_PET_ACCESS_TOKEN?.trim()
   };
 }
-async function postToFacebookPage({
+async function postToLinkedInPage({
   product,
   message,
-  link
+  link,
+  title
 }) {
-  const { pageId, accessToken } = facebookPageEnv(product);
-  if (!pageId || !accessToken) {
+  const { organizationId, accessToken } = linkedInPageEnv(product);
+  if (!organizationId || !accessToken) {
     console.warn(
-      `[facebook] P\xE1gina de "${product}" no configurada (FACEBOOK_${product.toUpperCase()}_PAGE_ID / _ACCESS_TOKEN). Post no publicado.`
+      `[linkedin] P\xE1gina de "${product}" no configurada (LINKEDIN_${product.toUpperCase()}_ORGANIZATION_ID / _ACCESS_TOKEN). Post no publicado.`
     );
     return void 0;
   }
-  const body = new URLSearchParams({ message, link, access_token: accessToken });
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageId}/feed`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
-    }
-  );
+  const payload = {
+    author: `urn:li:organization:${organizationId}`,
+    commentary: message,
+    visibility: "PUBLIC",
+    distribution: {
+      feedDistribution: "MAIN_FEED",
+      targetEntities: [],
+      thirdPartyDistributionChannels: []
+    },
+    content: {
+      article: {
+        source: link,
+        title
+      }
+    },
+    lifecycleState: "PUBLISHED",
+    isReshareDisabledByAuthor: false
+  };
+  const response = await fetch("https://api.linkedin.com/rest/posts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "LinkedIn-Version": LINKEDIN_API_VERSION,
+      "X-Restli-Protocol-Version": "2.0.0"
+    },
+    body: JSON.stringify(payload)
+  });
   const bodyText = await response.text();
   let parsed = null;
   if (bodyText) {
@@ -3732,11 +3937,12 @@ async function postToFacebookPage({
       parsed = null;
     }
   }
-  if (!response.ok || !parsed?.id) {
-    const detail = parsed?.error?.message || bodyText || `HTTP ${response.status}`;
-    throw new Error(`[facebook] Graph API error (${product}): ${detail}`);
+  const postId = response.headers.get("x-restli-id") || response.headers.get("x-linkedin-id") || parsed?.id;
+  if (!response.ok || !postId) {
+    const detail = parsed?.message || bodyText || `HTTP ${response.status}`;
+    throw new Error(`[linkedin] API error (${product}): ${detail}`);
   }
-  return { id: parsed.id };
+  return { id: postId };
 }
 
 // models/Blog/Post/Post.hooks.ts
@@ -3882,7 +4088,17 @@ async function notifyNewPostIfDue(post, context) {
     const authorName = fullPost.author ? `${fullPost.author.name} ${fullPost.author.lastName || ""}`.trim() : null;
     let sent = 0;
     for (const product of subscriberProductsFor(postProduct)) {
-      const recipientEmails = subscriptions.filter((sub) => sub.product === product).map((sub) => sub.email).filter((email) => email && email.trim() !== "");
+      const seen = /* @__PURE__ */ new Set();
+      const recipientEmails = [];
+      for (const sub of subscriptions) {
+        if (sub.product !== product) continue;
+        const email = sub.email?.trim();
+        if (!email) continue;
+        const key = email.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        recipientEmails.push(email.toLowerCase());
+      }
       if (recipientEmails.length === 0) {
         continue;
       }
@@ -3943,14 +4159,75 @@ ${fullPost.excerpt}` : fullPost.title;
       try {
         const result = await postToFacebookPage({ product, message, link });
         if (result) {
-          console.log(`[facebook] Post publicado en la P\xE1gina de "${product}": ${result.id}`);
+          console.log(
+            `[facebook] Post publicado en la P\xE1gina de "${product}": ${result.id}`
+          );
         }
       } catch (error) {
-        console.error(`[facebook] Error publicando en la P\xE1gina de "${product}":`, error);
+        console.error(
+          `[facebook] Error publicando en la P\xE1gina de "${product}":`,
+          error
+        );
       }
     }
   } catch (error) {
     console.error("[facebook] Error al preparar la publicaci\xF3n:", error);
+  }
+}
+function isPendingLinkedInPost(post) {
+  if (post.published !== true || post.publishedToLinkedInAt) return false;
+  return isRecentlyDue(post.publishedAt);
+}
+function linkedInProductsFor(product) {
+  return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
+}
+async function publishPostToLinkedInIfDue(post, context) {
+  if (!isPendingLinkedInPost(post)) return;
+  try {
+    await context.sudo().prisma.post.update({
+      where: { id: post.id },
+      data: { publishedToLinkedInAt: /* @__PURE__ */ new Date() }
+    });
+    const fullPost = await context.sudo().query.Post.findOne({
+      where: { id: post.id },
+      query: `
+        id
+        title
+        url
+        excerpt
+        product
+      `
+    });
+    if (!fullPost) {
+      return;
+    }
+    const postProduct = fullPost.product || PRODUCT.PET;
+    const message = fullPost.excerpt ? `${fullPost.title}
+
+${fullPost.excerpt}` : fullPost.title;
+    for (const product of linkedInProductsFor(postProduct)) {
+      const link = `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`;
+      try {
+        const result = await postToLinkedInPage({
+          product,
+          message,
+          link,
+          title: fullPost.title
+        });
+        if (result) {
+          console.log(
+            `[linkedin] Post publicado en la P\xE1gina de "${product}": ${result.id}`
+          );
+        }
+      } catch (error) {
+        console.error(
+          `[linkedin] Error publicando en la P\xE1gina de "${product}":`,
+          error
+        );
+      }
+    }
+  } catch (error) {
+    console.error("[linkedin] Error al preparar la publicaci\xF3n:", error);
   }
 }
 var postPublishSideEffectsHook = {
@@ -3962,6 +4239,7 @@ var postPublishSideEffectsHook = {
     if (operation === "create" || operation === "update") {
       await notifyNewPostIfDue(item, context);
       await publishPostToFacebookIfDue(item, context);
+      await publishPostToLinkedInIfDue(item, context);
     }
   }
 };
@@ -4039,6 +4317,14 @@ var Post_default = (0, import_core28.list)({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "edit" },
         description: "Se llena solo al publicarse en Facebook. B\xF3rralo para forzar un reintento (ej. despu\xE9s de renovar un token vencido)."
+      }
+    }),
+    /** Cuándo se publicó en la Company Page de LinkedIn. Editable: vaciarlo fuerza un reintento. */
+    publishedToLinkedInAt: (0, import_fields28.timestamp)({
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "edit" },
+        description: "Se llena solo al publicarse en LinkedIn. B\xF3rralo para forzar un reintento (ej. despu\xE9s de renovar un token vencido)."
       }
     }),
     category: (0, import_fields28.relationship)({
@@ -4337,7 +4623,16 @@ var import_core35 = require("@keystone-6/core");
 var import_fields35 = require("@keystone-6/core/fields");
 
 // models/Blog/BlogSubscription/BlogSubscription.hooks.ts
+function normalizeEmail(email) {
+  return (email ?? "").trim().toLowerCase();
+}
 var blogSubscriptionHooks = {
+  resolveInput: async ({ resolvedData }) => {
+    if (typeof resolvedData.email === "string") {
+      resolvedData.email = normalizeEmail(resolvedData.email);
+    }
+    return resolvedData;
+  },
   validateInput: async ({
     operation,
     resolvedData,
@@ -4345,19 +4640,50 @@ var blogSubscriptionHooks = {
     context,
     addValidationError
   }) => {
-    const email = resolvedData.email ?? item?.email;
+    const email = normalizeEmail(resolvedData.email ?? item?.email);
     const product = resolvedData.product ?? item?.product ?? PRODUCT.PET;
     if (!email) return;
     if (operation === "update" && resolvedData.email === void 0 && resolvedData.product === void 0) {
       return;
     }
-    const existing = await context.sudo().db.BlogSubscription.findMany({
-      where: { email: { equals: email }, product: { equals: product } },
-      take: 1
+    const existing = await context.sudo().query.BlogSubscription.findMany({
+      where: {
+        email: { equals: email, mode: "insensitive" },
+        product: { equals: product }
+      },
+      take: 2,
+      query: "id"
     });
-    if (existing.length > 0 && existing[0].id !== item?.id) {
+    const conflict = existing.find((row) => row.id !== item?.id);
+    if (conflict) {
       addValidationError("Este correo ya est\xE1 suscrito al blog.");
     }
+  },
+  /**
+   * Si se pausa una fila, apaga también duplicados del mismo (email, product) con distinto
+   * casing (datos viejos). Usa Prisma directo para no re-disparar este hook en cascada.
+   */
+  afterOperation: async ({
+    operation,
+    item,
+    originalItem,
+    context
+  }) => {
+    if (operation !== "create" && operation !== "update") return;
+    if (!item || item.active !== false) return;
+    if (operation === "update" && originalItem?.active === false) return;
+    const email = normalizeEmail(item.email);
+    const product = item.product ?? PRODUCT.PET;
+    if (!email) return;
+    await context.sudo().prisma.blogSubscription.updateMany({
+      where: {
+        id: { not: item.id },
+        product,
+        active: true,
+        email: { equals: email, mode: "insensitive" }
+      },
+      data: { active: false }
+    });
   }
 };
 
@@ -4365,7 +4691,9 @@ var blogSubscriptionHooks = {
 var BlogSubscription_default = (0, import_core35.list)({
   access: access_default,
   hooks: {
-    validateInput: blogSubscriptionHooks.validateInput
+    resolveInput: blogSubscriptionHooks.resolveInput,
+    validateInput: blogSubscriptionHooks.validateInput,
+    afterOperation: blogSubscriptionHooks.afterOperation
   },
   fields: {
     email: (0, import_fields35.text)({
@@ -20011,9 +20339,10 @@ var resolver26 = {
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
    * Es idempotente: darse de baja dos veces no falla.
+   * Match de email case-insensitive (y apaga duplicados con distinto casing).
    */
   unsubscribeBlog: async (_root, { email, product }, context) => {
-    const normalizedEmail = email.trim();
+    const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
       return { success: false, message: "El correo es obligatorio." };
     }
@@ -20021,11 +20350,12 @@ var resolver26 = {
       return { success: false, message: "Producto no v\xE1lido." };
     }
     try {
-      const subscriptions = await context.sudo().db.BlogSubscription.findMany({
+      const subscriptions = await context.sudo().query.BlogSubscription.findMany({
         where: {
-          email: { equals: normalizedEmail },
+          email: { equals: normalizedEmail, mode: "insensitive" },
           product: { equals: product }
-        }
+        },
+        query: "id active email"
       });
       if (subscriptions.length === 0) {
         return {
@@ -20079,10 +20409,11 @@ var resolver27 = {
    *
    * La visibilidad de un post programado (`publishedAt` a futuro) ya funciona sola —los fronts
    * filtran por fecha en cada lectura, sin cron—. Lo único que este mutation resuelve es que el
-   * correo de "nuevo post" y la publicación en Facebook salgan cerca de la fecha programada
-   * aunque nadie vuelva a abrir el post en el admin. Reusa `notifyNewPostIfDue` y
-   * `publishPostToFacebookIfDue`, las mismas funciones que dispara el hook al crear/editar —
-   * cada una re-chequea su propio flag, así que nunca duplica un envío/post ya hecho.
+   * correo de "nuevo post" y la publicación en Facebook/LinkedIn salgan cerca de la fecha programada
+   * aunque nadie vuelva a abrir el post en el admin. Reusa `notifyNewPostIfDue`,
+   * `publishPostToFacebookIfDue` y `publishPostToLinkedInIfDue`, las mismas funciones que dispara
+   * el hook al crear/editar — cada una re-chequea su propio flag, así que nunca duplica un
+   * envío/post ya hecho.
    */
   publishScheduledPosts: async (_root, { secret }, context) => {
     const expected = process.env.CRON_SECRET?.trim();
@@ -20097,13 +20428,15 @@ var resolver27 = {
           publishedAt: { lte: now },
           OR: [
             { publishedNotifiedAt: { equals: null } },
-            { publishedToFacebookAt: { equals: null } }
+            { publishedToFacebookAt: { equals: null } },
+            { publishedToLinkedInAt: { equals: null } }
           ]
         }
       });
       for (const post of duePosts) {
         await notifyNewPostIfDue(post, context);
         await publishPostToFacebookIfDue(post, context);
+        await publishPostToLinkedInIfDue(post, context);
       }
       return {
         success: true,

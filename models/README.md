@@ -52,6 +52,14 @@ Qué: al publicarse un post (mismo trigger que el correo), también se publica e
 
 Qué no hacer: no volver a marcar estos flags con `context.db`/`context.query` — solo `context.prisma`; no compartir un solo flag entre correo y Facebook (fallos de causas distintas: un token de Meta vencido no debe bloquear el correo).
 
+### 2026-09-29 — Publicar posts en LinkedIn
+
+Qué: mismo contrato que Facebook. Al publicarse un post (hook + cron), también se publica en la Company Page de LinkedIn del producto (`pet`/`saas`; `all` en las dos). `publishedToLinkedInAt` es el flag independiente (editable en Admin UI para reintentar). `publishPostToLinkedInIfDue` en `Post.hooks.ts`; `publishScheduledPosts` lo incluye en el `OR` de pendientes.
+
+`utils/intregrations/linkedin.ts` llama a la REST Posts API (`/rest/posts`) con `content.article` (URL del blog + título). Env: `LINKEDIN_{PET,SAAS}_ORGANIZATION_ID` / `_ACCESS_TOKEN` (+ `LINKEDIN_API_VERSION`). Sin config, solo warnea.
+
+Qué no hacer: no compartir flag con correo/Facebook; no marcar con `context.db`/`context.query`; no publicar animales en LinkedIn por este camino.
+
 ### 2026-09-22 — WhatsApp Business por SaasCompany (BYOK completo, chat de ida y vuelta)
 
 Qué: cada `SaasCompany` conecta su propio WhatsApp Business (Cloud API de Meta) con BYOK **completo** — cada empresa trae su propia App de Meta (no una sola App de Kadesh), porque la firma del webhook (`X-Hub-Signature-256`) se calcula con el App Secret de la App dueña del número. Por eso `SaasCompany` guarda cifrados el access token Y el app secret de cada empresa (`whatsappAccessTokenEncrypted`/`whatsappAppSecretEncrypted`, mismo patrón que `aiApiKeyEncrypted` — campo con `access: {read/create/update: () => false}`, solo tocable vía sudo). `whatsappPhoneNumberId` es único e indexado: es la clave para enrutar el webhook entrante a la empresa correcta.

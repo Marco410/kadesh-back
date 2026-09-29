@@ -93,6 +93,15 @@ export default list({
           "Se llena solo al publicarse en Facebook. Bórralo para forzar un reintento (ej. después de renovar un token vencido).",
       },
     }),
+    /** Cuándo se publicó en la Company Page de LinkedIn. Editable: vaciarlo fuerza un reintento. */
+    publishedToLinkedInAt: timestamp({
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "edit" },
+        description:
+          "Se llena solo al publicarse en LinkedIn. Bórralo para forzar un reintento (ej. después de renovar un token vencido).",
+      },
+    }),
     category: relationship({
       ref: "Category.posts",
       many: false,

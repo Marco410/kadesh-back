@@ -1,6 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { sendNewPostEmail } from "../../../utils/helpers/sendgrid";
 import { postToFacebookPage } from "../../../utils/intregrations/facebook";
+import { postToLinkedInPage } from "../../../utils/intregrations/linkedin";
 import { PRODUCT, type Product } from "../../../utils/constants/product";
 import { POST_CATEGORIES } from "../../../utils/constants/constants";
 
@@ -10,11 +11,13 @@ function subscriberProductsFor(product: Product): string[] {
 }
 
 /** Nombres viejos guardan el valor fijo (ej. "product_updates"). Los nuevos son el texto que se escribió. */
-function categoryLabelFor(categoryName: string | null | undefined): string | null {
+function categoryLabelFor(
+  categoryName: string | null | undefined,
+): string | null {
   if (!categoryName) return null;
   return (
-    POST_CATEGORIES.find((category) => category.value === categoryName)?.label ??
-    categoryName
+    POST_CATEGORIES.find((category) => category.value === categoryName)
+      ?.label ?? categoryName
   );
 }
 
@@ -43,14 +46,18 @@ export const postCategoryProductHook = {
     const categoryInput = resolvedData.category;
 
     // Sin cambios en producto ni categoría no hay nada que validar.
-    if (operation === "update" && resolvedData.product === undefined && categoryInput === undefined) {
+    if (
+      operation === "update" &&
+      resolvedData.product === undefined &&
+      categoryInput === undefined
+    ) {
       return;
     }
 
     const categoryId: string | null | undefined =
       categoryInput === undefined
         ? item?.categoryId
-        : categoryInput?.connect?.id ?? null;
+        : (categoryInput?.connect?.id ?? null);
 
     if (!categoryId || !product || product === PRODUCT.ALL) return;
 
@@ -84,19 +91,20 @@ export const postUrlHook = {
 function sanitizeUrl(title: string): string {
   // Eliminar emojis y caracteres especiales
   // Regex para detectar emojis: https://stackoverflow.com/questions/18862256/detect-emoji-in-string-using-javascript
-  const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  
+  const emojiRegex =
+    /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
+
   let cleaned = title
-    .replace(emojiRegex, '') // Eliminar emojis
-    .normalize('NFD') // Normalizar caracteres con acentos
-    .replace(/[\u0300-\u036f]/g, '') // Eliminar diacríticos
+    .replace(emojiRegex, "") // Eliminar emojis
+    .normalize("NFD") // Normalizar caracteres con acentos
+    .replace(/[\u0300-\u036f]/g, "") // Eliminar diacríticos
     .toLowerCase()
-    .replace(/ñ/g, 'n') // Reemplazar ñ por n
-    .replace(/[^a-z0-9\s-]/g, '') // Eliminar caracteres que no sean letras, números, espacios o guiones
+    .replace(/ñ/g, "n") // Reemplazar ñ por n
+    .replace(/[^a-z0-9\s-]/g, "") // Eliminar caracteres que no sean letras, números, espacios o guiones
     .trim()
-    .replace(/\s+/g, '-') // Reemplazar espacios múltiples con un solo guion
-    .replace(/-+/g, '-') // Reemplazar múltiples guiones con uno solo
-    .replace(/^-+|-+$/g, ''); // Eliminar guiones al inicio y final
+    .replace(/\s+/g, "-") // Reemplazar espacios múltiples con un solo guion
+    .replace(/-+/g, "-") // Reemplazar múltiples guiones con uno solo
+    .replace(/^-+|-+$/g, ""); // Eliminar guiones al inicio y final
 
   return cleaned;
 }
@@ -104,13 +112,13 @@ function sanitizeUrl(title: string): string {
 export async function checkPostUrl(
   title: string,
   currentPostId: string | undefined,
-  context: KeystoneContext
+  context: KeystoneContext,
 ): Promise<string> {
   let baseLink = sanitizeUrl(title);
 
   // Si después de limpiar queda vacío, usar un valor por defecto
   if (!baseLink || baseLink.length === 0) {
-    baseLink = 'post';
+    baseLink = "post";
   }
 
   let uniqueLink: string = baseLink;
@@ -140,10 +148,15 @@ export async function checkPostUrl(
  */
 export const publishedAtHook = {
   resolveInput: async ({ resolvedData, item }: any) => {
-    const isNewlyPublishing = resolvedData.published === true && item?.published !== true;
+    const isNewlyPublishing =
+      resolvedData.published === true && item?.published !== true;
     // El campo `timestamp` del Admin UI manda `null` explícito cuando queda vacío (no omite
     // la llave), así que se trata igual que "no puesto".
-    if (isNewlyPublishing && (resolvedData.publishedAt === undefined || resolvedData.publishedAt === null)) {
+    if (
+      isNewlyPublishing &&
+      (resolvedData.publishedAt === undefined ||
+        resolvedData.publishedAt === null)
+    ) {
       resolvedData.publishedAt = new Date().toISOString();
     }
     return resolvedData;
@@ -151,7 +164,7 @@ export const publishedAtHook = {
 };
 
 /**
- * Ventana de gracia para los efectos secundarios de "post publicado" (correo, Facebook): solo
+ * Ventana de gracia para los efectos secundarios de "post publicado" (correo, Facebook, LinkedIn): solo
  * se disparan si `publishedAt` venció hace menos de esto. Evita que, al agregar un flag nuevo
  * (nace en `null` para todo lo que ya existía), reabrir/editar un post viejo ya publicado —o el
  * cron de `publishScheduledPosts`— dispare un correo/post masivo para contenido de hace meses.
@@ -172,6 +185,7 @@ type NotifiablePost = {
   publishedAt?: string | Date | null;
   publishedNotifiedAt?: string | Date | null;
   publishedToFacebookAt?: string | Date | null;
+  publishedToLinkedInAt?: string | Date | null;
 };
 
 function isPendingNotification(post: NotifiablePost): boolean {
@@ -194,7 +208,7 @@ export async function notifyNewPostIfDue(
     // Se marca antes de intentar el envío para no reintentar (ni duplicar) en el próximo
     // guardado o corrida de cron si el envío falla a medio camino. `context.prisma` (no
     // `context.db`/`context.query`) porque estos sí vuelven a disparar `afterOperation` — con
-    // dos flags independientes (correo y Facebook) eso puede procesar el otro flag con datos
+    // flags independientes (correo, Facebook, LinkedIn) eso puede procesar el otro flag con datos
     // viejos desde el código que sigue más abajo. `context.prisma` no pasa por los hooks.
     await context.sudo().prisma.post.update({
       where: { id: post.id },
@@ -236,16 +250,16 @@ export async function notifyNewPostIfDue(
           in: subscriberProductsFor(postProduct),
         },
       },
-      query: 'email product',
+      query: "email product",
     });
 
     if (subscriptions.length === 0) {
-      console.log('No active subscriptions found. Email not sent.');
+      console.log("No active subscriptions found. Email not sent.");
       return;
     }
 
     const authorName = fullPost.author
-      ? `${fullPost.author.name} ${fullPost.author.lastName || ''}`.trim()
+      ? `${fullPost.author.name} ${fullPost.author.lastName || ""}`.trim()
       : null;
 
     // Un correo por producto: cada uno con su URL de front y su marca.
@@ -254,7 +268,10 @@ export async function notifyNewPostIfDue(
     for (const product of subscriberProductsFor(postProduct)) {
       const seen = new Set<string>();
       const recipientEmails: string[] = [];
-      for (const sub of subscriptions as Array<{ product?: string | null; email?: string | null }>) {
+      for (const sub of subscriptions as Array<{
+        product?: string | null;
+        email?: string | null;
+      }>) {
         if (sub.product !== product) continue;
         const email = sub.email?.trim();
         if (!email) continue;
@@ -275,20 +292,20 @@ export async function notifyNewPostIfDue(
         authorName,
         categoryName: categoryLabelFor(fullPost.category?.name),
         recipientEmails,
-        brand: product === PRODUCT.SAAS ? 'saas' : 'pet',
+        brand: product === PRODUCT.SAAS ? "saas" : "pet",
         unsubscribeBaseUrl: `${frontendUrlFor(product)}/blog/desuscribirse`,
       });
       sent += recipientEmails.length;
     }
 
     if (sent === 0) {
-      console.log('No valid email addresses found. Email not sent.');
+      console.log("No valid email addresses found. Email not sent.");
       return;
     }
 
     console.log(`New post email sent to ${sent} subscribers`);
   } catch (error) {
-    console.error('Error sending new post email:', error);
+    console.error("Error sending new post email:", error);
     // Don't throw error to prevent post creation from failing
   }
 }
@@ -348,21 +365,99 @@ export async function publishPostToFacebookIfDue(
       try {
         const result = await postToFacebookPage({ product, message, link });
         if (result) {
-          console.log(`[facebook] Post publicado en la Página de "${product}": ${result.id}`);
+          console.log(
+            `[facebook] Post publicado en la Página de "${product}": ${result.id}`,
+          );
         }
       } catch (error) {
         // Un fallo en una Página (ej. token vencido) no debe impedir intentar la otra.
-        console.error(`[facebook] Error publicando en la Página de "${product}":`, error);
+        console.error(
+          `[facebook] Error publicando en la Página de "${product}":`,
+          error,
+        );
       }
     }
   } catch (error) {
-    console.error('[facebook] Error al preparar la publicación:', error);
+    console.error("[facebook] Error al preparar la publicación:", error);
     // Don't throw error to prevent post creation from failing
   }
 }
 
+function isPendingLinkedInPost(post: NotifiablePost): boolean {
+  if (post.published !== true || post.publishedToLinkedInAt) return false;
+  return isRecentlyDue(post.publishedAt);
+}
+
+/** A qué Company Page(s) de LinkedIn le toca un post, según su `product`. `all` va a las dos. */
+function linkedInProductsFor(product: Product): Product[] {
+  return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
+}
+
 /**
- * Hook: intenta el correo y la publicación en Facebook cada vez que un post se crea o se edita.
+ * Publica `post` en la(s) Company Page(s) de LinkedIn que le tocan (ver `isPendingLinkedInPost`),
+ * y marca `publishedToLinkedInAt` para no duplicar. Mismo trade-off que correo/Facebook: se marca
+ * antes de intentar; un admin puede vaciar el flag desde el Admin UI para forzar un reintento.
+ */
+export async function publishPostToLinkedInIfDue(
+  post: NotifiablePost,
+  context: KeystoneContext,
+): Promise<void> {
+  if (!isPendingLinkedInPost(post)) return;
+
+  try {
+    await context.sudo().prisma.post.update({
+      where: { id: post.id },
+      data: { publishedToLinkedInAt: new Date() },
+    });
+
+    const fullPost = await context.sudo().query.Post.findOne({
+      where: { id: post.id },
+      query: `
+        id
+        title
+        url
+        excerpt
+        product
+      `,
+    });
+
+    if (!fullPost) {
+      return;
+    }
+
+    const postProduct = (fullPost.product || PRODUCT.PET) as Product;
+    const message = fullPost.excerpt
+      ? `${fullPost.title}\n\n${fullPost.excerpt}`
+      : fullPost.title;
+
+    for (const product of linkedInProductsFor(postProduct)) {
+      const link = `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`;
+      try {
+        const result = await postToLinkedInPage({
+          product,
+          message,
+          link,
+          title: fullPost.title,
+        });
+        if (result) {
+          console.log(
+            `[linkedin] Post publicado en la Página de "${product}": ${result.id}`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          `[linkedin] Error publicando en la Página de "${product}":`,
+          error,
+        );
+      }
+    }
+  } catch (error) {
+    console.error("[linkedin] Error al preparar la publicación:", error);
+  }
+}
+
+/**
+ * Hook: intenta el correo y la publicación en Facebook/LinkedIn cada vez que un post se crea o se edita.
  * Cubre el caso normal (publicar de inmediato) y el caso en que alguien reabre y guarda un post
  * programado después de su fecha. El cron `publishScheduledPosts` cubre el caso en que nadie
  * vuelve a tocarlo.
@@ -377,10 +472,10 @@ export const postPublishSideEffectsHook = {
     item: any;
     context: KeystoneContext;
   }) => {
-    if (operation === 'create' || operation === 'update') {
+    if (operation === "create" || operation === "update") {
       await notifyNewPostIfDue(item, context);
       await publishPostToFacebookIfDue(item, context);
+      await publishPostToLinkedInIfDue(item, context);
     }
   },
 };
-

@@ -2189,6 +2189,7 @@ type Post {
   publishedAt: DateTime
   publishedNotifiedAt: DateTime
   publishedToFacebookAt: DateTime
+  publishedToLinkedInAt: DateTime
   category: Category
   tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
   tagsCount(where: TagWhereInput! = {}): Int
@@ -2227,6 +2228,7 @@ input PostWhereInput {
   publishedAt: DateTimeNullableFilter
   publishedNotifiedAt: DateTimeNullableFilter
   publishedToFacebookAt: DateTimeNullableFilter
+  publishedToLinkedInAt: DateTimeNullableFilter
   category: CategoryWhereInput
   tags: TagManyRelationFilter
   author: UserWhereInput
@@ -2278,6 +2280,7 @@ input PostOrderByInput {
   publishedAt: OrderDirection
   publishedNotifiedAt: OrderDirection
   publishedToFacebookAt: OrderDirection
+  publishedToLinkedInAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2293,6 +2296,7 @@ input PostUpdateInput {
   publishedAt: DateTime
   publishedNotifiedAt: DateTime
   publishedToFacebookAt: DateTime
+  publishedToLinkedInAt: DateTime
   category: CategoryRelateToOneForUpdateInput
   tags: TagRelateToManyForUpdateInput
   author: UserRelateToOneForUpdateInput
@@ -2361,6 +2365,7 @@ input PostCreateInput {
   publishedAt: DateTime
   publishedNotifiedAt: DateTime
   publishedToFacebookAt: DateTime
+  publishedToLinkedInAt: DateTime
   category: CategoryRelateToOneForCreateInput
   tags: TagRelateToManyForCreateInput
   author: UserRelateToOneForCreateInput
