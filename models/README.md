@@ -137,3 +137,9 @@ Hallazgo clave: con la App de Meta en modo Desarrollo, Meta **no entrega mensaje
 Sin verificar contra Meta real: `debug_token` y `/{appId}/subscriptions`. Si fallan, el front cae a "Configuración manual (avanzado)" (URL + Verify Token desde `companyWhatsappWebhookInfo`, nunca hardcodeados). Los conectados a mano siguen funcionando.
 
 Qué no hacer: no escribir el Verify Token en instrucciones/copias del front; no dar por buena la conexión sin probar con una App publicada. Fase B: `docs/whatsapp/embedded-signup.md`.
+
+### 2026-10-01 — Post programado desde ClickUp
+
+Qué: `Post.clickupTaskId` (text, único, opcional, oculto al crear y solo lectura en el item) amarra el post a la tarea. Lo llena `POST /webhooks/clickup` al pasar la tarea a `aprobado`. Sin imagen jpg/png/webp (máx. 8 MB) no se crea el post. Detalle del flujo en `utils/clickup/README.md`.
+
+Requiere `yarn migrate` (columna + índice único). No lo corre el agente.

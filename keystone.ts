@@ -5,6 +5,7 @@ import { withAuth, session } from "./auth/auth";
 import extendGraphqlSchema from "./graphql/extendedSchema";
 import { isPlatformAdmin } from "./utils/access/tenant";
 import registerWhatsAppWebhook from "./webhooks/whatsapp";
+import registerClickUpWebhook from "./webhooks/clickup";
 
 // Setup environment variables
 const path = require("path");
@@ -166,6 +167,7 @@ export default withAuth(
       port: Number(process.env.LOCAL_PORT) || 3001,
       extendExpressApp: (app, context) => {
         registerWhatsAppWebhook(app, context);
+        registerClickUpWebhook(app, context);
       },
     },
     storage,
