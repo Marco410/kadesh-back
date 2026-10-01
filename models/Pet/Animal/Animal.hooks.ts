@@ -3,6 +3,12 @@ import { isPlatformAdmin } from "../../../utils/access/tenant";
 import { PRODUCT } from "../../../utils/constants/product";
 import { postToFacebookPage } from "../../../utils/intregrations/facebook";
 import { sendAdminNewAnimalEmail } from "../../../utils/helpers/sendgrid";
+import {
+  noteAnimalCoverSaved,
+  noteAnimalSlugSettled,
+  setAnimalFacebookPublisher,
+  watchAnimalForFacebook,
+} from "./scheduleAnimalFacebookPost";
 
 const EMOJI_RE =
   /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
@@ -222,6 +228,28 @@ async function publishAnimalToFacebook(animal: {
   }
 }
 
+/** Relee el slug ya definitivo (después del primer log) y publica ese link. */
+export async function publishAnimalToFacebookById(
+  animalId: string,
+  context: KeystoneContext,
+): Promise<void> {
+  const animal = await context.sudo().query.Animal.findOne({
+    where: { id: animalId },
+    query: "id name physical_description slug",
+  });
+  if (!animal?.slug) {
+    console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
+    return;
+  }
+  await publishAnimalToFacebook({
+    name: animal.name ?? null,
+    physical_description: animal.physical_description ?? null,
+    slug: animal.slug,
+  });
+}
+
+setAnimalFacebookPublisher(publishAnimalToFacebookById);
+
 async function notifyAdminsNewAnimal(
   animal: {
     id: string;
@@ -245,7 +273,8 @@ async function notifyAdminsNewAnimal(
 
 /**
  * On create: assign a stable unique slug, then side effects —
- * platform admin → Facebook Pet page; other signed-in users → admin email.
+ * platform admin → Facebook Pet page once the public slug and cover exist;
+ * other signed-in users → admin email.
  * No session (seed/scripts) skips Facebook and email.
  */
 export const animalCreateSideEffectsHook = {
@@ -260,18 +289,18 @@ export const animalCreateSideEffectsHook = {
   }) => {
     if (operation !== "create" || !item?.id) return;
 
-    let slug: string | null = item.slug ?? null;
+    const animalId = String(item.id);
 
     try {
-      if (!slug) {
-        const animal = await context.sudo().query.Animal.findOne({
-          where: { id: item.id },
-          query: "id name animal_type { name }",
-        });
-        if (!animal) return;
-
-        slug = await persistAnimalSlug(
-          item.id,
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: animalId },
+        query: "id name slug animal_type { name }",
+      });
+      if (!animal) return;
+      // Un log anidado ya pudo dejar el slug con status y ciudad. No pisarlo.
+      if (!animal.slug) {
+        await persistAnimalSlug(
+          animalId,
           {
             name: animal.name,
             type: animal.animal_type?.name,
@@ -287,9 +316,9 @@ export const animalCreateSideEffectsHook = {
 
     try {
       const animal = await context.sudo().query.Animal.findOne({
-        where: { id: item.id },
+        where: { id: animalId },
         query:
-          "id name physical_description slug animal_type { name } user { name email }",
+          "id name physical_description slug animal_type { name } user { name email } multimedia { id } logs { id }",
       });
       if (!animal) return;
 
@@ -304,13 +333,22 @@ export const animalCreateSideEffectsHook = {
         id: String(animal.id),
         name: animal.name ?? null,
         physical_description: animal.physical_description ?? null,
-        slug: animal.slug || slug,
+        slug: animal.slug ?? null,
         animal_type: animal.animal_type ?? null,
         user: animal.user ?? null,
       };
 
       if (isPlatformAdmin(context.session)) {
-        await publishAnimalToFacebook(resolved);
+        const hasCover =
+          Array.isArray(animal.multimedia) && animal.multimedia.length > 0;
+        const hasLog = Array.isArray(animal.logs) && animal.logs.length > 0;
+        // Alta anidada (Admin): slug y portada ya están. El formulario público
+        // manda el log y las fotos después; publicar aquí cachea el link viejo.
+        if (hasCover && hasLog && resolved.slug) {
+          await publishAnimalToFacebook(resolved);
+        } else {
+          watchAnimalForFacebook(animalId, context);
+        }
       } else {
         const fromSession = sessionCreator(context.session);
         const creator = {
@@ -364,20 +402,41 @@ export const animalLogSlugAfterOperation = {
         where: { id: animalId },
         query: "id name slug animal_type { name }",
       });
-      if (!animal || animalSlugHasStatus(animal.slug)) return;
+      if (!animal) return;
 
-      await persistAnimalSlug(
-        animalId,
-        {
-          name: animal.name,
-          type: animal.animal_type?.name,
-          status: item.status,
-          city: item.city,
-        },
-        context,
-      );
+      if (!animalSlugHasStatus(animal.slug)) {
+        await persistAnimalSlug(
+          animalId,
+          {
+            name: animal.name,
+            type: animal.animal_type?.name,
+            status: item.status,
+            city: item.city,
+          },
+          context,
+        );
+      }
+      noteAnimalSlugSettled(animalId, context);
     } catch (error) {
       console.error("Error enriching animal slug from log:", error);
     }
+  },
+};
+
+/** La portada ya está en storage. Si el animal espera Facebook, publica con ese slug. */
+export const animalMultimediaFacebookHook = {
+  afterOperation: async ({
+    operation,
+    item,
+    context,
+  }: {
+    operation: string;
+    item: any;
+    context: KeystoneContext;
+  }) => {
+    if (operation !== "create") return;
+    const animalId = item?.animalId ?? item?.animal;
+    if (!animalId || typeof animalId !== "string") return;
+    noteAnimalCoverSaved(animalId, context);
   },
 };
