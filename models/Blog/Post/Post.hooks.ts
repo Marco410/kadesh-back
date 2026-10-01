@@ -19,7 +19,7 @@ function categoryLabelFor(categoryName: string | null | undefined): string | nul
 }
 
 /** URL del front de cada producto. `FRONTEND_URL` se mantiene como fallback de Pet. */
-function frontendUrlFor(product: string): string {
+export function frontendUrlFor(product: string): string {
   if (product === PRODUCT.SAAS) {
     return process.env.SAAS_FRONTEND_URL?.trim() || "https://kadesh.com.mx";
   }

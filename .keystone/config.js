@@ -221,355 +221,71 @@ var POST_CATEGORIES = [
   { label: "Producto", value: "product_updates" }
 ];
 
-// models/Pet/Animal/Animal.hooks.ts
-var EMOJI_RE = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-var UNNAMED_RE = /^(sin-?nombre|n-?a|na|unnamed)?$/;
-var TYPE_SLUG = {
-  dog: "perro",
-  perro: "perro",
-  cat: "gato",
-  gato: "gato",
-  bird: "ave",
-  ave: "ave",
-  fish: "pez",
-  pez: "pez",
-  reptil: "reptil",
-  mammal: "mamifero",
-  mamifero: "mamifero"
-};
-var STATUS_SLUG = {
-  lost: "perdido",
-  found: "encontrado",
-  in_adoption: "adopcion",
-  abandoned: "abandonado",
-  rescued: "rescatado",
-  adopted: "adoptado",
-  in_family: "en-familia"
-};
-var STATUS_SLUG_VALUES = Object.values(STATUS_SLUG);
-function slugify(value) {
-  const cleaned = value.replace(EMOJI_RE, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
-  if (cleaned.length <= 40) return cleaned;
-  return cleaned.slice(0, 40).replace(/-+$/g, "");
-}
-function shortAnimalId(id) {
-  return id.slice(-6).toLowerCase();
-}
-function animalSlugHasStatus(slug) {
-  if (!slug) return false;
-  return STATUS_SLUG_VALUES.some(
-    (status) => slug.includes(`-${status}-`) || slug.startsWith(`${status}-`)
-  );
-}
-function buildAnimalSlug(input) {
-  const nameSlug = slugify(input.name ?? "");
-  const isUnnamed = !nameSlug || UNNAMED_RE.test(nameSlug);
-  const typeKey = (input.type ?? "").toLowerCase();
-  const typeSlug = TYPE_SLUG[typeKey] || slugify(input.type ?? "");
-  const statusKey = (input.status ?? "").toLowerCase();
-  const statusSlug = !statusKey || statusKey === "register" ? "" : STATUS_SLUG[statusKey] || slugify(input.status ?? "");
-  const citySlug = slugify(input.city ?? "");
-  const shortId = shortAnimalId(input.id);
-  const parts = [];
-  if (!isUnnamed) {
-    parts.push(nameSlug);
-    if (!statusSlug && typeSlug) parts.push(typeSlug);
-  } else {
-    parts.push(typeSlug || "animal");
-  }
-  if (statusSlug) parts.push(statusSlug);
-  if (citySlug) parts.push(citySlug);
-  parts.push(shortId);
-  const slug = parts.filter(Boolean).join("-").replace(/-+/g, "-");
-  if (slug === "nuevo") return "animal-nuevo";
-  return slug;
-}
-async function ensureUniqueAnimalSlug(base, animalId, context) {
-  let candidate = base;
-  let counter = 1;
-  while (true) {
-    const existing = await context.sudo().db.Animal.findOne({
-      where: { slug: candidate }
-    });
-    if (!existing || existing.id === animalId) return candidate;
-    counter += 1;
-    candidate = `${base}-${counter}`;
-  }
-}
-async function persistAnimalSlug(animalId, input, context) {
-  const slug = await ensureUniqueAnimalSlug(
-    buildAnimalSlug({ ...input, id: animalId }),
-    animalId,
-    context
-  );
-  await context.sudo().db.Animal.updateOne({
-    where: { id: animalId },
-    data: { slug }
-  });
-  return slug;
-}
-var animalSlugAfterOperation = {
-  afterOperation: async ({
-    operation,
-    item,
-    context
-  }) => {
-    if (operation !== "create" || !item?.id || item.slug) return;
-    try {
-      const animal = await context.sudo().query.Animal.findOne({
-        where: { id: item.id },
-        query: "id name animal_type { name }"
-      });
-      if (!animal) return;
-      await persistAnimalSlug(
-        item.id,
-        {
-          name: animal.name,
-          type: animal.animal_type?.name
-        },
-        context
-      );
-    } catch (error) {
-      console.error("Error generating animal slug:", error);
+// models/Role/constants.ts
+var ROLES = [
+  { label: "Admin", value: "admin" /* ADMIN */ },
+  { label: "User", value: "user" /* USER */ },
+  { label: "Author", value: "author" /* AUTHOR */ },
+  { label: "Admin (Company)", value: "admin_company" /* ADMIN_COMPANY */ },
+  { label: "User (Company)", value: "user_company" /* USER_COMPANY */ },
+  { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
+];
+
+// auth/permissions.ts
+function sessionRoleNames(session2) {
+  const names = [];
+  const roles = session2?.data?.roles;
+  if (Array.isArray(roles)) {
+    for (const r of roles) {
+      if (r && typeof r.name === "string" && r.name) {
+        names.push(r.name);
+      }
     }
   }
-};
-var animalLogSlugAfterOperation = {
-  afterOperation: async ({
-    operation,
-    item,
-    context
-  }) => {
-    if (operation !== "create") return;
-    const animalId = item?.animalId ?? item?.animal;
-    if (!animalId || typeof animalId !== "string") return;
-    try {
-      const logs = await context.sudo().query.AnimalLog.findMany({
-        where: { animal: { id: { equals: animalId } } },
-        query: "id"
-      });
-      if (logs.length !== 1) return;
-      const animal = await context.sudo().query.Animal.findOne({
-        where: { id: animalId },
-        query: "id name slug animal_type { name }"
-      });
-      if (!animal || animalSlugHasStatus(animal.slug)) return;
-      await persistAnimalSlug(
-        animalId,
-        {
-          name: animal.name,
-          type: animal.animal_type?.name,
-          status: item.status,
-          city: item.city
-        },
-        context
-      );
-    } catch (error) {
-      console.error("Error enriching animal slug from log:", error);
-    }
+  const single = session2?.data?.role;
+  if (typeof single === "string" && single) {
+    names.push(single);
   }
+  return names;
+}
+var hasRole = (session2, allowedRoles) => {
+  if (!session2?.data) return false;
+  const allowed = /* @__PURE__ */ new Set([...allowedRoles, "admin" /* ADMIN */]);
+  return sessionRoleNames(session2).some((name) => allowed.has(name));
 };
 
-// models/Pet/Animal/Animal.ts
-var Animal_default = (0, import_core.list)({
-  access: access_default,
-  hooks: animalSlugAfterOperation,
-  ui: {
-    listView: {
-      initialColumns: ["name", "slug", "createdAt"]
-    }
-  },
-  fields: {
-    name: (0, import_fields.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields.text)({
-      isIndexed: "unique",
-      db: { isNullable: true },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" },
-        description: "URL amigable. Se genera sola y no cambia si editas el nombre."
-      }
-    }),
-    physical_description: (0, import_fields.text)(),
-    age: (0, import_fields.text)(),
-    sex: (0, import_fields.select)({
-      options: ANIMAL_SEX_OPTIONS,
-      defaultValue: "male"
-    }),
-    color: (0, import_fields.text)(),
-    size: (0, import_fields.text)(),
-    contactNumber: (0, import_fields.text)(),
-    animal_type: (0, import_fields.relationship)({
-      ref: "AnimalType",
-      many: false
-    }),
-    animal_breed: (0, import_fields.relationship)({
-      ref: "AnimalBreed",
-      many: false
-    }),
-    user: (0, import_fields.relationship)({
-      ref: "User",
-      many: false
-    }),
-    multimedia: (0, import_fields.relationship)({
-      ref: "AnimalMultimedia.animal",
-      many: true
-    }),
-    logs: (0, import_fields.relationship)({
-      ref: "AnimalLog.animal",
-      many: true
-    }),
-    createdAt: (0, import_fields.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
+// utils/access/tenant.ts
+function getSessionUserId(session2) {
+  return session2?.data?.id ?? null;
+}
+function getSessionCompanyId(session2) {
+  return session2?.data?.company?.id ?? null;
+}
+function isSignedIn(session2) {
+  return !!getSessionUserId(session2);
+}
+function isPlatformAdmin(session2) {
+  return hasRole(session2, ["admin" /* ADMIN */]);
+}
+function isCompanyAdmin(session2) {
+  return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
+}
+function resolveAuthorizedCompanyId(session2, requestedCompanyId) {
+  if (!isSignedIn(session2)) return null;
+  if (isPlatformAdmin(session2)) {
+    const requested = requestedCompanyId?.trim();
+    return requested || getSessionCompanyId(session2);
   }
-});
-
-// models/Pet/Animal/AnimalType/AnimalType.ts
-var import_core2 = require("@keystone-6/core");
-var import_fields2 = require("@keystone-6/core/fields");
-var AnimalType_default = (0, import_core2.list)({
-  access: access_default,
-  fields: {
-    name: (0, import_fields2.select)({
-      defaultValue: "dog" /* DOG */,
-      options: ANIMAL_TYPE_OPTIONS,
-      isIndexed: "unique",
-      validation: { isRequired: true }
-    }),
-    animal_breed: (0, import_fields2.relationship)({
-      ref: "AnimalBreed.animal_type",
-      many: true
-    }),
-    order: (0, import_fields2.integer)()
-  },
-  ui: {
-    labelField: "name"
+  const sessionCompanyId = getSessionCompanyId(session2);
+  if (!sessionCompanyId) return null;
+  if (requestedCompanyId && requestedCompanyId !== sessionCompanyId) {
+    return null;
   }
-});
-
-// models/Pet/Animal/AnimalMultimedia/AnimalMultimedia.ts
-var import_core3 = require("@keystone-6/core");
-var import_fields3 = require("@keystone-6/core/fields");
-var AnimalMultimedia_default = (0, import_core3.list)({
-  access: access_default,
-  fields: {
-    image: (0, import_fields3.image)({
-      storage: "s3_animals"
-    }),
-    animal: (0, import_fields3.relationship)({
-      ref: "Animal.multimedia"
-    }),
-    order: (0, import_fields3.integer)({
-      defaultValue: 1,
-      validation: { isRequired: true },
-      ui: {
-        description: "1 es la portada de la ficha. 2, 3\u2026 el resto."
-      }
-    }),
-    createdAt: (0, import_fields3.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/Pet/Animal/AnimalFavorite/AnimalFavorite.ts
-var import_core4 = require("@keystone-6/core");
-var import_fields4 = require("@keystone-6/core/fields");
-var AnimalFavorite_default = (0, import_core4.list)({
-  access: access_default,
-  fields: {
-    animal: (0, import_fields4.relationship)({
-      ref: "Animal",
-      many: false
-    }),
-    user: (0, import_fields4.relationship)({
-      ref: "User",
-      many: false
-    }),
-    createdAt: (0, import_fields4.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/Pet/Animal/AnimalLog/AnimalLog.ts
-var import_core5 = require("@keystone-6/core");
-var import_fields5 = require("@keystone-6/core/fields");
-var AnimalLog_default = (0, import_core5.list)({
-  access: access_default,
-  hooks: animalLogSlugAfterOperation,
-  fields: {
-    animal: (0, import_fields5.relationship)({
-      ref: "Animal.logs"
-    }),
-    status: (0, import_fields5.select)({
-      defaultValue: "Registrado",
-      options: ANIMAL_LOGS_OPTIONS
-    }),
-    // Could be a different date when lost
-    date_status: (0, import_fields5.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    }),
-    notes: (0, import_fields5.text)({
-      ui: { displayMode: "textarea" }
-    }),
-    lat: (0, import_fields5.text)(),
-    lng: (0, import_fields5.text)(),
-    address: (0, import_fields5.text)(),
-    city: (0, import_fields5.text)(),
-    state: (0, import_fields5.text)(),
-    country: (0, import_fields5.text)(),
-    last_seen: (0, import_fields5.checkbox)(),
-    createdAt: (0, import_fields5.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/Pet/Animal/AnimalComment/AnimalComment.ts
-var import_core6 = require("@keystone-6/core");
-var import_fields6 = require("@keystone-6/core/fields");
-var AnimalComment_default = (0, import_core6.list)({
-  access: access_default,
-  fields: {
-    comment: (0, import_fields6.text)({
-      validation: { isRequired: true },
-      ui: { displayMode: "textarea" }
-    }),
-    animal: (0, import_fields6.relationship)({
-      ref: "Animal",
-      many: false
-    }),
-    user: (0, import_fields6.relationship)({
-      ref: "User",
-      many: false
-    }),
-    createdAt: (0, import_fields6.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/User/User.ts
-var import_core7 = require("@keystone-6/core");
-var import_fields7 = require("@keystone-6/core/fields");
+  return sessionCompanyId;
+}
+function denyOtherCompanyMessage() {
+  return "No puedes acceder a datos de otra empresa";
+}
 
 // utils/constants/product.ts
 var PRODUCT = {
@@ -587,6 +303,57 @@ var SINGLE_PRODUCT_OPTIONS = [
   { label: "SaaS", value: PRODUCT.SAAS }
 ];
 
+// utils/intregrations/facebook.ts
+var GRAPH_API_VERSION = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
+function facebookPageEnv(product) {
+  if (product === PRODUCT.SAAS) {
+    return {
+      pageId: process.env.FACEBOOK_SAAS_PAGE_ID?.trim(),
+      accessToken: process.env.FACEBOOK_SAAS_PAGE_ACCESS_TOKEN?.trim()
+    };
+  }
+  return {
+    pageId: process.env.FACEBOOK_PET_PAGE_ID?.trim(),
+    accessToken: process.env.FACEBOOK_PET_PAGE_ACCESS_TOKEN?.trim()
+  };
+}
+async function postToFacebookPage({
+  product,
+  message,
+  link
+}) {
+  const { pageId, accessToken } = facebookPageEnv(product);
+  if (!pageId || !accessToken) {
+    console.warn(
+      `[facebook] P\xE1gina de "${product}" no configurada (FACEBOOK_${product.toUpperCase()}_PAGE_ID / _ACCESS_TOKEN). Post no publicado.`
+    );
+    return void 0;
+  }
+  const body = new URLSearchParams({ message, link, access_token: accessToken });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageId}/feed`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    }
+  );
+  const bodyText = await response.text();
+  let parsed = null;
+  if (bodyText) {
+    try {
+      parsed = JSON.parse(bodyText);
+    } catch {
+      parsed = null;
+    }
+  }
+  if (!response.ok || !parsed?.id) {
+    const detail = parsed?.error?.message || bodyText || `HTTP ${response.status}`;
+    throw new Error(`[facebook] Graph API error (${product}): ${detail}`);
+  }
+  return { id: parsed.id };
+}
+
 // utils/intregrations/smtpMail.ts
 var MAILTRAP_SEND_URL = process.env.MAILTRAP_SEND_URL?.trim() || "https://send.api.mailtrap.io/api/send";
 var PLACEHOLDER_PASS = /* @__PURE__ */ new Set(["<tu_password>", "your_smtp_password", "changeme"]);
@@ -603,8 +370,8 @@ function isPlaceholderToken(token) {
   return PLACEHOLDER_PASS.has(lower) || lower.includes("your_smtp") || lower.includes("<tu_");
 }
 function isSmtpConfigured() {
-  const { apiToken, from } = mailEnv();
-  return Boolean(apiToken && from && !isPlaceholderToken(apiToken));
+  const { apiToken: apiToken2, from } = mailEnv();
+  return Boolean(apiToken2 && from && !isPlaceholderToken(apiToken2));
 }
 function resolveFrom(from, fromName) {
   const address = from?.trim() || mailEnv().from;
@@ -615,14 +382,14 @@ function resolveFrom(from, fromName) {
   return { email: address, name: name || void 0 };
 }
 async function sendViaMailtrapApi(payload) {
-  const { apiToken } = mailEnv();
-  if (!apiToken) {
+  const { apiToken: apiToken2 } = mailEnv();
+  if (!apiToken2) {
     throw new Error("[mail] MAILTRAP_API_TOKEN o SMTP_PASS es obligatorio");
   }
   const response = await fetch(MAILTRAP_SEND_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiToken}`,
+      Authorization: `Bearer ${apiToken2}`,
       "Content-Type": "application/json",
       Accept: "application/json"
     },
@@ -973,6 +740,55 @@ async function sendAdminPetPlaceServiceRequestEmail({
     fromName: brandName
   });
 }
+async function sendAdminNewAnimalEmail({
+  animalId,
+  animalName,
+  animalType,
+  slug,
+  publicUrl,
+  creatorName,
+  creatorEmail
+}) {
+  const recipients = parseAdminNotificationEmails();
+  if (recipients.length === 0) {
+    console.warn(
+      "SMTP_ADMIN_NOTIFICATION_EMAILS no configurado. No se env\xEDa aviso de animal nuevo."
+    );
+    return;
+  }
+  const brand = "pet";
+  const { name: brandName } = EMAIL_BRANDS[brand];
+  const rows = [
+    ["Nombre", escapeHtml(animalName)],
+    ["Tipo", escapeHtml(animalType || "(sin tipo)")],
+    ["Slug", escapeHtml(slug || "(pendiente)")],
+    ["ID", escapeHtml(animalId)],
+    ["Creado por", escapeHtml(creatorName)],
+    ["Correo", escapeHtml(creatorEmail || "(sin correo)")]
+  ];
+  const html = renderEmailLayout({
+    brand,
+    preheader: `${creatorName} registr\xF3 el animal "${animalName}".`,
+    eyebrow: "Nuevo registro",
+    title: "Alguien agreg\xF3 un animal",
+    bodyHtml: `
+      ${emailParagraph(
+      `<strong>${escapeHtml(creatorName)}</strong> registr\xF3 un animal nuevo en Kadesh Pet.`
+    )}
+      ${emailInfoTable(rows)}
+      ${publicUrl ? emailButton(brand, "Ver en la app", publicUrl) : emailCallout(
+      brand,
+      "Rev\xEDsalo en Keystone \u2192 <strong>Animal</strong>."
+    )}`,
+    footerNote: "Mensaje autom\xE1tico. No respondas a este correo."
+  });
+  await sendEmail({
+    to: recipients,
+    subject: `[${brandName}] Nuevo animal: ${animalName}`,
+    html,
+    fromName: brandName
+  });
+}
 async function sendNewPostEmail({
   postTitle,
   postUrl,
@@ -1152,75 +968,438 @@ async function sendPetPlaceAppointmentEmail({
   });
 }
 
-// models/Role/constants.ts
-var ROLES = [
-  { label: "Admin", value: "admin" /* ADMIN */ },
-  { label: "User", value: "user" /* USER */ },
-  { label: "Author", value: "author" /* AUTHOR */ },
-  { label: "Admin (Company)", value: "admin_company" /* ADMIN_COMPANY */ },
-  { label: "User (Company)", value: "user_company" /* USER_COMPANY */ },
-  { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
-];
+// models/Pet/Animal/Animal.hooks.ts
+var EMOJI_RE = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
+var UNNAMED_RE = /^(sin-?nombre|n-?a|na|unnamed)?$/;
+var TYPE_SLUG = {
+  dog: "perro",
+  perro: "perro",
+  cat: "gato",
+  gato: "gato",
+  bird: "ave",
+  ave: "ave",
+  fish: "pez",
+  pez: "pez",
+  reptil: "reptil",
+  mammal: "mamifero",
+  mamifero: "mamifero"
+};
+var STATUS_SLUG = {
+  lost: "perdido",
+  found: "encontrado",
+  in_adoption: "adopcion",
+  abandoned: "abandonado",
+  rescued: "rescatado",
+  adopted: "adoptado",
+  in_family: "en-familia"
+};
+var STATUS_SLUG_VALUES = Object.values(STATUS_SLUG);
+function slugify(value) {
+  const cleaned = value.replace(EMOJI_RE, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  if (cleaned.length <= 40) return cleaned;
+  return cleaned.slice(0, 40).replace(/-+$/g, "");
+}
+function shortAnimalId(id) {
+  return id.slice(-6).toLowerCase();
+}
+function animalSlugHasStatus(slug) {
+  if (!slug) return false;
+  return STATUS_SLUG_VALUES.some(
+    (status) => slug.includes(`-${status}-`) || slug.startsWith(`${status}-`)
+  );
+}
+function buildAnimalSlug(input) {
+  const nameSlug = slugify(input.name ?? "");
+  const isUnnamed = !nameSlug || UNNAMED_RE.test(nameSlug);
+  const typeKey = (input.type ?? "").toLowerCase();
+  const typeSlug = TYPE_SLUG[typeKey] || slugify(input.type ?? "");
+  const statusKey = (input.status ?? "").toLowerCase();
+  const statusSlug = !statusKey || statusKey === "register" ? "" : STATUS_SLUG[statusKey] || slugify(input.status ?? "");
+  const citySlug = slugify(input.city ?? "");
+  const shortId = shortAnimalId(input.id);
+  const parts = [];
+  if (!isUnnamed) {
+    parts.push(nameSlug);
+    if (!statusSlug && typeSlug) parts.push(typeSlug);
+  } else {
+    parts.push(typeSlug || "animal");
+  }
+  if (statusSlug) parts.push(statusSlug);
+  if (citySlug) parts.push(citySlug);
+  parts.push(shortId);
+  const slug = parts.filter(Boolean).join("-").replace(/-+/g, "-");
+  if (slug === "nuevo") return "animal-nuevo";
+  return slug;
+}
+async function ensureUniqueAnimalSlug(base, animalId, context) {
+  let candidate = base;
+  let counter = 1;
+  while (true) {
+    const existing = await context.sudo().db.Animal.findOne({
+      where: { slug: candidate }
+    });
+    if (!existing || existing.id === animalId) return candidate;
+    counter += 1;
+    candidate = `${base}-${counter}`;
+  }
+}
+async function persistAnimalSlug(animalId, input, context) {
+  const slug = await ensureUniqueAnimalSlug(
+    buildAnimalSlug({ ...input, id: animalId }),
+    animalId,
+    context
+  );
+  await context.sudo().db.Animal.updateOne({
+    where: { id: animalId },
+    data: { slug }
+  });
+  return slug;
+}
+function petFrontendBaseUrl() {
+  return (process.env.PET_FRONTEND_URL?.trim() || process.env.FRONTEND_URL?.trim() || "https://pet.kadesh.com.mx").replace(/\/$/, "");
+}
+function animalPublicUrl(slug) {
+  return `${petFrontendBaseUrl()}/animales/${slug}`;
+}
+function sessionCreator(session2) {
+  const data = session2?.data;
+  const name = [data?.name, data?.lastName].filter(Boolean).join(" ").trim();
+  return {
+    name: name || "Usuario",
+    email: data?.email?.trim() || ""
+  };
+}
+async function publishAnimalToFacebook(animal) {
+  if (!animal.slug) {
+    console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
+    return;
+  }
+  const message = animal.physical_description ? `${animal.name}
+
+${animal.physical_description}` : animal.name || "Nuevo animal en Kadesh";
+  const result = await postToFacebookPage({
+    product: PRODUCT.PET,
+    message,
+    link: animalPublicUrl(animal.slug)
+  });
+  if (result?.id) {
+    console.log(
+      `[facebook] Animal publicado en la P\xE1gina de Pet: ${result.id}`
+    );
+  }
+}
+async function notifyAdminsNewAnimal(animal, creator) {
+  const slug = animal.slug || void 0;
+  await sendAdminNewAnimalEmail({
+    animalId: animal.id,
+    animalName: animal.name || "(sin nombre)",
+    animalType: animal.animal_type?.name || void 0,
+    slug,
+    publicUrl: slug ? animalPublicUrl(slug) : void 0,
+    creatorName: creator.name,
+    creatorEmail: creator.email
+  });
+}
+var animalCreateSideEffectsHook = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation !== "create" || !item?.id) return;
+    let slug = item.slug ?? null;
+    try {
+      if (!slug) {
+        const animal = await context.sudo().query.Animal.findOne({
+          where: { id: item.id },
+          query: "id name animal_type { name }"
+        });
+        if (!animal) return;
+        slug = await persistAnimalSlug(
+          item.id,
+          {
+            name: animal.name,
+            type: animal.animal_type?.name
+          },
+          context
+        );
+      }
+    } catch (error) {
+      console.error("Error generating animal slug:", error);
+    }
+    if (!context.session?.data) return;
+    try {
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: item.id },
+        query: "id name physical_description slug animal_type { name } user { name email }"
+      });
+      if (!animal) return;
+      const resolved = {
+        id: String(animal.id),
+        name: animal.name ?? null,
+        physical_description: animal.physical_description ?? null,
+        slug: animal.slug || slug,
+        animal_type: animal.animal_type ?? null,
+        user: animal.user ?? null
+      };
+      if (isPlatformAdmin(context.session)) {
+        await publishAnimalToFacebook(resolved);
+      } else {
+        const fromSession = sessionCreator(context.session);
+        const creator = {
+          name: fromSession.name !== "Usuario" ? fromSession.name : resolved.user?.name?.trim() || "Usuario",
+          email: fromSession.email || resolved.user?.email?.trim() || ""
+        };
+        await notifyAdminsNewAnimal(resolved, creator);
+      }
+    } catch (error) {
+      console.error(
+        "[animal] Error en side effect de create (Facebook/correo):",
+        error
+      );
+    }
+  }
+};
+var animalLogSlugAfterOperation = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation !== "create") return;
+    const animalId = item?.animalId ?? item?.animal;
+    if (!animalId || typeof animalId !== "string") return;
+    try {
+      const logs = await context.sudo().query.AnimalLog.findMany({
+        where: { animal: { id: { equals: animalId } } },
+        query: "id"
+      });
+      if (logs.length !== 1) return;
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: animalId },
+        query: "id name slug animal_type { name }"
+      });
+      if (!animal || animalSlugHasStatus(animal.slug)) return;
+      await persistAnimalSlug(
+        animalId,
+        {
+          name: animal.name,
+          type: animal.animal_type?.name,
+          status: item.status,
+          city: item.city
+        },
+        context
+      );
+    } catch (error) {
+      console.error("Error enriching animal slug from log:", error);
+    }
+  }
+};
+
+// models/Pet/Animal/Animal.ts
+var Animal_default = (0, import_core.list)({
+  access: access_default,
+  hooks: animalCreateSideEffectsHook,
+  ui: {
+    listView: {
+      initialColumns: ["name", "slug", "createdAt"]
+    }
+  },
+  fields: {
+    name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "URL amigable. Se genera sola y no cambia si editas el nombre."
+      }
+    }),
+    physical_description: (0, import_fields.text)(),
+    age: (0, import_fields.text)(),
+    sex: (0, import_fields.select)({
+      options: ANIMAL_SEX_OPTIONS,
+      defaultValue: "male"
+    }),
+    color: (0, import_fields.text)(),
+    size: (0, import_fields.text)(),
+    contactNumber: (0, import_fields.text)(),
+    animal_type: (0, import_fields.relationship)({
+      ref: "AnimalType",
+      many: false
+    }),
+    animal_breed: (0, import_fields.relationship)({
+      ref: "AnimalBreed",
+      many: false
+    }),
+    user: (0, import_fields.relationship)({
+      ref: "User",
+      many: false
+    }),
+    multimedia: (0, import_fields.relationship)({
+      ref: "AnimalMultimedia.animal",
+      many: true
+    }),
+    logs: (0, import_fields.relationship)({
+      ref: "AnimalLog.animal",
+      many: true
+    }),
+    createdAt: (0, import_fields.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalType/AnimalType.ts
+var import_core2 = require("@keystone-6/core");
+var import_fields2 = require("@keystone-6/core/fields");
+var AnimalType_default = (0, import_core2.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields2.select)({
+      defaultValue: "dog" /* DOG */,
+      options: ANIMAL_TYPE_OPTIONS,
+      isIndexed: "unique",
+      validation: { isRequired: true }
+    }),
+    animal_breed: (0, import_fields2.relationship)({
+      ref: "AnimalBreed.animal_type",
+      many: true
+    }),
+    order: (0, import_fields2.integer)()
+  },
+  ui: {
+    labelField: "name"
+  }
+});
+
+// models/Pet/Animal/AnimalMultimedia/AnimalMultimedia.ts
+var import_core3 = require("@keystone-6/core");
+var import_fields3 = require("@keystone-6/core/fields");
+var AnimalMultimedia_default = (0, import_core3.list)({
+  access: access_default,
+  fields: {
+    image: (0, import_fields3.image)({
+      storage: "s3_animals"
+    }),
+    animal: (0, import_fields3.relationship)({
+      ref: "Animal.multimedia"
+    }),
+    order: (0, import_fields3.integer)({
+      defaultValue: 1,
+      validation: { isRequired: true },
+      ui: {
+        description: "1 es la portada de la ficha. 2, 3\u2026 el resto."
+      }
+    }),
+    createdAt: (0, import_fields3.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalFavorite/AnimalFavorite.ts
+var import_core4 = require("@keystone-6/core");
+var import_fields4 = require("@keystone-6/core/fields");
+var AnimalFavorite_default = (0, import_core4.list)({
+  access: access_default,
+  fields: {
+    animal: (0, import_fields4.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    user: (0, import_fields4.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields4.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalLog/AnimalLog.ts
+var import_core5 = require("@keystone-6/core");
+var import_fields5 = require("@keystone-6/core/fields");
+var AnimalLog_default = (0, import_core5.list)({
+  access: access_default,
+  hooks: animalLogSlugAfterOperation,
+  fields: {
+    animal: (0, import_fields5.relationship)({
+      ref: "Animal.logs"
+    }),
+    status: (0, import_fields5.select)({
+      defaultValue: "Registrado",
+      options: ANIMAL_LOGS_OPTIONS
+    }),
+    // Could be a different date when lost
+    date_status: (0, import_fields5.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    }),
+    notes: (0, import_fields5.text)({
+      ui: { displayMode: "textarea" }
+    }),
+    lat: (0, import_fields5.text)(),
+    lng: (0, import_fields5.text)(),
+    address: (0, import_fields5.text)(),
+    city: (0, import_fields5.text)(),
+    state: (0, import_fields5.text)(),
+    country: (0, import_fields5.text)(),
+    last_seen: (0, import_fields5.checkbox)(),
+    createdAt: (0, import_fields5.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalComment/AnimalComment.ts
+var import_core6 = require("@keystone-6/core");
+var import_fields6 = require("@keystone-6/core/fields");
+var AnimalComment_default = (0, import_core6.list)({
+  access: access_default,
+  fields: {
+    comment: (0, import_fields6.text)({
+      validation: { isRequired: true },
+      ui: { displayMode: "textarea" }
+    }),
+    animal: (0, import_fields6.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    user: (0, import_fields6.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields6.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/User/User.ts
+var import_core7 = require("@keystone-6/core");
+var import_fields7 = require("@keystone-6/core/fields");
 
 // utils/intregrations/stripe.ts
 var Stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 var stripe_default = Stripe;
-
-// auth/permissions.ts
-function sessionRoleNames(session2) {
-  const names = [];
-  const roles = session2?.data?.roles;
-  if (Array.isArray(roles)) {
-    for (const r of roles) {
-      if (r && typeof r.name === "string" && r.name) {
-        names.push(r.name);
-      }
-    }
-  }
-  const single = session2?.data?.role;
-  if (typeof single === "string" && single) {
-    names.push(single);
-  }
-  return names;
-}
-var hasRole = (session2, allowedRoles) => {
-  if (!session2?.data) return false;
-  const allowed = /* @__PURE__ */ new Set([...allowedRoles, "admin" /* ADMIN */]);
-  return sessionRoleNames(session2).some((name) => allowed.has(name));
-};
-
-// utils/access/tenant.ts
-function getSessionUserId(session2) {
-  return session2?.data?.id ?? null;
-}
-function getSessionCompanyId(session2) {
-  return session2?.data?.company?.id ?? null;
-}
-function isSignedIn(session2) {
-  return !!getSessionUserId(session2);
-}
-function isPlatformAdmin(session2) {
-  return hasRole(session2, ["admin" /* ADMIN */]);
-}
-function isCompanyAdmin(session2) {
-  return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
-}
-function resolveAuthorizedCompanyId(session2, requestedCompanyId) {
-  if (!isSignedIn(session2)) return null;
-  if (isPlatformAdmin(session2)) {
-    const requested = requestedCompanyId?.trim();
-    return requested || getSessionCompanyId(session2);
-  }
-  const sessionCompanyId = getSessionCompanyId(session2);
-  if (!sessionCompanyId) return null;
-  if (requestedCompanyId && requestedCompanyId !== sessionCompanyId) {
-    return null;
-  }
-  return sessionCompanyId;
-}
-function denyOtherCompanyMessage() {
-  return "No puedes acceder a datos de otra empresa";
-}
 
 // models/User/User.hooks.ts
 var USER_BANK_NOTIFICATION_FIELDS = ["bank", "clabe", "cardNumber"];
@@ -1470,23 +1649,29 @@ var userBlogSubscriptionHook = {
       try {
         const sudo = context.sudo();
         const product = item.product === PRODUCT.SAAS ? PRODUCT.SAAS : PRODUCT.PET;
-        const [existingSubscription] = await sudo.db.BlogSubscription.findMany({
-          where: { email: { equals: item.email }, product: { equals: product } },
-          take: 1
+        const email = String(item.email).trim().toLowerCase();
+        const [existingSubscription] = await sudo.query.BlogSubscription.findMany({
+          where: {
+            email: { equals: email, mode: "insensitive" },
+            product: { equals: product }
+          },
+          take: 1,
+          query: "id user { id }"
         });
         if (!existingSubscription) {
           await sudo.db.BlogSubscription.createOne({
             data: {
-              email: item.email,
+              email,
               product,
               user: { connect: { id: item.id } },
               active: true
             }
           });
-        } else if (!existingSubscription.userId) {
+        } else if (!existingSubscription.user?.id) {
           await sudo.db.BlogSubscription.updateOne({
             where: { id: existingSubscription.id },
             data: {
+              email,
               user: { connect: { id: item.id } }
             }
           });
@@ -3688,57 +3873,6 @@ var Ad_default = (0, import_core27.list)({
 var import_core28 = require("@keystone-6/core");
 var import_fields28 = require("@keystone-6/core/fields");
 
-// utils/intregrations/facebook.ts
-var GRAPH_API_VERSION = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
-function facebookPageEnv(product) {
-  if (product === PRODUCT.SAAS) {
-    return {
-      pageId: process.env.FACEBOOK_SAAS_PAGE_ID?.trim(),
-      accessToken: process.env.FACEBOOK_SAAS_PAGE_ACCESS_TOKEN?.trim()
-    };
-  }
-  return {
-    pageId: process.env.FACEBOOK_PET_PAGE_ID?.trim(),
-    accessToken: process.env.FACEBOOK_PET_PAGE_ACCESS_TOKEN?.trim()
-  };
-}
-async function postToFacebookPage({
-  product,
-  message,
-  link
-}) {
-  const { pageId, accessToken } = facebookPageEnv(product);
-  if (!pageId || !accessToken) {
-    console.warn(
-      `[facebook] P\xE1gina de "${product}" no configurada (FACEBOOK_${product.toUpperCase()}_PAGE_ID / _ACCESS_TOKEN). Post no publicado.`
-    );
-    return void 0;
-  }
-  const body = new URLSearchParams({ message, link, access_token: accessToken });
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageId}/feed`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
-    }
-  );
-  const bodyText = await response.text();
-  let parsed = null;
-  if (bodyText) {
-    try {
-      parsed = JSON.parse(bodyText);
-    } catch {
-      parsed = null;
-    }
-  }
-  if (!response.ok || !parsed?.id) {
-    const detail = parsed?.error?.message || bodyText || `HTTP ${response.status}`;
-    throw new Error(`[facebook] Graph API error (${product}): ${detail}`);
-  }
-  return { id: parsed.id };
-}
-
 // models/Blog/Post/Post.hooks.ts
 function subscriberProductsFor(product) {
   return product === PRODUCT.ALL ? [PRODUCT.PET, PRODUCT.SAAS] : [product];
@@ -3882,7 +4016,17 @@ async function notifyNewPostIfDue(post, context) {
     const authorName = fullPost.author ? `${fullPost.author.name} ${fullPost.author.lastName || ""}`.trim() : null;
     let sent = 0;
     for (const product of subscriberProductsFor(postProduct)) {
-      const recipientEmails = subscriptions.filter((sub) => sub.product === product).map((sub) => sub.email).filter((email) => email && email.trim() !== "");
+      const seen = /* @__PURE__ */ new Set();
+      const recipientEmails = [];
+      for (const sub of subscriptions) {
+        if (sub.product !== product) continue;
+        const email = sub.email?.trim();
+        if (!email) continue;
+        const key = email.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        recipientEmails.push(email.toLowerCase());
+      }
       if (recipientEmails.length === 0) {
         continue;
       }
@@ -4039,6 +4183,19 @@ var Post_default = (0, import_core28.list)({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "edit" },
         description: "Se llena solo al publicarse en Facebook. B\xF3rralo para forzar un reintento (ej. despu\xE9s de renovar un token vencido)."
+      }
+    }),
+    /**
+     * Tarea de ClickUp que originó el post. Único para no duplicar si el webhook reintenta.
+     * Vacío cuando el post se creó en el Admin.
+     */
+    clickupTaskId: (0, import_fields28.text)({
+      db: { isNullable: true },
+      isIndexed: "unique",
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Id de la tarea de ClickUp. Lo llena el webhook al aprobar una publicaci\xF3n."
       }
     }),
     category: (0, import_fields28.relationship)({
@@ -4337,7 +4494,16 @@ var import_core35 = require("@keystone-6/core");
 var import_fields35 = require("@keystone-6/core/fields");
 
 // models/Blog/BlogSubscription/BlogSubscription.hooks.ts
+function normalizeEmail(email) {
+  return (email ?? "").trim().toLowerCase();
+}
 var blogSubscriptionHooks = {
+  resolveInput: async ({ resolvedData }) => {
+    if (typeof resolvedData.email === "string") {
+      resolvedData.email = normalizeEmail(resolvedData.email);
+    }
+    return resolvedData;
+  },
   validateInput: async ({
     operation,
     resolvedData,
@@ -4345,19 +4511,50 @@ var blogSubscriptionHooks = {
     context,
     addValidationError
   }) => {
-    const email = resolvedData.email ?? item?.email;
+    const email = normalizeEmail(resolvedData.email ?? item?.email);
     const product = resolvedData.product ?? item?.product ?? PRODUCT.PET;
     if (!email) return;
     if (operation === "update" && resolvedData.email === void 0 && resolvedData.product === void 0) {
       return;
     }
-    const existing = await context.sudo().db.BlogSubscription.findMany({
-      where: { email: { equals: email }, product: { equals: product } },
-      take: 1
+    const existing = await context.sudo().query.BlogSubscription.findMany({
+      where: {
+        email: { equals: email, mode: "insensitive" },
+        product: { equals: product }
+      },
+      take: 2,
+      query: "id"
     });
-    if (existing.length > 0 && existing[0].id !== item?.id) {
+    const conflict = existing.find((row) => row.id !== item?.id);
+    if (conflict) {
       addValidationError("Este correo ya est\xE1 suscrito al blog.");
     }
+  },
+  /**
+   * Si se pausa una fila, apaga también duplicados del mismo (email, product) con distinto
+   * casing (datos viejos). Usa Prisma directo para no re-disparar este hook en cascada.
+   */
+  afterOperation: async ({
+    operation,
+    item,
+    originalItem,
+    context
+  }) => {
+    if (operation !== "create" && operation !== "update") return;
+    if (!item || item.active !== false) return;
+    if (operation === "update" && originalItem?.active === false) return;
+    const email = normalizeEmail(item.email);
+    const product = item.product ?? PRODUCT.PET;
+    if (!email) return;
+    await context.sudo().prisma.blogSubscription.updateMany({
+      where: {
+        id: { not: item.id },
+        product,
+        active: true,
+        email: { equals: email, mode: "insensitive" }
+      },
+      data: { active: false }
+    });
   }
 };
 
@@ -4365,7 +4562,9 @@ var blogSubscriptionHooks = {
 var BlogSubscription_default = (0, import_core35.list)({
   access: access_default,
   hooks: {
-    validateInput: blogSubscriptionHooks.validateInput
+    resolveInput: blogSubscriptionHooks.resolveInput,
+    validateInput: blogSubscriptionHooks.validateInput,
+    afterOperation: blogSubscriptionHooks.afterOperation
   },
   fields: {
     email: (0, import_fields35.text)({
@@ -10340,8 +10539,8 @@ function decrypt(payload) {
   ]);
   return decrypted.toString("utf8");
 }
-function maskApiKey(apiKey) {
-  const trimmed = apiKey.trim();
+function maskApiKey(apiKey2) {
+  const trimmed = apiKey2.trim();
   if (trimmed.length <= 8) return "\u2022\u2022\u2022\u2022";
   return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
 }
@@ -11644,9 +11843,9 @@ var typeDefs4 = `
 var definition4 = `
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
 `;
-async function getPlaceDetails(placeId, apiKey) {
+async function getPlaceDetails(placeId, apiKey2) {
   const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry";
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey2}&language=es`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.status !== "OK" || !data.result) return null;
@@ -11702,8 +11901,8 @@ var resolver4 = {
         businessLeadId: null
       };
     }
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
+    const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey2) {
       return {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
@@ -11751,7 +11950,7 @@ var resolver4 = {
         businessLeadId: existing.id
       };
     }
-    const place = await getPlaceDetails(input.placeId, apiKey);
+    const place = await getPlaceDetails(input.placeId, apiKey2);
     if (!place) {
       return {
         success: false,
@@ -11861,8 +12060,8 @@ var resolver5 = {
 };
 async function importVeterinaries(city, type, context) {
   try {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
+    const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey2) {
       throw new Error("GOOGLE_MAPS_API_KEY no est\xE1 configurada en las variables de entorno");
     }
     const typeLabels = {
@@ -11875,7 +12074,7 @@ async function importVeterinaries(city, type, context) {
     };
     const searchTerm = typeLabels[type] || "lugares para mascotas";
     const query = encodeURIComponent(`${searchTerm} en ${city}`);
-    const baseUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?key=${apiKey}`;
+    const baseUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?key=${apiKey2}`;
     let url = `${baseUrl}&query=${query}`;
     let importedCount = 0;
     let errors = [];
@@ -11961,7 +12160,7 @@ async function importVeterinaries(city, type, context) {
                 }
               });
               if (placeId) {
-                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number&key=${apiKey}&language=es`;
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number&key=${apiKey2}&language=es`;
                 try {
                   const detailsResponse = await fetch(detailsUrl);
                   if (!detailsResponse.ok) {
@@ -12533,9 +12732,9 @@ async function getRemainingCredits(context, companyId) {
 }
 
 // utils/helpers/tech/place_details.ts
-async function getPlaceDetails2(placeId, apiKey) {
+async function getPlaceDetails2(placeId, apiKey2) {
   const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry,reviews";
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey2}&language=es`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.status !== "OK" || !data.result) return null;
@@ -12835,8 +13034,8 @@ var resolver6 = {
       await logSyncLeadsResult(context, userId, company.id, input, result);
       return result;
     }
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
+    const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey2) {
       if (syncedThisRequest > 0) {
         const result2 = {
           success: true,
@@ -12872,7 +13071,7 @@ var resolver6 = {
       radiusMeters,
       category,
       keyword,
-      hasApiKey: !!apiKey,
+      hasApiKey: !!apiKey2,
       assignedFromDb,
       syncedThisRequest,
       maxResults
@@ -12920,7 +13119,7 @@ var resolver6 = {
         if (pageToken) {
           await new Promise((r) => setTimeout(r, PAGE_TOKEN_DELAY_MS));
         }
-        const url = pageToken ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${apiKey}` : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
+        const url = pageToken ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${apiKey2}` : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey2}&language=es`;
         const urlForLog = url.replace(/key=[^&]+/, "key=REDACTED");
         console.log("[syncLeadsFront] GOOGLE page fetch", {
           page: page + 1,
@@ -13025,7 +13224,7 @@ var resolver6 = {
           placeRating,
           userRatingsTotal
         });
-        const details = await getPlaceDetails2(placeId, apiKey);
+        const details = await getPlaceDetails2(placeId, apiKey2);
         if (!details) {
           console.warn("[syncLeadsFront] getPlaceDetails returned null", {
             placeId
@@ -13159,9 +13358,9 @@ var definition7 = `
 `;
 var PROMPT_PREFIX2 = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
 var MIN_POSITIVE_REVIEW_RATING2 = 4;
-async function getPlaceDetails3(placeId, apiKey) {
+async function getPlaceDetails3(placeId, apiKey2) {
   const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry,reviews";
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey2}&language=es`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.status !== "OK" || !data.result) return null;
@@ -13214,8 +13413,8 @@ var resolver7 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
+    const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey2) {
       return {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
@@ -13241,9 +13440,9 @@ var resolver7 = {
     const verifiedSellerIds = await getVerifiedSalesPersonIds2(context);
     try {
       do {
-        let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
+        let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey2}&language=es`;
         if (nextPageToken) {
-          url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${encodeURIComponent(nextPageToken)}&key=${apiKey}`;
+          url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${encodeURIComponent(nextPageToken)}&key=${apiKey2}`;
           await new Promise((r) => setTimeout(r, 2e3));
         }
         const res = await fetch(url);
@@ -13275,7 +13474,7 @@ var resolver7 = {
             skippedLowRating++;
             continue;
           }
-          const details = await getPlaceDetails3(placeId, apiKey);
+          const details = await getPlaceDetails3(placeId, apiKey2);
           if (!details) continue;
           const { city: parsedCity, state, country } = parseAddressComponents3(
             details.address_components || []
@@ -15315,9 +15514,9 @@ function buildSystemPrompt(company, featurePrompt) {
   ].join("\n");
 }
 function resolvePlatformProvider() {
-  const apiKey = process.env.PLATFORM_AI_API_KEY?.trim() ?? "";
+  const apiKey2 = process.env.PLATFORM_AI_API_KEY?.trim() ?? "";
   const providerRaw = (process.env.PLATFORM_AI_PROVIDER?.trim() || AI_PROVIDER.ANTHROPIC).toLowerCase();
-  if (!apiKey) {
+  if (!apiKey2) {
     throw new AiPlatformNotConfiguredError();
   }
   if (!isAiProviderKey(providerRaw)) {
@@ -15326,7 +15525,7 @@ function resolvePlatformProvider() {
     );
   }
   const model = process.env.PLATFORM_AI_MODEL?.trim() || void 0;
-  return { provider: providerRaw, apiKey, model };
+  return { provider: providerRaw, apiKey: apiKey2, model };
 }
 async function callCompanyAi(params) {
   const startedAt = Date.now();
@@ -15359,14 +15558,14 @@ async function callCompanyAi(params) {
   const userPrompt = toGuardedUserPrompt(params.userPrompt);
   const shouldBill = billingMode === AI_BILLING_MODE.MANAGED && params.bill !== false;
   let provider;
-  let apiKey;
+  let apiKey2;
   let modelOverride;
   let model = "";
   try {
     if (billingMode === AI_BILLING_MODE.MANAGED) {
       const platform = resolvePlatformProvider();
       provider = platform.provider;
-      apiKey = platform.apiKey;
+      apiKey2 = platform.apiKey;
       modelOverride = platform.model;
       if (shouldBill) {
         const estimatedCredits = estimateCreditsForPrompt({
@@ -15389,9 +15588,9 @@ async function callCompanyAi(params) {
         throw new AiNotConfiguredError();
       }
       provider = company.aiProvider;
-      apiKey = decrypt(company.aiApiKeyEncrypted);
+      apiKey2 = decrypt(company.aiApiKeyEncrypted);
     }
-    if (!provider || !apiKey) {
+    if (!provider || !apiKey2) {
       throw new AiNotConfiguredError();
     }
     const adapter = getAiProviderAdapter(provider);
@@ -15411,7 +15610,7 @@ async function callCompanyAi(params) {
             upcomingInputTokens
           });
           completion = await adapter.complete({
-            apiKey,
+            apiKey: apiKey2,
             model: quota.model,
             systemPrompt,
             userPrompt,
@@ -15443,7 +15642,7 @@ async function callCompanyAi(params) {
         upcomingInputTokens
       });
       completion = await adapter.complete({
-        apiKey,
+        apiKey: apiKey2,
         model,
         systemPrompt,
         userPrompt,
@@ -17036,11 +17235,21 @@ async function inegiFetch(url, options) {
       const res = await fetch(url);
       if (isRetryableStatus(res.status) && attempt < retries) {
         lastError = new Error(`INEGI HTTP ${res.status}`);
+        console.warn("[INEGI fetch] retryable HTTP status", {
+          status: res.status,
+          attempt: attempt + 1,
+          maxAttempts: retries + 1
+        });
         continue;
       }
       return res;
     } catch (err) {
       lastError = err;
+      console.warn("[INEGI fetch] network error", {
+        attempt: attempt + 1,
+        maxAttempts: retries + 1,
+        message: err instanceof Error ? err.message : String(err)
+      });
       if (attempt >= retries) break;
     }
   }
@@ -17071,8 +17280,18 @@ function isDenueEmptyBody(text65) {
 }
 async function parseDenueList(res) {
   const text65 = await res.text();
-  if (isDenueEmptyBody(text65)) return [];
+  if (isDenueEmptyBody(text65)) {
+    console.log("[INEGI DENUE] empty body treated as no results", {
+      status: res.status,
+      preview: text65.slice(0, 120)
+    });
+    return [];
+  }
   if (!res.ok) {
+    console.error("[INEGI DENUE] HTTP error body", {
+      status: res.status,
+      preview: text65.slice(0, 200)
+    });
     throw new Error(`INEGI DENUE HTTP ${res.status}: ${text65.slice(0, 200)}`);
   }
   let data;
@@ -17096,8 +17315,21 @@ async function searchByLocation(params) {
   );
   const condition = encodeDenueCondition(params.keyword ?? "", "todos");
   const url = `${DENUE_BASE}/Buscar/${condition}/${params.lat},${params.lng}/${radius}/${token}`;
+  console.log("[INEGI DENUE] searchByLocation request", {
+    lat: params.lat,
+    lng: params.lng,
+    radiusMeters: radius,
+    keyword: params.keyword ?? null,
+    condition
+  });
   const res = await inegiFetch(url);
-  return parseDenueList(res);
+  console.log("[INEGI DENUE] searchByLocation HTTP", {
+    status: res.status,
+    ok: res.ok
+  });
+  const rows = await parseDenueList(res);
+  console.log("[INEGI DENUE] searchByLocation parsed", { rowCount: rows.length });
+  return rows;
 }
 async function searchByAreaActivity(params) {
   const token = denueToken();
@@ -17501,8 +17733,21 @@ var resolver16 = {
       await logSync(context, userId, input, result);
       return result;
     }
+    console.log("[syncEstablishmentsFromInegi] START", {
+      userId,
+      hasDenueToken: Boolean(process.env.INEGI_DENUE_TOKEN?.trim()),
+      lat: input.lat ?? null,
+      lng: input.lng ?? null,
+      radiusMeters: input.radiusMeters ?? null,
+      stateCode: input.stateCode ?? null,
+      keyword: input.keyword ?? null,
+      cap
+    });
     try {
       const rows = (await fetchRows(input, cap)).slice(0, cap);
+      console.log("[syncEstablishmentsFromInegi] fetched", {
+        totalFetched: rows.length
+      });
       let created = 0;
       let updated = 0;
       let skipped = 0;
@@ -17527,6 +17772,10 @@ var resolver16 = {
       await logSync(context, userId, input, result);
       return result;
     } catch (err) {
+      console.error("[syncEstablishmentsFromInegi] failed", {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : void 0
+      });
       const result = emptyResult(
         err instanceof Error ? err.message : "Error al consultar DENUE"
       );
@@ -18338,6 +18587,15 @@ var resolver17 = {
     const empty2 = emptyFields();
     const session2 = context.session;
     const userId = session2?.data?.id;
+    console.log("[syncLeadsFromInegi] START", {
+      userId: userId ?? null,
+      lat: input.lat,
+      lng: input.lng,
+      radiusKm: input.radius,
+      category: input.category,
+      maxResults: input.maxResults,
+      hasDenueToken: Boolean(process.env.INEGI_DENUE_TOKEN?.trim())
+    });
     if (!userId) {
       return {
         success: false,
@@ -18361,6 +18619,13 @@ var resolver17 = {
     }
     const credits = await getRemainingCredits(context, company.id);
     const { remainingQuota, syncedCount, leadLimit } = credits;
+    console.log("[syncLeadsFromInegi] credits", {
+      companyId: company.id,
+      remainingQuota,
+      syncedCount,
+      leadLimit,
+      blockingReason: credits.blockingReason ?? null
+    });
     if (credits.blockingReason === "no_subscription") {
       const result2 = {
         success: false,
@@ -18419,6 +18684,13 @@ var resolver17 = {
     const category = input.category.trim();
     const search = resolveDenueSearch(category);
     const { lat, lng, radius: radiusKm } = input;
+    console.log("[syncLeadsFromInegi] resolved search", {
+      category,
+      denueKeyword: search.keyword,
+      isCatchAll: search.isCatchAll,
+      label: search.label,
+      maxResults
+    });
     const existingLeads = await context.sudo().query.TechBusinessLead.findMany({
       where: {
         AND: [
@@ -18449,6 +18721,10 @@ var resolver17 = {
       if (already) continue;
       toAssignFromCrm.push(lead.id);
     }
+    console.log("[syncLeadsFromInegi] CRM INEGI leads in box", {
+      existingLeadsInBox: existingLeads.length,
+      toAssignFromCrm: toAssignFromCrm.length
+    });
     let assignedFromDb = 0;
     for (const leadId of toAssignFromCrm) {
       try {
@@ -18491,6 +18767,11 @@ var resolver17 = {
       }
       currentSyncedCount = consumeResult.syncedCount;
     }
+    console.log("[syncLeadsFromInegi] after CRM assign", {
+      assignedFromDb,
+      syncedThisRequest,
+      currentSyncedCount
+    });
     if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
       const result2 = {
         success: true,
@@ -18548,19 +18829,41 @@ var resolver17 = {
       );
       return da - db;
     });
+    console.log("[syncLeadsFromInegi] catalog Haversine", {
+      catalogRowsInBox: catalogRows.length,
+      nearbyInRadius: nearbyCatalog.length
+    });
     const token = process.env.INEGI_DENUE_TOKEN?.trim();
     const stillNeed = maxResults - syncedThisRequest;
+    const willCallDenue = nearbyCatalog.length < stillNeed && Boolean(token);
+    console.log("[syncLeadsFromInegi] DENUE live sync decision", {
+      stillNeed,
+      nearbyCatalog: nearbyCatalog.length,
+      willCallDenue,
+      radiusKm,
+      radiusMetersCap: DENUE_MAX_RADIUS_METERS,
+      reasonSkipDenue: !token ? "no_token" : nearbyCatalog.length >= stillNeed ? "catalog_sufficient" : null
+    });
     if (nearbyCatalog.length < stillNeed && token) {
       const radiusMeters = Math.min(
         Math.max(1, Math.round(radiusKm * 1e3)),
         DENUE_MAX_RADIUS_METERS
       );
       try {
+        console.log("[syncLeadsFromInegi] DENUE API call", {
+          lat,
+          lng,
+          radiusMeters,
+          keyword: search.keyword
+        });
         const apiRows = await searchByLocation({
           lat,
           lng,
           radiusMeters,
           keyword: search.keyword
+        });
+        console.log("[syncLeadsFromInegi] DENUE API rows", {
+          apiRowCount: apiRows.length
         });
         const upsertedClees = [];
         for (const raw of apiRows) {
@@ -18597,8 +18900,17 @@ var resolver17 = {
           );
           return da - db;
         });
+        console.log("[syncLeadsFromInegi] after DENUE upsert", {
+          upsertedClees: uniqueClees.length,
+          mergedNearbyCatalog: nearbyCatalog.length
+        });
       } catch (err) {
-        console.error("[syncLeadsFromInegi] DENUE search failed", err);
+        console.error("[syncLeadsFromInegi] DENUE search failed", {
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : void 0,
+          nearbyCatalog: nearbyCatalog.length,
+          syncedThisRequest
+        });
         if (nearbyCatalog.length === 0 && syncedThisRequest === 0) {
           const result2 = {
             success: false,
@@ -18612,6 +18924,7 @@ var resolver17 = {
         }
       }
     } else if (nearbyCatalog.length === 0 && !token && syncedThisRequest === 0) {
+      console.warn("[syncLeadsFromInegi] abort: empty catalog and no INEGI_DENUE_TOKEN");
       const result2 = {
         success: false,
         message: MSG.searchFailed,
@@ -18667,6 +18980,14 @@ var resolver17 = {
       syncedCount: currentSyncedCount,
       leadLimit
     };
+    console.log("[syncLeadsFromInegi] DONE", {
+      success: result.success,
+      syncedThisRequest,
+      created,
+      alreadyInDb,
+      assignedFromCatalog,
+      message: result.message
+    });
     await logResult(context, userId, company.id, input, result);
     return result;
   }
@@ -20011,9 +20332,10 @@ var resolver26 = {
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
    * Es idempotente: darse de baja dos veces no falla.
+   * Match de email case-insensitive (y apaga duplicados con distinto casing).
    */
   unsubscribeBlog: async (_root, { email, product }, context) => {
-    const normalizedEmail = email.trim();
+    const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
       return { success: false, message: "El correo es obligatorio." };
     }
@@ -20021,11 +20343,12 @@ var resolver26 = {
       return { success: false, message: "Producto no v\xE1lido." };
     }
     try {
-      const subscriptions = await context.sudo().db.BlogSubscription.findMany({
+      const subscriptions = await context.sudo().query.BlogSubscription.findMany({
         where: {
-          email: { equals: normalizedEmail },
+          email: { equals: normalizedEmail, mode: "insensitive" },
           product: { equals: product }
-        }
+        },
+        query: "id active email"
       });
       if (subscriptions.length === 0) {
         return {
@@ -23128,7 +23451,7 @@ function parseAddressComponents4(addressComponents) {
   }
   return result;
 }
-async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
+async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
   if (!place.name) {
     return null;
   }
@@ -23189,7 +23512,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   });
   if (placeId) {
     try {
-      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number,address_components&key=${apiKey}&language=es`;
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number,address_components&key=${apiKey2}&language=es`;
       const detailsResponse = await fetch(detailsUrl);
       if (detailsResponse.ok) {
         const detailsData = await detailsResponse.json();
@@ -23279,8 +23602,8 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   return result;
 }
 async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
+  const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey2) {
     throw new Error(
       "GOOGLE_MAPS_API_KEY is not configured in environment variables"
     );
@@ -23295,7 +23618,7 @@ async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
   };
   const searchTerm = typeLabels[type] || "lugares para mascotas";
   const radiusInMeters = Math.round(radius * 1e3);
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusInMeters}&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey}&language=es`;
+  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusInMeters}&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey2}&language=es`;
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -23318,7 +23641,7 @@ async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
         const createdPlace = await createPetPlaceFromGoogleResult(
           place,
           type,
-          apiKey,
+          apiKey2,
           context
         );
         if (createdPlace) {
@@ -24811,6 +25134,790 @@ function registerWhatsAppWebhook(app, context) {
   );
 }
 
+// webhooks/clickup.ts
+var import_crypto8 = __toESM(require("crypto"));
+var import_express2 = __toESM(require("express"));
+
+// utils/intregrations/clickup.ts
+var CLICKUP_API = "https://api.clickup.com/api/v2";
+function apiToken() {
+  const value = process.env.CLICKUP_API_TOKEN?.trim();
+  return value || void 0;
+}
+function clip(text65, max = 300) {
+  const trimmed = text65.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max)}\u2026`;
+}
+async function clickUpRequest(path3, init) {
+  const token = apiToken();
+  if (!token) {
+    console.warn("[clickup] CLICKUP_API_TOKEN no configurado. No se llama a la API.");
+    return void 0;
+  }
+  const response = await fetch(`${CLICKUP_API}${path3}`, {
+    method: init.method,
+    headers: {
+      Authorization: token,
+      Accept: "application/json",
+      ...init.body !== void 0 ? { "Content-Type": "application/json" } : {}
+    },
+    body: init.body !== void 0 ? JSON.stringify(init.body) : void 0
+  });
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const detail = clip(bodyText) || `HTTP ${response.status}`;
+    throw new Error(
+      `No se pudo completar la llamada a ClickUp (${init.method} ${path3}, ${response.status}): ${detail}`
+    );
+  }
+  if (!bodyText) return {};
+  try {
+    return JSON.parse(bodyText);
+  } catch {
+    throw new Error(`ClickUp respondi\xF3 JSON inv\xE1lido (${init.method} ${path3}).`);
+  }
+}
+function isTask(value) {
+  return Boolean(value && typeof value === "object" && typeof value.id === "string");
+}
+async function getTask(taskId) {
+  const data = await clickUpRequest(
+    `/task/${encodeURIComponent(taskId)}?include_markdown_description=true`,
+    { method: "GET" }
+  );
+  if (data === void 0) return void 0;
+  if (!isTask(data)) throw new Error("ClickUp no devolvi\xF3 la tarea.");
+  return data;
+}
+async function setTaskStatus(taskId, status) {
+  await clickUpRequest(`/task/${encodeURIComponent(taskId)}`, {
+    method: "PUT",
+    body: { status }
+  });
+}
+function isComment(value) {
+  return Boolean(value && typeof value === "object");
+}
+async function getTaskComments(taskId) {
+  const data = await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
+    method: "GET"
+  });
+  if (data === void 0) return void 0;
+  const comments = data.comments;
+  if (!Array.isArray(comments)) return [];
+  return comments.filter(isComment);
+}
+async function commentTask(taskId, text65) {
+  await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
+    method: "POST",
+    body: { comment_text: text65, notify_all: false }
+  });
+}
+async function downloadClickUpFile(url, maxBytes) {
+  const token = apiToken();
+  if (!token) {
+    console.warn("[clickup] CLICKUP_API_TOKEN no configurado. No se descarga el adjunto.");
+    throw new Error("ClickUp no est\xE1 configurado (falta CLICKUP_API_TOKEN).");
+  }
+  const response = await fetch(url, { headers: { Authorization: token } });
+  if (!response.ok) {
+    const detail = clip(await response.text());
+    throw new Error(`No se pudo descargar la imagen (${response.status}): ${detail || "sin detalle"}`);
+  }
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    throw new Error("La imagen pesa m\xE1s de 8 MB.");
+  }
+  if (!response.body) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > maxBytes) throw new Error("La imagen pesa m\xE1s de 8 MB.");
+    return buffer;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error("La imagen pesa m\xE1s de 8 MB.");
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
+}
+
+// utils/clickup/postImage.ts
+var import_stream = require("stream");
+var import_image_size = require("image-size");
+
+// utils/intregrations/pixabay.ts
+var PIXABAY_API = "https://pixabay.com/api/";
+var REQUEST_TIMEOUT_MS = 15e3;
+var MIN_IMAGE_WIDTH = 1200;
+var MIN_WEBFORMAT_WIDTH = 640;
+function apiKey() {
+  const value = process.env.PIXABAY_API_KEY?.trim();
+  return value || void 0;
+}
+function redact(text65) {
+  return text65.replace(/key=[^&\s]+/gi, "key=***");
+}
+function clip2(text65, max = 200) {
+  const trimmed = redact(text65).replace(/\s+/g, " ").trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max)}\u2026`;
+}
+async function fetchWithTimeout(url, init) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function readLimited(response, maxBytes) {
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > maxBytes) return null;
+  if (!response.body) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer.length > maxBytes ? null : buffer;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
+}
+async function downloadImage(url, query, maxBytes) {
+  try {
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) {
+      console.error(`[pixabay] no se pudo descargar la foto (q="${query}", status=${response.status})`);
+      return null;
+    }
+    return await readLimited(response, maxBytes);
+  } catch (err) {
+    const detail = err instanceof Error ? clip2(err.message) : "error de red";
+    console.error(`[pixabay] no se pudo descargar la foto (q="${query}"): ${detail}`);
+    return null;
+  }
+}
+async function findPixabayPhoto(query, options) {
+  const key = apiKey();
+  if (!key) {
+    console.warn("[pixabay] PIXABAY_API_KEY no configurado. No se busca foto.");
+    return null;
+  }
+  const params = new URLSearchParams({
+    key,
+    q: query,
+    image_type: "photo",
+    orientation: "horizontal",
+    safesearch: "true",
+    min_width: String(MIN_IMAGE_WIDTH),
+    per_page: "10",
+    order: "popular",
+    lang: "en"
+  });
+  let hits;
+  try {
+    const response = await fetchWithTimeout(`${PIXABAY_API}?${params}`);
+    const bodyText = await response.text();
+    if (!response.ok) {
+      console.error(
+        `[pixabay] b\xFAsqueda fall\xF3 (q="${query}", status=${response.status}): ${clip2(bodyText) || "sin detalle"}`
+      );
+      return null;
+    }
+    const parsed = bodyText ? JSON.parse(bodyText) : {};
+    hits = Array.isArray(parsed.hits) ? parsed.hits : [];
+  } catch (err) {
+    const detail = err instanceof Error ? clip2(err.message) : "error de red";
+    console.error(`[pixabay] b\xFAsqueda fall\xF3 (q="${query}"): ${detail}`);
+    return null;
+  }
+  const hit = hits.find((item) => (item.imageWidth ?? 0) >= MIN_IMAGE_WIDTH);
+  const urls = [
+    hit?.largeImageURL,
+    (hit?.webformatWidth ?? 0) >= MIN_WEBFORMAT_WIDTH ? hit?.webformatURL : void 0
+  ].filter((url) => Boolean(url));
+  if (!hit || urls.length === 0) {
+    console.error(`[pixabay] ning\xFAn resultado sirve (q="${query}")`);
+    return null;
+  }
+  for (const url of urls) {
+    const buffer = await downloadImage(url, query, options.maxBytes);
+    if (!buffer || !options.accept(buffer)) continue;
+    return {
+      buffer,
+      credit: {
+        user: hit.user?.trim() || "Pixabay",
+        pageURL: hit.pageURL?.trim() || "https://pixabay.com"
+      }
+    };
+  }
+  console.error(`[pixabay] no se pudo usar la foto (q="${query}")`);
+  return null;
+}
+
+// utils/clickup/postImage.ts
+var MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+var EXTENSION_BY_MIME = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp"
+};
+var NO_STOCK_IMAGE = "No hay imagen: adjunta una o agrega un comentario 'imagen: palabras en ingl\xE9s' y vuelve a aprobar.";
+var IMAGE_LINE = /^\s*imagen:\s*(.*)$/i;
+function declaredBytes(size) {
+  if (size === null || size === void 0 || size === "") return null;
+  const bytes = typeof size === "number" ? size : Number(size);
+  if (!Number.isFinite(bytes) || bytes < 0) return null;
+  return bytes;
+}
+function firstImageAttachment(task) {
+  for (const attachment of task.attachments ?? []) {
+    if (attachment.deleted) continue;
+    const mime = attachment.mimetype?.split(";")[0]?.trim().toLowerCase() ?? "";
+    if (mime.startsWith("image/")) return attachment;
+  }
+  return null;
+}
+function assertBufferMatches(buffer, extension) {
+  let probed;
+  try {
+    probed = (0, import_image_size.imageSize)(buffer);
+  } catch {
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+  if (probed.type !== extension || !probed.width || !probed.height) {
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+}
+async function uploadToPostStorage(context, buffer, extension) {
+  const images = context.images("s3_posts");
+  let stored;
+  try {
+    stored = await images.getDataFromStream(import_stream.Readable.from(buffer), `portada.${extension}`);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "error desconocido";
+    throw new Error(`No se pudo guardar la imagen del post: ${detail}`);
+  }
+  if (stored.extension !== extension) {
+    await images.deleteAtSource(stored.id, stored.extension).catch((deleteErr) => {
+      console.error("[clickup] no se pudo borrar una imagen rechazada", deleteErr);
+    });
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+  return {
+    id: stored.id,
+    extension: stored.extension,
+    filesize: stored.filesize,
+    width: stored.width,
+    height: stored.height
+  };
+}
+function extensionFromBuffer(buffer) {
+  let probed;
+  try {
+    probed = (0, import_image_size.imageSize)(buffer);
+  } catch {
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+  if (probed.type !== "jpg" && probed.type !== "png" && probed.type !== "webp") {
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+  return probed.type;
+}
+async function storeImageBuffer(buffer, context, expected) {
+  if (buffer.length > MAX_IMAGE_BYTES) throw new Error("La imagen pesa m\xE1s de 8 MB.");
+  const extension = expected ?? extensionFromBuffer(buffer);
+  assertBufferMatches(buffer, extension);
+  return uploadToPostStorage(context, buffer, extension);
+}
+function bufferIsUsableImage(buffer) {
+  if (buffer.length > MAX_IMAGE_BYTES) return false;
+  try {
+    assertBufferMatches(buffer, extensionFromBuffer(buffer));
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function imageFromAttachment(task, context) {
+  const attachment = firstImageAttachment(task);
+  if (!attachment) throw new Error("Falta adjuntar la imagen");
+  const mime = attachment.mimetype?.split(";")[0]?.trim().toLowerCase() ?? "";
+  const extension = EXTENSION_BY_MIME[mime];
+  if (!extension) throw new Error("La imagen debe ser jpg, png o webp.");
+  const declared = declaredBytes(attachment.size);
+  if (declared !== null && declared > MAX_IMAGE_BYTES) {
+    throw new Error("La imagen pesa m\xE1s de 8 MB.");
+  }
+  if (!attachment.url?.trim()) throw new Error("No se pudo descargar la imagen adjunta.");
+  const buffer = await downloadClickUpFile(attachment.url, MAX_IMAGE_BYTES);
+  return storeImageBuffer(buffer, context, extension);
+}
+function commentPlainText(comment) {
+  if (typeof comment.comment_text === "string" && comment.comment_text.trim()) {
+    return comment.comment_text;
+  }
+  if (!Array.isArray(comment.comment)) return "";
+  return comment.comment.map((part) => part.text ?? "").join("");
+}
+function commentTime(comment) {
+  const ms = typeof comment.date === "number" ? comment.date : Number(comment.date);
+  return Number.isFinite(ms) ? ms : 0;
+}
+function imageQueryFromComments(comments) {
+  const newestFirst = [...comments].sort((a, b) => commentTime(b) - commentTime(a));
+  for (const comment of newestFirst) {
+    for (const line of commentPlainText(comment).split(/\r?\n/)) {
+      const match = line.match(IMAGE_LINE);
+      if (!match) continue;
+      const words = match[1].trim().slice(0, 100).trim();
+      if (words) return words;
+    }
+  }
+  return null;
+}
+async function resolvePostImage(task, context) {
+  if (firstImageAttachment(task)) {
+    return { image: await imageFromAttachment(task, context), pixabayCredit: null };
+  }
+  const comments = await getTaskComments(task.id) ?? [];
+  const query = imageQueryFromComments(comments);
+  if (!query) throw new Error(NO_STOCK_IMAGE);
+  const photo = await findPixabayPhoto(query, {
+    maxBytes: MAX_IMAGE_BYTES,
+    accept: bufferIsUsableImage
+  });
+  if (!photo) throw new Error(NO_STOCK_IMAGE);
+  return {
+    image: await storeImageBuffer(photo.buffer, context),
+    pixabayCredit: photo.credit
+  };
+}
+async function attachImageToPost(context, postId, image7) {
+  await context.sudo().prisma.post.update({
+    where: { id: postId },
+    data: {
+      image_id: image7.id,
+      image_extension: image7.extension,
+      image_filesize: image7.filesize,
+      image_width: image7.width,
+      image_height: image7.height
+    }
+  });
+}
+async function deleteStoredPostImage(context, image7) {
+  await context.images("s3_posts").deleteAtSource(image7.id, image7.extension);
+}
+
+// utils/helpers/markdownToDocument.ts
+var UNORDERED_ITEM = /^-\s+(.+)$/;
+var ORDERED_ITEM = /^\d+\.\s+(.+)$/;
+var EXCERPT_MAX = 280;
+function isLink(node) {
+  return "type" in node && node.type === "link";
+}
+function padInlines(nodes) {
+  if (nodes.length === 0) return [{ text: "" }];
+  const padded = [];
+  nodes.forEach((node, index) => {
+    const prev = padded[padded.length - 1];
+    if (isLink(node) && (!prev || isLink(prev))) padded.push({ text: "" });
+    padded.push(node);
+    if (isLink(node) && index === nodes.length - 1) padded.push({ text: "" });
+  });
+  return padded;
+}
+function readLink(input, start, bold) {
+  if (input[start] !== "[") return null;
+  const labelEnd = input.indexOf("]", start + 1);
+  if (labelEnd === -1 || input[labelEnd + 1] !== "(") return null;
+  const hrefEnd = input.indexOf(")", labelEnd + 2);
+  if (hrefEnd === -1) return null;
+  const label = input.slice(start + 1, labelEnd);
+  const href = input.slice(labelEnd + 2, hrefEnd).trim();
+  if (!label || !href || label.includes("[") || label.includes("]")) return null;
+  const text65 = bold ? { text: label, bold: true } : { text: label };
+  return { node: { type: "link", href, children: [text65] }, next: hrefEnd + 1 };
+}
+function parseInlines(input, bold = false) {
+  const nodes = [];
+  let buffer = "";
+  const flush = () => {
+    if (!buffer) return;
+    const last = nodes[nodes.length - 1];
+    if (last && !isLink(last) && Boolean(last.bold) === bold) {
+      last.text += buffer;
+    } else {
+      nodes.push(bold ? { text: buffer, bold: true } : { text: buffer });
+    }
+    buffer = "";
+  };
+  for (let i = 0; i < input.length; ) {
+    if (!bold && input.startsWith("**", i)) {
+      const close = input.indexOf("**", i + 2);
+      if (close !== -1) {
+        flush();
+        nodes.push(...parseInlines(input.slice(i + 2, close), true));
+        i = close + 2;
+        continue;
+      }
+    }
+    const link = readLink(input, i, bold);
+    if (link) {
+      flush();
+      nodes.push(link.node);
+      i = link.next;
+      continue;
+    }
+    buffer += input[i];
+    i += 1;
+  }
+  flush();
+  return nodes.length > 0 ? nodes : [{ text: "" }];
+}
+function boldOnlyInner(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("**") || !trimmed.endsWith("**") || trimmed.length < 5) return null;
+  const inner = trimmed.slice(2, -2);
+  if (!inner.trim() || inner.includes("**")) return null;
+  return inner.trim();
+}
+function listItem(text65) {
+  return {
+    type: "list-item",
+    children: [{ type: "list-item-content", children: padInlines(parseInlines(text65.trim())) }]
+  };
+}
+function markdownToDocument(markdown) {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const blocks = [];
+  let paragraphLines = [];
+  let list76 = null;
+  const flushParagraph = () => {
+    const text65 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
+    paragraphLines = [];
+    if (!text65) return;
+    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text65)) });
+  };
+  const flushList = () => {
+    if (!list76 || list76.items.length === 0) {
+      list76 = null;
+      return;
+    }
+    blocks.push({
+      type: list76.ordered ? "ordered-list" : "unordered-list",
+      children: list76.items
+    });
+    list76 = null;
+  };
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+    const unordered = line.match(UNORDERED_ITEM);
+    const ordered = line.match(ORDERED_ITEM);
+    if (unordered || ordered) {
+      flushParagraph();
+      const orderedItem = Boolean(ordered);
+      if (!list76 || list76.ordered !== orderedItem) {
+        flushList();
+        list76 = { ordered: orderedItem, items: [] };
+      }
+      list76.items.push(listItem((unordered ?? ordered)[1]));
+      continue;
+    }
+    const heading = boldOnlyInner(line);
+    if (heading) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: "heading", level: 3, children: padInlines(parseInlines(heading)) });
+      continue;
+    }
+    flushList();
+    paragraphLines.push(line);
+  }
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+function inlineToText(nodes) {
+  return nodes.map((node) => isLink(node) ? node.children.map((child) => child.text).join("") : node.text).join("");
+}
+function excerptFromDocument(nodes, max = EXCERPT_MAX) {
+  for (const node of nodes) {
+    if (node.type !== "paragraph") continue;
+    const text65 = inlineToText(node.children).replace(/\s+/g, " ").trim();
+    if (!text65) continue;
+    if (text65.length <= max) return text65;
+    const slice = text65.slice(0, max);
+    const lastSpace = slice.lastIndexOf(" ");
+    if (lastSpace <= 0) return slice.trimEnd();
+    return slice.slice(0, lastSpace).trimEnd();
+  }
+  return "";
+}
+
+// utils/clickup/taskToPost.ts
+var TEN_MINUTES_MS = 10 * 60 * 1e3;
+var warnedMissingListIds = false;
+function productForClickUpList(listId) {
+  const id = listId == null ? "" : String(listId);
+  const pet = process.env.CLICKUP_PET_LIST_ID?.trim();
+  const saas = process.env.CLICKUP_SAAS_LIST_ID?.trim();
+  if (!pet && !saas && !warnedMissingListIds) {
+    warnedMissingListIds = true;
+    console.warn(
+      "[clickup] faltan CLICKUP_PET_LIST_ID y CLICKUP_SAAS_LIST_ID. No se programa ning\xFAn post."
+    );
+  }
+  if (pet && id === pet) return PRODUCT.PET;
+  if (saas && id === saas) return PRODUCT.SAAS;
+  return null;
+}
+function cleanTitle(name) {
+  return name.replace(/\*\*/g, "").replace(/#/g, "").replace(/\s+/g, " ").trim();
+}
+function parseEpochMs(value) {
+  if (value === null || value === void 0 || value === "") return null;
+  const ms = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return ms;
+}
+function publishedAtFromDueDate(dueDate, now = /* @__PURE__ */ new Date()) {
+  const ms = parseEpochMs(dueDate);
+  if (ms === null || ms <= now.getTime()) {
+    return new Date(now.getTime() + TEN_MINUTES_MS);
+  }
+  return new Date(ms);
+}
+function taskToScheduledPost(task, product, now = /* @__PURE__ */ new Date()) {
+  const title = cleanTitle(task.name ?? "");
+  if (!title) throw new Error("La tarea no tiene un t\xEDtulo utilizable.");
+  const content = markdownToDocument(task.markdown_description ?? "");
+  return {
+    title,
+    product,
+    published: true,
+    publishedAt: publishedAtFromDueDate(task.due_date, now),
+    content,
+    excerpt: excerptFromDocument(content),
+    clickupTaskId: task.id
+  };
+}
+
+// utils/clickup/schedulePost.ts
+function postPublicUrl(product, url, id) {
+  return `${frontendUrlFor(product)}/blog/${url || id}`;
+}
+function formatInMexicoCity(date) {
+  return new Intl.DateTimeFormat("es-MX", {
+    timeZone: "America/Mexico_City",
+    dateStyle: "long",
+    timeStyle: "short"
+  }).format(date);
+}
+async function findPostByClickUpTask(context, taskId) {
+  const rows = await context.sudo().query.Post.findMany({
+    where: { clickupTaskId: { equals: taskId } },
+    query: "id url product",
+    take: 1
+  });
+  return rows[0] ?? null;
+}
+function isClickUpTaskConflict(err) {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes("clickupTaskId");
+}
+async function commentExisting(taskId, post) {
+  const url = postPublicUrl(post.product || "pet", post.url, post.id);
+  await commentTask(taskId, `Este post ya estaba programado. URL: ${url}`);
+}
+async function scheduleApprovedClickUpTask(taskId, context) {
+  let task;
+  try {
+    task = await getTask(taskId);
+  } catch (err) {
+    console.error(`[clickup] no se pudo leer la tarea ${taskId}`, err);
+    return;
+  }
+  if (!task) return;
+  const product = productForClickUpList(task.list?.id);
+  if (!product) {
+    console.log(
+      `[clickup] tarea ${taskId} de la lista ${task.list?.id ?? "desconocida"} ignorada`
+    );
+    return;
+  }
+  const draft = taskToScheduledPost(task, product);
+  const existing = await findPostByClickUpTask(context, taskId);
+  if (existing) {
+    await commentExisting(taskId, existing);
+    return;
+  }
+  const resolved = await resolvePostImage(task, context);
+  const image7 = resolved.image;
+  let createdId = null;
+  try {
+    const created = await context.sudo().query.Post.createOne({
+      data: {
+        title: draft.title,
+        product: draft.product,
+        published: true,
+        publishedAt: draft.publishedAt.toISOString(),
+        excerpt: draft.excerpt,
+        clickupTaskId: draft.clickupTaskId,
+        ...draft.content.length > 0 ? { content: draft.content } : {}
+      },
+      query: "id url product"
+    });
+    createdId = created.id;
+    await attachImageToPost(context, created.id, image7);
+    await setTaskStatus(taskId, "programado");
+    const url = postPublicUrl(created.product || product, created.url, created.id);
+    const when = formatInMexicoCity(draft.publishedAt);
+    const credit = resolved.pixabayCredit ? `
+Foto: ${resolved.pixabayCredit.user} en Pixabay \u2014 ${resolved.pixabayCredit.pageURL}` : "";
+    try {
+      await commentTask(taskId, `Programado para ${when}. URL: ${url}${credit}`);
+    } catch (err) {
+      console.error("[clickup] el post qued\xF3 programado pero no se pudo comentar", err);
+    }
+  } catch (err) {
+    await rollbackCreatedPost(context, createdId, image7);
+    if (isClickUpTaskConflict(err)) {
+      const raced = await findPostByClickUpTask(context, taskId);
+      if (raced) {
+        await commentExisting(taskId, raced);
+        return;
+      }
+    }
+    throw err;
+  }
+}
+async function rollbackCreatedPost(context, postId, image7) {
+  if (postId) {
+    await context.sudo().prisma.post.delete({ where: { id: postId } }).catch((deleteErr) => {
+      console.error("[clickup] no se pudo borrar el post a medias", deleteErr);
+    });
+  }
+  await deleteStoredPostImage(context, image7).catch((deleteErr) => {
+    console.error("[clickup] no se pudo borrar la imagen del post a medias", deleteErr);
+  });
+}
+
+// webhooks/clickup.ts
+var WEBHOOK_PATH2 = "/webhooks/clickup";
+function rawBodyOf(req) {
+  if (Buffer.isBuffer(req.body)) return req.body;
+  if (typeof req.body === "string") return Buffer.from(req.body);
+  return Buffer.alloc(0);
+}
+function verifyClickUpSignature(rawBody, signatureHeader, secret) {
+  if (!signatureHeader) return false;
+  const expected = import_crypto8.default.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const received = signatureHeader.trim().toLowerCase();
+  const expectedBuf = Buffer.from(expected, "utf8");
+  const receivedBuf = Buffer.from(received, "utf8");
+  if (expectedBuf.length !== receivedBuf.length) return false;
+  return import_crypto8.default.timingSafeEqual(expectedBuf, receivedBuf);
+}
+function isApprovedStatusUpdate(payload) {
+  if (payload.event !== "taskStatusUpdated") return false;
+  return (payload.history_items ?? []).some((item) => {
+    if (item.field !== "status") return false;
+    const status = item.after?.status;
+    return typeof status === "string" && status.toLowerCase() === "aprobado";
+  });
+}
+function commentForError(err) {
+  const message = err instanceof Error ? err.message : "";
+  const text65 = message.replace(/^\[clickup\]\s*/, "").trim();
+  if (!text65) return "No se pudo programar el post.";
+  if (text65.length <= 500) return text65;
+  return `${text65.slice(0, 500)}\u2026`;
+}
+async function handleClickUpWebhook(req, res, context) {
+  try {
+    await routeClickUpWebhook(req, res, context);
+  } catch (err) {
+    console.error("[clickup] error inesperado", err);
+    if (!res.headersSent) res.sendStatus(500);
+  }
+}
+async function routeClickUpWebhook(req, res, context) {
+  const secret = process.env.CLICKUP_WEBHOOK_SECRET?.trim();
+  const rawBody = rawBodyOf(req);
+  if (!secret || !verifyClickUpSignature(rawBody, req.header("x-signature"), secret)) {
+    console.warn(
+      `[clickup] firma rechazada (${secret ? "no coincide" : "falta CLICKUP_WEBHOOK_SECRET"})`
+    );
+    res.sendStatus(401);
+    return;
+  }
+  let payload;
+  try {
+    payload = JSON.parse(rawBody.toString("utf8"));
+  } catch {
+    console.warn("[clickup] body no es JSON");
+    res.sendStatus(200);
+    return;
+  }
+  if (!isApprovedStatusUpdate(payload)) {
+    res.sendStatus(200);
+    return;
+  }
+  const taskId = payload.task_id?.trim();
+  if (!taskId) {
+    console.warn("[clickup] taskStatusUpdated sin task_id");
+    res.sendStatus(200);
+    return;
+  }
+  res.sendStatus(200);
+  try {
+    await scheduleApprovedClickUpTask(taskId, context);
+  } catch (err) {
+    console.error("[clickup]", err);
+    try {
+      await setTaskStatus(taskId, "error");
+      await commentTask(taskId, commentForError(err));
+    } catch (markErr) {
+      console.error("[clickup] no se pudo marcar la tarea como error", markErr);
+    }
+  }
+}
+function registerClickUpWebhook(app, context) {
+  app.post(
+    WEBHOOK_PATH2,
+    import_express2.default.raw({ type: "application/json" }),
+    (req, res) => {
+      void handleClickUpWebhook(req, res, context);
+    }
+  );
+}
+
 // keystone.ts
 var path2 = require("path");
 var dotenv2 = require("dotenv");
@@ -24960,6 +26067,7 @@ var keystone_default = withAuth(
       port: Number(process.env.LOCAL_PORT) || 3001,
       extendExpressApp: (app, context) => {
         registerWhatsAppWebhook(app, context);
+        registerClickUpWebhook(app, context);
       }
     },
     storage,

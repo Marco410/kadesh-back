@@ -93,6 +93,19 @@ export default list({
           "Se llena solo al publicarse en Facebook. Bórralo para forzar un reintento (ej. después de renovar un token vencido).",
       },
     }),
+    /**
+     * Tarea de ClickUp que originó el post. Único para no duplicar si el webhook reintenta.
+     * Vacío cuando el post se creó en el Admin.
+     */
+    clickupTaskId: text({
+      db: { isNullable: true },
+      isIndexed: "unique",
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Id de la tarea de ClickUp. Lo llena el webhook al aprobar una publicación.",
+      },
+    }),
     category: relationship({
       ref: "Category.posts",
       many: false,
