@@ -1,9 +1,11 @@
 import { list } from "@keystone-6/core";
 import { image, integer, relationship, timestamp } from "@keystone-6/core/fields";
 import access from "../../../../utils/generalAccess/access";
+import { animalMultimediaFacebookHook } from "../Animal.hooks";
 
 export default list({
   access,
+  hooks: animalMultimediaFacebookHook,
   fields: {
     image: image({
       storage: "s3_animals",
