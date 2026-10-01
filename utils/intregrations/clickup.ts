@@ -93,6 +93,29 @@ export async function setTaskStatus(taskId: string, status: string): Promise<voi
   });
 }
 
+export type ClickUpComment = {
+  id?: string | number;
+  comment_text?: string | null;
+  comment?: Array<{ text?: string | null }> | null;
+  /** Milisegundos epoch. */
+  date?: string | number | null;
+};
+
+function isComment(value: unknown): value is ClickUpComment {
+  return Boolean(value && typeof value === "object");
+}
+
+/** GET /task/{id}/comment */
+export async function getTaskComments(taskId: string): Promise<ClickUpComment[] | undefined> {
+  const data = await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
+    method: "GET",
+  });
+  if (data === undefined) return undefined;
+  const comments = (data as { comments?: unknown }).comments;
+  if (!Array.isArray(comments)) return [];
+  return comments.filter(isComment);
+}
+
 /** POST /task/{id}/comment */
 export async function commentTask(taskId: string, text: string): Promise<void> {
   await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {

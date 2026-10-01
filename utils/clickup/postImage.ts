@@ -3,9 +3,12 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import { imageSize } from "image-size";
 import {
   downloadClickUpFile,
+  getTaskComments,
   type ClickUpAttachment,
+  type ClickUpComment,
   type ClickUpTask,
 } from "../intregrations/clickup";
+import { findPixabayPhoto, type PixabayCredit } from "../intregrations/pixabay";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -23,6 +26,17 @@ export type StoredPostImage = {
   width: number;
   height: number;
 };
+
+export type ResolvedPostImage = {
+  image: StoredPostImage;
+  /** Presente solo cuando la portada salió de Pixabay. La URL no se guarda en el post. */
+  pixabayCredit: PixabayCredit | null;
+};
+
+const NO_STOCK_IMAGE =
+  "No hay imagen: adjunta una o agrega un comentario 'imagen: palabras en inglés' y vuelve a aprobar.";
+
+const IMAGE_LINE = /^\s*imagen:\s*(.*)$/i;
 
 function declaredBytes(size: ClickUpAttachment["size"]): number | null {
   if (size === null || size === undefined || size === "") return null;
@@ -88,11 +102,48 @@ async function uploadToPostStorage(
   };
 }
 
+type ImageExtension = "jpg" | "png" | "webp";
+
+function extensionFromBuffer(buffer: Buffer): ImageExtension {
+  let probed: { type?: string };
+  try {
+    probed = imageSize(buffer);
+  } catch {
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+  if (probed.type !== "jpg" && probed.type !== "png" && probed.type !== "webp") {
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+  return probed.type;
+}
+
 /**
- * Exige una imagen jpg/png/webp de hasta 8 MB. Sin adjunto, el mensaje es
- * exactamente el que se comenta en ClickUp.
+ * Valida el buffer (8 MB, jpg/png/webp) y lo sube a `s3_posts`.
+ * Sin `expected`, la extensión sale del archivo. Con `expected`, el archivo tiene que ser esa.
  */
-export async function requirePostImage(
+async function storeImageBuffer(
+  buffer: Buffer,
+  context: KeystoneContext,
+  expected?: ImageExtension,
+): Promise<StoredPostImage> {
+  if (buffer.length > MAX_IMAGE_BYTES) throw new Error("La imagen pesa más de 8 MB.");
+  const extension = expected ?? extensionFromBuffer(buffer);
+  assertBufferMatches(buffer, extension);
+  return uploadToPostStorage(context, buffer, extension);
+}
+
+function bufferIsUsableImage(buffer: Buffer): boolean {
+  if (buffer.length > MAX_IMAGE_BYTES) return false;
+  try {
+    assertBufferMatches(buffer, extensionFromBuffer(buffer));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** El adjunto, si existe, se usa tal cual. Si no sirve, no se busca en Pixabay. */
+async function imageFromAttachment(
   task: ClickUpTask,
   context: KeystoneContext,
 ): Promise<StoredPostImage> {
@@ -110,9 +161,62 @@ export async function requirePostImage(
   if (!attachment.url?.trim()) throw new Error("No se pudo descargar la imagen adjunta.");
 
   const buffer = await downloadClickUpFile(attachment.url, MAX_IMAGE_BYTES);
-  if (buffer.length > MAX_IMAGE_BYTES) throw new Error("La imagen pesa más de 8 MB.");
-  assertBufferMatches(buffer, extension);
-  return uploadToPostStorage(context, buffer, extension);
+  return storeImageBuffer(buffer, context, extension);
+}
+
+function commentPlainText(comment: ClickUpComment): string {
+  if (typeof comment.comment_text === "string" && comment.comment_text.trim()) {
+    return comment.comment_text;
+  }
+  if (!Array.isArray(comment.comment)) return "";
+  return comment.comment.map((part) => part.text ?? "").join("");
+}
+
+function commentTime(comment: ClickUpComment): number {
+  const ms = typeof comment.date === "number" ? comment.date : Number(comment.date);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+/** Palabras del comentario más reciente cuya línea empieza con `imagen:`. Máximo 100 caracteres. */
+export function imageQueryFromComments(comments: ClickUpComment[]): string | null {
+  const newestFirst = [...comments].sort((a, b) => commentTime(b) - commentTime(a));
+  for (const comment of newestFirst) {
+    for (const line of commentPlainText(comment).split(/\r?\n/)) {
+      const match = line.match(IMAGE_LINE);
+      if (!match) continue;
+      const words = match[1].trim().slice(0, 100).trim();
+      if (words) return words;
+    }
+  }
+  return null;
+}
+
+/**
+ * Portada del post. Un adjunto `image/*` gana y, si no sirve, es error.
+ * Sin adjunto se busca en Pixabay. Si tampoco hay foto, el mensaje es el del comentario en ClickUp.
+ */
+export async function resolvePostImage(
+  task: ClickUpTask,
+  context: KeystoneContext,
+): Promise<ResolvedPostImage> {
+  if (firstImageAttachment(task)) {
+    return { image: await imageFromAttachment(task, context), pixabayCredit: null };
+  }
+
+  const comments = (await getTaskComments(task.id)) ?? [];
+  const query = imageQueryFromComments(comments);
+  if (!query) throw new Error(NO_STOCK_IMAGE);
+
+  const photo = await findPixabayPhoto(query, {
+    maxBytes: MAX_IMAGE_BYTES,
+    accept: bufferIsUsableImage,
+  });
+  if (!photo) throw new Error(NO_STOCK_IMAGE);
+
+  return {
+    image: await storeImageBuffer(photo.buffer, context),
+    pixabayCredit: photo.credit,
+  };
 }
 
 /** Escribe las columnas que el campo `image` lee para armar la URL firmada. No pasa por hooks. */

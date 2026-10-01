@@ -4,7 +4,7 @@ import { commentTask, getTask, setTaskStatus } from "../intregrations/clickup";
 import {
   attachImageToPost,
   deleteStoredPostImage,
-  requirePostImage,
+  resolvePostImage,
   type StoredPostImage,
 } from "./postImage";
 import { productForClickUpList, taskToScheduledPost } from "./taskToPost";
@@ -80,7 +80,8 @@ export async function scheduleApprovedClickUpTask(
     return;
   }
 
-  const image = await requirePostImage(task, context);
+  const resolved = await resolvePostImage(task, context);
+  const image = resolved.image;
   let createdId: string | null = null;
   try {
     const created = (await context.sudo().query.Post.createOne({
@@ -101,8 +102,11 @@ export async function scheduleApprovedClickUpTask(
     await setTaskStatus(taskId, "programado");
     const url = postPublicUrl(created.product || product, created.url, created.id);
     const when = formatInMexicoCity(draft.publishedAt);
+    const credit = resolved.pixabayCredit
+      ? `\nFoto: ${resolved.pixabayCredit.user} en Pixabay — ${resolved.pixabayCredit.pageURL}`
+      : "";
     try {
-      await commentTask(taskId, `Programado para ${when}. URL: ${url}`);
+      await commentTask(taskId, `Programado para ${when}. URL: ${url}${credit}`);
     } catch (err) {
       console.error("[clickup] el post quedó programado pero no se pudo comentar", err);
     }
