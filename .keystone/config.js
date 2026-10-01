@@ -10539,8 +10539,8 @@ function decrypt(payload) {
   ]);
   return decrypted.toString("utf8");
 }
-function maskApiKey(apiKey) {
-  const trimmed = apiKey.trim();
+function maskApiKey(apiKey2) {
+  const trimmed = apiKey2.trim();
   if (trimmed.length <= 8) return "\u2022\u2022\u2022\u2022";
   return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
 }
@@ -11843,9 +11843,9 @@ var typeDefs4 = `
 var definition4 = `
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
 `;
-async function getPlaceDetails(placeId, apiKey) {
+async function getPlaceDetails(placeId, apiKey2) {
   const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry";
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey2}&language=es`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.status !== "OK" || !data.result) return null;
@@ -11901,8 +11901,8 @@ var resolver4 = {
         businessLeadId: null
       };
     }
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
+    const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey2) {
       return {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
@@ -11950,7 +11950,7 @@ var resolver4 = {
         businessLeadId: existing.id
       };
     }
-    const place = await getPlaceDetails(input.placeId, apiKey);
+    const place = await getPlaceDetails(input.placeId, apiKey2);
     if (!place) {
       return {
         success: false,
@@ -12060,8 +12060,8 @@ var resolver5 = {
 };
 async function importVeterinaries(city, type, context) {
   try {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
+    const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey2) {
       throw new Error("GOOGLE_MAPS_API_KEY no est\xE1 configurada en las variables de entorno");
     }
     const typeLabels = {
@@ -12074,7 +12074,7 @@ async function importVeterinaries(city, type, context) {
     };
     const searchTerm = typeLabels[type] || "lugares para mascotas";
     const query = encodeURIComponent(`${searchTerm} en ${city}`);
-    const baseUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?key=${apiKey}`;
+    const baseUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?key=${apiKey2}`;
     let url = `${baseUrl}&query=${query}`;
     let importedCount = 0;
     let errors = [];
@@ -12160,7 +12160,7 @@ async function importVeterinaries(city, type, context) {
                 }
               });
               if (placeId) {
-                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number&key=${apiKey}&language=es`;
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number&key=${apiKey2}&language=es`;
                 try {
                   const detailsResponse = await fetch(detailsUrl);
                   if (!detailsResponse.ok) {
@@ -12732,9 +12732,9 @@ async function getRemainingCredits(context, companyId) {
 }
 
 // utils/helpers/tech/place_details.ts
-async function getPlaceDetails2(placeId, apiKey) {
+async function getPlaceDetails2(placeId, apiKey2) {
   const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry,reviews";
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey2}&language=es`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.status !== "OK" || !data.result) return null;
@@ -13034,8 +13034,8 @@ var resolver6 = {
       await logSyncLeadsResult(context, userId, company.id, input, result);
       return result;
     }
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
+    const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey2) {
       if (syncedThisRequest > 0) {
         const result2 = {
           success: true,
@@ -13071,7 +13071,7 @@ var resolver6 = {
       radiusMeters,
       category,
       keyword,
-      hasApiKey: !!apiKey,
+      hasApiKey: !!apiKey2,
       assignedFromDb,
       syncedThisRequest,
       maxResults
@@ -13119,7 +13119,7 @@ var resolver6 = {
         if (pageToken) {
           await new Promise((r) => setTimeout(r, PAGE_TOKEN_DELAY_MS));
         }
-        const url = pageToken ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${apiKey}` : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
+        const url = pageToken ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${apiKey2}` : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey2}&language=es`;
         const urlForLog = url.replace(/key=[^&]+/, "key=REDACTED");
         console.log("[syncLeadsFront] GOOGLE page fetch", {
           page: page + 1,
@@ -13224,7 +13224,7 @@ var resolver6 = {
           placeRating,
           userRatingsTotal
         });
-        const details = await getPlaceDetails2(placeId, apiKey);
+        const details = await getPlaceDetails2(placeId, apiKey2);
         if (!details) {
           console.warn("[syncLeadsFront] getPlaceDetails returned null", {
             placeId
@@ -13358,9 +13358,9 @@ var definition7 = `
 `;
 var PROMPT_PREFIX2 = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
 var MIN_POSITIVE_REVIEW_RATING2 = 4;
-async function getPlaceDetails3(placeId, apiKey) {
+async function getPlaceDetails3(placeId, apiKey2) {
   const fields = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,address_components,geometry,reviews";
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}&language=es`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey2}&language=es`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.status !== "OK" || !data.result) return null;
@@ -13413,8 +13413,8 @@ var resolver7 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
+    const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey2) {
       return {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
@@ -13440,9 +13440,9 @@ var resolver7 = {
     const verifiedSellerIds = await getVerifiedSalesPersonIds2(context);
     try {
       do {
-        let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
+        let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey2}&language=es`;
         if (nextPageToken) {
-          url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${encodeURIComponent(nextPageToken)}&key=${apiKey}`;
+          url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${encodeURIComponent(nextPageToken)}&key=${apiKey2}`;
           await new Promise((r) => setTimeout(r, 2e3));
         }
         const res = await fetch(url);
@@ -13474,7 +13474,7 @@ var resolver7 = {
             skippedLowRating++;
             continue;
           }
-          const details = await getPlaceDetails3(placeId, apiKey);
+          const details = await getPlaceDetails3(placeId, apiKey2);
           if (!details) continue;
           const { city: parsedCity, state, country } = parseAddressComponents3(
             details.address_components || []
@@ -15514,9 +15514,9 @@ function buildSystemPrompt(company, featurePrompt) {
   ].join("\n");
 }
 function resolvePlatformProvider() {
-  const apiKey = process.env.PLATFORM_AI_API_KEY?.trim() ?? "";
+  const apiKey2 = process.env.PLATFORM_AI_API_KEY?.trim() ?? "";
   const providerRaw = (process.env.PLATFORM_AI_PROVIDER?.trim() || AI_PROVIDER.ANTHROPIC).toLowerCase();
-  if (!apiKey) {
+  if (!apiKey2) {
     throw new AiPlatformNotConfiguredError();
   }
   if (!isAiProviderKey(providerRaw)) {
@@ -15525,7 +15525,7 @@ function resolvePlatformProvider() {
     );
   }
   const model = process.env.PLATFORM_AI_MODEL?.trim() || void 0;
-  return { provider: providerRaw, apiKey, model };
+  return { provider: providerRaw, apiKey: apiKey2, model };
 }
 async function callCompanyAi(params) {
   const startedAt = Date.now();
@@ -15558,14 +15558,14 @@ async function callCompanyAi(params) {
   const userPrompt = toGuardedUserPrompt(params.userPrompt);
   const shouldBill = billingMode === AI_BILLING_MODE.MANAGED && params.bill !== false;
   let provider;
-  let apiKey;
+  let apiKey2;
   let modelOverride;
   let model = "";
   try {
     if (billingMode === AI_BILLING_MODE.MANAGED) {
       const platform = resolvePlatformProvider();
       provider = platform.provider;
-      apiKey = platform.apiKey;
+      apiKey2 = platform.apiKey;
       modelOverride = platform.model;
       if (shouldBill) {
         const estimatedCredits = estimateCreditsForPrompt({
@@ -15588,9 +15588,9 @@ async function callCompanyAi(params) {
         throw new AiNotConfiguredError();
       }
       provider = company.aiProvider;
-      apiKey = decrypt(company.aiApiKeyEncrypted);
+      apiKey2 = decrypt(company.aiApiKeyEncrypted);
     }
-    if (!provider || !apiKey) {
+    if (!provider || !apiKey2) {
       throw new AiNotConfiguredError();
     }
     const adapter = getAiProviderAdapter(provider);
@@ -15610,7 +15610,7 @@ async function callCompanyAi(params) {
             upcomingInputTokens
           });
           completion = await adapter.complete({
-            apiKey,
+            apiKey: apiKey2,
             model: quota.model,
             systemPrompt,
             userPrompt,
@@ -15642,7 +15642,7 @@ async function callCompanyAi(params) {
         upcomingInputTokens
       });
       completion = await adapter.complete({
-        apiKey,
+        apiKey: apiKey2,
         model,
         systemPrompt,
         userPrompt,
@@ -23451,7 +23451,7 @@ function parseAddressComponents4(addressComponents) {
   }
   return result;
 }
-async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
+async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
   if (!place.name) {
     return null;
   }
@@ -23512,7 +23512,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   });
   if (placeId) {
     try {
-      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number,address_components&key=${apiKey}&language=es`;
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=review,opening_hours,international_phone_number,address_components&key=${apiKey2}&language=es`;
       const detailsResponse = await fetch(detailsUrl);
       if (detailsResponse.ok) {
         const detailsData = await detailsResponse.json();
@@ -23602,8 +23602,8 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey, context) {
   return result;
 }
 async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
+  const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey2) {
     throw new Error(
       "GOOGLE_MAPS_API_KEY is not configured in environment variables"
     );
@@ -23618,7 +23618,7 @@ async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
   };
   const searchTerm = typeLabels[type] || "lugares para mascotas";
   const radiusInMeters = Math.round(radius * 1e3);
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusInMeters}&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey}&language=es`;
+  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusInMeters}&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey2}&language=es`;
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -23641,7 +23641,7 @@ async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
         const createdPlace = await createPetPlaceFromGoogleResult(
           place,
           type,
-          apiKey,
+          apiKey2,
           context
         );
         if (createdPlace) {
@@ -25196,6 +25196,18 @@ async function setTaskStatus(taskId, status) {
     body: { status }
   });
 }
+function isComment(value) {
+  return Boolean(value && typeof value === "object");
+}
+async function getTaskComments(taskId) {
+  const data = await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
+    method: "GET"
+  });
+  if (data === void 0) return void 0;
+  const comments = data.comments;
+  if (!Array.isArray(comments)) return [];
+  return comments.filter(isComment);
+}
 async function commentTask(taskId, text65) {
   await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
     method: "POST",
@@ -25241,6 +25253,128 @@ async function downloadClickUpFile(url, maxBytes) {
 // utils/clickup/postImage.ts
 var import_stream = require("stream");
 var import_image_size = require("image-size");
+
+// utils/intregrations/pixabay.ts
+var PIXABAY_API = "https://pixabay.com/api/";
+var REQUEST_TIMEOUT_MS = 15e3;
+var MIN_IMAGE_WIDTH = 1200;
+var MIN_WEBFORMAT_WIDTH = 640;
+function apiKey() {
+  const value = process.env.PIXABAY_API_KEY?.trim();
+  return value || void 0;
+}
+function redact(text65) {
+  return text65.replace(/key=[^&\s]+/gi, "key=***");
+}
+function clip2(text65, max = 200) {
+  const trimmed = redact(text65).replace(/\s+/g, " ").trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max)}\u2026`;
+}
+async function fetchWithTimeout(url, init) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function readLimited(response, maxBytes) {
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > maxBytes) return null;
+  if (!response.body) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer.length > maxBytes ? null : buffer;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
+}
+async function downloadImage(url, query, maxBytes) {
+  try {
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) {
+      console.error(`[pixabay] no se pudo descargar la foto (q="${query}", status=${response.status})`);
+      return null;
+    }
+    return await readLimited(response, maxBytes);
+  } catch (err) {
+    const detail = err instanceof Error ? clip2(err.message) : "error de red";
+    console.error(`[pixabay] no se pudo descargar la foto (q="${query}"): ${detail}`);
+    return null;
+  }
+}
+async function findPixabayPhoto(query, options) {
+  const key = apiKey();
+  if (!key) {
+    console.warn("[pixabay] PIXABAY_API_KEY no configurado. No se busca foto.");
+    return null;
+  }
+  const params = new URLSearchParams({
+    key,
+    q: query,
+    image_type: "photo",
+    orientation: "horizontal",
+    safesearch: "true",
+    min_width: String(MIN_IMAGE_WIDTH),
+    per_page: "10",
+    order: "popular",
+    lang: "en"
+  });
+  let hits;
+  try {
+    const response = await fetchWithTimeout(`${PIXABAY_API}?${params}`);
+    const bodyText = await response.text();
+    if (!response.ok) {
+      console.error(
+        `[pixabay] b\xFAsqueda fall\xF3 (q="${query}", status=${response.status}): ${clip2(bodyText) || "sin detalle"}`
+      );
+      return null;
+    }
+    const parsed = bodyText ? JSON.parse(bodyText) : {};
+    hits = Array.isArray(parsed.hits) ? parsed.hits : [];
+  } catch (err) {
+    const detail = err instanceof Error ? clip2(err.message) : "error de red";
+    console.error(`[pixabay] b\xFAsqueda fall\xF3 (q="${query}"): ${detail}`);
+    return null;
+  }
+  const hit = hits.find((item) => (item.imageWidth ?? 0) >= MIN_IMAGE_WIDTH);
+  const urls = [
+    hit?.largeImageURL,
+    (hit?.webformatWidth ?? 0) >= MIN_WEBFORMAT_WIDTH ? hit?.webformatURL : void 0
+  ].filter((url) => Boolean(url));
+  if (!hit || urls.length === 0) {
+    console.error(`[pixabay] ning\xFAn resultado sirve (q="${query}")`);
+    return null;
+  }
+  for (const url of urls) {
+    const buffer = await downloadImage(url, query, options.maxBytes);
+    if (!buffer || !options.accept(buffer)) continue;
+    return {
+      buffer,
+      credit: {
+        user: hit.user?.trim() || "Pixabay",
+        pageURL: hit.pageURL?.trim() || "https://pixabay.com"
+      }
+    };
+  }
+  console.error(`[pixabay] no se pudo usar la foto (q="${query}")`);
+  return null;
+}
+
+// utils/clickup/postImage.ts
 var MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 var EXTENSION_BY_MIME = {
   "image/jpeg": "jpg",
@@ -25248,6 +25382,8 @@ var EXTENSION_BY_MIME = {
   "image/png": "png",
   "image/webp": "webp"
 };
+var NO_STOCK_IMAGE = "No hay imagen: adjunta una o agrega un comentario 'imagen: palabras en ingl\xE9s' y vuelve a aprobar.";
+var IMAGE_LINE = /^\s*imagen:\s*(.*)$/i;
 function declaredBytes(size) {
   if (size === null || size === void 0 || size === "") return null;
   const bytes = typeof size === "number" ? size : Number(size);
@@ -25296,7 +25432,34 @@ async function uploadToPostStorage(context, buffer, extension) {
     height: stored.height
   };
 }
-async function requirePostImage(task, context) {
+function extensionFromBuffer(buffer) {
+  let probed;
+  try {
+    probed = (0, import_image_size.imageSize)(buffer);
+  } catch {
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+  if (probed.type !== "jpg" && probed.type !== "png" && probed.type !== "webp") {
+    throw new Error("La imagen debe ser jpg, png o webp.");
+  }
+  return probed.type;
+}
+async function storeImageBuffer(buffer, context, expected) {
+  if (buffer.length > MAX_IMAGE_BYTES) throw new Error("La imagen pesa m\xE1s de 8 MB.");
+  const extension = expected ?? extensionFromBuffer(buffer);
+  assertBufferMatches(buffer, extension);
+  return uploadToPostStorage(context, buffer, extension);
+}
+function bufferIsUsableImage(buffer) {
+  if (buffer.length > MAX_IMAGE_BYTES) return false;
+  try {
+    assertBufferMatches(buffer, extensionFromBuffer(buffer));
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function imageFromAttachment(task, context) {
   const attachment = firstImageAttachment(task);
   if (!attachment) throw new Error("Falta adjuntar la imagen");
   const mime = attachment.mimetype?.split(";")[0]?.trim().toLowerCase() ?? "";
@@ -25308,9 +25471,47 @@ async function requirePostImage(task, context) {
   }
   if (!attachment.url?.trim()) throw new Error("No se pudo descargar la imagen adjunta.");
   const buffer = await downloadClickUpFile(attachment.url, MAX_IMAGE_BYTES);
-  if (buffer.length > MAX_IMAGE_BYTES) throw new Error("La imagen pesa m\xE1s de 8 MB.");
-  assertBufferMatches(buffer, extension);
-  return uploadToPostStorage(context, buffer, extension);
+  return storeImageBuffer(buffer, context, extension);
+}
+function commentPlainText(comment) {
+  if (typeof comment.comment_text === "string" && comment.comment_text.trim()) {
+    return comment.comment_text;
+  }
+  if (!Array.isArray(comment.comment)) return "";
+  return comment.comment.map((part) => part.text ?? "").join("");
+}
+function commentTime(comment) {
+  const ms = typeof comment.date === "number" ? comment.date : Number(comment.date);
+  return Number.isFinite(ms) ? ms : 0;
+}
+function imageQueryFromComments(comments) {
+  const newestFirst = [...comments].sort((a, b) => commentTime(b) - commentTime(a));
+  for (const comment of newestFirst) {
+    for (const line of commentPlainText(comment).split(/\r?\n/)) {
+      const match = line.match(IMAGE_LINE);
+      if (!match) continue;
+      const words = match[1].trim().slice(0, 100).trim();
+      if (words) return words;
+    }
+  }
+  return null;
+}
+async function resolvePostImage(task, context) {
+  if (firstImageAttachment(task)) {
+    return { image: await imageFromAttachment(task, context), pixabayCredit: null };
+  }
+  const comments = await getTaskComments(task.id) ?? [];
+  const query = imageQueryFromComments(comments);
+  if (!query) throw new Error(NO_STOCK_IMAGE);
+  const photo = await findPixabayPhoto(query, {
+    maxBytes: MAX_IMAGE_BYTES,
+    accept: bufferIsUsableImage
+  });
+  if (!photo) throw new Error(NO_STOCK_IMAGE);
+  return {
+    image: await storeImageBuffer(photo.buffer, context),
+    pixabayCredit: photo.credit
+  };
 }
 async function attachImageToPost(context, postId, image7) {
   await context.sudo().prisma.post.update({
@@ -25576,7 +25777,8 @@ async function scheduleApprovedClickUpTask(taskId, context) {
     await commentExisting(taskId, existing);
     return;
   }
-  const image7 = await requirePostImage(task, context);
+  const resolved = await resolvePostImage(task, context);
+  const image7 = resolved.image;
   let createdId = null;
   try {
     const created = await context.sudo().query.Post.createOne({
@@ -25596,8 +25798,10 @@ async function scheduleApprovedClickUpTask(taskId, context) {
     await setTaskStatus(taskId, "programado");
     const url = postPublicUrl(created.product || product, created.url, created.id);
     const when = formatInMexicoCity(draft.publishedAt);
+    const credit = resolved.pixabayCredit ? `
+Foto: ${resolved.pixabayCredit.user} en Pixabay \u2014 ${resolved.pixabayCredit.pageURL}` : "";
     try {
-      await commentTask(taskId, `Programado para ${when}. URL: ${url}`);
+      await commentTask(taskId, `Programado para ${when}. URL: ${url}${credit}`);
     } catch (err) {
       console.error("[clickup] el post qued\xF3 programado pero no se pudo comentar", err);
     }

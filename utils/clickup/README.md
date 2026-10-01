@@ -17,8 +17,14 @@ y Facebook siguen saliendo por `publishScheduledPosts`; este módulo no los toca
 - `clickupTaskId` es único y nullable. Los posts viejos quedan en `null` (Postgres permite
   varios null en un único). Un default `""` haría fallar la migración: todos los posts
   existentes compartirían el mismo string vacío.
-- Sin imagen jpg/png/webp de hasta 8 MB no se crea el post: estado `error` y comentario
-  `Falta adjuntar la imagen` (o el motivo, si el archivo no sirve).
+- Portada, en este orden: (1) el primer adjunto `image/*`, con las mismas reglas de
+  siempre — jpg/png/webp, máx. 8 MB; si ese adjunto no sirve, es error y no se busca otra
+  foto; (2) si no hay adjunto, Pixabay, con las palabras del comentario más reciente que
+  tenga una línea `imagen:` (máx. 100 caracteres). Sin ese comentario no se inventa una
+  búsqueda con el título. (3) si Pixabay no da imagen, estado `error` y comentario
+  `No hay imagen: adjunta una o agrega un comentario 'imagen: palabras en inglés' y vuelve a aprobar.`
+- La foto de Pixabay se descarga y se guarda en R2. La URL de Pixabay no se guarda en el post.
+  El comentario de éxito suma una segunda línea: `Foto: <user> en Pixabay — <pageURL>`.
 - La imagen se sube con `context.images("s3_posts")` y se guarda en
   `image_id`, `image_extension`, `image_filesize`, `image_width`, `image_height`.
   La key es la del Admin (`posts/{id}.{ext}` o `dev/posts/…`).
@@ -36,6 +42,7 @@ y Facebook siguen saliendo por `publishScheduledPosts`; este módulo no los toca
 | `CLICKUP_WEBHOOK_SECRET` | Secret que imprime `pnpm clickup:register-webhook`. |
 | `CLICKUP_PET_LIST_ID` | Lista Publicaciones de Kadesh Pet (`901717498002`). |
 | `CLICKUP_SAAS_LIST_ID` | Lista Publicaciones de Kadesh Negocios (`901717498004`). |
+| `PIXABAY_API_KEY` | API key de Pixabay. Va en la query de la API, nunca en un log. Sin ella, una tarea sin adjunto cae al error de "no hay imagen". |
 | `WHATSAPP_WEBHOOK_BASE_URL` | Dominio público del backend; el endpoint es `{base}/webhooks/clickup`. |
 
 El webhook es uno solo, a nivel workspace (`team` `9017505640`), sin `list_id`.
@@ -54,10 +61,20 @@ el campo `image`).
 
 ### 2026-10-01 — Sin imagen no se publica
 
-Qué: si no hay un adjunto `image/*`, la tarea va a `error` con `Falta adjuntar la imagen`.
-jpg/png/webp y máximo 8 MB. Un gif u otro formato, aunque el mimetype empiece con `image/`,
-también es error: se usa el primero, no se busca otro.
+Qué: jpg/png/webp y máximo 8 MB. Un gif u otro formato, aunque el mimetype empiece con
+`image/`, también es error: se usa el primero, no se busca otro ni se cae a Pixabay.
 
-Por qué: el post sale al sitio y a Facebook. Publicarlo sin portada y luego no poder
-adjuntarla (el `clickupTaskId` ya existe) deja una ficha rota. Adjuntar la imagen y
-volver a pasar la tarea a `aprobado` reintenta.
+Por qué: el post sale al sitio y a Facebook. Un adjunto malo no debe reemplazarse en
+silencio por una foto de stock.
+
+### 2026-10-01 — Sin adjunto, la foto sale de Pixabay
+
+Qué: si la tarea no trae adjunto, se busca en Pixabay (`image_type=photo`,
+`orientation=horizontal`, `min_width=1200`, `lang=en`). Las palabras salen del comentario
+más reciente con una línea `imagen:`. Un comentario nuevo gana sobre el anterior. No se
+usa el título de la tarea. Se descarga `largeImageURL` (si falla, `webformatURL` de al
+menos 640 px) y se guarda en R2: Pixabay no permite dejar el enlace caliente. El crédito
+va solo en el comentario de ClickUp (`pageURL`).
+
+Qué no hacer: no meter la atribución ni la URL de Pixabay en `Post`; no loguear la URL de
+la API (lleva la key); no usar Pixabay cuando el adjunto existe y falla.
