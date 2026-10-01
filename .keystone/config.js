@@ -968,6 +968,56 @@ async function sendPetPlaceAppointmentEmail({
   });
 }
 
+// models/Pet/Animal/scheduleAnimalFacebookPost.ts
+var FALLBACK_MS = 9e4;
+var AFTER_COVER_MS = 2500;
+var pending = /* @__PURE__ */ new Map();
+var publishAnimal = null;
+function setAnimalFacebookPublisher(fn) {
+  publishAnimal = fn;
+}
+function schedule(animalId, context, delayMs, coverSeen) {
+  const previous = pending.get(animalId);
+  if (previous) clearTimeout(previous.timer);
+  const timer = setTimeout(() => {
+    const current = pending.get(animalId);
+    if (!current || current.timer !== timer) return;
+    pending.delete(animalId);
+    if (!publishAnimal) {
+      console.error(
+        `[facebook] Animal ${animalId} qued\xF3 en espera pero no hay publicador.`
+      );
+      return;
+    }
+    void publishAnimal(animalId, current.context).catch((error) => {
+      console.error("[facebook] No se pudo publicar el animal:", error);
+    });
+  }, delayMs);
+  timer.unref?.();
+  pending.set(animalId, {
+    timer,
+    context,
+    coverSeen: coverSeen || previous?.coverSeen === true
+  });
+}
+function watchAnimalForFacebook(animalId, context) {
+  schedule(animalId, context, FALLBACK_MS, false);
+}
+function noteAnimalSlugSettled(animalId, context) {
+  const current = pending.get(animalId);
+  if (!current) return;
+  schedule(
+    animalId,
+    context,
+    current.coverSeen ? AFTER_COVER_MS : FALLBACK_MS,
+    current.coverSeen
+  );
+}
+function noteAnimalCoverSaved(animalId, context) {
+  if (!pending.has(animalId)) return;
+  schedule(animalId, context, AFTER_COVER_MS, true);
+}
+
 // models/Pet/Animal/Animal.hooks.ts
 var EMOJI_RE = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
 var UNNAMED_RE = /^(sin-?nombre|n-?a|na|unnamed)?$/;
@@ -1088,6 +1138,22 @@ ${animal.physical_description}` : animal.name || "Nuevo animal en Kadesh";
     );
   }
 }
+async function publishAnimalToFacebookById(animalId, context) {
+  const animal = await context.sudo().query.Animal.findOne({
+    where: { id: animalId },
+    query: "id name physical_description slug"
+  });
+  if (!animal?.slug) {
+    console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
+    return;
+  }
+  await publishAnimalToFacebook({
+    name: animal.name ?? null,
+    physical_description: animal.physical_description ?? null,
+    slug: animal.slug
+  });
+}
+setAnimalFacebookPublisher(publishAnimalToFacebookById);
 async function notifyAdminsNewAnimal(animal, creator) {
   const slug = animal.slug || void 0;
   await sendAdminNewAnimalEmail({
@@ -1107,16 +1173,16 @@ var animalCreateSideEffectsHook = {
     context
   }) => {
     if (operation !== "create" || !item?.id) return;
-    let slug = item.slug ?? null;
+    const animalId = String(item.id);
     try {
-      if (!slug) {
-        const animal = await context.sudo().query.Animal.findOne({
-          where: { id: item.id },
-          query: "id name animal_type { name }"
-        });
-        if (!animal) return;
-        slug = await persistAnimalSlug(
-          item.id,
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: animalId },
+        query: "id name slug animal_type { name }"
+      });
+      if (!animal) return;
+      if (!animal.slug) {
+        await persistAnimalSlug(
+          animalId,
           {
             name: animal.name,
             type: animal.animal_type?.name
@@ -1130,20 +1196,26 @@ var animalCreateSideEffectsHook = {
     if (!context.session?.data) return;
     try {
       const animal = await context.sudo().query.Animal.findOne({
-        where: { id: item.id },
-        query: "id name physical_description slug animal_type { name } user { name email }"
+        where: { id: animalId },
+        query: "id name physical_description slug animal_type { name } user { name email } multimedia { id } logs { id }"
       });
       if (!animal) return;
       const resolved = {
         id: String(animal.id),
         name: animal.name ?? null,
         physical_description: animal.physical_description ?? null,
-        slug: animal.slug || slug,
+        slug: animal.slug ?? null,
         animal_type: animal.animal_type ?? null,
         user: animal.user ?? null
       };
       if (isPlatformAdmin(context.session)) {
-        await publishAnimalToFacebook(resolved);
+        const hasCover = Array.isArray(animal.multimedia) && animal.multimedia.length > 0;
+        const hasLog = Array.isArray(animal.logs) && animal.logs.length > 0;
+        if (hasCover && hasLog && resolved.slug) {
+          await publishAnimalToFacebook(resolved);
+        } else {
+          watchAnimalForFacebook(animalId, context);
+        }
       } else {
         const fromSession = sessionCreator(context.session);
         const creator = {
@@ -1179,27 +1251,85 @@ var animalLogSlugAfterOperation = {
         where: { id: animalId },
         query: "id name slug animal_type { name }"
       });
-      if (!animal || animalSlugHasStatus(animal.slug)) return;
-      await persistAnimalSlug(
-        animalId,
-        {
-          name: animal.name,
-          type: animal.animal_type?.name,
-          status: item.status,
-          city: item.city
-        },
-        context
-      );
+      if (!animal) return;
+      if (!animalSlugHasStatus(animal.slug)) {
+        await persistAnimalSlug(
+          animalId,
+          {
+            name: animal.name,
+            type: animal.animal_type?.name,
+            status: item.status,
+            city: (item.placeLabel || "").trim() || item.city
+          },
+          context
+        );
+      }
+      noteAnimalSlugSettled(animalId, context);
     } catch (error) {
       console.error("Error enriching animal slug from log:", error);
     }
   }
 };
+var animalMultimediaFacebookHook = {
+  afterOperation: async ({
+    operation,
+    item,
+    context
+  }) => {
+    if (operation !== "create") return;
+    const animalId = item?.animalId ?? item?.animal;
+    if (!animalId || typeof animalId !== "string") return;
+    noteAnimalCoverSaved(animalId, context);
+  }
+};
+
+// utils/pet/phone.ts
+function normalizeMxPhone(raw) {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("521") && digits.length === 13) digits = digits.slice(3);
+  else if (digits.startsWith("52") && digits.length === 12) digits = digits.slice(2);
+  if (digits.length !== 10) {
+    return { ok: false, reason: "El tel\xE9fono debe tener 10 d\xEDgitos." };
+  }
+  return { ok: true, digits };
+}
 
 // models/Pet/Animal/Animal.ts
 var Animal_default = (0, import_core.list)({
   access: access_default,
-  hooks: animalCreateSideEffectsHook,
+  hooks: {
+    resolveInput: ({ resolvedData }) => {
+      const data = { ...resolvedData };
+      for (const key of ["contactNumber", "contactNumber2"]) {
+        if (!(key in data) || data[key] == null) continue;
+        const raw = String(data[key]);
+        if (!raw.trim()) {
+          data[key] = "";
+          continue;
+        }
+        const phone = normalizeMxPhone(raw);
+        if (phone.ok) data[key] = phone.digits;
+      }
+      return data;
+    },
+    validateInput: ({ resolvedData, addValidationError }) => {
+      for (const key of ["contactNumber", "contactNumber2"]) {
+        if (!(key in resolvedData) || resolvedData[key] == null) continue;
+        const raw = String(resolvedData[key]).trim();
+        if (!raw) continue;
+        const phone = normalizeMxPhone(raw);
+        if (!phone.ok) {
+          console.error("[animal] validaci\xF3n Keystone", {
+            field: key,
+            reason: phone.reason,
+            raw
+          });
+          addValidationError(phone.reason);
+        }
+      }
+    },
+    ...animalCreateSideEffectsHook
+  },
   ui: {
     listView: {
       initialColumns: ["name", "slug", "createdAt"]
@@ -1225,6 +1355,22 @@ var Animal_default = (0, import_core.list)({
     color: (0, import_fields.text)(),
     size: (0, import_fields.text)(),
     contactNumber: (0, import_fields.text)(),
+    contactNumber2: (0, import_fields.text)({
+      ui: { description: "Segundo tel\xE9fono, opcional." }
+    }),
+    sourceUrl: (0, import_fields.text)({
+      ui: { description: "Enlace de la publicaci\xF3n original, por ejemplo de Facebook." }
+    }),
+    reportedBy: (0, import_fields.select)({
+      options: [
+        { label: "Due\xF1o", value: "owner" },
+        { label: "Voluntario", value: "volunteer" }
+      ],
+      defaultValue: "owner",
+      ui: {
+        description: "owner publica su mascota. volunteer reporta por alguien m\xE1s."
+      }
+    }),
     animal_type: (0, import_fields.relationship)({
       ref: "AnimalType",
       many: false
@@ -1285,6 +1431,7 @@ var import_core3 = require("@keystone-6/core");
 var import_fields3 = require("@keystone-6/core/fields");
 var AnimalMultimedia_default = (0, import_core3.list)({
   access: access_default,
+  hooks: animalMultimediaFacebookHook,
   fields: {
     image: (0, import_fields3.image)({
       storage: "s3_animals"
@@ -1332,9 +1479,207 @@ var AnimalFavorite_default = (0, import_core4.list)({
 // models/Pet/Animal/AnimalLog/AnimalLog.ts
 var import_core5 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
+
+// utils/pet/nominatim.ts
+var CITY_KEYS = ["city", "town", "municipality", "county"];
+var NEIGHBORHOOD_KEYS = [
+  "suburb",
+  "neighbourhood",
+  "city_district",
+  "quarter",
+  "hamlet",
+  "village"
+];
+function cleanAdmin(value) {
+  return value.trim().replace(/^municipio de\s+/i, "").trim();
+}
+function firstOf(address, keys) {
+  for (const key of keys) {
+    const value = address[key];
+    if (value?.trim()) return cleanAdmin(value);
+  }
+  return "";
+}
+function parseReversePlace(data) {
+  const address = data.address ?? {};
+  const street = [address.road, address.house_number].filter(Boolean).join(" ") || data.display_name?.split(",")[0]?.trim() || "";
+  return {
+    address: street,
+    city: firstOf(address, CITY_KEYS),
+    state: address.state?.trim() || "",
+    country: address.country?.trim() || "",
+    neighborhood: firstOf(address, NEIGHBORHOOD_KEYS),
+    postalCode: address.postcode?.trim() || ""
+  };
+}
+async function reverseGeocode(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: {
+        "Accept-Language": "es",
+        "User-Agent": "KadeshPet/1.0 (https://pet.kadesh.com.mx)"
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return parseReversePlace(data);
+  } catch (error) {
+    console.error("[nominatim] reverse geocode fall\xF3", error);
+    return null;
+  }
+}
+
+// utils/pet/animalReport.ts
+var COLONIA_PREFIX = /^(col\.?|colonia|fracc\.?|fraccionamiento|unidad)\s+/i;
+var STREET_LABEL = /^(calle|av\.?|avenida|blvd\.?|boulevard|carr\.?|carretera|camino|privada|cerrada|andador|prolongaci[oó]n)\b/i;
+function foldName(value) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+function namesSimilar(a, b) {
+  const left = foldName(a);
+  const right = foldName(b);
+  if (!left || !right || left.length < 2 || right.length < 2) return false;
+  return left === right || left.includes(right) || right.includes(left);
+}
+function placeLabelFromAddress(address) {
+  const parts = address.split(",").map((part) => part.trim()).filter((part) => part && !/^\d{4,6}$/.test(part));
+  if (!parts.length) return "";
+  const colonia = parts.find((part) => COLONIA_PREFIX.test(part));
+  const raw = colonia || parts.find((part) => !STREET_LABEL.test(part)) || parts[0];
+  return raw.replace(COLONIA_PREFIX, "").trim();
+}
+function petPublicUrl(slug) {
+  const base = (process.env.PET_FRONTEND_URL?.trim() || process.env.FRONTEND_URL?.trim() || "https://pet.kadesh.com.mx").replace(/\/$/, "");
+  return `${base}/animales/${slug}`;
+}
+function toDuplicate(row) {
+  if (!row.id) return null;
+  const slug = row.slug?.trim() || row.id;
+  return {
+    id: row.id,
+    name: row.name?.trim() || "Sin nombre",
+    slug: row.slug ?? null,
+    url: petPublicUrl(slug)
+  };
+}
+async function findReportDuplicates(context, input) {
+  const found = /* @__PURE__ */ new Map();
+  const sourceUrl = input.sourceUrl?.trim();
+  if (sourceUrl) {
+    const rows = await context.sudo().query.Animal.findMany({
+      where: { sourceUrl: { equals: sourceUrl } },
+      query: "id name slug",
+      take: 5
+    });
+    for (const row of rows) {
+      const dup = toDuplicate(row);
+      if (dup) found.set(dup.id, dup);
+    }
+  }
+  const phone = input.phone?.trim();
+  const typeId = input.animalTypeId?.trim();
+  const name = input.name?.trim();
+  if (phone && typeId && name) {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3).toISOString();
+    const rows = await context.sudo().query.Animal.findMany({
+      where: {
+        contactNumber: { equals: phone },
+        animal_type: { id: { equals: typeId } },
+        createdAt: { gte: since }
+      },
+      query: "id name slug",
+      take: 30
+    });
+    for (const row of rows) {
+      if (!namesSimilar(name, row.name || "")) continue;
+      const dup = toDuplicate(row);
+      if (dup) found.set(dup.id, dup);
+    }
+  }
+  return [...found.values()];
+}
+async function fillCityFromCoordinates(input) {
+  let city = input.city?.trim() || "";
+  let state = input.state?.trim() || "";
+  let country = input.country?.trim() || "";
+  let neighborhood = input.neighborhood?.trim() || "";
+  let postalCode = input.postalCode?.trim() || "";
+  const lat = Number(input.lat);
+  const lng = Number(input.lng);
+  if (!city && Number.isFinite(lat) && Number.isFinite(lng)) {
+    const place = await reverseGeocode(lat, lng);
+    if (place) {
+      city = place.city;
+      if (!state) state = place.state;
+      if (!country) country = place.country;
+      if (!neighborhood) neighborhood = place.neighborhood;
+      if (!postalCode) postalCode = place.postalCode;
+    }
+  }
+  if (!city) {
+    console.warn("[animal-log] ciudad vac\xEDa despu\xE9s de geocodificar", {
+      lat: input.lat,
+      lng: input.lng
+    });
+    city = state || "Sin especificar";
+  }
+  return { city, state, country, neighborhood, postalCode };
+}
+function requirePhone(raw, label = "tel\xE9fono") {
+  const value = raw?.trim() || "";
+  if (!value) {
+    throw new Error(`Escribe el ${label}.`);
+  }
+  const phone = normalizeMxPhone(value);
+  if (!phone.ok) {
+    console.error("[animal] tel\xE9fono inv\xE1lido", { label, raw: value });
+    throw new Error(phone.reason);
+  }
+  return phone.digits;
+}
+function optionalPhone(raw) {
+  const value = raw?.trim() || "";
+  if (!value) return "";
+  const phone = normalizeMxPhone(value);
+  if (!phone.ok) {
+    console.error("[animal] segundo tel\xE9fono inv\xE1lido", { raw: value });
+    throw new Error(phone.reason);
+  }
+  return phone.digits;
+}
+
+// models/Pet/Animal/AnimalLog/AnimalLog.ts
 var AnimalLog_default = (0, import_core5.list)({
   access: access_default,
-  hooks: animalLogSlugAfterOperation,
+  hooks: {
+    resolveInput: async ({ resolvedData, operation }) => {
+      const data = { ...resolvedData };
+      const shouldFill = operation === "create" || "city" in data || "lat" in data || "lng" in data;
+      if (!shouldFill) return data;
+      const city = typeof data.city === "string" ? data.city : "";
+      const lat = typeof data.lat === "string" ? data.lat : "";
+      const lng = typeof data.lng === "string" ? data.lng : "";
+      if (city.trim() || !lat.trim() || !lng.trim()) return data;
+      const place = await fillCityFromCoordinates({
+        city,
+        state: typeof data.state === "string" ? data.state : "",
+        country: typeof data.country === "string" ? data.country : "",
+        neighborhood: typeof data.neighborhood === "string" ? data.neighborhood : "",
+        postalCode: typeof data.postalCode === "string" ? data.postalCode : "",
+        lat,
+        lng
+      });
+      data.city = place.city;
+      if (!String(data.state || "").trim()) data.state = place.state;
+      if (!String(data.country || "").trim()) data.country = place.country;
+      if (!String(data.neighborhood || "").trim()) data.neighborhood = place.neighborhood;
+      if (!String(data.postalCode || "").trim()) data.postalCode = place.postalCode;
+      return data;
+    },
+    ...animalLogSlugAfterOperation
+  },
   fields: {
     animal: (0, import_fields5.relationship)({
       ref: "Animal.logs"
@@ -1358,6 +1703,21 @@ var AnimalLog_default = (0, import_core5.list)({
     city: (0, import_fields5.text)(),
     state: (0, import_fields5.text)(),
     country: (0, import_fields5.text)(),
+    neighborhood: (0, import_fields5.text)({
+      ui: {
+        description: "Colonia que resolvi\xF3 el mapa. No se usa en el t\xEDtulo ni en el slug."
+      }
+    }),
+    postalCode: (0, import_fields5.text)({
+      ui: {
+        description: "C\xF3digo postal del mapa. No define el municipio."
+      }
+    }),
+    placeLabel: (0, import_fields5.text)({
+      ui: {
+        description: "Lugar que escribi\xF3 quien reporta. Es el que sale en el t\xEDtulo y el slug."
+      }
+    }),
     last_seen: (0, import_fields5.checkbox)(),
     createdAt: (0, import_fields5.timestamp)({
       defaultValue: {
@@ -20313,8 +20673,249 @@ var veterinaryMutations = {
 };
 var veterinary_default = veterinaryMutations;
 
-// graphql/customs/mutations/unsubscribeBlog.ts
+// graphql/customs/mutations/pet/createAnimalReport.ts
+var import_stream = require("stream");
+var import_graphql = require("graphql");
+var import_image_size = require("image-size");
+var TYPE_ALIASES = {
+  perro: "dog",
+  dog: "dog",
+  gato: "cat",
+  cat: "cat",
+  ave: "bird",
+  bird: "bird",
+  pez: "fish",
+  fish: "fish",
+  reptil: "reptil",
+  mamifero: "mammal",
+  mam\u00EDfero: "mammal",
+  mammal: "mammal"
+};
 var typeDefs29 = `
+  input CreateAnimalReportInput {
+    type: String!
+    name: String!
+    size: String
+    age: String
+    color: String
+    sex: String
+    breed: String
+    marks: String
+    status: String!
+    lostDate: String
+    lat: String!
+    lng: String!
+    addressText: String
+    phone: String!
+    phone2: String
+    note: String
+    sourceUrl: String
+    reportedBy: String
+    imageUrls: [String!]
+    confirmDuplicate: Boolean
+    reporterUserId: String
+  }
+
+  type CreateAnimalReportResult {
+    id: ID!
+    slug: String!
+    url: String!
+  }
+`;
+var definition26 = `
+  createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
+`;
+function serviceToken(context) {
+  const header = context.req?.headers?.authorization;
+  const value = Array.isArray(header) ? header[0] : header;
+  const match = value?.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || "";
+}
+function assertCanCreate(context) {
+  const expected = process.env.PET_AUTOMATION_TOKEN?.trim();
+  const token = serviceToken(context);
+  if (expected && token && token === expected) return;
+  if (isSignedIn(context.session)) return;
+  throw new import_graphql.GraphQLError("No autorizado para crear reportes.");
+}
+function parseLostDate(value) {
+  const raw = value?.trim();
+  if (!raw) return (/* @__PURE__ */ new Date()).toISOString();
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  const date = dateOnly ? /* @__PURE__ */ new Date(`${raw}T12:00:00-06:00`) : new Date(raw);
+  if (Number.isNaN(date.getTime())) {
+    throw new import_graphql.GraphQLError("La fecha no es v\xE1lida.");
+  }
+  if (date.getTime() > Date.now()) {
+    throw new import_graphql.GraphQLError("La fecha no puede ser posterior a hoy.");
+  }
+  return date.toISOString();
+}
+async function resolveType(context, type) {
+  const key = type.trim();
+  const alias = TYPE_ALIASES[key.toLowerCase()] || key;
+  const rows = await context.sudo().query.AnimalType.findMany({
+    where: {
+      OR: [
+        { id: { equals: key } },
+        { name: { equals: alias } },
+        { name: { equals: key } }
+      ]
+    },
+    query: "id name",
+    take: 1
+  });
+  if (!rows[0]) throw new import_graphql.GraphQLError("Elige un tipo de animal v\xE1lido.");
+  return rows[0];
+}
+async function resolveBreed(context, typeId, breed) {
+  const key = breed?.trim();
+  if (key) {
+    const rows = await context.sudo().query.AnimalBreed.findMany({
+      where: {
+        animal_type: { id: { equals: typeId } },
+        OR: [{ id: { equals: key } }, { breed: { equals: key } }]
+      },
+      query: "id breed",
+      take: 1
+    });
+    if (rows[0]) return rows[0].id;
+  }
+  const fallback = await context.sudo().query.AnimalBreed.findMany({
+    where: { animal_type: { id: { equals: typeId } } },
+    query: "id breed",
+    take: 50
+  });
+  const mestizo = fallback.find(
+    (row) => /mestiz|crioll|sin raza|no se|desconoc/i.test(row.breed || "")
+  );
+  return (mestizo || fallback[0])?.id || null;
+}
+async function storeRemoteImage(context, url) {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "KadeshPet/1.0 (https://pet.kadesh.com.mx)" }
+  });
+  if (!res.ok) throw new import_graphql.GraphQLError("No se pudo descargar una imagen del reporte.");
+  const buffer = Buffer.from(await res.arrayBuffer());
+  if (buffer.length > 8 * 1024 * 1024) {
+    throw new import_graphql.GraphQLError("Una imagen pesa m\xE1s de 8 MB.");
+  }
+  let probed;
+  try {
+    probed = (0, import_image_size.imageSize)(buffer);
+  } catch {
+    throw new import_graphql.GraphQLError("La imagen debe ser jpg, png o webp.");
+  }
+  if (probed.type !== "jpg" && probed.type !== "png" && probed.type !== "webp") {
+    throw new import_graphql.GraphQLError("La imagen debe ser jpg, png o webp.");
+  }
+  const images = context.images("s3_animals");
+  const stored = await images.getDataFromStream(
+    import_stream.Readable.from(buffer),
+    `reporte.${probed.type}`
+  );
+  return stored;
+}
+var resolver26 = {
+  createAnimalReport: async (_root, { input }, context) => {
+    try {
+      assertCanCreate(context);
+      const phone = requirePhone(input.phone, "tel\xE9fono del due\xF1o");
+      const phone2 = optionalPhone(input.phone2);
+      const animalType = await resolveType(context, input.type);
+      const breedId = await resolveBreed(context, animalType.id, input.breed);
+      const reportedBy = input.reportedBy === "volunteer" ? "volunteer" : "owner";
+      const addressText = input.addressText?.trim() || "";
+      const place = await fillCityFromCoordinates({
+        lat: input.lat,
+        lng: input.lng
+      });
+      const placeLabel = addressText ? placeLabelFromAddress(addressText) : "";
+      const duplicates = await findReportDuplicates(context, {
+        sourceUrl: input.sourceUrl,
+        phone,
+        animalTypeId: animalType.id,
+        name: input.name
+      });
+      if (duplicates.length && !input.confirmDuplicate) {
+        throw new import_graphql.GraphQLError(
+          `Parece que este reporte ya existe: ${duplicates[0].url}`
+        );
+      }
+      const sessionUser = getSessionUserId(context.session);
+      const userId = input.reporterUserId?.trim() || sessionUser || process.env.PET_AUTOMATION_USER_ID?.trim() || "";
+      const animal = await context.sudo().query.Animal.createOne({
+        data: {
+          name: input.name.trim() || "Sin nombre",
+          contactNumber: phone,
+          contactNumber2: phone2,
+          sex: input.sex?.trim() || "unknown",
+          physical_description: input.marks?.trim() || "",
+          age: input.age?.trim() || "",
+          color: input.color?.trim() || "",
+          size: input.size?.trim() || "",
+          sourceUrl: input.sourceUrl?.trim() || "",
+          reportedBy,
+          animal_type: { connect: { id: animalType.id } },
+          ...breedId ? { animal_breed: { connect: { id: breedId } } } : {},
+          ...userId ? { user: { connect: { id: userId } } } : {}
+        },
+        query: "id slug"
+      });
+      await context.sudo().query.AnimalLog.createOne({
+        data: {
+          animal: { connect: { id: animal.id } },
+          status: input.status.trim(),
+          notes: input.note?.trim() || "Sin informaci\xF3n adicional",
+          lat: String(input.lat),
+          lng: String(input.lng),
+          address: addressText,
+          city: place.city,
+          state: place.state,
+          country: place.country || "M\xE9xico",
+          neighborhood: place.neighborhood,
+          postalCode: place.postalCode,
+          placeLabel,
+          last_seen: input.status !== "in_adoption",
+          date_status: parseLostDate(input.lostDate)
+        },
+        query: "id"
+      });
+      const urls = (input.imageUrls || []).map((url) => url.trim()).filter(Boolean).slice(0, 3);
+      for (let index = 0; index < urls.length; index += 1) {
+        const stored = await storeRemoteImage(context, urls[index]);
+        await context.sudo().prisma.animalMultimedia.create({
+          data: {
+            animalId: animal.id,
+            order: index + 1,
+            image_id: stored.id,
+            image_extension: stored.extension,
+            image_filesize: stored.filesize,
+            image_width: stored.width,
+            image_height: stored.height
+          }
+        });
+      }
+      if (urls.length) noteAnimalCoverSaved(animal.id, context);
+      const fresh = await context.sudo().query.Animal.findOne({
+        where: { id: animal.id },
+        query: "id slug"
+      });
+      const slug = fresh?.slug || animal.slug || animal.id;
+      return { id: animal.id, slug, url: petPublicUrl(slug) };
+    } catch (error) {
+      console.error("[animal] createAnimalReport", error);
+      if (error instanceof import_graphql.GraphQLError) throw error;
+      const message = error instanceof Error ? error.message : "No se pudo publicar el reporte.";
+      throw new import_graphql.GraphQLError(message);
+    }
+  }
+};
+var createAnimalReport = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+var createAnimalReport_default = createAnimalReport;
+
+// graphql/customs/mutations/unsubscribeBlog.ts
+var typeDefs30 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -20324,10 +20925,10 @@ var typeDefs29 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition26 = `
+var definition27 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver26 = {
+var resolver27 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -20378,10 +20979,10 @@ var resolver26 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+var unsubscribeBlog_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs30 = `
+var typeDefs31 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -20392,10 +20993,10 @@ var typeDefs30 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition27 = `
+var definition28 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver27 = {
+var resolver28 = {
   /**
    * Pensada para un cron externo (GitHub Actions, ver .github/workflows/publish-scheduled-posts.yml),
    * no para un usuario logueado: se autoriza con `CRON_SECRET`, no con sesión/rol.
@@ -20443,10 +21044,10 @@ var resolver27 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
+var publishScheduledPosts_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs31 = `
+var typeDefs32 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -20457,7 +21058,7 @@ var typeDefs31 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition28 = `
+var definition29 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -20466,7 +21067,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver28 = {
+var resolver29 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -20534,7 +21135,7 @@ var resolver28 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -20622,7 +21223,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs32 = `
+var typeDefs33 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -20646,7 +21247,7 @@ var typeDefs32 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition29 = `
+var definition30 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -20662,7 +21263,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver29 = {
+var resolver30 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -20746,7 +21347,7 @@ var resolver29 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // utils/intregrations/whatsapp.ts
 var import_crypto4 = __toESM(require("crypto"));
@@ -21394,7 +21995,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs33 = `
+var typeDefs34 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -21408,10 +22009,10 @@ var typeDefs33 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition30 = `
+var definition31 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver30 = {
+var resolver31 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -21456,7 +22057,7 @@ var resolver30 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -21594,7 +22195,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs34 = `
+var typeDefs35 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -21605,10 +22206,10 @@ var typeDefs34 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition31 = `
+var definition32 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver31 = {
+var resolver32 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -21669,7 +22270,7 @@ var resolver31 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -21737,7 +22338,7 @@ function distinctSenders(messages) {
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs35 = `
+var typeDefs36 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -21754,7 +22355,7 @@ var typeDefs35 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition32 = `
+var definition33 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -21765,7 +22366,7 @@ var definition32 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver32 = {
+var resolver33 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -21843,10 +22444,10 @@ var resolver32 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs36 = `
+var typeDefs37 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -21856,7 +22457,7 @@ var typeDefs36 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition33 = `
+var definition34 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -21868,7 +22469,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver33 = {
+var resolver34 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -21974,7 +22575,7 @@ var resolver33 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
 var import_crypto5 = __toESM(require("crypto"));
@@ -22023,7 +22624,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs37 = `
+var typeDefs38 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -22034,7 +22635,7 @@ var typeDefs37 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition34 = `
+var definition35 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -22047,7 +22648,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver34 = {
+var resolver35 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -22131,10 +22732,10 @@ var resolver34 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs38 = `
+var typeDefs39 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -22144,13 +22745,13 @@ var typeDefs38 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition35 = `
+var definition36 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver35 = {
+var resolver36 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -22191,10 +22792,10 @@ var resolver35 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs39 = `
+var typeDefs40 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -22205,13 +22806,13 @@ var typeDefs39 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition36 = `
+var definition37 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver36 = {
+var resolver37 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -22240,7 +22841,7 @@ var resolver36 = {
     return toResult10(true, "Conversaci\xF3n enlazada al cliente", count);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -22253,7 +22854,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs40 = `
+var typeDefs41 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -22289,7 +22890,7 @@ var typeDefs40 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition37 = `
+var definition38 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
 function fail3(message, detail = null) {
@@ -22306,7 +22907,7 @@ function fail3(message, detail = null) {
     templateError: null
   };
 }
-var resolver37 = {
+var resolver38 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -22480,7 +23081,7 @@ var resolver37 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // utils/googleCalendar/state.ts
 var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
@@ -22547,7 +23148,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs41 = `
+var typeDefs42 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -22558,11 +23159,11 @@ var typeDefs41 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition38 = `
+var definition39 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
 var fail4 = (message) => ({ success: false, message, url: null });
-var resolver38 = {
+var resolver39 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -22592,7 +23193,7 @@ var resolver38 = {
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -22647,7 +23248,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs42 = `
+var typeDefs43 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -22660,7 +23261,7 @@ var typeDefs42 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition39 = `
+var definition40 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
 var fail5 = (message) => ({
@@ -22670,7 +23271,7 @@ var fail5 = (message) => ({
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver39 = {
+var resolver40 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -22751,10 +23352,10 @@ var resolver39 = {
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs43 = `
+var typeDefs44 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -22764,10 +23365,10 @@ var typeDefs43 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition40 = `
+var definition41 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver40 = {
+var resolver41 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -22795,10 +23396,10 @@ var resolver40 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs44 = `
+var typeDefs45 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -22809,10 +23410,10 @@ var typeDefs44 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition41 = `
+var definition42 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver41 = {
+var resolver42 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -22858,10 +23459,10 @@ var resolver41 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs45 = `
+var typeDefs46 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -22873,10 +23474,10 @@ var typeDefs45 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition42 = `
+var definition43 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver42 = {
+var resolver43 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -22910,10 +23511,10 @@ var resolver42 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs46 = `
+var typeDefs47 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -22935,7 +23536,7 @@ var typeDefs46 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition43 = `
+var definition44 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
@@ -22948,7 +23549,7 @@ var fail6 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver43 = {
+var resolver44 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -22983,7 +23584,7 @@ var resolver43 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -23011,6 +23612,7 @@ var customMutation = {
     ${promoteInegiEstablishmentToLead_default.typeDefs}
     ${fetchInegiIndicator_default.typeDefs}
     ${veterinary_default.typeDefs}
+    ${createAnimalReport_default.typeDefs}
     ${unsubscribeBlog_default.typeDefs}
     ${publishScheduledPosts_default.typeDefs}
     ${upsertDraftSystemRelease_default.typeDefs}
@@ -23054,6 +23656,7 @@ var customMutation = {
     ${promoteInegiEstablishmentToLead_default.definition}
     ${fetchInegiIndicator_default.definition}
     ${veterinary_default.definition}
+    ${createAnimalReport_default.definition}
     ${unsubscribeBlog_default.definition}
     ${publishScheduledPosts_default.definition}
     ${upsertDraftSystemRelease_default.definition}
@@ -23097,6 +23700,7 @@ var customMutation = {
     ...promoteInegiEstablishmentToLead_default.resolver,
     ...fetchInegiIndicator_default.resolver,
     ...veterinary_default.resolver,
+    ...createAnimalReport_default.resolver,
     ...unsubscribeBlog_default.resolver,
     ...publishScheduledPosts_default.resolver,
     ...upsertDraftSystemRelease_default.resolver,
@@ -23125,7 +23729,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs47 = `
+var typeDefs48 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -23184,7 +23788,7 @@ var typeDefs47 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition44 = `
+var definition45 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -23234,7 +23838,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver44 = {
+var resolver45 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -23397,7 +24001,43 @@ var resolver44 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var nearbyAnimals_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+
+// graphql/customs/queries/findAnimalReportDuplicates.ts
+var typeDefs49 = `
+  type AnimalReportDuplicate {
+    id: ID!
+    name: String!
+    slug: String
+    url: String!
+  }
+`;
+var definition46 = `
+  findAnimalReportDuplicates(
+    phone: String
+    animalTypeId: ID
+    name: String
+    sourceUrl: String
+  ): [AnimalReportDuplicate!]!
+`;
+var resolver46 = {
+  findAnimalReportDuplicates: async (_root, args, context) => {
+    if (!isSignedIn(context.session) && !getSessionUserId(context.session)) {
+      throw new Error("Inicia sesi\xF3n para revisar reportes parecidos.");
+    }
+    const rawPhone = args.phone?.trim() || "";
+    const normalized = rawPhone ? normalizeMxPhone(rawPhone) : null;
+    const phone = normalized?.ok ? normalized.digits : rawPhone;
+    return findReportDuplicates(context, {
+      phone,
+      animalTypeId: args.animalTypeId,
+      name: args.name,
+      sourceUrl: args.sourceUrl
+    });
+  }
+};
+var findAnimalReportDuplicates = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
 function convertGoogleTimeToHours(timeString) {
@@ -23710,7 +24350,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs48 = `
+var typeDefs50 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -23770,10 +24410,10 @@ var typeDefs48 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition45 = `
+var definition47 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver45 = {
+var resolver47 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -23855,10 +24495,10 @@ var resolver45 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs49 = `
+var typeDefs51 = `
   type StripeCard {
     brand: String
     country: String
@@ -23892,10 +24532,10 @@ var typeDefs49 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition46 = `
+var definition48 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver46 = {
+var resolver48 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -23931,10 +24571,10 @@ var resolver46 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var stripePaymentMethods_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs50 = `
+var typeDefs52 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -23972,7 +24612,7 @@ var typeDefs50 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition47 = `
+var definition49 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -23992,7 +24632,7 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver47 = {
+var resolver49 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return fail7("Solo operaciones puede verificar planes con Stripe.");
@@ -24093,7 +24733,7 @@ var resolver47 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var stripePlanCheck_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -24146,7 +24786,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs51 = `
+var typeDefs53 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -24174,10 +24814,10 @@ var typeDefs51 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition48 = `
+var definition50 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver48 = {
+var resolver50 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -24304,11 +24944,11 @@ var resolver48 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var subscriptionStatus_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs52 = `
+var typeDefs54 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -24320,10 +24960,10 @@ var typeDefs52 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition49 = `
+var definition51 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver49 = {
+var resolver51 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -24356,10 +24996,10 @@ var resolver49 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs53 = `
+var typeDefs55 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -24371,10 +25011,10 @@ var typeDefs53 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition50 = `
+var definition52 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver50 = {
+var resolver52 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -24396,11 +25036,11 @@ var resolver50 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs54 = `
+var typeDefs56 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -24429,14 +25069,14 @@ var typeDefs54 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition51 = `
+var definition53 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver51 = {
+var resolver53 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -24492,11 +25132,11 @@ var resolver51 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var whatsappConversations_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs55 = `
+var typeDefs57 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -24508,10 +25148,10 @@ var typeDefs55 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition52 = `
+var definition54 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver52 = {
+var resolver54 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -24552,10 +25192,10 @@ var resolver52 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs56 = `
+var typeDefs58 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -24573,10 +25213,10 @@ var typeDefs56 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition53 = `
+var definition55 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver53 = {
+var resolver55 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -24602,10 +25242,10 @@ var resolver53 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs57 = `
+var typeDefs59 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -24631,13 +25271,13 @@ var typeDefs57 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition54 = `
+var definition56 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
 function fail8(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver54 = {
+var resolver56 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -24694,11 +25334,11 @@ var resolver54 = {
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs58 = `
+var typeDefs60 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -24726,10 +25366,10 @@ var typeDefs58 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition55 = `
+var definition57 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver55 = {
+var resolver57 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
@@ -24781,12 +25421,13 @@ var resolver55 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
   typeDefs: `
     ${nearbyAnimals_default.typeDefs}
+    ${findAnimalReportDuplicates_default.typeDefs}
     ${nearbyPetPlaces_default.typeDefs}
     ${stripePaymentMethods_default.typeDefs}
     ${stripePlanCheck_default.typeDefs}
@@ -24801,6 +25442,7 @@ var customQuery = {
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
+    ${findAnimalReportDuplicates_default.definition}
     ${nearbyPetPlaces_default.definition}
     ${stripePaymentMethods_default.definition}
     ${stripePlanCheck_default.definition}
@@ -24818,6 +25460,7 @@ var customQuery = {
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
+    ...findAnimalReportDuplicates_default.resolver,
     ...nearbyPetPlaces_default.resolver,
     ...stripePaymentMethods_default.resolver,
     ...stripePlanCheck_default.resolver,
@@ -25251,8 +25894,8 @@ async function downloadClickUpFile(url, maxBytes) {
 }
 
 // utils/clickup/postImage.ts
-var import_stream = require("stream");
-var import_image_size = require("image-size");
+var import_stream2 = require("stream");
+var import_image_size2 = require("image-size");
 
 // utils/intregrations/pixabay.ts
 var PIXABAY_API = "https://pixabay.com/api/";
@@ -25401,7 +26044,7 @@ function firstImageAttachment(task) {
 function assertBufferMatches(buffer, extension) {
   let probed;
   try {
-    probed = (0, import_image_size.imageSize)(buffer);
+    probed = (0, import_image_size2.imageSize)(buffer);
   } catch {
     throw new Error("La imagen debe ser jpg, png o webp.");
   }
@@ -25413,7 +26056,7 @@ async function uploadToPostStorage(context, buffer, extension) {
   const images = context.images("s3_posts");
   let stored;
   try {
-    stored = await images.getDataFromStream(import_stream.Readable.from(buffer), `portada.${extension}`);
+    stored = await images.getDataFromStream(import_stream2.Readable.from(buffer), `portada.${extension}`);
   } catch (err) {
     const detail = err instanceof Error ? err.message : "error desconocido";
     throw new Error(`No se pudo guardar la imagen del post: ${detail}`);
@@ -25435,7 +26078,7 @@ async function uploadToPostStorage(context, buffer, extension) {
 function extensionFromBuffer(buffer) {
   let probed;
   try {
-    probed = (0, import_image_size.imageSize)(buffer);
+    probed = (0, import_image_size2.imageSize)(buffer);
   } catch {
     throw new Error("La imagen debe ser jpg, png o webp.");
   }
@@ -26075,7 +26718,26 @@ var keystone_default = withAuth(
       extendGraphqlSchema,
       // Default de body-parser es 100kb — insuficiente para el .txt de historial de WhatsApp
       // mandado como variable de la mutación importWhatsAppChatExport.
-      bodyParser: { limit: "15mb" }
+      bodyParser: { limit: "15mb" },
+      apolloConfig: {
+        plugins: [
+          {
+            async requestDidStart() {
+              return {
+                async didEncounterErrors(requestContext) {
+                  for (const error of requestContext.errors ?? []) {
+                    console.error(
+                      "[graphql] validaci\xF3n",
+                      error.message,
+                      error.extensions ?? ""
+                    );
+                  }
+                }
+              };
+            }
+          }
+        ]
+      }
     },
     lists: schema_default,
     session

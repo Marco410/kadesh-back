@@ -1,4 +1,5 @@
 import nearbyAnimals from "./nearbyAnimals";
+import findAnimalReportDuplicates from "./findAnimalReportDuplicates";
 import nearbyPetPlaces from "./nearbyPetPlaces";
 import stripePaymentMethods from "./saas/stripePaymentMethods";
 import stripePlanCheck from "./saas/stripePlanCheck";
@@ -17,6 +18,7 @@ import syncGoogleCalendarNow from "./googleCalendar/syncGoogleCalendarNow";
 const customQuery = {
   typeDefs: `
     ${nearbyAnimals.typeDefs}
+    ${findAnimalReportDuplicates.typeDefs}
     ${nearbyPetPlaces.typeDefs}
     ${stripePaymentMethods.typeDefs}
     ${stripePlanCheck.typeDefs}
@@ -31,6 +33,7 @@ const customQuery = {
   `,
   definitions: `
     ${nearbyAnimals.definition}
+    ${findAnimalReportDuplicates.definition}
     ${nearbyPetPlaces.definition}
     ${stripePaymentMethods.definition}
     ${stripePlanCheck.definition}
@@ -48,6 +51,7 @@ const customQuery = {
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
+    ...findAnimalReportDuplicates.resolver,
     ...nearbyPetPlaces.resolver,
     ...stripePaymentMethods.resolver,
     ...stripePlanCheck.resolver,

@@ -176,6 +176,27 @@ export default withAuth(
       // Default de body-parser es 100kb — insuficiente para el .txt de historial de WhatsApp
       // mandado como variable de la mutación importWhatsAppChatExport.
       bodyParser: { limit: "15mb" },
+      apolloConfig: {
+        plugins: [
+          {
+            async requestDidStart() {
+              return {
+                async didEncounterErrors(requestContext: {
+                  errors?: readonly { message: string; extensions?: unknown }[];
+                }) {
+                  for (const error of requestContext.errors ?? []) {
+                    console.error(
+                      "[graphql] validación",
+                      error.message,
+                      error.extensions ?? "",
+                    );
+                  }
+                },
+              };
+            },
+          },
+        ],
+      },
     },
     lists,
     session,
