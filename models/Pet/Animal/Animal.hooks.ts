@@ -411,7 +411,7 @@ export const animalLogSlugAfterOperation = {
             name: animal.name,
             type: animal.animal_type?.name,
             status: item.status,
-            city: item.city,
+            city: (item.placeLabel || "").trim() || item.city,
           },
           context,
         );

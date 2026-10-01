@@ -274,6 +274,9 @@ type Animal {
   color: String
   size: String
   contactNumber: String
+  contactNumber2: String
+  sourceUrl: String
+  reportedBy: String
   animal_type: AnimalType
   animal_breed: AnimalBreed
   user: User
@@ -302,6 +305,9 @@ input AnimalWhereInput {
   color: StringFilter
   size: StringFilter
   contactNumber: StringFilter
+  contactNumber2: StringFilter
+  sourceUrl: StringFilter
+  reportedBy: StringNullableFilter
   animal_type: AnimalTypeWhereInput
   animal_breed: AnimalBreedWhereInput
   user: UserWhereInput
@@ -332,6 +338,9 @@ input AnimalOrderByInput {
   color: OrderDirection
   size: OrderDirection
   contactNumber: OrderDirection
+  contactNumber2: OrderDirection
+  sourceUrl: OrderDirection
+  reportedBy: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -344,6 +353,9 @@ input AnimalUpdateInput {
   color: String
   size: String
   contactNumber: String
+  contactNumber2: String
+  sourceUrl: String
+  reportedBy: String
   animal_type: AnimalTypeRelateToOneForUpdateInput
   animal_breed: AnimalBreedRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
@@ -392,6 +404,9 @@ input AnimalCreateInput {
   color: String
   size: String
   contactNumber: String
+  contactNumber2: String
+  sourceUrl: String
+  reportedBy: String
   animal_type: AnimalTypeRelateToOneForCreateInput
   animal_breed: AnimalBreedRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
@@ -573,6 +588,9 @@ type AnimalLog {
   city: String
   state: String
   country: String
+  neighborhood: String
+  postalCode: String
+  placeLabel: String
   last_seen: Boolean
   createdAt: DateTime
 }
@@ -596,6 +614,9 @@ input AnimalLogWhereInput {
   city: StringFilter
   state: StringFilter
   country: StringFilter
+  neighborhood: StringFilter
+  postalCode: StringFilter
+  placeLabel: StringFilter
   last_seen: BooleanFilter
   createdAt: DateTimeNullableFilter
 }
@@ -611,6 +632,9 @@ input AnimalLogOrderByInput {
   city: OrderDirection
   state: OrderDirection
   country: OrderDirection
+  neighborhood: OrderDirection
+  postalCode: OrderDirection
+  placeLabel: OrderDirection
   last_seen: OrderDirection
   createdAt: OrderDirection
 }
@@ -626,6 +650,9 @@ input AnimalLogUpdateInput {
   city: String
   state: String
   country: String
+  neighborhood: String
+  postalCode: String
+  placeLabel: String
   last_seen: Boolean
   createdAt: DateTime
 }
@@ -646,6 +673,9 @@ input AnimalLogCreateInput {
   city: String
   state: String
   country: String
+  neighborhood: String
+  postalCode: String
+  placeLabel: String
   last_seen: Boolean
   createdAt: DateTime
 }
@@ -8661,6 +8691,7 @@ type Mutation {
   requestPetPlaceService(input: RequestPetPlaceServiceInput!): RequestPetPlaceServiceResult!
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
+  createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -8923,6 +8954,7 @@ type Query {
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
+  findAnimalReportDuplicates(phone: String, animalTypeId: ID, name: String, sourceUrl: String): [AnimalReportDuplicate!]!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
@@ -9548,6 +9580,36 @@ type CreateClinicAppointmentResult {
   appointmentId: String
 }
 
+input CreateAnimalReportInput {
+  type: String!
+  name: String!
+  size: String
+  age: String
+  color: String
+  sex: String
+  breed: String
+  marks: String
+  status: String!
+  lostDate: String
+  lat: String!
+  lng: String!
+  addressText: String
+  phone: String!
+  phone2: String
+  note: String
+  sourceUrl: String
+  reportedBy: String
+  imageUrls: [String!]
+  confirmDuplicate: Boolean
+  reporterUserId: String
+}
+
+type CreateAnimalReportResult {
+  id: ID!
+  slug: String!
+  url: String!
+}
+
 type UnsubscribeBlogResult {
   success: Boolean!
   message: String!
@@ -9770,6 +9832,13 @@ input NearbyAnimalsInput {
   status: String
   breed: ID
   location: String
+}
+
+type AnimalReportDuplicate {
+  id: ID!
+  name: String!
+  slug: String
+  url: String!
 }
 
 type NearbyPetPlace {
