@@ -16,7 +16,8 @@
     "inegi:import:denue": "cross-env IS_BUILDING=true tsx inegi-denue-import.ts",
     "inegi:import:indicadores": "cross-env IS_BUILDING=true tsx inegi-indicadores-import.ts",
     "inegi:import:geo": "cross-env IS_BUILDING=true tsx inegi-geo-import.ts",
-    "clickup:register-webhook": "tsx scripts/registerClickUpWebhook.ts"
+    "clickup:register-webhook": "tsx scripts/registerClickUpWebhook.ts",
+    "meta:sign-request": "tsx scripts/signMetaRequest.ts"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.23",
