@@ -6,6 +6,7 @@ import extendGraphqlSchema from "./graphql/extendedSchema";
 import { isPlatformAdmin } from "./utils/access/tenant";
 import registerWhatsAppWebhook from "./webhooks/whatsapp";
 import registerClickUpWebhook from "./webhooks/clickup";
+import registerMetaDataDeletionWebhook from "./webhooks/metaDataDeletion";
 
 // Setup environment variables
 const path = require("path");
@@ -168,6 +169,7 @@ export default withAuth(
       extendExpressApp: (app, context) => {
         registerWhatsAppWebhook(app, context);
         registerClickUpWebhook(app, context);
+        registerMetaDataDeletionWebhook(app, context);
       },
     },
     storage,

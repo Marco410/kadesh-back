@@ -1066,6 +1066,78 @@ input ContactFormCreateInput {
   createdAt: DateTime
 }
 
+type MetaDataDeletionRequest {
+  id: ID!
+  metaUserId: String
+  confirmationCode: String
+  status: String
+  requestedAt: DateTime
+  completedAt: DateTime
+  notes: String
+}
+
+input MetaDataDeletionRequestWhereUniqueInput {
+  id: ID
+  confirmationCode: String
+}
+
+input MetaDataDeletionRequestWhereInput {
+  AND: [MetaDataDeletionRequestWhereInput!]
+  OR: [MetaDataDeletionRequestWhereInput!]
+  NOT: [MetaDataDeletionRequestWhereInput!]
+  id: IDFilter
+  metaUserId: StringFilter
+  confirmationCode: StringFilter
+  status: StringFilter
+  requestedAt: DateTimeFilter
+  completedAt: DateTimeNullableFilter
+  notes: StringNullableFilter
+}
+
+input DateTimeFilter {
+  equals: DateTime
+  in: [DateTime!]
+  notIn: [DateTime!]
+  lt: DateTime
+  lte: DateTime
+  gt: DateTime
+  gte: DateTime
+  not: DateTimeFilter
+}
+
+input MetaDataDeletionRequestOrderByInput {
+  id: OrderDirection
+  metaUserId: OrderDirection
+  confirmationCode: OrderDirection
+  status: OrderDirection
+  requestedAt: OrderDirection
+  completedAt: OrderDirection
+  notes: OrderDirection
+}
+
+input MetaDataDeletionRequestUpdateInput {
+  metaUserId: String
+  confirmationCode: String
+  status: String
+  requestedAt: DateTime
+  completedAt: DateTime
+  notes: String
+}
+
+input MetaDataDeletionRequestUpdateArgs {
+  where: MetaDataDeletionRequestWhereUniqueInput!
+  data: MetaDataDeletionRequestUpdateInput!
+}
+
+input MetaDataDeletionRequestCreateInput {
+  metaUserId: String
+  confirmationCode: String
+  status: String
+  requestedAt: DateTime
+  completedAt: DateTime
+  notes: String
+}
+
 type Order {
   id: ID!
   total: Int
@@ -1976,17 +2048,6 @@ input PetPlaceAppointmentWhereInput {
   ownerNotes: StringFilter
   cancelReason: StringNullableFilter
   createdAt: DateTimeNullableFilter
-}
-
-input DateTimeFilter {
-  equals: DateTime
-  in: [DateTime!]
-  notIn: [DateTime!]
-  lt: DateTime
-  lte: DateTime
-  gt: DateTime
-  gte: DateTime
-  not: DateTimeFilter
 }
 
 input PetPlaceAppointmentOrderByInput {
@@ -8262,6 +8323,12 @@ type Mutation {
   updateContactForms(data: [ContactFormUpdateArgs!]!): [ContactForm]
   deleteContactForm(where: ContactFormWhereUniqueInput!): ContactForm
   deleteContactForms(where: [ContactFormWhereUniqueInput!]!): [ContactForm]
+  createMetaDataDeletionRequest(data: MetaDataDeletionRequestCreateInput!): MetaDataDeletionRequest
+  createMetaDataDeletionRequests(data: [MetaDataDeletionRequestCreateInput!]!): [MetaDataDeletionRequest]
+  updateMetaDataDeletionRequest(where: MetaDataDeletionRequestWhereUniqueInput!, data: MetaDataDeletionRequestUpdateInput!): MetaDataDeletionRequest
+  updateMetaDataDeletionRequests(data: [MetaDataDeletionRequestUpdateArgs!]!): [MetaDataDeletionRequest]
+  deleteMetaDataDeletionRequest(where: MetaDataDeletionRequestWhereUniqueInput!): MetaDataDeletionRequest
+  deleteMetaDataDeletionRequests(where: [MetaDataDeletionRequestWhereUniqueInput!]!): [MetaDataDeletionRequest]
   createOrder(data: OrderCreateInput!): Order
   createOrders(data: [OrderCreateInput!]!): [Order]
   updateOrder(where: OrderWhereUniqueInput!, data: OrderUpdateInput!): Order
@@ -8751,6 +8818,9 @@ type Query {
   contactForm(where: ContactFormWhereUniqueInput!): ContactForm
   contactForms(where: ContactFormWhereInput! = {}, orderBy: [ContactFormOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ContactFormWhereUniqueInput): [ContactForm!]
   contactFormsCount(where: ContactFormWhereInput! = {}): Int
+  metaDataDeletionRequest(where: MetaDataDeletionRequestWhereUniqueInput!): MetaDataDeletionRequest
+  metaDataDeletionRequests(where: MetaDataDeletionRequestWhereInput! = {}, orderBy: [MetaDataDeletionRequestOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MetaDataDeletionRequestWhereUniqueInput): [MetaDataDeletionRequest!]
+  metaDataDeletionRequestsCount(where: MetaDataDeletionRequestWhereInput! = {}): Int
   order(where: OrderWhereUniqueInput!): Order
   orders(where: OrderWhereInput! = {}, orderBy: [OrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderWhereUniqueInput): [Order!]
   ordersCount(where: OrderWhereInput! = {}): Int
