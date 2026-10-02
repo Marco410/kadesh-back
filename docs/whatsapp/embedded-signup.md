@@ -10,7 +10,7 @@ Fase A (asistente guiado BYOK) ya está en producción de código. Esta fase se 
 1. Verificación de negocio de Kadesh en Meta.
 2. App de Meta de Kadesh (tipo Business + producto WhatsApp) **publicada en modo Live**.
 3. App Review con demostración: `whatsapp_business_management` y `whatsapp_business_messaging` (acceso avanzado).
-4. URL de aviso de privacidad, términos y **callback de eliminación de datos**.
+4. URL de aviso de privacidad, términos y **callback de eliminación de datos** (ya está: [`docs/meta/data-deletion.md`](../meta/data-deletion.md)).
 5. Actualizar el aviso de privacidad para cubrir mensajes de WhatsApp (revisión legal; no lo resuelve el código).
 
 ## Diseño previsto

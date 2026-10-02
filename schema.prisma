@@ -207,6 +207,19 @@ model ContactForm {
   createdAt DateTime? @default(now())
 }
 
+model MetaDataDeletionRequest {
+  id               String    @id @default(cuid())
+  metaUserId       String    @default("")
+  confirmationCode String    @unique @default("")
+  status           String    @default("pending")
+  requestedAt      DateTime  @default(now())
+  completedAt      DateTime?
+  notes            String?
+
+  @@index([metaUserId])
+  @@index([status])
+}
+
 model Order {
   id        String    @id @default(cuid())
   total     Int?

@@ -36,6 +36,7 @@ import BlogSubscription from "./Blog/BlogSubscription/BlogSubscription";
 import Role from "./Role/Role";
 import PetPlaceType from "./Pet/PetPlace/PetPlaceType/PetPlaceType";
 import ContactForm from "./ContactForm/ContactForm";
+import MetaDataDeletionRequest from "./Saas/MetaDataDeletionRequest/MetaDataDeletionRequest";
 import TechBusinessLead from "./Saas/Tech/BusinessLead/TechBusinessLead";
 import TechStatusBusinessLead from "./Saas/Tech/StatusBusinessLead/TechStatusBusinessLead";
 import TechFollowUpTask from "./Saas/Tech/FollowUpTask/TechFollowUpTask";
@@ -87,6 +88,7 @@ export default {
   Cart,
   Category,
   ContactForm,
+  MetaDataDeletionRequest,
   Order,
   Payment,
   PaymentMethod,
