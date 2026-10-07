@@ -585,3 +585,243 @@ export async function sendPetPlaceAppointmentEmail({
     fromName: EMAIL_BRANDS.pet.name,
   });
 }
+
+
+export type AdminBroadcastAudience = "saas" | "pet" | "all" | "custom";
+
+type BroadcastRecipient = {
+  email: string;
+  displayName: string;
+};
+
+/** Texto plano → HTML seguro: párrafos, **negrita** y [texto](url). */
+export function formatAdminEmailBodyHtml(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+
+  const paragraphs = trimmed.split(/\n{2,}/);
+  return paragraphs
+    .map((paragraph) => {
+      const withBreaks = escapeHtml(paragraph.trim()).replace(/\n/g, "<br>");
+      const withBold = withBreaks.replace(
+        /\*\*([^*]+)\*\*/g,
+        "<strong>$1</strong>",
+      );
+      const withLinks = withBold.replace(
+        /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+        '<a href="$2" style="color:inherit;text-decoration:underline;" target="_blank" rel="noopener noreferrer">$1</a>',
+      );
+      return emailParagraph(withLinks);
+    })
+    .join("");
+}
+
+function formatCalloutInnerHtml(raw: string): string {
+  return escapeHtml(raw.trim())
+    .replace(/\n{2,}/g, "<br><br>")
+    .replace(/\n/g, "<br>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+
+function buildAdminBroadcastEmailHtml(params: {
+  brand: EmailBrand;
+  displayName: string;
+  title: string;
+  eyebrow?: string | null;
+  preheader?: string | null;
+  body: string;
+  callout?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+  footerNote?: string | null;
+}): string {
+  const bodyHtml = formatAdminEmailBodyHtml(params.body);
+  const calloutInner = params.callout?.trim()
+    ? formatCalloutInnerHtml(params.callout)
+    : "";
+
+  const cta =
+    params.ctaLabel?.trim() && params.ctaUrl?.trim()
+      ? emailButton(params.brand, params.ctaLabel.trim(), params.ctaUrl.trim())
+      : "";
+
+  return renderEmailLayout({
+    brand: params.brand,
+    preheader:
+      params.preheader?.trim() ||
+      params.title ||
+      "Mensaje de Kadesh",
+    eyebrow: params.eyebrow?.trim() || undefined,
+    title: params.title,
+    bodyHtml: `
+      ${emailGreeting(params.displayName || "ahí")}
+      ${bodyHtml}
+      ${calloutInner ? emailCallout(params.brand, calloutInner) : ""}
+      ${cta}`,
+    footerNote:
+      params.footerNote?.trim() ||
+      "Recibes este correo porque tienes una cuenta en Kadesh.",
+  });
+}
+
+function matchesAudience(
+  audience: AdminBroadcastAudience,
+  hasCompany: boolean,
+): boolean {
+  if (audience === "saas") return hasCompany;
+  if (audience === "pet") return !hasCompany;
+  if (audience === "all") return true;
+  return false;
+}
+
+async function resolveBroadcastRecipients(params: {
+  context: import("@keystone-6/core/types").KeystoneContext;
+  audience: AdminBroadcastAudience;
+  emails?: string[] | null;
+}): Promise<BroadcastRecipient[]> {
+  const { context, audience, emails } = params;
+
+  if (audience === "custom") {
+    const list = (emails ?? [])
+      .map((email) => email.trim())
+      .filter(Boolean);
+    const seen = new Set<string>();
+    const recipients: BroadcastRecipient[] = [];
+
+    for (const email of list) {
+      const key = email.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const users = (await context.sudo().query.User.findMany({
+        where: { email: { equals: email, mode: "insensitive" } },
+        take: 1,
+        query: "name lastName email",
+      })) as Array<{
+        name?: string | null;
+        lastName?: string | null;
+        email?: string | null;
+      }>;
+
+      const user = users[0];
+      const displayName = user
+        ? [user.name, user.lastName].filter(Boolean).join(" ").trim() || "ahí"
+        : "ahí";
+
+      recipients.push({ email, displayName });
+    }
+
+    return recipients;
+  }
+
+  const users = (await context.sudo().query.User.findMany({
+    query: "id name lastName email company { id } userTest",
+  })) as Array<{
+    name?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    company?: { id: string } | null;
+    userTest?: boolean | null;
+  }>;
+
+  const seen = new Set<string>();
+  const recipients: BroadcastRecipient[] = [];
+
+  for (const user of users) {
+    if (user.userTest === true) continue;
+    const email = user.email?.trim();
+    if (!email) continue;
+    const key = email.toLowerCase();
+    if (seen.has(key)) continue;
+
+    const hasCompany = Boolean(user.company?.id);
+    if (!matchesAudience(audience, hasCompany)) continue;
+
+    seen.add(key);
+    recipients.push({
+      email,
+      displayName:
+        [user.name, user.lastName].filter(Boolean).join(" ").trim() || "ahí",
+    });
+  }
+
+  return recipients;
+}
+
+/**
+ * Correo masivo o puntual desde Operaciones.
+ * Usa el layout de marca (Pet / Negocios). Con dryRun solo cuenta destinatarios.
+ */
+export async function sendAdminBroadcastEmail(params: {
+  context: import("@keystone-6/core/types").KeystoneContext;
+  audience: AdminBroadcastAudience;
+  brand: EmailBrand;
+  emails?: string[] | null;
+  subject: string;
+  title: string;
+  eyebrow?: string | null;
+  preheader?: string | null;
+  body: string;
+  callout?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+  footerNote?: string | null;
+  dryRun?: boolean;
+}): Promise<{
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+}> {
+  const recipients = await resolveBroadcastRecipients({
+    context: params.context,
+    audience: params.audience,
+    emails: params.emails,
+  });
+
+  if (params.dryRun || recipients.length === 0) {
+    return {
+      recipientCount: recipients.length,
+      sentCount: 0,
+      failedCount: 0,
+    };
+  }
+
+  const { name: brandName } = EMAIL_BRANDS[params.brand];
+  let sentCount = 0;
+  let failedCount = 0;
+
+  for (const recipient of recipients) {
+    try {
+      await sendEmail({
+        to: recipient.email,
+        subject: params.subject,
+        html: buildAdminBroadcastEmailHtml({
+          brand: params.brand,
+          displayName: recipient.displayName,
+          title: params.title,
+          eyebrow: params.eyebrow,
+          preheader: params.preheader,
+          body: params.body,
+          callout: params.callout,
+          ctaLabel: params.ctaLabel,
+          ctaUrl: params.ctaUrl,
+          footerNote: params.footerNote,
+        }),
+        fromName: brandName,
+      });
+      sentCount++;
+    } catch (err) {
+      failedCount++;
+      console.error(
+        `[AdminBroadcast] Falló envío a ${recipient.email}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  return {
+    recipientCount: recipients.length,
+    sentCount,
+    failedCount,
+  };
+}

@@ -12,6 +12,7 @@ import purchaseCredits from "./credits/purchaseCredits";
 import grantAdminCredits from "./credits/grantAdminCredits";
 import updatePlanFeatureCatalog from "./saas/updatePlanFeatureCatalog";
 import sendTestEmail from "./sendTestEmail";
+import sendAdminBroadcastEmail from "./sendAdminBroadcastEmail";
 import updateCompanyAiSettings from "./ai/updateCompanyAiSettings";
 import generateMarketInsight from "./ai/generateMarketInsight";
 import dailyDigest from "../ai/dailyDigest";
@@ -57,6 +58,7 @@ const customMutation = {
     ${grantAdminCredits.typeDefs}
     ${updatePlanFeatureCatalog.typeDefs}
     ${sendTestEmail.typeDefs}
+    ${sendAdminBroadcastEmail.typeDefs}
     ${updateCompanyAiSettings.typeDefs}
     ${dailyDigest.typeDefs}
     ${companyBrief.typeDefs}
@@ -101,6 +103,7 @@ const customMutation = {
     ${grantAdminCredits.definition}
     ${updatePlanFeatureCatalog.definition}
     ${sendTestEmail.definition}
+    ${sendAdminBroadcastEmail.definition}
     ${updateCompanyAiSettings.definition}
     ${dailyDigest.mutationDefinition}
     ${companyBrief.mutationDefinition}
@@ -145,6 +148,7 @@ const customMutation = {
     ...grantAdminCredits.resolver,
     ...updatePlanFeatureCatalog.resolver,
     ...sendTestEmail.resolver,
+    ...sendAdminBroadcastEmail.resolver,
     ...updateCompanyAiSettings.resolver,
     ...dailyDigest.mutationResolver,
     ...companyBrief.mutationResolver,

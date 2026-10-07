@@ -8721,6 +8721,7 @@ type Mutation {
   grantAdminCredits(input: GrantAdminCreditsInput!): GrantAdminCreditsResult!
   updatePlanFeatureCatalog(input: UpdatePlanFeatureCatalogInput!): UpdatePlanFeatureCatalogResult!
   sendTestEmail(email: String!): SendTestEmailResult!
+  sendAdminBroadcastEmail(input: SendAdminBroadcastEmailInput!): SendAdminBroadcastEmailResult!
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
   syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
@@ -9363,6 +9364,45 @@ type SendTestEmailResult {
   smtpHost: String
   smtpPort: Int
   smtpConfigured: Boolean!
+}
+
+enum AdminEmailAudience {
+  saas
+  pet
+  all
+  custom
+}
+
+enum AdminEmailBrand {
+  saas
+  pet
+}
+
+input SendAdminBroadcastEmailInput {
+  audience: AdminEmailAudience!
+  brand: AdminEmailBrand!
+  emails: [String!]
+  subject: String!
+  title: String!
+  eyebrow: String
+  preheader: String
+  body: String!
+  callout: String
+  ctaLabel: String
+  ctaUrl: String
+  footerNote: String
+  dryRun: Boolean
+}
+
+type SendAdminBroadcastEmailResult {
+  success: Boolean!
+  message: String!
+  recipientCount: Int!
+  sentCount: Int!
+  failedCount: Int!
+  dryRun: Boolean!
+  brand: String!
+  audience: String!
 }
 
 input UpdateCompanyAiSettingsInput {
