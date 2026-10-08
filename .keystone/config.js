@@ -227,9 +227,65 @@ var ROLES = [
   { label: "User", value: "user" /* USER */ },
   { label: "Author", value: "author" /* AUTHOR */ },
   { label: "Admin (Company)", value: "admin_company" /* ADMIN_COMPANY */ },
+  { label: "Gerencia", value: "gerencia" /* GERENCIA */ },
   { label: "User (Company)", value: "user_company" /* USER_COMPANY */ },
   { label: "Vendedor", value: "vendedor" /* VENDEDOR */ }
 ];
+var ASSIGNABLE_COMPANY_ROLE_NAMES = [
+  "user" /* USER */,
+  "gerencia" /* GERENCIA */,
+  "vendedor" /* VENDEDOR */,
+  "user_company" /* USER_COMPANY */
+];
+var PROTECTED_COMPANY_ROLE_NAMES = [
+  "admin" /* ADMIN */,
+  "admin_company" /* ADMIN_COMPANY */
+];
+
+// auth/permissionsCatalog.ts
+var PERMISSION_KEYS = {
+  INICIO_VER: "inicio.ver",
+  PERFIL_VER: "perfil.ver",
+  PERFIL_EDITAR: "perfil.editar",
+  AI_VER: "ai.ver",
+  AI_CONFIGURAR: "ai.configurar",
+  CLIENTES_VER: "clientes.ver",
+  CLIENTES_VER_EMPRESA: "clientes.ver_empresa",
+  CLIENTES_CREAR: "clientes.crear",
+  CLIENTES_EDITAR: "clientes.editar",
+  CLIENTES_ASIGNAR: "clientes.asignar",
+  CLIENTES_EXPORTAR: "clientes.exportar",
+  VENDEDORES_VER: "vendedores.ver",
+  VENDEDORES_CREAR: "vendedores.crear",
+  VENDEDORES_EDITAR: "vendedores.editar",
+  ARCHIVOS_VER: "archivos.ver",
+  ARCHIVOS_SUBIR: "archivos.subir",
+  ARCHIVOS_ELIMINAR: "archivos.eliminar",
+  PROYECTOS_VER: "proyectos.ver",
+  PROYECTOS_CREAR: "proyectos.crear",
+  PROYECTOS_EDITAR: "proyectos.editar",
+  COTIZACIONES_VER: "cotizaciones.ver",
+  COTIZACIONES_CREAR: "cotizaciones.crear",
+  COTIZACIONES_EDITAR: "cotizaciones.editar",
+  CALENDARIO_VER: "calendario.ver",
+  CALENDARIO_GESTIONAR: "calendario.gestionar",
+  ESPACIOS_VER: "espacios.ver",
+  ESPACIOS_CREAR: "espacios.crear",
+  ESPACIOS_MIEMBROS: "espacios.miembros",
+  WHATSAPP_VER: "whatsapp.ver",
+  WHATSAPP_CONFIGURAR: "whatsapp.configurar"
+};
+var ALL_KEYS = new Set(Object.values(PERMISSION_KEYS));
+function isPermissionKey(value) {
+  return ALL_KEYS.has(value);
+}
+function normalizePermissions(value) {
+  if (value == null) return null;
+  if (!Array.isArray(value)) return null;
+  return value.filter(
+    (item) => typeof item === "string" && isPermissionKey(item)
+  );
+}
 
 // auth/permissions.ts
 function sessionRoleNames(session2) {
@@ -253,6 +309,16 @@ var hasRole = (session2, allowedRoles) => {
   const allowed = /* @__PURE__ */ new Set([...allowedRoles, "admin" /* ADMIN */]);
   return sessionRoleNames(session2).some((name) => allowed.has(name));
 };
+function sessionPermissions(session2) {
+  return normalizePermissions(session2?.data?.permissions);
+}
+function hasPermission(session2, key, legacyFallback) {
+  if (!session2?.data) return false;
+  if (hasRole(session2, ["admin" /* ADMIN */, "admin_company" /* ADMIN_COMPANY */])) return true;
+  const list77 = sessionPermissions(session2);
+  if (list77 == null) return legacyFallback();
+  return list77.includes(key);
+}
 
 // utils/access/tenant.ts
 function getSessionUserId(session2) {
@@ -269,6 +335,12 @@ function isPlatformAdmin(session2) {
 }
 function isCompanyAdmin(session2) {
   return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
+}
+function isGerencia(session2) {
+  return hasRole(session2, ["gerencia" /* GERENCIA */]);
+}
+function canManageCompanyUsers(session2) {
+  return isCompanyAdmin(session2) || isGerencia(session2);
 }
 function resolveAuthorizedCompanyId(session2, requestedCompanyId) {
   if (!isSignedIn(session2)) return null;
@@ -1958,11 +2030,12 @@ function relationIds(value) {
     (row) => row && typeof row === "object" && "id" in row ? String(row.id) : ""
   ).filter(Boolean);
 }
+var ASSIGNABLE_SET = new Set(ASSIGNABLE_COMPANY_ROLE_NAMES);
 var userRoleHook = {
   resolveInput: async ({ resolvedData, item, operation, context }) => {
     if (operation === "create" && !item && !isPlatformAdmin(context.session)) {
       const sessionCompanyId = getSessionCompanyId(context.session);
-      if (sessionCompanyId && hasRole(context.session, ["admin_company" /* ADMIN_COMPANY */])) {
+      if (sessionCompanyId && canManageCompanyUsers(context.session)) {
         resolvedData.company = { connect: { id: sessionCompanyId } };
       } else if (isSignedIn(context.session)) {
         delete resolvedData.company;
@@ -1971,24 +2044,47 @@ var userRoleHook = {
     if (isPlatformAdmin(context.session)) {
       return resolvedData;
     }
-    const roleInput = resolvedData.roles;
-    if (roleInput?.create) {
-      delete roleInput.create;
-    }
-    const connectIds = [
-      ...relationIds(roleInput?.connect),
-      ...relationIds(roleInput?.set)
-    ];
-    if (connectIds.length > 0) {
-      const roles = await context.sudo().query.Role.findMany({
-        where: { id: { in: connectIds } },
-        query: "id name"
-      });
-      const allowed = roles.filter((role) => role.name !== "admin" /* ADMIN */);
-      if (allowed.length !== roles.length) {
-        resolvedData.roles = {
-          connect: allowed.map((role) => ({ id: role.id }))
-        };
+    if (isSignedIn(context.session)) {
+      const roleInput = resolvedData.roles;
+      if (roleInput?.create) {
+        delete roleInput.create;
+      }
+      const connectIds = [
+        ...relationIds(roleInput?.connect),
+        ...relationIds(roleInput?.set)
+      ];
+      if (connectIds.length > 0) {
+        const roles = await context.sudo().query.Role.findMany({
+          where: { id: { in: connectIds } },
+          query: "id name"
+        });
+        const companyManager = canManageCompanyUsers(context.session);
+        const allowed = roles.filter((role) => {
+          if (companyManager) return ASSIGNABLE_SET.has(role.name);
+          return role.name !== "admin" /* ADMIN */ && role.name !== "admin_company" /* ADMIN_COMPANY */;
+        });
+        const usingSet = Boolean(roleInput?.set);
+        if (usingSet && companyManager && operation === "update" && item?.id) {
+          const existing = await context.sudo().query.User.findOne({
+            where: { id: item.id },
+            query: "roles { id name }"
+          });
+          const keepProtected = (existing?.roles ?? []).filter(
+            (role) => PROTECTED_COMPANY_ROLE_NAMES.includes(
+              role.name
+            )
+          );
+          const byId = /* @__PURE__ */ new Map();
+          for (const role of [...allowed, ...keepProtected]) {
+            byId.set(role.id, { id: role.id });
+          }
+          resolvedData.roles = { set: [...byId.values()] };
+        } else {
+          const op = usingSet ? "set" : "connect";
+          resolvedData.roles = {
+            [op]: allowed.map((role) => ({ id: role.id }))
+          };
+        }
       }
     }
     if (operation === "create" && !item) {
@@ -2011,6 +2107,55 @@ var userRoleHook = {
     return resolvedData;
   }
 };
+var userPermissionsHook = {
+  resolveInput: async ({ resolvedData, context }) => {
+    if (!("permissions" in resolvedData)) return resolvedData;
+    if (!isPlatformAdmin(context.session) && !canManageCompanyUsers(context.session)) {
+      delete resolvedData.permissions;
+      return resolvedData;
+    }
+    if (resolvedData.permissions == null) {
+      return resolvedData;
+    }
+    if (!Array.isArray(resolvedData.permissions)) {
+      throw new Error("permissions debe ser una lista de strings");
+    }
+    const invalid = resolvedData.permissions.filter(
+      (item) => typeof item !== "string" || !isPermissionKey(item)
+    );
+    if (invalid.length > 0) {
+      throw new Error(
+        `Permisos no v\xE1lidos: ${invalid.slice(0, 5).map(String).join(", ")}`
+      );
+    }
+    resolvedData.permissions = normalizePermissions(resolvedData.permissions);
+    return resolvedData;
+  }
+};
+async function userCompanyManagedValidateInput({
+  operation,
+  resolvedData,
+  item,
+  context,
+  addValidationError
+}) {
+  if (isPlatformAdmin(context.session)) return;
+  if (!isGerencia(context.session)) return;
+  if (operation === "update" && item?.id) {
+    const target = await context.sudo().query.User.findOne({
+      where: { id: item.id },
+      query: "id roles { name }"
+    });
+    const protectedTarget = target?.roles?.some(
+      (r) => PROTECTED_COMPANY_ROLE_NAMES.includes(r.name)
+    );
+    if (protectedTarget) {
+      addValidationError(
+        "Gerencia no puede editar al administrador de la empresa"
+      );
+    }
+  }
+}
 var REFERRAL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 function generateReferralSuffix(length = 5) {
   let result = "";
@@ -2186,13 +2331,34 @@ function userVisibleWhere(session2) {
   if (isPlatformAdmin(session2)) return true;
   const userId = getSessionUserId(session2);
   if (!userId) return false;
-  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
-    const companyId = getSessionCompanyId(session2);
+  const companyId = getSessionCompanyId(session2);
+  if (isCompanyAdmin(session2)) {
     if (!companyId) return { id: { equals: userId } };
     return {
       OR: [
         { id: { equals: userId } },
         { company: { id: { equals: companyId } } }
+      ]
+    };
+  }
+  if (isGerencia(session2) && companyId) {
+    return {
+      OR: [
+        { id: { equals: userId } },
+        {
+          AND: [
+            { company: { id: { equals: companyId } } },
+            {
+              NOT: {
+                roles: {
+                  some: {
+                    name: { in: [...PROTECTED_COMPANY_ROLE_NAMES] }
+                  }
+                }
+              }
+            }
+          ]
+        }
       ]
     };
   }
@@ -2239,8 +2405,13 @@ var userAccess = {
 };
 var userRolesFieldAccess = {
   read: ({ session: session2 }) => isSignedIn(session2),
-  create: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2),
-  update: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2)
+  create: ({ session: session2 }) => isPlatformAdmin(session2) || canManageCompanyUsers(session2),
+  update: ({ session: session2 }) => isPlatformAdmin(session2) || canManageCompanyUsers(session2)
+};
+var userPermissionsFieldAccess = {
+  read: ({ session: session2, item }) => isPlatformAdmin(session2) || canManageCompanyUsers(session2) || isSelf(session2, item),
+  create: ({ session: session2 }) => isPlatformAdmin(session2) || canManageCompanyUsers(session2),
+  update: ({ session: session2 }) => isPlatformAdmin(session2) || canManageCompanyUsers(session2)
 };
 var userOnboardingFieldAccess = {
   read: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item),
@@ -2258,7 +2429,7 @@ function companyConnectId(inputData) {
 }
 var userCompanyFieldAccess = {
   read: ({ session: session2 }) => isSignedIn(session2),
-  create: ({ session: session2 }) => isPlatformAdmin(session2) || isCompanyAdmin(session2),
+  create: ({ session: session2 }) => isPlatformAdmin(session2) || canManageCompanyUsers(session2),
   update: async ({ session: session2, item, inputData, context }) => {
     if (isPlatformAdmin(session2)) return true;
     if (!isSelf(session2, item)) return false;
@@ -2290,9 +2461,13 @@ var User_access_default = userAccess;
 // models/User/User.ts
 async function resolveInput(args) {
   const afterRole = await userRoleHook.resolveInput(args);
-  const afterStripe = await stripeCustomerHook.resolveInput({
+  const afterPermissions = await userPermissionsHook.resolveInput({
     ...args,
     resolvedData: afterRole
+  });
+  const afterStripe = await stripeCustomerHook.resolveInput({
+    ...args,
+    resolvedData: afterPermissions
   });
   const afterReferral = await userReferralHook.resolveInput({
     ...args,
@@ -2304,6 +2479,7 @@ var User_default = (0, import_core7.list)({
   access: User_access_default,
   hooks: {
     resolveInput,
+    validateInput: userCompanyManagedValidateInput,
     afterOperation: async (args) => {
       await userBlogSubscriptionHook.afterOperation(args);
       await userWelcomeEmailHook.afterOperation(args);
@@ -2373,6 +2549,18 @@ var User_default = (0, import_core7.list)({
       ref: "Role.users",
       many: true,
       access: userRolesFieldAccess
+    }),
+    /**
+     * Permisos por módulo/acción del panel SaaS (`inicio.ver`, `clientes.editar`, …).
+     * `null` / ausente = usuario legado (rige el rol). Array (aunque vacío) = lista explícita.
+     */
+    permissions: (0, import_fields7.json)({
+      defaultValue: null,
+      access: userPermissionsFieldAccess,
+      ui: {
+        description: "Lista de permisos del panel (JSON array de strings). Vac\xEDo = sin permisos; null = legado por rol.",
+        createView: { fieldMode: "edit" }
+      }
     }),
     referredBy: (0, import_fields7.relationship)({
       ref: "User.referrals",
@@ -5383,12 +5571,19 @@ function leadAssignedToUser(companyId, userId) {
     ]
   };
 }
+function canSeeCompanyWideLeads(session2) {
+  return hasPermission(
+    session2,
+    PERMISSION_KEYS.CLIENTES_VER_EMPRESA,
+    () => hasRole(session2, ["admin_company" /* ADMIN_COMPANY */, "user_company" /* USER_COMPANY */])
+  );
+}
 function leadCompanyScopedWhere(session2) {
   if (isPlatformAdmin(session2)) return true;
   const companyId = getSessionCompanyId(session2);
   const userId = getSessionUserId(session2);
   if (!companyId) return false;
-  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+  if (canSeeCompanyWideLeads(session2)) {
     return leadInCompany(companyId);
   }
   if (!userId) return false;
@@ -5411,7 +5606,7 @@ function statusLeadCompanyScopedWhere(session2) {
   const companyId = getSessionCompanyId(session2);
   const userId = getSessionUserId(session2);
   if (!companyId) return false;
-  if (hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) {
+  if (canSeeCompanyWideLeads(session2)) {
     return statusInCompany(companyId);
   }
   if (!userId) return false;
@@ -6655,12 +6850,26 @@ var import_core46 = require("@keystone-6/core");
 var import_fields46 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/TechFiles/TechFiles.access.ts
+function canUploadFiles(session2) {
+  return hasPermission(
+    session2,
+    PERMISSION_KEYS.ARCHIVOS_SUBIR,
+    () => hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])
+  );
+}
+function canDeleteFiles(session2) {
+  return hasPermission(
+    session2,
+    PERMISSION_KEYS.ARCHIVOS_ELIMINAR,
+    () => hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])
+  );
+}
 var techFilesAccess = {
   operation: {
     query: ({ session: session2 }) => isSignedIn(session2),
-    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionCompanyId(session2),
-    update: ({ session: session2 }) => isSignedIn(session2),
-    delete: ({ session: session2 }) => isSignedIn(session2)
+    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionCompanyId(session2) && canUploadFiles(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2) || canUploadFiles(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2) || canDeleteFiles(session2)
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -6671,12 +6880,14 @@ var techFilesAccess = {
     },
     update: ({ session: session2 }) => {
       if (isPlatformAdmin(session2)) return true;
+      if (!canUploadFiles(session2)) return false;
       const companyId = getSessionCompanyId(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
     delete: ({ session: session2 }) => {
       if (isPlatformAdmin(session2)) return true;
+      if (!canDeleteFiles(session2)) return false;
       const companyId = getSessionCompanyId(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
@@ -9995,6 +10206,20 @@ var import_fields69 = require("@keystone-6/core/fields");
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId17 = (session2) => session2?.data?.company?.id;
 var getUserId3 = (session2) => session2?.data?.id;
+function canCreateWorkspace(session2) {
+  return hasPermission(
+    session2,
+    PERMISSION_KEYS.ESPACIOS_CREAR,
+    () => hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])
+  );
+}
+function canManageMembers(session2) {
+  return hasPermission(
+    session2,
+    PERMISSION_KEYS.ESPACIOS_MIEMBROS,
+    () => hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])
+  );
+}
 function workspaceFilter(session2) {
   if (hasRole(session2, ["admin" /* ADMIN */])) {
     return true;
@@ -10004,6 +10229,9 @@ function workspaceFilter(session2) {
     if (!companyId) return false;
     return { company: { id: { equals: companyId } } };
   }
+  if (companyId && hasPermission(session2, PERMISSION_KEYS.ESPACIOS_VER, () => false)) {
+    return { company: { id: { equals: companyId } } };
+  }
   const userId = getUserId3(session2);
   if (!userId) return false;
   return { members: { some: { id: { equals: userId } } } };
@@ -10011,9 +10239,9 @@ function workspaceFilter(session2) {
 var saasWorkspaceAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId17(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => !!getCompanyId17(session2) && canCreateWorkspace(session2),
+    update: ({ session: session2 }) => canManageMembers(session2),
+    delete: ({ session: session2 }) => canManageMembers(session2)
   },
   filter: {
     query: ({ session: session2 }) => workspaceFilter(session2),
@@ -11931,7 +12159,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   // this is a GraphQL query fragment for fetching what data will be attached to a context.session
   //   this can be helpful for when you are writing your access control functions
   //   you can find out more at https://keystonejs.com/docs/guides/auth-and-access-control
-  sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } createdAt company { id }",
+  sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } permissions createdAt company { id }",
   secretField: "password",
   ...process.env.NODE_ENV !== "production" ? {
     initFirstItem: {
@@ -16496,8 +16724,12 @@ async function callCompanyAi(params) {
 function canManageCompanyAi(session2, companyId) {
   if (!isSignedIn(session2)) return false;
   if (isPlatformAdmin(session2)) return true;
-  if (!hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) return false;
-  return getSessionCompanyId(session2) === companyId;
+  if (getSessionCompanyId(session2) !== companyId) return false;
+  return hasPermission(
+    session2,
+    PERMISSION_KEYS.AI_CONFIGURAR,
+    () => hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])
+  );
 }
 function canUseCompanyAi(session2, companyId) {
   if (!isSignedIn(session2)) return false;
@@ -16508,7 +16740,10 @@ function denyCompanyAiAccessMessage(session2) {
   if (!session2?.data?.id) {
     return "Debes iniciar sesi\xF3n para configurar la IA";
   }
-  return "Solo el administrador de la empresa puede configurar la IA";
+  if (!getSessionCompanyId(session2)) {
+    return "Tu cuenta no tiene una empresa asociada";
+  }
+  return "No tienes permiso para configurar la IA de la empresa";
 }
 function denyCompanyAiUseMessage(session2) {
   if (!session2?.data?.id) {
@@ -21624,8 +21859,12 @@ function friendlyWhatsappError(err) {
 function canManageCompanyWhatsapp(session2, companyId) {
   if (!isSignedIn(session2)) return false;
   if (isPlatformAdmin(session2)) return true;
-  if (!hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])) return false;
-  return getSessionCompanyId(session2) === companyId;
+  if (getSessionCompanyId(session2) !== companyId) return false;
+  return hasPermission(
+    session2,
+    PERMISSION_KEYS.WHATSAPP_CONFIGURAR,
+    () => hasRole(session2, ["admin_company" /* ADMIN_COMPANY */])
+  );
 }
 function canUseCompanyWhatsapp(session2, companyId) {
   if (!isSignedIn(session2)) return false;
@@ -21636,7 +21875,10 @@ function denyCompanyWhatsappAccessMessage(session2) {
   if (!session2?.data?.id) {
     return "Debes iniciar sesi\xF3n para configurar WhatsApp";
   }
-  return "Solo el administrador de la empresa puede configurar WhatsApp";
+  if (!getSessionCompanyId(session2)) {
+    return "Tu cuenta no tiene una empresa asociada";
+  }
+  return "No tienes permiso para configurar WhatsApp de la empresa";
 }
 function denyCompanyWhatsappUseMessage(session2) {
   if (!session2?.data?.id) {

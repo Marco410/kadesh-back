@@ -1,4 +1,5 @@
-import { hasRole } from "../../../../auth/permissions";
+import { hasPermission, hasRole } from "../../../../auth/permissions";
+import { PERMISSION_KEYS } from "../../../../auth/permissionsCatalog";
 import { Role } from "../../../../models/Role/constants";
 import {
   getSessionCompanyId,
@@ -10,7 +11,8 @@ import {
 export { getSessionCompanyId };
 
 /**
- * Configurar IA de una empresa: admin_company de esa empresa, o admin de plataforma.
+ * Configurar IA de una empresa: permiso `ai.configurar`, admin_company legado,
+ * o admin de plataforma.
  */
 export function canManageCompanyAi(
   session: SessionLike,
@@ -18,8 +20,10 @@ export function canManageCompanyAi(
 ): boolean {
   if (!isSignedIn(session)) return false;
   if (isPlatformAdmin(session)) return true;
-  if (!hasRole(session, [Role.ADMIN_COMPANY])) return false;
-  return getSessionCompanyId(session) === companyId;
+  if (getSessionCompanyId(session) !== companyId) return false;
+  return hasPermission(session, PERMISSION_KEYS.AI_CONFIGURAR, () =>
+    hasRole(session, [Role.ADMIN_COMPANY]),
+  );
 }
 
 /**
@@ -40,7 +44,10 @@ export function denyCompanyAiAccessMessage(
   if (!session?.data?.id) {
     return "Debes iniciar sesión para configurar la IA";
   }
-  return "Solo el administrador de la empresa puede configurar la IA";
+  if (!getSessionCompanyId(session)) {
+    return "Tu cuenta no tiene una empresa asociada";
+  }
+  return "No tienes permiso para configurar la IA de la empresa";
 }
 
 export function denyCompanyAiUseMessage(session: SessionLike): string {

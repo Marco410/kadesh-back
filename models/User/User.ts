@@ -30,18 +30,27 @@ import {
 import access, {
   userCompanyFieldAccess,
   userOnboardingFieldAccess,
+  userPermissionsFieldAccess,
   userRolesFieldAccess,
   userSecretFieldAccess,
   userStripeFieldAccess,
 } from "./User.access";
+import {
+  userCompanyManagedValidateInput,
+  userPermissionsHook,
+} from "./User.hooks";
 
 async function resolveInput(
   args: Parameters<typeof userRoleHook.resolveInput>[0]
 ) {
   const afterRole = await userRoleHook.resolveInput(args);
-  const afterStripe = await stripeCustomerHook.resolveInput({
+  const afterPermissions = await userPermissionsHook.resolveInput({
     ...args,
     resolvedData: afterRole,
+  });
+  const afterStripe = await stripeCustomerHook.resolveInput({
+    ...args,
+    resolvedData: afterPermissions,
   });
 
   const afterReferral = await userReferralHook.resolveInput({
@@ -56,6 +65,7 @@ export default list({
   access,
   hooks: {
     resolveInput,
+    validateInput: userCompanyManagedValidateInput,
     afterOperation: async (args: any) => {
       await userBlogSubscriptionHook.afterOperation(args);
       await userWelcomeEmailHook.afterOperation(args);
@@ -125,6 +135,19 @@ export default list({
       ref: "Role.users",
       many: true,
       access: userRolesFieldAccess,
+    }),
+    /**
+     * Permisos por módulo/acción del panel SaaS (`inicio.ver`, `clientes.editar`, …).
+     * `null` / ausente = usuario legado (rige el rol). Array (aunque vacío) = lista explícita.
+     */
+    permissions: json({
+      defaultValue: null,
+      access: userPermissionsFieldAccess,
+      ui: {
+        description:
+          "Lista de permisos del panel (JSON array de strings). Vacío = sin permisos; null = legado por rol.",
+        createView: { fieldMode: "edit" },
+      },
     }),
     referredBy: relationship({
       ref: "User.referrals",

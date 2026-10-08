@@ -5,6 +5,8 @@ export type SessionLike = {
   data?: {
     id?: string;
     company?: { id?: string } | null;
+    permissions?: unknown;
+    roles?: Array<{ name?: string } | null> | null;
   };
 } | null | undefined;
 
@@ -26,6 +28,15 @@ export function isPlatformAdmin(session: SessionLike): boolean {
 
 export function isCompanyAdmin(session: SessionLike): boolean {
   return hasRole(session, [Role.ADMIN_COMPANY]);
+}
+
+export function isGerencia(session: SessionLike): boolean {
+  return hasRole(session, [Role.GERENCIA]);
+}
+
+/** Admin de empresa o Gerencia: pueden gestionar usuarios y permisos de la empresa. */
+export function canManageCompanyUsers(session: SessionLike): boolean {
+  return isCompanyAdmin(session) || isGerencia(session);
 }
 
 /**

@@ -4,12 +4,22 @@ import {
   sendUserWelcomeEmail,
   emailBrandForUser,
 } from "../../utils/helpers/sendgrid";
-import { Role } from "../Role/constants";
+import {
+  ASSIGNABLE_COMPANY_ROLE_NAMES,
+  PROTECTED_COMPANY_ROLE_NAMES,
+  Role,
+} from "../Role/constants";
 import { PRODUCT } from "../../utils/constants/product";
 import Stripe from "../../utils/intregrations/stripe";
 import { hasRole } from "../../auth/permissions";
 import {
+  isPermissionKey,
+  normalizePermissions,
+} from "../../auth/permissionsCatalog";
+import {
+  canManageCompanyUsers,
   getSessionCompanyId,
+  isGerencia,
   isPlatformAdmin,
   isSignedIn,
 } from "../../utils/access/tenant";
@@ -124,11 +134,13 @@ function relationIds(value: unknown): string[] {
     .filter(Boolean);
 }
 
+const ASSIGNABLE_SET = new Set<string>(ASSIGNABLE_COMPANY_ROLE_NAMES);
+
 export const userRoleHook = {
   resolveInput: async ({ resolvedData, item, operation, context }: any) => {
     if (operation === "create" && !item && !isPlatformAdmin(context.session)) {
       const sessionCompanyId = getSessionCompanyId(context.session);
-      if (sessionCompanyId && hasRole(context.session, [Role.ADMIN_COMPANY])) {
+      if (sessionCompanyId && canManageCompanyUsers(context.session)) {
         resolvedData.company = { connect: { id: sessionCompanyId } };
       } else if (isSignedIn(context.session)) {
         delete resolvedData.company;
@@ -139,33 +151,71 @@ export const userRoleHook = {
       return resolvedData;
     }
 
-    const roleInput = resolvedData.roles as
-      | {
-          connect?: { id: string }[] | { id: string };
-          set?: { id: string }[] | { id: string };
-          create?: unknown[];
+    // Sin sesión = seed / registerUser / Google via sudo. No sanitizar roles:
+    // el field access de `roles` ya bloquea create/update públicos.
+    // Si sanitizáramos aquí, se perderían `admin` / `admin_company`.
+    if (isSignedIn(context.session)) {
+      const roleInput = resolvedData.roles as
+        | {
+            connect?: { id: string }[] | { id: string };
+            set?: { id: string }[] | { id: string };
+            create?: unknown[];
+          }
+        | undefined;
+
+      if (roleInput?.create) {
+        delete roleInput.create;
+      }
+
+      const connectIds = [
+        ...relationIds(roleInput?.connect),
+        ...relationIds(roleInput?.set),
+      ];
+
+      if (connectIds.length > 0) {
+        const roles = (await context.sudo().query.Role.findMany({
+          where: { id: { in: connectIds } },
+          query: "id name",
+        })) as { id: string; name: string }[];
+
+        // Admin empresa / Gerencia: solo roles de empresa asignables (+ user).
+        // Resto: nunca admin / admin_company.
+        const companyManager = canManageCompanyUsers(context.session);
+        const allowed = roles.filter((role) => {
+          if (companyManager) return ASSIGNABLE_SET.has(role.name);
+          return (
+            role.name !== Role.ADMIN && role.name !== Role.ADMIN_COMPANY
+          );
+        });
+
+        const usingSet = Boolean(roleInput?.set);
+        if (
+          usingSet &&
+          companyManager &&
+          operation === "update" &&
+          item?.id
+        ) {
+          // Conservar admin/admin_company que el target ya tenga (no se asignan ni se quitan desde Usuarios).
+          const existing = (await context.sudo().query.User.findOne({
+            where: { id: item.id },
+            query: "roles { id name }",
+          })) as { roles?: Array<{ id: string; name: string }> } | null;
+          const keepProtected = (existing?.roles ?? []).filter((role) =>
+            (PROTECTED_COMPANY_ROLE_NAMES as readonly string[]).includes(
+              role.name,
+            ),
+          );
+          const byId = new Map<string, { id: string }>();
+          for (const role of [...allowed, ...keepProtected]) {
+            byId.set(role.id, { id: role.id });
+          }
+          resolvedData.roles = { set: [...byId.values()] };
+        } else {
+          const op = usingSet ? "set" : "connect";
+          resolvedData.roles = {
+            [op]: allowed.map((role) => ({ id: role.id })),
+          };
         }
-      | undefined;
-
-    if (roleInput?.create) {
-      delete roleInput.create;
-    }
-
-    const connectIds = [
-      ...relationIds(roleInput?.connect),
-      ...relationIds(roleInput?.set),
-    ];
-
-    if (connectIds.length > 0) {
-      const roles = (await context.sudo().query.Role.findMany({
-        where: { id: { in: connectIds } },
-        query: "id name",
-      })) as { id: string; name: string }[];
-      const allowed = roles.filter((role) => role.name !== Role.ADMIN);
-      if (allowed.length !== roles.length) {
-        resolvedData.roles = {
-          connect: allowed.map((role) => ({ id: role.id })),
-        };
       }
     }
 
@@ -192,6 +242,72 @@ export const userRoleHook = {
     return resolvedData;
   },
 };
+
+/** Normaliza / valida `permissions` y bloquea auto-asignación por no managers. */
+export const userPermissionsHook = {
+  resolveInput: async ({ resolvedData, context }: any) => {
+    if (!("permissions" in resolvedData)) return resolvedData;
+
+    if (
+      !isPlatformAdmin(context.session) &&
+      !canManageCompanyUsers(context.session)
+    ) {
+      delete resolvedData.permissions;
+      return resolvedData;
+    }
+
+    if (resolvedData.permissions == null) {
+      return resolvedData;
+    }
+
+    if (!Array.isArray(resolvedData.permissions)) {
+      throw new Error("permissions debe ser una lista de strings");
+    }
+
+    const invalid = resolvedData.permissions.filter(
+      (item: unknown) => typeof item !== "string" || !isPermissionKey(item),
+    );
+    if (invalid.length > 0) {
+      throw new Error(
+        `Permisos no válidos: ${invalid.slice(0, 5).map(String).join(", ")}`,
+      );
+    }
+
+    resolvedData.permissions = normalizePermissions(resolvedData.permissions);
+    return resolvedData;
+  },
+};
+
+/**
+ * Gerencia no puede crear/editar usuarios protegidos (admin / admin_company).
+ * Tampoco puede tocarse a sí misma para quitarse gerencia vía roles desde otro camino — el filtro ya limita.
+ */
+export async function userCompanyManagedValidateInput({
+  operation,
+  resolvedData,
+  item,
+  context,
+  addValidationError,
+}: any) {
+  if (isPlatformAdmin(context.session)) return;
+  if (!isGerencia(context.session)) return;
+
+  if (operation === "update" && item?.id) {
+    const target = (await context.sudo().query.User.findOne({
+      where: { id: item.id },
+      query: "id roles { name }",
+    })) as { id: string; roles?: Array<{ name: string }> } | null;
+
+    const protectedTarget = target?.roles?.some((r) =>
+      (PROTECTED_COMPANY_ROLE_NAMES as readonly string[]).includes(r.name),
+    );
+    if (protectedTarget) {
+      addValidationError(
+        "Gerencia no puede editar al administrador de la empresa",
+      );
+    }
+  }
+}
 
 const REFERRAL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 

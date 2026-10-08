@@ -1,4 +1,5 @@
-import { hasRole } from "../../../../auth/permissions";
+import { hasPermission, hasRole } from "../../../../auth/permissions";
+import { PERMISSION_KEYS } from "../../../../auth/permissionsCatalog";
 import { Role } from "../../../../models/Role/constants";
 import {
   getSessionCompanyId,
@@ -8,8 +9,8 @@ import {
 } from "../../../../utils/access/tenant";
 
 /**
- * Configurar WhatsApp de una empresa: admin_company de esa empresa, o admin de plataforma.
- * Mismo criterio que `canManageCompanyAi`.
+ * Configurar WhatsApp de una empresa: permiso `whatsapp.configurar`, admin_company
+ * legado, o admin de plataforma. Mismo criterio que `canManageCompanyAi`.
  */
 export function canManageCompanyWhatsapp(
   session: SessionLike,
@@ -17,8 +18,10 @@ export function canManageCompanyWhatsapp(
 ): boolean {
   if (!isSignedIn(session)) return false;
   if (isPlatformAdmin(session)) return true;
-  if (!hasRole(session, [Role.ADMIN_COMPANY])) return false;
-  return getSessionCompanyId(session) === companyId;
+  if (getSessionCompanyId(session) !== companyId) return false;
+  return hasPermission(session, PERMISSION_KEYS.WHATSAPP_CONFIGURAR, () =>
+    hasRole(session, [Role.ADMIN_COMPANY]),
+  );
 }
 
 /**
@@ -38,7 +41,10 @@ export function denyCompanyWhatsappAccessMessage(session: SessionLike): string {
   if (!session?.data?.id) {
     return "Debes iniciar sesión para configurar WhatsApp";
   }
-  return "Solo el administrador de la empresa puede configurar WhatsApp";
+  if (!getSessionCompanyId(session)) {
+    return "Tu cuenta no tiene una empresa asociada";
+  }
+  return "No tienes permiso para configurar WhatsApp de la empresa";
 }
 
 export function denyCompanyWhatsappUseMessage(session: SessionLike): string {
