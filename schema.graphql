@@ -7685,6 +7685,7 @@ type User {
   phone: String
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
+  permissions: JSON
   referredBy: User
   referrals(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   referralsCount(where: UserWhereInput! = {}): Int
@@ -7929,6 +7930,7 @@ input UserUpdateInput {
   password: String
   phone: String
   roles: RoleRelateToManyForUpdateInput
+  permissions: JSON
   referredBy: UserRelateToOneForUpdateInput
   referrals: UserRelateToManyForUpdateInput
   company: SaasCompanyRelateToOneForUpdateInput
@@ -8041,6 +8043,7 @@ input UserCreateInput {
   password: String
   phone: String
   roles: RoleRelateToManyForCreateInput
+  permissions: JSON
   referredBy: UserRelateToOneForCreateInput
   referrals: UserRelateToManyForCreateInput
   company: SaasCompanyRelateToOneForCreateInput

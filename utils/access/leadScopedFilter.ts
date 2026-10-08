@@ -1,4 +1,5 @@
-import { hasRole } from "../../auth/permissions";
+import { hasPermission, hasRole } from "../../auth/permissions";
+import { PERMISSION_KEYS } from "../../auth/permissionsCatalog";
 import { Role } from "../../models/Role/constants";
 import {
   getSessionCompanyId,
@@ -31,9 +32,15 @@ function leadAssignedToUser(companyId: string, userId: string) {
   };
 }
 
+function canSeeCompanyWideLeads(session: any): boolean {
+  return hasPermission(session, PERMISSION_KEYS.CLIENTES_VER_EMPRESA, () =>
+    hasRole(session, [Role.ADMIN_COMPANY, Role.USER_COMPANY]),
+  );
+}
+
 /**
- * TechBusinessLead: admin ve todo; admin_company ve los de su empresa;
- * vendedor / resto de la empresa solo los asignados a él.
+ * TechBusinessLead: admin ve todo; con `clientes.ver_empresa` (o admin_company /
+ * user_company legado) ve los de su empresa; resto solo los asignados a él.
  */
 export function leadCompanyScopedWhere(session: any): true | false | Record<string, unknown> {
   if (isPlatformAdmin(session)) return true;
@@ -42,7 +49,7 @@ export function leadCompanyScopedWhere(session: any): true | false | Record<stri
   const userId = getSessionUserId(session);
   if (!companyId) return false;
 
-  if (hasRole(session, [Role.ADMIN_COMPANY])) {
+  if (canSeeCompanyWideLeads(session)) {
     return leadInCompany(companyId);
   }
 
@@ -75,7 +82,7 @@ export function statusLeadCompanyScopedWhere(
   const userId = getSessionUserId(session);
   if (!companyId) return false;
 
-  if (hasRole(session, [Role.ADMIN_COMPANY])) {
+  if (canSeeCompanyWideLeads(session)) {
     return statusInCompany(companyId);
   }
 

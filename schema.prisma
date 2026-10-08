@@ -1567,6 +1567,7 @@ model User {
   password                                 String?
   phone                                    String                   @default("")
   roles                                    Role[]                   @relation("Role_users")
+  permissions                              Json?
   referredBy                               User?                    @relation("User_referredBy", fields: [referredById], references: [id])
   referredById                             String?                  @map("referredBy")
   referrals                                User[]                   @relation("User_referredBy")

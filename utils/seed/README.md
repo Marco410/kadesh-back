@@ -34,3 +34,9 @@ Por qué: si el user ya tenía company, el early-return saltaba la asignación y
 
 Qué no hacer: no asumir que “user existe” implica que ya tiene `Role.ADMIN`.
 
+### 2026-10-07 — Hook de User ya no quita admin en seed
+
+Qué: el seed sigue pidiendo los tres roles; el fix está en `User.hooks` (no sanitizar roles sin sesión). Ver `models/User/README.md`.
+
+Por qué: re-seed dejaba solo `vendedor` aunque `ADMIN_ROLE_NAMES` estuviera bien.
+
