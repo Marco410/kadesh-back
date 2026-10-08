@@ -2049,13 +2049,13 @@ var userRoleHook = {
       if (roleInput?.create) {
         delete roleInput.create;
       }
-      const connectIds = [
+      const connectIds2 = [
         ...relationIds(roleInput?.connect),
         ...relationIds(roleInput?.set)
       ];
-      if (connectIds.length > 0) {
+      if (connectIds2.length > 0) {
         const roles = await context.sudo().query.Role.findMany({
-          where: { id: { in: connectIds } },
+          where: { id: { in: connectIds2 } },
           query: "id name"
         });
         const companyManager = canManageCompanyUsers(context.session);
@@ -5659,6 +5659,17 @@ function stripTenantFromClient(resolvedData, key) {
   delete next[key];
   return next;
 }
+function connectIds(connect) {
+  if (!connect) return [];
+  const list77 = Array.isArray(connect) ? connect : [connect];
+  return list77.map((item) => {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object" && "id" in item) {
+      return String(item.id);
+    }
+    return null;
+  }).filter((id) => !!id);
+}
 var businessLeadHooks = {
   resolveInput: async ({
     resolvedData,
@@ -5674,6 +5685,17 @@ var businessLeadHooks = {
         ...resolvedData,
         saasCompany: { connect: [{ id: companyId }] }
       };
+    }
+    if (operation === "update" && companyId && resolvedData?.saasCompany) {
+      const sc = resolvedData.saasCompany;
+      const ids = connectIds(sc.connect);
+      const onlyOwnConnect = ids.length > 0 && ids.every((id) => id === companyId) && sc.disconnect == null && sc.set == null;
+      if (onlyOwnConnect) {
+        return {
+          ...resolvedData,
+          saasCompany: { connect: ids.map((id) => ({ id })) }
+        };
+      }
     }
     return stripTenantFromClient(resolvedData, "saasCompany");
   },
@@ -13573,6 +13595,41 @@ async function ensureStatusForLeadAssignment(context, leadId, companyId, userId,
     });
   }
 }
+async function assignExistingLeadToCompany(context, leadId, companyId, userId, opportunityLevel = "Media") {
+  try {
+    await context.sudo().query.TechBusinessLead.updateOne({
+      where: { id: leadId },
+      data: { saasCompany: { connect: { id: companyId } } }
+    });
+    const linked = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: leadId },
+      query: "id saasCompany { id }"
+    });
+    const companies = linked?.saasCompany ?? [];
+    if (!companies.some((c) => c.id === companyId)) {
+      console.warn(
+        "[syncLeadsFront] connect saasCompany no persisti\xF3; no se cobra este lead",
+        { leadId, companyId }
+      );
+      return false;
+    }
+    await ensureStatusForLeadAssignment(
+      context,
+      leadId,
+      companyId,
+      userId,
+      opportunityLevel
+    );
+    return true;
+  } catch (err) {
+    console.warn("[syncLeadsFront] assignExistingLeadToCompany failed", {
+      leadId,
+      companyId,
+      err: err instanceof Error ? err.message : err
+    });
+    return false;
+  }
+}
 var MIN_RATING = 0;
 var MIN_REVIEWS = 0;
 var DEFAULT_MAX_RESULTS = 60;
@@ -13775,21 +13832,13 @@ var resolver6 = {
     }
     let assignedFromDb = 0;
     for (const leadId of existingIds) {
-      try {
-        await context.sudo().query.TechBusinessLead.updateOne({
-          where: { id: leadId },
-          data: { saasCompany: { connect: { id: company.id } } }
-          // ADD only; never replace
-        });
-        await ensureStatusForLeadAssignment(
-          context,
-          leadId,
-          company.id,
-          userId
-        );
-        assignedFromDb++;
-      } catch (_) {
-      }
+      const ok = await assignExistingLeadToCompany(
+        context,
+        leadId,
+        company.id,
+        userId
+      );
+      if (ok) assignedFromDb++;
     }
     let syncedThisRequest = assignedFromDb;
     let currentSyncedCount = syncedCount;
@@ -13995,24 +14044,19 @@ var resolver6 = {
           if (alreadyAssignedToThisCompany) {
             continue;
           }
-          alreadyInDb++;
-          try {
-            const leadId = lead.id;
-            await context.sudo().query.TechBusinessLead.updateOne({
-              where: { id: leadId },
-              data: { saasCompany: { connect: { id: company.id } } }
-            });
-            const level = placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
-            await ensureStatusForLeadAssignment(
-              context,
-              leadId,
-              company.id,
-              userId,
-              level
-            );
+          const leadId = lead.id;
+          const level = placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
+          const ok = await assignExistingLeadToCompany(
+            context,
+            leadId,
+            company.id,
+            userId,
+            level
+          );
+          if (ok) {
+            alreadyInDb++;
             syncedThisRequest++;
             currentSyncedCount++;
-          } catch (_) {
           }
           continue;
         }
