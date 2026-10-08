@@ -33,3 +33,19 @@ Qué no hacer: no usar `context.db.User.findOne` sin sudo para esta comprobació
 Qué: `userBlogSubscriptionHook` normaliza el email a minúsculas y busca con `mode: insensitive` antes de crear o vincular.
 
 Por qué: evita un segundo `BlogSubscription` activo si el usuario ya se había suscrito al blog con otro casing. Ver `models/Blog/BlogSubscription/README.md`.
+
+### 2026-10-07 — Gerencia y `permissions`
+
+Qué: rol `gerencia` en el catálogo; campo JSON `User.permissions` (lista de llaves del panel). Admin de empresa y Gerencia pueden crear usuarios de la empresa y asignar roles/permisos. Gerencia no ve ni edita usuarios con rol `admin` / `admin_company`. Quien no tiene lista de permisos sigue el rol (legado). Catálogo: `auth/permissionsCatalog.ts`. Sesión incluye `permissions`.
+
+Requiere migrate (`permissions` en User) + `pnpm db:seed` (o crear el Role `gerencia` a mano). No lo corre el agente.
+
+Qué no hacer: no dejar que Gerencia conecte `admin_company`; no tratar un array vacío como “legado” (vacío = sin permisos).
+
+### 2026-10-07 — Roles protegidos en seed / register (sin sesión)
+
+Qué: el `resolveInput` de roles solo sanitiza cuando hay sesión firmada. Seed y `registerUser`/`Google` (sudo sin sesión) conservan `admin` / `admin_company`.
+
+Por qué: con sesión ausente el filtro “nunca admin/admin_company” dejaba solo `vendedor` aunque el seed conectara los tres roles.
+
+Qué no hacer: no reintroducir ese filtro para `!session`; el field access de `roles` ya bloquea create/update públicos.

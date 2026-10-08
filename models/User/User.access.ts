@@ -1,10 +1,11 @@
 import { ListAccessControl } from "@keystone-6/core/types";
-import { hasRole } from "../../auth/permissions";
-import { Role } from "../Role/constants";
+import { PROTECTED_COMPANY_ROLE_NAMES } from "../Role/constants";
 import {
+  canManageCompanyUsers,
   getSessionCompanyId,
   getSessionUserId,
   isCompanyAdmin,
+  isGerencia,
   isPlatformAdmin,
   isSignedIn,
 } from "../../utils/access/tenant";
@@ -17,13 +18,37 @@ function userVisibleWhere(
   const userId = getSessionUserId(session);
   if (!userId) return false;
 
-  if (hasRole(session, [Role.ADMIN_COMPANY])) {
-    const companyId = getSessionCompanyId(session);
+  const companyId = getSessionCompanyId(session);
+
+  if (isCompanyAdmin(session)) {
     if (!companyId) return { id: { equals: userId } };
     return {
       OR: [
         { id: { equals: userId } },
         { company: { id: { equals: companyId } } },
+      ],
+    };
+  }
+
+  // Gerencia ve compañeros de empresa, pero no admins de empresa/plataforma.
+  if (isGerencia(session) && companyId) {
+    return {
+      OR: [
+        { id: { equals: userId } },
+        {
+          AND: [
+            { company: { id: { equals: companyId } } },
+            {
+              NOT: {
+                roles: {
+                  some: {
+                    name: { in: [...PROTECTED_COMPANY_ROLE_NAMES] },
+                  },
+                },
+              },
+            },
+          ],
+        },
       ],
     };
   }
@@ -75,9 +100,20 @@ const userAccess: ListAccessControl<any> = {
 export const userRolesFieldAccess = {
   read: ({ session }: any) => isSignedIn(session),
   create: ({ session }: any) =>
-    isPlatformAdmin(session) || isCompanyAdmin(session),
+    isPlatformAdmin(session) || canManageCompanyUsers(session),
   update: ({ session }: any) =>
-    isPlatformAdmin(session) || isCompanyAdmin(session),
+    isPlatformAdmin(session) || canManageCompanyUsers(session),
+};
+
+export const userPermissionsFieldAccess = {
+  read: ({ session, item }: any) =>
+    isPlatformAdmin(session) ||
+    canManageCompanyUsers(session) ||
+    isSelf(session, item),
+  create: ({ session }: any) =>
+    isPlatformAdmin(session) || canManageCompanyUsers(session),
+  update: ({ session }: any) =>
+    isPlatformAdmin(session) || canManageCompanyUsers(session),
 };
 
 export const userOnboardingFieldAccess = {
@@ -101,7 +137,7 @@ function companyConnectId(inputData: any): string | null {
 export const userCompanyFieldAccess = {
   read: ({ session }: any) => isSignedIn(session),
   create: ({ session }: any) =>
-    isPlatformAdmin(session) || isCompanyAdmin(session),
+    isPlatformAdmin(session) || canManageCompanyUsers(session),
   update: async ({ session, item, inputData, context }: any) => {
     if (isPlatformAdmin(session)) return true;
     if (!isSelf(session, item)) return false;

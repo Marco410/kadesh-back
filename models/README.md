@@ -143,3 +143,9 @@ Qué no hacer: no escribir el Verify Token en instrucciones/copias del front; no
 Qué: `Post.clickupTaskId` (text, único, opcional, oculto al crear y solo lectura en el item) amarra el post a la tarea. Lo llena `POST /webhooks/clickup` al pasar la tarea a `aprobado`. Sin imagen jpg/png/webp (máx. 8 MB) no se crea el post. Detalle del flujo en `utils/clickup/README.md`.
 
 Requiere `yarn migrate` (columna + índice único). No lo corre el agente.
+
+### 2026-10-07 — Usuarios de empresa: Gerencia + permisos
+
+Qué: rol `gerencia` y campo `User.permissions` (JSON array de llaves alineadas al front). Admin de empresa y Gerencia gestionan usuarios; Gerencia no toca admins. Access de leads (`clientes.ver_empresa`), archivos, espacios, IA y WhatsApp config usan `hasPermission` con fallback al rol legado. Detalle en `User/README.md` y `auth/permissionsCatalog.ts`.
+
+Requiere migrate + seed del rol. No lo corre el agente.

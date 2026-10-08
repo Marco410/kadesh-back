@@ -1,6 +1,10 @@
 // -------- MAIN AUTH VALIDATIONS
 
 import { Role } from "../models/Role/constants";
+import {
+  normalizePermissions,
+  type PermissionKey,
+} from "./permissionsCatalog";
 
 function sessionRoleNames(session: any): string[] {
   const names: string[] = [];
@@ -46,3 +50,38 @@ export const validateAccess = (
     throw new Error("Unauthorized: You don't have the right permissions");
   }
 };
+
+/** Lista de permisos de la sesión. `null` = usuario legado (rige el rol). */
+export function sessionPermissions(session: any): PermissionKey[] | null {
+  return normalizePermissions(session?.data?.permissions);
+}
+
+/**
+ * Comprueba una llave de permiso.
+ * - Admin de plataforma y admin de empresa: siempre sí.
+ * - Sin lista de permisos (legado): usa el fallback de rol.
+ * - Con lista: debe incluir la llave.
+ */
+export function hasPermission(
+  session: any,
+  key: PermissionKey,
+  legacyFallback: () => boolean,
+): boolean {
+  if (!session?.data) return false;
+  if (hasRole(session, [Role.ADMIN, Role.ADMIN_COMPANY])) return true;
+
+  const list = sessionPermissions(session);
+  if (list == null) return legacyFallback();
+  return list.includes(key);
+}
+
+export function requirePermission(
+  session: any,
+  key: PermissionKey,
+  legacyFallback: () => boolean,
+  message = "No tienes permiso para esta acción",
+): void {
+  if (!hasPermission(session, key, legacyFallback)) {
+    throw new Error(message);
+  }
+}
