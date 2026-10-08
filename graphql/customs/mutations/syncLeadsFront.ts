@@ -52,6 +52,54 @@ async function ensureStatusForLeadAssignment(
   }
 }
 
+/**
+ * Liga un lead existente a la company y crea/actualiza su status.
+ * Verifica que el connect quedó aplicado (el hook de tenant puede strippear
+ * saasCompany en update si no es la propia empresa).
+ */
+async function assignExistingLeadToCompany(
+  context: KeystoneContext,
+  leadId: string,
+  companyId: string,
+  userId: string,
+  opportunityLevel: "Alta" | "Media" | "Baja" = "Media",
+): Promise<boolean> {
+  try {
+    await context.sudo().query.TechBusinessLead.updateOne({
+      where: { id: leadId },
+      data: { saasCompany: { connect: { id: companyId } } },
+    });
+    const linked = await context.sudo().query.TechBusinessLead.findOne({
+      where: { id: leadId },
+      query: "id saasCompany { id }",
+    });
+    const companies =
+      (linked as { saasCompany?: { id: string }[] } | null)?.saasCompany ?? [];
+    if (!companies.some((c) => c.id === companyId)) {
+      console.warn(
+        "[syncLeadsFront] connect saasCompany no persistió; no se cobra este lead",
+        { leadId, companyId },
+      );
+      return false;
+    }
+    await ensureStatusForLeadAssignment(
+      context,
+      leadId,
+      companyId,
+      userId,
+      opportunityLevel,
+    );
+    return true;
+  } catch (err) {
+    console.warn("[syncLeadsFront] assignExistingLeadToCompany failed", {
+      leadId,
+      companyId,
+      err: err instanceof Error ? err.message : err,
+    });
+    return false;
+  }
+}
+
 const MIN_RATING = 0;
 const MIN_REVIEWS = 0;
 const DEFAULT_MAX_RESULTS = 60;
@@ -322,19 +370,13 @@ const resolver = {
     // Asignar siempre los leads existentes en el área a esta company (solo connect: un mismo lead puede estar en varias companies).
     let assignedFromDb = 0;
     for (const leadId of existingIds) {
-      try {
-        await context.sudo().query.TechBusinessLead.updateOne({
-          where: { id: leadId },
-          data: { saasCompany: { connect: { id: company.id } } }, // ADD only; never replace
-        });
-        await ensureStatusForLeadAssignment(
-          context,
-          leadId,
-          company.id,
-          userId,
-        );
-        assignedFromDb++;
-      } catch (_) {}
+      const ok = await assignExistingLeadToCompany(
+        context,
+        leadId,
+        company.id,
+        userId,
+      );
+      if (ok) assignedFromDb++;
     }
     let syncedThisRequest = assignedFromDb;
     let currentSyncedCount = syncedCount;
@@ -593,29 +635,25 @@ const resolver = {
           if (alreadyAssignedToThisCompany) {
             continue;
           }
-          alreadyInDb++;
-          try {
-            const leadId = (lead as { id: string }).id;
-            await context.sudo().query.TechBusinessLead.updateOne({
-              where: { id: leadId },
-              data: { saasCompany: { connect: { id: company.id } } },
-            });
-            const level: "Alta" | "Media" | "Baja" =
-              placeRating >= 4.5
-                ? "Alta"
-                : placeRating >= 4
-                  ? "Media"
-                  : "Baja";
-            await ensureStatusForLeadAssignment(
-              context,
-              leadId,
-              company.id,
-              userId,
-              level,
-            );
+          const leadId = (lead as { id: string }).id;
+          const level: "Alta" | "Media" | "Baja" =
+            placeRating >= 4.5
+              ? "Alta"
+              : placeRating >= 4
+                ? "Media"
+                : "Baja";
+          const ok = await assignExistingLeadToCompany(
+            context,
+            leadId,
+            company.id,
+            userId,
+            level,
+          );
+          if (ok) {
+            alreadyInDb++;
             syncedThisRequest++;
             currentSyncedCount++;
-          } catch (_) {}
+          }
           continue;
         }
 
