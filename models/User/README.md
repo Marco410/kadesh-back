@@ -49,3 +49,12 @@ Qué: el `resolveInput` de roles solo sanitiza cuando hay sesión firmada. Seed 
 Por qué: con sesión ausente el filtro “nunca admin/admin_company” dejaba solo `vendedor` aunque el seed conectara los tres roles.
 
 Qué no hacer: no reintroducir ese filtro para `!session`; el field access de `roles` ya bloquea create/update públicos.
+
+### 2026-10-10 — Accesos y `lastLoginAt` los escribe el servidor
+
+Qué: el login con contraseña (`authenticateUserWithPassword`) se envuelve en `graphql/customs/mutations/auth/passwordLoginAudit.ts`. Escribe `UserAuthLog` (éxito o fallo, con `method: "password"`) y marca `lastLoginAt`. `UserAuthLog.create` por API queda solo para admin de plataforma.
+
+Por qué: antes lo escribía el navegador con un `createUserAuthLog` abierto a cualquiera, así que el historial de accesos de Operaciones se podía falsificar y los logins de Pet no quedaban. Google y el registro ya se registraban en el servidor.
+
+Qué no hacer: no volver a mandar `createUserAuthLog` ni `updateUser({ lastLoginAt })` desde el front. Ver `docs/operaciones/decisiones.md`.
+

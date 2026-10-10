@@ -6,6 +6,7 @@ import { writeSaasSubscriptionLog } from "../../../../utils/saas/saasSubscriptio
 import { getFreePlanTrialInfo } from "../../../../utils/saas/freePlanTrial";
 import { getRemainingCredits } from "../../../../utils/helpers/tech/remaining_credits";
 import { grantPurchaseCredits } from "../../../../utils/saas/companyCredits";
+import { canActForEmail } from "../../../../utils/access/tenant";
 
 const typeDefs = `
   input PurchaseCreditsInput {
@@ -136,16 +137,29 @@ const resolver = {
         paymentId: response.paymentId,
         userId: logUserId ?? null,
         companyId: logCompanyId ?? null,
-        planId: input.creditPackageId,
+        // El paquete de créditos no es un SaasPlan: conectarlo como `plan` hacía fallar
+        // (en silencio) el log de toda recarga. Va en `planIdRequested` y en el snapshot.
+        planId: null,
         createdSubscriptionId: response.subscriptionId,
         stripeCustomerId: opts?.stripeCustomerId ?? null,
         stripeSubscriptionId: opts?.stripePaymentIntentId ?? null,
-        extra: opts?.extra,
+        extra: { creditPackageId: input.creditPackageId, ...(opts?.extra ?? {}) },
       });
       return response;
     };
 
     try {
+      if (!canActForEmail(context.session, input.email)) {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
+          success: false,
+          message: "Inicia sesión con la cuenta que va a comprar los créditos.",
+          paymentId: null,
+          creditsAdded: null,
+          newCreditsTotal: null,
+          subscriptionId: null,
+        });
+      }
+
       if (!process.env.STRIPE_SECRET_KEY) {
         return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,

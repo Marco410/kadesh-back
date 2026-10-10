@@ -14,6 +14,11 @@ import businessLeadWhatsappStatus from "./whatsapp/businessLeadWhatsappStatus";
 import companyWhatsappTeam from "./whatsapp/companyWhatsappTeam";
 import companyWhatsappTemplates from "./whatsapp/companyWhatsappTemplates";
 import syncGoogleCalendarNow from "./googleCalendar/syncGoogleCalendarNow";
+import { adminSharedTypeDefs } from "./admin/shared";
+import adminCompanies from "./admin/adminCompanies";
+import adminOpsSummary from "./admin/adminOpsSummary";
+import adminCompanyInsights from "./admin/adminCompanyInsights";
+import adminActivityFeed from "./admin/adminActivityFeed";
 
 const customQuery = {
   typeDefs: `
@@ -30,6 +35,11 @@ const customQuery = {
     ${companyWhatsappTeam.typeDefs}
     ${companyWhatsappTemplates.typeDefs}
     ${syncGoogleCalendarNow.typeDefs}
+    ${adminSharedTypeDefs}
+    ${adminCompanies.typeDefs}
+    ${adminOpsSummary.typeDefs}
+    ${adminCompanyInsights.typeDefs}
+    ${adminActivityFeed.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -48,6 +58,10 @@ const customQuery = {
     ${companyWhatsappTeam.definition}
     ${companyWhatsappTemplates.definition}
     ${syncGoogleCalendarNow.definition}
+    ${adminCompanies.definition}
+    ${adminOpsSummary.definition}
+    ${adminCompanyInsights.definition}
+    ${adminActivityFeed.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -66,6 +80,10 @@ const customQuery = {
     ...companyWhatsappTeam.resolver,
     ...companyWhatsappTemplates.resolver,
     ...syncGoogleCalendarNow.resolver,
+    ...adminCompanies.resolver,
+    ...adminOpsSummary.resolver,
+    ...adminCompanyInsights.resolver,
+    ...adminActivityFeed.resolver,
   },
 };
 

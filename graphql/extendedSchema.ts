@@ -3,6 +3,7 @@ import { mergeSchemas } from "@graphql-tools/schema";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import customMutation from "./customs/mutations";
 import customQuery from "./customs/queries";
+import { passwordLoginAuditResolvers } from "./customs/mutations/auth/passwordLoginAudit";
 import { persistPetPlaceSlugIfMissing } from "../models/Pet/PetPlace/PetPlace.hooks";
 import { getSignedStorageUrl } from "../utils/intregrations/s3Storage";
 
@@ -38,6 +39,8 @@ export default function extendGraphqlSchema(baseSchema: GraphQLSchema) {
     resolvers: {
       Mutation: {
         ...customMutation.resolvers,
+        // Login con contraseña: registra UserAuthLog + lastLoginAt en el servidor.
+        ...passwordLoginAuditResolvers(baseSchema),
       },
       Query: {
         ...customQuery.resolvers,

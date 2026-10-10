@@ -9028,6 +9028,10 @@ type Query {
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
+  adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
+  adminOpsSummary: AdminOpsSummary!
+  adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
+  adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   findAnimalReportDuplicates(phone: String, animalTypeId: ID, name: String, sourceUrl: String): [AnimalReportDuplicate!]!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
@@ -10205,4 +10209,243 @@ type SyncGoogleCalendarNowResult {
   success: Boolean!
   message: String
   events: [GoogleCalendarPulledEvent!]!
+}
+
+type AdminCount {
+  key: String!
+  count: Int!
+}
+
+type AdminAmountCount {
+  key: String!
+  count: Int!
+  amount: Float!
+}
+
+type AdminPersonRef {
+  id: ID!
+  name: String!
+  lastName: String
+  email: String
+}
+
+type AdminCompanyRef {
+  id: ID!
+  name: String!
+}
+
+input AdminCompaniesInput {
+  """
+  Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante.
+  """
+  search: String
+
+  """
+  all | active | trialing | past_due | unpaid | cancelled | none (sin plan)
+  """
+  status: String
+
+  """recent (alta) | name | activity (último acceso del equipo)"""
+  sort: String
+  take: Int
+  skip: Int
+}
+
+type AdminCompanyRow {
+  id: ID!
+  name: String!
+  createdAt: String
+  contactEmail: String
+  isTest: Boolean!
+  planName: String
+  subscriptionId: ID
+  subscriptionStatus: String
+  activatedAt: String
+  currentPeriodEnd: String
+  trialEndsAt: String
+  creditsPlan: Int!
+  creditsBonus: Int!
+  creditsUsed: Int!
+  creditsRemaining: Int!
+  usersCount: Int!
+  leadsCount: Int!
+  lastLoginAt: String
+  owner: AdminPersonRef
+}
+
+type AdminCompaniesResult {
+  items: [AdminCompanyRow!]!
+  total: Int!
+
+  """Conteo por estado vigente con la búsqueda aplicada (para los chips)."""
+  statusCounts: [AdminCount!]!
+}
+
+type AdminMoney {
+  currency: String!
+  amount: Float!
+}
+
+type AdminAttentionItem {
+  companyId: ID!
+  companyName: String!
+
+  """
+  trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive
+  """
+  reason: String!
+  detail: String
+
+  """high | medium | low"""
+  severity: String!
+  at: String
+}
+
+type AdminOpsSummary {
+  companiesTotal: Int!
+
+  """
+  Estado vigente por empresa (sin cuentas de prueba); none = sin suscripción.
+  """
+  statusCounts: [AdminCount!]!
+  trialsEndingSoon: Int!
+  paymentIssues: Int!
+  newUsers7d: Int!
+  newCompanies7d: Int!
+  activeUsers7d: Int!
+  syncs24h: Int!
+  failedSyncs24h: Int!
+  aiCalls7d: Int!
+  creditsConsumedMonth: Int!
+
+  """
+  Leads de extracciones de este mes que se crearon nuevos (Google Maps o catálogo INEGI).
+  """
+  leadsCreatedMonth: Int!
+
+  """
+  Leads de este mes que salieron de la base: ya existían, no se le pagó a Google ni a INEGI por ellos.
+  """
+  leadsReusedMonth: Int!
+
+  """MRR estimado por moneda: suscripciones activas normalizadas a mes."""
+  mrr: [AdminMoney!]!
+  attention: [AdminAttentionItem!]!
+}
+
+type AdminTeamMemberStats {
+  userId: ID!
+
+  """Accesos correctos en la ventana (login, alta)."""
+  logins: Int!
+  failedLogins: Int!
+  lastLoginAt: String
+
+  """Última acción registrada (acceso, extracción, IA, CRM, WhatsApp)."""
+  lastActivityAt: String
+  leadsAssigned: Int!
+  activities: Int!
+  quotations: Int!
+  extractions: Int!
+  aiCalls: Int!
+  whatsappSent: Int!
+  toursCompleted: Int!
+  toursSkipped: Int!
+}
+
+type AdminExtractionStats {
+  runs: Int!
+  failed: Int!
+  created: Int!
+  alreadyInDb: Int!
+  creditsUsed: Int!
+}
+
+type AdminDayValue {
+  date: String!
+  value: Int!
+}
+
+type AdminFeatureUsage {
+  feature: String!
+  calls: Int!
+  credits: Int!
+}
+
+type AdminAiStats {
+  calls: Int!
+  failed: Int!
+  credits: Int!
+  byFeature: [AdminFeatureUsage!]!
+}
+
+type AdminWhatsappStats {
+  outbound: Int!
+  inbound: Int!
+  failed: Int!
+  lastMessageAt: String
+}
+
+type AdminCompanyInsights {
+  companyId: ID!
+  days: Int!
+  lastActivityAt: String
+  team: [AdminTeamMemberStats!]!
+
+  """Leads por etapa del pipeline (estatus de esta empresa)."""
+  pipeline: [AdminCount!]!
+  leadsTotal: Int!
+  leadsWithoutOwner: Int!
+  extraction: AdminExtractionStats!
+
+  """Créditos gastados por día (sync + IA), hora de CDMX."""
+  creditsByDay: [AdminDayValue!]!
+  ai: AdminAiStats!
+  activitiesByType: [AdminCount!]!
+  followUpsPending: Int!
+  followUpsOverdue: Int!
+  proposalsByStatus: [AdminAmountCount!]!
+  quotationsByStatus: [AdminAmountCount!]!
+  whatsapp: AdminWhatsappStats!
+  calendarAccounts: Int!
+  calendarLastSyncedAt: String
+  calendarLastError: String
+  checkoutFailures: Int!
+}
+
+input AdminActivityFeedInput {
+  companyId: ID
+  userId: ID
+
+  """
+  auth | extraction | crm | ai | credits | billing | whatsapp | calendar | admin
+  """
+  types: [String!]
+  onlyErrors: Boolean
+  search: String
+
+  """Cursor: devuelve lo ocurrido antes de esta fecha (ISO)."""
+  before: String
+  take: Int
+}
+
+type AdminActivityItem {
+  id: ID!
+  type: String!
+  kind: String!
+  occurredAt: String!
+  title: String!
+  detail: String
+  success: Boolean!
+  actor: AdminPersonRef
+  company: AdminCompanyRef
+  entityType: String
+  entityId: String
+  meta: JSON
+}
+
+type AdminActivityFeedResult {
+  items: [AdminActivityItem!]!
+  nextBefore: String
+  hasMore: Boolean!
 }

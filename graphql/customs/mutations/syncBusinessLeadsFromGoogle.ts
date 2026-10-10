@@ -1,6 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../../models/Role/constants";
 import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
+import { isPlatformAdmin } from "../../../utils/access/tenant";
 
 /** Obtiene los IDs de usuarios con salesPersonVerified = true, para asignación round-robin de leads. */
 async function getVerifiedSalesPersonIds(
@@ -149,6 +150,17 @@ const resolver = {
     },
     context: KeystoneContext,
   ) => {
+    // Importador del Admin de Keystone: gasta la API de Google Maps, solo admin de plataforma.
+    if (!isPlatformAdmin(context.session)) {
+      return {
+        success: false,
+        message: "Solo un administrador de Kadesh puede importar leads desde Google.",
+        created: 0,
+        alreadyInDb: 0,
+        skippedLowRating: 0,
+      };
+    }
+
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       return {

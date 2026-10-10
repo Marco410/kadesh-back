@@ -333,6 +333,17 @@ function isSignedIn(session2) {
 function isPlatformAdmin(session2) {
   return hasRole(session2, ["admin" /* ADMIN */]);
 }
+function getSessionEmail(session2) {
+  const email = session2?.data?.email?.trim().toLowerCase();
+  return email || null;
+}
+function canActForEmail(session2, email) {
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
+  const sessionEmail = getSessionEmail(session2);
+  const target = email?.trim().toLowerCase();
+  return Boolean(sessionEmail && target && sessionEmail === target);
+}
 function isCompanyAdmin(session2) {
   return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
 }
@@ -2859,7 +2870,7 @@ var import_fields8 = require("@keystone-6/core/fields");
 var userAuthLogAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
     update: () => false,
     delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
@@ -5670,6 +5681,9 @@ function connectIds(connect) {
     return null;
   }).filter((id) => !!id);
 }
+function isNoop(value) {
+  return value == null || Array.isArray(value) && value.length === 0;
+}
 var businessLeadHooks = {
   resolveInput: async ({
     resolvedData,
@@ -5689,7 +5703,7 @@ var businessLeadHooks = {
     if (operation === "update" && companyId && resolvedData?.saasCompany) {
       const sc = resolvedData.saasCompany;
       const ids = connectIds(sc.connect);
-      const onlyOwnConnect = ids.length > 0 && ids.every((id) => id === companyId) && sc.disconnect == null && sc.set == null;
+      const onlyOwnConnect = ids.length > 0 && ids.every((id) => id === companyId) && isNoop(sc.disconnect) && sc.set == null;
       if (onlyOwnConnect) {
         return {
           ...resolvedData,
@@ -7009,7 +7023,7 @@ var techLeadSyncLogAccess = {
     query: () => true,
     create: () => false,
     update: () => false,
-    delete: () => true
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -7021,14 +7035,7 @@ var techLeadSyncLogAccess = {
       return { company: { id: { equals: companyId } } };
     },
     update: () => false,
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId6(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
@@ -8465,14 +8472,14 @@ var import_fields57 = require("@keystone-6/core/fields");
 var saasCreditAccess = {
   operation: {
     query: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
   },
   filter: {
     query: () => true,
-    update: () => true,
-    delete: () => true
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
   }
 };
 
@@ -8579,9 +8586,9 @@ var getCompanyId8 = (session2) => session2?.data?.company?.id;
 var saasCompanyMonthlyLeadSyncAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId8(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -8592,22 +8599,8 @@ var saasCompanyMonthlyLeadSyncAccess = {
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId8(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId8(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
@@ -8659,9 +8652,9 @@ var getCompanyId9 = (session2) => session2?.data?.company?.id;
 var companyCreditPeriodAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId9(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -8670,18 +8663,8 @@ var companyCreditPeriodAccess = {
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId9(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId9(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
@@ -8774,9 +8757,9 @@ var getCompanyId10 = (session2) => session2?.data?.company?.id;
 var companyCreditLedgerAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId10(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -8785,18 +8768,8 @@ var companyCreditLedgerAccess = {
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId10(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId10(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
@@ -8904,9 +8877,9 @@ var getCompanyId11 = (session2) => session2?.data?.company?.id;
 var saasCompanySubscriptionAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId11(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -8917,22 +8890,8 @@ var saasCompanySubscriptionAccess = {
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId11(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId11(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
@@ -9180,14 +9139,14 @@ function paymentFilter(session2) {
 var saasPaymentAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionUserId(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
   },
   filter: {
     query: ({ session: session2 }) => paymentFilter(session2),
-    update: ({ session: session2 }) => paymentFilter(session2),
-    delete: ({ session: session2 }) => paymentFilter(session2)
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
   }
 };
 
@@ -9299,6 +9258,7 @@ var projectAccess = {
   },
   filter: {
     query: ({ session: session2 }) => {
+      if (isPlatformAdmin(session2)) return true;
       const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
@@ -9439,7 +9399,9 @@ var quotationAccess = {
     delete: () => true
   },
   filter: {
+    // Admin de plataforma lee cotizaciones de cualquier empresa (Operaciones → Clientes 360).
     query: ({ session: session2 }) => {
+      if (isPlatformAdmin(session2)) return true;
       const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
@@ -9706,7 +9668,9 @@ var quotationProductAccess = {
     delete: () => true
   },
   filter: {
+    // Admin de plataforma lee partidas de cotizaciones de cualquier empresa.
     query: ({ session: session2 }) => {
+      if (isPlatformAdmin(session2)) return true;
       const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
@@ -9982,12 +9946,12 @@ var saasReferralCommissionAccess = {
     query: () => true,
     /** Las comisiones las genera el backend; solo admin crea/edita desde Admin si hace falta */
     create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
-    update: () => true,
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
     delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => referralCommissionFilter(session2),
-    update: ({ session: session2 }) => referralCommissionFilter(session2),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
     delete: ({ session: session2 }) => {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
@@ -10111,7 +10075,7 @@ var saasSubscriptionLogAccess = {
     query: () => true,
     create: () => false,
     update: () => false,
-    delete: () => true
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -10123,14 +10087,7 @@ var saasSubscriptionLogAccess = {
       return { company: { id: { equals: companyId } } };
     },
     update: () => false,
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId16(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
@@ -12862,6 +12819,13 @@ var definition5 = `
 `;
 var resolver5 = {
   executeImportPetPlace: async (root, { input }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return {
+        success: false,
+        message: "Solo un administrador de Kadesh puede importar veterinarias.",
+        result: null
+      };
+    }
     try {
       console.log("Ejecutando importaci\xF3n de lugares con datos:", input.inputValue, "tipo:", input.type);
       const result = await importVeterinaries(input.inputValue, input.type, context);
@@ -13155,9 +13119,9 @@ function getFreePlanTrialInfo(activatedAt) {
   if (!activatedAtDate) {
     return { trialEnd: null, isExpired: false };
   }
-  const trialEndDate = new Date(activatedAtDate);
-  trialEndDate.setDate(trialEndDate.getDate() + TRIAL_DAYS_FREE_PLAN);
-  const trialEnd = toLocalYmd(trialEndDate);
+  const trialEndDate2 = new Date(activatedAtDate);
+  trialEndDate2.setDate(trialEndDate2.getDate() + TRIAL_DAYS_FREE_PLAN);
+  const trialEnd = toLocalYmd(trialEndDate2);
   const today = toLocalYmd(/* @__PURE__ */ new Date());
   return {
     trialEnd,
@@ -13564,12 +13528,13 @@ async function getPlaceDetails2(placeId, apiKey2) {
   return data.result;
 }
 
-// graphql/customs/mutations/syncLeadsFront.ts
-async function ensureStatusForLeadAssignment(context, leadId, companyId, userId, opportunityLevel = "Media") {
+// utils/helpers/tech/lead_assignment.ts
+async function ensureLeadStatus(context, params) {
+  const opportunityLevel = params.opportunityLevel ?? "Media";
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
     where: {
-      businessLead: { id: { equals: leadId } },
-      saasCompany: { id: { equals: companyId } }
+      businessLead: { id: { equals: params.leadId } },
+      saasCompany: { id: { equals: params.companyId } }
     },
     take: 1,
     query: "id"
@@ -13578,58 +13543,69 @@ async function ensureStatusForLeadAssignment(context, leadId, companyId, userId,
     await context.sudo().query.TechStatusBusinessLead.updateOne({
       where: { id: existing.id },
       data: {
-        salesPerson: { connect: { id: userId } },
+        salesPerson: { connect: { id: params.userId } },
         pipelineStatus: PIPELINE_STATUS.DETECTADO,
         opportunityLevel
       }
     });
-  } else {
-    await context.sudo().query.TechStatusBusinessLead.createOne({
-      data: {
-        businessLead: { connect: { id: leadId } },
-        saasCompany: { connect: { id: companyId } },
-        salesPerson: { connect: { id: userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel
-      }
-    });
+    return;
   }
+  await context.sudo().query.TechStatusBusinessLead.createOne({
+    data: {
+      businessLead: { connect: { id: params.leadId } },
+      saasCompany: { connect: { id: params.companyId } },
+      salesPerson: { connect: { id: params.userId } },
+      pipelineStatus: PIPELINE_STATUS.DETECTADO,
+      opportunityLevel
+    }
+  });
 }
-async function assignExistingLeadToCompany(context, leadId, companyId, userId, opportunityLevel = "Media") {
+async function linkExistingLeadToCompany(context, params) {
+  await context.sudo().query.TechBusinessLead.updateOne({
+    where: { id: params.leadId },
+    data: {
+      saasCompany: { connect: [{ id: params.companyId }] },
+      ...params.sellerId ? { salesPerson: { connect: [{ id: params.sellerId }] } } : {}
+    }
+  });
+  const linked = await context.sudo().query.TechBusinessLead.findOne({
+    where: { id: params.leadId },
+    query: "id saasCompany { id }"
+  });
+  return (linked?.saasCompany ?? []).some((c) => c.id === params.companyId);
+}
+async function assignExistingLeadToCompany(context, params) {
   try {
-    await context.sudo().query.TechBusinessLead.updateOne({
-      where: { id: leadId },
-      data: { saasCompany: { connect: { id: companyId } } }
+    const linked = await linkExistingLeadToCompany(context, {
+      leadId: params.leadId,
+      companyId: params.companyId,
+      sellerId: params.connectSeller ? params.userId : null
     });
-    const linked = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: leadId },
-      query: "id saasCompany { id }"
-    });
-    const companies = linked?.saasCompany ?? [];
-    if (!companies.some((c) => c.id === companyId)) {
-      console.warn(
-        "[syncLeadsFront] connect saasCompany no persisti\xF3; no se cobra este lead",
-        { leadId, companyId }
-      );
+    if (!linked) {
+      console.warn(`[${params.logTag}] el lead no qued\xF3 ligado a la empresa; no se cobra`, {
+        leadId: params.leadId,
+        companyId: params.companyId
+      });
       return false;
     }
-    await ensureStatusForLeadAssignment(
-      context,
-      leadId,
-      companyId,
-      userId,
-      opportunityLevel
-    );
+    await ensureLeadStatus(context, {
+      leadId: params.leadId,
+      companyId: params.companyId,
+      userId: params.userId,
+      opportunityLevel: params.opportunityLevel
+    });
     return true;
   } catch (err) {
-    console.warn("[syncLeadsFront] assignExistingLeadToCompany failed", {
-      leadId,
-      companyId,
+    console.warn(`[${params.logTag}] no se pudo asignar el lead`, {
+      leadId: params.leadId,
+      companyId: params.companyId,
       err: err instanceof Error ? err.message : err
     });
     return false;
   }
 }
+
+// graphql/customs/mutations/syncLeadsFront.ts
 var MIN_RATING = 0;
 var MIN_REVIEWS = 0;
 var DEFAULT_MAX_RESULTS = 60;
@@ -13707,8 +13683,6 @@ var resolver6 = {
       radius: input?.radius,
       category: input?.category,
       maxResults: input?.maxResults
-    });
-    fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "pre-fix", hypothesisId: "D", location: "syncLeadsFront.ts:entry", message: "syncLeadsFront called", data: { hasUserId: !!userId, lat: input?.lat, lng: input?.lng, radius: input?.radius, category: input?.category, maxResults: input?.maxResults }, timestamp: Date.now() }) }).catch(() => {
     });
     if (!userId) {
       return {
@@ -13832,12 +13806,12 @@ var resolver6 = {
     }
     let assignedFromDb = 0;
     for (const leadId of existingIds) {
-      const ok = await assignExistingLeadToCompany(
-        context,
+      const ok = await assignExistingLeadToCompany(context, {
         leadId,
-        company.id,
-        userId
-      );
+        companyId: company.id,
+        userId,
+        logTag: "syncLeadsFront"
+      });
       if (ok) assignedFromDb++;
     }
     let syncedThisRequest = assignedFromDb;
@@ -13926,8 +13900,6 @@ var resolver6 = {
       syncedThisRequest,
       maxResults
     });
-    fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "credits+pages", location: "syncLeadsFront.ts:beforeGoogle", message: "About to collect Google Nearby pages first", data: { lat, lng, radius, radiusMeters, category, keyword, assignedFromDb, syncedThisRequest, maxResults }, timestamp: Date.now() }) }).catch(() => {
-    });
     let googleCreditsCharged = false;
     const chargeGoogleCreditsIfNeeded = async () => {
       const googleSynced = syncedThisRequest - assignedFromDb;
@@ -13939,8 +13911,6 @@ var resolver6 = {
         alreadyInDb,
         syncedThisRequest,
         assignedFromDb
-      });
-      fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "credits", location: "syncLeadsFront.ts:chargeCredits", message: "Consuming credits for Google-synced leads", data: { googleSynced, created, alreadyInDb, syncedThisRequest, assignedFromDb }, timestamp: Date.now() }) }).catch(() => {
       });
       const consumeResult = await consumeCompanyCredits(context, {
         companyId: company.id,
@@ -13977,8 +13947,6 @@ var resolver6 = {
           collectedSoFar: nearbyPlaces.length,
           url: urlForLog
         });
-        fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "pages-first", location: "syncLeadsFront.ts:pageFetch", message: "Fetching nearby page before details", data: { page: page + 1, hasPageToken: !!pageToken, collectedSoFar: nearbyPlaces.length }, timestamp: Date.now() }) }).catch(() => {
-        });
         const res = await fetch(url);
         const data = await res.json();
         console.log("[syncLeadsFront] GOOGLE page response", {
@@ -13986,8 +13954,6 @@ var resolver6 = {
           googleStatus: data?.status,
           resultsCount: Array.isArray(data?.results) ? data.results.length : 0,
           hasNextPageToken: !!data?.next_page_token
-        });
-        fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "pages-first", location: "syncLeadsFront.ts:pageResponse", message: "Nearby page response", data: { page: page + 1, googleStatus: data?.status, resultsCount: Array.isArray(data?.results) ? data.results.length : 0, hasNextPageToken: !!data?.next_page_token }, timestamp: Date.now() }) }).catch(() => {
         });
         if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
           if (page === 0) {
@@ -14046,13 +14012,13 @@ var resolver6 = {
           }
           const leadId = lead.id;
           const level = placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
-          const ok = await assignExistingLeadToCompany(
-            context,
+          const ok = await assignExistingLeadToCompany(context, {
             leadId,
-            company.id,
+            companyId: company.id,
             userId,
-            level
-          );
+            opportunityLevel: level,
+            logTag: "syncLeadsFront"
+          });
           if (ok) {
             alreadyInDb++;
             syncedThisRequest++;
@@ -14258,6 +14224,15 @@ var resolver7 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return {
+        success: false,
+        message: "Solo un administrador de Kadesh puede importar leads desde Google.",
+        created: 0,
+        alreadyInDb: 0,
+        skippedLowRating: 0
+      };
+    }
     const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey2) {
       return {
@@ -14395,6 +14370,8 @@ var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs7, definition: def
 // models/Saas/SaasSubscriptionLog/constants.ts
 var SAAS_SUBSCRIPTION_LOG_STEP = {
   STRIPE_KEY_MISSING: "STRIPE_KEY_MISSING",
+  /** La sesión no es la del correo que paga (ni admin de plataforma). */
+  SESSION_MISMATCH: "SESSION_MISMATCH",
   USER_NOT_FOUND: "USER_NOT_FOUND",
   NO_COMPANY: "NO_COMPANY",
   NO_PLAN_RESOLVED: "NO_PLAN_RESOLVED",
@@ -14543,6 +14520,14 @@ var resolver8 = {
       return result;
     };
     try {
+      if (!canActForEmail(context.session, input.email)) {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
+          success: false,
+          message: "Inicia sesi\xF3n con la cuenta que va a contratar el plan.",
+          subscriptionId: null,
+          paymentId: null
+        });
+      }
       if (!process.env.STRIPE_SECRET_KEY) {
         return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,
@@ -15207,15 +15192,27 @@ var resolver11 = {
         paymentId: response.paymentId,
         userId: logUserId ?? null,
         companyId: logCompanyId ?? null,
-        planId: input.creditPackageId,
+        // El paquete de créditos no es un SaasPlan: conectarlo como `plan` hacía fallar
+        // (en silencio) el log de toda recarga. Va en `planIdRequested` y en el snapshot.
+        planId: null,
         createdSubscriptionId: response.subscriptionId,
         stripeCustomerId: opts?.stripeCustomerId ?? null,
         stripeSubscriptionId: opts?.stripePaymentIntentId ?? null,
-        extra: opts?.extra
+        extra: { creditPackageId: input.creditPackageId, ...opts?.extra ?? {} }
       });
       return response;
     };
     try {
+      if (!canActForEmail(context.session, input.email)) {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
+          success: false,
+          message: "Inicia sesi\xF3n con la cuenta que va a comprar los cr\xE9ditos.",
+          paymentId: null,
+          creditsAdded: null,
+          newCreditsTotal: null,
+          subscriptionId: null
+        });
+      }
       if (!process.env.STRIPE_SECRET_KEY) {
         return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,
@@ -19514,36 +19511,6 @@ function boundingBoxFilters(lat, lng, radiusKm) {
     { lng: { gte: lng - lngDelta, lte: lng + lngDelta } }
   ];
 }
-async function ensureStatus(context, leadId, companyId, userId) {
-  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
-    where: {
-      businessLead: { id: { equals: leadId } },
-      saasCompany: { id: { equals: companyId } }
-    },
-    take: 1,
-    query: "id"
-  });
-  if (existing) {
-    await context.sudo().query.TechStatusBusinessLead.updateOne({
-      where: { id: existing.id },
-      data: {
-        salesPerson: { connect: { id: userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel: "Media"
-      }
-    });
-    return;
-  }
-  await context.sudo().query.TechStatusBusinessLead.createOne({
-    data: {
-      businessLead: { connect: { id: leadId } },
-      saasCompany: { connect: { id: companyId } },
-      salesPerson: { connect: { id: userId } },
-      pipelineStatus: PIPELINE_STATUS.DETECTADO,
-      opportunityLevel: "Media"
-    }
-  });
-}
 async function logResult(context, userId, companyId, input, result) {
   if (!userId) return;
   try {
@@ -19609,6 +19576,22 @@ function leadDataFromEstablishment(establishment, category, companyId, userId) {
     salesPerson: { connect: [{ id: userId }] }
   };
 }
+async function establishmentsOwnedByCompany(context, companyId, establishmentIds) {
+  if (establishmentIds.length === 0) return /* @__PURE__ */ new Set();
+  const leads = await context.sudo().query.TechBusinessLead.findMany({
+    where: {
+      AND: [
+        { sourceEstablishment: { id: { in: establishmentIds } } },
+        { saasCompany: { some: { id: { equals: companyId } } } }
+      ]
+    },
+    take: establishmentIds.length,
+    query: "sourceEstablishment { id }"
+  });
+  return new Set(
+    leads.map((lead) => lead.sourceEstablishment?.id).filter((id) => Boolean(id))
+  );
+}
 async function assignEstablishment(context, establishment, companyId, userId, category) {
   const [existing] = await context.sudo().query.TechBusinessLead.findMany({
     where: { sourceEstablishment: { id: { equals: establishment.id } } },
@@ -19620,15 +19603,14 @@ async function assignEstablishment(context, establishment, companyId, userId, ca
       (c) => c.id === companyId
     );
     if (already) return "skipped";
-    await context.sudo().query.TechBusinessLead.updateOne({
-      where: { id: existing.id },
-      data: {
-        saasCompany: { connect: [{ id: companyId }] },
-        salesPerson: { connect: [{ id: userId }] }
-      }
+    const assigned = await assignExistingLeadToCompany(context, {
+      leadId: existing.id,
+      companyId,
+      userId,
+      connectSeller: true,
+      logTag: "syncLeadsFromInegi"
     });
-    await ensureStatus(context, existing.id, companyId, userId);
-    return "assigned";
+    return assigned ? "assigned" : "skipped";
   }
   const lead = await context.sudo().query.TechBusinessLead.createOne({
     data: leadDataFromEstablishment(
@@ -19639,7 +19621,7 @@ async function assignEstablishment(context, establishment, companyId, userId, ca
     ),
     query: "id"
   });
-  await ensureStatus(context, lead.id, companyId, userId);
+  await ensureLeadStatus(context, { leadId: lead.id, companyId, userId });
   return "created";
 }
 var resolver18 = {
@@ -19789,18 +19771,14 @@ var resolver18 = {
     });
     let assignedFromDb = 0;
     for (const leadId of toAssignFromCrm) {
-      try {
-        await context.sudo().query.TechBusinessLead.updateOne({
-          where: { id: leadId },
-          data: {
-            saasCompany: { connect: [{ id: company.id }] },
-            salesPerson: { connect: [{ id: userId }] }
-          }
-        });
-        await ensureStatus(context, leadId, company.id, userId);
-        assignedFromDb += 1;
-      } catch (_) {
-      }
+      const ok = await assignExistingLeadToCompany(context, {
+        leadId,
+        companyId: company.id,
+        userId,
+        connectSeller: true,
+        logTag: "syncLeadsFromInegi"
+      });
+      if (ok) assignedFromDb += 1;
     }
     let syncedThisRequest = assignedFromDb;
     let currentSyncedCount = syncedCount;
@@ -19895,18 +19873,27 @@ var resolver18 = {
       catalogRowsInBox: catalogRows.length,
       nearbyInRadius: nearbyCatalog.length
     });
+    const ownedEstablishments = await establishmentsOwnedByCompany(
+      context,
+      company.id,
+      nearbyCatalog.map((row) => row.id)
+    );
+    const availableInCatalog = nearbyCatalog.filter(
+      (row) => !ownedEstablishments.has(row.id)
+    ).length;
     const token = process.env.INEGI_DENUE_TOKEN?.trim();
     const stillNeed = maxResults - syncedThisRequest;
-    const willCallDenue = nearbyCatalog.length < stillNeed && Boolean(token);
+    const willCallDenue = availableInCatalog < stillNeed && Boolean(token);
     console.log("[syncLeadsFromInegi] DENUE live sync decision", {
       stillNeed,
       nearbyCatalog: nearbyCatalog.length,
+      availableInCatalog,
       willCallDenue,
       radiusKm,
       radiusMetersCap: DENUE_MAX_RADIUS_METERS,
-      reasonSkipDenue: !token ? "no_token" : nearbyCatalog.length >= stillNeed ? "catalog_sufficient" : null
+      reasonSkipDenue: !token ? "no_token" : availableInCatalog >= stillNeed ? "catalog_sufficient" : null
     });
-    if (nearbyCatalog.length < stillNeed && token) {
+    if (willCallDenue) {
       const radiusMeters = Math.min(
         Math.max(1, Math.round(radiusKm * 1e3)),
         DENUE_MAX_RADIUS_METERS
@@ -20001,6 +19988,7 @@ var resolver18 = {
     for (const establishment of nearbyCatalog) {
       if (syncedThisRequest >= maxResults) break;
       if (leadLimit !== null && currentSyncedCount >= leadLimit) break;
+      if (ownedEstablishments.has(establishment.id)) continue;
       try {
         const kind = await assignEstablishment(
           context,
@@ -26135,6 +26123,1930 @@ var resolver58 = {
 };
 var syncGoogleCalendarNow_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
+// graphql/customs/queries/admin/shared.ts
+var adminSharedTypeDefs = `
+  type AdminCount {
+    key: String!
+    count: Int!
+  }
+
+  type AdminAmountCount {
+    key: String!
+    count: Int!
+    amount: Float!
+  }
+
+  type AdminPersonRef {
+    id: ID!
+    name: String!
+    lastName: String
+    email: String
+  }
+
+  type AdminCompanyRef {
+    id: ID!
+    name: String!
+  }
+`;
+var ADMIN_ONLY_MESSAGE = "Solo un administrador de Kadesh puede ver esta informaci\xF3n.";
+function assertPlatformAdmin(context) {
+  if (!isPlatformAdmin(context.session)) {
+    throw new Error(ADMIN_ONLY_MESSAGE);
+  }
+}
+function adminPrisma(context) {
+  return context.sudo().prisma;
+}
+var DAY_MS2 = 24 * 60 * 60 * 1e3;
+function daysAgo(days, from = /* @__PURE__ */ new Date()) {
+  return new Date(from.getTime() - days * DAY_MS2);
+}
+function toIso(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+function toYmd(value) {
+  const iso = toIso(value);
+  return iso ? iso.slice(0, 10) : null;
+}
+var MX_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+function toMxDay(value) {
+  return MX_DAY.format(value instanceof Date ? value : new Date(value));
+}
+function clampInt(value, min, max, fallback) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(value)));
+}
+function insensitive(value) {
+  return { contains: value, mode: "insensitive" };
+}
+function personRef(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name ?? "",
+    lastName: user.lastName ?? null,
+    email: user.email ?? null
+  };
+}
+var PERSON_SELECT = {
+  id: true,
+  name: true,
+  lastName: true,
+  email: true
+};
+async function latestSubscriptionsByCompany(prisma, companyIds) {
+  const rows = await prisma.saasCompanySubscription.findMany({
+    where: { companyId: companyIds ? { in: companyIds } : { not: null } },
+    orderBy: [
+      { companyId: "asc" },
+      { createdAt: { sort: "desc", nulls: "last" } },
+      { id: "desc" }
+    ],
+    distinct: ["companyId"],
+    select: {
+      id: true,
+      companyId: true,
+      status: true,
+      planName: true,
+      planCost: true,
+      planCurrency: true,
+      planFrequency: true,
+      planLeadLimit: true,
+      activatedAt: true,
+      currentPeriodEnd: true,
+      stripeCustomerId: true,
+      createdAt: true
+    }
+  });
+  return new Map(rows.map((row) => [row.companyId, row]));
+}
+function trialEndDate(sub) {
+  if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
+  if (sub.currentPeriodEnd) return new Date(sub.currentPeriodEnd);
+  if (!sub.activatedAt) return null;
+  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS2);
+}
+function monthlyAmount(cost, frequency) {
+  if (!cost || cost <= 0) return 0;
+  switch (frequency) {
+    case PLAN_FREQUENCY.MONTHLY:
+      return cost;
+    case PLAN_FREQUENCY.ANNUAL:
+      return cost / 12;
+    case PLAN_FREQUENCY.WEEKLY:
+      return cost * 52 / 12;
+    default:
+      return 0;
+  }
+}
+async function testCompanyIds(prisma) {
+  const rows = await prisma.saasCompany.findMany({
+    where: {
+      users: { some: { userTest: true }, none: { userTest: false } }
+    },
+    select: { id: true }
+  });
+  return new Set(rows.map((row) => row.id));
+}
+function companyCredits(params) {
+  const plan = params.period?.planAllowance ?? params.planLeadLimit ?? 0;
+  const bonus = params.period?.bonusAllowance ?? params.purchasedBonusCredits ?? 0;
+  const used = params.period?.used ?? 0;
+  return { plan, bonus, used, remaining: Math.max(0, plan + bonus - used) };
+}
+function currentPeriod() {
+  return getCurrentPeriodParts();
+}
+function crmCompanyScope(companyId, assigneeField = "assignedSeller") {
+  return {
+    OR: [
+      { workspace: { companyId } },
+      {
+        AND: [
+          { workspaceId: null },
+          {
+            OR: [
+              { createdBy: { companyId } },
+              { [assigneeField]: { companyId } }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
+function countsToList(rows) {
+  return rows.map((row) => ({ key: row.key ?? "", count: row.count })).sort((a, b) => b.count - a.count);
+}
+
+// graphql/customs/queries/admin/adminCompanies.ts
+var STATUS_NONE = "none";
+var SORTS = ["recent", "name", "activity"];
+var typeDefs62 = `
+  input AdminCompaniesInput {
+    """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
+    search: String
+    """all | active | trialing | past_due | unpaid | cancelled | none (sin plan)"""
+    status: String
+    """recent (alta) | name | activity (\xFAltimo acceso del equipo)"""
+    sort: String
+    take: Int
+    skip: Int
+  }
+
+  type AdminCompanyRow {
+    id: ID!
+    name: String!
+    createdAt: String
+    contactEmail: String
+    isTest: Boolean!
+    planName: String
+    subscriptionId: ID
+    subscriptionStatus: String
+    activatedAt: String
+    currentPeriodEnd: String
+    trialEndsAt: String
+    creditsPlan: Int!
+    creditsBonus: Int!
+    creditsUsed: Int!
+    creditsRemaining: Int!
+    usersCount: Int!
+    leadsCount: Int!
+    lastLoginAt: String
+    owner: AdminPersonRef
+  }
+
+  type AdminCompaniesResult {
+    items: [AdminCompanyRow!]!
+    total: Int!
+    """Conteo por estado vigente con la b\xFAsqueda aplicada (para los chips)."""
+    statusCounts: [AdminCount!]!
+  }
+
+  type Query {
+    adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
+  }
+`;
+var definition59 = `
+  adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
+`;
+function searchWhere(search) {
+  const q = search?.trim();
+  if (!q) return {};
+  return {
+    OR: [
+      { name: insensitive(q) },
+      { contactEmail: insensitive(q) },
+      {
+        users: {
+          some: {
+            OR: [
+              { email: insensitive(q) },
+              { name: insensitive(q) },
+              { lastName: insensitive(q) }
+            ]
+          }
+        }
+      }
+    ]
+  };
+}
+function pickOwner(users) {
+  const admin = users.find(
+    (u) => u.roles.some((r) => r.name === "admin_company" /* ADMIN_COMPANY */)
+  );
+  return admin ?? users[0] ?? null;
+}
+var resolver59 = {
+  adminCompanies: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const take = clampInt(input?.take, 1, 100, 25);
+    const skip = clampInt(input?.skip, 0, 1e6, 0);
+    const status = input?.status?.trim() || "all";
+    const sort = SORTS.includes(input?.sort) ? input?.sort : "recent";
+    const baseWhere = searchWhere(input?.search);
+    const matching = await prisma.saasCompany.findMany({
+      where: baseWhere,
+      select: { id: true }
+    });
+    const matchingIds = matching.map((c) => c.id);
+    const latest = await latestSubscriptionsByCompany(prisma, matchingIds);
+    const counts = /* @__PURE__ */ new Map();
+    for (const id of matchingIds) {
+      const key = latest.get(id)?.status ?? STATUS_NONE;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const statusCounts = [
+      { key: "all", count: matchingIds.length },
+      ...[...counts.entries()].map(([key, count]) => ({ key, count }))
+    ];
+    const filteredIds = status === "all" ? matchingIds : matchingIds.filter(
+      (id) => (latest.get(id)?.status ?? STATUS_NONE) === status
+    );
+    const total = filteredIds.length;
+    let pageIds;
+    if (sort === "activity") {
+      const lastLogins = await prisma.user.groupBy({
+        by: ["companyId"],
+        where: { companyId: { in: filteredIds } },
+        _max: { lastLoginAt: true }
+      });
+      const lastByCompany = new Map(
+        lastLogins.map((row) => [row.companyId, row._max.lastLoginAt?.getTime() ?? 0])
+      );
+      pageIds = [...filteredIds].sort((a, b) => (lastByCompany.get(b) ?? 0) - (lastByCompany.get(a) ?? 0)).slice(skip, skip + take);
+    } else {
+      const ordered = await prisma.saasCompany.findMany({
+        where: { id: { in: filteredIds } },
+        orderBy: sort === "name" ? [{ name: "asc" }] : [{ createdAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+        skip,
+        take,
+        select: { id: true }
+      });
+      pageIds = ordered.map((c) => c.id);
+    }
+    const { year, month } = currentPeriod();
+    const records = await prisma.saasCompany.findMany({
+      where: { id: { in: pageIds } },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        contactEmail: true,
+        purchasedBonusCredits: true,
+        plan: { select: { name: true, leadLimit: true } },
+        creditPeriods: {
+          where: { year, month },
+          take: 1,
+          select: { planAllowance: true, bonusAllowance: true, used: true }
+        },
+        users: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            name: true,
+            lastName: true,
+            email: true,
+            lastLoginAt: true,
+            userTest: true,
+            roles: { select: { name: true } }
+          }
+        },
+        _count: { select: { users: true, leads: true } }
+      }
+    });
+    const byId = new Map(records.map((r) => [r.id, r]));
+    const items = pageIds.map((id) => byId.get(id)).filter((c) => Boolean(c)).map((c) => {
+      const sub = latest.get(c.id) ?? null;
+      const credits = companyCredits({
+        period: c.creditPeriods[0] ?? null,
+        planLeadLimit: sub?.planLeadLimit ?? c.plan?.leadLimit ?? null,
+        purchasedBonusCredits: c.purchasedBonusCredits
+      });
+      const lastLogin = c.users.reduce(
+        (max, u) => u.lastLoginAt && (!max || u.lastLoginAt > max) ? u.lastLoginAt : max,
+        null
+      );
+      return {
+        id: c.id,
+        name: c.name,
+        createdAt: toIso(c.createdAt),
+        contactEmail: c.contactEmail,
+        isTest: c.users.length > 0 && c.users.every((u) => u.userTest),
+        planName: sub?.planName || c.plan?.name || null,
+        subscriptionId: sub?.id ?? null,
+        subscriptionStatus: sub?.status ?? null,
+        activatedAt: toYmd(sub?.activatedAt),
+        currentPeriodEnd: toYmd(sub?.currentPeriodEnd),
+        trialEndsAt: toYmd(trialEndDate(sub)),
+        creditsPlan: credits.plan,
+        creditsBonus: credits.bonus,
+        creditsUsed: credits.used,
+        creditsRemaining: credits.remaining,
+        usersCount: c._count.users,
+        leadsCount: c._count.leads,
+        lastLoginAt: toIso(lastLogin),
+        owner: personRef(pickOwner(c.users))
+      };
+    });
+    return { items, total, statusCounts };
+  }
+};
+var adminCompanies_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
+
+// graphql/customs/queries/admin/adminOpsSummary.ts
+var ATTENTION_LIMIT = 25;
+var TRIAL_SOON_DAYS = 3;
+var INACTIVE_DAYS = 14;
+var typeDefs63 = `
+  type AdminMoney {
+    currency: String!
+    amount: Float!
+  }
+
+  type AdminAttentionItem {
+    companyId: ID!
+    companyName: String!
+    """trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive"""
+    reason: String!
+    detail: String
+    """high | medium | low"""
+    severity: String!
+    at: String
+  }
+
+  type AdminOpsSummary {
+    companiesTotal: Int!
+    """Estado vigente por empresa (sin cuentas de prueba); none = sin suscripci\xF3n."""
+    statusCounts: [AdminCount!]!
+    trialsEndingSoon: Int!
+    paymentIssues: Int!
+    newUsers7d: Int!
+    newCompanies7d: Int!
+    activeUsers7d: Int!
+    syncs24h: Int!
+    failedSyncs24h: Int!
+    aiCalls7d: Int!
+    creditsConsumedMonth: Int!
+    """Leads de extracciones de este mes que se crearon nuevos (Google Maps o cat\xE1logo INEGI)."""
+    leadsCreatedMonth: Int!
+    """Leads de este mes que salieron de la base: ya exist\xEDan, no se le pag\xF3 a Google ni a INEGI por ellos."""
+    leadsReusedMonth: Int!
+    """MRR estimado por moneda: suscripciones activas normalizadas a mes."""
+    mrr: [AdminMoney!]!
+    attention: [AdminAttentionItem!]!
+  }
+
+  type Query {
+    adminOpsSummary: AdminOpsSummary!
+  }
+`;
+var definition60 = `
+  adminOpsSummary: AdminOpsSummary!
+`;
+var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
+function formatDay(date) {
+  return date.toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "short",
+    timeZone: "America/Mexico_City"
+  });
+}
+var resolver60 = {
+  adminOpsSummary: async (_root, _args, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const now = /* @__PURE__ */ new Date();
+    const since24h = new Date(now.getTime() - DAY_MS2);
+    const since7d = daysAgo(7, now);
+    const sinceInactive = daysAgo(INACTIVE_DAYS, now);
+    const { year, month } = currentPeriod();
+    const monthStart = new Date(year, month - 1, 1);
+    const testIds = await testCompanyIds(prisma);
+    const companies = await prisma.saasCompany.findMany({
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        purchasedBonusCredits: true,
+        plan: { select: { leadLimit: true } },
+        creditPeriods: {
+          where: { year, month },
+          take: 1,
+          select: { planAllowance: true, bonusAllowance: true, used: true }
+        }
+      }
+    });
+    const real = companies.filter((c) => !testIds.has(c.id));
+    const realIds = real.map((c) => c.id);
+    const nameById = new Map(real.map((c) => [c.id, c.name]));
+    const latest = await latestSubscriptionsByCompany(prisma, realIds);
+    const statusCounts = /* @__PURE__ */ new Map();
+    const mrr = /* @__PURE__ */ new Map();
+    const attention = [];
+    let trialsEndingSoon = 0;
+    let paymentIssues = 0;
+    for (const company of real) {
+      const sub = latest.get(company.id);
+      const status = sub?.status ?? "none";
+      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
+      if (sub?.status === SUBSCRIPTION_STATUS.ACTIVE) {
+        const amount = monthlyAmount(sub.planCost, sub.planFrequency);
+        if (amount > 0) {
+          const currency = (sub.planCurrency || "mxn").toUpperCase();
+          mrr.set(currency, (mrr.get(currency) ?? 0) + amount);
+        }
+      }
+      if (sub?.status === SUBSCRIPTION_STATUS.PAST_DUE || sub?.status === SUBSCRIPTION_STATUS.UNPAID) {
+        paymentIssues += 1;
+        attention.push({
+          companyId: company.id,
+          companyName: company.name,
+          reason: sub.status,
+          detail: sub.planName ? `Plan ${sub.planName}` : null,
+          severity: "high",
+          at: toIso(sub.currentPeriodEnd)
+        });
+      }
+      const trialEnd = trialEndDate(sub);
+      if (trialEnd) {
+        const msLeft = trialEnd.getTime() - now.getTime();
+        if (msLeft < 0) {
+          attention.push({
+            companyId: company.id,
+            companyName: company.name,
+            reason: "trial_expired",
+            detail: `Termin\xF3 el ${formatDay(trialEnd)}`,
+            severity: "high",
+            at: toIso(trialEnd)
+          });
+        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS2) {
+          trialsEndingSoon += 1;
+          attention.push({
+            companyId: company.id,
+            companyName: company.name,
+            reason: "trial_ending",
+            detail: `Vence el ${formatDay(trialEnd)}`,
+            severity: "medium",
+            at: toIso(trialEnd)
+          });
+        }
+      }
+      const isLive = sub?.status === SUBSCRIPTION_STATUS.ACTIVE || sub?.status === SUBSCRIPTION_STATUS.TRIALING;
+      if (isLive) {
+        const credits = companyCredits({
+          period: company.creditPeriods[0] ?? null,
+          planLeadLimit: sub?.planLeadLimit ?? company.plan?.leadLimit ?? null,
+          purchasedBonusCredits: company.purchasedBonusCredits
+        });
+        if (credits.plan + credits.bonus > 0 && credits.remaining === 0) {
+          attention.push({
+            companyId: company.id,
+            companyName: company.name,
+            reason: "no_credits",
+            detail: `Us\xF3 ${credits.used} de ${credits.plan + credits.bonus} este mes`,
+            severity: "medium",
+            at: null
+          });
+        }
+      }
+    }
+    const [failedSyncGroups, checkoutFailures, checkoutSuccesses, recentLogins] = await Promise.all([
+      prisma.techLeadSyncLog.groupBy({
+        by: ["companyId"],
+        where: { success: false, createdAt: { gte: since7d }, companyId: { in: realIds } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.saasSubscriptionLog.groupBy({
+        by: ["companyId"],
+        where: {
+          success: false,
+          createdAt: { gte: since7d },
+          companyId: { in: realIds },
+          step: { notIn: [SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH] }
+        },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.saasSubscriptionLog.groupBy({
+        by: ["companyId"],
+        where: { success: true, createdAt: { gte: since7d }, companyId: { in: realIds } },
+        _max: { createdAt: true }
+      }),
+      prisma.user.groupBy({
+        by: ["companyId"],
+        where: { companyId: { in: realIds } },
+        _max: { lastLoginAt: true }
+      })
+    ]);
+    for (const row of failedSyncGroups) {
+      if (row._count._all < 2) continue;
+      attention.push({
+        companyId: row.companyId,
+        companyName: nameById.get(row.companyId) ?? "Empresa",
+        reason: "sync_failures",
+        detail: `${row._count._all} extracciones fallidas en 7 d\xEDas`,
+        severity: "medium",
+        at: toIso(row._max.createdAt)
+      });
+    }
+    const lastSuccess = new Map(
+      checkoutSuccesses.map(
+        (row) => [row.companyId, row._max.createdAt?.getTime() ?? 0]
+      )
+    );
+    for (const row of checkoutFailures) {
+      const failedAt = row._max.createdAt?.getTime() ?? 0;
+      if ((lastSuccess.get(row.companyId) ?? 0) > failedAt) continue;
+      attention.push({
+        companyId: row.companyId,
+        companyName: nameById.get(row.companyId) ?? "Empresa",
+        reason: "checkout_failed",
+        detail: `${row._count._all} intento${row._count._all === 1 ? "" : "s"} de pago sin completar`,
+        severity: "medium",
+        at: toIso(row._max.createdAt)
+      });
+    }
+    const lastLoginByCompany = new Map(
+      recentLogins.map(
+        (row) => [row.companyId, row._max.lastLoginAt]
+      )
+    );
+    for (const company of real) {
+      const sub = latest.get(company.id);
+      if (sub?.status !== SUBSCRIPTION_STATUS.ACTIVE) continue;
+      const last = lastLoginByCompany.get(company.id) ?? null;
+      if (last && last >= sinceInactive) continue;
+      attention.push({
+        companyId: company.id,
+        companyName: company.name,
+        reason: "inactive",
+        detail: last ? `\xDAltimo acceso ${formatDay(last)}` : "Nadie del equipo ha entrado",
+        severity: "low",
+        at: toIso(last)
+      });
+    }
+    const [
+      newUsers7d,
+      newCompanies7d,
+      activeUsers7d,
+      syncs24h,
+      failedSyncs24h,
+      aiCalls7d,
+      consumed,
+      extractionMonth
+    ] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: since7d }, userTest: false } }),
+      Promise.resolve(real.filter((c) => c.createdAt && c.createdAt >= since7d).length),
+      prisma.user.count({ where: { lastLoginAt: { gte: since7d }, userTest: false } }),
+      prisma.techLeadSyncLog.count({ where: { createdAt: { gte: since24h }, companyId: { in: realIds } } }),
+      prisma.techLeadSyncLog.count({
+        where: { createdAt: { gte: since24h }, success: false, companyId: { in: realIds } }
+      }),
+      prisma.techAiCallLog.count({ where: { createdAt: { gte: since7d }, companyId: { in: realIds } } }),
+      prisma.saasCompanyCreditLedger.aggregate({
+        where: {
+          createdAt: { gte: monthStart },
+          companyId: { in: realIds },
+          type: {
+            in: [COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC, COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI]
+          }
+        },
+        _sum: { amount: true }
+      }),
+      // Reutilizar leads que ya existen es lo que ahorra llamadas a Google Maps / INEGI.
+      prisma.techLeadSyncLog.aggregate({
+        where: { createdAt: { gte: monthStart }, success: true, companyId: { in: realIds } },
+        _sum: { created: true, alreadyInDb: true }
+      })
+    ]);
+    attention.sort(
+      (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || (b.at ?? "").localeCompare(a.at ?? "")
+    );
+    return {
+      companiesTotal: real.length,
+      statusCounts: [...statusCounts.entries()].map(([key, count]) => ({ key, count })),
+      trialsEndingSoon,
+      paymentIssues,
+      newUsers7d,
+      newCompanies7d,
+      activeUsers7d,
+      syncs24h,
+      failedSyncs24h,
+      aiCalls7d,
+      creditsConsumedMonth: Math.abs(consumed?._sum?.amount ?? 0),
+      leadsCreatedMonth: extractionMonth?._sum?.created ?? 0,
+      leadsReusedMonth: extractionMonth?._sum?.alreadyInDb ?? 0,
+      mrr: [...mrr.entries()].map(([currency, amount]) => ({
+        currency,
+        amount: Math.round(amount * 100) / 100
+      })),
+      attention: attention.slice(0, ATTENTION_LIMIT)
+    };
+  }
+};
+var adminOpsSummary_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+
+// graphql/customs/queries/admin/adminCompanyInsights.ts
+var FOLLOW_UP_PENDING = "Pendiente";
+var WHATSAPP_OUTBOUND = "outbound";
+var WHATSAPP_INBOUND = "inbound";
+var WHATSAPP_FAILED = "failed";
+var typeDefs64 = `
+  type AdminTeamMemberStats {
+    userId: ID!
+    """Accesos correctos en la ventana (login, alta)."""
+    logins: Int!
+    failedLogins: Int!
+    lastLoginAt: String
+    """\xDAltima acci\xF3n registrada (acceso, extracci\xF3n, IA, CRM, WhatsApp)."""
+    lastActivityAt: String
+    leadsAssigned: Int!
+    activities: Int!
+    quotations: Int!
+    extractions: Int!
+    aiCalls: Int!
+    whatsappSent: Int!
+    toursCompleted: Int!
+    toursSkipped: Int!
+  }
+
+  type AdminExtractionStats {
+    runs: Int!
+    failed: Int!
+    created: Int!
+    alreadyInDb: Int!
+    creditsUsed: Int!
+  }
+
+  type AdminDayValue {
+    date: String!
+    value: Int!
+  }
+
+  type AdminFeatureUsage {
+    feature: String!
+    calls: Int!
+    credits: Int!
+  }
+
+  type AdminAiStats {
+    calls: Int!
+    failed: Int!
+    credits: Int!
+    byFeature: [AdminFeatureUsage!]!
+  }
+
+  type AdminWhatsappStats {
+    outbound: Int!
+    inbound: Int!
+    failed: Int!
+    lastMessageAt: String
+  }
+
+  type AdminCompanyInsights {
+    companyId: ID!
+    days: Int!
+    lastActivityAt: String
+    team: [AdminTeamMemberStats!]!
+    """Leads por etapa del pipeline (estatus de esta empresa)."""
+    pipeline: [AdminCount!]!
+    leadsTotal: Int!
+    leadsWithoutOwner: Int!
+    extraction: AdminExtractionStats!
+    """Cr\xE9ditos gastados por d\xEDa (sync + IA), hora de CDMX."""
+    creditsByDay: [AdminDayValue!]!
+    ai: AdminAiStats!
+    activitiesByType: [AdminCount!]!
+    followUpsPending: Int!
+    followUpsOverdue: Int!
+    proposalsByStatus: [AdminAmountCount!]!
+    quotationsByStatus: [AdminAmountCount!]!
+    whatsapp: AdminWhatsappStats!
+    calendarAccounts: Int!
+    calendarLastSyncedAt: String
+    calendarLastError: String
+    checkoutFailures: Int!
+  }
+
+  type Query {
+    adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
+  }
+`;
+var definition61 = `
+  adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
+`;
+function groupMap(rows, key) {
+  const map = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const id = row[key];
+    if (typeof id !== "string") continue;
+    map.set(id, { count: row._count._all, last: row._max?.createdAt ?? null });
+  }
+  return map;
+}
+function maxDate(...dates) {
+  return dates.reduce(
+    (max, d) => d && (!max || d > max) ? d : max,
+    null
+  );
+}
+function tourCounts(state) {
+  let completed = 0;
+  let skipped = 0;
+  if (state && typeof state === "object") {
+    for (const value of Object.values(state)) {
+      const status = value?.status;
+      if (status === "completed") completed += 1;
+      if (status === "skipped") skipped += 1;
+    }
+  }
+  return { completed, skipped };
+}
+var resolver61 = {
+  adminCompanyInsights: async (_root, { companyId, days }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const windowDays = clampInt(days, 1, 365, 30);
+    const now = /* @__PURE__ */ new Date();
+    const since = daysAgo(windowDays, now);
+    const todayMx = toMxDay(now);
+    const todayStart = /* @__PURE__ */ new Date(`${todayMx}T00:00:00.000Z`);
+    const crmScope = crmCompanyScope(companyId);
+    const users = await prisma.user.findMany({
+      where: { companyId },
+      select: { id: true, lastLoginAt: true, onboardingState: true }
+    });
+    const userIds = users.map((u) => u.id);
+    const [
+      authGroups,
+      leadsAssigned,
+      activityGroups,
+      quotationGroups,
+      extractionGroups,
+      aiGroups,
+      whatsappGroups
+    ] = await Promise.all([
+      prisma.userAuthLog.groupBy({
+        by: ["userId", "success"],
+        where: { userId: { in: userIds }, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.techStatusBusinessLead.groupBy({
+        by: ["salesPersonId"],
+        where: { saasCompanyId: companyId, salesPersonId: { in: userIds } },
+        _count: { _all: true }
+      }),
+      prisma.techSalesActivity.groupBy({
+        by: ["createdById"],
+        where: { AND: [crmScope, { createdAt: { gte: since } }] },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.saasQuotation.groupBy({
+        by: ["createdById"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.techLeadSyncLog.groupBy({
+        by: ["userId"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.techAiCallLog.groupBy({
+        by: ["userId"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.techWhatsAppMessage.groupBy({
+        by: ["sentById"],
+        where: { companyId, direction: WHATSAPP_OUTBOUND, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      })
+    ]);
+    const loginsOk = groupMap(
+      authGroups.filter((r) => r.success),
+      "userId"
+    );
+    const loginsFail = groupMap(
+      authGroups.filter((r) => !r.success),
+      "userId"
+    );
+    const assigned = groupMap(leadsAssigned, "salesPersonId");
+    const activities = groupMap(activityGroups, "createdById");
+    const quotations = groupMap(quotationGroups, "createdById");
+    const extractions = groupMap(extractionGroups, "userId");
+    const aiCalls = groupMap(aiGroups, "userId");
+    const whatsappSent = groupMap(whatsappGroups, "sentById");
+    const team = users.map((user) => {
+      const tours = tourCounts(user.onboardingState);
+      const lastActivity = maxDate(
+        loginsOk.get(user.id)?.last,
+        activities.get(user.id)?.last,
+        quotations.get(user.id)?.last,
+        extractions.get(user.id)?.last,
+        aiCalls.get(user.id)?.last,
+        whatsappSent.get(user.id)?.last
+      );
+      return {
+        userId: user.id,
+        logins: loginsOk.get(user.id)?.count ?? 0,
+        failedLogins: loginsFail.get(user.id)?.count ?? 0,
+        lastLoginAt: toIso(user.lastLoginAt),
+        lastActivityAt: toIso(lastActivity),
+        leadsAssigned: assigned.get(user.id)?.count ?? 0,
+        activities: activities.get(user.id)?.count ?? 0,
+        quotations: quotations.get(user.id)?.count ?? 0,
+        extractions: extractions.get(user.id)?.count ?? 0,
+        aiCalls: aiCalls.get(user.id)?.count ?? 0,
+        whatsappSent: whatsappSent.get(user.id)?.count ?? 0,
+        toursCompleted: tours.completed,
+        toursSkipped: tours.skipped
+      };
+    });
+    const consumeTypes = [
+      COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC,
+      COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI
+    ];
+    const [
+      pipelineGroups,
+      leadsTotal,
+      leadsWithoutOwner,
+      extractionAgg,
+      extractionFailed,
+      syncCreditsAgg,
+      consumeRows,
+      aiFeatureGroups,
+      aiFailed,
+      activityTypeGroups,
+      followUpsPending,
+      followUpsOverdue,
+      proposalGroups,
+      quotationStatusGroups,
+      whatsappDirectionGroups,
+      whatsappFailed,
+      whatsappLast,
+      calendarAccounts,
+      checkoutFailures
+    ] = await Promise.all([
+      prisma.techStatusBusinessLead.groupBy({
+        by: ["pipelineStatus"],
+        where: { saasCompanyId: companyId },
+        _count: { _all: true }
+      }),
+      prisma.techBusinessLead.count({
+        where: { saasCompany: { some: { id: companyId } } }
+      }),
+      prisma.techStatusBusinessLead.count({
+        where: { saasCompanyId: companyId, salesPersonId: null }
+      }),
+      prisma.techLeadSyncLog.aggregate({
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _sum: { created: true, alreadyInDb: true }
+      }),
+      prisma.techLeadSyncLog.count({
+        where: { companyId, createdAt: { gte: since }, success: false }
+      }),
+      prisma.saasCompanyCreditLedger.aggregate({
+        where: {
+          companyId,
+          createdAt: { gte: since },
+          type: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC
+        },
+        _sum: { amount: true }
+      }),
+      prisma.saasCompanyCreditLedger.findMany({
+        where: { companyId, createdAt: { gte: since }, type: { in: consumeTypes } },
+        select: { amount: true, createdAt: true }
+      }),
+      prisma.techAiCallLog.groupBy({
+        by: ["feature"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _sum: { creditsCharged: true }
+      }),
+      prisma.techAiCallLog.count({
+        where: { companyId, createdAt: { gte: since }, success: false }
+      }),
+      prisma.techSalesActivity.groupBy({
+        by: ["type"],
+        where: { AND: [crmScope, { createdAt: { gte: since } }] },
+        _count: { _all: true }
+      }),
+      prisma.techFollowUpTask.count({
+        where: { AND: [crmScope, { status: FOLLOW_UP_PENDING }] }
+      }),
+      prisma.techFollowUpTask.count({
+        where: {
+          AND: [crmScope, { status: FOLLOW_UP_PENDING }, { scheduledDate: { lt: todayStart } }]
+        }
+      }),
+      prisma.techProposal.groupBy({
+        by: ["status"],
+        where: crmScope,
+        _count: { _all: true },
+        _sum: { amount: true }
+      }),
+      prisma.saasQuotation.groupBy({
+        by: ["status"],
+        where: { companyId },
+        _count: { _all: true },
+        _sum: { total: true }
+      }),
+      prisma.techWhatsAppMessage.groupBy({
+        by: ["direction"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true }
+      }),
+      prisma.techWhatsAppMessage.count({
+        where: { companyId, createdAt: { gte: since }, status: WHATSAPP_FAILED }
+      }),
+      prisma.techWhatsAppMessage.aggregate({
+        where: { companyId },
+        _max: { createdAt: true }
+      }),
+      prisma.googleCalendarAccount.findMany({
+        where: { OR: [{ companyId }, { user: { companyId } }] },
+        orderBy: { lastSyncedAt: { sort: "desc", nulls: "last" } },
+        select: { lastSyncedAt: true, lastSyncError: true, isActive: true }
+      }),
+      prisma.saasSubscriptionLog.count({
+        where: { companyId, createdAt: { gte: since }, success: false }
+      })
+    ]);
+    const byDay = /* @__PURE__ */ new Map();
+    for (const row of consumeRows) {
+      if (!row.createdAt) continue;
+      const day = toMxDay(row.createdAt);
+      byDay.set(day, (byDay.get(day) ?? 0) + Math.abs(row.amount));
+    }
+    const creditsByDay = [];
+    for (let i = windowDays - 1; i >= 0; i -= 1) {
+      const day = toMxDay(new Date(now.getTime() - i * DAY_MS2));
+      creditsByDay.push({ date: day, value: byDay.get(day) ?? 0 });
+    }
+    const whatsappDirections = new Map(
+      whatsappDirectionGroups.map(
+        (row) => [row.direction, row._count._all]
+      )
+    );
+    const accounts = calendarAccounts;
+    const accountWithError = accounts.find((a) => a.lastSyncError);
+    const companyLastActivity = maxDate(
+      ...team.map((m) => m.lastActivityAt ? new Date(m.lastActivityAt) : null)
+    );
+    return {
+      companyId,
+      days: windowDays,
+      lastActivityAt: toIso(companyLastActivity),
+      team,
+      pipeline: countsToList(
+        pipelineGroups.map(
+          (row) => ({ key: row.pipelineStatus, count: row._count._all })
+        )
+      ),
+      leadsTotal,
+      leadsWithoutOwner,
+      extraction: {
+        runs: extractionAgg?._count?._all ?? 0,
+        failed: extractionFailed,
+        created: extractionAgg?._sum?.created ?? 0,
+        alreadyInDb: extractionAgg?._sum?.alreadyInDb ?? 0,
+        creditsUsed: Math.abs(syncCreditsAgg?._sum?.amount ?? 0)
+      },
+      creditsByDay,
+      ai: {
+        calls: aiFeatureGroups.reduce(
+          (sum, row) => sum + row._count._all,
+          0
+        ),
+        failed: aiFailed,
+        credits: aiFeatureGroups.reduce(
+          (sum, row) => sum + (row._sum.creditsCharged ?? 0),
+          0
+        ),
+        byFeature: aiFeatureGroups.map((row) => ({
+          feature: row.feature ?? "otro",
+          calls: row._count._all,
+          credits: row._sum.creditsCharged ?? 0
+        })).sort((a, b) => b.calls - a.calls)
+      },
+      activitiesByType: countsToList(
+        activityTypeGroups.map((row) => ({
+          key: row.type,
+          count: row._count._all
+        }))
+      ),
+      followUpsPending,
+      followUpsOverdue,
+      proposalsByStatus: proposalGroups.map((row) => ({
+        key: row.status ?? "",
+        count: row._count._all,
+        amount: row._sum.amount ?? 0
+      })),
+      quotationsByStatus: quotationStatusGroups.map((row) => ({
+        key: row.status ?? "",
+        count: row._count._all,
+        amount: row._sum.total ?? 0
+      })),
+      whatsapp: {
+        outbound: whatsappDirections.get(WHATSAPP_OUTBOUND) ?? 0,
+        inbound: whatsappDirections.get(WHATSAPP_INBOUND) ?? 0,
+        failed: whatsappFailed,
+        lastMessageAt: toIso(whatsappLast?._max?.createdAt ?? null)
+      },
+      calendarAccounts: accounts.length,
+      calendarLastSyncedAt: toIso(accounts[0]?.lastSyncedAt ?? null),
+      calendarLastError: accountWithError?.lastSyncError ?? null,
+      checkoutFailures
+    };
+  }
+};
+var adminCompanyInsights_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+
+// graphql/customs/queries/admin/adminActivityFeed.ts
+var FEED_TYPES = [
+  "auth",
+  "extraction",
+  "crm",
+  "ai",
+  "credits",
+  "billing",
+  "whatsapp",
+  "calendar",
+  "admin"
+];
+var typeDefs65 = `
+  input AdminActivityFeedInput {
+    companyId: ID
+    userId: ID
+    """auth | extraction | crm | ai | credits | billing | whatsapp | calendar | admin"""
+    types: [String!]
+    onlyErrors: Boolean
+    search: String
+    """Cursor: devuelve lo ocurrido antes de esta fecha (ISO)."""
+    before: String
+    take: Int
+  }
+
+  type AdminActivityItem {
+    id: ID!
+    type: String!
+    kind: String!
+    occurredAt: String!
+    title: String!
+    detail: String
+    success: Boolean!
+    actor: AdminPersonRef
+    company: AdminCompanyRef
+    entityType: String
+    entityId: String
+    meta: JSON
+  }
+
+  type AdminActivityFeedResult {
+    items: [AdminActivityItem!]!
+    nextBefore: String
+    hasMore: Boolean!
+  }
+
+  type Query {
+    adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
+  }
+`;
+var definition62 = `
+  adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
+`;
+var COMPANY_SELECT = { select: { id: true, name: true } };
+var PERSON_WITH_COMPANY = {
+  select: { ...PERSON_SELECT, company: COMPANY_SELECT }
+};
+var AI_FEATURE_LABELS = {
+  [AI_FEATURE.CONNECTION_TEST]: "prueba de conexi\xF3n",
+  [AI_FEATURE.DAILY_DIGEST]: "resumen diario",
+  [AI_FEATURE.MONTHLY_NARRATIVE]: "narrativa mensual",
+  [AI_FEATURE.FILE_ANALYSIS]: "an\xE1lisis de archivo",
+  [AI_FEATURE.PROFILE_PLAYBOOK]: "playbook de perfil",
+  [AI_FEATURE.COMPANY_BRIEF]: "brief de empresa",
+  [AI_FEATURE.MARKET_ANALYSIS]: "an\xE1lisis de mercado"
+};
+var ACTIVITY_TYPE_LABELS = {
+  Llamada: "una llamada",
+  WhatsApp: "un WhatsApp",
+  Email: "un correo",
+  Reuni\u00F3n: "una reuni\xF3n",
+  Otra: "una actividad"
+};
+var CALENDAR_OPERATION_LABELS = {
+  create: "crear un evento",
+  update: "actualizar un evento",
+  delete: "borrar un evento",
+  list_events: "leer eventos",
+  token_refresh: "renovar el acceso",
+  list_calendars: "leer calendarios"
+};
+var SUBSCRIPTION_STEP_LABELS = {
+  [SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND]: "usuario no encontrado",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY]: "sin empresa",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_PLAN_RESOLVED]: "plan no encontrado",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID]: "plan sin precio de Stripe",
+  [SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH]: "el total no coincide",
+  [SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND]: "tarjeta no encontrada",
+  [SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR]: "error de Stripe o del servidor",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE]: "paquete de cr\xE9ditos no encontrado",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION]: "sin suscripci\xF3n activa",
+  [SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_PACKAGE_INACTIVE]: "paquete de cr\xE9ditos apagado",
+  [SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING]: "Stripe sin configurar",
+  [SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH]: "sesi\xF3n de otra cuenta"
+};
+var PAYMENT_STATUS_TITLES = {
+  failed: "Cobro rechazado",
+  refunded: "Cobro reembolsado",
+  cancelled: "Cobro cancelado",
+  pending: "Cobro pendiente",
+  processing: "Cobro en proceso"
+};
+function timeFilter(before) {
+  return before ? { lt: before } : { not: null };
+}
+function money2(amount, currency) {
+  if (amount == null) return null;
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: (currency || "MXN").toUpperCase()
+    }).format(amount);
+  } catch {
+    return `$${amount}`;
+  }
+}
+function joinDetail(parts) {
+  const text66 = parts.filter(Boolean).join(" \xB7 ");
+  return text66 || null;
+}
+function personSearch(q) {
+  return {
+    OR: [{ name: insensitive(q) }, { lastName: insensitive(q) }, { email: insensitive(q) }]
+  };
+}
+async function authSource(c) {
+  if (!c.types.has("auth")) return [];
+  const where = { createdAt: timeFilter(c.before) };
+  const and = [];
+  if (c.userId) where.userId = c.userId;
+  if (c.companyId) and.push({ user: { companyId: c.companyId } });
+  if (c.onlyErrors) where.success = false;
+  if (c.search) {
+    and.push({
+      OR: [
+        { emailMasked: insensitive(c.search) },
+        { message: insensitive(c.search) },
+        { user: personSearch(c.search) }
+      ]
+    });
+  }
+  if (and.length) where.AND = and;
+  const rows = await c.prisma.userAuthLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      source: true,
+      step: true,
+      success: true,
+      message: true,
+      emailMasked: true,
+      createdAt: true,
+      user: PERSON_WITH_COMPANY
+    }
+  });
+  return rows.map((row) => {
+    const google = row.step.startsWith("GOOGLE");
+    let kind = "auth.login";
+    let title = google ? "Inici\xF3 sesi\xF3n con Google" : "Inici\xF3 sesi\xF3n con contrase\xF1a";
+    switch (row.step) {
+      case USER_AUTH_LOG_STEP.REGISTER_SUCCESS:
+      case USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP:
+        kind = "auth.signup";
+        title = "Se registr\xF3";
+        break;
+      case USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP:
+        kind = "auth.signup";
+        title = "Se registr\xF3 con Google";
+        break;
+      case USER_AUTH_LOG_STEP.REGISTER_FAIL:
+        kind = "auth.signup_failed";
+        title = "Fall\xF3 el registro";
+        break;
+      case USER_AUTH_LOG_STEP.REGISTER_FAIL_INVALID_REFERRER:
+        kind = "auth.signup_failed";
+        title = "Registro con c\xF3digo de referido inv\xE1lido";
+        break;
+      case USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL:
+      case USER_AUTH_LOG_STEP.GOOGLE_AUTH_FAIL:
+        kind = "auth.login_failed";
+        title = google ? "Fall\xF3 el inicio de sesi\xF3n con Google" : "Fall\xF3 el inicio de sesi\xF3n";
+        break;
+      default:
+        break;
+    }
+    return {
+      id: `auth:${row.id}`,
+      type: "auth",
+      kind,
+      occurredAt: row.createdAt,
+      title,
+      detail: row.success ? null : joinDetail([row.message, row.user ? null : row.emailMasked]),
+      success: row.success,
+      actor: row.user,
+      company: row.user?.company ?? null,
+      entityType: "UserAuthLog",
+      entityId: row.id,
+      meta: null
+    };
+  });
+}
+async function extractionSource(c) {
+  if (!c.types.has("extraction")) return [];
+  const where = { createdAt: timeFilter(c.before) };
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) where.userId = c.userId;
+  if (c.onlyErrors) where.success = false;
+  if (c.search) {
+    where.OR = [
+      { category: insensitive(c.search) },
+      { message: insensitive(c.search) },
+      { company: { name: insensitive(c.search) } },
+      { user: personSearch(c.search) }
+    ];
+  }
+  const rows = await c.prisma.techLeadSyncLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      success: true,
+      message: true,
+      created: true,
+      alreadyInDb: true,
+      skippedLowRating: true,
+      syncedLeadsCount: true,
+      syncedCount: true,
+      leadLimit: true,
+      lat: true,
+      lng: true,
+      radius: true,
+      category: true,
+      createdAt: true,
+      user: { select: PERSON_SELECT },
+      company: COMPANY_SELECT
+    }
+  });
+  return rows.map((row) => {
+    const created = row.created ?? 0;
+    const already = row.alreadyInDb ?? 0;
+    return {
+      id: `extraction:${row.id}`,
+      type: "extraction",
+      kind: "extraction.run",
+      occurredAt: row.createdAt,
+      title: row.success ? `Extracci\xF3n: ${created} nuevo${created === 1 ? "" : "s"}${already ? ` \xB7 ${already} desde la base` : ""}` : "Extracci\xF3n con error",
+      detail: joinDetail([
+        row.category || null,
+        row.radius != null ? `${row.radius} km` : null,
+        row.success ? null : row.message
+      ]),
+      success: row.success,
+      actor: row.user,
+      company: row.company,
+      entityType: "TechLeadSyncLog",
+      entityId: row.id,
+      meta: {
+        created,
+        alreadyInDb: already,
+        skippedLowRating: row.skippedLowRating ?? 0,
+        syncedLeadsCount: row.syncedLeadsCount ?? 0,
+        syncedCount: row.syncedCount,
+        leadLimit: row.leadLimit,
+        lat: row.lat,
+        lng: row.lng,
+        radius: row.radius,
+        category: row.category,
+        message: row.message || null
+      }
+    };
+  });
+}
+async function creditsSource(c) {
+  const ledgerTypes = [];
+  if (c.types.has("credits")) {
+    ledgerTypes.push(
+      COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN,
+      COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE,
+      COMPANY_CREDIT_LEDGER_TYPE.ADJUST
+    );
+  }
+  if (c.types.has("admin")) ledgerTypes.push(COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN);
+  if (!ledgerTypes.length || c.onlyErrors) return [];
+  const where = {
+    createdAt: timeFilter(c.before),
+    type: { in: ledgerTypes }
+  };
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) {
+    where.type = COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN;
+    where.referenceId = c.userId;
+    if (!ledgerTypes.includes(COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN)) return [];
+  }
+  if (c.search) {
+    where.OR = [
+      { notes: insensitive(c.search) },
+      { company: { name: insensitive(c.search) } }
+    ];
+  }
+  const rows = await c.prisma.saasCompanyCreditLedger.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      type: true,
+      amount: true,
+      balanceAfter: true,
+      referenceType: true,
+      referenceId: true,
+      notes: true,
+      createdAt: true,
+      company: COMPANY_SELECT
+    }
+  });
+  const adminIds = [
+    ...new Set(
+      rows.filter((r) => r.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN && r.referenceId).map((r) => r.referenceId)
+    )
+  ];
+  const admins = adminIds.length ? await c.prisma.user.findMany({ where: { id: { in: adminIds } }, select: PERSON_SELECT }) : [];
+  const adminById = new Map(admins.map((a) => [a.id, a]));
+  return rows.map((row) => {
+    const isAdmin = row.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN;
+    const signed = `${row.amount > 0 ? "+" : ""}${row.amount}`;
+    let title = `Ajuste de cr\xE9ditos: ${signed}`;
+    if (row.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN) title = `Cr\xE9ditos del plan: ${signed}`;
+    if (row.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE) title = `Recarga: ${signed} cr\xE9ditos`;
+    if (isAdmin) title = `Kadesh agreg\xF3 ${row.amount} cr\xE9ditos`;
+    return {
+      id: `credits:${row.id}`,
+      type: isAdmin ? "admin" : "credits",
+      kind: isAdmin ? "admin.credits_granted" : `credits.${row.type.toLowerCase()}`,
+      occurredAt: row.createdAt,
+      title,
+      detail: joinDetail([row.notes, row.balanceAfter != null ? `Saldo ${row.balanceAfter}` : null]),
+      success: true,
+      actor: isAdmin && row.referenceId ? adminById.get(row.referenceId) ?? null : null,
+      company: row.company,
+      entityType: "SaasCompanyCreditLedger",
+      entityId: row.id,
+      meta: { amount: row.amount, balanceAfter: row.balanceAfter, ledgerType: row.type }
+    };
+  });
+}
+async function aiSource(c) {
+  if (!c.types.has("ai")) return [];
+  const where = { createdAt: timeFilter(c.before) };
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) where.userId = c.userId;
+  if (c.onlyErrors) where.success = false;
+  if (c.search) {
+    where.OR = [
+      { feature: insensitive(c.search) },
+      { model: insensitive(c.search) },
+      { errorMessage: insensitive(c.search) },
+      { company: { name: insensitive(c.search) } },
+      { user: personSearch(c.search) }
+    ];
+  }
+  const rows = await c.prisma.techAiCallLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    // Sin featurePrompt/systemPrompt/userPrompt/response a propósito.
+    select: {
+      id: true,
+      feature: true,
+      provider: true,
+      model: true,
+      billingMode: true,
+      inputTokens: true,
+      outputTokens: true,
+      creditsCharged: true,
+      success: true,
+      errorMessage: true,
+      durationMs: true,
+      createdAt: true,
+      user: { select: PERSON_SELECT },
+      company: COMPANY_SELECT
+    }
+  });
+  return rows.map((row) => ({
+    id: `ai:${row.id}`,
+    type: "ai",
+    kind: "ai.call",
+    occurredAt: row.createdAt,
+    title: `IA: ${AI_FEATURE_LABELS[row.feature ?? ""] ?? row.feature ?? "llamada"}`,
+    detail: row.success ? joinDetail([
+      row.creditsCharged ? `${row.creditsCharged} cr\xE9ditos` : null,
+      row.model
+    ]) : joinDetail([row.errorMessage ?? "Fall\xF3 la llamada", row.model]),
+    success: row.success,
+    actor: row.user,
+    company: row.company,
+    entityType: "TechAiCallLog",
+    entityId: row.id,
+    meta: {
+      feature: row.feature,
+      provider: row.provider,
+      model: row.model,
+      billingMode: row.billingMode,
+      inputTokens: row.inputTokens ?? 0,
+      outputTokens: row.outputTokens ?? 0,
+      creditsCharged: row.creditsCharged ?? 0,
+      durationMs: row.durationMs
+    }
+  }));
+}
+async function billingSource(c) {
+  if (!c.types.has("billing")) return [];
+  const logWhere = { createdAt: timeFilter(c.before) };
+  if (c.companyId) logWhere.companyId = c.companyId;
+  if (c.userId) logWhere.userId = c.userId;
+  if (c.onlyErrors) logWhere.success = false;
+  if (c.search) {
+    logWhere.OR = [
+      { message: insensitive(c.search) },
+      { step: insensitive(c.search) },
+      { emailMasked: insensitive(c.search) },
+      { company: { name: insensitive(c.search) } }
+    ];
+  }
+  const paymentWhere = {
+    createdAt: timeFilter(c.before),
+    status: c.onlyErrors ? "failed" : { notIn: ["succeeded"] }
+  };
+  const paymentAnd = [];
+  if (c.companyId) {
+    paymentAnd.push({
+      OR: [{ subscription: { companyId: c.companyId } }, { user: { companyId: c.companyId } }]
+    });
+  }
+  if (c.userId) paymentWhere.userId = c.userId;
+  if (c.search) {
+    paymentAnd.push({
+      OR: [{ notes: insensitive(c.search) }, { stripeErrorMessage: insensitive(c.search) }]
+    });
+  }
+  if (paymentAnd.length) paymentWhere.AND = paymentAnd;
+  const [logs, payments] = await Promise.all([
+    c.prisma.saasSubscriptionLog.findMany({
+      where: logWhere,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        step: true,
+        success: true,
+        message: true,
+        totalSubmitted: true,
+        createdAt: true,
+        user: { select: PERSON_SELECT },
+        company: COMPANY_SELECT,
+        plan: { select: { name: true } }
+      }
+    }),
+    c.prisma.saasPayment.findMany({
+      where: paymentWhere,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        notes: true,
+        stripeErrorMessage: true,
+        createdAt: true,
+        user: PERSON_WITH_COMPANY,
+        subscription: { select: { company: COMPANY_SELECT } }
+      }
+    })
+  ]);
+  const logItems = logs.map((row) => {
+    let kind = "billing.checkout_failed";
+    let title = "Pago no completado";
+    if (row.step === SAAS_SUBSCRIPTION_LOG_STEP.SUCCESS) {
+      kind = "billing.subscribed";
+      title = row.plan?.name ? `Contrat\xF3 el plan ${row.plan.name}` : "Contrat\xF3 un plan";
+    } else if (row.step === SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_SUCCESS) {
+      kind = "billing.credits_purchased";
+      title = "Compr\xF3 cr\xE9ditos";
+    }
+    const total = Number(row.totalSubmitted);
+    return {
+      id: `billing-log:${row.id}`,
+      type: "billing",
+      kind,
+      occurredAt: row.createdAt,
+      title,
+      detail: row.success ? Number.isFinite(total) && total > 0 ? money2(total) : null : joinDetail([SUBSCRIPTION_STEP_LABELS[row.step] ?? row.step, row.message]),
+      success: row.success,
+      actor: row.user,
+      company: row.company,
+      entityType: "SaasSubscriptionLog",
+      entityId: row.id,
+      meta: { step: row.step, total: row.totalSubmitted || null }
+    };
+  });
+  const paymentItems = payments.map((row) => {
+    const amount = row.amount == null ? null : Number(row.amount);
+    return {
+      id: `payment:${row.id}`,
+      type: "billing",
+      kind: `billing.payment_${row.status ?? "unknown"}`,
+      occurredAt: row.createdAt,
+      title: PAYMENT_STATUS_TITLES[row.status ?? ""] ?? "Cobro",
+      detail: joinDetail([money2(amount), row.stripeErrorMessage ?? row.notes]),
+      success: row.status !== "failed",
+      actor: row.user,
+      company: row.subscription?.company ?? row.user?.company ?? null,
+      entityType: "SaasPayment",
+      entityId: row.id,
+      meta: { amount, status: row.status }
+    };
+  });
+  return [...logItems, ...paymentItems];
+}
+async function whatsappSource(c) {
+  if (!c.types.has("whatsapp")) return [];
+  const where = {
+    createdAt: timeFilter(c.before),
+    direction: "outbound"
+  };
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) where.sentById = c.userId;
+  if (c.onlyErrors) where.status = "failed";
+  if (c.search) {
+    where.OR = [
+      { toPhone: insensitive(c.search) },
+      { senderLabel: insensitive(c.search) },
+      { businessLead: { businessName: insensitive(c.search) } },
+      { company: { name: insensitive(c.search) } }
+    ];
+  }
+  const rows = await c.prisma.techWhatsAppMessage.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      status: true,
+      toPhone: true,
+      messageKind: true,
+      mediaType: true,
+      source: true,
+      errorMessage: true,
+      createdAt: true,
+      sentBy: { select: PERSON_SELECT },
+      company: COMPANY_SELECT,
+      businessLead: { select: { id: true, businessName: true } },
+      teamMember: { select: { name: true, lastName: true } }
+    }
+  });
+  return rows.map((row) => {
+    const target = row.businessLead?.businessName || [row.teamMember?.name, row.teamMember?.lastName].filter(Boolean).join(" ") || row.toPhone || "un contacto";
+    const failed = row.status === "failed";
+    return {
+      id: `whatsapp:${row.id}`,
+      type: "whatsapp",
+      kind: failed ? "whatsapp.failed" : "whatsapp.sent",
+      occurredAt: row.createdAt,
+      title: failed ? `WhatsApp no enviado a ${target}` : `Envi\xF3 WhatsApp a ${target}`,
+      detail: joinDetail([
+        row.messageKind === "template" ? "Plantilla" : null,
+        row.mediaType ? "Con archivo" : null,
+        row.source === "imported" ? "Importado" : null,
+        failed ? row.errorMessage : null
+      ]),
+      success: !failed,
+      actor: row.sentBy,
+      company: row.company,
+      entityType: row.businessLead ? "TechBusinessLead" : "TechWhatsAppMessage",
+      entityId: row.businessLead?.id ?? row.id,
+      meta: { messageKind: row.messageKind, status: row.status }
+    };
+  });
+}
+async function crmSource(c) {
+  if (!c.types.has("crm") || c.onlyErrors) return [];
+  const scope = c.companyId ? crmCompanyScope(c.companyId) : null;
+  const byPerson = c.userId ? { OR: [{ createdById: c.userId }, { assignedSellerId: c.userId }] } : null;
+  const leadSearch = c.search ? { businessLead: { businessName: insensitive(c.search) } } : null;
+  const activityWhere = {
+    AND: [
+      { createdAt: timeFilter(c.before) },
+      ...scope ? [scope] : [],
+      ...byPerson ? [byPerson] : [],
+      ...c.search ? [{ OR: [{ title: insensitive(c.search) }, { type: insensitive(c.search) }, leadSearch] }] : []
+    ]
+  };
+  const proposalWhere = {
+    AND: [
+      { createdAt: timeFilter(c.before) },
+      ...scope ? [scope] : [],
+      ...byPerson ? [byPerson] : [],
+      ...c.search ? [{ OR: [{ product: insensitive(c.search) }, leadSearch] }] : []
+    ]
+  };
+  const quotationBase = [];
+  if (c.companyId) quotationBase.push({ companyId: c.companyId });
+  if (byPerson) quotationBase.push(byPerson);
+  if (c.search) {
+    quotationBase.push({
+      OR: [
+        { quotationNumber: insensitive(c.search) },
+        { lead: { businessName: insensitive(c.search) } },
+        { company: { name: insensitive(c.search) } }
+      ]
+    });
+  }
+  const quotationSelect = {
+    id: true,
+    quotationNumber: true,
+    status: true,
+    total: true,
+    currency: true,
+    createdAt: true,
+    sentAt: true,
+    acceptedAt: true,
+    createdBy: { select: PERSON_SELECT },
+    assignedSeller: { select: PERSON_SELECT },
+    company: COMPANY_SELECT,
+    lead: { select: { id: true, businessName: true } }
+  };
+  const [activities, proposals, quotationsCreated, quotationsSent, quotationsAccepted] = await Promise.all([
+    c.prisma.techSalesActivity.findMany({
+      where: activityWhere,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        result: true,
+        createdAt: true,
+        createdBy: PERSON_WITH_COMPANY,
+        assignedSeller: PERSON_WITH_COMPANY,
+        businessLead: { select: { id: true, businessName: true } },
+        workspace: { select: { company: COMPANY_SELECT } }
+      }
+    }),
+    c.prisma.techProposal.findMany({
+      where: proposalWhere,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        status: true,
+        amount: true,
+        product: true,
+        createdAt: true,
+        createdBy: PERSON_WITH_COMPANY,
+        assignedSeller: PERSON_WITH_COMPANY,
+        businessLead: { select: { id: true, businessName: true } },
+        workspace: { select: { company: COMPANY_SELECT } }
+      }
+    }),
+    c.prisma.saasQuotation.findMany({
+      where: { AND: [...quotationBase, { createdAt: timeFilter(c.before) }] },
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: quotationSelect
+    }),
+    c.prisma.saasQuotation.findMany({
+      where: { AND: [...quotationBase, { sentAt: timeFilter(c.before) }] },
+      orderBy: { sentAt: "desc" },
+      take: c.take,
+      select: quotationSelect
+    }),
+    c.prisma.saasQuotation.findMany({
+      where: { AND: [...quotationBase, { acceptedAt: timeFilter(c.before) }] },
+      orderBy: { acceptedAt: "desc" },
+      take: c.take,
+      select: quotationSelect
+    })
+  ]);
+  const activityItems = activities.map((row) => {
+    const actor = row.createdBy ?? row.assignedSeller;
+    return {
+      id: `activity:${row.id}`,
+      type: "crm",
+      kind: "crm.activity_logged",
+      occurredAt: row.createdAt,
+      title: `Registr\xF3 ${ACTIVITY_TYPE_LABELS[row.type] ?? "una actividad"} con ${row.businessLead?.businessName ?? "un lead"}`,
+      detail: joinDetail([row.title || null, row.result || null]),
+      success: true,
+      actor,
+      company: row.workspace?.company ?? actor?.company ?? null,
+      entityType: row.businessLead ? "TechBusinessLead" : "TechSalesActivity",
+      entityId: row.businessLead?.id ?? row.id,
+      meta: { activityType: row.type, activityId: row.id }
+    };
+  });
+  const proposalItems = proposals.map((row) => {
+    const actor = row.createdBy ?? row.assignedSeller;
+    return {
+      id: `proposal:${row.id}`,
+      type: "crm",
+      kind: "crm.proposal_created",
+      occurredAt: row.createdAt,
+      title: `Registr\xF3 una propuesta para ${row.businessLead?.businessName ?? "un lead"}`,
+      detail: joinDetail([money2(row.amount), row.status, row.product || null]),
+      success: true,
+      actor,
+      company: row.workspace?.company ?? actor?.company ?? null,
+      entityType: row.businessLead ? "TechBusinessLead" : "TechProposal",
+      entityId: row.businessLead?.id ?? row.id,
+      meta: { proposalId: row.id, status: row.status, amount: row.amount }
+    };
+  });
+  const quotationItem = (row, milestone, at) => {
+    if (!at) return null;
+    const label = row.quotationNumber ? `#${row.quotationNumber}` : "";
+    const titles = {
+      created: `Cre\xF3 la cotizaci\xF3n ${label}`.trim(),
+      sent: `Envi\xF3 la cotizaci\xF3n ${label}`.trim(),
+      accepted: `Aceptaron la cotizaci\xF3n ${label}`.trim()
+    };
+    return {
+      id: `quotation:${row.id}:${milestone}`,
+      type: "crm",
+      kind: `crm.quotation_${milestone}`,
+      occurredAt: at,
+      title: titles[milestone],
+      detail: joinDetail([row.lead?.businessName, money2(row.total, row.currency)]),
+      success: true,
+      actor: row.createdBy ?? row.assignedSeller,
+      company: row.company,
+      entityType: "SaasQuotation",
+      entityId: row.id,
+      meta: { status: row.status, total: row.total, currency: row.currency }
+    };
+  };
+  const quotationItems = [
+    ...quotationsCreated.map((r) => quotationItem(r, "created", r.createdAt)),
+    ...quotationsSent.map((r) => quotationItem(r, "sent", r.sentAt)),
+    ...quotationsAccepted.map((r) => quotationItem(r, "accepted", r.acceptedAt))
+  ].filter((item) => Boolean(item));
+  return [...activityItems, ...proposalItems, ...quotationItems];
+}
+async function calendarSource(c) {
+  if (!c.types.has("calendar")) return [];
+  const where = {
+    createdAt: timeFilter(c.before),
+    success: false
+  };
+  const accountFilters = [];
+  if (c.companyId) {
+    accountFilters.push({
+      OR: [{ companyId: c.companyId }, { user: { companyId: c.companyId } }]
+    });
+  }
+  if (c.userId) {
+    accountFilters.push({ OR: [{ userId: c.userId }, { connectedByUserId: c.userId }] });
+  }
+  if (accountFilters.length) where.account = { AND: accountFilters };
+  if (c.search) {
+    where.OR = [
+      { errorMessage: insensitive(c.search) },
+      { account: { googleAccountEmail: insensitive(c.search) } }
+    ];
+  }
+  const rows = await c.prisma.techGoogleCalendarSyncLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      direction: true,
+      operation: true,
+      errorMessage: true,
+      createdAt: true,
+      account: {
+        select: {
+          googleAccountEmail: true,
+          company: COMPANY_SELECT,
+          user: PERSON_WITH_COMPANY
+        }
+      }
+    }
+  });
+  return rows.map((row) => ({
+    id: `calendar:${row.id}`,
+    type: "calendar",
+    kind: "calendar.sync_failed",
+    occurredAt: row.createdAt,
+    title: `Calendario: fall\xF3 ${CALENDAR_OPERATION_LABELS[row.operation] ?? row.operation}`,
+    detail: joinDetail([row.account?.googleAccountEmail, row.errorMessage]),
+    success: false,
+    actor: row.account?.user ?? null,
+    company: row.account?.company ?? row.account?.user?.company ?? null,
+    entityType: "TechGoogleCalendarSyncLog",
+    entityId: row.id,
+    meta: { direction: row.direction, operation: row.operation }
+  }));
+}
+var SOURCES = [
+  authSource,
+  extractionSource,
+  creditsSource,
+  aiSource,
+  billingSource,
+  whatsappSource,
+  crmSource,
+  calendarSource
+];
+var resolver62 = {
+  adminActivityFeed: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const take = clampInt(input?.take, 1, 100, 30);
+    const requested = (input?.types ?? []).filter(
+      (t) => FEED_TYPES.includes(t)
+    );
+    const before = input?.before ? new Date(input.before) : null;
+    const ctx = {
+      prisma: adminPrisma(context),
+      companyId: input?.companyId?.trim() || null,
+      userId: input?.userId?.trim() || null,
+      onlyErrors: Boolean(input?.onlyErrors),
+      search: input?.search?.trim() || null,
+      before: before && !Number.isNaN(before.getTime()) ? before : null,
+      // Uno de más por fuente para saber si hay otra página.
+      take: take + 1,
+      types: new Set(requested.length ? requested : FEED_TYPES)
+    };
+    const batches = await Promise.all(SOURCES.map((source) => source(ctx)));
+    const merged = batches.flat().sort(
+      (a, b) => b.occurredAt.getTime() - a.occurredAt.getTime() || b.id.localeCompare(a.id)
+    );
+    const page = merged.slice(0, take);
+    const hasMore = merged.length > take;
+    return {
+      items: page.map((item) => ({
+        ...item,
+        occurredAt: item.occurredAt.toISOString(),
+        actor: personRef(item.actor)
+      })),
+      nextBefore: hasMore && page.length ? page[page.length - 1].occurredAt.toISOString() : null,
+      hasMore
+    };
+  }
+};
+var adminActivityFeed_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+
 // graphql/customs/queries/index.ts
 var customQuery = {
   typeDefs: `
@@ -26151,6 +28063,11 @@ var customQuery = {
     ${companyWhatsappTeam_default.typeDefs}
     ${companyWhatsappTemplates_default.typeDefs}
     ${syncGoogleCalendarNow_default.typeDefs}
+    ${adminSharedTypeDefs}
+    ${adminCompanies_default.typeDefs}
+    ${adminOpsSummary_default.typeDefs}
+    ${adminCompanyInsights_default.typeDefs}
+    ${adminActivityFeed_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -26169,6 +28086,10 @@ var customQuery = {
     ${companyWhatsappTeam_default.definition}
     ${companyWhatsappTemplates_default.definition}
     ${syncGoogleCalendarNow_default.definition}
+    ${adminCompanies_default.definition}
+    ${adminOpsSummary_default.definition}
+    ${adminCompanyInsights_default.definition}
+    ${adminActivityFeed_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -26186,10 +28107,90 @@ var customQuery = {
     ...businessLeadWhatsappStatus_default.resolver,
     ...companyWhatsappTeam_default.resolver,
     ...companyWhatsappTemplates_default.resolver,
-    ...syncGoogleCalendarNow_default.resolver
+    ...syncGoogleCalendarNow_default.resolver,
+    ...adminCompanies_default.resolver,
+    ...adminOpsSummary_default.resolver,
+    ...adminCompanyInsights_default.resolver,
+    ...adminActivityFeed_default.resolver
   }
 };
 var queries_default = customQuery;
+
+// graphql/customs/mutations/auth/passwordLoginAudit.ts
+var FIELD = "authenticateUserWithPassword";
+function resultUserId(result) {
+  if (!result || typeof result !== "object") return null;
+  const item = result.item;
+  return typeof item?.id === "string" ? item.id : null;
+}
+function isSuccess(result) {
+  return Boolean(
+    result && typeof result === "object" && typeof result.sessionToken === "string"
+  );
+}
+async function findUserIdByEmail(context, email) {
+  if (!email) return null;
+  try {
+    const user = await context.sudo().query.User.findOne({
+      where: { email },
+      query: "id"
+    });
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+async function touchLastLogin(context, userId) {
+  try {
+    await context.sudo().query.User.updateOne({
+      where: { id: userId },
+      data: { lastLoginAt: (/* @__PURE__ */ new Date()).toISOString() },
+      query: "id"
+    });
+  } catch {
+  }
+}
+function passwordLoginAuditResolvers(baseSchema) {
+  const original = baseSchema.getMutationType()?.getFields()[FIELD]?.resolve;
+  if (!original) return {};
+  const wrapped = async (root, args, context, info) => {
+    const startedAt = Date.now();
+    const email = typeof args?.email === "string" ? args.email.trim() : "";
+    let result;
+    try {
+      result = await original(root, args, context, info);
+    } catch (error) {
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+        success: false,
+        message: "Error del servidor al iniciar sesi\xF3n con contrase\xF1a.",
+        email,
+        userId: await findUserIdByEmail(context, email),
+        responseSnapshot: { method: "password", reason: "server_error" }
+      });
+      throw error;
+    }
+    const success = isSuccess(result);
+    const userId = success ? resultUserId(result) : await findUserIdByEmail(context, email);
+    if (success && userId) {
+      await touchLastLogin(context, userId);
+    }
+    await writeUserAuthLog(context, {
+      startedAt,
+      source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+      step: success ? USER_AUTH_LOG_STEP.CUSTOM_AUTH_LOGIN : USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+      success,
+      message: success ? "Inicio de sesi\xF3n con contrase\xF1a correcto." : "Correo o contrase\xF1a incorrectos.",
+      email,
+      userId,
+      responseSnapshot: success ? { method: "password", userId } : { method: "password", reason: "auth_failure" }
+    });
+    return result;
+  };
+  return { [FIELD]: wrapped };
+}
 
 // graphql/extendedSchema.ts
 function extendGraphqlSchema(baseSchema) {
@@ -26211,7 +28212,9 @@ function extendGraphqlSchema(baseSchema) {
     `,
     resolvers: {
       Mutation: {
-        ...mutations_default.resolvers
+        ...mutations_default.resolvers,
+        // Login con contraseña: registra UserAuthLog + lastLoginAt en el servidor.
+        ...passwordLoginAuditResolvers(baseSchema)
       },
       Query: {
         ...queries_default.resolvers

@@ -58,6 +58,7 @@ Consulta el Banco de Indicadores (BISE) y **cachea** en `TechInegiIndicator` (up
 ## Invariantes
 
 - Promover un lead ya conectado a esa company: `creditsCharged: 0`.
+- Un lead que ya existía solo cuenta (y se cobra) si quedó ligado a la empresa: `assignExistingLeadToCompany` (`utils/helpers/tech/lead_assignment.ts`) lo verifica en la base antes de crear el status.
 - Sync de catálogo escribe `TechInegiSyncLog` (éxito o error).
 - Sin token en env: mensaje de usuario, no stack.
 
@@ -78,3 +79,18 @@ El front no hace loop de `promote`. Misma cuota y result shape que Google. Catá
 ### 2026-09-15 — API DENUE se une por CLEE
 
 Tras upsert, no se vuelve a pedir el catálogo con `contains` del keyword. Ese filtro tiraba labs cuyo nombre no trae la palabra (p. ej. “Chopo”) o cuya clase tiene tilde (`diagnóstico` vs `diagnostico`).
+
+### 2026-10-10 — Solo se cobra lo que queda ligado
+
+Si la búsqueda encontraba leads INEGI que ya tenía otra empresa, se creaba el status y se cobraba, pero el lead nunca quedaba ligado: el hook de tenant quitaba el `connect` para todo usuario que no fuera admin de plataforma (ver `models/Saas/README.md`).
+
+El cliente pagaba leads que no veía en Clientes y que el dashboard contaba como “Sin dato”. Además, la vuelta del catálogo DENUE volvía a cobrar algunos, porque seguían sin ligar.
+
+Ahora las dos rutas (leads en el radio y catálogo) usan el helper compartido con verificación, igual que `syncLeadsFront`. Para los casos anteriores: `pnpm leads:repair-unlinked`.
+
+### 2026-10-10 — Lo que la empresa ya tiene no cuenta como disponible
+
+Para decidir si llama a la API DENUE, la sync contaba todo el catálogo dentro del radio, incluidos los negocios que esa empresa ya tenía como leads, que después se saltaba. Si la empresa ya tenía casi todo en la zona, la sync creía que el catálogo alcanzaba, no buscaba en INEGI y respondía "no encontramos negocios nuevos" aunque DENUE sí tuviera más.
+
+Ahora `establishmentsOwnedByCompany` descuenta los que ya son suyos antes de decidir, y el recorrido se los salta sin consultarlos uno por uno. La API se sigue llamando solo cuando de verdad faltan.
+

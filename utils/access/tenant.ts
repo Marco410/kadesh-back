@@ -4,6 +4,7 @@ import { Role } from "../../models/Role/constants";
 export type SessionLike = {
   data?: {
     id?: string;
+    email?: string | null;
     company?: { id?: string } | null;
     permissions?: unknown;
     roles?: Array<{ name?: string } | null> | null;
@@ -24,6 +25,26 @@ export function isSignedIn(session: SessionLike): boolean {
 
 export function isPlatformAdmin(session: SessionLike): boolean {
   return hasRole(session, [Role.ADMIN]);
+}
+
+export function getSessionEmail(session: SessionLike): string | null {
+  const email = session?.data?.email?.trim().toLowerCase();
+  return email || null;
+}
+
+/**
+ * La sesión es dueña de `email` (o es admin de plataforma).
+ * Para mutaciones que reciben el correo del pagador en el input (checkout, recargas).
+ */
+export function canActForEmail(
+  session: SessionLike,
+  email?: string | null,
+): boolean {
+  if (!isSignedIn(session)) return false;
+  if (isPlatformAdmin(session)) return true;
+  const sessionEmail = getSessionEmail(session);
+  const target = email?.trim().toLowerCase();
+  return Boolean(sessionEmail && target && sessionEmail === target);
 }
 
 export function isCompanyAdmin(session: SessionLike): boolean {
