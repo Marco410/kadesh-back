@@ -58,3 +58,19 @@ Por qué: antes lo escribía el navegador con un `createUserAuthLog` abierto a c
 
 Qué no hacer: no volver a mandar `createUserAuthLog` ni `updateUser({ lastLoginAt })` desde el front. Ver `docs/operaciones/decisiones.md`.
 
+
+### 2026-10-10 — `UserActivityDay`: tiempo con el panel abierto
+
+Qué: list nueva `User/UserActivityDay`. Una fila por persona y día (hora de CDMX, `key = userId:YYYY-MM-DD` único) con minutos activos, primera y última vez vista. La llena el latido de `trackEvents` (cada 5 min con la pestaña visible). Un latido más seguido que el intervalo actualiza `lastSeenAt` pero no suma minutos, para que nadie infle su tiempo llamando la mutación en bucle.
+
+Por qué: la sesión dura 30 días, así que `lastLoginAt` no dice si alguien usa el panel. Operaciones marcaba como "inactivo" a equipos que entran a diario sin volver a iniciar sesión. Con esta tabla salen el "visto por última vez", los usuarios activos y los minutos de uso por persona.
+
+Lectura y borrado: solo admin de plataforma. Nadie escribe por API.
+
+### 2026-10-10 — `UserAuthLog` guarda IP y navegador
+
+Qué: campos `ip` y `userAgent`, llenados por `writeUserAuthLog` desde la petición (IP del `x-forwarded-for` del proxy si existe).
+
+Por qué: sirven para detectar cuentas compartidas o accesos raros. Son datos personales: el Aviso de privacidad debe mencionarlos.
+
+Requiere `yarn migrate` (junto con `UserActivityDay` y `ActivityEvent`). No lo corre el agente.

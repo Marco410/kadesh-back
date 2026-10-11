@@ -2,6 +2,8 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import { getSessionCompanyId } from "../../../../utils/access/tenant";
 import { parseWhatsAppChatExport } from "../../../../utils/whatsapp/parseChatExport";
 import { canUseCompanyWhatsapp, denyCompanyWhatsappUseMessage } from "./access";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 const DEDUPE_LOOKBACK = 5000;
 
@@ -135,6 +137,15 @@ const resolver = {
         err instanceof Error ? err.message : "No se pudo guardar el historial importado",
       );
     }
+
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.WHATSAPP_CHAT_IMPORTED,
+      companyId: effectiveCompanyId,
+      entityType: "TechBusinessLead",
+      entityId: businessLeadId,
+      summary: `Importó ${data.length} mensajes de un chat de WhatsApp`,
+      metadata: { imported: data.length, skippedDuplicates },
+    });
 
     return toResult(
       true,

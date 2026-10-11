@@ -1,24 +1,17 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscription/constants";
+import { ACTIVITY_SOURCE } from "../../../../models/ActivityEvent/constants";
 import { getStripeSubscription } from "../../../../utils/saas/stripeSubscription";
+import {
+  applySubscriptionState,
+  stripeStatusToLocal,
+  unixToDay,
+} from "../../../../utils/saas/stripeSubscriptionSync";
 import { getFreePlanTrialInfo } from "../../../../utils/saas/freePlanTrial";
 import {
   denyOtherCompanyMessage,
   resolveAuthorizedCompanyId,
 } from "../../../../utils/access/tenant";
-
-
-/** Map Stripe subscription status to our SUBSCRIPTION_STATUS */
-function stripeStatusToLocal(stripeStatus: string | null): string {
-  if (!stripeStatus) return SUBSCRIPTION_STATUS.CANCELLED;
-  const s = stripeStatus.toLowerCase();
-  if (s === "active") return SUBSCRIPTION_STATUS.ACTIVE;
-  if (s === "trialing") return SUBSCRIPTION_STATUS.TRIALING;
-  if (s === "past_due") return SUBSCRIPTION_STATUS.PAST_DUE;
-  if (s === "canceled" || s === "cancelled") return SUBSCRIPTION_STATUS.CANCELLED;
-  if (s === "unpaid") return SUBSCRIPTION_STATUS.UNPAID;
-  return s;
-}
 
 /**
  * Días desde hoy (inicio del día local) hasta el fin del día de la fecha indicada.
@@ -142,51 +135,36 @@ const resolver = {
     let periodEnd: string | null = sub.currentPeriodEnd;
     let subscriptionActive = false;
 
+    const localRef = {
+      id: sub.id,
+      status: sub.status,
+      currentPeriodEnd: sub.currentPeriodEnd,
+      companyId: companyIdToUse,
+      planName: sub.planName,
+    };
+
     if (sub.stripeSubscriptionId) {
       const stripeInfo = await getStripeSubscription(sub.stripeSubscriptionId);
-      subscriptionActive = stripeInfo.active;
 
-      if (stripeInfo.currentPeriodEnd) {
-        periodEnd = new Date(stripeInfo.currentPeriodEnd * 1000).toISOString().slice(0, 10);
-      }
+      if (stripeInfo.unavailable) {
+        // Stripe no respondió: se confía en el estado local. Antes un error de red o un 429
+        // se leía como "cancelada" y el cliente perdía el acceso sin poder recuperarlo.
+        subscriptionActive =
+          sub.status === SUBSCRIPTION_STATUS.ACTIVE || sub.status === SUBSCRIPTION_STATUS.TRIALING;
+      } else {
+        subscriptionActive = stripeInfo.active;
+        const stripePeriodEnd = unixToDay(stripeInfo.currentPeriodEnd);
+        if (stripePeriodEnd) periodEnd = stripePeriodEnd;
+        newStatus = stripeStatusToLocal(stripeInfo.status);
 
-      const mappedStatus = stripeStatusToLocal(stripeInfo.status);
-      if (mappedStatus !== sub.status) {
-        newStatus = mappedStatus;
-        await context.sudo().query.SaasCompanySubscription.updateOne({
-          where: { id: sub.id },
-          data: {
-            status: newStatus,
-            ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
-          },
-        });
-
-        // If subscription is no longer active/trialing, cancel all pending referral commissions for this subscription
-        if (
-          newStatus === SUBSCRIPTION_STATUS.CANCELLED ||
-          newStatus === SUBSCRIPTION_STATUS.UNPAID ||
-          newStatus === SUBSCRIPTION_STATUS.PAST_DUE
-        ) {
-          const pendingCommissions =
-            await context.sudo().query.SaasReferralCommission.findMany({
-              where: {
-                subscription: { id: { equals: sub.id } },
-                status: { equals: "PENDING" },
-              },
-              query: "id",
-            });
-
-          for (const commission of pendingCommissions as { id: string }[]) {
-            await context.sudo().query.SaasReferralCommission.updateOne({
-              where: { id: commission.id },
-              data: {
-                status: "CANCELLED",
-                notes:
-                  "Comisión cancelada porque el cliente canceló o dejó de pagar la suscripción.",
-              },
-            });
-          }
-        }
+        // Guarda estado y fin de periodo si cambiaron (renovaciones incluidas), cancela comisiones
+        // pendientes si dejó de pagar y registra el cambio de estado.
+        await applySubscriptionState(
+          context,
+          localRef,
+          { status: newStatus, currentPeriodEnd: stripePeriodEnd },
+          { source: ACTIVITY_SOURCE.SYSTEM, reason: "panel_check" },
+        );
       }
     } else if (isFreePlan && sub.activatedAt) {
       const { trialEnd: trialEndStr, isExpired } = getFreePlanTrialInfo(
@@ -198,10 +176,12 @@ const resolver = {
         subscriptionActive = false;
       } else if (isExpired) {
         newStatus = SUBSCRIPTION_STATUS.PAST_DUE;
-        await context.sudo().query.SaasCompanySubscription.updateOne({
-          where: { id: sub.id },
-          data: { status: newStatus },
-        });
+        await applySubscriptionState(
+          context,
+          localRef,
+          { status: newStatus, currentPeriodEnd: null },
+          { source: ACTIVITY_SOURCE.SYSTEM, reason: "trial_expired" },
+        );
         periodEnd = trialEndStr;
         subscriptionActive = false;
       } else {

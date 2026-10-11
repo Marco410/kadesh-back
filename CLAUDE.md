@@ -50,6 +50,8 @@ Per-list conventions:
 
 **Admin UI customization** (`admin/`): `admin/config.ts` registers custom Admin UI React components (`admin/components/`) like `CustomNavigation` and `CustomLogo`, wired into `keystone.ts`'s `ui` config.
 
+**Activity log** (`models/ActivityEvent/`, `utils/activity/`): `ActivityEvent` records who changed what (CRM, team, plans, Stripe lifecycle, admin views, browser events via `trackEvents`). Lists in `models/schema.ts` are wrapped with `withActivityHooks`, which logs changes made by people (non-sudo context only). Server-side writes done with `context.sudo()` in custom mutations must call `logActivity` explicitly (fire-and-forget, never throws). Never log passwords, tokens, prompts or message bodies. See `models/ActivityEvent/README.md`.
+
 **IA / Cerebro Kadesh** (`docs/ai/`): capa de IA a nivel `SaasCompany`. Cifrado en `utils/helpers/encryption.ts`, adapters en `utils/ai/`, mutaciones en `graphql/customs/mutations/ai/`. La IA managed consume los **mismos** créditos del periodo mensual (tokens → créditos, ver `docs/ai/precio-tokens.md`). Cada llamada queda en `TechAiCallLog`.
 
 ## Adding a new list

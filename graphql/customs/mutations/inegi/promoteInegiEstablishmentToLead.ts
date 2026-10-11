@@ -13,6 +13,8 @@ import {
 import { getRemainingCredits } from "../../../../utils/helpers/tech/remaining_credits";
 import { consumeCompanyCredits } from "../../../../utils/saas/companyCredits";
 import { formatEstablishmentAddress } from "../../../../utils/inegi";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 const typeDefs = `
   input PromoteInegiEstablishmentToLeadInput {
@@ -276,6 +278,14 @@ const resolver = {
       if (!consumeResult.success) {
         return fail("No se pudieron descontar créditos para asignar el lead");
       }
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.LEAD_PROMOTED_FROM_INEGI,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId: existingLead.id,
+        summary: `Tomó del catálogo INEGI a ${establishment.name} (ya estaba en Kadesh)`,
+        metadata: { establishmentId: establishment.id, creditsCharged: 1, alreadyInDb: true, sellerId },
+      });
       return {
         success: true,
         message: "Lead asignado a tu empresa",
@@ -343,6 +353,14 @@ const resolver = {
       if (!consumeResult.success) {
         return fail("No se pudieron descontar créditos para crear el lead");
       }
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.LEAD_PROMOTED_FROM_INEGI,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId: lead.id,
+        summary: `Tomó del catálogo INEGI a ${establishment.name}`,
+        metadata: { establishmentId: establishment.id, creditsCharged: 1, alreadyInDb: false, sellerId },
+      });
       return {
         success: true,
         message: "Lead importado desde INEGI DENUE",

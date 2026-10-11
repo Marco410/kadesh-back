@@ -1,6 +1,10 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { COMPANY_CREDIT_LEDGER_TYPE } from "../../../../models/Saas/SaasCompanyCreditLedger/constants";
 import {
+  ACTIVITY_CATEGORY,
+  ACTIVITY_EVENT,
+} from "../../../../models/ActivityEvent/constants";
+import {
   adminPrisma,
   assertPlatformAdmin,
   clampInt,
@@ -8,6 +12,7 @@ import {
   crmCompanyScope,
   DAY_MS,
   daysAgo,
+  optionalRead,
   toIso,
   toMxDay,
 } from "./shared";
@@ -34,6 +39,29 @@ const typeDefs = `
     whatsappSent: Int!
     toursCompleted: Int!
     toursSkipped: Int!
+    """Última vez con el panel abierto (latido). Más fiel que lastLoginAt: la sesión dura 30 días."""
+    lastSeenAt: String
+    """Días con el panel abierto en la ventana."""
+    activeDays: Int!
+    """Minutos con el panel abierto y la pestaña visible en la ventana."""
+    activeMinutes: Int!
+    """Cambios registrados en ActivityEvent (CRM, equipo, ajustes) en la ventana."""
+    changes: Int!
+  }
+
+  type AdminUsageStats {
+    """false hasta correr la migración de la Fase 2: todavía no hay latido ni eventos."""
+    ready: Boolean!
+    activeUsers: Int!
+    activeMinutes: Int!
+    """Minutos activos del equipo por día (hora de CDMX)."""
+    minutesByDay: [AdminDayValue!]!
+    """Secciones del panel que más abren."""
+    topSections: [AdminCount!]!
+    """Módulos bloqueados que vieron: intención de compra."""
+    lockedFeatures: [AdminCount!]!
+    upgradeClicks: Int!
+    exports: Int!
   }
 
   type AdminExtractionStats {
@@ -92,6 +120,7 @@ const typeDefs = `
     calendarLastSyncedAt: String
     calendarLastError: String
     checkoutFailures: Int!
+    usage: AdminUsageStats!
   }
 
   type Query {
@@ -124,6 +153,159 @@ function maxDate(...dates: Array<Date | null | undefined>): Date | null {
     (max, d) => (d && (!max || d > max) ? d : max),
     null,
   );
+}
+
+type UsageData = {
+  ready: boolean;
+  byUser: Map<string, { days: number; minutes: number }>;
+  lastSeen: Map<string, Date>;
+  changes: Map<string, { count: number; last: Date | null }>;
+  stats: {
+    ready: boolean;
+    activeUsers: number;
+    activeMinutes: number;
+    minutesByDay: Array<{ date: string; value: number }>;
+    topSections: Array<{ key: string; count: number }>;
+    lockedFeatures: Array<{ key: string; count: number }>;
+    upgradeClicks: number;
+    exports: number;
+  };
+};
+
+const EMPTY_USAGE: UsageData = {
+  ready: false,
+  byUser: new Map(),
+  lastSeen: new Map(),
+  changes: new Map(),
+  stats: {
+    ready: false,
+    activeUsers: 0,
+    activeMinutes: 0,
+    minutesByDay: [],
+    topSections: [],
+    lockedFeatures: [],
+    upgradeClicks: 0,
+    exports: 0,
+  },
+};
+
+const PRODUCT_SIGNAL_TYPES = [
+  ACTIVITY_EVENT.UI_SECTION_VIEWED,
+  ACTIVITY_EVENT.UI_FEATURE_LOCKED_VIEWED,
+  ACTIVITY_EVENT.UI_UPGRADE_CLICKED,
+  ACTIVITY_EVENT.LEAD_EXPORTED,
+];
+
+function tally(values: Array<string | null>): Array<{ key: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    if (!value) continue;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return countsToList([...counts.entries()].map(([key, count]) => ({ key, count }))).slice(0, 10);
+}
+
+function metaText(metadata: unknown, ...keys: string[]): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  for (const key of keys) {
+    const value = (metadata as Record<string, unknown>)[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return null;
+}
+
+/**
+ * Uso del panel (Fase 2): minutos activos por persona y día, cambios registrados y señales de
+ * producto. Antes de migrar devuelve `ready: false` y ceros.
+ */
+async function loadUsage(
+  prisma: any,
+  companyId: string,
+  userIds: string[],
+  since: Date,
+): Promise<UsageData> {
+  if (!prisma.userActivityDay || !prisma.activityEvent) return EMPTY_USAGE;
+  return optionalRead(async () => {
+    const sinceDay = new Date(`${toMxDay(since)}T00:00:00.000Z`);
+    const [dayRows, lastSeenRows, changeGroups, productRows] = await Promise.all([
+      prisma.userActivityDay.findMany({
+        where: { companyId, day: { gte: sinceDay } },
+        select: { userId: true, day: true, minutes: true },
+      }),
+      userIds.length
+        ? prisma.userActivityDay.groupBy({
+            by: ["userId"],
+            where: { userId: { in: userIds } },
+            _max: { lastSeenAt: true },
+          })
+        : [],
+      userIds.length
+        ? prisma.activityEvent.groupBy({
+            by: ["actorId"],
+            where: {
+              actorId: { in: userIds },
+              createdAt: { gte: since },
+              category: { not: ACTIVITY_CATEGORY.PRODUCT },
+            },
+            _count: { _all: true },
+            _max: { createdAt: true },
+          })
+        : [],
+      prisma.activityEvent.findMany({
+        where: { companyId, createdAt: { gte: since }, type: { in: PRODUCT_SIGNAL_TYPES } },
+        select: { type: true, metadata: true },
+        take: 5000,
+      }),
+    ]);
+
+    const byUser = new Map<string, { days: number; minutes: number }>();
+    const byDay = new Map<string, number>();
+    let activeMinutes = 0;
+    for (const row of dayRows as Array<{ userId: string | null; day: Date; minutes: number | null }>) {
+      const minutes = row.minutes ?? 0;
+      activeMinutes += minutes;
+      const date = new Date(row.day).toISOString().slice(0, 10);
+      byDay.set(date, (byDay.get(date) ?? 0) + minutes);
+      if (!row.userId) continue;
+      const current = byUser.get(row.userId) ?? { days: 0, minutes: 0 };
+      byUser.set(row.userId, { days: current.days + 1, minutes: current.minutes + minutes });
+    }
+
+    const lastSeen = new Map<string, Date>();
+    for (const row of lastSeenRows as Array<{ userId: string | null; _max: { lastSeenAt: Date | null } }>) {
+      if (row.userId && row._max.lastSeenAt) lastSeen.set(row.userId, row._max.lastSeenAt);
+    }
+
+    const changes = groupMap(changeGroups as GroupRow[], "actorId");
+    const product = productRows as Array<{ type: string; metadata: unknown }>;
+
+    return {
+      ready: true,
+      byUser,
+      lastSeen,
+      changes,
+      stats: {
+        ready: true,
+        activeUsers: byUser.size,
+        activeMinutes,
+        minutesByDay: [...byDay.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, value]) => ({ date, value })),
+        topSections: tally(
+          product
+            .filter((row) => row.type === ACTIVITY_EVENT.UI_SECTION_VIEWED)
+            .map((row) => metaText(row.metadata, "section", "tab")),
+        ),
+        lockedFeatures: tally(
+          product
+            .filter((row) => row.type === ACTIVITY_EVENT.UI_FEATURE_LOCKED_VIEWED)
+            .map((row) => metaText(row.metadata, "feature", "featureKey")),
+        ),
+        upgradeClicks: product.filter((row) => row.type === ACTIVITY_EVENT.UI_UPGRADE_CLICKED).length,
+        exports: product.filter((row) => row.type === ACTIVITY_EVENT.LEAD_EXPORTED).length,
+      },
+    };
+  }, EMPTY_USAGE);
 }
 
 function tourCounts(state: unknown) {
@@ -231,6 +413,8 @@ const resolver = {
     const aiCalls = groupMap(aiGroups as GroupRow[], "userId");
     const whatsappSent = groupMap(whatsappGroups as GroupRow[], "sentById");
 
+    const usage = await loadUsage(prisma, companyId, userIds, since);
+
     const team = users.map((user) => {
       const tours = tourCounts(user.onboardingState);
       const lastActivity = maxDate(
@@ -240,6 +424,7 @@ const resolver = {
         extractions.get(user.id)?.last,
         aiCalls.get(user.id)?.last,
         whatsappSent.get(user.id)?.last,
+        usage.changes.get(user.id)?.last,
       );
       return {
         userId: user.id,
@@ -255,6 +440,10 @@ const resolver = {
         whatsappSent: whatsappSent.get(user.id)?.count ?? 0,
         toursCompleted: tours.completed,
         toursSkipped: tours.skipped,
+        lastSeenAt: toIso(usage.lastSeen.get(user.id) ?? null),
+        activeDays: usage.byUser.get(user.id)?.days ?? 0,
+        activeMinutes: usage.byUser.get(user.id)?.minutes ?? 0,
+        changes: usage.changes.get(user.id)?.count ?? 0,
       };
     });
 
@@ -397,8 +586,10 @@ const resolver = {
     }>;
     const accountWithError = accounts.find((a) => a.lastSyncError);
 
+    // Tener el panel abierto también cuenta como actividad de la empresa.
     const companyLastActivity = maxDate(
       ...team.map((m) => (m.lastActivityAt ? new Date(m.lastActivityAt) : null)),
+      ...[...usage.lastSeen.values()],
     );
 
     return {
@@ -477,6 +668,7 @@ const resolver = {
       calendarLastSyncedAt: toIso(accounts[0]?.lastSyncedAt ?? null),
       calendarLastError: accountWithError?.lastSyncError ?? null,
       checkoutFailures,
+      usage: usage.stats,
     };
   },
 };

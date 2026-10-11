@@ -12,6 +12,38 @@ generator client {
   output   = "node_modules/.prisma/client"
 }
 
+model ActivityEvent {
+  id           String         @id @default(cuid())
+  type         String         @default("")
+  category     String
+  actor        User?          @relation("ActivityEvent_actor", fields: [actorId], references: [id])
+  actorId      String?        @map("actor")
+  company      SaasCompany?   @relation("ActivityEvent_company", fields: [companyId], references: [id])
+  companyId    String?        @map("company")
+  workspace    SaasWorkspace? @relation("ActivityEvent_workspace", fields: [workspaceId], references: [id])
+  workspaceId  String?        @map("workspace")
+  entityType   String?
+  entityId     String?
+  summary      String         @default("")
+  metadata     Json?
+  source       String?
+  success      Boolean        @default(true)
+  errorMessage String?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime?      @default(now())
+
+  @@index([type])
+  @@index([category])
+  @@index([actorId])
+  @@index([companyId])
+  @@index([workspaceId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([source])
+  @@index([createdAt])
+}
+
 model Ad {
   id              String    @id @default(cuid())
   title           String    @default("")
@@ -600,7 +632,9 @@ model SaasCompany {
   contactPhone                        String?
   createdAt                           DateTime?                    @default(now())
   updatedAt                           DateTime?                    @updatedAt
+  from_ActivityEvent_company          ActivityEvent[]              @relation("ActivityEvent_company")
   from_SaasReferralCommission_company SaasReferralCommission[]     @relation("SaasReferralCommission_company")
+  from_UserActivityDay_company        UserActivityDay[]            @relation("UserActivityDay_company")
 
   @@index([name])
   @@index([planId])
@@ -932,21 +966,22 @@ model SaasSubscriptionLog {
 }
 
 model SaasWorkspace {
-  id                String                   @id @default(cuid())
-  name              String                   @default("")
-  showActivities    Boolean                  @default(true)
-  showProposals     Boolean                  @default(true)
-  showFollowUpTasks Boolean                  @default(true)
-  showTasks         Boolean                  @default(true)
-  company           SaasCompany?             @relation("SaasWorkspace_company", fields: [companyId], references: [id])
-  companyId         String?                  @map("company")
-  members           User[]                   @relation("SaasWorkspace_members")
-  salesActivities   TechSalesActivity[]      @relation("TechSalesActivity_workspace")
-  tasks             TechTask[]               @relation("TechTask_workspace")
-  proposals         TechProposal[]           @relation("TechProposal_workspace")
-  calendarEvents    TechCalendarEvent[]      @relation("TechCalendarEvent_workspace")
-  followUpTasks     TechFollowUpTask[]       @relation("TechFollowUpTask_workspace")
-  crmStatuses       SaasWorkspaceCrmStatus[] @relation("SaasWorkspaceCrmStatus_workspace")
+  id                           String                   @id @default(cuid())
+  name                         String                   @default("")
+  showActivities               Boolean                  @default(true)
+  showProposals                Boolean                  @default(true)
+  showFollowUpTasks            Boolean                  @default(true)
+  showTasks                    Boolean                  @default(true)
+  company                      SaasCompany?             @relation("SaasWorkspace_company", fields: [companyId], references: [id])
+  companyId                    String?                  @map("company")
+  members                      User[]                   @relation("SaasWorkspace_members")
+  salesActivities              TechSalesActivity[]      @relation("TechSalesActivity_workspace")
+  tasks                        TechTask[]               @relation("TechTask_workspace")
+  proposals                    TechProposal[]           @relation("TechProposal_workspace")
+  calendarEvents               TechCalendarEvent[]      @relation("TechCalendarEvent_workspace")
+  followUpTasks                TechFollowUpTask[]       @relation("TechFollowUpTask_workspace")
+  crmStatuses                  SaasWorkspaceCrmStatus[] @relation("SaasWorkspaceCrmStatus_workspace")
+  from_ActivityEvent_workspace ActivityEvent[]          @relation("ActivityEvent_workspace")
 
   @@index([name])
   @@index([companyId])
@@ -1625,6 +1660,7 @@ model User {
   createdAt                                DateTime?                @default(now())
   lastLoginAt                              DateTime?
   onboardingState                          Json?                    @default("{}")
+  from_ActivityEvent_actor                 ActivityEvent[]          @relation("ActivityEvent_actor")
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")
   from_AnimalComment_user                  AnimalComment[]          @relation("AnimalComment_user")
@@ -1643,11 +1679,30 @@ model User {
   from_SaasReferralCommission_referrer     SaasReferralCommission[] @relation("SaasReferralCommission_referrer")
   from_SaasReferralCommission_referredUser SaasReferralCommission[] @relation("SaasReferralCommission_referredUser")
   from_TokenNotification_user              TokenNotification[]      @relation("TokenNotification_user")
+  from_UserActivityDay_user                UserActivityDay[]        @relation("UserActivityDay_user")
   from_WishList_user                       WishList[]               @relation("WishList_user")
 
   @@index([referredById])
   @@index([companyId])
   @@index([product])
+}
+
+model UserActivityDay {
+  id          String       @id @default(cuid())
+  key         String       @unique @default("")
+  user        User?        @relation("UserActivityDay_user", fields: [userId], references: [id])
+  userId      String?      @map("user")
+  company     SaasCompany? @relation("UserActivityDay_company", fields: [companyId], references: [id])
+  companyId   String?      @map("company")
+  day         DateTime     @postgresql.Date
+  minutes     Int?         @default(0)
+  firstSeenAt DateTime?
+  lastSeenAt  DateTime?
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([day])
+  @@index([lastSeenAt])
 }
 
 model UserAuthLog {
@@ -1661,6 +1716,8 @@ model UserAuthLog {
   emailMasked      String    @default("")
   responseSnapshot Json?
   durationMs       Int?
+  ip               String?
+  userAgent        String?
   createdAt        DateTime? @default(now())
 
   @@index([userId])

@@ -1,5 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import type { UserAuthLogSource } from "../../models/User/UserAuthLog/constants";
+import { requestIp, requestUserAgent } from "../activity/requestMeta";
 
 function maskEmail(email: string): string {
   const trimmed = email.trim();
@@ -25,6 +26,7 @@ type WriteUserAuthLogParams = {
 
 /**
  * Persist auth/register events. Never throws; never stores session tokens.
+ * Guarda IP y navegador de la petición: sirven para detectar cuentas compartidas o accesos raros.
  */
 export async function writeUserAuthLog(
   context: KeystoneContext,
@@ -42,6 +44,8 @@ export async function writeUserAuthLog(
         emailMasked: maskEmail(params.email),
         durationMs,
         responseSnapshot: snapshot,
+        ip: requestIp(context.req),
+        userAgent: requestUserAgent(context.req),
         ...(params.userId ? { user: { connect: { id: params.userId } } } : {}),
       },
     });

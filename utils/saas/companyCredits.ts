@@ -12,6 +12,8 @@ import {
   COMPANY_CREDIT_LEDGER_TYPE,
 } from "../../models/Saas/SaasCompanyCreditLedger/constants";
 import { getFreePlanTrialInfo } from "./freePlanTrial";
+import { ACTIVITY_EVENT } from "../../models/ActivityEvent/constants";
+import { logActivity } from "../activity/logActivity";
 
 /** Snapshot de un periodo mensual de créditos de una empresa. */
 export type SaasCompanyCreditPeriodRecord = {
@@ -56,6 +58,35 @@ function getPeriodAllowance(period: SaasCompanyCreditPeriodRecord): number {
 /** Créditos disponibles en el periodo (nunca negativo). */
 function getPeriodRemaining(period: SaasCompanyCreditPeriodRecord): number {
   return Math.max(0, getPeriodAllowance(period) - (period.used ?? 0));
+}
+
+/**
+ * Evento cuando un consumo deja el periodo en 0: señal de upsell (y de por qué alguien dejó de extraer).
+ * Solo en la transición, no en cada intento bloqueado.
+ */
+function logIfExhausted(
+  context: KeystoneContext,
+  companyId: string,
+  period: SaasCompanyCreditPeriodRecord,
+  consumed: number,
+  ledgerType: string,
+): void {
+  if (getPeriodRemaining(period) > 0) return;
+  const allowance = getPeriodAllowance(period);
+  void logActivity(context, {
+    type: ACTIVITY_EVENT.CREDITS_EXHAUSTED,
+    companyId,
+    entityType: "SaasCompanyCreditPeriod",
+    entityId: period.id,
+    summary: `Se acabaron los créditos del mes (${allowance})`,
+    metadata: {
+      allowance,
+      used: period.used ?? 0,
+      lastConsumption: consumed,
+      ledgerType,
+      periodKey: period.periodKey,
+    },
+  });
 }
 
 /** Suscripción ACTIVE o TRIALING más reciente de la empresa. */
@@ -469,6 +500,7 @@ export async function consumeCompanyCredits(
       notes: params.notes ?? null,
       metadata: params.metadata,
     });
+    logIfExhausted(context, params.companyId, refreshed, params.amount, consumeType);
 
     return {
       success: true,
@@ -498,6 +530,7 @@ export async function consumeCompanyCredits(
     notes: params.notes ?? null,
     metadata: params.metadata,
   });
+  logIfExhausted(context, params.companyId, updated, params.amount, consumeType);
 
   return {
     success: true,

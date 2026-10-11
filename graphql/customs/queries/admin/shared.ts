@@ -255,3 +255,59 @@ export function countsToList(
     .map((row) => ({ key: row.key ?? "", count: row.count }))
     .sort((a, b) => b.count - a.count);
 }
+
+/**
+ * Tablas de la Fase 2 (`UserActivityDay`, `ActivityEvent`). Antes de correr `yarn migrate`
+ * el cliente de Prisma no las tiene o la tabla no existe: estas lecturas devuelven vacío
+ * y Operaciones sigue funcionando con `lastLoginAt` y los logs de siempre.
+ */
+async function optional<T>(read: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await read();
+  } catch {
+    return fallback;
+  }
+}
+
+/** Última vez que alguien del equipo tuvo el panel abierto (latido), por empresa. */
+export async function lastSeenByCompany(
+  prisma: any,
+  companyIds: string[],
+): Promise<Map<string, Date>> {
+  if (!prisma.userActivityDay || !companyIds.length) return new Map();
+  return optional(async () => {
+    const rows: Array<{ companyId: string | null; _max: { lastSeenAt: Date | null } }> =
+      await prisma.userActivityDay.groupBy({
+        by: ["companyId"],
+        where: { companyId: { in: companyIds } },
+        _max: { lastSeenAt: true },
+      });
+    return new Map(
+      rows
+        .filter((row) => row.companyId && row._max.lastSeenAt)
+        .map((row) => [row.companyId as string, row._max.lastSeenAt as Date]),
+    );
+  }, new Map());
+}
+
+/** Personas con el panel abierto desde `since` (latido). */
+export async function activeUserIdsSince(prisma: any, since: Date): Promise<string[]> {
+  if (!prisma.userActivityDay) return [];
+  return optional(async () => {
+    const rows: Array<{ userId: string | null }> = await prisma.userActivityDay.findMany({
+      where: { lastSeenAt: { gte: since } },
+      distinct: ["userId"],
+      select: { userId: true },
+    });
+    return rows.map((row) => row.userId).filter((id): id is string => Boolean(id));
+  }, []);
+}
+
+export function latestDate(...dates: Array<Date | null | undefined>): Date | null {
+  return dates.reduce<Date | null>(
+    (max, date) => (date && (!max || date > max) ? date : max),
+    null,
+  );
+}
+
+export { optional as optionalRead };

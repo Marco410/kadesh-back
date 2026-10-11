@@ -4,11 +4,14 @@ import { COMPANY_CREDIT_LEDGER_TYPE } from "../../../../models/Saas/SaasCompanyC
 import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../../models/Saas/SaasSubscriptionLog/constants";
 import {
   DAY_MS,
+  activeUserIdsSince,
   adminPrisma,
   assertPlatformAdmin,
   companyCredits,
   currentPeriod,
   daysAgo,
+  lastSeenByCompany,
+  latestDate,
   latestSubscriptionsByCompany,
   monthlyAmount,
   testCompanyIds,
@@ -273,10 +276,13 @@ const resolver = {
         (row) => [row.companyId, row._max.lastLoginAt],
       ),
     );
+    // La sesión dura 30 días: sin el latido, un equipo que usa el panel a diario sin volver a
+    // iniciar sesión salía como "inactivo".
+    const lastSeen = await lastSeenByCompany(prisma, realIds);
     for (const company of real) {
       const sub = latest.get(company.id);
       if (sub?.status !== SUBSCRIPTION_STATUS.ACTIVE) continue;
-      const last = lastLoginByCompany.get(company.id) ?? null;
+      const last = latestDate(lastLoginByCompany.get(company.id), lastSeen.get(company.id));
       if (last && last >= sinceInactive) continue;
       attention.push({
         companyId: company.id,
@@ -290,6 +296,7 @@ const resolver = {
       });
     }
 
+    const seenUserIds = await activeUserIdsSince(prisma, since7d);
     const [
       newUsers7d,
       newCompanies7d,
@@ -302,7 +309,15 @@ const resolver = {
     ] = await Promise.all([
       prisma.user.count({ where: { createdAt: { gte: since7d }, userTest: false } }),
       Promise.resolve(real.filter((c) => c.createdAt && c.createdAt >= since7d).length),
-      prisma.user.count({ where: { lastLoginAt: { gte: since7d }, userTest: false } }),
+      prisma.user.count({
+        where: {
+          userTest: false,
+          OR: [
+            { lastLoginAt: { gte: since7d } },
+            ...(seenUserIds.length ? [{ id: { in: seenUserIds } }] : []),
+          ],
+        },
+      }),
       prisma.techLeadSyncLog.count({ where: { createdAt: { gte: since24h }, companyId: { in: realIds } } }),
       prisma.techLeadSyncLog.count({
         where: { createdAt: { gte: since24h }, success: false, companyId: { in: realIds } },

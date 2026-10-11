@@ -7,6 +7,7 @@ import { isPlatformAdmin } from "./utils/access/tenant";
 import registerWhatsAppWebhook from "./webhooks/whatsapp";
 import registerClickUpWebhook from "./webhooks/clickup";
 import registerMetaDataDeletionWebhook from "./webhooks/metaDataDeletion";
+import registerStripeWebhook from "./webhooks/stripe";
 
 // Setup environment variables
 const path = require("path");
@@ -170,6 +171,7 @@ export default withAuth(
         registerWhatsAppWebhook(app, context);
         registerClickUpWebhook(app, context);
         registerMetaDataDeletionWebhook(app, context);
+        registerStripeWebhook(app, context);
       },
     },
     storage,

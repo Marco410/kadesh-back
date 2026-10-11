@@ -7,6 +7,8 @@ import {
   companyCredits,
   currentPeriod,
   insensitive,
+  lastSeenByCompany,
+  latestDate,
   latestSubscriptionsByCompany,
   personRef,
   toIso,
@@ -50,6 +52,8 @@ const typeDefs = `
     usersCount: Int!
     leadsCount: Int!
     lastLoginAt: String
+    """Última vez que alguien del equipo tuvo el panel abierto (latido). Más fiel que el último login: la sesión dura 30 días."""
+    lastSeenAt: String
     owner: AdminPersonRef
   }
 
@@ -180,8 +184,12 @@ const resolver = {
           where: { companyId: { in: filteredIds } },
           _max: { lastLoginAt: true },
         });
+      const seen = await lastSeenByCompany(prisma, filteredIds);
       const lastByCompany = new Map(
-        lastLogins.map((row) => [row.companyId, row._max.lastLoginAt?.getTime() ?? 0]),
+        lastLogins.map((row) => [
+          row.companyId,
+          latestDate(row._max.lastLoginAt, row.companyId ? seen.get(row.companyId) : null)?.getTime() ?? 0,
+        ]),
       );
       pageIds = [...filteredIds]
         .sort((a, b) => (lastByCompany.get(b) ?? 0) - (lastByCompany.get(a) ?? 0))
@@ -231,6 +239,7 @@ const resolver = {
       },
     });
     const byId = new Map(records.map((r) => [r.id, r]));
+    const lastSeen = await lastSeenByCompany(prisma, pageIds);
 
     const items = pageIds
       .map((id) => byId.get(id))
@@ -265,6 +274,7 @@ const resolver = {
           usersCount: c._count.users,
           leadsCount: c._count.leads,
           lastLoginAt: toIso(lastLogin),
+          lastSeenAt: toIso(lastSeen.get(c.id) ?? null),
           owner: personRef(pickOwner(c.users)),
         };
       });

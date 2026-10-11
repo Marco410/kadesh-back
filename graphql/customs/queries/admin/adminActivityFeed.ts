@@ -2,6 +2,10 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import { COMPANY_CREDIT_LEDGER_TYPE } from "../../../../models/Saas/SaasCompanyCreditLedger/constants";
 import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../../models/Saas/SaasSubscriptionLog/constants";
 import { USER_AUTH_LOG_STEP } from "../../../../models/User/UserAuthLog/constants";
+import {
+  ACTIVITY_SOURCE,
+  FEED_HIDDEN_EVENT_TYPES,
+} from "../../../../models/ActivityEvent/constants";
 import { AI_FEATURE } from "../../../../utils/ai/constants";
 import {
   PERSON_SELECT,
@@ -14,7 +18,8 @@ import {
 } from "./shared";
 
 /**
- * Feed de actividad de Operaciones. Une los logs que ya existen en una sola línea de tiempo.
+ * Feed de actividad de Operaciones. Une los logs que ya existen y `ActivityEvent` (Fase 2)
+ * en una sola línea de tiempo.
  * Pagina por cursor (`before` = fecha del último item) porque mezcla varias tablas.
  * Nunca devuelve prompts de IA, cuerpos de WhatsApp ni contraseñas.
  */
@@ -23,20 +28,25 @@ const FEED_TYPES = [
   "auth",
   "extraction",
   "crm",
+  "team",
   "ai",
   "credits",
   "billing",
   "whatsapp",
   "calendar",
   "admin",
+  "product",
 ] as const;
 type FeedType = (typeof FEED_TYPES)[number];
+
+/** Sin filtro de tipo se muestra todo menos la navegación (vistas de secciones): es mucho volumen. */
+const DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
 
 const typeDefs = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
-    """auth | extraction | crm | ai | credits | billing | whatsapp | calendar | admin"""
+    """auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide)"""
     types: [String!]
     onlyErrors: Boolean
     search: String
@@ -1078,6 +1088,109 @@ async function calendarSource(c: SourceCtx): Promise<FeedItem[]> {
   }));
 }
 
+const SOURCE_DETAIL: Record<string, string> = {
+  [ACTIVITY_SOURCE.ADMIN]: "Admin de Kadesh",
+  [ACTIVITY_SOURCE.WEBHOOK]: "Aviso de Stripe",
+  [ACTIVITY_SOURCE.SYSTEM]: "Automático",
+};
+
+/**
+ * Eventos propios (Fase 2): cambios hechos por personas, Stripe, navegación y registro del admin.
+ * La categoría del evento es el tipo del feed. Antes de `yarn migrate` la tabla no existe y esta
+ * fuente devuelve vacío, así que el feed sigue igual con los logs de siempre.
+ */
+async function activityEventSource(c: SourceCtx): Promise<FeedItem[]> {
+  if (!c.prisma.activityEvent) return [];
+  const categories = [...c.types];
+  if (!categories.length) return [];
+
+  const where: Record<string, unknown> = {
+    createdAt: timeFilter(c.before),
+    category: { in: categories },
+    // Ya salen de su propia tabla (hitos de cotización, cobros de SaasPayment).
+    type: { notIn: [...FEED_HIDDEN_EVENT_TYPES] },
+  };
+  const and: Record<string, unknown>[] = [];
+  if (c.companyId) where.companyId = c.companyId;
+  // Lo que hizo la persona y lo que le hicieron a su cuenta (roles, permisos).
+  if (c.userId) and.push({ OR: [{ actorId: c.userId }, { entityType: "User", entityId: c.userId }] });
+  if (c.onlyErrors) where.success = false;
+  if (c.search) {
+    and.push({
+      OR: [
+        { summary: insensitive(c.search) },
+        { type: insensitive(c.search) },
+        { company: { name: insensitive(c.search) } },
+        { actor: personSearch(c.search) },
+      ],
+    });
+  }
+  if (and.length) where.AND = and;
+
+  let rows: Array<{
+    id: string;
+    type: string;
+    category: string;
+    summary: string;
+    metadata: Record<string, unknown> | null;
+    source: string | null;
+    success: boolean;
+    errorMessage: string | null;
+    entityType: string | null;
+    entityId: string | null;
+    createdAt: Date;
+    actor: Person | null;
+    company: CompanyRef | null;
+  }>;
+  try {
+    rows = await c.prisma.activityEvent.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        type: true,
+        category: true,
+        summary: true,
+        metadata: true,
+        source: true,
+        success: true,
+        errorMessage: true,
+        entityType: true,
+        entityId: true,
+        createdAt: true,
+        actor: { select: PERSON_SELECT },
+        company: COMPANY_SELECT,
+      },
+    });
+  } catch {
+    return [];
+  }
+
+  return rows.map((row) => ({
+    id: `event:${row.id}`,
+    type: (FEED_TYPES as readonly string[]).includes(row.category)
+      ? (row.category as FeedType)
+      : "product",
+    kind: row.type,
+    occurredAt: row.createdAt,
+    title: row.summary || row.type,
+    detail: joinDetail([
+      row.source ? SOURCE_DETAIL[row.source] : null,
+      row.success ? null : row.errorMessage,
+    ]),
+    success: row.success,
+    actor: row.actor,
+    company: row.company,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    meta: {
+      ...(row.metadata && typeof row.metadata === "object" ? row.metadata : {}),
+      source: row.source,
+    },
+  }));
+}
+
 const SOURCES = [
   authSource,
   extractionSource,
@@ -1087,6 +1200,7 @@ const SOURCES = [
   whatsappSource,
   crmSource,
   calendarSource,
+  activityEventSource,
 ];
 
 const resolver = {
@@ -1111,7 +1225,7 @@ const resolver = {
       before: before && !Number.isNaN(before.getTime()) ? before : null,
       // Uno de más por fuente para saber si hay otra página.
       take: take + 1,
-      types: new Set(requested.length ? requested : FEED_TYPES),
+      types: new Set(requested.length ? requested : DEFAULT_FEED_TYPES),
     };
 
     const batches = await Promise.all(SOURCES.map((source) => source(ctx)));

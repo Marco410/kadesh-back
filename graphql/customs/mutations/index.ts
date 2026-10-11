@@ -41,6 +41,7 @@ import disconnectGoogleCalendarAccount from "./googleCalendar/disconnectGoogleCa
 import refreshGoogleCalendarList from "./googleCalendar/refreshGoogleCalendarList";
 import toggleGoogleCalendarSelection from "./googleCalendar/toggleGoogleCalendarSelection";
 import setGoogleCalendarPushSettings from "./googleCalendar/setGoogleCalendarPushSettings";
+import trackEvents from "./activity/trackEvents";
 
 const customMutation = {
   typeDefs: `
@@ -87,6 +88,7 @@ const customMutation = {
     ${refreshGoogleCalendarList.typeDefs}
     ${toggleGoogleCalendarSelection.typeDefs}
     ${setGoogleCalendarPushSettings.typeDefs}
+    ${trackEvents.typeDefs}
   `,
   definitions: `
     ${customAuth.definition}
@@ -132,6 +134,7 @@ const customMutation = {
     ${refreshGoogleCalendarList.definition}
     ${toggleGoogleCalendarSelection.definition}
     ${setGoogleCalendarPushSettings.definition}
+    ${trackEvents.definition}
   `,
   resolvers: {
     ...customAuth.resolver,
@@ -177,6 +180,7 @@ const customMutation = {
     ...refreshGoogleCalendarList.resolver,
     ...toggleGoogleCalendarSelection.resolver,
     ...setGoogleCalendarPushSettings.resolver,
+    ...trackEvents.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
