@@ -308,7 +308,7 @@ const resolver = {
           },
           orderBy: [{ activatedAt: "desc" }],
           take: 1,
-          query: "id planCost activatedAt newCreditsAdded",
+          query: "id planCost activatedAt currentPeriodEnd newCreditsAdded",
         });
 
       if (!activeSubscription) {
@@ -327,6 +327,7 @@ const resolver = {
         id: string;
         planCost?: number | null;
         activatedAt?: string | null;
+        currentPeriodEnd?: string | null;
         newCreditsAdded?: number | null;
       };
 
@@ -334,7 +335,7 @@ const resolver = {
 
       const isFreePlan = sub.planCost != null && sub.planCost <= 0;
       if (isFreePlan && sub.activatedAt) {
-        const { isExpired } = getFreePlanTrialInfo(sub.activatedAt);
+        const { isExpired } = getFreePlanTrialInfo(sub.activatedAt, sub.currentPeriodEnd);
         if (isExpired) {
           return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
             success: false,

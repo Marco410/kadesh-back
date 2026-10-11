@@ -61,6 +61,8 @@ import SaasCredit from "./Saas/SaasCredit/SaasCredit";
 import SaasCompanyMonthlyLeadSync from "./Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync";
 import SaasCompanyCreditPeriod from "./Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod";
 import SaasCompanyCreditLedger from "./Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger";
+import SaasCompanyNote from "./Saas/SaasCompanyNote/SaasCompanyNote";
+import SaasCompanyDailyUsage from "./Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage";
 import SaasCompanySubscription from "./Saas/SaasCompanySubscription/SaasCompanySubscription";
 import SaasPaymentMethod from "./Saas/SaasPaymentMethod/SaasPaymentMethod";
 import SaasPayment from "./Saas/SaasPayment/SaasPayment";
@@ -116,6 +118,8 @@ export default withActivityHooks({
   SaasCompanyMonthlyLeadSync,
   SaasCompanyCreditPeriod,
   SaasCompanyCreditLedger,
+  SaasCompanyDailyUsage,
+  SaasCompanyNote,
   SaasCompanySubscription,
   SaasPayment,
   SaasPaymentMethod,

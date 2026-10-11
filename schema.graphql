@@ -3074,6 +3074,9 @@ type SaasCompany {
   colorSecondary: String
   contactEmail: String
   contactPhone: String
+  suspendedAt: DateTime
+  suspendedReason: String
+  accountManager: User
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3145,6 +3148,9 @@ input SaasCompanyWhereInput {
   colorSecondary: StringNullableFilter
   contactEmail: StringNullableFilter
   contactPhone: StringNullableFilter
+  suspendedAt: DateTimeNullableFilter
+  suspendedReason: StringNullableFilter
+  accountManager: UserWhereInput
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3284,6 +3290,8 @@ input SaasCompanyOrderByInput {
   colorSecondary: OrderDirection
   contactEmail: OrderDirection
   contactPhone: OrderDirection
+  suspendedAt: OrderDirection
+  suspendedReason: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -3341,6 +3349,9 @@ input SaasCompanyUpdateInput {
   colorSecondary: String
   contactEmail: String
   contactPhone: String
+  suspendedAt: DateTime
+  suspendedReason: String
+  accountManager: UserRelateToOneForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3532,6 +3543,9 @@ input SaasCompanyCreateInput {
   colorSecondary: String
   contactEmail: String
   contactPhone: String
+  suspendedAt: DateTime
+  suspendedReason: String
+  accountManager: UserRelateToOneForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3865,6 +3879,194 @@ input SaasCompanyCreditLedgerCreateInput {
 input SaasCompanyCreditPeriodRelateToOneForCreateInput {
   create: SaasCompanyCreditPeriodCreateInput
   connect: SaasCompanyCreditPeriodWhereUniqueInput
+}
+
+type SaasCompanyDailyUsage {
+  id: ID!
+  key: String
+  company: SaasCompany
+  day: CalendarDay
+  activeUsers: Int
+  activeMinutes: Int
+  logins: Int
+  extractions: Int
+  extractionsFailed: Int
+  leadsCreated: Int
+  leadsReused: Int
+  creditsConsumed: Int
+  aiCalls: Int
+  crmChanges: Int
+  activitiesLogged: Int
+  quotationsCreated: Int
+  quotationsSent: Int
+  quotationsAccepted: Int
+  whatsappSent: Int
+  whatsappReceived: Int
+  computedAt: DateTime
+}
+
+input SaasCompanyDailyUsageWhereUniqueInput {
+  id: ID
+  key: String
+}
+
+input SaasCompanyDailyUsageWhereInput {
+  AND: [SaasCompanyDailyUsageWhereInput!]
+  OR: [SaasCompanyDailyUsageWhereInput!]
+  NOT: [SaasCompanyDailyUsageWhereInput!]
+  id: IDFilter
+  key: StringFilter
+  company: SaasCompanyWhereInput
+  day: CalendarDayFilter
+  activeUsers: IntFilter
+  activeMinutes: IntFilter
+  logins: IntFilter
+  extractions: IntFilter
+  extractionsFailed: IntFilter
+  leadsCreated: IntFilter
+  leadsReused: IntFilter
+  creditsConsumed: IntFilter
+  aiCalls: IntFilter
+  crmChanges: IntFilter
+  activitiesLogged: IntFilter
+  quotationsCreated: IntFilter
+  quotationsSent: IntFilter
+  quotationsAccepted: IntFilter
+  whatsappSent: IntFilter
+  whatsappReceived: IntFilter
+  computedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyDailyUsageOrderByInput {
+  id: OrderDirection
+  key: OrderDirection
+  day: OrderDirection
+  activeUsers: OrderDirection
+  activeMinutes: OrderDirection
+  logins: OrderDirection
+  extractions: OrderDirection
+  extractionsFailed: OrderDirection
+  leadsCreated: OrderDirection
+  leadsReused: OrderDirection
+  creditsConsumed: OrderDirection
+  aiCalls: OrderDirection
+  crmChanges: OrderDirection
+  activitiesLogged: OrderDirection
+  quotationsCreated: OrderDirection
+  quotationsSent: OrderDirection
+  quotationsAccepted: OrderDirection
+  whatsappSent: OrderDirection
+  whatsappReceived: OrderDirection
+  computedAt: OrderDirection
+}
+
+input SaasCompanyDailyUsageUpdateInput {
+  key: String
+  company: SaasCompanyRelateToOneForUpdateInput
+  day: CalendarDay
+  activeUsers: Int
+  activeMinutes: Int
+  logins: Int
+  extractions: Int
+  extractionsFailed: Int
+  leadsCreated: Int
+  leadsReused: Int
+  creditsConsumed: Int
+  aiCalls: Int
+  crmChanges: Int
+  activitiesLogged: Int
+  quotationsCreated: Int
+  quotationsSent: Int
+  quotationsAccepted: Int
+  whatsappSent: Int
+  whatsappReceived: Int
+  computedAt: DateTime
+}
+
+input SaasCompanyDailyUsageUpdateArgs {
+  where: SaasCompanyDailyUsageWhereUniqueInput!
+  data: SaasCompanyDailyUsageUpdateInput!
+}
+
+input SaasCompanyDailyUsageCreateInput {
+  key: String
+  company: SaasCompanyRelateToOneForCreateInput
+  day: CalendarDay
+  activeUsers: Int
+  activeMinutes: Int
+  logins: Int
+  extractions: Int
+  extractionsFailed: Int
+  leadsCreated: Int
+  leadsReused: Int
+  creditsConsumed: Int
+  aiCalls: Int
+  crmChanges: Int
+  activitiesLogged: Int
+  quotationsCreated: Int
+  quotationsSent: Int
+  quotationsAccepted: Int
+  whatsappSent: Int
+  whatsappReceived: Int
+  computedAt: DateTime
+}
+
+type SaasCompanyNote {
+  id: ID!
+  company: SaasCompany
+  author: User
+  body: String
+  pinned: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyNoteWhereUniqueInput {
+  id: ID
+}
+
+input SaasCompanyNoteWhereInput {
+  AND: [SaasCompanyNoteWhereInput!]
+  OR: [SaasCompanyNoteWhereInput!]
+  NOT: [SaasCompanyNoteWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  author: UserWhereInput
+  body: StringFilter
+  pinned: BooleanFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input SaasCompanyNoteOrderByInput {
+  id: OrderDirection
+  body: OrderDirection
+  pinned: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SaasCompanyNoteUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  author: UserRelateToOneForUpdateInput
+  body: String
+  pinned: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SaasCompanyNoteUpdateArgs {
+  where: SaasCompanyNoteWhereUniqueInput!
+  data: SaasCompanyNoteUpdateInput!
+}
+
+input SaasCompanyNoteCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  author: UserRelateToOneForCreateInput
+  body: String
+  pinned: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type SaasCompanySubscription {
@@ -7872,6 +8074,10 @@ type User {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  suspendedAt: DateTime
+  suspendedReason: String
+  sessionVersion: Int
+  anonymizedAt: DateTime
 }
 
 type PasswordState {
@@ -7950,6 +8156,10 @@ input UserWhereInput {
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   createdAt: DateTimeNullableFilter
   lastLoginAt: DateTimeNullableFilter
+  suspendedAt: DateTimeNullableFilter
+  suspendedReason: StringNullableFilter
+  sessionVersion: IntNullableFilter
+  anonymizedAt: DateTimeNullableFilter
 }
 
 input PasswordFilter {
@@ -8016,6 +8226,10 @@ input UserOrderByInput {
   stripeCustomerId: OrderDirection
   createdAt: OrderDirection
   lastLoginAt: OrderDirection
+  suspendedAt: OrderDirection
+  suspendedReason: OrderDirection
+  sessionVersion: OrderDirection
+  anonymizedAt: OrderDirection
 }
 
 input UserUpdateInput {
@@ -8082,6 +8296,10 @@ input UserUpdateInput {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  suspendedAt: DateTime
+  suspendedReason: String
+  sessionVersion: Int
+  anonymizedAt: DateTime
 }
 
 input RoleRelateToManyForUpdateInput {
@@ -8195,6 +8413,10 @@ input UserCreateInput {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  suspendedAt: DateTime
+  suspendedReason: String
+  sessionVersion: Int
+  anonymizedAt: DateTime
 }
 
 input RoleRelateToManyForCreateInput {
@@ -8644,6 +8866,18 @@ type Mutation {
   updateSaasCompanyCreditLedgers(data: [SaasCompanyCreditLedgerUpdateArgs!]!): [SaasCompanyCreditLedger]
   deleteSaasCompanyCreditLedger(where: SaasCompanyCreditLedgerWhereUniqueInput!): SaasCompanyCreditLedger
   deleteSaasCompanyCreditLedgers(where: [SaasCompanyCreditLedgerWhereUniqueInput!]!): [SaasCompanyCreditLedger]
+  createSaasCompanyDailyUsage(data: SaasCompanyDailyUsageCreateInput!): SaasCompanyDailyUsage
+  createSaasCompanyDailyUsages(data: [SaasCompanyDailyUsageCreateInput!]!): [SaasCompanyDailyUsage]
+  updateSaasCompanyDailyUsage(where: SaasCompanyDailyUsageWhereUniqueInput!, data: SaasCompanyDailyUsageUpdateInput!): SaasCompanyDailyUsage
+  updateSaasCompanyDailyUsages(data: [SaasCompanyDailyUsageUpdateArgs!]!): [SaasCompanyDailyUsage]
+  deleteSaasCompanyDailyUsage(where: SaasCompanyDailyUsageWhereUniqueInput!): SaasCompanyDailyUsage
+  deleteSaasCompanyDailyUsages(where: [SaasCompanyDailyUsageWhereUniqueInput!]!): [SaasCompanyDailyUsage]
+  createSaasCompanyNote(data: SaasCompanyNoteCreateInput!): SaasCompanyNote
+  createSaasCompanyNotes(data: [SaasCompanyNoteCreateInput!]!): [SaasCompanyNote]
+  updateSaasCompanyNote(where: SaasCompanyNoteWhereUniqueInput!, data: SaasCompanyNoteUpdateInput!): SaasCompanyNote
+  updateSaasCompanyNotes(data: [SaasCompanyNoteUpdateArgs!]!): [SaasCompanyNote]
+  deleteSaasCompanyNote(where: SaasCompanyNoteWhereUniqueInput!): SaasCompanyNote
+  deleteSaasCompanyNotes(where: [SaasCompanyNoteWhereUniqueInput!]!): [SaasCompanyNote]
   createSaasCompanySubscription(data: SaasCompanySubscriptionCreateInput!): SaasCompanySubscription
   createSaasCompanySubscriptions(data: [SaasCompanySubscriptionCreateInput!]!): [SaasCompanySubscription]
   updateSaasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!, data: SaasCompanySubscriptionUpdateInput!): SaasCompanySubscription
@@ -8936,7 +9170,17 @@ type Mutation {
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
-  customAuth(email: String!, name: String, lastName: String): customAuthType
+  adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
+  adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
+  adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+  adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+  adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
+  adminTransferCompanyOwnership(companyId: ID!, newOwnerId: ID!, removeOtherAdmins: Boolean): AdminControlResult!
+  adminStartImpersonation(userId: ID!, reason: String!): AdminImpersonationResult!
+  endImpersonation: AdminControlResult!
+  adminExportPersonData(userId: ID!): JSON!
+  adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
+  rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
@@ -9081,6 +9325,12 @@ type Query {
   saasCompanyCreditLedger(where: SaasCompanyCreditLedgerWhereUniqueInput!): SaasCompanyCreditLedger
   saasCompanyCreditLedgers(where: SaasCompanyCreditLedgerWhereInput! = {}, orderBy: [SaasCompanyCreditLedgerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyCreditLedgerWhereUniqueInput): [SaasCompanyCreditLedger!]
   saasCompanyCreditLedgersCount(where: SaasCompanyCreditLedgerWhereInput! = {}): Int
+  saasCompanyDailyUsage(where: SaasCompanyDailyUsageWhereUniqueInput!): SaasCompanyDailyUsage
+  saasCompanyDailyUsages(where: SaasCompanyDailyUsageWhereInput! = {}, orderBy: [SaasCompanyDailyUsageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyDailyUsageWhereUniqueInput): [SaasCompanyDailyUsage!]
+  saasCompanyDailyUsagesCount(where: SaasCompanyDailyUsageWhereInput! = {}): Int
+  saasCompanyNote(where: SaasCompanyNoteWhereUniqueInput!): SaasCompanyNote
+  saasCompanyNotes(where: SaasCompanyNoteWhereInput! = {}, orderBy: [SaasCompanyNoteOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanyNoteWhereUniqueInput): [SaasCompanyNote!]
+  saasCompanyNotesCount(where: SaasCompanyNoteWhereInput! = {}): Int
   saasCompanySubscription(where: SaasCompanySubscriptionWhereUniqueInput!): SaasCompanySubscription
   saasCompanySubscriptions(where: SaasCompanySubscriptionWhereInput! = {}, orderBy: [SaasCompanySubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SaasCompanySubscriptionWhereUniqueInput): [SaasCompanySubscription!]
   saasCompanySubscriptionsCount(where: SaasCompanySubscriptionWhereInput! = {}): Int
@@ -9224,6 +9474,7 @@ type Query {
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   adminOpsSummary: AdminOpsSummary!
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
+  adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   findAnimalReportDuplicates(phone: String, animalTypeId: ID, name: String, sourceUrl: String): [AnimalReportDuplicate!]!
   dailyDigest(companyId: ID!): DailyDigestResult!
@@ -9363,12 +9614,6 @@ type KeystoneAdminUISort {
 enum KeystoneAdminUISortDirection {
   ASC
   DESC
-}
-
-type customAuthType {
-  message: String
-  success: Boolean
-  data: JSON
 }
 
 type UserAuthenticationWithGoogleSuccess {
@@ -10115,6 +10360,40 @@ type TrackEventsResult {
   rejected: Int!
 }
 
+type AdminOpsActionResult {
+  success: Boolean!
+  message: String!
+}
+
+type AdminControlResult {
+  success: Boolean!
+  message: String!
+}
+
+type AdminImpersonationResult {
+  success: Boolean!
+  message: String!
+
+  """
+  Token de sesión de la persona, solo lectura. Lo guarda el front en lugar del token del admin.
+  """
+  token: String
+  expiresAt: String
+  user: AdminPersonRef
+  companyName: String
+}
+
+type RollupDailyUsageDay {
+  day: String!
+  companies: Int!
+}
+
+type RollupDailyUsageResult {
+  success: Boolean!
+  message: String!
+  days: [RollupDailyUsageDay!]!
+}
+
 type AnimalMultimediaImage {
   id: ID!
   url: String
@@ -10465,6 +10744,9 @@ input AdminCompaniesInput {
 
   """recent (alta) | name | activity (último acceso del equipo)"""
   sort: String
+
+  """Solo las cuentas de esta persona de Kadesh (dueño de cuenta)."""
+  accountManagerId: ID
   take: Int
   skip: Int
 }
@@ -10494,6 +10776,12 @@ type AdminCompanyRow {
   """
   lastSeenAt: String
   owner: AdminPersonRef
+
+  """Persona de Kadesh responsable de la cuenta."""
+  accountManager: AdminPersonRef
+
+  """Si Kadesh suspendió el acceso de la empresa."""
+  suspendedAt: String
 }
 
 type AdminCompaniesResult {
@@ -10671,6 +10959,51 @@ type AdminCompanyInsights {
   calendarLastError: String
   checkoutFailures: Int!
   usage: AdminUsageStats!
+}
+
+type AdminUsageWeek {
+  """Primer día de la semana (YYYY-MM-DD); las semanas terminan ayer."""
+  weekStart: String!
+  activeDays: Int!
+  activeMinutes: Int!
+  logins: Int!
+  extractions: Int!
+  leadsCreated: Int!
+  leadsReused: Int!
+  creditsConsumed: Int!
+  aiCalls: Int!
+  crmChanges: Int!
+  activitiesLogged: Int!
+  quotationsCreated: Int!
+  quotationsAccepted: Int!
+  whatsappSent: Int!
+}
+
+type AdminBenchmarkMetric {
+  key: String!
+
+  """Total de esta empresa en las últimas 4 semanas."""
+  company: Int!
+
+  """
+  Mediana de las empresas del mismo plan (incluye las que no hicieron nada).
+  """
+  median: Int
+}
+
+type AdminCompanyTrends {
+  """
+  false si todavía no hay resumen diario (falta migrar o correr el cron).
+  """
+  ready: Boolean!
+  weeks: [AdminUsageWeek!]!
+  planName: String
+
+  """
+  Empresas del mismo plan que entran en la comparación (sin cuentas de prueba).
+  """
+  peers: Int!
+  benchmark: [AdminBenchmarkMetric!]!
 }
 
 input AdminActivityFeedInput {

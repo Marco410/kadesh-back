@@ -74,3 +74,10 @@ Qué: campos `ip` y `userAgent`, llenados por `writeUserAuthLog` desde la petici
 Por qué: sirven para detectar cuentas compartidas o accesos raros. Son datos personales: el Aviso de privacidad debe mencionarlos.
 
 Requiere `yarn migrate` (junto con `UserActivityDay` y `ActivityEvent`). No lo corre el agente.
+
+### 2026-10-11 — Campos de control de cuenta
+
+Qué: `suspendedAt`, `suspendedReason`, `sessionVersion` (default 0) y `anonymizedAt`. Solo los lee el admin de plataforma y nadie los escribe por API (`userAccountControlFieldAccess`). `auth/sessionGuards.ts` los revisa en cada petición junto con `SaasCompany.suspendedAt`: una sesión con otra `sessionVersion`, suspendida o anonimizada deja de valer. Un admin de plataforma nunca queda fuera por la suspensión de su empresa.
+
+Los escriben las mutaciones de Operaciones (`graphql/customs/mutations/admin/accountControl.ts`): suspender, cerrar sesiones y anonimizar (ARCO). Tokens emitidos antes de este cambio no traen versión y cuentan como 0, así que siguen valiendo. Ver `docs/operaciones/decisiones.md`.
+

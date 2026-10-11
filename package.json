@@ -19,7 +19,8 @@
     "clickup:register-webhook": "tsx scripts/registerClickUpWebhook.ts",
     "meta:sign-request": "tsx scripts/signMetaRequest.ts",
     "leads:repair-unlinked": "tsx scripts/repairUnlinkedLeads.ts",
-    "activity:prune": "tsx scripts/pruneActivityEvents.ts"
+    "activity:prune": "tsx scripts/pruneActivityEvents.ts",
+    "usage:rollup": "tsx scripts/rollupDailyUsage.ts"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.23",

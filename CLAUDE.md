@@ -36,6 +36,7 @@ Per-list conventions:
 
 **Auth** (`auth/`):
 - `auth/auth.ts` sets up `@keystone-6/auth` (`withAuth`), keyed on `User.email`, with a stateless cookie session (`auth/auth.ts` session secret from `SESSION_SECRET`, falls back to a random one outside production). `sessionData` determines what's available on `context.session.data` in access/hooks.
+- `auth/sessionGuards.ts` wraps the session strategy in `keystone.ts` (`withSessionGuards(withAuth(...))`): every request drops sessions whose `sessionVersion` changed, suspended users/companies, anonymized users, and expired "entrar como" tokens. `auth/impersonation.ts` is an Apollo plugin that blocks mutations for impersonation tokens. If you add fields it needs, add them to `sessionData` in `auth/auth.ts`.
 - `auth/permissions.ts` provides `hasRole(session, allowedRoles)` and `validateAccess(session, roles)`. **`Role.ADMIN` always has every permission** — `hasRole` implicitly appends it to any allowed-roles list. List access files (e.g. `User.access.ts`) call `hasRole` inside `operation`/`filter`/`item` access functions.
 
 **Custom GraphQL** (`graphql/`): Keystone's generated schema is extended, not replaced.

@@ -60,3 +60,25 @@ Se clonó la base local en `k_app_f2_sandbox`, se le aplicó el schema nuevo con
    - `stripe listen --forward-to localhost:3002/webhooks/stripe` y `stripe trigger invoice.payment_failed`;
    - o desde el Dashboard, "Enviar evento de prueba". Los eventos de suscripciones que no existen en Kadesh se ignoran (responden 200).
 7. `pnpm activity:prune` muestra el conteo sin borrar.
+
+## Fase 3a — lo que ya se probó (2026-10-11, copia desechable)
+
+La copia se sembró con `seed.ts` y la prueba creó su propio cliente de ejemplo. 25 de 25:
+
+- Sesiones: un token nuevo vale con el guardián y lleva `sessionVersion`.
+- Prueba gratuita: el fin guardado manda; extender +7 días reactiva una prueba vencida y quita el bloqueo "plan gratuito vencido"; extender hasta una fecha; días fuera de rango, planes de pago y no-admins se rechazan; cada extensión queda en Actividad.
+- Dueño de cuenta: solo personas de Kadesh; "Mis cuentas" filtra; el cliente no puede leer su dueño de cuenta.
+- Notas: el autor lo pone el servidor aunque se mande otro; un cliente no las ve; agregar y borrar quedan en Actividad sin el texto.
+- Resumen diario: sin el secreto no corre; la fila del día cuenta extracciones (y fallidas), leads nuevos y de la base, minutos, personas y cambios del CRM; repetirlo no duplica.
+- Tendencia: 12 semanas, suma lo del resumen, comparación con el plan; un cliente no puede leerla.
+
+En el navegador (front copiado en otro puerto contra el back de la copia; los servidores locales no se tocaron): ficha con **Extender prueba** y **Dueño de cuenta**, diálogo de extender prueba, sección **Notas** (se guardó una nota fijada desde la interfaz), tendencia y comparación en Resumen, filtro **Mis cuentas**, Actividad → Kadesh con los eventos nuevos; a 390 px sin scroll horizontal y en modo oscuro.
+
+## Fase 3b — lo que ya se probó (2026-10-11, copia desechable)
+
+Prueba de humo, 32 de 32: login normal; suspender persona cierra su sesión y bloquea el login con mensaje claro (con contraseña mala no revela la suspensión); reactivar devuelve el acceso y los tokens viejos siguen sin valer; no se puede suspender una empresa con equipo de Kadesh; suspender empresa saca a todo el equipo; cerrar sesiones de una persona o de una empresa (sin sacar al admin que lo hace); "entrar como" da un token de una hora marcado como tal, uno vencido no vale, lo que navega el admin no cuenta como uso, inicio y fin quedan con el admin como actor; transferir la propiedad; exportar con CLABE enmascarada; anonimizar (correo equivocado rechazado; nombre, correo, CLABE, contraseña, empresa y roles fuera; sin login; su nombre sale de otros eventos de su empresa; accesos sin correo ni IP; blog borrado; no se anonimiza dos veces; el evento no trae datos personales); `customAuth` ya no existe.
+
+Por HTTP contra el back de la copia: con el token de "entrar como" las consultas funcionan, cualquier mutación (sola o mezclada con una permitida) responde `IMPERSONATION_READ_ONLY` con estado 200, `trackEvents` se acepta sin registrar, `endImpersonation` funciona y el token del admin no se ve afectado.
+
+En el navegador: controles de acceso en la ficha, suspender y reactivar la empresa desde la interfaz, pestaña Control de una persona, "ver como" lleva al panel de la persona con la barra (créditos cargan, sin errores ni tour), salir restaura el token del admin y regresa al 360, el login de una persona suspendida muestra el aviso, y la pestaña Control a 390 px sin scroll horizontal.
+

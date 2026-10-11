@@ -5,6 +5,7 @@ import {
   USER_AUTH_LOG_SOURCE,
   USER_AUTH_LOG_STEP,
 } from "../../../../models/User/UserAuthLog/constants";
+import { SUSPENDED_MESSAGE, loginBlockedReason } from "../../../../auth/sessionGuards";
 
 const FIELD = "authenticateUserWithPassword";
 
@@ -96,6 +97,26 @@ export function passwordLoginAuditResolvers(
     const userId = success
       ? resultUserId(result)
       : await findUserIdByEmail(context, email);
+
+    // Contraseña correcta pero cuenta suspendida o anonimizada: no se entrega el token.
+    // El mensaje solo lo ve quien sabe la contraseña (no revela si el correo existe).
+    const blocked = success && userId ? await loginBlockedReason(context, userId) : null;
+    if (blocked) {
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+        success: false,
+        message:
+          blocked === "suspended"
+            ? "Intento de acceso con la cuenta suspendida."
+            : "Intento de acceso a una cuenta anonimizada.",
+        email,
+        userId,
+        responseSnapshot: { method: "password", reason: blocked },
+      });
+      return { code: "FAILURE", message: SUSPENDED_MESSAGE };
+    }
 
     if (success && userId) {
       await touchLastLogin(context, userId);

@@ -13,6 +13,7 @@ import {
   isPlatformAdmin,
 } from "../../../../utils/access/tenant";
 import { logActivity } from "../../../../utils/activity/logActivity";
+import { getImpersonation } from "../../../../auth/impersonation";
 
 /**
  * Eventos que solo conoce el navegador: qué secciones abre la gente, qué módulos bloqueados ve,
@@ -247,6 +248,8 @@ const resolver = {
     const userId = getSessionUserId(session);
     const list = Array.isArray(events) ? events : [];
     if (!userId) return { accepted: 0, rejected: list.length };
+    // Viendo como otra persona: lo que hace el admin no es uso del cliente (ni sus minutos).
+    if (getImpersonation(context.session)) return { accepted: 0, rejected: list.length };
 
     const companyId = getSessionCompanyId(session);
     const admin = isPlatformAdmin(session);

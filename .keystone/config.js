@@ -315,9 +315,9 @@ function sessionPermissions(session2) {
 function hasPermission(session2, key, legacyFallback) {
   if (!session2?.data) return false;
   if (hasRole(session2, ["admin" /* ADMIN */, "admin_company" /* ADMIN_COMPANY */])) return true;
-  const list79 = sessionPermissions(session2);
-  if (list79 == null) return legacyFallback();
-  return list79.includes(key);
+  const list81 = sessionPermissions(session2);
+  if (list81 == null) return legacyFallback();
+  return list81.includes(key);
 }
 
 // utils/access/tenant.ts
@@ -591,9 +591,9 @@ function emailCallout(brand, html) {
     </tr>
   </table>`;
 }
-function emailPill(brand, text69) {
+function emailPill(brand, text71) {
   const { color, soft } = EMAIL_BRANDS[brand];
-  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text69)}</span>`;
+  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text71)}</span>`;
 }
 function emailParagraph(html) {
   return `<p style="margin:0 0 16px 0;font-family:${FONT};font-size:16px;line-height:1.7;color:${EMAIL_TEXT.body};">${html}</p>`;
@@ -1096,10 +1096,10 @@ function matchesAudience(audience, hasCompany) {
 async function resolveBroadcastRecipients(params) {
   const { context, audience, emails } = params;
   if (audience === "custom") {
-    const list79 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
+    const list81 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
     const seen2 = /* @__PURE__ */ new Set();
     const recipients2 = [];
-    for (const email of list79) {
+    for (const email of list81) {
       const key = email.toLowerCase();
       if (seen2.has(key)) continue;
       seen2.add(key);
@@ -1345,14 +1345,14 @@ async function publishAnimalToFacebook(animal) {
   const message = animal.physical_description ? `${animal.name}
 
 ${animal.physical_description}` : animal.name || "Nuevo animal en Kadesh";
-  const result = await postToFacebookPage({
+  const result3 = await postToFacebookPage({
     product: PRODUCT.PET,
     message,
     link: animalPublicUrl(animal.slug)
   });
-  if (result?.id) {
+  if (result3?.id) {
     console.log(
-      `[facebook] Animal publicado en la P\xE1gina de Pet: ${result.id}`
+      `[facebook] Animal publicado en la P\xE1gina de Pet: ${result3.id}`
     );
   }
 }
@@ -2169,12 +2169,12 @@ async function userCompanyManagedValidateInput({
 }
 var REFERRAL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 function generateReferralSuffix(length = 5) {
-  let result = "";
+  let result3 = "";
   for (let i = 0; i < length; i++) {
     const index = Math.floor(Math.random() * REFERRAL_CHARS.length);
-    result += REFERRAL_CHARS[index];
+    result3 += REFERRAL_CHARS[index];
   }
-  return result;
+  return result3;
 }
 async function generateUniqueReferralCode(context) {
   while (true) {
@@ -2467,6 +2467,11 @@ var userStripeFieldAccess = {
   create: () => true,
   update: () => false
 };
+var userAccountControlFieldAccess = {
+  read: ({ session: session2 }) => isPlatformAdmin(session2),
+  create: () => false,
+  update: () => false
+};
 var User_access_default = userAccess;
 
 // models/User/User.ts
@@ -2735,7 +2740,7 @@ var User_default = (0, import_core7.list)({
     authLogs: (0, import_fields7.relationship)({
       ref: "UserAuthLog.user",
       many: true,
-      ui: { description: "Registro de login / registro (customAuth, registerUser)" }
+      ui: { description: "Registro de login / registro (contrase\xF1a, Google, registerUser)" }
     }),
     quotationsCreated: (0, import_fields7.relationship)({
       ref: "SaasQuotation.createdBy",
@@ -2857,6 +2862,43 @@ var User_default = (0, import_core7.list)({
       ui: {
         description: "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
         createView: { fieldMode: "hidden" }
+      }
+    }),
+    // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
+    suspendedAt: (0, import_fields7.timestamp)({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Suspendida por Kadesh: no puede iniciar sesi\xF3n y sus sesiones dejan de valer",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    suspendedReason: (0, import_fields7.text)({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Motivo de la suspensi\xF3n (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    sessionVersion: (0, import_fields7.integer)({
+      defaultValue: 0,
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Sube al cerrar sus sesiones: los tokens con otra versi\xF3n dejan de valer",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    anonymizedAt: (0, import_fields7.timestamp)({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Datos personales borrados a petici\xF3n (ARCO)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     })
   }
@@ -3168,6 +3210,21 @@ var ACTIVITY_EVENT = {
   ADMIN_CREDIT_PACKAGE_CHANGED: "admin.credit_package_changed",
   ADMIN_FEATURE_CATALOG_UPDATED: "admin.feature_catalog_updated",
   ADMIN_EMAIL_BROADCAST: "admin.email_broadcast",
+  // Control de cuentas (fase 3)
+  ADMIN_COMPANY_SUSPENDED: "admin.company_suspended",
+  ADMIN_COMPANY_REACTIVATED: "admin.company_reactivated",
+  ADMIN_USER_SUSPENDED: "admin.user_suspended",
+  ADMIN_USER_REACTIVATED: "admin.user_reactivated",
+  ADMIN_SESSIONS_REVOKED: "admin.sessions_revoked",
+  ADMIN_TRIAL_EXTENDED: "admin.trial_extended",
+  ADMIN_IMPERSONATION_STARTED: "admin.impersonation_started",
+  ADMIN_IMPERSONATION_ENDED: "admin.impersonation_ended",
+  ADMIN_OWNERSHIP_TRANSFERRED: "admin.ownership_transferred",
+  ADMIN_ACCOUNT_MANAGER_ASSIGNED: "admin.account_manager_assigned",
+  ADMIN_NOTE_ADDED: "admin.note_added",
+  ADMIN_NOTE_DELETED: "admin.note_deleted",
+  ADMIN_PERSON_DATA_EXPORTED: "admin.person_data_exported",
+  ADMIN_USER_ANONYMIZED: "admin.user_anonymized",
   // Navegación (lo manda el front con trackEvents)
   UI_SECTION_VIEWED: "ui.section_viewed",
   UI_FEATURE_LOCKED_VIEWED: "ui.feature_locked_viewed",
@@ -3407,9 +3464,9 @@ function warnOnce(type, error) {
     error instanceof Error ? error.message : error
   );
 }
-function truncate(text69, max) {
-  if (!text69) return null;
-  return text69.length > max ? `${text69.slice(0, max - 1)}\u2026` : text69;
+function truncate(text71, max) {
+  if (!text71) return null;
+  return text71.length > max ? `${text71.slice(0, max - 1)}\u2026` : text71;
 }
 async function logActivity(context, input) {
   try {
@@ -3497,24 +3554,24 @@ function changedFieldNames(before, after, ignore = /* @__PURE__ */ new Set()) {
   return [...names];
 }
 function idsOf(value) {
-  const list79 = Array.isArray(value) ? value : value ? [value] : [];
-  return list79.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
+  const list81 = Array.isArray(value) ? value : value ? [value] : [];
+  return list81.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
 }
 function relationInput(value) {
   if (!value || typeof value !== "object") return null;
   const input = value;
-  const result = {
+  const result3 = {
     connect: idsOf(input.connect),
     disconnect: idsOf(input.disconnect),
     set: input.set === void 0 ? null : idsOf(input.set)
   };
-  if (!result.connect.length && !result.disconnect.length && result.set === null) return null;
-  return result;
+  if (!result3.connect.length && !result3.disconnect.length && result3.set === null) return null;
+  return result3;
 }
 function fullName(person) {
   if (!person) return null;
-  const text69 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
-  return text69 || null;
+  const text71 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
+  return text71 || null;
 }
 async function leadName(context, leadId) {
   if (!leadId) return null;
@@ -3555,8 +3612,8 @@ async function columnNames(context, ids) {
 function log(context, input) {
   return logActivity(context, input);
 }
-function quoted(text69, fallback) {
-  return text69 ? `"${text69}"` : fallback;
+function quoted(text71, fallback) {
+  return text71 ? `"${text71}"` : fallback;
 }
 async function logCardMove(args, entityType, label) {
   const { originalItem: before, item: after, context } = args;
@@ -4298,6 +4355,30 @@ var creditPackageTracker = {
     });
   }
 };
+var companyNoteTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_NOTE_ADDED,
+      companyId: item.companyId || null,
+      entityType: "SaasCompanyNote",
+      entityId: item.id,
+      summary: `Agreg\xF3 una nota interna${item.pinned ? " (fijada)" : ""}`,
+      metadata: { pinned: Boolean(item.pinned) }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_NOTE_DELETED,
+      companyId: before.companyId || null,
+      entityType: "SaasCompanyNote",
+      entityId: before.id,
+      summary: "Borr\xF3 una nota interna",
+      metadata: null
+    });
+  }
+};
 var ACTIVITY_TRACKERS = {
   TechStatusBusinessLead: statusBusinessLeadTracker,
   TechBusinessLead: businessLeadTracker,
@@ -4313,7 +4394,8 @@ var ACTIVITY_TRACKERS = {
   SaasCompany: companyTracker,
   SaasCompanySubscription: subscriptionTracker,
   SaasPlan: planTracker,
-  SaasCredit: creditPackageTracker
+  SaasCredit: creditPackageTracker,
+  SaasCompanyNote: companyNoteTracker
 };
 function asMap(hook) {
   if (!hook) return {};
@@ -6185,9 +6267,9 @@ ${fullPost.excerpt}` : fullPost.title;
     for (const product of facebookProductsFor(postProduct)) {
       const link = `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`;
       try {
-        const result = await postToFacebookPage({ product, message, link });
-        if (result) {
-          console.log(`[facebook] Post publicado en la P\xE1gina de "${product}": ${result.id}`);
+        const result3 = await postToFacebookPage({ product, message, link });
+        if (result3) {
+          console.log(`[facebook] Post publicado en la P\xE1gina de "${product}": ${result3.id}`);
         }
       } catch (error) {
         console.error(`[facebook] Error publicando en la P\xE1gina de "${product}":`, error);
@@ -6501,9 +6583,9 @@ var import_core36 = require("@keystone-6/core");
 var import_fields36 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text69) {
+function sanitizeUrl2(text71) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text69.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text71.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -7078,8 +7160,8 @@ function stripTenantFromClient(resolvedData, key) {
 }
 function connectIds(connect) {
   if (!connect) return [];
-  const list79 = Array.isArray(connect) ? connect : [connect];
-  return list79.map((item) => {
+  const list81 = Array.isArray(connect) ? connect : [connect];
+  return list81.map((item) => {
     if (typeof item === "string") return item;
     if (item && typeof item === "object" && "id" in item) {
       return String(item.id);
@@ -9202,6 +9284,11 @@ var whatsappTokenPreviewFieldAccess = {
   create: () => false,
   update: () => false
 };
+var saasCompanyAccountControlFieldAccess = {
+  read: ({ session: session2 }) => isPlatformAdmin(session2),
+  create: () => false,
+  update: () => false
+};
 
 // models/Saas/SaasCompanySubscription/constants.ts
 var SUBSCRIPTION_STATUS = {
@@ -9687,6 +9774,35 @@ var SaasCompany_default = (0, import_core57.list)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
+      }
+    }),
+    // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
+    suspendedAt: (0, import_fields57.timestamp)({
+      db: { isNullable: true },
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Suspendida por Kadesh: nadie del equipo puede entrar",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    suspendedReason: (0, import_fields57.text)({
+      db: { isNullable: true },
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Motivo de la suspensi\xF3n (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    accountManager: (0, import_fields57.relationship)({
+      ref: "User",
+      many: false,
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Persona de Kadesh responsable de la cuenta (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
       }
     }),
     createdAt: (0, import_fields57.timestamp)({
@@ -10274,9 +10390,127 @@ var SaasCompanyCreditLedger_default = (0, import_core62.list)({
   }
 });
 
-// models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
+// models/Saas/SaasCompanyNote/SaasCompanyNote.ts
 var import_core63 = require("@keystone-6/core");
 var import_fields63 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompanyNote/SaasCompanyNote.access.ts
+var saasCompanyNoteAccess = {
+  operation: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/Saas/SaasCompanyNote/SaasCompanyNote.ts
+var SaasCompanyNote_default = (0, import_core63.list)({
+  access: saasCompanyNoteAccess,
+  hooks: {
+    resolveInput: {
+      create: ({ resolvedData, context }) => {
+        const userId = getSessionUserId(context.session);
+        return userId ? { ...resolvedData, author: { connect: { id: userId } } } : resolvedData;
+      }
+    }
+  },
+  ui: {
+    listView: {
+      initialColumns: ["createdAt", "company", "author", "pinned", "body"],
+      initialSort: { field: "createdAt", direction: "DESC" }
+    }
+  },
+  fields: {
+    company: (0, import_fields63.relationship)({
+      ref: "SaasCompany",
+      many: false,
+      ui: { description: "Empresa de la nota" }
+    }),
+    author: (0, import_fields63.relationship)({
+      ref: "User",
+      many: false,
+      ui: { description: "Qui\xE9n la escribi\xF3 (lo pone el servidor)", createView: { fieldMode: "hidden" } }
+    }),
+    body: (0, import_fields63.text)({
+      validation: { isRequired: true, length: { max: 4e3 } },
+      ui: { displayMode: "textarea" }
+    }),
+    pinned: (0, import_fields63.checkbox)({
+      defaultValue: false,
+      ui: { description: "Fijada arriba en el 360" }
+    }),
+    createdAt: (0, import_fields63.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
+    updatedAt: (0, import_fields63.timestamp)({ db: { updatedAt: true } })
+  }
+});
+
+// models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
+var import_core64 = require("@keystone-6/core");
+var import_fields64 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.access.ts
+var saasCompanyDailyUsageAccess = {
+  operation: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    create: () => false,
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
+var count = (description) => (0, import_fields64.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
+var SaasCompanyDailyUsage_default = (0, import_core64.list)({
+  access: saasCompanyDailyUsageAccess,
+  ui: {
+    hideCreate: true,
+    listView: {
+      initialColumns: ["day", "company", "activeUsers", "activeMinutes", "extractions", "crmChanges"],
+      initialSort: { field: "day", direction: "DESC" }
+    }
+  },
+  fields: {
+    key: (0, import_fields64.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: { description: "companyId:YYYY-MM-DD" }
+    }),
+    company: (0, import_fields64.relationship)({ ref: "SaasCompany", many: false }),
+    day: (0, import_fields64.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
+    activeUsers: count("Personas con el panel abierto"),
+    activeMinutes: count("Minutos con el panel abierto (todo el equipo)"),
+    logins: count("Inicios de sesi\xF3n correctos"),
+    extractions: count("Extracciones"),
+    extractionsFailed: count("Extracciones con error"),
+    leadsCreated: count("Leads nuevos de extracciones"),
+    leadsReused: count("Leads que salieron de la base"),
+    creditsConsumed: count("Cr\xE9ditos gastados (extracci\xF3n + IA)"),
+    aiCalls: count("Llamadas a IA"),
+    crmChanges: count("Cambios registrados en CRM y equipo (ActivityEvent)"),
+    activitiesLogged: count("Actividades registradas (llamadas, reuniones\u2026)"),
+    quotationsCreated: count("Cotizaciones creadas"),
+    quotationsSent: count("Cotizaciones enviadas"),
+    quotationsAccepted: count("Cotizaciones aceptadas"),
+    whatsappSent: count("WhatsApp enviados"),
+    whatsappReceived: count("WhatsApp recibidos"),
+    computedAt: (0, import_fields64.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
+  }
+});
+
+// models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
+var import_core65 = require("@keystone-6/core");
+var import_fields65 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
 var getCompanyId11 = (session2) => session2?.data?.company?.id;
@@ -10302,7 +10536,7 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core63.list)({
+var SaasCompanySubscription_default = (0, import_core65.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -10320,102 +10554,102 @@ var SaasCompanySubscription_default = (0, import_core63.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields63.relationship)({
+    company: (0, import_fields65.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields63.text)({
+    planName: (0, import_fields65.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields63.float)({
+    planCost: (0, import_fields65.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields63.text)({
+    planFrequency: (0, import_fields65.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields63.integer)({
+    planLeadLimit: (0, import_fields65.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
-    newCreditsAdded: (0, import_fields63.integer)({
+    newCreditsAdded: (0, import_fields65.integer)({
       defaultValue: 0,
       ui: { description: "Extra credits purchased and added to this subscription" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields63.text)({
+    planStripePriceId: (0, import_fields65.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields63.text)({
+    planCurrency: (0, import_fields65.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields63.json)({
+    planFeatures: (0, import_fields65.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields63.select)({
+    status: (0, import_fields65.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields63.calendarDay)({
+    activatedAt: (0, import_fields65.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields63.calendarDay)({
+    currentPeriodEnd: (0, import_fields65.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields63.text)({
+    stripeSubscriptionId: (0, import_fields65.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields63.text)({
+    stripeCustomerId: (0, import_fields65.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields63.relationship)({
+    saasPayments: (0, import_fields65.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
-    creditPeriods: (0, import_fields63.relationship)({
+    creditPeriods: (0, import_fields65.relationship)({
       ref: "SaasCompanyCreditPeriod.subscription",
       many: true,
       ui: { description: "Credit periods linked to this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields63.relationship)({
+    plan: (0, import_fields65.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    saasSubscriptionLogs: (0, import_fields63.relationship)({
+    saasSubscriptionLogs: (0, import_fields65.relationship)({
       ref: "SaasSubscriptionLog.createdSubscription",
       many: true,
       ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
     }),
-    createdAt: (0, import_fields63.timestamp)({
+    createdAt: (0, import_fields65.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields63.timestamp)({
+    updatedAt: (0, import_fields65.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -10426,8 +10660,8 @@ var SaasCompanySubscription_default = (0, import_core63.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core64 = require("@keystone-6/core");
-var import_fields64 = require("@keystone-6/core/fields");
+var import_core66 = require("@keystone-6/core");
+var import_fields66 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
 function paymentMethodFilter(session2) {
@@ -10453,7 +10687,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core64.list)({
+var SaasPaymentMethod_default = (0, import_core66.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -10468,61 +10702,61 @@ var SaasPaymentMethod_default = (0, import_core64.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields64.relationship)({
+    user: (0, import_fields66.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields64.text)({
+    cardType: (0, import_fields66.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields64.text)({
+    lastFourDigits: (0, import_fields66.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields64.text)({
+    expMonth: (0, import_fields66.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields64.text)({
+    expYear: (0, import_fields66.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields64.text)({
+    stripeProcessorId: (0, import_fields66.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields64.text)({
+    stripePaymentMethodId: (0, import_fields66.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields64.text)({
+    address: (0, import_fields66.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields64.text)({
+    postalCode: (0, import_fields66.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields64.text)({
+    ownerName: (0, import_fields66.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields64.text)({
+    country: (0, import_fields66.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields64.relationship)({
+    saasPayments: (0, import_fields66.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields64.timestamp)({
+    createdAt: (0, import_fields66.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields64.timestamp)({
+    updatedAt: (0, import_fields66.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -10530,8 +10764,8 @@ var SaasPaymentMethod_default = (0, import_core64.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core65 = require("@keystone-6/core");
-var import_fields65 = require("@keystone-6/core/fields");
+var import_core67 = require("@keystone-6/core");
+var import_fields67 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
 function paymentFilter(session2) {
@@ -10557,7 +10791,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core65.list)({
+var SaasPayment_default = (0, import_core67.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -10575,30 +10809,30 @@ var SaasPayment_default = (0, import_core65.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields65.relationship)({
+    user: (0, import_fields67.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields65.text)({
+    paymentMethodType: (0, import_fields67.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields65.relationship)({
+    paymentMethod: (0, import_fields67.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields65.decimal)({
+    amount: (0, import_fields67.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields65.select)({
+    status: (0, import_fields67.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -10611,38 +10845,38 @@ var SaasPayment_default = (0, import_core65.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields65.text)({
+    processorStripeChargeId: (0, import_fields67.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields65.text)({
+    stripeErrorMessage: (0, import_fields67.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields65.text)({
+    notes: (0, import_fields67.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields65.relationship)({
+    plan: (0, import_fields67.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields65.relationship)({
+    subscription: (0, import_fields67.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields65.timestamp)({
+    createdAt: (0, import_fields67.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields65.timestamp)({
+    updatedAt: (0, import_fields67.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -10650,8 +10884,8 @@ var SaasPayment_default = (0, import_core65.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core66 = require("@keystone-6/core");
-var import_fields66 = require("@keystone-6/core/fields");
+var import_core68 = require("@keystone-6/core");
+var import_fields68 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
 var getCompanyId12 = (session2) => session2?.data?.company?.id;
@@ -10695,7 +10929,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core66.list)({
+var SaasProject_default = (0, import_core68.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -10710,78 +10944,78 @@ var SaasProject_default = (0, import_core66.list)({
     }
   },
   fields: {
-    name: (0, import_fields66.text)({
+    name: (0, import_fields68.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields66.text)({
+    serviceType: (0, import_fields68.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields66.relationship)({
+    responsible: (0, import_fields68.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields66.calendarDay)({
+    startDate: (0, import_fields68.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields66.calendarDay)({
+    estimatedEndDate: (0, import_fields68.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields66.text)({
+    description: (0, import_fields68.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields66.select)({
+    status: (0, import_fields68.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields66.text)({
+    urlData: (0, import_fields68.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields66.relationship)({
+    company: (0, import_fields68.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields66.relationship)({
+    businessLead: (0, import_fields68.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields66.relationship)({
+    proposal: (0, import_fields68.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields66.relationship)({
+    quotations: (0, import_fields68.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields66.timestamp)({
+    createdAt: (0, import_fields68.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields66.timestamp)({
+    updatedAt: (0, import_fields68.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -10792,8 +11026,8 @@ var SaasProject_default = (0, import_core66.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core67 = require("@keystone-6/core");
-var import_fields67 = require("@keystone-6/core/fields");
+var import_core69 = require("@keystone-6/core");
+var import_fields69 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
 var getCompanyId13 = (session2) => session2?.data?.company?.id;
@@ -10896,7 +11130,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core67.list)({
+var SaasQuotation_default = (0, import_core69.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -10914,117 +11148,117 @@ var SaasQuotation_default = (0, import_core67.list)({
     }
   },
   fields: {
-    company: (0, import_fields67.relationship)({
+    company: (0, import_fields69.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields67.relationship)({
+    lead: (0, import_fields69.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields67.relationship)({
+    project: (0, import_fields69.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields67.text)({
+    quotationNumber: (0, import_fields69.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields67.select)({
+    status: (0, import_fields69.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields67.text)({
+    currency: (0, import_fields69.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields67.float)({
+    exchangeRate: (0, import_fields69.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields67.float)({
+    subtotal: (0, import_fields69.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields67.float)({
+    discountTotal: (0, import_fields69.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields67.float)({
+    taxTotal: (0, import_fields69.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields67.float)({
+    total: (0, import_fields69.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields67.calendarDay)({
+    validUntil: (0, import_fields69.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields67.timestamp)({
+    sentAt: (0, import_fields69.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields67.timestamp)({
+    acceptedAt: (0, import_fields69.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields67.text)({
+    notes: (0, import_fields69.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields67.text)({
+    terms: (0, import_fields69.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields67.relationship)({
+    createdBy: (0, import_fields69.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields67.relationship)({
+    assignedSeller: (0, import_fields69.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields67.text)({
+    pdfFileOrUrl: (0, import_fields69.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields67.relationship)({
+    quotationProducts: (0, import_fields69.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields67.checkbox)({
+    showDiscount: (0, import_fields69.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields67.checkbox)({
+    showNotes: (0, import_fields69.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields67.timestamp)({
+    createdAt: (0, import_fields69.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields67.timestamp)({
+    updatedAt: (0, import_fields69.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11035,8 +11269,8 @@ var SaasQuotation_default = (0, import_core67.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core68 = require("@keystone-6/core");
-var import_fields68 = require("@keystone-6/core/fields");
+var import_core70 = require("@keystone-6/core");
+var import_fields70 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
 var getCompanyId14 = (session2) => session2?.data?.company?.id;
@@ -11226,7 +11460,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core68.list)({
+var SaasQuotationProduct_default = (0, import_core70.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -11235,60 +11469,60 @@ var SaasQuotationProduct_default = (0, import_core68.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields68.relationship)({
+    quotation: (0, import_fields70.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields68.text)({
+    description: (0, import_fields70.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields68.float)({
+    quantity: (0, import_fields70.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields68.float)({
+    unitPrice: (0, import_fields70.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields68.select)({
+    discountType: (0, import_fields70.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields68.float)({
+    discountValue: (0, import_fields70.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields68.float)({
+    taxRate: (0, import_fields70.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields68.float)({
+    lineSubtotal: (0, import_fields70.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields68.float)({
+    lineTotal: (0, import_fields70.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields68.timestamp)({
+    createdAt: (0, import_fields70.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields68.timestamp)({
+    updatedAt: (0, import_fields70.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11299,8 +11533,8 @@ var SaasQuotationProduct_default = (0, import_core68.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core69 = require("@keystone-6/core");
-var import_fields69 = require("@keystone-6/core/fields");
+var import_core71 = require("@keystone-6/core");
+var import_fields71 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
 var getCompanyId15 = (session2) => session2?.data?.company?.id;
@@ -11342,7 +11576,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core69.list)({
+var SaasReferralCommission_default = (0, import_core71.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -11361,27 +11595,27 @@ var SaasReferralCommission_default = (0, import_core69.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields69.relationship)({
+    referrer: (0, import_fields71.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields69.relationship)({
+    referredUser: (0, import_fields71.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields69.relationship)({
+    company: (0, import_fields71.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields69.relationship)({
+    subscription: (0, import_fields71.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields69.relationship)({
+    plan: (0, import_fields71.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields69.select)({
+    type: (0, import_fields71.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -11389,30 +11623,30 @@ var SaasReferralCommission_default = (0, import_core69.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields69.float)({
+    percentage: (0, import_fields71.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields69.float)({
+    amount: (0, import_fields71.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields69.text)({
+    currency: (0, import_fields71.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields69.float)({
+    periodIndex: (0, import_fields71.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields69.calendarDay)({
+    periodStart: (0, import_fields71.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields69.calendarDay)({
+    periodEnd: (0, import_fields71.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields69.select)({
+    status: (0, import_fields71.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -11423,18 +11657,18 @@ var SaasReferralCommission_default = (0, import_core69.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields69.text)({
+    notes: (0, import_fields71.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields69.timestamp)({
+    createdAt: (0, import_fields71.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields69.timestamp)({
+    updatedAt: (0, import_fields71.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11445,8 +11679,8 @@ var SaasReferralCommission_default = (0, import_core69.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core70 = require("@keystone-6/core");
-var import_fields70 = require("@keystone-6/core/fields");
+var import_core72 = require("@keystone-6/core");
+var import_fields72 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
 var getCompanyId16 = (session2) => session2?.data?.company?.id;
@@ -11472,7 +11706,7 @@ var saasSubscriptionLogAccess = {
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core70.list)({
+var SaasSubscriptionLog_default = (0, import_core72.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -11487,71 +11721,71 @@ var SaasSubscriptionLog_default = (0, import_core70.list)({
     }
   },
   fields: {
-    user: (0, import_fields70.relationship)({
+    user: (0, import_fields72.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields70.relationship)({
+    company: (0, import_fields72.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields70.relationship)({
+    plan: (0, import_fields72.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields70.relationship)({
+    createdSubscription: (0, import_fields72.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields70.checkbox)({
+    success: (0, import_fields72.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields70.text)({
+    step: (0, import_fields72.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields70.text)({
+    message: (0, import_fields72.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields70.json)({
+    responseSnapshot: (0, import_fields72.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields70.text)({
+    emailMasked: (0, import_fields72.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields70.text)({
+    planIdRequested: (0, import_fields72.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields70.text)({
+    totalSubmitted: (0, import_fields72.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields70.text)({
+    paymentMethodIdSubmitted: (0, import_fields72.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields70.text)({
+    paymentTypeSubmitted: (0, import_fields72.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields70.integer)({
+    durationMs: (0, import_fields72.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields70.text)({
+    stripeCustomerId: (0, import_fields72.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields70.text)({
+    stripeSubscriptionId: (0, import_fields72.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields70.timestamp)({
+    createdAt: (0, import_fields72.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
     })
@@ -11559,8 +11793,8 @@ var SaasSubscriptionLog_default = (0, import_core70.list)({
 });
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var import_core71 = require("@keystone-6/core");
-var import_fields71 = require("@keystone-6/core/fields");
+var import_core73 = require("@keystone-6/core");
+var import_fields73 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId17 = (session2) => session2?.data?.company?.id;
@@ -11668,7 +11902,7 @@ var saasWorkspaceSeedCrmStatusesHook = {
 };
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var SaasWorkspace_default = (0, import_core71.list)({
+var SaasWorkspace_default = (0, import_core73.list)({
   access: saasWorkspaceAccess,
   hooks: {
     afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
@@ -11679,63 +11913,63 @@ var SaasWorkspace_default = (0, import_core71.list)({
     }
   },
   fields: {
-    name: (0, import_fields71.text)({
+    name: (0, import_fields73.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
     }),
-    showActivities: (0, import_fields71.checkbox)({
+    showActivities: (0, import_fields73.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar actividades de CRM en este workspace" }
     }),
-    showProposals: (0, import_fields71.checkbox)({
+    showProposals: (0, import_fields73.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar propuestas de CRM en este workspace" }
     }),
-    showFollowUpTasks: (0, import_fields71.checkbox)({
+    showFollowUpTasks: (0, import_fields73.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
     }),
-    showTasks: (0, import_fields71.checkbox)({
+    showTasks: (0, import_fields73.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de workspace en este workspace" }
     }),
-    company: (0, import_fields71.relationship)({
+    company: (0, import_fields73.relationship)({
       ref: "SaasCompany.workspaces",
       many: false,
       ui: { description: "Empresa (tenant) a la que pertenece" }
     }),
-    members: (0, import_fields71.relationship)({
+    members: (0, import_fields73.relationship)({
       ref: "User.workspaces",
       many: true,
       ui: { description: "Usuarios con acceso a este workspace" }
     }),
-    salesActivities: (0, import_fields71.relationship)({
+    salesActivities: (0, import_fields73.relationship)({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" }
     }),
-    tasks: (0, import_fields71.relationship)({
+    tasks: (0, import_fields73.relationship)({
       ref: "TechTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
     }),
-    proposals: (0, import_fields71.relationship)({
+    proposals: (0, import_fields73.relationship)({
       ref: "TechProposal.workspace",
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
-    calendarEvents: (0, import_fields71.relationship)({
+    calendarEvents: (0, import_fields73.relationship)({
       ref: "TechCalendarEvent.workspace",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario del workspace" }
     }),
-    followUpTasks: (0, import_fields71.relationship)({
+    followUpTasks: (0, import_fields73.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
     }),
-    crmStatuses: (0, import_fields71.relationship)({
+    crmStatuses: (0, import_fields73.relationship)({
       ref: "SaasWorkspaceCrmStatus.workspace",
       many: true,
       ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
@@ -11744,8 +11978,8 @@ var SaasWorkspace_default = (0, import_core71.list)({
 });
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var import_core72 = require("@keystone-6/core");
-var import_fields72 = require("@keystone-6/core/fields");
+var import_core74 = require("@keystone-6/core");
+var import_fields74 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
 var getCompanyId18 = (session2) => session2?.data?.company?.id;
@@ -11990,7 +12224,7 @@ var saasWorkspaceCrmStatusHooks = {
 };
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var SaasWorkspaceCrmStatus_default = (0, import_core72.list)({
+var SaasWorkspaceCrmStatus_default = (0, import_core74.list)({
   access: saasWorkspaceCrmStatusAccess,
   hooks: saasWorkspaceCrmStatusHooks,
   ui: {
@@ -11999,58 +12233,58 @@ var SaasWorkspaceCrmStatus_default = (0, import_core72.list)({
     }
   },
   fields: {
-    workspace: (0, import_fields72.relationship)({
+    workspace: (0, import_fields74.relationship)({
       ref: "SaasWorkspace.crmStatuses",
       many: false,
       ui: { description: "Workspace al que pertenece este estado" }
     }),
-    name: (0, import_fields72.text)({
+    name: (0, import_fields74.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre visible (p. ej. Kanban)" }
     }),
-    color: (0, import_fields72.text)({
+    color: (0, import_fields74.text)({
       validation: { isRequired: true },
       ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
     }),
-    key: (0, import_fields72.text)({
+    key: (0, import_fields74.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
       }
     }),
-    order: (0, import_fields72.integer)({
+    order: (0, import_fields74.integer)({
       defaultValue: 0,
       isIndexed: true,
       ui: { description: "Orden en la UI (menor primero)" }
     }),
-    isDefault: (0, import_fields72.checkbox)({
+    isDefault: (0, import_fields74.checkbox)({
       defaultValue: false,
       ui: {
         description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
       }
     }),
-    isArchived: (0, import_fields72.checkbox)({
+    isArchived: (0, import_fields74.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en selectores sin borrar historial" }
     }),
-    followUpTasks: (0, import_fields72.relationship)({
+    followUpTasks: (0, import_fields74.relationship)({
       ref: "TechFollowUpTask.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields72.relationship)({
+    proposals: (0, import_fields74.relationship)({
       ref: "TechProposal.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    salesActivities: (0, import_fields72.relationship)({
+    salesActivities: (0, import_fields74.relationship)({
       ref: "TechSalesActivity.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields72.relationship)({
+    tasks: (0, import_fields74.relationship)({
       ref: "TechTask.statusCrm",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
@@ -12059,8 +12293,8 @@ var SaasWorkspaceCrmStatus_default = (0, import_core72.list)({
 });
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var import_core73 = require("@keystone-6/core");
-var import_fields73 = require("@keystone-6/core/fields");
+var import_core75 = require("@keystone-6/core");
+var import_fields75 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.access.ts
 var techWhatsAppMessageAccess = {
@@ -12077,7 +12311,7 @@ var techWhatsAppMessageAccess = {
 };
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var TechWhatsAppMessage_default = (0, import_core73.list)({
+var TechWhatsAppMessage_default = (0, import_core75.list)({
   access: techWhatsAppMessageAccess,
   ui: {
     listView: {
@@ -12092,12 +12326,12 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
     }
   },
   fields: {
-    company: (0, import_fields73.relationship)({
+    company: (0, import_fields75.relationship)({
       ref: "SaasCompany.whatsappMessages",
       many: false,
       ui: { description: "Empresa due\xF1a del n\xFAmero de WhatsApp" }
     }),
-    businessLead: (0, import_fields73.relationship)({
+    businessLead: (0, import_fields75.relationship)({
       ref: "TechBusinessLead.whatsappMessages",
       many: false,
       ui: { description: "Lead asociado (vac\xEDo si no matche\xF3 ning\xFAn tel\xE9fono conocido)" }
@@ -12105,7 +12339,7 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
     /** Conversación interna con alguien del equipo (vendedor) en vez de con un lead. Un
      * mensaje tiene `businessLead` O `teamMember`; si no tiene ninguno, no se pudo matchear
      * el teléfono y solo lo ven los admins de la empresa. */
-    teamMember: (0, import_fields73.relationship)({
+    teamMember: (0, import_fields75.relationship)({
       ref: "User.whatsappMessagesAsTeamMember",
       many: false,
       ui: {
@@ -12114,14 +12348,14 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
     }),
     /** Quién abrió el chat interno. Junto con `teamMember` define quién puede verlo
      * (ver whatsappMessageScopedWhere): solo esas dos personas, además de los admins. */
-    internalInitiator: (0, import_fields73.relationship)({
+    internalInitiator: (0, import_fields75.relationship)({
       ref: "User.whatsappInternalChatsStarted",
       many: false,
       ui: {
         description: "Qui\xE9n abri\xF3 la conversaci\xF3n interna. Con teamMember define qui\xE9n la puede ver."
       }
     }),
-    direction: (0, import_fields73.select)({
+    direction: (0, import_fields75.select)({
       type: "string",
       options: [
         { label: "Entrante", value: "inbound" },
@@ -12131,7 +12365,7 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    source: (0, import_fields73.select)({
+    source: (0, import_fields75.select)({
       type: "string",
       options: [
         { label: "Cloud API", value: "api" },
@@ -12141,21 +12375,21 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
       isIndexed: true,
       ui: { description: "Si lleg\xF3 en vivo por la Cloud API o se import\xF3 de un .txt exportado" }
     }),
-    senderLabel: (0, import_fields73.text)({
+    senderLabel: (0, import_fields75.text)({
       db: { isNullable: true },
       ui: {
         description: "Nombre del remitente: en un .txt importado, tal cual ven\xEDa (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribi\xF3."
       }
     }),
-    waMessageId: (0, import_fields73.text)({
+    waMessageId: (0, import_fields75.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: { description: "ID de Meta. Usado para no duplicar reintentos del webhook." }
     }),
-    fromPhone: (0, import_fields73.text)({ db: { isNullable: true } }),
-    toPhone: (0, import_fields73.text)({ db: { isNullable: true } }),
-    body: (0, import_fields73.text)({ ui: { displayMode: "textarea" } }),
-    messageKind: (0, import_fields73.select)({
+    fromPhone: (0, import_fields75.text)({ db: { isNullable: true } }),
+    toPhone: (0, import_fields75.text)({ db: { isNullable: true } }),
+    body: (0, import_fields75.text)({ ui: { displayMode: "textarea" } }),
+    messageKind: (0, import_fields75.select)({
       type: "string",
       options: [
         { label: "Texto", value: "text" },
@@ -12163,7 +12397,7 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
       ],
       defaultValue: "text"
     }),
-    mediaKey: (0, import_fields73.text)({
+    mediaKey: (0, import_fields75.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -12171,7 +12405,7 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
         description: "Key del archivo en R2 (no la URL \u2014 se firma al vuelo, ver mediaUrl)"
       }
     }),
-    mediaType: (0, import_fields73.select)({
+    mediaType: (0, import_fields75.select)({
       type: "string",
       options: [
         { label: "Imagen", value: "image" },
@@ -12179,8 +12413,8 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
       ],
       db: { isNullable: true }
     }),
-    mediaFileName: (0, import_fields73.text)({ db: { isNullable: true } }),
-    status: (0, import_fields73.select)({
+    mediaFileName: (0, import_fields75.text)({ db: { isNullable: true } }),
+    status: (0, import_fields75.select)({
       type: "string",
       options: [
         { label: "Enviado", value: "sent" },
@@ -12189,16 +12423,16 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
       ],
       defaultValue: "sent"
     }),
-    sentBy: (0, import_fields73.relationship)({
+    sentBy: (0, import_fields75.relationship)({
       ref: "User.whatsappMessagesSent",
       many: false,
       ui: { description: "Usuario que mand\xF3 el mensaje (solo salientes)" }
     }),
-    errorMessage: (0, import_fields73.text)({
+    errorMessage: (0, import_fields75.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si el env\xEDo fall\xF3" }
     }),
-    createdAt: (0, import_fields73.timestamp)({
+    createdAt: (0, import_fields75.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del mensaje" }
     })
@@ -12206,8 +12440,8 @@ var TechWhatsAppMessage_default = (0, import_core73.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.ts
-var import_core74 = require("@keystone-6/core");
-var import_fields74 = require("@keystone-6/core/fields");
+var import_core76 = require("@keystone-6/core");
+var import_fields76 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.access.ts
 function googleCalendarAccountVisibleWhere(session2) {
@@ -12260,7 +12494,7 @@ var hiddenTokenAccess = {
   create: () => false,
   update: () => false
 };
-var GoogleCalendarAccount_default = (0, import_core74.list)({
+var GoogleCalendarAccount_default = (0, import_core76.list)({
   access: googleCalendarAccountAccess,
   hooks: googleCalendarAccountHooks,
   ui: {
@@ -12277,7 +12511,7 @@ var GoogleCalendarAccount_default = (0, import_core74.list)({
     }
   },
   fields: {
-    scopeType: (0, import_fields74.select)({
+    scopeType: (0, import_fields76.select)({
       type: "string",
       options: [...GOOGLE_CALENDAR_SCOPE_TYPE_OPTIONS],
       defaultValue: "personal" /* PERSONAL */,
@@ -12285,27 +12519,27 @@ var GoogleCalendarAccount_default = (0, import_core74.list)({
       isIndexed: true,
       ui: { description: "Personal (de un usuario) o compartida por toda la empresa" }
     }),
-    user: (0, import_fields74.relationship)({
+    user: (0, import_fields76.relationship)({
       ref: "User.googleCalendarAccounts",
       many: false,
       ui: { description: "Due\xF1o de la cuenta (solo si es personal)" }
     }),
-    company: (0, import_fields74.relationship)({
+    company: (0, import_fields76.relationship)({
       ref: "SaasCompany.googleCalendarAccounts",
       many: false,
       ui: { description: "Empresa due\xF1a de la cuenta (solo si es compartida)" }
     }),
-    connectedByUser: (0, import_fields74.relationship)({
+    connectedByUser: (0, import_fields76.relationship)({
       ref: "User.connectedGoogleCalendarAccounts",
       many: false,
       ui: { description: "Qui\xE9n autoriz\xF3 la conexi\xF3n en Google (auditor\xEDa)" }
     }),
-    googleAccountEmail: (0, import_fields74.text)({
+    googleAccountEmail: (0, import_fields76.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Correo de la cuenta de Google conectada" }
     }),
-    accessTokenEncrypted: (0, import_fields74.text)({
+    accessTokenEncrypted: (0, import_fields76.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -12315,7 +12549,7 @@ var GoogleCalendarAccount_default = (0, import_core74.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    refreshTokenEncrypted: (0, import_fields74.text)({
+    refreshTokenEncrypted: (0, import_fields76.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -12325,39 +12559,39 @@ var GoogleCalendarAccount_default = (0, import_core74.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    tokenExpiresAt: (0, import_fields74.timestamp)({
+    tokenExpiresAt: (0, import_fields76.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo expira el access token actual" }
     }),
-    scope: (0, import_fields74.text)({
+    scope: (0, import_fields76.text)({
       db: { isNullable: true },
       ui: { description: "Scopes de Google otorgados" }
     }),
-    isActive: (0, import_fields74.checkbox)({
+    isActive: (0, import_fields76.checkbox)({
       defaultValue: true,
       ui: {
         description: "false si Google revoc\xF3 el acceso: el usuario debe reconectar la cuenta"
       }
     }),
-    lastSyncedAt: (0, import_fields74.timestamp)({
+    lastSyncedAt: (0, import_fields76.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima lectura exitosa desde Google" }
     }),
-    lastSyncError: (0, import_fields74.text)({
+    lastSyncError: (0, import_fields76.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "\xDAltimo error al hablar con Google" }
     }),
-    calendars: (0, import_fields74.relationship)({
+    calendars: (0, import_fields76.relationship)({
       ref: "GoogleCalendarSelection.account",
       many: true,
       ui: { hideCreate: true, description: "Calendarios de esta cuenta" }
     }),
-    syncLogs: (0, import_fields74.relationship)({
+    syncLogs: (0, import_fields76.relationship)({
       ref: "TechGoogleCalendarSyncLog.account",
       many: true,
       ui: { hideCreate: true, description: "Historial de llamadas a Google" }
     }),
-    createdAt: (0, import_fields74.timestamp)({
+    createdAt: (0, import_fields76.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -12368,8 +12602,8 @@ var GoogleCalendarAccount_default = (0, import_core74.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var import_core75 = require("@keystone-6/core");
-var import_fields75 = require("@keystone-6/core/fields");
+var import_core77 = require("@keystone-6/core");
+var import_fields77 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.access.ts
 var googleCalendarSelectionAccess = {
@@ -12389,7 +12623,7 @@ var googleCalendarSelectionAccess = {
 };
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var GoogleCalendarSelection_default = (0, import_core75.list)({
+var GoogleCalendarSelection_default = (0, import_core77.list)({
   access: googleCalendarSelectionAccess,
   ui: {
     labelField: "calendarName",
@@ -12398,52 +12632,52 @@ var GoogleCalendarSelection_default = (0, import_core75.list)({
     }
   },
   fields: {
-    account: (0, import_fields75.relationship)({
+    account: (0, import_fields77.relationship)({
       ref: "GoogleCalendarAccount.calendars",
       many: false,
       ui: { description: "Cuenta de Google a la que pertenece este calendario" }
     }),
-    googleCalendarId: (0, import_fields75.text)({
+    googleCalendarId: (0, import_fields77.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "calendarId en Google (el principal suele ser el correo)" }
     }),
-    calendarName: (0, import_fields75.text)({
+    calendarName: (0, import_fields77.text)({
       validation: { isRequired: true },
       ui: { description: "Nombre visible del calendario" }
     }),
-    isPrimary: (0, import_fields75.checkbox)({ defaultValue: false }),
-    isSelected: (0, import_fields75.checkbox)({
+    isPrimary: (0, import_fields77.checkbox)({ defaultValue: false }),
+    isSelected: (0, import_fields77.checkbox)({
       defaultValue: false,
       ui: {
         description: "Si est\xE1 marcado, se ve en el calendario unificado y recibe los eventos creados en Kadesh"
       }
     }),
-    colorHex: (0, import_fields75.text)({ db: { isNullable: true } }),
+    colorHex: (0, import_fields77.text)({ db: { isNullable: true } }),
     // Qué registros del CRM se envían a este calendario (los eventos creados a mano eligen
     // sus calendarios destino uno a uno en `TechCalendarEvent.googleTargets`).
-    pushActivities: (0, import_fields75.checkbox)({
+    pushActivities: (0, import_fields77.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar actividades de venta nuevas a este calendario" }
     }),
-    pushProposals: (0, import_fields75.checkbox)({
+    pushProposals: (0, import_fields77.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar propuestas nuevas a este calendario" }
     }),
-    pushFollowUps: (0, import_fields75.checkbox)({
+    pushFollowUps: (0, import_fields77.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas de seguimiento nuevas a este calendario" }
     }),
-    pushTasks: (0, import_fields75.checkbox)({
+    pushTasks: (0, import_fields77.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas nuevas a este calendario" }
     }),
-    targetedEvents: (0, import_fields75.relationship)({
+    targetedEvents: (0, import_fields77.relationship)({
       ref: "TechCalendarEvent.googleTargets",
       many: true,
       ui: { hideCreate: true, description: "Eventos creados a mano que eligieron este calendario" }
     }),
-    eventLinks: (0, import_fields75.relationship)({
+    eventLinks: (0, import_fields77.relationship)({
       ref: "TechCalendarEventGoogleLink.calendarSelection",
       many: true,
       ui: { hideCreate: true, description: "Eventos de Kadesh enviados a este calendario" }
@@ -12452,8 +12686,8 @@ var GoogleCalendarSelection_default = (0, import_core75.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var import_core76 = require("@keystone-6/core");
-var import_fields76 = require("@keystone-6/core/fields");
+var import_core78 = require("@keystone-6/core");
+var import_fields78 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.access.ts
 function calendarEventScopedWhere(session2) {
@@ -13188,7 +13422,7 @@ var techCalendarEventHooks = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var TechCalendarEvent_default = (0, import_core76.list)({
+var TechCalendarEvent_default = (0, import_core78.list)({
   access: techCalendarEventAccess,
   hooks: techCalendarEventHooks,
   ui: {
@@ -13198,27 +13432,27 @@ var TechCalendarEvent_default = (0, import_core76.list)({
     }
   },
   fields: {
-    title: (0, import_fields76.text)({ validation: { isRequired: true } }),
-    description: (0, import_fields76.text)({
+    title: (0, import_fields78.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields78.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     }),
-    startAt: (0, import_fields76.timestamp)({
+    startAt: (0, import_fields78.timestamp)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Inicio. En eventos de d\xEDa completo se usa la fecha en UTC (00:00Z)"
       }
     }),
-    endAt: (0, import_fields76.timestamp)({
+    endAt: (0, import_fields78.timestamp)({
       db: { isNullable: true },
       ui: {
         description: "Fin (opcional). Sin fin, el evento dura 60 min; en d\xEDa completo, es el \xFAltimo d\xEDa incluido"
       }
     }),
-    allDay: (0, import_fields76.checkbox)({ defaultValue: false }),
-    location: (0, import_fields76.text)({ db: { isNullable: true } }),
-    sourceType: (0, import_fields76.select)({
+    allDay: (0, import_fields78.checkbox)({ defaultValue: false }),
+    location: (0, import_fields78.text)({ db: { isNullable: true } }),
+    sourceType: (0, import_fields78.select)({
       type: "string",
       options: [...CALENDAR_EVENT_SOURCE_OPTIONS],
       defaultValue: "native" /* NATIVE */,
@@ -13226,46 +13460,46 @@ var TechCalendarEvent_default = (0, import_core76.list)({
       isIndexed: true,
       ui: { description: "Creado a mano o generado desde un registro del CRM" }
     }),
-    salesActivity: (0, import_fields76.relationship)({
+    salesActivity: (0, import_fields78.relationship)({
       ref: "TechSalesActivity.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    followUpTask: (0, import_fields76.relationship)({
+    followUpTask: (0, import_fields78.relationship)({
       ref: "TechFollowUpTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    task: (0, import_fields76.relationship)({
+    task: (0, import_fields78.relationship)({
       ref: "TechTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    proposal: (0, import_fields76.relationship)({
+    proposal: (0, import_fields78.relationship)({
       ref: "TechProposal.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    createdBy: (0, import_fields76.relationship)({
+    createdBy: (0, import_fields78.relationship)({
       ref: "User.createdCalendarEvents",
       many: false,
       ui: { description: "Usuario due\xF1o del evento (su cuenta personal recibe el push)" }
     }),
-    company: (0, import_fields76.relationship)({
+    company: (0, import_fields78.relationship)({
       ref: "SaasCompany.calendarEvents",
       many: false,
       ui: { description: "Empresa (su cuenta compartida recibe el push)" }
     }),
-    workspace: (0, import_fields76.relationship)({
+    workspace: (0, import_fields78.relationship)({
       ref: "SaasWorkspace.calendarEvents",
       many: false,
       ui: { description: "Workspace del CRM, si aplica" }
     }),
-    googleTargets: (0, import_fields76.relationship)({
+    googleTargets: (0, import_fields78.relationship)({
       ref: "GoogleCalendarSelection.targetedEvents",
       many: true,
       ui: {
@@ -13273,19 +13507,19 @@ var TechCalendarEvent_default = (0, import_core76.list)({
         description: "Calendarios de Google elegidos al crear el evento (solo eventos nativos; los del CRM siguen la configuraci\xF3n de cada calendario)"
       }
     }),
-    googleLinks: (0, import_fields76.relationship)({
+    googleLinks: (0, import_fields78.relationship)({
       ref: "TechCalendarEventGoogleLink.event",
       many: true,
       ui: { hideCreate: true, description: "Copias de este evento en Google Calendar" }
     }),
-    createdAt: (0, import_fields76.timestamp)({
+    createdAt: (0, import_fields78.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields76.timestamp)({
+    updatedAt: (0, import_fields78.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -13296,8 +13530,8 @@ var TechCalendarEvent_default = (0, import_core76.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var import_core77 = require("@keystone-6/core");
-var import_fields77 = require("@keystone-6/core/fields");
+var import_core79 = require("@keystone-6/core");
+var import_fields79 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.access.ts
 var techCalendarEventGoogleLinkAccess = {
@@ -13317,7 +13551,7 @@ var techCalendarEventGoogleLinkAccess = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var TechCalendarEventGoogleLink_default = (0, import_core77.list)({
+var TechCalendarEventGoogleLink_default = (0, import_core79.list)({
   access: techCalendarEventGoogleLinkAccess,
   ui: {
     listView: {
@@ -13330,26 +13564,26 @@ var TechCalendarEventGoogleLink_default = (0, import_core77.list)({
     }
   },
   fields: {
-    event: (0, import_fields77.relationship)({
+    event: (0, import_fields79.relationship)({
       ref: "TechCalendarEvent.googleLinks",
       many: false
     }),
-    calendarSelection: (0, import_fields77.relationship)({
+    calendarSelection: (0, import_fields79.relationship)({
       ref: "GoogleCalendarSelection.eventLinks",
       many: false
     }),
-    googleEventId: (0, import_fields77.text)({
+    googleEventId: (0, import_fields79.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "id del evento en Google (se llena tras el push exitoso)" }
     }),
-    lastPushedAt: (0, import_fields77.timestamp)({ db: { isNullable: true } }),
-    lastPushStatus: (0, import_fields77.select)({
+    lastPushedAt: (0, import_fields79.timestamp)({ db: { isNullable: true } }),
+    lastPushStatus: (0, import_fields79.select)({
       type: "string",
       options: [...GOOGLE_LINK_STATUS_OPTIONS],
       defaultValue: "pending" /* PENDING */
     }),
-    lastPushError: (0, import_fields77.text)({
+    lastPushError: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     })
@@ -13357,8 +13591,8 @@ var TechCalendarEventGoogleLink_default = (0, import_core77.list)({
 });
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var import_core78 = require("@keystone-6/core");
-var import_fields78 = require("@keystone-6/core/fields");
+var import_core80 = require("@keystone-6/core");
+var import_fields80 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.access.ts
 var techGoogleCalendarSyncLogAccess = {
@@ -13380,7 +13614,7 @@ var techGoogleCalendarSyncLogAccess = {
 };
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var TechGoogleCalendarSyncLog_default = (0, import_core78.list)({
+var TechGoogleCalendarSyncLog_default = (0, import_core80.list)({
   access: techGoogleCalendarSyncLogAccess,
   ui: {
     listView: {
@@ -13395,29 +13629,29 @@ var TechGoogleCalendarSyncLog_default = (0, import_core78.list)({
     }
   },
   fields: {
-    account: (0, import_fields78.relationship)({
+    account: (0, import_fields80.relationship)({
       ref: "GoogleCalendarAccount.syncLogs",
       many: false
     }),
-    direction: (0, import_fields78.select)({
+    direction: (0, import_fields80.select)({
       type: "string",
       options: [...GOOGLE_SYNC_DIRECTION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    operation: (0, import_fields78.select)({
+    operation: (0, import_fields80.select)({
       type: "string",
       options: [...GOOGLE_SYNC_OPERATION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    success: (0, import_fields78.checkbox)({ defaultValue: false }),
-    errorMessage: (0, import_fields78.text)({
+    success: (0, import_fields80.checkbox)({ defaultValue: false }),
+    errorMessage: (0, import_fields80.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si la llamada fall\xF3 (sin tokens)" }
     }),
-    durationMs: (0, import_fields78.integer)({ db: { isNullable: true } }),
-    createdAt: (0, import_fields78.timestamp)({ defaultValue: { kind: "now" } })
+    durationMs: (0, import_fields80.integer)({ db: { isNullable: true } }),
+    createdAt: (0, import_fields80.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
@@ -13459,6 +13693,8 @@ var schema_default = withActivityHooks({
   SaasCompanyMonthlyLeadSync: SaasCompanyMonthlyLeadSync_default,
   SaasCompanyCreditPeriod: SaasCompanyCreditPeriod_default,
   SaasCompanyCreditLedger: SaasCompanyCreditLedger_default,
+  SaasCompanyDailyUsage: SaasCompanyDailyUsage_default,
+  SaasCompanyNote: SaasCompanyNote_default,
   SaasCompanySubscription: SaasCompanySubscription_default,
   SaasPayment: SaasPayment_default,
   SaasPaymentMethod: SaasPaymentMethod_default,
@@ -13504,7 +13740,7 @@ var schema_default = withActivityHooks({
 });
 
 // keystone.ts
-var import_core79 = require("@keystone-6/core");
+var import_core81 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto2 = require("crypto");
@@ -13520,7 +13756,8 @@ var { withAuth } = (0, import_auth.createAuth)({
   // this is a GraphQL query fragment for fetching what data will be attached to a context.session
   //   this can be helpful for when you are writing your access control functions
   //   you can find out more at https://keystonejs.com/docs/guides/auth-and-access-control
-  sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } permissions createdAt company { id }",
+  // sessionVersion, suspendedAt, anonymizedAt y company.suspendedAt los revisa auth/sessionGuards.ts en cada petición.
+  sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } permissions createdAt sessionVersion suspendedAt anonymizedAt company { id suspendedAt }",
   secretField: "password",
   ...process.env.NODE_ENV !== "production" ? {
     initFirstItem: {
@@ -13534,12 +13771,118 @@ var session = (0, import_session.statelessSessions)({
   secret: sessionSecret
 });
 
+// auth/sessionGuards.ts
+var SUSPENDED_MESSAGE = "Tu acceso a Kadesh est\xE1 suspendido. Escr\xEDbenos a contacto@kadesh.com.mx para revisarlo.";
+function isPlatformAdminData(data) {
+  return (data?.roles ?? []).some((role) => role?.name === "admin");
+}
+function sessionBlockReason(session2) {
+  const data = session2.data;
+  if (!data) return null;
+  const tokenVersion = typeof session2.sessionVersion === "number" ? session2.sessionVersion : 0;
+  if ((data.sessionVersion ?? 0) !== tokenVersion) return "revoked";
+  if (data.anonymizedAt) return "anonymized";
+  if (data.suspendedAt) return "suspended";
+  if (data.company?.suspendedAt && !isPlatformAdminData(data)) return "suspended";
+  if (session2.impersonation && Date.now() > session2.impersonation.expiresAt) {
+    return "impersonation_expired";
+  }
+  return null;
+}
+async function loginBlockedReason(context, userId) {
+  try {
+    const user = await context.sudo().prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        suspendedAt: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } },
+        company: { select: { suspendedAt: true } }
+      }
+    });
+    if (!user) return null;
+    if (user.anonymizedAt) return "anonymized";
+    if (user.suspendedAt) return "suspended";
+    if (user.company?.suspendedAt && !isPlatformAdminData(user)) return "suspended";
+    return null;
+  } catch {
+    return null;
+  }
+}
+function withSessionGuards(config2) {
+  const inner = config2.session;
+  if (!inner) return config2;
+  return {
+    ...config2,
+    session: {
+      ...inner,
+      async start({ data, context }) {
+        let sessionVersion = data?.sessionVersion;
+        if (data?.itemId && typeof sessionVersion !== "number") {
+          try {
+            const user = await context.sudo().prisma.user.findUnique({
+              where: { id: data.itemId },
+              select: { sessionVersion: true }
+            });
+            sessionVersion = user?.sessionVersion ?? 0;
+          } catch {
+            sessionVersion = 0;
+          }
+        }
+        return inner.start({ data: { ...data, sessionVersion }, context });
+      },
+      async get({ context }) {
+        const session2 = await inner.get({ context });
+        if (!session2) return void 0;
+        return sessionBlockReason(session2) ? void 0 : session2;
+      }
+    }
+  };
+}
+
+// auth/impersonation.ts
+var import_graphql = require("graphql");
+var IMPERSONATION_TTL_MS = 60 * 60 * 1e3;
+var ALLOWED_MUTATIONS = /* @__PURE__ */ new Set([
+  "endImpersonation",
+  "trackEvents",
+  "endSession",
+  // Es una lectura (créditos del mes) declarada como mutación; el panel la pide al cargar.
+  "remainingCredits"
+]);
+var IMPERSONATION_READ_ONLY_MESSAGE = "Est\xE1s viendo el panel como otra persona en modo solo lectura: no se pueden guardar cambios.";
+function getImpersonation(session2) {
+  const impersonation = session2?.impersonation;
+  return impersonation?.adminId ? impersonation : null;
+}
+function rootFields(operation) {
+  return operation.selectionSet.selections.map(
+    (selection) => selection.kind === import_graphql.Kind.FIELD ? selection.name.value : null
+  );
+}
+var impersonationReadOnlyPlugin = {
+  async requestDidStart() {
+    return {
+      async didResolveOperation(requestContext) {
+        if (!getImpersonation(requestContext.contextValue?.session)) return;
+        const operation = requestContext.operation;
+        if (!operation || operation.operation !== "mutation") return;
+        const fields = rootFields(operation);
+        const allowed = fields.every((field) => field !== null && ALLOWED_MUTATIONS.has(field));
+        if (allowed) return;
+        console.info(
+          `[impersonation] mutaci\xF3n bloqueada (solo lectura): ${requestContext.operationName ?? "sin nombre"} \u2192 ${fields.join(", ")}`
+        );
+        throw new import_graphql.GraphQLError(IMPERSONATION_READ_ONLY_MESSAGE, {
+          extensions: { code: "IMPERSONATION_READ_ONLY", http: { status: 200 } }
+        });
+      }
+    };
+  }
+};
+
 // graphql/extendedSchema.ts
 var import_schema = require("@graphql-tools/schema");
-
-// graphql/customs/mutations/auth/customAuth.ts
-var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
-var import_crypto3 = require("crypto");
 
 // utils/auth/userAuthLogWrite.ts
 function maskEmail(email) {
@@ -13573,107 +13916,6 @@ async function writeUserAuthLog(context, params) {
   } catch {
   }
 }
-
-// graphql/customs/mutations/auth/customAuth.ts
-var typeDefs = `
-  type customAuthType {
-    message: String,
-    success: Boolean,
-    data: JSON
-  }
-`;
-var definition = "customAuth(email: String!, name: String, lastName: String): customAuthType";
-var resolver = {
-  customAuth: async (root, {
-    email,
-    name,
-    lastName
-  }, context) => {
-    const startedAt = Date.now();
-    const emailTrimmed = email.trim();
-    try {
-      const lastLoginAt = (/* @__PURE__ */ new Date()).toISOString();
-      let isNewUser = false;
-      let userFound = await context.sudo().query.User.findOne({
-        query: "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
-        where: {
-          email: emailTrimmed
-        }
-      });
-      if (!userFound) {
-        isNewUser = true;
-        userFound = await context.db.User.createOne({
-          data: {
-            email: emailTrimmed,
-            name,
-            lastName,
-            username: await checkUserName(name, lastName, context),
-            role: "user",
-            lastLoginAt
-          }
-        });
-      } else {
-        userFound = await context.sudo().query.User.updateOne({
-          where: { id: userFound.id },
-          data: { lastLoginAt },
-          query: "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } "
-        });
-      }
-      let sessionSecret2 = process.env.SESSION_SECRET;
-      if (!sessionSecret2) {
-        sessionSecret2 = (0, import_crypto3.randomBytes)(32).toString("hex");
-      }
-      const sessionToken = import_jsonwebtoken.default.sign(
-        {
-          data: {
-            id: userFound.id,
-            email: userFound.email
-          }
-        },
-        sessionSecret2
-      );
-      await writeUserAuthLog(context, {
-        startedAt,
-        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
-        step: isNewUser ? USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP : USER_AUTH_LOG_STEP.CUSTOM_AUTH_LOGIN,
-        success: true,
-        message: "Success",
-        email: emailTrimmed,
-        userId: userFound.id,
-        responseSnapshot: {
-          success: true,
-          message: "Success",
-          userId: userFound.id,
-          isNewUser
-        }
-      });
-      return {
-        success: true,
-        message: "Success",
-        data: {
-          ...userFound,
-          sessionToken
-        }
-      };
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Error de autenticaci\xF3n.";
-      await writeUserAuthLog(context, {
-        startedAt,
-        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
-        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
-        success: false,
-        message,
-        email: emailTrimmed,
-        userId: null,
-        responseSnapshot: {
-          errorName: e instanceof Error ? e.name : "unknown"
-        }
-      });
-      throw e;
-    }
-  }
-};
-var customAuth_default = { typeDefs, definition, resolver };
 
 // utils/auth/signupRoles.ts
 var SIGNUP_ROLE_NAMES = ["vendedor" /* VENDEDOR */, "admin_company" /* ADMIN_COMPANY */];
@@ -13712,7 +13954,7 @@ async function provisionSignupCompany(context, userId, companyName) {
 }
 
 // graphql/customs/mutations/auth/authenticateUserWithGoogle.ts
-var typeDefs2 = `
+var typeDefs = `
   # isNewUser: alta nueva, no el inicio de sesi\xF3n de una cuenta ya existente.
   # El front lo usa para mandar la conversi\xF3n de registro solo en las altas.
   type UserAuthenticationWithGoogleSuccess {
@@ -13729,7 +13971,7 @@ var typeDefs2 = `
     UserAuthenticationWithGoogleSuccess
     | UserAuthenticationWithGoogleFailure
 `;
-var definition2 = `
+var definition = `
   authenticateUserWithGoogle(
     idToken: String!
     referrerCode: String
@@ -13764,7 +14006,7 @@ async function verifyGoogleIdToken(idToken) {
   }
 }
 var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified lastLoginAt";
-var resolver2 = {
+var resolver = {
   authenticateUserWithGoogle: async (_root, {
     idToken,
     referrerCode,
@@ -13845,6 +14087,9 @@ var resolver2 = {
         );
       }
     }
+    if (await loginBlockedReason(context, user.id)) {
+      return fail10(SUSPENDED_MESSAGE, payload.email, user.id);
+    }
     user = await context.sudo().query.User.updateOne({
       where: { id: user.id },
       data: { lastLoginAt: (/* @__PURE__ */ new Date()).toISOString() },
@@ -13882,14 +14127,14 @@ var resolver2 = {
     };
   }
 };
-var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
+var authenticateUserWithGoogle_default = { typeDefs, definition, resolver };
 
 // graphql/customs/mutations/auth/registerUser.ts
-var typeDefs3 = ``;
-var definition3 = `
+var typeDefs2 = ``;
+var definition2 = `
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
 `;
-var resolver3 = {
+var resolver2 = {
   registerUser: async (_root, {
     data,
     referrerCode,
@@ -13984,10 +14229,10 @@ var resolver3 = {
     }
   }
 };
-var registerUser_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
+var registerUser_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
 
 // graphql/customs/mutations/importBusinessLeadFromGoogle.ts
-var typeDefs4 = `
+var typeDefs3 = `
   input ImportBusinessLeadFromGoogleInput {
     placeId: String!
     category: String
@@ -14004,7 +14249,7 @@ var typeDefs4 = `
     importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
   }
 `;
-var definition4 = `
+var definition3 = `
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
 `;
 async function getPlaceDetails(placeId, apiKey2) {
@@ -14046,7 +14291,7 @@ async function ensureStatusForImport(context, leadId, companyId, sellerId) {
     }
   });
 }
-var resolver4 = {
+var resolver3 = {
   importBusinessLeadFromGoogle: async (_root, {
     input
   }, context) => {
@@ -14179,10 +14424,10 @@ async function getVerifiedSalesPersonIds(context, companyId) {
   });
   return users.map((u) => u.id);
 }
-var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
+var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
 
 // graphql/customs/mutations/importPetPlace.ts
-var typeDefs5 = `
+var typeDefs4 = `
   input ImportPetPlaceInput {
     inputValue: String!
     type: String!
@@ -14198,10 +14443,10 @@ var typeDefs5 = `
     executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
   }
 `;
-var definition5 = `
+var definition4 = `
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
 `;
-var resolver5 = {
+var resolver4 = {
   executeImportPetPlace: async (root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return {
@@ -14212,12 +14457,12 @@ var resolver5 = {
     }
     try {
       console.log("Ejecutando importaci\xF3n de lugares con datos:", input.inputValue, "tipo:", input.type);
-      const result = await importVeterinaries(input.inputValue, input.type, context);
-      console.log("Resultados de la importaci\xF3n:", result);
+      const result3 = await importVeterinaries(input.inputValue, input.type, context);
+      console.log("Resultados de la importaci\xF3n:", result3);
       return {
         success: true,
         message: "Veterinarias importadas exitosamente",
-        result
+        result: result3
       };
     } catch (error) {
       console.error("Error importando veterinarias:", error);
@@ -14311,7 +14556,7 @@ async function importVeterinaries(city, type, context) {
                   continue;
                 }
               }
-              const result = await context.sudo().query.PetPlace.createOne({
+              const result3 = await context.sudo().query.PetPlace.createOne({
                 data: {
                   name: place.name,
                   description: `Lugar ubicado en ${address}. ${rating > 0 ? `Calificaci\xF3n: ${rating}/5 (${userRatingsTotal} rese\xF1as)` : ""}`,
@@ -14349,7 +14594,7 @@ async function importVeterinaries(city, type, context) {
                     if (Object.keys(updateData).length > 0) {
                       try {
                         await context.sudo().query.PetPlace.updateOne({
-                          where: { id: result.id },
+                          where: { id: result3.id },
                           data: updateData
                         });
                       } catch (updateError) {
@@ -14370,7 +14615,7 @@ async function importVeterinaries(city, type, context) {
                               createdAt,
                               google_user: review.author_name || "",
                               google_user_photo: review.profile_photo_url || "",
-                              pet_place: { connect: { id: result.id } }
+                              pet_place: { connect: { id: result3.id } }
                             }
                           });
                         } catch (reviewError) {
@@ -14414,9 +14659,9 @@ ${errors.join("\n")}`;
   }
 }
 var importPetPlace_default = {
-  typeDefs: typeDefs5,
-  definition: definition5,
-  resolver: resolver5
+  typeDefs: typeDefs4,
+  definition: definition4,
+  resolver: resolver4
 };
 
 // utils/helpers/calculate_distances.ts
@@ -14434,8 +14679,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text69 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text69}`;
+  const text71 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text71}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -14495,7 +14740,7 @@ function parseYmdAsLocalDate(dateStr) {
   if (Number.isNaN(localDate.getTime())) return null;
   return localDate;
 }
-function getFreePlanTrialInfo(activatedAt) {
+function getFreePlanTrialInfo(activatedAt, currentPeriodEnd) {
   if (!activatedAt) {
     return { trialEnd: null, isExpired: false };
   }
@@ -14503,9 +14748,15 @@ function getFreePlanTrialInfo(activatedAt) {
   if (!activatedAtDate) {
     return { trialEnd: null, isExpired: false };
   }
-  const trialEndDate2 = new Date(activatedAtDate);
-  trialEndDate2.setDate(trialEndDate2.getDate() + TRIAL_DAYS_FREE_PLAN);
-  const trialEnd = toLocalYmd(trialEndDate2);
+  const storedEnd = currentPeriodEnd ? parseYmdAsLocalDate(currentPeriodEnd) : null;
+  let trialEnd;
+  if (storedEnd && storedEnd >= activatedAtDate) {
+    trialEnd = toLocalYmd(storedEnd);
+  } else {
+    const trialEndDate2 = new Date(activatedAtDate);
+    trialEndDate2.setDate(trialEndDate2.getDate() + TRIAL_DAYS_FREE_PLAN);
+    trialEnd = toLocalYmd(trialEndDate2);
+  }
   const today = toLocalYmd(/* @__PURE__ */ new Date());
   return {
     trialEnd,
@@ -14553,7 +14804,7 @@ async function getActiveSubscription(context, companyId) {
     },
     orderBy: [{ activatedAt: "desc" }],
     take: 1,
-    query: "id planLeadLimit planCost activatedAt newCreditsAdded"
+    query: "id planLeadLimit planCost activatedAt currentPeriodEnd newCreditsAdded"
   });
   return subscription ?? null;
 }
@@ -14868,7 +15119,10 @@ async function getCompanyRemainingCredits(context, companyId) {
   }
   const isFreePlan = subscription.planCost != null && subscription.planCost <= 0;
   if (isFreePlan && subscription.activatedAt) {
-    const { isExpired } = getFreePlanTrialInfo(subscription.activatedAt);
+    const { isExpired } = getFreePlanTrialInfo(
+      subscription.activatedAt,
+      subscription.currentPeriodEnd
+    );
     if (isExpired) {
       return { ...empty2, blockingReason: "free_plan_expired", leadLimit: 0 };
     }
@@ -15013,21 +15267,21 @@ async function assignExistingLeadToCompany(context, params) {
 var MIN_RATING = 0;
 var MIN_REVIEWS = 0;
 var DEFAULT_MAX_RESULTS = 60;
-async function logSyncLeadsResult(context, userId, companyId, input, result) {
+async function logSyncLeadsResult(context, userId, companyId, input, result3) {
   if (!userId) return;
   try {
     await context.sudo().query.TechLeadSyncLog.createOne({
       data: {
         user: { connect: { id: userId } },
         ...companyId && { company: { connect: { id: companyId } } },
-        success: result.success,
-        message: result.message,
-        created: result.created,
-        alreadyInDb: result.alreadyInDb,
-        skippedLowRating: result.skippedLowRating,
-        syncedLeadsCount: result.syncedLeadsCount,
-        syncedCount: result.syncedCount,
-        leadLimit: result.leadLimit,
+        success: result3.success,
+        message: result3.message,
+        created: result3.created,
+        alreadyInDb: result3.alreadyInDb,
+        skippedLowRating: result3.skippedLowRating,
+        syncedLeadsCount: result3.syncedLeadsCount,
+        syncedCount: result3.syncedCount,
+        leadLimit: result3.leadLimit,
         lat: input.lat,
         lng: input.lng,
         radius: input.radius,
@@ -15037,7 +15291,7 @@ async function logSyncLeadsResult(context, userId, companyId, input, result) {
   } catch (_) {
   }
 }
-var typeDefs6 = `
+var typeDefs5 = `
   input SyncLeadsFrontInput {
     lat: Float!
     lng: Float!
@@ -15063,10 +15317,10 @@ var typeDefs6 = `
     syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
   }
 `;
-var definition6 = `
+var definition5 = `
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
 `;
-var resolver6 = {
+var resolver5 = {
   syncLeadsFront: async (_root, {
     input
   }, context) => {
@@ -15101,66 +15355,66 @@ var resolver6 = {
     });
     const company = user?.company;
     if (!company?.id) {
-      const result = {
+      const result3 = {
         success: false,
         message: "Tu usuario no tiene una empresa asignada",
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, void 0, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, void 0, input, result3);
+      return result3;
     }
     const credits = await getRemainingCredits(context, company.id);
     const { remainingQuota, syncedCount, leadLimit } = credits;
     const companyLabel = company?.name ?? "la empresa";
     if (credits.blockingReason === "no_subscription") {
-      const result = {
+      const result3 = {
         success: false,
         message: `"${company?.name ?? "La empresa"}" no tiene una suscripci\xF3n activa. Contrata o activa una suscripci\xF3n para sincronizar leads.`,
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     if (credits.blockingReason === "free_plan_expired") {
-      const result = {
+      const result3 = {
         success: false,
         message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.",
         ...emptyResult2,
         leadLimit: 0
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     if (credits.blockingReason === "no_lead_limit") {
-      const result = {
+      const result3 = {
         success: false,
         message: `La suscripci\xF3n activa de "${companyLabel}" no tiene l\xEDmite de leads configurado.`,
         ...emptyResult2,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     if (credits.blockingReason === "lead_limit_too_low") {
-      const result = {
+      const result3 = {
         success: false,
         message: `La suscripci\xF3n activa de "${companyLabel}" no permite sincronizar leads.`,
         ...emptyResult2,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     if (remainingQuota === 0) {
-      const result = {
+      const result3 = {
         success: false,
         message: `Cuota mensual de tu suscripci\xF3n alcanzada (${syncedCount}/${leadLimit} leads). Pr\xF3ximo reinicio el mes siguiente.`,
         ...emptyResult2,
         syncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     const maxResults = Math.min(
       input.maxResults ?? DEFAULT_MAX_RESULTS,
@@ -15236,20 +15490,20 @@ var resolver6 = {
         notes: "Leads asignados desde BD"
       });
       if (!consumeResult.success) {
-        const result = {
+        const result3 = {
           success: false,
           message: `Cuota mensual alcanzada (${consumeResult.syncedCount}/${consumeResult.leadLimit} leads).`,
           ...emptyResult2,
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result);
-        return result;
+        await logSyncLeadsResult(context, userId, company.id, input, result3);
+        return result3;
       }
       currentSyncedCount = consumeResult.syncedCount;
     }
     if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
-      const result = {
+      const result3 = {
         success: true,
         message: `${assignedFromDb} leads asignados. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
         created: 0,
@@ -15259,13 +15513,13 @@ var resolver6 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey2) {
       if (syncedThisRequest > 0) {
-        const result2 = {
+        const result4 = {
           success: true,
           message: `${syncedThisRequest} leads asignados desde BD. GOOGLE_MAPS_API_KEY no configurada para buscar m\xE1s. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
           created: 0,
@@ -15275,16 +15529,16 @@ var resolver6 = {
           syncedCount: currentSyncedCount,
           leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result2);
-        return result2;
+        await logSyncLeadsResult(context, userId, company.id, input, result4);
+        return result4;
       }
-      const result = {
+      const result3 = {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     const { lat, lng, radius, category } = input;
     const radiusMeters = Math.round(radius * 1e3);
@@ -15380,7 +15634,7 @@ var resolver6 = {
         if (!pageToken) break;
       }
       if (firstPageError && nearbyPlaces.length === 0) {
-        const result2 = {
+        const result4 = {
           success: false,
           message: firstPageError,
           created,
@@ -15390,8 +15644,8 @@ var resolver6 = {
           syncedCount: currentSyncedCount,
           leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result2);
-        return result2;
+        await logSyncLeadsResult(context, userId, company.id, input, result4);
+        return result4;
       }
       console.log("[syncLeadsFront] GOOGLE places collected", {
         total: nearbyPlaces.length
@@ -15500,7 +15754,7 @@ var resolver6 = {
         }
       }
       await chargeGoogleCreditsIfNeeded();
-      const result = {
+      const result3 = {
         success: true,
         message: `Sincronizaci\xF3n completada. Leads asignados a tu empresa: ${syncedThisRequest} ${leadLimit !== null ? ` Cuota: ${currentSyncedCount}/${leadLimit} este mes.` : ""}`,
         created,
@@ -15510,12 +15764,12 @@ var resolver6 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     } catch (err) {
       console.error("[syncLeadsFront] EXCEPTION in Google sync", err);
       await chargeGoogleCreditsIfNeeded();
-      const result = {
+      const result3 = {
         success: false,
         message: err instanceof Error ? err.message : "Error en sincronizaci\xF3n",
         created,
@@ -15525,12 +15779,12 @@ var resolver6 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
   }
 };
-var syncLeadsFront_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
+var syncLeadsFront_default = { typeDefs: typeDefs5, definition: definition5, resolver: resolver5 };
 
 // graphql/customs/mutations/syncBusinessLeadsFromGoogle.ts
 async function getVerifiedSalesPersonIds2(context) {
@@ -15546,7 +15800,7 @@ async function getVerifiedSalesPersonIds2(context) {
 var MIN_RATING2 = 4;
 var MIN_REVIEWS2 = 20;
 var DEFAULT_MAX_RESULTS2 = 60;
-var typeDefs7 = `
+var typeDefs6 = `
   input SyncBusinessLeadsFromGoogleInput {
     lat: Float!
     lng: Float!
@@ -15568,7 +15822,7 @@ var typeDefs7 = `
     syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   }
 `;
-var definition7 = `
+var definition6 = `
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
 `;
 var PROMPT_PREFIX2 = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
@@ -15584,8 +15838,8 @@ async function getPlaceDetails3(placeId, apiKey2) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text69 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text69}`;
+  const text71 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text71}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -15624,7 +15878,7 @@ function parseAddressComponents3(components) {
   }
   return { city, state, country };
 }
-var resolver7 = {
+var resolver6 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
@@ -15769,7 +16023,7 @@ var resolver7 = {
     }
   }
 };
-var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
+var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
 
 // models/Saas/SaasSubscriptionLog/constants.ts
 var SAAS_SUBSCRIPTION_LOG_STEP = {
@@ -15836,7 +16090,7 @@ async function writeSaasSubscriptionLog(context, params) {
 }
 
 // graphql/customs/mutations/createCompanySubscription.ts
-var typeDefs8 = `
+var typeDefs7 = `
   input CreateCompanySubscriptionInput {
     planId: ID!
     notes: String
@@ -15859,7 +16113,7 @@ var typeDefs8 = `
     createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
   }
 `;
-var definition8 = `
+var definition7 = `
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
 `;
 async function createStripeSubscription(params) {
@@ -15887,7 +16141,7 @@ function getProcessorStripeIdFromSubscription(subscription) {
   }
   return invoice.id ?? subscription.id;
 }
-var resolver8 = {
+var resolver7 = {
   createCompanySubscription: async (_root, {
     input
   }, context) => {
@@ -15904,15 +16158,15 @@ var resolver8 = {
     let logUserId;
     let logCompanyId;
     let logPlanId;
-    const finish = async (step, result, opts) => {
+    const finish = async (step, result3, opts) => {
       await writeSaasSubscriptionLog(context, {
         startedAt,
         input: logInput,
         step,
-        success: result.success,
-        message: result.message,
-        subscriptionId: result.subscriptionId,
-        paymentId: result.paymentId,
+        success: result3.success,
+        message: result3.message,
+        subscriptionId: result3.subscriptionId,
+        paymentId: result3.paymentId,
         userId: logUserId ?? null,
         companyId: logCompanyId ?? null,
         planId: logPlanId ?? null,
@@ -15921,7 +16175,7 @@ var resolver8 = {
         stripeSubscriptionId: opts?.stripeSubscriptionId ?? null,
         extra: opts?.extra
       });
-      return result;
+      return result3;
     };
     try {
       if (!canActForEmail(context.session, input.email)) {
@@ -16273,7 +16527,7 @@ var resolver8 = {
     }
   }
 };
-var createCompanySubscription_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
+var createCompanySubscription_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
 
 // graphql/customs/mutations/addOwnLead.ts
 var ADD_OWN_LEADS_FEATURE_KEY = "add_own_leads";
@@ -16281,7 +16535,7 @@ function subscriptionHasFeature(planFeatures, featureKey) {
   if (!Array.isArray(planFeatures)) return false;
   return planFeatures.some((f) => f.key === featureKey);
 }
-var typeDefs9 = `
+var typeDefs8 = `
   input AddOwnLeadInput {
     businessName: String!
     category: String
@@ -16318,10 +16572,10 @@ var typeDefs9 = `
     addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   }
 `;
-var definition9 = `
+var definition8 = `
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
 `;
-var resolver9 = {
+var resolver8 = {
   addOwnLead: async (_root, {
     input
   }, context) => {
@@ -16435,7 +16689,7 @@ var resolver9 = {
     }
   }
 };
-var addOwnLead_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
+var addOwnLead_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
 
 // graphql/customs/mutations/subcription/remainingCredits.ts
 var BLOCKING_MESSAGES = {
@@ -16444,7 +16698,7 @@ var BLOCKING_MESSAGES = {
   no_lead_limit: "La suscripci\xF3n activa no tiene l\xEDmite de leads configurado.",
   lead_limit_too_low: "La suscripci\xF3n activa no permite sincronizar leads o te has excedido el l\xEDmite de leads."
 };
-var typeDefs10 = `
+var typeDefs9 = `
   type RemainingCreditsResult {
     success: Boolean!
     message: String
@@ -16461,10 +16715,10 @@ var typeDefs10 = `
     remainingCredits(companyId: ID): RemainingCreditsResult!
   }
 `;
-var definition10 = `
+var definition9 = `
   remainingCredits(companyId: ID): RemainingCreditsResult!
 `;
-var resolver10 = {
+var resolver9 = {
   remainingCredits: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -16522,10 +16776,10 @@ var resolver10 = {
     };
   }
 };
-var remainingCredits_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
+var remainingCredits_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
 
 // graphql/customs/mutations/credits/purchaseCredits.ts
-var typeDefs11 = `
+var typeDefs10 = `
   input PurchaseCreditsInput {
     creditPackageId: ID!
     notes: String
@@ -16549,7 +16803,7 @@ var typeDefs11 = `
     purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
   }
 `;
-var definition11 = `
+var definition10 = `
   purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
 `;
 async function createStripeOneTimePayment(params) {
@@ -16568,7 +16822,7 @@ async function createStripeOneTimePayment(params) {
   });
   return paymentIntent;
 }
-var resolver11 = {
+var resolver10 = {
   purchaseCredits: async (_root, {
     input
   }, context) => {
@@ -16585,14 +16839,14 @@ var resolver11 = {
     let logUserId;
     let logCompanyId;
     let logSubscriptionId;
-    const finish = async (step, result, opts) => {
+    const finish = async (step, result3, opts) => {
       const response = {
-        creditsAdded: result.creditsAdded ?? null,
-        newCreditsTotal: result.newCreditsTotal ?? null,
-        subscriptionId: result.subscriptionId ?? null,
-        success: result.success,
-        message: result.message,
-        paymentId: result.paymentId
+        creditsAdded: result3.creditsAdded ?? null,
+        newCreditsTotal: result3.newCreditsTotal ?? null,
+        subscriptionId: result3.subscriptionId ?? null,
+        success: result3.success,
+        message: result3.message,
+        paymentId: result3.paymentId
       };
       await writeSaasSubscriptionLog(context, {
         startedAt,
@@ -16751,7 +17005,7 @@ var resolver11 = {
         },
         orderBy: [{ activatedAt: "desc" }],
         take: 1,
-        query: "id planCost activatedAt newCreditsAdded"
+        query: "id planCost activatedAt currentPeriodEnd newCreditsAdded"
       });
       if (!activeSubscription) {
         return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
@@ -16767,7 +17021,7 @@ var resolver11 = {
       logSubscriptionId = sub.id;
       const isFreePlan = sub.planCost != null && sub.planCost <= 0;
       if (isFreePlan && sub.activatedAt) {
-        const { isExpired } = getFreePlanTrialInfo(sub.activatedAt);
+        const { isExpired } = getFreePlanTrialInfo(sub.activatedAt, sub.currentPeriodEnd);
         if (isExpired) {
           return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
             success: false,
@@ -16927,11 +17181,11 @@ var resolver11 = {
     }
   }
 };
-var purchaseCredits_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
+var purchaseCredits_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
 
 // graphql/customs/mutations/credits/grantAdminCredits.ts
 var MAX_GRANT = 5e4;
-var typeDefs12 = `
+var typeDefs11 = `
   input GrantAdminCreditsInput {
     companyId: ID!
     subscriptionId: ID!
@@ -16951,10 +17205,10 @@ var typeDefs12 = `
     grantAdminCredits(input: GrantAdminCreditsInput!): GrantAdminCreditsResult!
   }
 `;
-var definition12 = `
+var definition11 = `
   grantAdminCredits(input: GrantAdminCreditsInput!): GrantAdminCreditsResult!
 `;
-var resolver12 = {
+var resolver11 = {
   grantAdminCredits: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return {
@@ -17053,10 +17307,10 @@ var resolver12 = {
     };
   }
 };
-var grantAdminCredits_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
+var grantAdminCredits_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
 
 // graphql/customs/mutations/saas/updatePlanFeatureCatalog.ts
-var typeDefs13 = `
+var typeDefs12 = `
   input PlanFeatureCatalogItemInput {
     key: String!
     name: String!
@@ -17080,7 +17334,7 @@ var typeDefs13 = `
     ): UpdatePlanFeatureCatalogResult!
   }
 `;
-var definition13 = `
+var definition12 = `
   updatePlanFeatureCatalog(input: UpdatePlanFeatureCatalogInput!): UpdatePlanFeatureCatalogResult!
 `;
 function fail(message) {
@@ -17115,7 +17369,7 @@ function applyFeatureCatalog(current, catalogByKey) {
   });
   return { next, changed };
 }
-var resolver13 = {
+var resolver12 = {
   updatePlanFeatureCatalog: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return fail("Solo operaciones puede editar los m\xF3dulos.");
@@ -17188,7 +17442,7 @@ var resolver13 = {
     };
   }
 };
-var updatePlanFeatureCatalog_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+var updatePlanFeatureCatalog_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
 
 // graphql/customs/mutations/sendTestEmail.ts
 var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17216,7 +17470,7 @@ function buildTestEmailHtml() {
     </div>
   `;
 }
-var typeDefs14 = `
+var typeDefs13 = `
   type SendTestEmailResult {
     success: Boolean!
     message: String!
@@ -17230,10 +17484,10 @@ var typeDefs14 = `
     sendTestEmail(email: String!): SendTestEmailResult!
   }
 `;
-var definition14 = `
+var definition13 = `
   sendTestEmail(email: String!): SendTestEmailResult!
 `;
-var resolver14 = {
+var resolver13 = {
   sendTestEmail: async (_root, { email }, context) => {
     const session2 = context.session;
     const diagnostics = mailDiagnostics();
@@ -17295,7 +17549,7 @@ var resolver14 = {
     }
   }
 };
-var sendTestEmail_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
+var sendTestEmail_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
 
 // graphql/customs/mutations/sendAdminBroadcastEmail.ts
 var EMAIL_REGEX2 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17311,7 +17565,7 @@ var AUDIENCES = /* @__PURE__ */ new Set([
   "custom"
 ]);
 var BRANDS2 = /* @__PURE__ */ new Set(["saas", "pet"]);
-var typeDefs15 = `
+var typeDefs14 = `
   enum AdminEmailAudience {
     saas
     pet
@@ -17355,7 +17609,7 @@ var typeDefs15 = `
     sendAdminBroadcastEmail(input: SendAdminBroadcastEmailInput!): SendAdminBroadcastEmailResult!
   }
 `;
-var definition15 = `
+var definition14 = `
   sendAdminBroadcastEmail(input: SendAdminBroadcastEmailInput!): SendAdminBroadcastEmailResult!
 `;
 function fail2(message, partial) {
@@ -17374,14 +17628,14 @@ function trimOrEmpty(value, max) {
   return (value ?? "").trim().slice(0, max);
 }
 function parseCustomEmails(raw) {
-  const list79 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
-  if (list79.length === 0) {
+  const list81 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
+  if (list81.length === 0) {
     return {
       emails: [],
       error: "Agrega al menos un correo para el env\xEDo a usuarios espec\xEDficos."
     };
   }
-  if (list79.length > MAX_CUSTOM_RECIPIENTS) {
+  if (list81.length > MAX_CUSTOM_RECIPIENTS) {
     return {
       emails: [],
       error: `M\xE1ximo ${MAX_CUSTOM_RECIPIENTS} correos por env\xEDo a usuarios espec\xEDficos.`
@@ -17389,7 +17643,7 @@ function parseCustomEmails(raw) {
   }
   const seen = /* @__PURE__ */ new Set();
   const emails = [];
-  for (const email of list79) {
+  for (const email of list81) {
     if (!EMAIL_REGEX2.test(email)) {
       return { emails: [], error: `Correo inv\xE1lido: ${email}` };
     }
@@ -17400,7 +17654,7 @@ function parseCustomEmails(raw) {
   }
   return { emails, error: null };
 }
-var resolver15 = {
+var resolver14 = {
   sendAdminBroadcastEmail: async (_root, { input }, context) => {
     if (!hasRole(context.session, ["admin" /* ADMIN */])) {
       return fail2("Solo administradores de plataforma pueden enviar correos.");
@@ -17454,7 +17708,7 @@ var resolver15 = {
       );
     }
     try {
-      const result = await sendAdminBroadcastEmail({
+      const result3 = await sendAdminBroadcastEmail({
         context,
         audience,
         brand,
@@ -17470,7 +17724,7 @@ var resolver15 = {
         footerNote,
         dryRun
       });
-      if (result.recipientCount === 0) {
+      if (result3.recipientCount === 0) {
         return fail2(
           audience === "custom" ? "No hay correos v\xE1lidos para enviar." : "No hay destinatarios con correo en esa audiencia.",
           { brand, audience, dryRun, recipientCount: 0 }
@@ -17479,8 +17733,8 @@ var resolver15 = {
       if (dryRun) {
         return {
           success: true,
-          message: `Listos ${result.recipientCount} destinatarios. Nada se envi\xF3 (solo conteo).`,
-          recipientCount: result.recipientCount,
+          message: `Listos ${result3.recipientCount} destinatarios. Nada se envi\xF3 (solo conteo).`,
+          recipientCount: result3.recipientCount,
           sentCount: 0,
           failedCount: 0,
           dryRun: true,
@@ -17488,30 +17742,30 @@ var resolver15 = {
           audience
         };
       }
-      const ok = result.failedCount === 0;
+      const ok = result3.failedCount === 0;
       void logActivity(context, {
         type: ACTIVITY_EVENT.ADMIN_EMAIL_BROADCAST,
         companyId: null,
         entityType: "Email",
-        summary: `Envi\xF3 el correo "${subject}" a ${result.sentCount} destinatarios`,
+        summary: `Envi\xF3 el correo "${subject}" a ${result3.sentCount} destinatarios`,
         success: ok,
-        errorMessage: ok ? null : `Fallaron ${result.failedCount} env\xEDos`,
+        errorMessage: ok ? null : `Fallaron ${result3.failedCount} env\xEDos`,
         metadata: {
           audience,
           brand,
           subject,
-          recipientCount: result.recipientCount,
-          sentCount: result.sentCount,
-          failedCount: result.failedCount,
+          recipientCount: result3.recipientCount,
+          sentCount: result3.sentCount,
+          failedCount: result3.failedCount,
           customRecipients: audience === "custom" ? customEmails?.length ?? 0 : null
         }
       });
       return {
         success: ok,
-        message: ok ? `Enviado a ${result.sentCount} destinatarios.` : `Enviado a ${result.sentCount}; fallaron ${result.failedCount}.`,
-        recipientCount: result.recipientCount,
-        sentCount: result.sentCount,
-        failedCount: result.failedCount,
+        message: ok ? `Enviado a ${result3.sentCount} destinatarios.` : `Enviado a ${result3.sentCount}; fallaron ${result3.failedCount}.`,
+        recipientCount: result3.recipientCount,
+        sentCount: result3.sentCount,
+        failedCount: result3.failedCount,
         dryRun: false,
         brand,
         audience
@@ -17522,7 +17776,7 @@ var resolver15 = {
     }
   }
 };
-var sendAdminBroadcastEmail_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
+var sendAdminBroadcastEmail_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
 
 // utils/ai/errors.ts
 var AiNotConfiguredError = class extends Error {
@@ -17574,11 +17828,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text69) {
-  return text69.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text71) {
+  return text71.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text69) {
-  const cleaned = stripSpoofedDelimiters(text69 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text71) {
+  const cleaned = stripSpoofedDelimiters(text71 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -17618,9 +17872,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text69) {
-  if (!text69) return 0;
-  return Math.max(1, Math.ceil(text69.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text71) {
+  if (!text71) return 0;
+  return Math.max(1, Math.ceil(text71.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -17654,15 +17908,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text69 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text69) {
+  const text71 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text71) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text69,
+    text: text71,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text69)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text71)
     }
   };
 }
@@ -17707,15 +17961,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text69 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text69) {
+  const text71 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text71) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text69,
+    text: text71,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text69)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text71)
     }
   };
 }
@@ -17752,15 +18006,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text69 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text69) {
+  const text71 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text71) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text69,
+    text: text71,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text69)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text71)
     }
   };
 }
@@ -18232,7 +18486,7 @@ function denyCompanyAiUseMessage(session2) {
 }
 
 // graphql/customs/mutations/ai/updateCompanyAiSettings.ts
-var typeDefs16 = `
+var typeDefs15 = `
   input UpdateCompanyAiSettingsInput {
     companyId: ID!
     billingMode: String
@@ -18261,7 +18515,7 @@ var typeDefs16 = `
     testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
   }
 `;
-var definition16 = `
+var definition15 = `
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
 `;
@@ -18286,7 +18540,7 @@ function friendlyAiError(err) {
   }
   return err instanceof Error ? err.message : "Error al llamar a la IA";
 }
-var resolver16 = {
+var resolver15 = {
   updateCompanyAiSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyAi(session2, input.companyId)) {
@@ -18402,7 +18656,7 @@ var resolver16 = {
     }
   }
 };
-var updateCompanyAiSettings_default = { typeDefs: typeDefs16, definition: definition16, resolver: resolver16 };
+var updateCompanyAiSettings_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
 
 // utils/ai/dailyDigest.ts
 var DIGEST_TIMEZONE = "America/Mexico_City";
@@ -18438,8 +18692,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text69) {
-  const stripped = text69.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text71) {
+  const stripped = text71.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -18879,11 +19133,11 @@ async function saveMarketInsight(context, params) {
     query: INSIGHT_QUERY2
   });
 }
-function parseMarketInsight(text69) {
-  const match = text69.match(/\{[\s\S]*\}/);
+function parseMarketInsight(text71) {
+  const match = text71.match(/\{[\s\S]*\}/);
   if (!match) {
     return {
-      summary: text69.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      summary: text71.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
       actions: []
     };
   }
@@ -18894,19 +19148,19 @@ function parseMarketInsight(text69) {
       detail: String(item.detail ?? "").trim()
     })).filter((item) => item.title && item.detail).slice(0, 3);
     return {
-      summary: String(parsed.summary ?? "").trim() || text69.trim().slice(0, 800),
+      summary: String(parsed.summary ?? "").trim() || text71.trim().slice(0, 800),
       actions
     };
   } catch {
     return {
-      summary: text69.trim().slice(0, 800),
+      summary: text71.trim().slice(0, 800),
       actions: []
     };
   }
 }
 
 // graphql/customs/ai/generateMarketInsight.ts
-var typeDefs17 = `
+var typeDefs16 = `
   type MarketInsightAction {
     title: String!
     detail: String!
@@ -19016,7 +19270,7 @@ var mutationResolver = {
     try {
       const snapshot = await gatherMarketSnapshot(context, args);
       const userPrompt = formatMarketSnapshotPrompt(snapshot);
-      const result = await callCompanyAi({
+      const result3 = await callCompanyAi({
         context,
         companyId: args.companyId,
         featurePrompt: MARKET_ANALYSIS_FEATURE_PROMPT,
@@ -19025,7 +19279,7 @@ var mutationResolver = {
         bill: true,
         maxTokens: 800
       });
-      const parsed = parseMarketInsight(result.text);
+      const parsed = parseMarketInsight(result3.text);
       const content = parsed.summary + (parsed.actions.length ? "\n" + parsed.actions.map((action, index) => `${index + 1}. ${action.title} \u2014 ${action.detail}`).join("\n") : "");
       const saved = await saveMarketInsight(context, {
         companyId: args.companyId,
@@ -19036,7 +19290,7 @@ var mutationResolver = {
       });
       return toResult2(true, "An\xE1lisis de mercado listo", {
         cached: false,
-        creditsCharged: result.creditsCharged,
+        creditsCharged: result3.creditsCharged,
         insight: toPayload(saved)
       });
     } catch (err) {
@@ -19045,7 +19299,7 @@ var mutationResolver = {
   }
 };
 var generateMarketInsight_default = {
-  typeDefs: typeDefs17,
+  typeDefs: typeDefs16,
   queryDefinition,
   mutationDefinition,
   queryResolver,
@@ -19134,7 +19388,7 @@ async function saveProfilePlaybook(context, params) {
 }
 
 // graphql/customs/ai/dailyDigest.ts
-var typeDefs18 = `
+var typeDefs17 = `
   type DailyDigestAction {
     title: String!
     detail: String!
@@ -19273,7 +19527,7 @@ var mutationResolver2 = {
         salesPersonId
       });
       const userPrompt = formatSnapshotPrompt(snapshot);
-      const result = await callCompanyAi({
+      const result3 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: DAILY_DIGEST_FEATURE_PROMPT,
@@ -19282,7 +19536,7 @@ var mutationResolver2 = {
         bill: true,
         maxTokens: 800
       });
-      let actions = parseDigestActions(result.text);
+      let actions = parseDigestActions(result3.text);
       if (actions.length < 3) {
         const fallback = fallbackActions(userPrompt);
         actions = [...actions, ...fallback].slice(0, 3);
@@ -19297,7 +19551,7 @@ var mutationResolver2 = {
       });
       return toResult3(true, "Listo. Estos son tus 3 siguientes pasos de hoy.", {
         cached: false,
-        creditsCharged: result.creditsCharged,
+        creditsCharged: result3.creditsCharged,
         insight: toDigestInsightPayload(saved)
       });
     } catch (err) {
@@ -19323,7 +19577,7 @@ var mutationResolver2 = {
         query: "id name onboardingMainOffer onboardingIdealCustomer onboardingAvgTicketValue onboardingSalesPain allowedGooglePlaceCategories"
       });
       const userPrompt = playbookUserPrompt(company ?? {});
-      const result = await callCompanyAi({
+      const result3 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: PROFILE_PLAYBOOK_FEATURE_PROMPT,
@@ -19332,7 +19586,7 @@ var mutationResolver2 = {
         bill: true,
         maxTokens: 900
       });
-      let actions = parseDigestActions(result.text);
+      let actions = parseDigestActions(result3.text);
       if (actions.length < 3) {
         actions = [...actions, ...fallbackPlaybookActions(userPrompt)].slice(
           0,
@@ -19346,7 +19600,7 @@ var mutationResolver2 = {
       });
       return toResult3(true, "Listo. Estas recomendaciones salen de tu perfil.", {
         cached: false,
-        creditsCharged: result.creditsCharged,
+        creditsCharged: result3.creditsCharged,
         insight: toDigestInsightPayload(saved)
       });
     } catch (err) {
@@ -19355,7 +19609,7 @@ var mutationResolver2 = {
   }
 };
 var dailyDigest_default = {
-  typeDefs: typeDefs18,
+  typeDefs: typeDefs17,
   queryDefinition: queryDefinition2,
   mutationDefinition: mutationDefinition2,
   queryResolver: queryResolver2,
@@ -19453,8 +19707,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text69) {
-  const stripped = text69.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text71) {
+  const stripped = text71.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -19464,8 +19718,8 @@ function parseJsonObject(text69) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text69, company) {
-  const parsed = parseJsonObject(text69);
+function parseCompanyBriefPillars(text71, company) {
+  const parsed = parseJsonObject(text71);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -19568,7 +19822,7 @@ async function saveCompanyBrief(context, params) {
 }
 
 // graphql/customs/ai/companyBrief.ts
-var typeDefs19 = `
+var typeDefs18 = `
   type CompanyAiBriefPillar {
     key: String!
     title: String!
@@ -19683,7 +19937,7 @@ var mutationResolver3 = {
       });
     }
     try {
-      const result = await callCompanyAi({
+      const result3 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: COMPANY_BRIEF_FEATURE_PROMPT,
@@ -19692,7 +19946,7 @@ var mutationResolver3 = {
         bill: true,
         maxTokens: 900
       });
-      let pillars = parseCompanyBriefPillars(result.text, company);
+      let pillars = parseCompanyBriefPillars(result3.text, company);
       if (pillars.every((pillar) => !pillar.summary.trim())) {
         pillars = fallbackCompanyBriefPillars(company);
       }
@@ -19704,7 +19958,7 @@ var mutationResolver3 = {
       });
       return toResult4(true, "Listo. Esto es lo que Kadesh AI ya sabe de tu negocio.", {
         cached: false,
-        creditsCharged: result.creditsCharged,
+        creditsCharged: result3.creditsCharged,
         insight: toCompanyBriefPayload(saved, company)
       });
     } catch (err) {
@@ -19718,7 +19972,7 @@ var mutationResolver3 = {
   }
 };
 var companyBrief_default = {
-  typeDefs: typeDefs19,
+  typeDefs: typeDefs18,
   queryDefinition: queryDefinition3,
   mutationDefinition: mutationDefinition3,
   queryResolver: queryResolver3,
@@ -19785,33 +20039,33 @@ function encodeDenueCondition(value, fallback) {
   const words = parts.length ? parts : [fallback];
   return words.map((word) => encodeURIComponent(word)).join(",");
 }
-function isDenueEmptyBody(text69) {
-  const trimmed = text69.trim().toLowerCase();
+function isDenueEmptyBody(text71) {
+  const trimmed = text71.trim().toLowerCase();
   if (!trimmed) return true;
   return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
 }
 async function parseDenueList(res) {
-  const text69 = await res.text();
-  if (isDenueEmptyBody(text69)) {
+  const text71 = await res.text();
+  if (isDenueEmptyBody(text71)) {
     console.log("[INEGI DENUE] empty body treated as no results", {
       status: res.status,
-      preview: text69.slice(0, 120)
+      preview: text71.slice(0, 120)
     });
     return [];
   }
   if (!res.ok) {
     console.error("[INEGI DENUE] HTTP error body", {
       status: res.status,
-      preview: text69.slice(0, 200)
+      preview: text71.slice(0, 200)
     });
-    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text69.slice(0, 200)}`);
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text71.slice(0, 200)}`);
   }
   let data;
   try {
-    data = JSON.parse(text69);
+    data = JSON.parse(text71);
   } catch {
     throw new Error(
-      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text69.slice(0, 200)}`
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text71.slice(0, 200)}`
     );
   }
   if (!Array.isArray(data)) {
@@ -19910,17 +20164,17 @@ async function getIndicator(indicatorId, geographicArea, recent = true, source =
   const area = geographicArea.trim() || "00";
   const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
   const res = await inegiFetch(url);
-  const text69 = await res.text();
+  const text71 = await res.text();
   if (!res.ok) {
     throw new Error(
-      `INEGI Indicadores HTTP ${res.status}: ${text69.slice(0, 200)}`
+      `INEGI Indicadores HTTP ${res.status}: ${text71.slice(0, 200)}`
     );
   }
   try {
-    return JSON.parse(text69);
+    return JSON.parse(text71);
   } catch {
     throw new Error(
-      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text69.slice(0, 200)}`
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text71.slice(0, 200)}`
     );
   }
 }
@@ -20132,15 +20386,15 @@ async function fetchAndCacheIndicator(context, indicatorId, geographicCode, rece
   let created = 0;
   let updated = 0;
   for (const row of mapped) {
-    const result = await upsertMappedIndicator(context, row);
-    if (result === "created") created += 1;
+    const result3 = await upsertMappedIndicator(context, row);
+    if (result3 === "created") created += 1;
     else updated += 1;
   }
   return { mapped, created, updated };
 }
 
 // graphql/customs/mutations/inegi/syncEstablishmentsFromInegi.ts
-var typeDefs20 = `
+var typeDefs19 = `
   input SyncEstablishmentsFromInegiInput {
     lat: Float
     lng: Float
@@ -20166,7 +20420,7 @@ var typeDefs20 = `
     syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
   }
 `;
-var definition17 = `
+var definition16 = `
   syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
 `;
 function emptyResult(message, extras) {
@@ -20180,17 +20434,17 @@ function emptyResult(message, extras) {
     ...extras
   };
 }
-async function logSync(context, userId, input, result) {
+async function logSync(context, userId, input, result3) {
   try {
     await context.sudo().query.TechInegiSyncLog.createOne({
       data: {
         ...userId ? { user: { connect: { id: userId } } } : {},
-        success: result.success,
-        message: result.message,
-        created: result.created,
-        updated: result.updated,
-        alreadyInDb: result.alreadyInDb,
-        totalFetched: result.totalFetched,
+        success: result3.success,
+        message: result3.message,
+        created: result3.created,
+        updated: result3.updated,
+        alreadyInDb: result3.alreadyInDb,
+        totalFetched: result3.totalFetched,
         sourceMethod: INEGI_SYNC_SOURCE.API,
         searchParams: input
       }
@@ -20225,7 +20479,7 @@ async function fetchRows(input, cap) {
     "Indica lat/lng (b\xFAsqueda por radio) o stateCode (b\xFAsqueda por \xE1rea)"
   );
 }
-var resolver17 = {
+var resolver16 = {
   syncEstablishmentsFromInegi: async (_root, { input }, context) => {
     if (!isSignedIn(context.session)) {
       return emptyResult("Debes iniciar sesi\xF3n para sincronizar DENUE");
@@ -20239,11 +20493,11 @@ var resolver17 = {
       INEGI_LIVE_SYNC_CAP
     );
     if (typeof input.radiusMeters === "number" && input.radiusMeters > DENUE_MAX_RADIUS_METERS) {
-      const result = emptyResult(
+      const result3 = emptyResult(
         `El radio m\xE1ximo de DENUE es ${DENUE_MAX_RADIUS_METERS} metros`
       );
-      await logSync(context, userId, input, result);
-      return result;
+      await logSync(context, userId, input, result3);
+      return result3;
     }
     console.log("[syncEstablishmentsFromInegi] START", {
       userId,
@@ -20273,7 +20527,7 @@ var resolver17 = {
         if (status === "created") created += 1;
         else updated += 1;
       }
-      const result = {
+      const result3 = {
         success: true,
         message: `DENUE: ${created} nuevos, ${updated} actualizados, ${skipped} omitidos`,
         created,
@@ -20281,22 +20535,22 @@ var resolver17 = {
         alreadyInDb: updated,
         totalFetched: rows.length
       };
-      await logSync(context, userId, input, result);
-      return result;
+      await logSync(context, userId, input, result3);
+      return result3;
     } catch (err) {
       console.error("[syncEstablishmentsFromInegi] failed", {
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : void 0
       });
-      const result = emptyResult(
+      const result3 = emptyResult(
         err instanceof Error ? err.message : "Error al consultar DENUE"
       );
-      await logSync(context, userId, input, result);
-      return result;
+      await logSync(context, userId, input, result3);
+      return result3;
     }
   }
 };
-var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
+var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs19, definition: definition16, resolver: resolver16 };
 
 // utils/constants/googlePlaceCategories.ts
 var GOOGLE_PLACE_CATEGORIES = [
@@ -20894,7 +21148,7 @@ var MSG = {
   quotaFull: (synced, limit) => limit != null && synced != null ? `Ya usaste tu cuota de este mes (${synced}/${limit}). Se reinicia el pr\xF3ximo mes.` : "Ya usaste tu cuota de este mes. Se reinicia el pr\xF3ximo mes.",
   searchFailed: "No pudimos completar la b\xFAsqueda. Intenta de nuevo en unos minutos.",
   noneFound: "No encontramos negocios cerca con esa b\xFAsqueda. Prueba otra categor\xEDa o un radio m\xE1s amplio.",
-  added: (count) => count === 1 ? "Agregamos 1 negocio a tu lista." : `Agregamos ${count} negocios a tu lista.`
+  added: (count2) => count2 === 1 ? "Agregamos 1 negocio a tu lista." : `Agregamos ${count2} negocios a tu lista.`
 };
 var ESTABLISHMENT_QUERY = `
   id
@@ -20915,7 +21169,7 @@ var ESTABLISHMENT_QUERY = `
   lng
   economicActivity { id name scianCode }
 `;
-var typeDefs21 = `
+var typeDefs20 = `
   input SyncLeadsFromInegiInput {
     lat: Float!
     lng: Float!
@@ -20939,7 +21193,7 @@ var typeDefs21 = `
     syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
   }
 `;
-var definition18 = `
+var definition17 = `
   syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
 `;
 function emptyFields() {
@@ -20964,21 +21218,21 @@ function boundingBoxFilters(lat, lng, radiusKm) {
     { lng: { gte: lng - lngDelta, lte: lng + lngDelta } }
   ];
 }
-async function logResult(context, userId, companyId, input, result) {
+async function logResult(context, userId, companyId, input, result3) {
   if (!userId) return;
   try {
     await context.sudo().query.TechLeadSyncLog.createOne({
       data: {
         user: { connect: { id: userId } },
         ...companyId ? { company: { connect: { id: companyId } } } : {},
-        success: result.success,
-        message: result.message,
-        created: result.created,
-        alreadyInDb: result.alreadyInDb,
-        skippedLowRating: result.skippedLowRating,
-        syncedLeadsCount: result.syncedLeadsCount,
-        syncedCount: result.syncedCount,
-        leadLimit: result.leadLimit,
+        success: result3.success,
+        message: result3.message,
+        created: result3.created,
+        alreadyInDb: result3.alreadyInDb,
+        skippedLowRating: result3.skippedLowRating,
+        syncedLeadsCount: result3.syncedLeadsCount,
+        syncedCount: result3.syncedCount,
+        leadLimit: result3.leadLimit,
         lat: input.lat,
         lng: input.lng,
         radius: input.radius,
@@ -21077,7 +21331,7 @@ async function assignEstablishment(context, establishment, companyId, userId, ca
   await ensureLeadStatus(context, { leadId: lead.id, companyId, userId });
   return "created";
 }
-var resolver18 = {
+var resolver17 = {
   syncLeadsFromInegi: async (_root, {
     input
   }, context) => {
@@ -21106,13 +21360,13 @@ var resolver18 = {
     });
     const company = user?.company;
     if (!company?.id) {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.noCompany,
         ...empty2
       };
-      await logResult(context, userId, void 0, input, result2);
-      return result2;
+      await logResult(context, userId, void 0, input, result4);
+      return result4;
     }
     const credits = await getRemainingCredits(context, company.id);
     const { remainingQuota, syncedCount, leadLimit } = credits;
@@ -21124,54 +21378,54 @@ var resolver18 = {
       blockingReason: credits.blockingReason ?? null
     });
     if (credits.blockingReason === "no_subscription") {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.noSubscription,
         ...empty2
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "free_plan_expired") {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.freeExpired,
         ...empty2,
         leadLimit: 0
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "no_lead_limit") {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.noLeadLimit,
         ...empty2,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "lead_limit_too_low") {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.leadLimitTooLow,
         ...empty2,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (remainingQuota === 0) {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.quotaFull(syncedCount, leadLimit),
         ...empty2,
         syncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     const maxResults = Math.min(
       Math.max(1, input.maxResults ?? DEFAULT_MAX_RESULTS3),
@@ -21245,7 +21499,7 @@ var resolver18 = {
         notes: "Leads INEGI asignados desde BD"
       });
       if (!consumeResult.success) {
-        const result2 = {
+        const result4 = {
           success: false,
           message: MSG.quotaFull(
             consumeResult.syncedCount,
@@ -21255,8 +21509,8 @@ var resolver18 = {
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
-        await logResult(context, userId, company.id, input, result2);
-        return result2;
+        await logResult(context, userId, company.id, input, result4);
+        return result4;
       }
       currentSyncedCount = consumeResult.syncedCount;
     }
@@ -21266,7 +21520,7 @@ var resolver18 = {
       currentSyncedCount
     });
     if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
-      const result2 = {
+      const result4 = {
         success: true,
         message: MSG.added(assignedFromDb),
         created: 0,
@@ -21276,8 +21530,8 @@ var resolver18 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     const catalogWhere = {
       AND: [
@@ -21414,28 +21668,28 @@ var resolver18 = {
           syncedThisRequest
         });
         if (nearbyCatalog.length === 0 && syncedThisRequest === 0) {
-          const result2 = {
+          const result4 = {
             success: false,
             message: MSG.searchFailed,
             ...empty2,
             syncedCount: currentSyncedCount,
             leadLimit
           };
-          await logResult(context, userId, company.id, input, result2);
-          return result2;
+          await logResult(context, userId, company.id, input, result4);
+          return result4;
         }
       }
     } else if (nearbyCatalog.length === 0 && !token && syncedThisRequest === 0) {
       console.warn("[syncLeadsFromInegi] abort: empty catalog and no INEGI_DENUE_TOKEN");
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.searchFailed,
         ...empty2,
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     let assignedFromCatalog = 0;
     for (const establishment of nearbyCatalog) {
@@ -21473,7 +21727,7 @@ var resolver18 = {
         currentSyncedCount = consumeResult.syncedCount;
       }
     }
-    const result = {
+    const result3 = {
       success: true,
       message: syncedThisRequest === 0 ? MSG.noneFound : MSG.added(syncedThisRequest),
       created,
@@ -21484,21 +21738,21 @@ var resolver18 = {
       leadLimit
     };
     console.log("[syncLeadsFromInegi] DONE", {
-      success: result.success,
+      success: result3.success,
       syncedThisRequest,
       created,
       alreadyInDb,
       assignedFromCatalog,
-      message: result.message
+      message: result3.message
     });
-    await logResult(context, userId, company.id, input, result);
-    return result;
+    await logResult(context, userId, company.id, input, result3);
+    return result3;
   }
 };
-var syncLeadsFromInegi_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
+var syncLeadsFromInegi_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
 
 // graphql/customs/mutations/inegi/promoteInegiEstablishmentToLead.ts
-var typeDefs22 = `
+var typeDefs21 = `
   input PromoteInegiEstablishmentToLeadInput {
     establishmentId: ID!
     assignedSellerId: ID
@@ -21516,7 +21770,7 @@ var typeDefs22 = `
     promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
   }
 `;
-var definition19 = `
+var definition18 = `
   promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
 `;
 function fail3(message) {
@@ -21590,7 +21844,7 @@ function quotaMessage(blockingReason, remainingQuota, syncedCount, leadLimit) {
   }
   return null;
 }
-var resolver19 = {
+var resolver18 = {
   promoteInegiEstablishmentToLead: async (_root, { input }, context) => {
     if (!isSignedIn(context.session)) {
       return fail3("Debes iniciar sesi\xF3n para promover un establecimiento");
@@ -21774,10 +22028,10 @@ var resolver19 = {
     }
   }
 };
-var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
+var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
 
 // graphql/customs/mutations/inegi/fetchInegiIndicator.ts
-var typeDefs23 = `
+var typeDefs22 = `
   input FetchInegiIndicatorInput {
     indicatorId: String!
     geographicCode: String!
@@ -21807,7 +22061,7 @@ var typeDefs23 = `
     fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   }
 `;
-var definition20 = `
+var definition19 = `
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
 `;
 var empty = {
@@ -21815,7 +22069,7 @@ var empty = {
   updated: 0,
   indicators: []
 };
-var resolver20 = {
+var resolver19 = {
   fetchInegiIndicator: async (_root, {
     input
   }, context) => {
@@ -21859,7 +22113,7 @@ var resolver20 = {
     }
   }
 };
-var fetchInegiIndicator_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
+var fetchInegiIndicator_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
 
 // graphql/customs/mutations/pet/veterinary/claimPetPlace.ts
 var PHONE_PATTERN = /^\+?\d{10,}$/;
@@ -21871,7 +22125,7 @@ function normalizePhone(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var typeDefs24 = `
+var typeDefs23 = `
   input ClaimPetPlaceInput {
     petPlaceId: String!
     role: String!
@@ -21886,10 +22140,10 @@ var typeDefs24 = `
     petPlaceId: String
   }
 `;
-var definition21 = `
+var definition20 = `
   claimPetPlace(input: ClaimPetPlaceInput!): ClaimPetPlaceResult!
 `;
-var resolver21 = {
+var resolver20 = {
   claimPetPlace: async (_root, {
     input
   }, context) => {
@@ -21982,7 +22236,7 @@ var resolver21 = {
     };
   }
 };
-var claimPetPlace_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
+var claimPetPlace_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
 
 // graphql/customs/mutations/pet/veterinary/ensurePetPlaceType.ts
 async function ensurePetPlaceType(context, value) {
@@ -22035,7 +22289,7 @@ function normalizePhone2(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var typeDefs25 = `
+var typeDefs24 = `
   input UpdateMyPetPlaceInput {
     petPlaceId: String!
     name: String
@@ -22076,10 +22330,10 @@ var typeDefs25 = `
     petPlaceId: String
   }
 `;
-var definition22 = `
+var definition21 = `
   updateMyPetPlace(input: UpdateMyPetPlaceInput!): UpdateMyPetPlaceResult!
 `;
-var resolver22 = {
+var resolver21 = {
   updateMyPetPlace: async (_root, {
     input
   }, context) => {
@@ -22338,10 +22592,10 @@ var resolver22 = {
     };
   }
 };
-var updateMyPetPlace_default = { typeDefs: typeDefs25, definition: definition22, resolver: resolver22 };
+var updateMyPetPlace_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
 
 // graphql/customs/mutations/pet/veterinary/verifyPetPlace.ts
-var typeDefs26 = `
+var typeDefs25 = `
   input VerifyPetPlaceInput {
     petPlaceId: String!
     approved: Boolean!
@@ -22354,10 +22608,10 @@ var typeDefs26 = `
     verified: Boolean
   }
 `;
-var definition23 = `
+var definition22 = `
   verifyPetPlace(input: VerifyPetPlaceInput!): VerifyPetPlaceResult!
 `;
-var resolver23 = {
+var resolver22 = {
   verifyPetPlace: async (_root, {
     input
   }, context) => {
@@ -22440,7 +22694,7 @@ var resolver23 = {
     }
   }
 };
-var verifyPetPlace_default = { typeDefs: typeDefs26, definition: definition23, resolver: resolver23 };
+var verifyPetPlace_default = { typeDefs: typeDefs25, definition: definition22, resolver: resolver22 };
 
 // graphql/customs/mutations/pet/veterinary/ownedPlace.ts
 async function requireOwnedVerifiedPlace(context, petPlaceId, query = "id name verified claimStatus user { id }") {
@@ -22476,7 +22730,7 @@ async function requireOwnedVerifiedPlace(context, petPlaceId, query = "id name v
 }
 
 // graphql/customs/mutations/pet/veterinary/requestPetPlaceService.ts
-var typeDefs27 = `
+var typeDefs26 = `
   input RequestPetPlaceServiceInput {
     petPlaceId: String!
     name: String!
@@ -22490,13 +22744,13 @@ var typeDefs27 = `
     status: String
   }
 `;
-var definition24 = `
+var definition23 = `
   requestPetPlaceService(input: RequestPetPlaceServiceInput!): RequestPetPlaceServiceResult!
 `;
 function normalizeName(value) {
   return value.trim().replace(/\s+/g, " ");
 }
-var resolver24 = {
+var resolver23 = {
   requestPetPlaceService: async (_root, { input }, context) => {
     const owned = await requireOwnedVerifiedPlace(context, input.petPlaceId);
     if ("success" in owned) return { ...owned, serviceId: null, status: null };
@@ -22575,12 +22829,12 @@ var resolver24 = {
     };
   }
 };
-var requestPetPlaceService_default = { typeDefs: typeDefs27, definition: definition24, resolver: resolver24 };
+var requestPetPlaceService_default = { typeDefs: typeDefs26, definition: definition23, resolver: resolver23 };
 
 // graphql/customs/mutations/pet/veterinary/createPetPlacePatient.ts
 var PHONE_PATTERN3 = /^\+?\d{10,}$/;
 var EMAIL_PATTERN = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-var typeDefs28 = `
+var typeDefs27 = `
   input CreatePetPlacePatientInput {
     petPlaceId: String!
     name: String!
@@ -22604,7 +22858,7 @@ var typeDefs28 = `
     patient: PetPlacePatient
   }
 `;
-var definition25 = `
+var definition24 = `
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
 `;
 function normalizePhone3(value) {
@@ -22614,7 +22868,7 @@ function normalizePhone3(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var resolver25 = {
+var resolver24 = {
   createPetPlacePatient: async (_root, {
     input
   }, context) => {
@@ -22699,10 +22953,10 @@ var resolver25 = {
     };
   }
 };
-var createPetPlacePatient_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
+var createPetPlacePatient_default = { typeDefs: typeDefs27, definition: definition24, resolver: resolver24 };
 
 // graphql/customs/mutations/pet/veterinary/createClinicAppointment.ts
-var typeDefs29 = `
+var typeDefs28 = `
   input CreateClinicAppointmentInput {
     petPlaceId: String!
     customerId: ID!
@@ -22720,10 +22974,10 @@ var typeDefs29 = `
     appointmentId: String
   }
 `;
-var definition26 = `
+var definition25 = `
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
 `;
-var resolver26 = {
+var resolver25 = {
   createClinicAppointment: async (_root, {
     input
   }, context) => {
@@ -22801,7 +23055,7 @@ var resolver26 = {
     }
   }
 };
-var createClinicAppointment_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+var createClinicAppointment_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
 
 // graphql/customs/mutations/pet/veterinary/index.ts
 var veterinaryMutations = {
@@ -22834,7 +23088,7 @@ var veterinary_default = veterinaryMutations;
 
 // graphql/customs/mutations/pet/createAnimalReport.ts
 var import_stream = require("stream");
-var import_graphql = require("graphql");
+var import_graphql2 = require("graphql");
 var import_image_size = require("image-size");
 var TYPE_ALIASES = {
   perro: "dog",
@@ -22850,7 +23104,7 @@ var TYPE_ALIASES = {
   mam\u00EDfero: "mammal",
   mammal: "mammal"
 };
-var typeDefs30 = `
+var typeDefs29 = `
   input CreateAnimalReportInput {
     type: String!
     name: String!
@@ -22881,7 +23135,7 @@ var typeDefs30 = `
     url: String!
   }
 `;
-var definition27 = `
+var definition26 = `
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
 `;
 function serviceToken(context) {
@@ -22895,7 +23149,7 @@ function assertCanCreate(context) {
   const token = serviceToken(context);
   if (expected && token && token === expected) return;
   if (isSignedIn(context.session)) return;
-  throw new import_graphql.GraphQLError("No autorizado para crear reportes.");
+  throw new import_graphql2.GraphQLError("No autorizado para crear reportes.");
 }
 function parseLostDate(value) {
   const raw = value?.trim();
@@ -22903,10 +23157,10 @@ function parseLostDate(value) {
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   const date = dateOnly ? /* @__PURE__ */ new Date(`${raw}T12:00:00-06:00`) : new Date(raw);
   if (Number.isNaN(date.getTime())) {
-    throw new import_graphql.GraphQLError("La fecha no es v\xE1lida.");
+    throw new import_graphql2.GraphQLError("La fecha no es v\xE1lida.");
   }
   if (date.getTime() > Date.now()) {
-    throw new import_graphql.GraphQLError("La fecha no puede ser posterior a hoy.");
+    throw new import_graphql2.GraphQLError("La fecha no puede ser posterior a hoy.");
   }
   return date.toISOString();
 }
@@ -22924,7 +23178,7 @@ async function resolveType(context, type) {
     query: "id name",
     take: 1
   });
-  if (!rows[0]) throw new import_graphql.GraphQLError("Elige un tipo de animal v\xE1lido.");
+  if (!rows[0]) throw new import_graphql2.GraphQLError("Elige un tipo de animal v\xE1lido.");
   return rows[0];
 }
 async function resolveBreed(context, typeId, breed) {
@@ -22954,19 +23208,19 @@ async function storeRemoteImage(context, url) {
   const res = await fetch(url, {
     headers: { "User-Agent": "KadeshPet/1.0 (https://pet.kadesh.com.mx)" }
   });
-  if (!res.ok) throw new import_graphql.GraphQLError("No se pudo descargar una imagen del reporte.");
+  if (!res.ok) throw new import_graphql2.GraphQLError("No se pudo descargar una imagen del reporte.");
   const buffer = Buffer.from(await res.arrayBuffer());
   if (buffer.length > 8 * 1024 * 1024) {
-    throw new import_graphql.GraphQLError("Una imagen pesa m\xE1s de 8 MB.");
+    throw new import_graphql2.GraphQLError("Una imagen pesa m\xE1s de 8 MB.");
   }
   let probed;
   try {
     probed = (0, import_image_size.imageSize)(buffer);
   } catch {
-    throw new import_graphql.GraphQLError("La imagen debe ser jpg, png o webp.");
+    throw new import_graphql2.GraphQLError("La imagen debe ser jpg, png o webp.");
   }
   if (probed.type !== "jpg" && probed.type !== "png" && probed.type !== "webp") {
-    throw new import_graphql.GraphQLError("La imagen debe ser jpg, png o webp.");
+    throw new import_graphql2.GraphQLError("La imagen debe ser jpg, png o webp.");
   }
   const images = context.images("s3_animals");
   const stored = await images.getDataFromStream(
@@ -22975,7 +23229,7 @@ async function storeRemoteImage(context, url) {
   );
   return stored;
 }
-var resolver27 = {
+var resolver26 = {
   createAnimalReport: async (_root, { input }, context) => {
     try {
       assertCanCreate(context);
@@ -22997,7 +23251,7 @@ var resolver27 = {
         name: input.name
       });
       if (duplicates.length && !input.confirmDuplicate) {
-        throw new import_graphql.GraphQLError(
+        throw new import_graphql2.GraphQLError(
           `Parece que este reporte ya existe: ${duplicates[0].url}`
         );
       }
@@ -23064,17 +23318,17 @@ var resolver27 = {
       return { id: animal.id, slug, url: petPublicUrl(slug) };
     } catch (error) {
       console.error("[animal] createAnimalReport", error);
-      if (error instanceof import_graphql.GraphQLError) throw error;
+      if (error instanceof import_graphql2.GraphQLError) throw error;
       const message = error instanceof Error ? error.message : "No se pudo publicar el reporte.";
-      throw new import_graphql.GraphQLError(message);
+      throw new import_graphql2.GraphQLError(message);
     }
   }
 };
-var createAnimalReport = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
+var createAnimalReport = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
 var createAnimalReport_default = createAnimalReport;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs31 = `
+var typeDefs30 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -23084,10 +23338,10 @@ var typeDefs31 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition28 = `
+var definition27 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver28 = {
+var resolver27 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -23138,10 +23392,10 @@ var resolver28 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var unsubscribeBlog_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs32 = `
+var typeDefs31 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -23152,10 +23406,10 @@ var typeDefs32 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition29 = `
+var definition28 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver29 = {
+var resolver28 = {
   /**
    * Pensada para un cron externo (GitHub Actions, ver .github/workflows/publish-scheduled-posts.yml),
    * no para un usuario logueado: se autoriza con `CRON_SECRET`, no con sesión/rol.
@@ -23203,10 +23457,10 @@ var resolver29 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var publishScheduledPosts_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs33 = `
+var typeDefs32 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -23217,7 +23471,7 @@ var typeDefs33 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition30 = `
+var definition29 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -23226,7 +23480,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver30 = {
+var resolver29 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -23294,7 +23548,7 @@ var resolver30 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -23389,7 +23643,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs34 = `
+var typeDefs33 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -23413,7 +23667,7 @@ var typeDefs34 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition31 = `
+var definition30 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -23429,7 +23683,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver31 = {
+var resolver30 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -23533,10 +23787,10 @@ var resolver31 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // utils/intregrations/whatsapp.ts
-var import_crypto4 = __toESM(require("crypto"));
+var import_crypto3 = __toESM(require("crypto"));
 var GRAPH_API_VERSION2 = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
 function parseGraphError(bodyText) {
   try {
@@ -23786,7 +24040,7 @@ async function sendWhatsAppTemplateMessage({
             components: [
               {
                 type: "body",
-                parameters: bodyParams.map((text69) => ({ type: "text", text: text69 }))
+                parameters: bodyParams.map((text71) => ({ type: "text", text: text71 }))
               }
             ]
           } : {}
@@ -24041,12 +24295,12 @@ function verifyWhatsAppSignature({
   signatureHeader
 }) {
   if (!signatureHeader) return false;
-  const expected = import_crypto4.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const expected = import_crypto3.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
   const received = signatureHeader.replace(/^sha256=/, "");
   const expectedBuf = Buffer.from(expected, "hex");
   const receivedBuf = Buffer.from(received, "hex");
   if (expectedBuf.length !== receivedBuf.length) return false;
-  return import_crypto4.default.timingSafeEqual(expectedBuf, receivedBuf);
+  return import_crypto3.default.timingSafeEqual(expectedBuf, receivedBuf);
 }
 
 // utils/whatsapp/templateStatus.ts
@@ -24154,7 +24408,7 @@ async function ensureOutreachTemplate(company, context) {
       });
       return { error: null };
     }
-    const result = await createWhatsAppTemplate({
+    const result3 = await createWhatsAppTemplate({
       wabaId: company.whatsappBusinessAccountId,
       accessToken,
       name: OUTREACH_TEMPLATE_NAME,
@@ -24167,7 +24421,7 @@ async function ensureOutreachTemplate(company, context) {
       data: {
         whatsappTemplateName: OUTREACH_TEMPLATE_NAME,
         whatsappTemplateLanguage: OUTREACH_TEMPLATE_LANGUAGE,
-        whatsappTemplateStatus: mapTemplateStatus(result.status) ?? "pending"
+        whatsappTemplateStatus: mapTemplateStatus(result3.status) ?? "pending"
       }
     });
     return { error: null };
@@ -24181,7 +24435,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs35 = `
+var typeDefs34 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -24195,10 +24449,10 @@ var typeDefs35 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition32 = `
+var definition31 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver32 = {
+var resolver31 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -24243,7 +24497,7 @@ var resolver32 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -24381,7 +24635,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs36 = `
+var typeDefs35 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -24392,10 +24646,10 @@ var typeDefs36 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition33 = `
+var definition32 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver33 = {
+var resolver32 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -24429,16 +24683,16 @@ var resolver33 = {
     };
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
-      const result = await sendWhatsAppTextMessage({
+      const result3 = await sendWhatsAppTextMessage({
         phoneNumberId: company.whatsappPhoneNumberId,
         accessToken,
         to: target.to,
         body: trimmedBody
       });
       await context.sudo().query.TechWhatsAppMessage.createOne({
-        data: { ...baseData, waMessageId: result.id, status: "sent" }
+        data: { ...baseData, waMessageId: result3.id, status: "sent" }
       });
-      return { success: true, message: "Mensaje enviado", messageId: result.id };
+      return { success: true, message: "Mensaje enviado", messageId: result3.id };
     } catch (err) {
       const graphCode = err?.graphCode;
       const isOutsideWindow = graphCode === 131047;
@@ -24456,7 +24710,7 @@ var resolver33 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -24484,8 +24738,8 @@ function buildDate(d1, d2, yearRaw, timeRaw) {
   const { hour, minute, second } = parseTimeParts(timeRaw);
   return new Date(year, month - 1, day, hour, minute, second);
 }
-function parseWhatsAppChatExport(text69) {
-  const lines = text69.split(/\r?\n/);
+function parseWhatsAppChatExport(text71) {
+  const lines = text71.split(/\r?\n/);
   const messages = [];
   for (const rawLine of lines) {
     const line = rawLine.replace(/^‎/, "");
@@ -24512,19 +24766,19 @@ ${line}`.trim();
 }
 function distinctSenders(messages) {
   const seen = /* @__PURE__ */ new Set();
-  const result = [];
+  const result3 = [];
   for (const msg of messages) {
     if (!seen.has(msg.sender)) {
       seen.add(msg.sender);
-      result.push(msg.sender);
+      result3.push(msg.sender);
     }
   }
-  return result;
+  return result3;
 }
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs37 = `
+var typeDefs36 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -24541,7 +24795,7 @@ var typeDefs37 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition34 = `
+var definition33 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -24552,7 +24806,7 @@ var definition34 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver34 = {
+var resolver33 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -24638,10 +24892,10 @@ var resolver34 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs38 = `
+var typeDefs37 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -24651,7 +24905,7 @@ var typeDefs38 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition35 = `
+var definition34 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -24663,7 +24917,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver35 = {
+var resolver34 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -24769,10 +25023,10 @@ var resolver35 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var import_crypto5 = __toESM(require("crypto"));
+var import_crypto4 = __toESM(require("crypto"));
 
 // utils/intregrations/s3Storage.ts
 var import_client_s3 = require("@aws-sdk/client-s3");
@@ -24818,7 +25072,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs39 = `
+var typeDefs38 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -24829,7 +25083,7 @@ var typeDefs39 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition36 = `
+var definition35 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -24842,7 +25096,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver36 = {
+var resolver35 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -24868,7 +25122,7 @@ var resolver36 = {
     const { filename, mimetype, createReadStream } = await media;
     const buffer = await streamToBuffer(createReadStream());
     const mediaType = mimetype.startsWith("image/") ? "image" : "document";
-    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto5.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto4.default.randomUUID()}-${filename}`;
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
       const uploaded = await uploadMediaToWhatsApp({
@@ -24926,10 +25180,10 @@ var resolver36 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs40 = `
+var typeDefs39 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -24939,13 +25193,13 @@ var typeDefs40 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition37 = `
+var definition36 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver37 = {
+var resolver36 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -25002,10 +25256,10 @@ var resolver37 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs41 = `
+var typeDefs40 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -25016,13 +25270,13 @@ var typeDefs41 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition38 = `
+var definition37 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver38 = {
+var resolver37 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -25039,7 +25293,7 @@ var resolver38 = {
       (c) => c.id === companyId
     );
     if (!lead || !inCompany) return toResult10(false, "No se encontr\xF3 el cliente");
-    const { count } = await context.sudo().prisma.techWhatsAppMessage.updateMany({
+    const { count: count2 } = await context.sudo().prisma.techWhatsAppMessage.updateMany({
       where: {
         companyId,
         businessLeadId: null,
@@ -25053,13 +25307,13 @@ var resolver38 = {
       companyId,
       entityType: "TechBusinessLead",
       entityId: businessLeadId,
-      summary: `Enlaz\xF3 una conversaci\xF3n de WhatsApp a un cliente (${count} mensajes)`,
-      metadata: { linkedMessages: count }
+      summary: `Enlaz\xF3 una conversaci\xF3n de WhatsApp a un cliente (${count2} mensajes)`,
+      metadata: { linkedMessages: count2 }
     });
-    return toResult10(true, "Conversaci\xF3n enlazada al cliente", count);
+    return toResult10(true, "Conversaci\xF3n enlazada al cliente", count2);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -25072,7 +25326,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs42 = `
+var typeDefs41 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -25108,7 +25362,7 @@ var typeDefs42 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition39 = `
+var definition38 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
 function fail4(message, detail = null) {
@@ -25125,7 +25379,7 @@ function fail4(message, detail = null) {
     templateError: null
   };
 }
-var resolver39 = {
+var resolver38 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -25299,11 +25553,11 @@ var resolver39 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // utils/googleCalendar/state.ts
-var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
-var import_crypto6 = require("crypto");
+var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
+var import_crypto5 = require("crypto");
 var PURPOSE = "google-calendar-connect";
 var devFallbackSecret = null;
 function getSecret() {
@@ -25312,15 +25566,15 @@ function getSecret() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("SESSION_SECRET es requerido para firmar el state de Google Calendar");
   }
-  devFallbackSecret ??= (0, import_crypto6.randomBytes)(32).toString("hex");
+  devFallbackSecret ??= (0, import_crypto5.randomBytes)(32).toString("hex");
   return devFallbackSecret;
 }
 function signGoogleCalendarState(payload) {
-  return import_jsonwebtoken2.default.sign({ ...payload, purpose: PURPOSE }, getSecret(), { expiresIn: "15m" });
+  return import_jsonwebtoken.default.sign({ ...payload, purpose: PURPOSE }, getSecret(), { expiresIn: "15m" });
 }
 function verifyGoogleCalendarState(state) {
   try {
-    const decoded = import_jsonwebtoken2.default.verify(state, getSecret());
+    const decoded = import_jsonwebtoken.default.verify(state, getSecret());
     if (decoded.purpose !== PURPOSE || typeof decoded.uid !== "string" || typeof decoded.cid !== "string" || typeof decoded.st !== "string") {
       return null;
     }
@@ -25366,7 +25620,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs43 = `
+var typeDefs42 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -25377,11 +25631,11 @@ var typeDefs43 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition40 = `
+var definition39 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
 var fail5 = (message) => ({ success: false, message, url: null });
-var resolver40 = {
+var resolver39 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -25411,7 +25665,7 @@ var resolver40 = {
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -25466,7 +25720,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs44 = `
+var typeDefs43 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -25479,7 +25733,7 @@ var typeDefs44 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition41 = `
+var definition40 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
 var fail6 = (message) => ({
@@ -25489,7 +25743,7 @@ var fail6 = (message) => ({
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver41 = {
+var resolver40 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -25578,10 +25832,10 @@ var resolver41 = {
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs45 = `
+var typeDefs44 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -25591,10 +25845,10 @@ var typeDefs45 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition42 = `
+var definition41 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver42 = {
+var resolver41 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -25630,10 +25884,10 @@ var resolver42 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs46 = `
+var typeDefs45 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -25644,10 +25898,10 @@ var typeDefs46 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition43 = `
+var definition42 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver43 = {
+var resolver42 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -25693,10 +25947,10 @@ var resolver43 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs47 = `
+var typeDefs46 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -25708,10 +25962,10 @@ var typeDefs47 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition44 = `
+var definition43 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver44 = {
+var resolver43 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -25745,10 +25999,10 @@ var resolver44 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs48 = `
+var typeDefs47 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -25770,7 +26024,7 @@ var typeDefs48 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition45 = `
+var definition44 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
@@ -25783,7 +26037,7 @@ var fail7 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver45 = {
+var resolver44 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -25818,10 +26072,10 @@ var resolver45 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/mutations/activity/trackEvents.ts
-var typeDefs49 = `
+var typeDefs48 = `
   input TrackEventInput {
     """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
     type: String!
@@ -25844,7 +26098,7 @@ var typeDefs49 = `
     trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
   }
 `;
-var definition46 = `
+var definition45 = `
   trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
 `;
 var MAX_EVENTS = 50;
@@ -25858,7 +26112,7 @@ var MX_DAY = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit"
 });
-function text68(value, max = MAX_TEXT) {
+function text70(value, max = MAX_TEXT) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : null;
@@ -25882,9 +26136,9 @@ function clientTime(value) {
   return at;
 }
 function summaryFor(type, meta, label) {
-  const section = text68(meta.section) ?? text68(meta.tab) ?? "una secci\xF3n";
-  const feature = text68(meta.feature) ?? text68(meta.featureKey) ?? "un m\xF3dulo";
-  const tour = text68(meta.tour) ?? text68(meta.tourId) ?? "";
+  const section = text70(meta.section) ?? text70(meta.tab) ?? "una secci\xF3n";
+  const feature = text70(meta.feature) ?? text70(meta.featureKey) ?? "un m\xF3dulo";
+  const tour = text70(meta.tour) ?? text70(meta.tourId) ?? "";
   switch (type) {
     case ACTIVITY_EVENT.UI_SECTION_VIEWED:
       return `Abri\xF3 ${section}`;
@@ -25897,8 +26151,8 @@ function summaryFor(type, meta, label) {
     case ACTIVITY_EVENT.UI_TOUR_SKIPPED:
       return `Salt\xF3 el tour ${tour}`.trim();
     case ACTIVITY_EVENT.LEAD_EXPORTED: {
-      const count = typeof meta.count === "number" ? meta.count : null;
-      return count != null ? `Export\xF3 ${count} leads` : "Export\xF3 leads";
+      const count2 = typeof meta.count === "number" ? meta.count : null;
+      return count2 != null ? `Export\xF3 ${count2} leads` : "Export\xF3 leads";
     }
     case ACTIVITY_EVENT.AUTH_LOGOUT:
       return "Cerr\xF3 sesi\xF3n";
@@ -25992,19 +26246,20 @@ async function recentlyViewed(context, actorId, type, companyId, entityId) {
   });
   return Boolean(found);
 }
-var resolver46 = {
+var resolver45 = {
   trackEvents: async (_root, { events }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    const list79 = Array.isArray(events) ? events : [];
-    if (!userId) return { accepted: 0, rejected: list79.length };
+    const list81 = Array.isArray(events) ? events : [];
+    if (!userId) return { accepted: 0, rejected: list81.length };
+    if (getImpersonation(context.session)) return { accepted: 0, rejected: list81.length };
     const companyId = getSessionCompanyId(session2);
     const admin = isPlatformAdmin(session2);
-    const batch = list79.slice(0, MAX_EVENTS);
+    const batch = list81.slice(0, MAX_EVENTS);
     let accepted = 0;
     let heartbeatDone = false;
     for (const input of batch) {
-      const type = text68(input?.type, 60);
+      const type = text70(input?.type, 60);
       if (!type) continue;
       try {
         if (type === HEARTBEAT_EVENT) {
@@ -26020,8 +26275,8 @@ var resolver46 = {
           await logActivity(context, {
             type,
             summary: summaryFor(type, metadata, null),
-            entityType: text68(input.entityType, 60),
-            entityId: text68(input.entityId, 60),
+            entityType: text70(input.entityType, 60),
+            entityId: text70(input.entityId, 60),
             metadata,
             source: ACTIVITY_SOURCE.WEB,
             occurredAt
@@ -26030,7 +26285,7 @@ var resolver46 = {
           continue;
         }
         if (CLIENT_ADMIN_EVENT_TYPES.has(type) && admin) {
-          const entityId = text68(input.entityId, 60);
+          const entityId = text70(input.entityId, 60);
           const target = await adminViewLabel(context, type, input);
           if (await recentlyViewed(context, userId, type, target.companyId, entityId)) {
             accepted += 1;
@@ -26040,7 +26295,7 @@ var resolver46 = {
             type,
             summary: summaryFor(type, metadata, target.label),
             companyId: target.companyId,
-            entityType: text68(input.entityType, 60),
+            entityType: text70(input.entityType, 60),
             entityId,
             metadata,
             source: ACTIVITY_SOURCE.ADMIN,
@@ -26055,15 +26310,1251 @@ var resolver46 = {
         );
       }
     }
-    return { accepted, rejected: list79.length - accepted };
+    return { accepted, rejected: list81.length - accepted };
   }
 };
-var trackEvents_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var trackEvents_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+
+// graphql/customs/mutations/admin/companyOps.ts
+var typeDefs49 = `
+  type AdminOpsActionResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type Mutation {
+    adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
+    adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
+  }
+`;
+var definition46 = `
+  adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
+  adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
+`;
+var MAX_EXTENSION_DAYS = 90;
+var YMD = /^\d{4}-\d{2}-\d{2}$/;
+var MX_DAY2 = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+function result(success, message) {
+  return { success, message };
+}
+function addDays(ymd, days) {
+  const date = /* @__PURE__ */ new Date(`${ymd}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+function ymdOf(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
+function personName(user) {
+  if (!user) return null;
+  return [user.name, user.lastName].filter(Boolean).join(" ") || user.email || null;
+}
+var REVIVABLE_STATUSES = /* @__PURE__ */ new Set([
+  SUBSCRIPTION_STATUS.PAST_DUE,
+  SUBSCRIPTION_STATUS.UNPAID,
+  SUBSCRIPTION_STATUS.CANCELLED
+]);
+var resolver46 = {
+  /**
+   * Mueve el fin de la prueba gratuita (`currentPeriodEnd` de la suscripción vigente).
+   * `days` suma desde hoy o desde el fin actual (lo que sea más tarde); `until` fija la fecha.
+   * Si la prueba ya había vencido, la suscripción vuelve a "en prueba".
+   */
+  adminExtendTrial: async (_root, { companyId, days, until }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return result(false, "Solo un administrador de Kadesh puede extender pruebas.");
+    }
+    const prisma = context.sudo().prisma;
+    const sub = await prisma.saasCompanySubscription.findFirst({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        planName: true,
+        planCost: true,
+        activatedAt: true,
+        currentPeriodEnd: true,
+        stripeSubscriptionId: true
+      }
+    });
+    if (!sub) return result(false, "La empresa no tiene suscripci\xF3n.");
+    if ((sub.planCost ?? 0) > 0 || sub.stripeSubscriptionId) {
+      return result(false, "La empresa tiene un plan de pago: la prueba solo aplica al plan gratuito.");
+    }
+    const today = MX_DAY2.format(/* @__PURE__ */ new Date());
+    const activated = ymdOf(sub.activatedAt);
+    const currentEnd = ymdOf(sub.currentPeriodEnd) ?? (activated ? addDays(activated, TRIAL_DAYS_FREE_PLAN) : today);
+    let newEnd;
+    if (until) {
+      if (!YMD.test(until)) return result(false, "La fecha debe tener el formato AAAA-MM-DD.");
+      if (until <= today) return result(false, "La nueva fecha tiene que ser posterior a hoy.");
+      if (until > addDays(today, MAX_EXTENSION_DAYS * 2)) {
+        return result(false, "Esa fecha est\xE1 demasiado lejos; usa un plan si van a ser meses.");
+      }
+      newEnd = until;
+    } else {
+      const extra = Math.floor(Number(days));
+      if (!Number.isFinite(extra) || extra < 1 || extra > MAX_EXTENSION_DAYS) {
+        return result(false, `Indica entre 1 y ${MAX_EXTENSION_DAYS} d\xEDas.`);
+      }
+      newEnd = addDays(currentEnd > today ? currentEnd : today, extra);
+    }
+    const revive = REVIVABLE_STATUSES.has(sub.status ?? "");
+    await context.sudo().query.SaasCompanySubscription.updateOne({
+      where: { id: sub.id },
+      data: {
+        currentPeriodEnd: newEnd,
+        ...revive ? { status: SUBSCRIPTION_STATUS.TRIALING } : {}
+      }
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_TRIAL_EXTENDED,
+      companyId,
+      entityType: "SaasCompanySubscription",
+      entityId: sub.id,
+      summary: `Extendi\xF3 la prueba hasta el ${newEnd}${revive ? " (estaba vencida)" : ""}`,
+      metadata: { from: currentEnd, to: newEnd, reactivated: revive, previousStatus: sub.status }
+    });
+    return result(
+      true,
+      revive ? `Prueba reactivada hasta el ${newEnd}.` : `Prueba extendida hasta el ${newEnd}.`
+    );
+  },
+  /** Persona de Kadesh responsable de la cuenta. `userId: null` la quita. */
+  adminSetCompanyAccountManager: async (_root, { companyId, userId }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return result(false, "Solo un administrador de Kadesh puede asignar cuentas.");
+    }
+    const prisma = context.sudo().prisma;
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        accountManager: { select: { id: true, name: true, lastName: true, email: true } }
+      }
+    });
+    if (!company) return result(false, "No se encontr\xF3 la empresa.");
+    let manager = null;
+    if (userId) {
+      manager = await prisma.user.findFirst({
+        where: { id: userId, roles: { some: { name: "admin" /* ADMIN */ } } },
+        select: { id: true, name: true, lastName: true, email: true }
+      });
+      if (!manager) return result(false, "Esa persona no es del equipo de Kadesh.");
+    }
+    if ((company.accountManager?.id ?? null) === (manager?.id ?? null)) {
+      return result(true, "Sin cambios.");
+    }
+    await prisma.saasCompany.update({
+      where: { id: companyId },
+      data: { accountManagerId: manager?.id ?? null }
+    });
+    const from = personName(company.accountManager);
+    const to = personName(manager);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_ACCOUNT_MANAGER_ASSIGNED,
+      companyId,
+      entityType: "SaasCompany",
+      entityId: companyId,
+      summary: to ? `Asign\xF3 la cuenta ${company.name} a ${to}${manager?.id === getSessionUserId(context.session) ? " (a s\xED mismo)" : ""}` : `Quit\xF3 el due\xF1o de cuenta de ${company.name}`,
+      metadata: { from, to, fromUserId: company.accountManager?.id ?? null, toUserId: manager?.id ?? null }
+    });
+    return result(true, to ? `Ahora la cuenta es de ${to}.` : "La cuenta qued\xF3 sin due\xF1o.");
+  }
+};
+var companyOps_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+
+// graphql/customs/queries/admin/shared.ts
+var adminSharedTypeDefs = `
+  type AdminCount {
+    key: String!
+    count: Int!
+  }
+
+  type AdminAmountCount {
+    key: String!
+    count: Int!
+    amount: Float!
+  }
+
+  type AdminPersonRef {
+    id: ID!
+    name: String!
+    lastName: String
+    email: String
+  }
+
+  type AdminCompanyRef {
+    id: ID!
+    name: String!
+  }
+`;
+var ADMIN_ONLY_MESSAGE = "Solo un administrador de Kadesh puede ver esta informaci\xF3n.";
+function assertPlatformAdmin(context) {
+  if (!isPlatformAdmin(context.session)) {
+    throw new Error(ADMIN_ONLY_MESSAGE);
+  }
+}
+function adminPrisma(context) {
+  return context.sudo().prisma;
+}
+var DAY_MS2 = 24 * 60 * 60 * 1e3;
+function daysAgo(days, from = /* @__PURE__ */ new Date()) {
+  return new Date(from.getTime() - days * DAY_MS2);
+}
+function toIso(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+function toYmd(value) {
+  const iso = toIso(value);
+  return iso ? iso.slice(0, 10) : null;
+}
+var MX_DAY3 = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+function toMxDay(value) {
+  return MX_DAY3.format(value instanceof Date ? value : new Date(value));
+}
+function clampInt(value, min, max, fallback) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(value)));
+}
+function insensitive(value) {
+  return { contains: value, mode: "insensitive" };
+}
+function personRef(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name ?? "",
+    lastName: user.lastName ?? null,
+    email: user.email ?? null
+  };
+}
+var PERSON_SELECT = {
+  id: true,
+  name: true,
+  lastName: true,
+  email: true
+};
+async function latestSubscriptionsByCompany(prisma, companyIds) {
+  const rows = await prisma.saasCompanySubscription.findMany({
+    where: { companyId: companyIds ? { in: companyIds } : { not: null } },
+    orderBy: [
+      { companyId: "asc" },
+      { createdAt: { sort: "desc", nulls: "last" } },
+      { id: "desc" }
+    ],
+    distinct: ["companyId"],
+    select: {
+      id: true,
+      companyId: true,
+      status: true,
+      planName: true,
+      planCost: true,
+      planCurrency: true,
+      planFrequency: true,
+      planLeadLimit: true,
+      activatedAt: true,
+      currentPeriodEnd: true,
+      stripeCustomerId: true,
+      createdAt: true
+    }
+  });
+  return new Map(rows.map((row) => [row.companyId, row]));
+}
+function trialEndDate(sub) {
+  if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
+  if (sub.currentPeriodEnd) return new Date(sub.currentPeriodEnd);
+  if (!sub.activatedAt) return null;
+  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS2);
+}
+function monthlyAmount(cost, frequency) {
+  if (!cost || cost <= 0) return 0;
+  switch (frequency) {
+    case PLAN_FREQUENCY.MONTHLY:
+      return cost;
+    case PLAN_FREQUENCY.ANNUAL:
+      return cost / 12;
+    case PLAN_FREQUENCY.WEEKLY:
+      return cost * 52 / 12;
+    default:
+      return 0;
+  }
+}
+async function testCompanyIds(prisma) {
+  const rows = await prisma.saasCompany.findMany({
+    where: {
+      users: { some: { userTest: true }, none: { userTest: false } }
+    },
+    select: { id: true }
+  });
+  return new Set(rows.map((row) => row.id));
+}
+function companyCredits(params) {
+  const plan = params.period?.planAllowance ?? params.planLeadLimit ?? 0;
+  const bonus = params.period?.bonusAllowance ?? params.purchasedBonusCredits ?? 0;
+  const used = params.period?.used ?? 0;
+  return { plan, bonus, used, remaining: Math.max(0, plan + bonus - used) };
+}
+function currentPeriod() {
+  return getCurrentPeriodParts();
+}
+function crmCompanyScope(companyId, assigneeField = "assignedSeller") {
+  return {
+    OR: [
+      { workspace: { companyId } },
+      {
+        AND: [
+          { workspaceId: null },
+          {
+            OR: [
+              { createdBy: { companyId } },
+              { [assigneeField]: { companyId } }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
+function countsToList(rows) {
+  return rows.map((row) => ({ key: row.key ?? "", count: row.count })).sort((a, b) => b.count - a.count);
+}
+async function optional(read, fallback) {
+  try {
+    return await read();
+  } catch {
+    return fallback;
+  }
+}
+async function lastSeenByCompany(prisma, companyIds) {
+  if (!prisma.userActivityDay || !companyIds.length) return /* @__PURE__ */ new Map();
+  return optional(async () => {
+    const rows = await prisma.userActivityDay.groupBy({
+      by: ["companyId"],
+      where: { companyId: { in: companyIds } },
+      _max: { lastSeenAt: true }
+    });
+    return new Map(
+      rows.filter((row) => row.companyId && row._max.lastSeenAt).map((row) => [row.companyId, row._max.lastSeenAt])
+    );
+  }, /* @__PURE__ */ new Map());
+}
+async function activeUserIdsSince(prisma, since) {
+  if (!prisma.userActivityDay) return [];
+  return optional(async () => {
+    const rows = await prisma.userActivityDay.findMany({
+      where: { lastSeenAt: { gte: since } },
+      distinct: ["userId"],
+      select: { userId: true }
+    });
+    return rows.map((row) => row.userId).filter((id) => Boolean(id));
+  }, []);
+}
+function latestDate(...dates) {
+  return dates.reduce(
+    (max, date) => date && (!max || date > max) ? date : max,
+    null
+  );
+}
+
+// graphql/customs/mutations/admin/accountControl.ts
+var typeDefs50 = `
+  type AdminControlResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type AdminImpersonationResult {
+    success: Boolean!
+    message: String!
+    """Token de sesi\xF3n de la persona, solo lectura. Lo guarda el front en lugar del token del admin."""
+    token: String
+    expiresAt: String
+    user: AdminPersonRef
+    companyName: String
+  }
+
+  type Mutation {
+    adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+    adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+    adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
+    adminTransferCompanyOwnership(companyId: ID!, newOwnerId: ID!, removeOtherAdmins: Boolean): AdminControlResult!
+    adminStartImpersonation(userId: ID!, reason: String!): AdminImpersonationResult!
+    endImpersonation: AdminControlResult!
+    adminExportPersonData(userId: ID!): JSON!
+    adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
+  }
+`;
+var definition47 = `
+  adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+  adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+  adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
+  adminTransferCompanyOwnership(companyId: ID!, newOwnerId: ID!, removeOtherAdmins: Boolean): AdminControlResult!
+  adminStartImpersonation(userId: ID!, reason: String!): AdminImpersonationResult!
+  endImpersonation: AdminControlResult!
+  adminExportPersonData(userId: ID!): JSON!
+  adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
+`;
+var MIN_REASON = 5;
+var MAX_REASON = 500;
+var COMPANY_ROLE_NAMES = [
+  "admin_company" /* ADMIN_COMPANY */,
+  "gerencia" /* GERENCIA */,
+  "vendedor" /* VENDEDOR */,
+  "user_company" /* USER_COMPANY */
+];
+var ANONYMIZED_LABEL = "persona anonimizada";
+function result2(success, message) {
+  return { success, message };
+}
+function prismaOf2(context) {
+  return context.sudo().prisma;
+}
+function hasPlatformRole(roles) {
+  return (roles ?? []).some((role) => role.name === "admin" /* ADMIN */);
+}
+function fullName2(person) {
+  if (!person) return "una persona";
+  return [person.name, person.lastName].filter(Boolean).join(" ").trim() || person.email || "una persona";
+}
+function cleanReason(reason) {
+  const text71 = reason?.trim() ?? "";
+  return text71.length >= MIN_REASON ? text71.slice(0, MAX_REASON) : null;
+}
+function maskTail(value) {
+  if (!value) return null;
+  const digits = value.replace(/\s+/g, "");
+  return digits.length <= 4 ? "****" : `****${digits.slice(-4)}`;
+}
+function adminIdOf(context) {
+  const session2 = context.session;
+  return isPlatformAdmin(session2) ? getSessionUserId(session2) : null;
+}
+var NOT_ADMIN = result2(false, "Solo un administrador de Kadesh puede hacer esto.");
+var REASON_REQUIRED = result2(false, `Escribe el motivo (m\xEDnimo ${MIN_REASON} letras).`);
+var resolver47 = {
+  /** Nadie del equipo puede entrar mientras la empresa esté suspendida; al suspender se cierran sus sesiones. */
+  adminSetCompanySuspension: async (_root, { companyId, suspended, reason }, context) => {
+    if (!adminIdOf(context)) return NOT_ADMIN;
+    const prisma = prismaOf2(context);
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        suspendedAt: true,
+        suspendedReason: true,
+        users: { select: { id: true, roles: { select: { name: true } } } }
+      }
+    });
+    if (!company) return result2(false, "No se encontr\xF3 la empresa.");
+    if (suspended) {
+      const why = cleanReason(reason);
+      if (!why) return REASON_REQUIRED;
+      if (company.suspendedAt) return result2(false, "La empresa ya est\xE1 suspendida.");
+      if (company.users.some((user) => hasPlatformRole(user.roles))) {
+        return result2(false, "En esta empresa hay personas del equipo de Kadesh: no se puede suspender.");
+      }
+      await prisma.saasCompany.update({
+        where: { id: companyId },
+        data: { suspendedAt: /* @__PURE__ */ new Date(), suspendedReason: why }
+      });
+      const { count: count2 } = await prisma.user.updateMany({
+        where: { companyId },
+        data: { sessionVersion: { increment: 1 } }
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_COMPANY_SUSPENDED,
+        companyId,
+        entityType: "SaasCompany",
+        entityId: companyId,
+        summary: `Suspendi\xF3 el acceso de ${company.name}`,
+        metadata: { reason: why, sessionsClosedFor: count2 }
+      });
+      return result2(true, `${company.name} qued\xF3 suspendida. Se cerraron las sesiones de ${count2} persona${count2 === 1 ? "" : "s"}.`);
+    }
+    if (!company.suspendedAt) return result2(false, "La empresa no est\xE1 suspendida.");
+    await prisma.saasCompany.update({
+      where: { id: companyId },
+      data: { suspendedAt: null, suspendedReason: null }
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_COMPANY_REACTIVATED,
+      companyId,
+      entityType: "SaasCompany",
+      entityId: companyId,
+      summary: `Reactiv\xF3 el acceso de ${company.name}`,
+      metadata: { previousReason: company.suspendedReason ?? null }
+    });
+    return result2(true, `${company.name} puede volver a entrar.`);
+  },
+  /** La persona no puede entrar mientras esté suspendida; al suspender se cierran sus sesiones. */
+  adminSetUserSuspension: async (_root, { userId, suspended, reason }, context) => {
+    const adminId = adminIdOf(context);
+    if (!adminId) return NOT_ADMIN;
+    if (userId === adminId) return result2(false, "No puedes suspenderte a ti mismo.");
+    const prisma = prismaOf2(context);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        email: true,
+        companyId: true,
+        suspendedAt: true,
+        suspendedReason: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } }
+      }
+    });
+    if (!user) return result2(false, "No se encontr\xF3 a la persona.");
+    if (hasPlatformRole(user.roles)) return result2(false, "No se puede suspender a alguien del equipo de Kadesh.");
+    if (user.anonymizedAt) return result2(false, "La cuenta est\xE1 anonimizada.");
+    const name = fullName2(user);
+    if (suspended) {
+      const why = cleanReason(reason);
+      if (!why) return REASON_REQUIRED;
+      if (user.suspendedAt) return result2(false, "La persona ya est\xE1 suspendida.");
+      await prisma.user.update({
+        where: { id: userId },
+        data: { suspendedAt: /* @__PURE__ */ new Date(), suspendedReason: why, sessionVersion: { increment: 1 } }
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_USER_SUSPENDED,
+        companyId: user.companyId ?? null,
+        entityType: "User",
+        entityId: userId,
+        summary: `Suspendi\xF3 el acceso de ${name}`,
+        metadata: { reason: why }
+      });
+      return result2(true, `${name} ya no puede entrar. Se cerraron sus sesiones.`);
+    }
+    if (!user.suspendedAt) return result2(false, "La persona no est\xE1 suspendida.");
+    await prisma.user.update({
+      where: { id: userId },
+      data: { suspendedAt: null, suspendedReason: null }
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_USER_REACTIVATED,
+      companyId: user.companyId ?? null,
+      entityType: "User",
+      entityId: userId,
+      summary: `Reactiv\xF3 el acceso de ${name}`,
+      metadata: { previousReason: user.suspendedReason ?? null }
+    });
+    return result2(true, `${name} puede volver a entrar.`);
+  },
+  /** Cierra las sesiones abiertas de una persona o de todo un equipo (tendrán que volver a iniciar sesión). */
+  adminRevokeSessions: async (_root, { userId, companyId }, context) => {
+    const adminId = adminIdOf(context);
+    if (!adminId) return NOT_ADMIN;
+    if (Boolean(userId) === Boolean(companyId)) {
+      return result2(false, "Indica una persona o una empresa.");
+    }
+    const prisma = prismaOf2(context);
+    if (userId) {
+      if (userId === adminId) return result2(false, "Para cerrar tus propias sesiones usa Cerrar sesi\xF3n.");
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, lastName: true, email: true, companyId: true }
+      });
+      if (!user) return result2(false, "No se encontr\xF3 a la persona.");
+      await prisma.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_SESSIONS_REVOKED,
+        companyId: user.companyId ?? null,
+        entityType: "User",
+        entityId: userId,
+        summary: `Cerr\xF3 las sesiones de ${fullName2(user)}`,
+        metadata: { users: 1 }
+      });
+      return result2(true, `Se cerraron las sesiones de ${fullName2(user)}.`);
+    }
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: companyId },
+      select: { id: true, name: true }
+    });
+    if (!company) return result2(false, "No se encontr\xF3 la empresa.");
+    const { count: count2 } = await prisma.user.updateMany({
+      where: { companyId, id: { not: adminId } },
+      data: { sessionVersion: { increment: 1 } }
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_SESSIONS_REVOKED,
+      companyId: company.id,
+      entityType: "SaasCompany",
+      entityId: company.id,
+      summary: `Cerr\xF3 las sesiones del equipo de ${company.name}`,
+      metadata: { users: count2 }
+    });
+    return result2(true, `Se cerraron las sesiones de ${count2} persona${count2 === 1 ? "" : "s"} de ${company.name}.`);
+  },
+  /**
+   * Hace administrador de la empresa a otra persona del equipo. Opcionalmente quita ese rol a
+   * los demás (sin tocar al equipo de Kadesh); quien se queda sin rol de empresa queda como usuario.
+   * La facturación no cambia: la tarjeta y el cliente de Stripe siguen siendo de quien pagó.
+   */
+  adminTransferCompanyOwnership: async (_root, {
+    companyId,
+    newOwnerId,
+    removeOtherAdmins
+  }, context) => {
+    if (!adminIdOf(context)) return NOT_ADMIN;
+    const prisma = prismaOf2(context);
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        users: {
+          select: {
+            id: true,
+            name: true,
+            lastName: true,
+            email: true,
+            suspendedAt: true,
+            anonymizedAt: true,
+            roles: { select: { id: true, name: true } }
+          }
+        }
+      }
+    });
+    if (!company) return result2(false, "No se encontr\xF3 la empresa.");
+    const target = company.users.find((user) => user.id === newOwnerId);
+    if (!target) return result2(false, "Esa persona no es de esta empresa.");
+    if (target.suspendedAt || target.anonymizedAt) {
+      return result2(false, "Esa persona est\xE1 suspendida o anonimizada.");
+    }
+    const roles = await prisma.role.findMany({
+      where: { name: { in: ["admin_company" /* ADMIN_COMPANY */, "user_company" /* USER_COMPANY */] } },
+      select: { id: true, name: true }
+    });
+    const adminCompanyRole = roles.find((role) => role.name === "admin_company" /* ADMIN_COMPANY */);
+    const userCompanyRole = roles.find((role) => role.name === "user_company" /* USER_COMPANY */);
+    if (!adminCompanyRole) return result2(false, "No existe el rol de administrador de empresa.");
+    if (!target.roles.some((role) => role.name === "admin_company" /* ADMIN_COMPANY */)) {
+      await prisma.user.update({
+        where: { id: target.id },
+        data: { roles: { connect: { id: adminCompanyRole.id } } }
+      });
+    }
+    const removed = [];
+    if (removeOtherAdmins) {
+      for (const user of company.users) {
+        if (user.id === target.id || hasPlatformRole(user.roles)) continue;
+        if (!user.roles.some((role) => role.name === "admin_company" /* ADMIN_COMPANY */)) continue;
+        const keepsCompanyRole = user.roles.some(
+          (role) => role.name !== "admin_company" /* ADMIN_COMPANY */ && COMPANY_ROLE_NAMES.includes(role.name)
+        );
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            roles: {
+              disconnect: { id: adminCompanyRole.id },
+              ...keepsCompanyRole || !userCompanyRole ? {} : { connect: { id: userCompanyRole.id } }
+            }
+          }
+        });
+        removed.push(fullName2(user));
+      }
+    }
+    const to = fullName2(target);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_OWNERSHIP_TRANSFERRED,
+      companyId,
+      entityType: "User",
+      entityId: target.id,
+      summary: `Hizo a ${to} administrador de ${company.name}${removed.length ? ` y quit\xF3 el rol a ${removed.join(", ")}` : ""}`,
+      metadata: { toUserId: target.id, to, removed }
+    });
+    return result2(
+      true,
+      removed.length ? `${to} ahora administra ${company.name}. Se quit\xF3 el rol a ${removed.join(", ")}.` : `${to} ahora administra ${company.name}.`
+    );
+  },
+  /**
+   * "Entrar como": devuelve un token de la persona que dura una hora y solo permite ver
+   * (`auth/impersonation.ts` bloquea toda mutación). Exige motivo y queda registrado.
+   */
+  adminStartImpersonation: async (_root, { userId, reason }, context) => {
+    const adminId = adminIdOf(context);
+    if (!adminId) return { ...NOT_ADMIN, token: null };
+    if (getImpersonation(context.session)) {
+      return { ...result2(false, "Ya est\xE1s viendo como otra persona."), token: null };
+    }
+    if (userId === adminId) return { ...result2(false, "No puedes entrar como t\xFA mismo."), token: null };
+    const why = cleanReason(reason);
+    if (!why) return { ...REASON_REQUIRED, token: null };
+    const prisma = prismaOf2(context);
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        email: true,
+        suspendedAt: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } },
+        company: { select: { id: true, name: true, suspendedAt: true } }
+      }
+    });
+    if (!target) return { ...result2(false, "No se encontr\xF3 a la persona."), token: null };
+    if (hasPlatformRole(target.roles)) {
+      return { ...result2(false, "No se puede entrar como alguien del equipo de Kadesh."), token: null };
+    }
+    if (target.suspendedAt || target.company?.suspendedAt || target.anonymizedAt) {
+      return { ...result2(false, "La cuenta est\xE1 suspendida o anonimizada."), token: null };
+    }
+    if (!context.sessionStrategy) {
+      return { ...result2(false, "No se pudo iniciar la sesi\xF3n."), token: null };
+    }
+    const expiresAt = Date.now() + IMPERSONATION_TTL_MS;
+    const token = await context.sessionStrategy.start({
+      data: { listKey: "User", itemId: target.id, impersonation: { adminId, expiresAt, reason: why } },
+      context: { ...context, res: { setHeader() {
+      } } }
+    });
+    if (typeof token !== "string" || !token) {
+      return { ...result2(false, "No se pudo iniciar la sesi\xF3n."), token: null };
+    }
+    const name = fullName2(target);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_IMPERSONATION_STARTED,
+      companyId: target.company?.id ?? null,
+      entityType: "User",
+      entityId: target.id,
+      summary: `Entr\xF3 como ${name} (solo lectura)`,
+      metadata: { reason: why, expiresAt: new Date(expiresAt).toISOString() },
+      source: ACTIVITY_SOURCE.ADMIN
+    });
+    return {
+      success: true,
+      message: `Est\xE1s viendo el panel como ${name}. Solo lectura, por una hora.`,
+      token,
+      expiresAt: new Date(expiresAt).toISOString(),
+      user: { id: target.id, name: target.name ?? "", lastName: target.lastName ?? null, email: target.email ?? null },
+      companyName: target.company?.name ?? null
+    };
+  },
+  /** Lo llama el front con el token de "entrar como" al salir: registra cuánto duró. */
+  endImpersonation: async (_root, _args, context) => {
+    const impersonation = getImpersonation(context.session);
+    if (!impersonation) return result2(false, "No estabas viendo como otra persona.");
+    const session2 = context.session;
+    const startedAt = impersonation.expiresAt - IMPERSONATION_TTL_MS;
+    const minutes = Math.max(0, Math.round((Date.now() - startedAt) / 6e4));
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_IMPERSONATION_ENDED,
+      actorId: impersonation.adminId,
+      companyId: session2?.data?.company?.id ?? null,
+      entityType: "User",
+      entityId: session2?.itemId ?? null,
+      summary: `Sali\xF3 de la cuenta de ${fullName2(session2?.data ?? null)} (${minutes} min)`,
+      metadata: { minutes },
+      source: ACTIVITY_SOURCE.ADMIN
+    });
+    return result2(true, "Saliste de la cuenta.");
+  },
+  /**
+   * Derecho de acceso (ARCO): todo lo que Kadesh guarda de una persona, en un JSON para
+   * entregárselo. Datos bancarios enmascarados; sin contraseña ni tokens.
+   */
+  adminExportPersonData: async (_root, { userId }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = prismaOf2(context);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        secondLastName: true,
+        username: true,
+        email: true,
+        businessEmail: true,
+        phone: true,
+        businessPhone: true,
+        birthday: true,
+        verified: true,
+        product: true,
+        createdAt: true,
+        lastLoginAt: true,
+        bank: true,
+        clabe: true,
+        cardNumber: true,
+        permissions: true,
+        suspendedAt: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } },
+        company: { select: { id: true, name: true } }
+      }
+    });
+    if (!user) throw new Error("No se encontr\xF3 a la persona.");
+    const [accesses, activity, activeDays, payments, blog] = await Promise.all([
+      prisma.userAuthLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 500,
+        select: { createdAt: true, source: true, step: true, success: true, ip: true, userAgent: true }
+      }),
+      prisma.activityEvent.findMany({
+        where: { actorId: userId },
+        orderBy: { createdAt: "desc" },
+        take: 1e3,
+        select: { createdAt: true, type: true, summary: true }
+      }),
+      prisma.userActivityDay.findMany({
+        where: { userId },
+        orderBy: { day: "desc" },
+        take: 400,
+        select: { day: true, minutes: true }
+      }),
+      prisma.saasPayment.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true, amount: true, status: true, notes: true }
+      }),
+      prisma.blogSubscription.findMany({
+        where: { OR: [{ userId }, ...user.email ? [{ email: user.email }] : []] },
+        select: { product: true, email: true, active: true, createdAt: true }
+      })
+    ]);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_PERSON_DATA_EXPORTED,
+      companyId: user.company?.id ?? null,
+      entityType: "User",
+      entityId: userId,
+      summary: "Export\xF3 los datos personales de una cuenta (ARCO)",
+      metadata: { userId }
+    });
+    return {
+      generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      generatedBy: "Kadesh",
+      person: {
+        ...user,
+        clabe: maskTail(user.clabe),
+        cardNumber: maskTail(user.cardNumber),
+        roles: user.roles.map((role) => role.name)
+      },
+      accesses,
+      activity,
+      activeDays: activeDays.map((row) => ({
+        day: new Date(row.day).toISOString().slice(0, 10),
+        minutes: row.minutes ?? 0
+      })),
+      payments: payments.map((row) => ({
+        ...row,
+        amount: row.amount == null ? null : Number(row.amount)
+      })),
+      blogSubscriptions: blog
+    };
+  },
+  /**
+   * Derecho de cancelación (ARCO): borra los datos personales de la cuenta y la deja sin acceso.
+   * No borra la fila: el CRM de la empresa (actividades, cotizaciones) sigue apuntando a ella y
+   * ahora muestra "Usuario eliminado". Irreversible; exige escribir el correo de la cuenta.
+   */
+  adminAnonymizeUser: async (_root, { userId, confirmEmail, reason }, context) => {
+    const adminId = adminIdOf(context);
+    if (!adminId) return NOT_ADMIN;
+    if (userId === adminId) return result2(false, "No puedes anonimizar tu propia cuenta.");
+    const why = cleanReason(reason);
+    if (!why) return REASON_REQUIRED;
+    const prisma = prismaOf2(context);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        secondLastName: true,
+        email: true,
+        companyId: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } }
+      }
+    });
+    if (!user) return result2(false, "No se encontr\xF3 a la persona.");
+    if (hasPlatformRole(user.roles)) return result2(false, "No se puede anonimizar a alguien del equipo de Kadesh.");
+    if (user.anonymizedAt) return result2(false, "La cuenta ya est\xE1 anonimizada.");
+    const email = (user.email ?? "").trim().toLowerCase();
+    if (!email || confirmEmail.trim().toLowerCase() !== email) {
+      return result2(false, "El correo no coincide con el de la cuenta.");
+    }
+    const short = userId.slice(-8);
+    const name = [user.name, user.lastName, user.secondLastName].filter(Boolean).join(" ").trim();
+    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text71) => Boolean(text71 && text71.length >= 4));
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: "Usuario",
+          lastName: "eliminado",
+          secondLastName: null,
+          username: `eliminado-${short}`,
+          referralCode: `eliminado-${short}`,
+          email: `eliminado+${userId}@kadesh.invalid`,
+          businessEmail: null,
+          businessPhone: null,
+          phone: "",
+          birthday: null,
+          bank: "",
+          clabe: null,
+          cardNumber: null,
+          smsRegistrationId: "",
+          profileImage_id: null,
+          profileImage_extension: null,
+          profileImage_filesize: null,
+          profileImage_width: null,
+          profileImage_height: null,
+          password: null,
+          verified: false,
+          onboardingState: {},
+          anonymizedAt: /* @__PURE__ */ new Date(),
+          sessionVersion: { increment: 1 },
+          company: { disconnect: true },
+          roles: { set: [] },
+          workspaces: { set: [] }
+        }
+      }),
+      prisma.userAuthLog.updateMany({
+        where: { userId },
+        data: { ip: null, userAgent: null, emailMasked: "***" }
+      }),
+      prisma.activityEvent.updateMany({
+        where: { actorId: userId },
+        data: { ip: null, userAgent: null }
+      }),
+      prisma.blogSubscription.deleteMany({
+        where: { OR: [{ userId }, ...user.email ? [{ email: user.email }] : []] }
+      }),
+      prisma.tokenNotification.deleteMany({ where: { userId } }),
+      prisma.techWhatsAppMessage.updateMany({
+        where: { sentById: userId },
+        data: { senderLabel: ANONYMIZED_LABEL }
+      }),
+      // Menciones en el texto de otros eventos ("Asignó el lead a …", "Cambió los roles de …"),
+      // solo en eventos de su empresa o sobre ella. strpos y no LIKE: un "_" del correo es comodín.
+      ...mentions.map(
+        (mention) => prisma.$executeRaw`
+          UPDATE "ActivityEvent"
+          SET "summary" = replace("summary", ${mention}, ${ANONYMIZED_LABEL})
+          WHERE strpos("summary", ${mention}) > 0
+            AND ("company" = ${user.companyId} OR "actor" = ${userId} OR "entityId" = ${userId})
+        `
+      ),
+      // En la metadata no se reemplaza a medias (podría romper el JSON): se limpia completa.
+      ...mentions.map(
+        (mention) => prisma.$executeRaw`
+          UPDATE "ActivityEvent"
+          SET "metadata" = '{"anonymized": true}'::jsonb
+          WHERE strpos("metadata"::text, ${mention}) > 0
+            AND ("company" = ${user.companyId} OR "actor" = ${userId} OR "entityId" = ${userId})
+        `
+      )
+    ]);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_USER_ANONYMIZED,
+      companyId: user.companyId ?? null,
+      entityType: "User",
+      entityId: userId,
+      summary: "Anonimiz\xF3 una cuenta a petici\xF3n de la persona (ARCO)",
+      metadata: { reason: why }
+    });
+    return result2(true, "Cuenta anonimizada: se borraron sus datos personales y ya no puede entrar.");
+  }
+};
+var accountControl_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+
+// utils/usage/dailyUsageRollup.ts
+var MX_DAY4 = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+var YMD_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+function mxToday(now = /* @__PURE__ */ new Date()) {
+  return MX_DAY4.format(now);
+}
+function shiftDay(ymd, days) {
+  const date = /* @__PURE__ */ new Date(`${ymd}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+function mxDayWindow(day) {
+  const start = /* @__PURE__ */ new Date(`${day}T00:00:00.000-06:00`);
+  return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1e3) };
+}
+var EMPTY = {
+  activeUsers: 0,
+  activeMinutes: 0,
+  logins: 0,
+  extractions: 0,
+  extractionsFailed: 0,
+  leadsCreated: 0,
+  leadsReused: 0,
+  creditsConsumed: 0,
+  aiCalls: 0,
+  crmChanges: 0,
+  activitiesLogged: 0,
+  quotationsCreated: 0,
+  quotationsSent: 0,
+  quotationsAccepted: 0,
+  whatsappSent: 0,
+  whatsappReceived: 0
+};
+async function rollupCompanyDailyUsage(context, day) {
+  if (!YMD_PATTERN.test(day)) throw new Error(`D\xEDa inv\xE1lido: ${day}`);
+  const prisma = context.sudo().prisma;
+  const { start, end } = mxDayWindow(day);
+  const window = { gte: start, lt: end };
+  const dayDate = /* @__PURE__ */ new Date(`${day}T00:00:00.000Z`);
+  const byCompany = /* @__PURE__ */ new Map();
+  const bump = (companyId, key, value) => {
+    if (!companyId || !value) return;
+    const current = byCompany.get(companyId) ?? { ...EMPTY };
+    current[key] += value;
+    byCompany.set(companyId, current);
+  };
+  const [
+    activityDays,
+    logins,
+    syncs,
+    credits,
+    aiCalls,
+    crmEvents,
+    salesActivities,
+    quotationsCreated,
+    quotationsSent,
+    quotationsAccepted,
+    whatsapp
+  ] = await Promise.all([
+    prisma.userActivityDay.groupBy({
+      by: ["companyId"],
+      where: { day: dayDate, companyId: { not: null } },
+      _count: { _all: true },
+      _sum: { minutes: true }
+    }),
+    prisma.userAuthLog.groupBy({
+      by: ["userId"],
+      where: { createdAt: window, success: true, userId: { not: null } },
+      _count: { _all: true }
+    }),
+    prisma.techLeadSyncLog.groupBy({
+      by: ["companyId", "success"],
+      where: { createdAt: window, companyId: { not: null } },
+      _count: { _all: true },
+      _sum: { created: true, alreadyInDb: true }
+    }),
+    prisma.saasCompanyCreditLedger.groupBy({
+      by: ["companyId"],
+      where: {
+        createdAt: window,
+        companyId: { not: null },
+        type: {
+          in: [COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC, COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI]
+        }
+      },
+      _sum: { amount: true }
+    }),
+    prisma.techAiCallLog.groupBy({
+      by: ["companyId"],
+      where: { createdAt: window, companyId: { not: null } },
+      _count: { _all: true }
+    }),
+    // Lo que hizo el equipo de la empresa; los cambios del admin de Kadesh no cuentan.
+    prisma.activityEvent.groupBy({
+      by: ["companyId"],
+      where: {
+        createdAt: window,
+        companyId: { not: null },
+        category: { in: [ACTIVITY_CATEGORY.CRM, ACTIVITY_CATEGORY.TEAM] },
+        source: { not: ACTIVITY_SOURCE.ADMIN }
+      },
+      _count: { _all: true }
+    }),
+    prisma.techSalesActivity.findMany({
+      where: { createdAt: window },
+      select: {
+        workspace: { select: { companyId: true } },
+        createdBy: { select: { companyId: true } }
+      }
+    }),
+    prisma.saasQuotation.groupBy({
+      by: ["companyId"],
+      where: { createdAt: window, companyId: { not: null } },
+      _count: { _all: true }
+    }),
+    prisma.saasQuotation.groupBy({
+      by: ["companyId"],
+      where: { sentAt: window, companyId: { not: null } },
+      _count: { _all: true }
+    }),
+    prisma.saasQuotation.groupBy({
+      by: ["companyId"],
+      where: { acceptedAt: window, companyId: { not: null } },
+      _count: { _all: true }
+    }),
+    // Los importados traen la fecha del chat original: no son actividad de ese día.
+    prisma.techWhatsAppMessage.groupBy({
+      by: ["companyId", "direction"],
+      where: {
+        createdAt: window,
+        companyId: { not: null },
+        OR: [{ source: null }, { source: { not: "imported" } }]
+      },
+      _count: { _all: true }
+    })
+  ]);
+  for (const row of activityDays) {
+    bump(row.companyId, "activeUsers", row._count._all);
+    bump(row.companyId, "activeMinutes", row._sum.minutes ?? 0);
+  }
+  const loginRows = logins;
+  if (loginRows.length) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: loginRows.map((row) => row.userId) } },
+      select: { id: true, companyId: true }
+    });
+    const companyOf = new Map(users.map((user) => [user.id, user.companyId]));
+    for (const row of loginRows) bump(companyOf.get(row.userId), "logins", row._count._all);
+  }
+  for (const row of syncs) {
+    bump(row.companyId, "extractions", row._count._all);
+    if (!row.success) bump(row.companyId, "extractionsFailed", row._count._all);
+    if (row.success) {
+      bump(row.companyId, "leadsCreated", row._sum.created ?? 0);
+      bump(row.companyId, "leadsReused", row._sum.alreadyInDb ?? 0);
+    }
+  }
+  for (const row of credits) {
+    bump(row.companyId, "creditsConsumed", Math.abs(row._sum.amount ?? 0));
+  }
+  for (const row of aiCalls) {
+    bump(row.companyId, "aiCalls", row._count._all);
+  }
+  for (const row of crmEvents) {
+    bump(row.companyId, "crmChanges", row._count._all);
+  }
+  for (const row of salesActivities) {
+    bump(row.workspace?.companyId ?? row.createdBy?.companyId, "activitiesLogged", 1);
+  }
+  for (const row of quotationsCreated) {
+    bump(row.companyId, "quotationsCreated", row._count._all);
+  }
+  for (const row of quotationsSent) {
+    bump(row.companyId, "quotationsSent", row._count._all);
+  }
+  for (const row of quotationsAccepted) {
+    bump(row.companyId, "quotationsAccepted", row._count._all);
+  }
+  for (const row of whatsapp) {
+    bump(row.companyId, row.direction === "inbound" ? "whatsappReceived" : "whatsappSent", row._count._all);
+  }
+  const computedAt = /* @__PURE__ */ new Date();
+  const companyIds = [...byCompany.keys()];
+  const existing = companyIds.length ? await prisma.saasCompany.findMany({ where: { id: { in: companyIds } }, select: { id: true } }) : [];
+  const valid = new Set(existing.map((company) => company.id));
+  for (const [companyId, metrics] of byCompany) {
+    if (!valid.has(companyId)) continue;
+    const key = `${companyId}:${day}`;
+    await prisma.saasCompanyDailyUsage.upsert({
+      where: { key },
+      create: { key, companyId, day: dayDate, ...metrics, computedAt },
+      update: { ...metrics, computedAt }
+    });
+  }
+  await prisma.saasCompanyDailyUsage.deleteMany({
+    where: { day: dayDate, companyId: { notIn: [...valid] } }
+  });
+  return { day, companies: valid.size };
+}
+async function rollupDailyUsageRange(context, lastDay, days) {
+  const results = [];
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    results.push(await rollupCompanyDailyUsage(context, shiftDay(lastDay, -offset)));
+  }
+  return results;
+}
+
+// graphql/customs/mutations/rollupDailyUsage.ts
+var typeDefs51 = `
+  type RollupDailyUsageDay {
+    day: String!
+    companies: Int!
+  }
+
+  type RollupDailyUsageResult {
+    success: Boolean!
+    message: String!
+    days: [RollupDailyUsageDay!]!
+  }
+
+  type Mutation {
+    rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
+  }
+`;
+var definition48 = `
+  rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
+`;
+var MAX_DAYS = 62;
+var resolver48 = {
+  /**
+   * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). La llama un cron diario
+   * (.github/workflows/rollup-daily-usage.yml) con `CRON_SECRET`, igual que publishScheduledPosts.
+   * Sin `day`, calcula ayer (CDMX). `days` recalcula hacia atrás (p. ej. 3 por si un día falló).
+   */
+  rollupDailyUsage: async (_root, { secret, day, days }, context) => {
+    const expected = process.env.CRON_SECRET?.trim();
+    if (!expected || secret !== expected) {
+      return { success: false, message: "No autorizado.", days: [] };
+    }
+    const lastDay = day?.trim() || shiftDay(mxToday(), -1);
+    if (!YMD_PATTERN.test(lastDay)) {
+      return { success: false, message: "El d\xEDa debe tener el formato AAAA-MM-DD.", days: [] };
+    }
+    const count2 = Math.min(MAX_DAYS, Math.max(1, Math.floor(Number(days) || 1)));
+    try {
+      const results = await rollupDailyUsageRange(context, lastDay, count2);
+      return {
+        success: true,
+        message: `Resumen listo: ${results.length} d\xEDa${results.length === 1 ? "" : "s"}.`,
+        days: results
+      };
+    } catch (error) {
+      console.error("[rollupDailyUsage]", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "No se pudo calcular el resumen.",
+        days: []
+      };
+    }
+  }
+};
+var rollupDailyUsage_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
-    ${customAuth_default.typeDefs}
     ${authenticateUserWithGoogle_default.typeDefs}
     ${registerUser_default.typeDefs}
     ${importPetPlace_default.typeDefs}
@@ -26107,9 +27598,11 @@ var customMutation = {
     ${toggleGoogleCalendarSelection_default.typeDefs}
     ${setGoogleCalendarPushSettings_default.typeDefs}
     ${trackEvents_default.typeDefs}
+    ${companyOps_default.typeDefs}
+    ${accountControl_default.typeDefs}
+    ${rollupDailyUsage_default.typeDefs}
   `,
   definitions: `
-    ${customAuth_default.definition}
     ${authenticateUserWithGoogle_default.definition}
     ${registerUser_default.definition}
     ${importPetPlace_default.definition}
@@ -26153,9 +27646,11 @@ var customMutation = {
     ${toggleGoogleCalendarSelection_default.definition}
     ${setGoogleCalendarPushSettings_default.definition}
     ${trackEvents_default.definition}
+    ${companyOps_default.definition}
+    ${accountControl_default.definition}
+    ${rollupDailyUsage_default.definition}
   `,
   resolvers: {
-    ...customAuth_default.resolver,
     ...authenticateUserWithGoogle_default.resolver,
     ...registerUser_default.resolver,
     ...importPetPlace_default.resolver,
@@ -26198,7 +27693,10 @@ var customMutation = {
     ...refreshGoogleCalendarList_default.resolver,
     ...toggleGoogleCalendarSelection_default.resolver,
     ...setGoogleCalendarPushSettings_default.resolver,
-    ...trackEvents_default.resolver
+    ...trackEvents_default.resolver,
+    ...companyOps_default.resolver,
+    ...accountControl_default.resolver,
+    ...rollupDailyUsage_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -26209,7 +27707,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs50 = `
+var typeDefs52 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -26268,7 +27766,7 @@ var typeDefs50 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition47 = `
+var definition49 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -26318,7 +27816,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver47 = {
+var resolver49 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -26481,10 +27979,10 @@ var resolver47 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var nearbyAnimals_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs51 = `
+var typeDefs53 = `
   type AnimalReportDuplicate {
     id: ID!
     name: String!
@@ -26492,7 +27990,7 @@ var typeDefs51 = `
     url: String!
   }
 `;
-var definition48 = `
+var definition50 = `
   findAnimalReportDuplicates(
     phone: String
     animalTypeId: ID
@@ -26500,7 +27998,7 @@ var definition48 = `
     sourceUrl: String
   ): [AnimalReportDuplicate!]!
 `;
-var resolver48 = {
+var resolver50 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     if (!isSignedIn(context.session) && !getSessionUserId(context.session)) {
       throw new Error("Inicia sesi\xF3n para revisar reportes parecidos.");
@@ -26516,7 +28014,7 @@ var resolver48 = {
     });
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -26528,7 +28026,7 @@ function convertGoogleTimeToHours(timeString) {
   return isNaN(hours) ? 0 : hours;
 }
 function parseAddressComponents4(addressComponents) {
-  const result = {
+  const result3 = {
     street: "",
     municipality: "",
     state: "",
@@ -26536,7 +28034,7 @@ function parseAddressComponents4(addressComponents) {
     cp: ""
   };
   if (!Array.isArray(addressComponents)) {
-    return result;
+    return result3;
   }
   let streetNumber = "";
   let route = "";
@@ -26550,26 +28048,26 @@ function parseAddressComponents4(addressComponents) {
       route = longName;
     }
     if (types.includes("locality")) {
-      result.municipality = longName;
+      result3.municipality = longName;
     }
     if (types.includes("administrative_area_level_1")) {
-      result.state = longName;
+      result3.state = longName;
     }
     if (types.includes("country")) {
-      result.country = longName;
+      result3.country = longName;
     }
     if (types.includes("postal_code")) {
-      result.cp = longName;
+      result3.cp = longName;
     }
   }
   if (streetNumber && route) {
-    result.street = `${streetNumber} ${route}`.trim();
+    result3.street = `${streetNumber} ${route}`.trim();
   } else if (streetNumber) {
-    result.street = streetNumber;
+    result3.street = streetNumber;
   } else if (route) {
-    result.street = route;
+    result3.street = route;
   }
-  return result;
+  return result3;
 }
 async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
   if (!place.name) {
@@ -26611,7 +28109,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
       return null;
     }
   }
-  const result = await context.sudo().query.PetPlace.createOne({
+  const result3 = await context.sudo().query.PetPlace.createOne({
     data: {
       name: place.name,
       description: `Place located at ${address}. ${rating > 0 ? `Rating: ${rating}/5 (${userRatingsTotal} reviews)` : ""}`,
@@ -26657,7 +28155,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
           }
           if (Object.keys(updateData).length > 0) {
             await context.sudo().query.PetPlace.updateOne({
-              where: { id: result.id },
+              where: { id: result3.id },
               data: updateData
             });
           }
@@ -26675,7 +28173,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
                         day: dayName,
                         timeIni: openTime,
                         timeEnd: closeTime,
-                        pet_place: { connect: { id: result.id } }
+                        pet_place: { connect: { id: result3.id } }
                       }
                     });
                   }
@@ -26702,7 +28200,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
                     createdAt,
                     google_user: review.author_name || "",
                     google_user_photo: review.profile_photo_url || "",
-                    pet_place: { connect: { id: result.id } }
+                    pet_place: { connect: { id: result3.id } }
                   }
                 });
               } catch (reviewError) {
@@ -26719,7 +28217,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
       console.error(`Error getting details for ${place.name}:`, detailsError);
     }
   }
-  return result;
+  return result3;
 }
 async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
   const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
@@ -26830,7 +28328,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs52 = `
+var typeDefs54 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -26890,10 +28388,10 @@ var typeDefs52 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition49 = `
+var definition51 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver49 = {
+var resolver51 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -26930,7 +28428,7 @@ var resolver49 = {
         const ratingB = b.averageRating || 0;
         return ratingB - ratingA;
       });
-      const result2 = sortedPlaces.slice(0, limit).map((place) => ({
+      const result4 = sortedPlaces.slice(0, limit).map((place) => ({
         ...place,
         pet_place_reviews: place.pet_place_reviews ?? [],
         distance: null
@@ -26938,8 +28436,8 @@ var resolver49 = {
       }));
       return {
         success: true,
-        message: result2.length > 0 ? "PetPlaces found" : "No PetPlaces found",
-        petPlaces: result2
+        message: result4.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+        petPlaces: result4
       };
     }
     if (typeof lat !== "number" || typeof lng !== "number") {
@@ -26964,21 +28462,21 @@ var resolver49 = {
       return { ...place, distance };
     }).filter((place) => place && place.distance <= radius);
     withDistance.sort((a, b) => a.distance - b.distance);
-    const result = withDistance.slice(0, limit).map((place) => ({
+    const result3 = withDistance.slice(0, limit).map((place) => ({
       ...place,
       pet_place_reviews: place.pet_place_reviews ?? []
     }));
     return {
       success: true,
-      message: result.length > 0 ? "PetPlaces found" : "No PetPlaces found",
-      petPlaces: result
+      message: result3.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+      petPlaces: result3
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs53 = `
+var typeDefs55 = `
   type StripeCard {
     brand: String
     country: String
@@ -27012,10 +28510,10 @@ var typeDefs53 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition50 = `
+var definition52 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver50 = {
+var resolver52 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -27051,10 +28549,10 @@ var resolver50 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var stripePaymentMethods_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs54 = `
+var typeDefs56 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -27092,7 +28590,7 @@ var typeDefs54 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition51 = `
+var definition53 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -27112,7 +28610,7 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver51 = {
+var resolver53 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return fail8("Solo operaciones puede verificar planes con Stripe.");
@@ -27213,7 +28711,7 @@ var resolver51 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var stripePlanCheck_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -27351,7 +28849,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs55 = `
+var typeDefs57 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -27379,10 +28877,10 @@ var typeDefs55 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition52 = `
+var definition54 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver52 = {
+var resolver54 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -27453,7 +28951,8 @@ var resolver52 = {
       }
     } else if (isFreePlan && sub.activatedAt) {
       const { trialEnd: trialEndStr, isExpired } = getFreePlanTrialInfo(
-        sub.activatedAt
+        sub.activatedAt,
+        sub.currentPeriodEnd
       );
       if (!trialEndStr) {
         periodEnd = null;
@@ -27499,11 +28998,11 @@ var resolver52 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var subscriptionStatus_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs56 = `
+var typeDefs58 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -27515,10 +29014,10 @@ var typeDefs56 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition53 = `
+var definition55 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver53 = {
+var resolver55 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -27551,10 +29050,10 @@ var resolver53 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs57 = `
+var typeDefs59 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -27566,10 +29065,10 @@ var typeDefs57 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition54 = `
+var definition56 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver54 = {
+var resolver56 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -27591,11 +29090,11 @@ var resolver54 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs58 = `
+var typeDefs60 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -27624,14 +29123,14 @@ var typeDefs58 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition55 = `
+var definition57 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
-function fullName2(person) {
+function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver55 = {
+var resolver57 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -27669,11 +29168,11 @@ var resolver55 = {
         teamMemberId,
         phoneKey: phoneKey || null,
         kind: leadId ? "lead" : teamMemberId ? "team" : "phone",
-        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : teamMemberId ? fullName2(msg.teamMember) || "Sin nombre" : "",
+        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : teamMemberId ? fullName3(msg.teamMember) || "Sin nombre" : "",
         // se completa abajo con el nombre de perfil o el teléfono
         phone: (leadId ? msg.businessLead?.phone : teamMemberId ? msg.teamMember?.phone : rawPhone && `+${rawPhone.replace(/\D/g, "")}`) || null,
         assignedToId: assigned?.id ?? null,
-        assignedToName: assigned ? fullName2(assigned) || null : null,
+        assignedToName: assigned ? fullName3(assigned) || null : null,
         lastMessageBody: msg.body || "",
         lastMessageAt: msg.createdAt,
         lastMessageDirection: msg.direction || "unknown"
@@ -27687,11 +29186,11 @@ var resolver55 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var whatsappConversations_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs59 = `
+var typeDefs61 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -27703,10 +29202,10 @@ var typeDefs59 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition56 = `
+var definition58 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver56 = {
+var resolver58 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -27747,10 +29246,10 @@ var resolver56 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs60 = `
+var typeDefs62 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -27768,10 +29267,10 @@ var typeDefs60 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition57 = `
+var definition59 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver57 = {
+var resolver59 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -27797,10 +29296,10 @@ var resolver57 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs61 = `
+var typeDefs63 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -27826,13 +29325,13 @@ var typeDefs61 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition58 = `
+var definition60 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
 function fail9(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver58 = {
+var resolver60 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -27889,11 +29388,11 @@ var resolver58 = {
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs62 = `
+var typeDefs64 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -27921,10 +29420,10 @@ var typeDefs62 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition59 = `
+var definition61 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver59 = {
+var resolver61 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
@@ -27976,212 +29475,12 @@ var resolver59 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
-
-// graphql/customs/queries/admin/shared.ts
-var adminSharedTypeDefs = `
-  type AdminCount {
-    key: String!
-    count: Int!
-  }
-
-  type AdminAmountCount {
-    key: String!
-    count: Int!
-    amount: Float!
-  }
-
-  type AdminPersonRef {
-    id: ID!
-    name: String!
-    lastName: String
-    email: String
-  }
-
-  type AdminCompanyRef {
-    id: ID!
-    name: String!
-  }
-`;
-var ADMIN_ONLY_MESSAGE = "Solo un administrador de Kadesh puede ver esta informaci\xF3n.";
-function assertPlatformAdmin(context) {
-  if (!isPlatformAdmin(context.session)) {
-    throw new Error(ADMIN_ONLY_MESSAGE);
-  }
-}
-function adminPrisma(context) {
-  return context.sudo().prisma;
-}
-var DAY_MS2 = 24 * 60 * 60 * 1e3;
-function daysAgo(days, from = /* @__PURE__ */ new Date()) {
-  return new Date(from.getTime() - days * DAY_MS2);
-}
-function toIso(value) {
-  if (!value) return null;
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-function toYmd(value) {
-  const iso = toIso(value);
-  return iso ? iso.slice(0, 10) : null;
-}
-var MX_DAY2 = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/Mexico_City",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-});
-function toMxDay(value) {
-  return MX_DAY2.format(value instanceof Date ? value : new Date(value));
-}
-function clampInt(value, min, max, fallback) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.min(max, Math.max(min, Math.floor(value)));
-}
-function insensitive(value) {
-  return { contains: value, mode: "insensitive" };
-}
-function personRef(user) {
-  if (!user) return null;
-  return {
-    id: user.id,
-    name: user.name ?? "",
-    lastName: user.lastName ?? null,
-    email: user.email ?? null
-  };
-}
-var PERSON_SELECT = {
-  id: true,
-  name: true,
-  lastName: true,
-  email: true
-};
-async function latestSubscriptionsByCompany(prisma, companyIds) {
-  const rows = await prisma.saasCompanySubscription.findMany({
-    where: { companyId: companyIds ? { in: companyIds } : { not: null } },
-    orderBy: [
-      { companyId: "asc" },
-      { createdAt: { sort: "desc", nulls: "last" } },
-      { id: "desc" }
-    ],
-    distinct: ["companyId"],
-    select: {
-      id: true,
-      companyId: true,
-      status: true,
-      planName: true,
-      planCost: true,
-      planCurrency: true,
-      planFrequency: true,
-      planLeadLimit: true,
-      activatedAt: true,
-      currentPeriodEnd: true,
-      stripeCustomerId: true,
-      createdAt: true
-    }
-  });
-  return new Map(rows.map((row) => [row.companyId, row]));
-}
-function trialEndDate(sub) {
-  if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
-  if (sub.currentPeriodEnd) return new Date(sub.currentPeriodEnd);
-  if (!sub.activatedAt) return null;
-  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS2);
-}
-function monthlyAmount(cost, frequency) {
-  if (!cost || cost <= 0) return 0;
-  switch (frequency) {
-    case PLAN_FREQUENCY.MONTHLY:
-      return cost;
-    case PLAN_FREQUENCY.ANNUAL:
-      return cost / 12;
-    case PLAN_FREQUENCY.WEEKLY:
-      return cost * 52 / 12;
-    default:
-      return 0;
-  }
-}
-async function testCompanyIds(prisma) {
-  const rows = await prisma.saasCompany.findMany({
-    where: {
-      users: { some: { userTest: true }, none: { userTest: false } }
-    },
-    select: { id: true }
-  });
-  return new Set(rows.map((row) => row.id));
-}
-function companyCredits(params) {
-  const plan = params.period?.planAllowance ?? params.planLeadLimit ?? 0;
-  const bonus = params.period?.bonusAllowance ?? params.purchasedBonusCredits ?? 0;
-  const used = params.period?.used ?? 0;
-  return { plan, bonus, used, remaining: Math.max(0, plan + bonus - used) };
-}
-function currentPeriod() {
-  return getCurrentPeriodParts();
-}
-function crmCompanyScope(companyId, assigneeField = "assignedSeller") {
-  return {
-    OR: [
-      { workspace: { companyId } },
-      {
-        AND: [
-          { workspaceId: null },
-          {
-            OR: [
-              { createdBy: { companyId } },
-              { [assigneeField]: { companyId } }
-            ]
-          }
-        ]
-      }
-    ]
-  };
-}
-function countsToList(rows) {
-  return rows.map((row) => ({ key: row.key ?? "", count: row.count })).sort((a, b) => b.count - a.count);
-}
-async function optional(read, fallback) {
-  try {
-    return await read();
-  } catch {
-    return fallback;
-  }
-}
-async function lastSeenByCompany(prisma, companyIds) {
-  if (!prisma.userActivityDay || !companyIds.length) return /* @__PURE__ */ new Map();
-  return optional(async () => {
-    const rows = await prisma.userActivityDay.groupBy({
-      by: ["companyId"],
-      where: { companyId: { in: companyIds } },
-      _max: { lastSeenAt: true }
-    });
-    return new Map(
-      rows.filter((row) => row.companyId && row._max.lastSeenAt).map((row) => [row.companyId, row._max.lastSeenAt])
-    );
-  }, /* @__PURE__ */ new Map());
-}
-async function activeUserIdsSince(prisma, since) {
-  if (!prisma.userActivityDay) return [];
-  return optional(async () => {
-    const rows = await prisma.userActivityDay.findMany({
-      where: { lastSeenAt: { gte: since } },
-      distinct: ["userId"],
-      select: { userId: true }
-    });
-    return rows.map((row) => row.userId).filter((id) => Boolean(id));
-  }, []);
-}
-function latestDate(...dates) {
-  return dates.reduce(
-    (max, date) => date && (!max || date > max) ? date : max,
-    null
-  );
-}
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
 var SORTS = ["recent", "name", "activity"];
-var typeDefs63 = `
+var typeDefs65 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
@@ -28189,6 +29488,8 @@ var typeDefs63 = `
     status: String
     """recent (alta) | name | activity (\xFAltimo acceso del equipo)"""
     sort: String
+    """Solo las cuentas de esta persona de Kadesh (due\xF1o de cuenta)."""
+    accountManagerId: ID
     take: Int
     skip: Int
   }
@@ -28215,6 +29516,10 @@ var typeDefs63 = `
     """\xDAltima vez que alguien del equipo tuvo el panel abierto (latido). M\xE1s fiel que el \xFAltimo login: la sesi\xF3n dura 30 d\xEDas."""
     lastSeenAt: String
     owner: AdminPersonRef
+    """Persona de Kadesh responsable de la cuenta."""
+    accountManager: AdminPersonRef
+    """Si Kadesh suspendi\xF3 el acceso de la empresa."""
+    suspendedAt: String
   }
 
   type AdminCompaniesResult {
@@ -28228,7 +29533,7 @@ var typeDefs63 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition60 = `
+var definition62 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
 function searchWhere(search) {
@@ -28258,7 +29563,7 @@ function pickOwner(users) {
   );
   return admin ?? users[0] ?? null;
 }
-var resolver60 = {
+var resolver62 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -28266,7 +29571,9 @@ var resolver60 = {
     const skip = clampInt(input?.skip, 0, 1e6, 0);
     const status = input?.status?.trim() || "all";
     const sort = SORTS.includes(input?.sort) ? input?.sort : "recent";
-    const baseWhere = searchWhere(input?.search);
+    const searchFilter = searchWhere(input?.search);
+    const managerId = input?.accountManagerId?.trim();
+    const baseWhere = managerId ? { AND: [searchFilter, { accountManagerId: managerId }] } : searchFilter;
     const matching = await prisma.saasCompany.findMany({
       where: baseWhere,
       select: { id: true }
@@ -28280,7 +29587,7 @@ var resolver60 = {
     }
     const statusCounts = [
       { key: "all", count: matchingIds.length },
-      ...[...counts.entries()].map(([key, count]) => ({ key, count }))
+      ...[...counts.entries()].map(([key, count2]) => ({ key, count: count2 }))
     ];
     const filteredIds = status === "all" ? matchingIds : matchingIds.filter(
       (id) => (latest.get(id)?.status ?? STATUS_NONE) === status
@@ -28320,6 +29627,8 @@ var resolver60 = {
         createdAt: true,
         contactEmail: true,
         purchasedBonusCredits: true,
+        accountManager: { select: { id: true, name: true, lastName: true, email: true } },
+        suspendedAt: true,
         plan: { select: { name: true, leadLimit: true } },
         creditPeriods: {
           where: { year, month },
@@ -28374,19 +29683,21 @@ var resolver60 = {
         leadsCount: c._count.leads,
         lastLoginAt: toIso(lastLogin),
         lastSeenAt: toIso(lastSeen.get(c.id) ?? null),
-        owner: personRef(pickOwner(c.users))
+        owner: personRef(pickOwner(c.users)),
+        accountManager: personRef(c.accountManager),
+        suspendedAt: toIso(c.suspendedAt)
       };
     });
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+var adminCompanies_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
-var typeDefs64 = `
+var typeDefs66 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -28429,7 +29740,7 @@ var typeDefs64 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition61 = `
+var definition63 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -28440,7 +29751,7 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver61 = {
+var resolver63 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -28664,7 +29975,7 @@ var resolver61 = {
     );
     return {
       companiesTotal: real.length,
-      statusCounts: [...statusCounts.entries()].map(([key, count]) => ({ key, count })),
+      statusCounts: [...statusCounts.entries()].map(([key, count2]) => ({ key, count: count2 })),
       trialsEndingSoon,
       paymentIssues,
       newUsers7d,
@@ -28684,14 +29995,14 @@ var resolver61 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+var adminOpsSummary_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs65 = `
+var typeDefs67 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -28796,7 +30107,7 @@ var typeDefs65 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition62 = `
+var definition64 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows, key) {
@@ -28842,7 +30153,7 @@ function tally(values) {
     if (!value) continue;
     counts.set(value, (counts.get(value) ?? 0) + 1);
   }
-  return countsToList([...counts.entries()].map(([key, count]) => ({ key, count }))).slice(0, 10);
+  return countsToList([...counts.entries()].map(([key, count2]) => ({ key, count: count2 }))).slice(0, 10);
 }
 function metaText(metadata, ...keys) {
   if (!metadata || typeof metadata !== "object") return null;
@@ -28934,7 +30245,7 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver62 = {
+var resolver64 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -29247,7 +30558,163 @@ var resolver62 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var adminCompanyInsights_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+
+// graphql/customs/queries/admin/adminCompanyTrends.ts
+var typeDefs68 = `
+  type AdminUsageWeek {
+    """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
+    weekStart: String!
+    activeDays: Int!
+    activeMinutes: Int!
+    logins: Int!
+    extractions: Int!
+    leadsCreated: Int!
+    leadsReused: Int!
+    creditsConsumed: Int!
+    aiCalls: Int!
+    crmChanges: Int!
+    activitiesLogged: Int!
+    quotationsCreated: Int!
+    quotationsAccepted: Int!
+    whatsappSent: Int!
+  }
+
+  type AdminBenchmarkMetric {
+    key: String!
+    """Total de esta empresa en las \xFAltimas 4 semanas."""
+    company: Int!
+    """Mediana de las empresas del mismo plan (incluye las que no hicieron nada)."""
+    median: Int
+  }
+
+  type AdminCompanyTrends {
+    """false si todav\xEDa no hay resumen diario (falta migrar o correr el cron)."""
+    ready: Boolean!
+    weeks: [AdminUsageWeek!]!
+    planName: String
+    """Empresas del mismo plan que entran en la comparaci\xF3n (sin cuentas de prueba)."""
+    peers: Int!
+    benchmark: [AdminBenchmarkMetric!]!
+  }
+
+  type Query {
+    adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
+  }
+`;
+var definition65 = `
+  adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
+`;
+var WEEK_FIELDS = [
+  "activeMinutes",
+  "logins",
+  "extractions",
+  "leadsCreated",
+  "leadsReused",
+  "creditsConsumed",
+  "aiCalls",
+  "crmChanges",
+  "activitiesLogged",
+  "quotationsCreated",
+  "quotationsAccepted",
+  "whatsappSent"
+];
+var BENCHMARK_FIELDS = [
+  "activeMinutes",
+  "extractions",
+  "crmChanges",
+  "activitiesLogged",
+  "quotationsCreated"
+];
+var MIN_PEERS = 3;
+function median(values) {
+  if (values.length < MIN_PEERS) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
+var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
+var resolver65 = {
+  adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    if (!prisma.saasCompanyDailyUsage) return EMPTY2;
+    const weekCount = clampInt(weeks, 4, 26, 12);
+    const lastDay = shiftDay(mxToday(), -1);
+    const firstDay = shiftDay(lastDay, -(weekCount * 7 - 1));
+    const benchmarkFrom = shiftDay(lastDay, -27);
+    return optional(async () => {
+      const rows = await prisma.saasCompanyDailyUsage.findMany({
+        where: {
+          companyId,
+          day: { gte: /* @__PURE__ */ new Date(`${firstDay}T00:00:00.000Z`), lte: /* @__PURE__ */ new Date(`${lastDay}T00:00:00.000Z`) }
+        },
+        select: { companyId: true, day: true, ...Object.fromEntries(WEEK_FIELDS.map((f) => [f, true])) }
+      });
+      const anyRow = rows.length ? true : Boolean(await prisma.saasCompanyDailyUsage.findFirst({ select: { id: true } }));
+      const series = Array.from({ length: weekCount }, (_, index) => {
+        const weekStart = shiftDay(firstDay, index * 7);
+        return {
+          weekStart,
+          activeDays: 0,
+          ...Object.fromEntries(WEEK_FIELDS.map((field) => [field, 0]))
+        };
+      });
+      for (const row of rows) {
+        const day = new Date(row.day).toISOString().slice(0, 10);
+        const index = Math.floor(
+          ((/* @__PURE__ */ new Date(`${day}T00:00:00.000Z`)).getTime() - (/* @__PURE__ */ new Date(`${firstDay}T00:00:00.000Z`)).getTime()) / (7 * 24 * 60 * 60 * 1e3)
+        );
+        const week = series[index];
+        if (!week) continue;
+        if ((row.activeMinutes ?? 0) > 0) week.activeDays += 1;
+        for (const field of WEEK_FIELDS) week[field] += row[field] ?? 0;
+      }
+      const latest = await latestSubscriptionsByCompany(prisma);
+      const planName = latest.get(companyId)?.planName || null;
+      const tests = await testCompanyIds(prisma);
+      const peerIds = planName ? [...latest.entries()].filter(([id, sub]) => sub.planName === planName && !tests.has(id)).map(([id]) => id) : [];
+      const totals = new Map(
+        peerIds.map((id) => [id, Object.fromEntries(WEEK_FIELDS.map((f) => [f, 0]))])
+      );
+      if (peerIds.length) {
+        const peerRows = await prisma.saasCompanyDailyUsage.groupBy({
+          by: ["companyId"],
+          where: {
+            companyId: { in: peerIds },
+            day: { gte: /* @__PURE__ */ new Date(`${benchmarkFrom}T00:00:00.000Z`), lte: /* @__PURE__ */ new Date(`${lastDay}T00:00:00.000Z`) }
+          },
+          _sum: Object.fromEntries(BENCHMARK_FIELDS.map((f) => [f, true]))
+        });
+        for (const row of peerRows) {
+          const total = totals.get(row.companyId);
+          if (!total) continue;
+          for (const field of BENCHMARK_FIELDS) total[field] = row._sum[field] ?? 0;
+        }
+      }
+      const own = series.slice(-4).reduce(
+        (acc, week) => {
+          for (const field of BENCHMARK_FIELDS) acc[field] += week[field];
+          return acc;
+        },
+        Object.fromEntries(BENCHMARK_FIELDS.map((f) => [f, 0]))
+      );
+      const others = [...totals.entries()].filter(([id]) => id !== companyId).map(([, total]) => total);
+      return {
+        ready: anyRow,
+        weeks: series,
+        planName,
+        peers: others.length,
+        benchmark: BENCHMARK_FIELDS.map((key) => ({
+          key,
+          company: own[key] ?? 0,
+          median: median(others.map((total) => total[key]))
+        }))
+      };
+    }, EMPTY2);
+  }
+};
+var adminCompanyTrends_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -29264,7 +30731,7 @@ var FEED_TYPES = [
   "product"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs66 = `
+var typeDefs69 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -29302,7 +30769,7 @@ var typeDefs66 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition63 = `
+var definition66 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -29369,8 +30836,8 @@ function money2(amount, currency) {
   }
 }
 function joinDetail(parts) {
-  const text69 = parts.filter(Boolean).join(" \xB7 ");
-  return text69 || null;
+  const text71 = parts.filter(Boolean).join(" \xB7 ");
+  return text71 || null;
 }
 function personSearch(q) {
   return {
@@ -30139,7 +31606,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver63 = {
+var resolver66 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -30175,7 +31642,7 @@ var resolver63 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var adminActivityFeed_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -30197,6 +31664,7 @@ var customQuery = {
     ${adminCompanies_default.typeDefs}
     ${adminOpsSummary_default.typeDefs}
     ${adminCompanyInsights_default.typeDefs}
+    ${adminCompanyTrends_default.typeDefs}
     ${adminActivityFeed_default.typeDefs}
   `,
   definitions: `
@@ -30219,6 +31687,7 @@ var customQuery = {
     ${adminCompanies_default.definition}
     ${adminOpsSummary_default.definition}
     ${adminCompanyInsights_default.definition}
+    ${adminCompanyTrends_default.definition}
     ${adminActivityFeed_default.definition}
   `,
   resolvers: {
@@ -30241,6 +31710,7 @@ var customQuery = {
     ...adminCompanies_default.resolver,
     ...adminOpsSummary_default.resolver,
     ...adminCompanyInsights_default.resolver,
+    ...adminCompanyTrends_default.resolver,
     ...adminActivityFeed_default.resolver
   }
 };
@@ -30248,14 +31718,14 @@ var queries_default = customQuery;
 
 // graphql/customs/mutations/auth/passwordLoginAudit.ts
 var FIELD = "authenticateUserWithPassword";
-function resultUserId(result) {
-  if (!result || typeof result !== "object") return null;
-  const item = result.item;
+function resultUserId(result3) {
+  if (!result3 || typeof result3 !== "object") return null;
+  const item = result3.item;
   return typeof item?.id === "string" ? item.id : null;
 }
-function isSuccess(result) {
+function isSuccess(result3) {
   return Boolean(
-    result && typeof result === "object" && typeof result.sessionToken === "string"
+    result3 && typeof result3 === "object" && typeof result3.sessionToken === "string"
   );
 }
 async function findUserIdByEmail(context, email) {
@@ -30286,9 +31756,9 @@ function passwordLoginAuditResolvers(baseSchema) {
   const wrapped = async (root, args, context, info) => {
     const startedAt = Date.now();
     const email = typeof args?.email === "string" ? args.email.trim() : "";
-    let result;
+    let result3;
     try {
-      result = await original(root, args, context, info);
+      result3 = await original(root, args, context, info);
     } catch (error) {
       await writeUserAuthLog(context, {
         startedAt,
@@ -30302,8 +31772,22 @@ function passwordLoginAuditResolvers(baseSchema) {
       });
       throw error;
     }
-    const success = isSuccess(result);
-    const userId = success ? resultUserId(result) : await findUserIdByEmail(context, email);
+    const success = isSuccess(result3);
+    const userId = success ? resultUserId(result3) : await findUserIdByEmail(context, email);
+    const blocked = success && userId ? await loginBlockedReason(context, userId) : null;
+    if (blocked) {
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+        success: false,
+        message: blocked === "suspended" ? "Intento de acceso con la cuenta suspendida." : "Intento de acceso a una cuenta anonimizada.",
+        email,
+        userId,
+        responseSnapshot: { method: "password", reason: blocked }
+      });
+      return { code: "FAILURE", message: SUSPENDED_MESSAGE };
+    }
     if (success && userId) {
       await touchLastLogin(context, userId);
     }
@@ -30317,7 +31801,7 @@ function passwordLoginAuditResolvers(baseSchema) {
       userId,
       responseSnapshot: success ? { method: "password", userId } : { method: "password", reason: "auth_failure" }
     });
-    return result;
+    return result3;
   };
   return { [FIELD]: wrapped };
 }
@@ -30378,12 +31862,12 @@ function extendGraphqlSchema(baseSchema) {
 
 // webhooks/whatsapp.ts
 var import_express = __toESM(require("express"));
-var import_crypto7 = __toESM(require("crypto"));
+var import_crypto6 = __toESM(require("crypto"));
 var WEBHOOK_PATH = "/webhooks/whatsapp";
 function extToFilename(filename, mimeType) {
   if (filename) return filename;
   const ext = mimeType.split("/")[1] || "bin";
-  return `archivo-${import_crypto7.default.randomUUID()}.${ext}`;
+  return `archivo-${import_crypto6.default.randomUUID()}.${ext}`;
 }
 async function persistIncomingMedia({
   media,
@@ -30398,7 +31882,7 @@ async function persistIncomingMedia({
     const { url, mimeType } = await fetchWhatsAppMediaUrl({ mediaId: media.id, accessToken });
     const buffer = await downloadWhatsAppMedia({ url, accessToken });
     const filename = extToFilename(media.filename, mimeType);
-    const mediaKey = `whatsapp-media/${companyId}/${import_crypto7.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${companyId}/${import_crypto6.default.randomUUID()}-${filename}`;
     await uploadBufferToStorage({ buffer, contentType: mimeType, key: mediaKey });
     return { mediaKey, mediaFileName: filename, body: media.caption || "" };
   } catch (err) {
@@ -30496,26 +31980,26 @@ async function persistIncomingMessages(companyId, accessToken, messages, contact
       body = msg.text.body;
     } else if (msg.type === "image" && msg.image) {
       mediaType = "image";
-      const result = await persistIncomingMedia({
+      const result3 = await persistIncomingMedia({
         media: msg.image,
         mediaType: "image",
         accessToken,
         companyId
       });
-      mediaKey = result.mediaKey;
-      mediaFileName = result.mediaFileName;
-      body = result.body;
+      mediaKey = result3.mediaKey;
+      mediaFileName = result3.mediaFileName;
+      body = result3.body;
     } else if (msg.type === "document" && msg.document) {
       mediaType = "document";
-      const result = await persistIncomingMedia({
+      const result3 = await persistIncomingMedia({
         media: msg.document,
         mediaType: "document",
         accessToken,
         companyId
       });
-      mediaKey = result.mediaKey;
-      mediaFileName = result.mediaFileName;
-      body = result.body;
+      mediaKey = result3.mediaKey;
+      mediaFileName = result3.mediaFileName;
+      body = result3.body;
     } else {
       body = msg.type ? `[${msg.type}, no soportado todav\xEDa]` : "";
     }
@@ -30623,7 +32107,7 @@ function registerWhatsAppWebhook(app, context) {
 }
 
 // webhooks/clickup.ts
-var import_crypto8 = __toESM(require("crypto"));
+var import_crypto7 = __toESM(require("crypto"));
 var import_express2 = __toESM(require("express"));
 
 // utils/intregrations/clickup.ts
@@ -30632,8 +32116,8 @@ function apiToken() {
   const value = process.env.CLICKUP_API_TOKEN?.trim();
   return value || void 0;
 }
-function clip(text69, max = 300) {
-  const trimmed = text69.replace(/\s+/g, " ").trim();
+function clip(text71, max = 300) {
+  const trimmed = text71.replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -30696,10 +32180,10 @@ async function getTaskComments(taskId) {
   if (!Array.isArray(comments)) return [];
   return comments.filter(isComment);
 }
-async function commentTask(taskId, text69) {
+async function commentTask(taskId, text71) {
   await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
     method: "POST",
-    body: { comment_text: text69, notify_all: false }
+    body: { comment_text: text71, notify_all: false }
   });
 }
 async function downloadClickUpFile(url, maxBytes) {
@@ -30751,11 +32235,11 @@ function apiKey() {
   const value = process.env.PIXABAY_API_KEY?.trim();
   return value || void 0;
 }
-function redact(text69) {
-  return text69.replace(/key=[^&\s]+/gi, "key=***");
+function redact(text71) {
+  return text71.replace(/key=[^&\s]+/gi, "key=***");
 }
-function clip2(text69, max = 200) {
-  const trimmed = redact(text69).replace(/\s+/g, " ").trim();
+function clip2(text71, max = 200) {
+  const trimmed = redact(text71).replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -31044,8 +32528,8 @@ function readLink(input, start, bold) {
   const label = input.slice(start + 1, labelEnd);
   const href = input.slice(labelEnd + 2, hrefEnd).trim();
   if (!label || !href || label.includes("[") || label.includes("]")) return null;
-  const text69 = bold ? { text: label, bold: true } : { text: label };
-  return { node: { type: "link", href, children: [text69] }, next: hrefEnd + 1 };
+  const text71 = bold ? { text: label, bold: true } : { text: label };
+  return { node: { type: "link", href, children: [text71] }, next: hrefEnd + 1 };
 }
 function parseInlines(input, bold = false) {
   const nodes = [];
@@ -31090,33 +32574,33 @@ function boldOnlyInner(line) {
   if (!inner.trim() || inner.includes("**")) return null;
   return inner.trim();
 }
-function listItem(text69) {
+function listItem(text71) {
   return {
     type: "list-item",
-    children: [{ type: "list-item-content", children: padInlines(parseInlines(text69.trim())) }]
+    children: [{ type: "list-item-content", children: padInlines(parseInlines(text71.trim())) }]
   };
 }
 function markdownToDocument(markdown) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks = [];
   let paragraphLines = [];
-  let list79 = null;
+  let list81 = null;
   const flushParagraph = () => {
-    const text69 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
+    const text71 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
     paragraphLines = [];
-    if (!text69) return;
-    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text69)) });
+    if (!text71) return;
+    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text71)) });
   };
   const flushList = () => {
-    if (!list79 || list79.items.length === 0) {
-      list79 = null;
+    if (!list81 || list81.items.length === 0) {
+      list81 = null;
       return;
     }
     blocks.push({
-      type: list79.ordered ? "ordered-list" : "unordered-list",
-      children: list79.items
+      type: list81.ordered ? "ordered-list" : "unordered-list",
+      children: list81.items
     });
-    list79 = null;
+    list81 = null;
   };
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -31130,11 +32614,11 @@ function markdownToDocument(markdown) {
     if (unordered || ordered) {
       flushParagraph();
       const orderedItem = Boolean(ordered);
-      if (!list79 || list79.ordered !== orderedItem) {
+      if (!list81 || list81.ordered !== orderedItem) {
         flushList();
-        list79 = { ordered: orderedItem, items: [] };
+        list81 = { ordered: orderedItem, items: [] };
       }
-      list79.items.push(listItem((unordered ?? ordered)[1]));
+      list81.items.push(listItem((unordered ?? ordered)[1]));
       continue;
     }
     const heading = boldOnlyInner(line);
@@ -31157,10 +32641,10 @@ function inlineToText(nodes) {
 function excerptFromDocument(nodes, max = EXCERPT_MAX) {
   for (const node of nodes) {
     if (node.type !== "paragraph") continue;
-    const text69 = inlineToText(node.children).replace(/\s+/g, " ").trim();
-    if (!text69) continue;
-    if (text69.length <= max) return text69;
-    const slice = text69.slice(0, max);
+    const text71 = inlineToText(node.children).replace(/\s+/g, " ").trim();
+    if (!text71) continue;
+    if (text71.length <= max) return text71;
+    const slice = text71.slice(0, max);
     const lastSpace = slice.lastIndexOf(" ");
     if (lastSpace <= 0) return slice.trimEnd();
     return slice.slice(0, lastSpace).trimEnd();
@@ -31325,12 +32809,12 @@ function rawBodyOf(req) {
 }
 function verifyClickUpSignature(rawBody, signatureHeader, secret) {
   if (!signatureHeader) return false;
-  const expected = import_crypto8.default.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expected = import_crypto7.default.createHmac("sha256", secret).update(rawBody).digest("hex");
   const received = signatureHeader.trim().toLowerCase();
   const expectedBuf = Buffer.from(expected, "utf8");
   const receivedBuf = Buffer.from(received, "utf8");
   if (expectedBuf.length !== receivedBuf.length) return false;
-  return import_crypto8.default.timingSafeEqual(expectedBuf, receivedBuf);
+  return import_crypto7.default.timingSafeEqual(expectedBuf, receivedBuf);
 }
 function isApprovedStatusUpdate(payload) {
   if (payload.event !== "taskStatusUpdated") return false;
@@ -31342,10 +32826,10 @@ function isApprovedStatusUpdate(payload) {
 }
 function commentForError(err) {
   const message = err instanceof Error ? err.message : "";
-  const text69 = message.replace(/^\[clickup\]\s*/, "").trim();
-  if (!text69) return "No se pudo programar el post.";
-  if (text69.length <= 500) return text69;
-  return `${text69.slice(0, 500)}\u2026`;
+  const text71 = message.replace(/^\[clickup\]\s*/, "").trim();
+  if (!text71) return "No se pudo programar el post.";
+  if (text71.length <= 500) return text71;
+  return `${text71.slice(0, 500)}\u2026`;
 }
 async function handleClickUpWebhook(req, res, context) {
   try {
@@ -31407,7 +32891,7 @@ function registerClickUpWebhook(app, context) {
 }
 
 // webhooks/metaDataDeletion.ts
-var import_crypto9 = __toESM(require("crypto"));
+var import_crypto8 = __toESM(require("crypto"));
 var import_express3 = __toESM(require("express"));
 var DATA_DELETION_PATH = "/webhooks/meta/data-deletion";
 var STATUS_PATH = "/webhooks/meta/data-deletion/status";
@@ -31422,9 +32906,9 @@ function verifyMetaSignedRequest(signedRequest, secret) {
   const encodedSig = signedRequest.slice(0, dot);
   const encodedPayload = signedRequest.slice(dot + 1);
   const received = base64UrlDecode(encodedSig);
-  const expected = import_crypto9.default.createHmac("sha256", secret).update(encodedPayload).digest();
+  const expected = import_crypto8.default.createHmac("sha256", secret).update(encodedPayload).digest();
   if (received.length !== expected.length) return null;
-  if (!import_crypto9.default.timingSafeEqual(received, expected)) return null;
+  if (!import_crypto8.default.timingSafeEqual(received, expected)) return null;
   let payload;
   try {
     payload = JSON.parse(base64UrlDecode(encodedPayload).toString("utf8"));
@@ -31466,7 +32950,7 @@ async function handleDataDeletion(req, res, context) {
     res.sendStatus(400);
     return;
   }
-  const confirmationCode = import_crypto9.default.randomUUID().replace(/-/g, "");
+  const confirmationCode = import_crypto8.default.randomUUID().replace(/-/g, "");
   const url = statusPageUrl(confirmationCode);
   if (!url) {
     console.warn("[meta data-deletion] falta FRONTEND_URL; no se puede armar la URL de estado");
@@ -31727,11 +33211,11 @@ async function handleSubscriptionChange(context, event) {
 async function invoiceIdForPaymentIntent(paymentIntentId) {
   if (!paymentIntentId) return null;
   try {
-    const list79 = await stripe_default.invoicePayments.list({
+    const list81 = await stripe_default.invoicePayments.list({
       payment: { type: "payment_intent", payment_intent: paymentIntentId },
       limit: 1
     });
-    return str(list79?.data?.[0]?.invoice);
+    return str(list81?.data?.[0]?.invoice);
   } catch {
     return null;
   }
@@ -31967,8 +33451,8 @@ var storage = {
     }
   }
 };
-var keystone_default = withAuth(
-  (0, import_core79.config)({
+var keystone_default = withSessionGuards(withAuth(
+  (0, import_core81.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
@@ -31996,6 +33480,8 @@ var keystone_default = withAuth(
       bodyParser: { limit: "15mb" },
       apolloConfig: {
         plugins: [
+          // Con un token de "entrar como" no pasa ninguna mutación (solo lectura).
+          impersonationReadOnlyPlugin,
           {
             async requestDidStart() {
               return {
@@ -32017,5 +33503,5 @@ var keystone_default = withAuth(
     lists: schema_default,
     session
   })
-);
+));
 //# sourceMappingURL=config.js.map

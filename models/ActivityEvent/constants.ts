@@ -135,6 +135,21 @@ export const ACTIVITY_EVENT = {
   ADMIN_CREDIT_PACKAGE_CHANGED: "admin.credit_package_changed",
   ADMIN_FEATURE_CATALOG_UPDATED: "admin.feature_catalog_updated",
   ADMIN_EMAIL_BROADCAST: "admin.email_broadcast",
+  // Control de cuentas (fase 3)
+  ADMIN_COMPANY_SUSPENDED: "admin.company_suspended",
+  ADMIN_COMPANY_REACTIVATED: "admin.company_reactivated",
+  ADMIN_USER_SUSPENDED: "admin.user_suspended",
+  ADMIN_USER_REACTIVATED: "admin.user_reactivated",
+  ADMIN_SESSIONS_REVOKED: "admin.sessions_revoked",
+  ADMIN_TRIAL_EXTENDED: "admin.trial_extended",
+  ADMIN_IMPERSONATION_STARTED: "admin.impersonation_started",
+  ADMIN_IMPERSONATION_ENDED: "admin.impersonation_ended",
+  ADMIN_OWNERSHIP_TRANSFERRED: "admin.ownership_transferred",
+  ADMIN_ACCOUNT_MANAGER_ASSIGNED: "admin.account_manager_assigned",
+  ADMIN_NOTE_ADDED: "admin.note_added",
+  ADMIN_NOTE_DELETED: "admin.note_deleted",
+  ADMIN_PERSON_DATA_EXPORTED: "admin.person_data_exported",
+  ADMIN_USER_ANONYMIZED: "admin.user_anonymized",
 
   // Navegación (lo manda el front con trackEvents)
   UI_SECTION_VIEWED: "ui.section_viewed",

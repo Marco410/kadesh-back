@@ -67,3 +67,13 @@ export const whatsappTokenPreviewFieldAccess = {
   create: () => false,
   update: () => false,
 };
+
+/**
+ * Suspensión y dueño de cuenta de Kadesh: internos. Solo los lee el admin de plataforma y solo
+ * los escriben las mutaciones de Operaciones (sudo).
+ */
+export const saasCompanyAccountControlFieldAccess = {
+  read: ({ session }: any) => isPlatformAdmin(session),
+  create: () => false,
+  update: () => false,
+};

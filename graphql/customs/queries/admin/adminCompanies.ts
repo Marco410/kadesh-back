@@ -29,6 +29,8 @@ const typeDefs = `
     status: String
     """recent (alta) | name | activity (último acceso del equipo)"""
     sort: String
+    """Solo las cuentas de esta persona de Kadesh (dueño de cuenta)."""
+    accountManagerId: ID
     take: Int
     skip: Int
   }
@@ -55,6 +57,10 @@ const typeDefs = `
     """Última vez que alguien del equipo tuvo el panel abierto (latido). Más fiel que el último login: la sesión dura 30 días."""
     lastSeenAt: String
     owner: AdminPersonRef
+    """Persona de Kadesh responsable de la cuenta."""
+    accountManager: AdminPersonRef
+    """Si Kadesh suspendió el acceso de la empresa."""
+    suspendedAt: String
   }
 
   type AdminCompaniesResult {
@@ -77,6 +83,7 @@ type Input = {
   search?: string | null;
   status?: string | null;
   sort?: string | null;
+  accountManagerId?: string | null;
   take?: number | null;
   skip?: number | null;
 };
@@ -87,6 +94,8 @@ type CompanyRecord = {
   createdAt: Date | null;
   contactEmail: string | null;
   purchasedBonusCredits: number | null;
+  accountManager: { id: string; name: string; lastName: string | null; email: string | null } | null;
+  suspendedAt: Date | null;
   plan: { name: string; leadLimit: number | null } | null;
   creditPeriods: Array<{
     planAllowance: number | null;
@@ -150,7 +159,11 @@ const resolver = {
       ? (input?.sort as Sort)
       : "recent";
 
-    const baseWhere = searchWhere(input?.search);
+    const searchFilter = searchWhere(input?.search);
+    const managerId = input?.accountManagerId?.trim();
+    const baseWhere = managerId
+      ? { AND: [searchFilter, { accountManagerId: managerId }] }
+      : searchFilter;
     const matching: Array<{ id: string }> = await prisma.saasCompany.findMany({
       where: baseWhere,
       select: { id: true },
@@ -217,6 +230,8 @@ const resolver = {
         createdAt: true,
         contactEmail: true,
         purchasedBonusCredits: true,
+        accountManager: { select: { id: true, name: true, lastName: true, email: true } },
+        suspendedAt: true,
         plan: { select: { name: true, leadLimit: true } },
         creditPeriods: {
           where: { year, month },
@@ -276,6 +291,8 @@ const resolver = {
           lastLoginAt: toIso(lastLogin),
           lastSeenAt: toIso(lastSeen.get(c.id) ?? null),
           owner: personRef(pickOwner(c.users)),
+          accountManager: personRef(c.accountManager),
+          suspendedAt: toIso(c.suspendedAt),
         };
       });
 

@@ -158,3 +158,64 @@ Con Prisma `groupBy` y `aggregate` se resuelve en el servidor.
 **Por qué:** permiten detectar cuentas compartidas y accesos raros. Son datos personales: hay que mencionarlos en el Aviso de privacidad. Los eventos se borran a los 13 meses (`pnpm activity:prune`).
 
 **Ojo:** sin proxy delante, el cliente puede mandar su propio `x-forwarded-for`. La IP es un dato informativo, no una prueba.
+
+## 2026-10-11 — Fase 3: la prueba gratuita respeta su fecha de fin y se puede extender
+
+**Qué:** `getFreePlanTrialInfo` usa `currentPeriodEnd` de la suscripción cuando existe (si no, alta + 7 días). Nueva mutación `adminExtendTrial(companyId, days | until)`: suma días al fin actual (o a hoy si ya venció) o fija una fecha; si la prueba estaba vencida, la suscripción vuelve a `trialing`. Solo aplica al plan gratuito (sin cobro en Stripe). Queda `admin.trial_extended` en Actividad.
+
+**Por qué:** el fin de la prueba se recalculaba siempre desde la fecha de alta. La suscripción de prueba ya nace con su fin en `currentPeriodEnd`, pero se ignoraba, así que "Ajustar plan" no podía extender una prueba y el cliente seguía bloqueado.
+
+**Qué no hacer:** no extender pruebas de planes de pago (eso es Stripe); no volver a calcular el fin solo desde la fecha de alta.
+
+## 2026-10-11 — Fase 3: dueño de cuenta y notas internas
+
+**Qué:** `SaasCompany.accountManager` (persona de Kadesh responsable de la cuenta; solo la asigna `adminSetCompanyAccountManager` y solo a alguien con rol admin) y `SaasCompanyNote` (notas internas; autor puesto por el servidor). En Operaciones: selector en la ficha del 360, sección **Notas** y filtro **Mis cuentas** en la lista de empresas.
+
+**Por qué:** lo que el equipo de Kadesh sabe de un cliente (acuerdos, llamadas, por qué se le dio más prueba) vivía en la cabeza de alguien. El cliente nunca ve ni las notas ni a su dueño de cuenta.
+
+## 2026-10-11 — Fase 3: resumen diario de uso y comparación por plan
+
+**Qué:** `SaasCompanyDailyUsage` (una fila por empresa y día), armado por `rollupDailyUsage` (cron diario con `CRON_SECRET`, recalcula los últimos 3 días) y `pnpm usage:rollup` para días pasados. `adminCompanyTrends` da la tendencia de 12 semanas y compara las últimas 4 contra la mediana de su plan.
+
+**Por qué:** las gráficas y comparaciones necesitan series por día; recalcularlas desde los logs crudos en cada vista sería caro. Recalcular un día reemplaza sus filas, así que el cron puede repetirse sin duplicar.
+
+**Detalles:** los cambios que hace el admin de Kadesh no cuentan como actividad de la empresa; los WhatsApp importados tampoco (traen la fecha del chat original); con menos de 3 empresas en el plan la mediana no se muestra.
+
+## 2026-10-11 — Fase 3: suspender y cerrar sesiones
+
+**Qué:** `adminSetCompanySuspension` y `adminSetUserSuspension` (motivo obligatorio) y `adminRevokeSessions` (una persona o todo el equipo). Suspender también cierra las sesiones abiertas. El guardián de sesión (`auth/sessionGuards.ts`) revisa en cada petición la `sessionVersion` del token contra la de la base, la suspensión de la persona y de su empresa, y si la cuenta está anonimizada. El login con contraseña o con Google de una cuenta suspendida responde "Tu acceso a Kadesh está suspendido…" (solo a quien sabe la contraseña: con datos malos sigue saliendo el error genérico, así no se revela si el correo existe) y queda como intento fallido en `UserAuthLog`.
+
+**Por qué:** las sesiones duran 30 días y no se guardan en ningún lado, así que no había forma de sacar a alguien. Subir un número de versión en `User` las invalida todas sin guardar sesiones.
+
+**Límites:** no se puede suspender ni sacar a uno mismo ni al equipo de Kadesh, ni suspender una empresa que tenga gente de Kadesh (dejaría fuera a Operaciones). La suspensión no toca Stripe: si hay que dejar de cobrar, se cancela aparte.
+
+## 2026-10-11 — Fase 3: "entrar como" en solo lectura
+
+**Qué:** `adminStartImpersonation(userId, reason)` entrega un token de la persona que dura una hora y trae `impersonation: { adminId, expiresAt, reason }`. El plugin `auth/impersonation.ts` bloquea toda mutación con ese token salvo `endImpersonation`, `trackEvents` (que con ese token no registra nada) y `remainingCredits` (es una lectura declarada como mutación; el panel la pide al cargar). El front guarda el token del admin, entra con el de la persona, muestra una barra fija y al salir llama `endImpersonation` y restaura el token. El inicio y el fin quedan en Actividad con el admin como actor.
+
+**Por qué:** para soporte hace falta ver exactamente lo que ve el cliente. En solo lectura no hay riesgo de cambiar nada a su nombre ni de gastar sus créditos, y no ensucia su analítica (ni secciones ni minutos). El bloqueo vive en un solo lugar (el plugin) para no depender de que cada mutación lo recuerde.
+
+**Detalles:** el error de solo lectura sale con estado HTTP 200 (con 500, Apollo Client lo trataba como falla de red y en desarrollo tapaba la pantalla). Cada mutación bloqueada se registra en el log del servidor con su nombre. Con "entrar como" no arranca el tour de bienvenida de la persona.
+
+## 2026-10-11 — Fase 3: transferir la propiedad
+
+**Qué:** `adminTransferCompanyOwnership(companyId, newOwnerId, removeOtherAdmins)` da el rol de administrador de empresa a otra persona del equipo; opcionalmente lo quita a los demás (sin tocar al equipo de Kadesh; quien se queda sin rol de empresa queda como `user_company`).
+
+**Por qué:** cuando el dueño original se va, alguien más tiene que administrar la cuenta. La facturación no cambia: la tarjeta y el cliente de Stripe siguen siendo de quien pagó.
+
+## 2026-10-11 — Fase 3: derechos ARCO
+
+**Qué:**
+- `adminExportPersonData`: JSON con perfil, roles, empresa, accesos (con IP y navegador), actividad, días activos, pagos y suscripciones al blog. CLABE y tarjeta enmascaradas; nunca contraseña ni tokens.
+- `adminAnonymizeUser` (hay que escribir el correo de la cuenta y un motivo): borra nombre, correo, teléfonos, cumpleaños, foto, datos bancarios y contraseña; quita empresa, roles y espacios; sube `sessionVersion`; limpia IP, navegador y correo de sus accesos y eventos, el nombre del remitente en sus WhatsApp, y su nombre y correo en los textos de eventos de su empresa; borra sus suscripciones al blog y avisos push.
+
+**Por qué no se borra la fila:** actividades, cotizaciones y demás datos del CRM de la empresa apuntan a esa persona; borrarla rompería esos registros. La fila queda como "Usuario eliminado" sin datos personales y sin acceso. Es irreversible.
+
+**Qué no hacer:** no escribir datos personales en el motivo (queda en Actividad).
+
+## 2026-10-11 — Fase 3: se quitó `customAuth`
+
+**Qué:** se borró la mutación `customAuth`.
+
+**Por qué:** creaba o "iniciaba sesión" a una cuenta con solo su correo, sin contraseña, y devolvía sus datos. Ningún front la usaba y estaba rota (pedía un campo `role` que ya no existe), pero "arreglarla" habría abierto la puerta a entrar con solo saber un correo.
+

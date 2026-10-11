@@ -41,6 +41,23 @@ Para qué existe la reutilización: asignar leads que ya están en la base (de c
 
 Qué no hacer: no comparar relaciones resueltas de Keystone con `== null`; un arreglo vacío es "sin cambios". No quitar el paso "primero la base": es el ahorro de API.
 
+### 2026-10-11 — Notas internas, dueño de cuenta y resumen diario de uso
+
+Qué:
+- `SaasCompanyNote`: notas internas de Kadesh sobre una empresa. Solo el admin de plataforma las lee y escribe; el autor lo pone el servidor (`resolveInput`), así que no se puede firmar a nombre de otro. Agregar o borrar una nota queda en `ActivityEvent` sin el texto.
+- `SaasCompany.accountManager`: persona de Kadesh responsable de la cuenta. Campo interno (solo lo lee el admin; solo lo escribe `adminSetCompanyAccountManager`, que valida que sea del equipo de Kadesh).
+- `SaasCompanyDailyUsage`: una fila por empresa y día (CDMX) con su uso. La arma `rollupDailyUsage` (cron diario) desde los logs; alimenta la tendencia y la comparación por plan del 360.
+
+Por qué: Operaciones necesitaba memoria del equipo de Kadesh sobre cada cliente y quién lo atiende. Las tendencias de 12 semanas recalculadas desde los logs crudos en cada vista serían caras; con una fila por día salen de pocas filas.
+
+Requiere `yarn migrate`. No lo corre el agente. Detalle en `docs/operaciones/decisiones.md`.
+
+### 2026-10-11 — La prueba gratuita respeta su fecha de fin guardada
+
+Qué: `getFreePlanTrialInfo(activatedAt, currentPeriodEnd)` usa `currentPeriodEnd` cuando existe (la suscripción de prueba nace con alta + 7 días ahí) y solo si falta calcula alta + 7.
+
+Por qué: el fin de la prueba se recalculaba siempre desde la fecha de alta e ignoraba `currentPeriodEnd`, así que cambiar esa fecha en "Ajustar plan" no extendía la prueba: el cliente seguía bloqueado con "plan gratuito vencido".
+
 ## Qué no va aquí
 
 Directorio de veterinarias, adopción o tienda (`Pet/`). Auth (`User`, `Role`).

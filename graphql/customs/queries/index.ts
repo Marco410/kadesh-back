@@ -18,6 +18,7 @@ import { adminSharedTypeDefs } from "./admin/shared";
 import adminCompanies from "./admin/adminCompanies";
 import adminOpsSummary from "./admin/adminOpsSummary";
 import adminCompanyInsights from "./admin/adminCompanyInsights";
+import adminCompanyTrends from "./admin/adminCompanyTrends";
 import adminActivityFeed from "./admin/adminActivityFeed";
 
 const customQuery = {
@@ -39,6 +40,7 @@ const customQuery = {
     ${adminCompanies.typeDefs}
     ${adminOpsSummary.typeDefs}
     ${adminCompanyInsights.typeDefs}
+    ${adminCompanyTrends.typeDefs}
     ${adminActivityFeed.typeDefs}
   `,
   definitions: `
@@ -61,6 +63,7 @@ const customQuery = {
     ${adminCompanies.definition}
     ${adminOpsSummary.definition}
     ${adminCompanyInsights.definition}
+    ${adminCompanyTrends.definition}
     ${adminActivityFeed.definition}
   `,
   resolvers: {
@@ -83,6 +86,7 @@ const customQuery = {
     ...adminCompanies.resolver,
     ...adminOpsSummary.resolver,
     ...adminCompanyInsights.resolver,
+    ...adminCompanyTrends.resolver,
     ...adminActivityFeed.resolver,
   },
 };

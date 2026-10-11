@@ -31,6 +31,7 @@ type ActiveSubscription = {
   id: string;
   planLeadLimit: number | null;
   planCost?: number | null;
+  currentPeriodEnd?: string | null;
   activatedAt?: string | null;
   newCreditsAdded?: number | null;
 };
@@ -103,7 +104,7 @@ async function getActiveSubscription(
       },
       orderBy: [{ activatedAt: "desc" }],
       take: 1,
-      query: "id planLeadLimit planCost activatedAt newCreditsAdded",
+      query: "id planLeadLimit planCost activatedAt currentPeriodEnd newCreditsAdded",
     });
 
   return (subscription as ActiveSubscription | undefined) ?? null;
@@ -591,7 +592,10 @@ export async function getCompanyRemainingCredits(
 
   const isFreePlan = subscription.planCost != null && subscription.planCost <= 0;
   if (isFreePlan && subscription.activatedAt) {
-    const { isExpired } = getFreePlanTrialInfo(subscription.activatedAt);
+    const { isExpired } = getFreePlanTrialInfo(
+      subscription.activatedAt,
+      subscription.currentPeriodEnd,
+    );
     if (isExpired) {
       return { ...empty, blockingReason: "free_plan_expired", leadLimit: 0 };
     }

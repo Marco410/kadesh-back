@@ -34,6 +34,7 @@ import access, {
   userRolesFieldAccess,
   userSecretFieldAccess,
   userStripeFieldAccess,
+  userAccountControlFieldAccess,
 } from "./User.access";
 import {
   userCompanyManagedValidateInput,
@@ -311,7 +312,7 @@ export default list({
     authLogs: relationship({
       ref: "UserAuthLog.user",
       many: true,
-      ui: { description: "Registro de login / registro (customAuth, registerUser)" },
+      ui: { description: "Registro de login / registro (contraseña, Google, registerUser)" },
     }),
     quotationsCreated: relationship({
       ref: "SaasQuotation.createdBy",
@@ -435,6 +436,43 @@ export default list({
         description:
           "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
         createView: { fieldMode: "hidden" },
+      },
+    }),
+    // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
+    suspendedAt: timestamp({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Suspendida por Kadesh: no puede iniciar sesión y sus sesiones dejan de valer",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
+    suspendedReason: text({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Motivo de la suspensión (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
+    sessionVersion: integer({
+      defaultValue: 0,
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Sube al cerrar sus sesiones: los tokens con otra versión dejan de valer",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
+    anonymizedAt: timestamp({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Datos personales borrados a petición (ARCO)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
       },
     }),
   },

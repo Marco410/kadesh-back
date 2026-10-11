@@ -18,6 +18,8 @@ Lista de empresas con su **estado vigente**: el de la suscripción más reciente
 - Devuelve `statusCounts` con la búsqueda aplicada, para los chips de estado.
 - Créditos del mes con el mismo cálculo que el panel del cliente (`companyCredits`).
 - `lastSeenAt`: última vez que alguien del equipo tuvo el panel abierto (latido, `UserActivityDay`). El orden `activity` usa lo más reciente entre ese dato y el último login.
+- `accountManager`: persona de Kadesh responsable de la cuenta. Filtro `accountManagerId` para "Mis cuentas".
+- `suspendedAt`: si Kadesh suspendió el acceso de la empresa.
 
 ### `adminOpsSummary`
 
@@ -50,6 +52,12 @@ Alcance del CRM (`crmCompanyScope`): el item cuenta para la empresa si su worksp
 Por persona también: `lastSeenAt` (latido), `activeDays`, `activeMinutes` y `changes` (eventos de `ActivityEvent` en la ventana, sin navegación).
 
 `usage` (Fase 2): minutos activos del equipo (total y por día), personas que entraron, secciones del panel más abiertas, módulos bloqueados que vieron, clics en "mejorar plan" y exportaciones. `ready: false` mientras no exista la migración: el front oculta la tarjeta.
+
+### `adminCompanyTrends(companyId, weeks = 12)`
+
+Tendencia por semana (las semanas terminan ayer, hora de CDMX) desde `SaasCompanyDailyUsage`: minutos activos, días activos, accesos, extracciones, leads nuevos y de la base, créditos, IA, cambios del CRM, actividades, cotizaciones y WhatsApp.
+
+`benchmark`: totales de las últimas 4 semanas de esta empresa contra la **mediana** de las demás empresas con el mismo plan vigente (sin cuentas de prueba, contando a las que no hicieron nada). Con menos de 3 empresas para comparar, la mediana es `null`: no dice nada. `ready: false` si todavía no hay resumen diario (falta migrar o correr el cron).
 
 ### `adminActivityFeed(input)`
 

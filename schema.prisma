@@ -630,14 +630,21 @@ model SaasCompany {
   colorSecondary                      String?                      @default("#E07C3A")
   contactEmail                        String?
   contactPhone                        String?
+  suspendedAt                         DateTime?
+  suspendedReason                     String?
+  accountManager                      User?                        @relation("SaasCompany_accountManager", fields: [accountManagerId], references: [id])
+  accountManagerId                    String?                      @map("accountManager")
   createdAt                           DateTime?                    @default(now())
   updatedAt                           DateTime?                    @updatedAt
   from_ActivityEvent_company          ActivityEvent[]              @relation("ActivityEvent_company")
+  from_SaasCompanyDailyUsage_company  SaasCompanyDailyUsage[]      @relation("SaasCompanyDailyUsage_company")
+  from_SaasCompanyNote_company        SaasCompanyNote[]            @relation("SaasCompanyNote_company")
   from_SaasReferralCommission_company SaasReferralCommission[]     @relation("SaasReferralCommission_company")
   from_UserActivityDay_company        UserActivityDay[]            @relation("UserActivityDay_company")
 
   @@index([name])
   @@index([planId])
+  @@index([accountManagerId])
 }
 
 model SaasCompanyMonthlyLeadSync {
@@ -694,6 +701,50 @@ model SaasCompanyCreditLedger {
 
   @@index([companyId])
   @@index([periodId])
+}
+
+model SaasCompanyDailyUsage {
+  id                 String       @id @default(cuid())
+  key                String       @unique @default("")
+  company            SaasCompany? @relation("SaasCompanyDailyUsage_company", fields: [companyId], references: [id])
+  companyId          String?      @map("company")
+  day                DateTime     @postgresql.Date
+  activeUsers        Int          @default(0)
+  activeMinutes      Int          @default(0)
+  logins             Int          @default(0)
+  extractions        Int          @default(0)
+  extractionsFailed  Int          @default(0)
+  leadsCreated       Int          @default(0)
+  leadsReused        Int          @default(0)
+  creditsConsumed    Int          @default(0)
+  aiCalls            Int          @default(0)
+  crmChanges         Int          @default(0)
+  activitiesLogged   Int          @default(0)
+  quotationsCreated  Int          @default(0)
+  quotationsSent     Int          @default(0)
+  quotationsAccepted Int          @default(0)
+  whatsappSent       Int          @default(0)
+  whatsappReceived   Int          @default(0)
+  computedAt         DateTime?
+
+  @@index([companyId])
+  @@index([day])
+}
+
+model SaasCompanyNote {
+  id        String       @id @default(cuid())
+  company   SaasCompany? @relation("SaasCompanyNote_company", fields: [companyId], references: [id])
+  companyId String?      @map("company")
+  author    User?        @relation("SaasCompanyNote_author", fields: [authorId], references: [id])
+  authorId  String?      @map("author")
+  body      String       @default("")
+  pinned    Boolean      @default(false)
+  createdAt DateTime?    @default(now())
+  updatedAt DateTime?    @updatedAt
+
+  @@index([companyId])
+  @@index([authorId])
+  @@index([createdAt])
 }
 
 model SaasCompanySubscription {
@@ -1660,6 +1711,10 @@ model User {
   createdAt                                DateTime?                @default(now())
   lastLoginAt                              DateTime?
   onboardingState                          Json?                    @default("{}")
+  suspendedAt                              DateTime?
+  suspendedReason                          String?
+  sessionVersion                           Int?                     @default(0)
+  anonymizedAt                             DateTime?
   from_ActivityEvent_actor                 ActivityEvent[]          @relation("ActivityEvent_actor")
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")
@@ -1676,6 +1731,8 @@ model User {
   from_PostLike_user                       PostLike[]               @relation("PostLike_user")
   from_PostView_user                       PostView[]               @relation("PostView_user")
   from_Review_user                         Review[]                 @relation("Review_user")
+  from_SaasCompany_accountManager          SaasCompany[]            @relation("SaasCompany_accountManager")
+  from_SaasCompanyNote_author              SaasCompanyNote[]        @relation("SaasCompanyNote_author")
   from_SaasReferralCommission_referrer     SaasReferralCommission[] @relation("SaasReferralCommission_referrer")
   from_SaasReferralCommission_referredUser SaasReferralCommission[] @relation("SaasReferralCommission_referredUser")
   from_TokenNotification_user              TokenNotification[]      @relation("TokenNotification_user")

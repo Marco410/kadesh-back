@@ -8,9 +8,11 @@ Backend de la pantalla **Operaciones** del front (`/panel/clientes/admin`, solo 
 | --- | --- | --- |
 | **0** | Cerrar huecos de acceso: los clientes ya no pueden editar créditos, suscripción, pagos ni logs | Código listo |
 | **1** | Queries admin (`adminCompanies`, `adminOpsSummary`, `adminCompanyInsights`, `adminActivityFeed`), admin lee cotizaciones/proyectos, login con contraseña registrado en el servidor | Código listo |
-| **2** | Modelo de eventos propio (`ActivityEvent`), tiempo activo (`UserActivityDay`), IP y navegador en accesos, instrumentación, webhook de Stripe, registro de qué abre el admin | Código listo. **Falta `yarn migrate`** (lo corre una persona) |
+| **2** | Modelo de eventos propio (`ActivityEvent`), tiempo activo (`UserActivityDay`), IP y navegador en accesos, instrumentación, webhook de Stripe, registro de qué abre el admin | Migrado (`20261011055848_activity_events_migration`) |
+| **3a** | Extender prueba, dueño de cuenta, notas internas, resumen diario de uso (`rollupDailyUsage`) con tendencia y comparación por plan | Código listo. **Falta `yarn migrate`** |
+| **3b** | Suspender empresa o persona, cerrar sesiones, "entrar como" (solo lectura), transferir la propiedad, ARCO (exportar y anonimizar), quitar `customAuth` | Código listo (aprobado el 2026-10-11). **Falta `yarn migrate`** (la misma migración que 3a) |
 
-Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`ActivityEvent`, `UserActivityDay`) y dos columnas en `UserAuthLog` (`ip`, `userAgent`).
+Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`ActivityEvent`, `UserActivityDay`) y dos columnas en `UserAuthLog` (`ip`, `userAgent`). La 3 agrega `SaasCompanyNote`, `SaasCompanyDailyUsage`, `SaasCompany.accountManager` y los campos de control de cuenta (`suspendedAt`, `suspendedReason`, `sessionVersion`, `anonymizedAt`).
 
 ## Documentos
 
@@ -43,4 +45,5 @@ Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`Ac
 3. Back antes que front: el front nuevo pide campos (`usage`, `lastSeenAt`) que el back viejo no tiene.
 4. Stripe, **después** de que el back nuevo esté en línea: crear el destino `https://kadesh-back-production.up.railway.app/webhooks/stripe` (sin `/api/v1`) con los eventos `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted` y `charge.refunded`, estilo *snapshot*, versión `2025-05-28.basil`. Poner su *Signing secret* en `STRIPE_WEBHOOK_SECRET` (Railway → kadesh-back → Variables). Sin esa variable el webhook responde 503 y no procesa nada.
 5. Programar `pnpm activity:prune --apply` una vez al mes.
-6. Aviso de privacidad y Términos: mencionar el registro de uso (secciones, tiempo activo), IP y navegador en accesos, y la analítica agregada.
+6. Fase 3: el workflow `.github/workflows/rollup-daily-usage.yml` llama `rollupDailyUsage` cada noche con los mismos secrets que los posts programados (`KADESH_API_URL`, `CRON_SECRET`). Para llenar semanas pasadas: `pnpm usage:rollup --from=AAAA-MM-DD --to=AAAA-MM-DD`.
+7. Aviso de privacidad y Términos: mencionar el registro de uso (secciones, tiempo activo), IP y navegador en accesos, y la analítica agregada.

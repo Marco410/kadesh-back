@@ -986,6 +986,32 @@ const creditPackageTracker: Tracker = {
   },
 };
 
+// El texto de la nota no se copia al evento: basta con saber que existe y quién la dejó.
+const companyNoteTracker: Tracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_NOTE_ADDED,
+      companyId: item.companyId || null,
+      entityType: "SaasCompanyNote",
+      entityId: item.id,
+      summary: `Agregó una nota interna${item.pinned ? " (fijada)" : ""}`,
+      metadata: { pinned: Boolean(item.pinned) },
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_NOTE_DELETED,
+      companyId: before.companyId || null,
+      entityType: "SaasCompanyNote",
+      entityId: before.id,
+      summary: "Borró una nota interna",
+      metadata: null,
+    });
+  },
+};
+
 /** List → qué se registra. Para agregar una list, agrega su tracker aquí. */
 export const ACTIVITY_TRACKERS: Record<string, Tracker> = {
   TechStatusBusinessLead: statusBusinessLeadTracker,
@@ -1003,6 +1029,7 @@ export const ACTIVITY_TRACKERS: Record<string, Tracker> = {
   SaasCompanySubscription: subscriptionTracker,
   SaasPlan: planTracker,
   SaasCredit: creditPackageTracker,
+  SaasCompanyNote: companyNoteTracker,
 };
 
 // ── Composición con los hooks que ya tiene cada list ──────────────────────

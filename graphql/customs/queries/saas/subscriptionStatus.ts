@@ -169,6 +169,7 @@ const resolver = {
     } else if (isFreePlan && sub.activatedAt) {
       const { trialEnd: trialEndStr, isExpired } = getFreePlanTrialInfo(
         sub.activatedAt,
+        sub.currentPeriodEnd,
       );
 
       if (!trialEndStr) {
