@@ -37,20 +37,51 @@ type GuardedSession = {
 
 export type SessionBlockReason = "revoked" | "suspended" | "anonymized" | "impersonation_expired";
 
+/** Por qué no valió el token que mandó la petición. `expired`: vencido, inválido o de alguien que ya no existe. */
+export type SessionEndReason = SessionBlockReason | "expired";
+
+/** Lo que el front le muestra a la persona en el login (va en `extensions.session.message`). */
+export const SESSION_END_MESSAGES: Record<SessionEndReason, string> = {
+  expired: "Tu sesión expiró. Vuelve a iniciar sesión.",
+  revoked: "Tu sesión expiró. Vuelve a iniciar sesión.",
+  suspended: SUSPENDED_MESSAGE,
+  anonymized: "Esta cuenta ya no está disponible.",
+  impersonation_expired: "Terminó el tiempo para ver el panel como esta persona.",
+};
+
+/** Petición → motivo por el que se descartó su token. Se lee al armar la respuesta. */
+const endedSessions = new WeakMap<object, SessionEndReason>();
+
+/** La petición traía token: `Authorization: Bearer …` o la cookie de sesión (igual que `statelessSessions`). */
+function hasSessionToken(req: any): boolean {
+  const authorization = req?.headers?.authorization;
+  if (typeof authorization === "string" && authorization.replace("Bearer ", "").trim()) return true;
+  const cookie = req?.headers?.cookie;
+  return typeof cookie === "string" && /(?:^|;\s*)keystonejs-session=[^;\s]+/.test(cookie);
+}
+
+export function sessionEndReason(req: unknown): SessionEndReason | null {
+  return req && typeof req === "object" ? endedSessions.get(req) ?? null : null;
+}
+
 function isPlatformAdminData(data: GuardedSession["data"]): boolean {
   return (data?.roles ?? []).some((role) => role?.name === "admin");
 }
 
-/** Por qué una sesión ya no vale, o `null` si vale. */
+/**
+ * Por qué una sesión ya no vale, o `null` si vale. Primero lo más específico: suspender también
+ * cierra las sesiones (sube la versión), y la persona debe ver el aviso de suspensión, no el de
+ * "tu sesión expiró".
+ */
 export function sessionBlockReason(session: GuardedSession): SessionBlockReason | null {
   const data = session.data;
   if (!data) return null;
-  const tokenVersion = typeof session.sessionVersion === "number" ? session.sessionVersion : 0;
-  if ((data.sessionVersion ?? 0) !== tokenVersion) return "revoked";
   if (data.anonymizedAt) return "anonymized";
   if (data.suspendedAt) return "suspended";
   // Nunca dejar fuera al equipo de Kadesh por suspender una empresa.
   if (data.company?.suspendedAt && !isPlatformAdminData(data)) return "suspended";
+  const tokenVersion = typeof session.sessionVersion === "number" ? session.sessionVersion : 0;
+  if ((data.sessionVersion ?? 0) !== tokenVersion) return "revoked";
   if (session.impersonation && Date.now() > session.impersonation.expiresAt) {
     return "impersonation_expired";
   }
@@ -112,9 +143,43 @@ export function withSessionGuards<T extends KeystoneConfig<any>>(config: T): T {
       },
       async get({ context }: { context: KeystoneContext }) {
         const session = (await inner.get({ context })) as GuardedSession | undefined;
-        if (!session) return undefined;
-        return sessionBlockReason(session) ? undefined : session;
+        const reason: SessionEndReason | null = session
+          ? sessionBlockReason(session)
+          : hasSessionToken(context.req)
+            ? "expired"
+            : null;
+        // Se anota para avisarle al front en la respuesta (`sessionEndedNoticePlugin`).
+        if (reason && context.req) endedSessions.set(context.req, reason);
+        return session && !reason ? session : undefined;
       },
     },
   };
 }
+
+/**
+ * Plugin de Apollo: si la petición traía un token que ya no vale, la respuesta lo dice en
+ * `extensions.session: { status, message }`. Sin esto la persona se quedaba en un panel vacío
+ * (sin sesión todo responde vacío o "acceso denegado") en vez de volver al login.
+ */
+export const sessionEndedNoticePlugin = {
+  async requestDidStart() {
+    return {
+      async willSendResponse(requestContext: {
+        contextValue?: { req?: unknown };
+        response: {
+          body:
+            | { kind: "single"; singleResult: { extensions?: Record<string, unknown> } }
+            | { kind: "incremental" };
+        };
+      }) {
+        const reason = sessionEndReason(requestContext.contextValue?.req);
+        const body = requestContext.response.body;
+        if (!reason || body.kind !== "single") return;
+        body.singleResult.extensions = {
+          ...body.singleResult.extensions,
+          session: { status: reason, message: SESSION_END_MESSAGES[reason] },
+        };
+      },
+    };
+  },
+};

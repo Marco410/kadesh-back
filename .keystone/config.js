@@ -591,9 +591,9 @@ function emailCallout(brand, html) {
     </tr>
   </table>`;
 }
-function emailPill(brand, text71) {
+function emailPill(brand, text72) {
   const { color, soft } = EMAIL_BRANDS[brand];
-  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text71)}</span>`;
+  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text72)}</span>`;
 }
 function emailParagraph(html) {
   return `<p style="margin:0 0 16px 0;font-family:${FONT};font-size:16px;line-height:1.7;color:${EMAIL_TEXT.body};">${html}</p>`;
@@ -2900,6 +2900,15 @@ var User_default = (0, import_core7.list)({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
+    }),
+    // De dónde llegó al registrarse (UTM, dominio que refirió, página de entrada). Ver utils/analytics/attribution.ts.
+    signupAttribution: (0, import_fields7.json)({
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Primer contacto antes de registrarse: UTM, sitio que refiri\xF3 y p\xE1gina de entrada",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     })
   }
 });
@@ -3464,9 +3473,9 @@ function warnOnce(type, error) {
     error instanceof Error ? error.message : error
   );
 }
-function truncate(text71, max) {
-  if (!text71) return null;
-  return text71.length > max ? `${text71.slice(0, max - 1)}\u2026` : text71;
+function truncate(text72, max) {
+  if (!text72) return null;
+  return text72.length > max ? `${text72.slice(0, max - 1)}\u2026` : text72;
 }
 async function logActivity(context, input) {
   try {
@@ -3570,8 +3579,8 @@ function relationInput(value) {
 }
 function fullName(person) {
   if (!person) return null;
-  const text71 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
-  return text71 || null;
+  const text72 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
+  return text72 || null;
 }
 async function leadName(context, leadId) {
   if (!leadId) return null;
@@ -3612,8 +3621,8 @@ async function columnNames(context, ids) {
 function log(context, input) {
   return logActivity(context, input);
 }
-function quoted(text71, fallback) {
-  return text71 ? `"${text71}"` : fallback;
+function quoted(text72, fallback) {
+  return text72 ? `"${text72}"` : fallback;
 }
 async function logCardMove(args, entityType, label) {
   const { originalItem: before, item: after, context } = args;
@@ -6583,9 +6592,9 @@ var import_core36 = require("@keystone-6/core");
 var import_fields36 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text71) {
+function sanitizeUrl2(text72) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text71.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text72.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -13773,17 +13782,34 @@ var session = (0, import_session.statelessSessions)({
 
 // auth/sessionGuards.ts
 var SUSPENDED_MESSAGE = "Tu acceso a Kadesh est\xE1 suspendido. Escr\xEDbenos a contacto@kadesh.com.mx para revisarlo.";
+var SESSION_END_MESSAGES = {
+  expired: "Tu sesi\xF3n expir\xF3. Vuelve a iniciar sesi\xF3n.",
+  revoked: "Tu sesi\xF3n expir\xF3. Vuelve a iniciar sesi\xF3n.",
+  suspended: SUSPENDED_MESSAGE,
+  anonymized: "Esta cuenta ya no est\xE1 disponible.",
+  impersonation_expired: "Termin\xF3 el tiempo para ver el panel como esta persona."
+};
+var endedSessions = /* @__PURE__ */ new WeakMap();
+function hasSessionToken(req) {
+  const authorization = req?.headers?.authorization;
+  if (typeof authorization === "string" && authorization.replace("Bearer ", "").trim()) return true;
+  const cookie = req?.headers?.cookie;
+  return typeof cookie === "string" && /(?:^|;\s*)keystonejs-session=[^;\s]+/.test(cookie);
+}
+function sessionEndReason(req) {
+  return req && typeof req === "object" ? endedSessions.get(req) ?? null : null;
+}
 function isPlatformAdminData(data) {
   return (data?.roles ?? []).some((role) => role?.name === "admin");
 }
 function sessionBlockReason(session2) {
   const data = session2.data;
   if (!data) return null;
-  const tokenVersion = typeof session2.sessionVersion === "number" ? session2.sessionVersion : 0;
-  if ((data.sessionVersion ?? 0) !== tokenVersion) return "revoked";
   if (data.anonymizedAt) return "anonymized";
   if (data.suspendedAt) return "suspended";
   if (data.company?.suspendedAt && !isPlatformAdminData(data)) return "suspended";
+  const tokenVersion = typeof session2.sessionVersion === "number" ? session2.sessionVersion : 0;
+  if ((data.sessionVersion ?? 0) !== tokenVersion) return "revoked";
   if (session2.impersonation && Date.now() > session2.impersonation.expiresAt) {
     return "impersonation_expired";
   }
@@ -13833,12 +13859,28 @@ function withSessionGuards(config2) {
       },
       async get({ context }) {
         const session2 = await inner.get({ context });
-        if (!session2) return void 0;
-        return sessionBlockReason(session2) ? void 0 : session2;
+        const reason = session2 ? sessionBlockReason(session2) : hasSessionToken(context.req) ? "expired" : null;
+        if (reason && context.req) endedSessions.set(context.req, reason);
+        return session2 && !reason ? session2 : void 0;
       }
     }
   };
 }
+var sessionEndedNoticePlugin = {
+  async requestDidStart() {
+    return {
+      async willSendResponse(requestContext) {
+        const reason = sessionEndReason(requestContext.contextValue?.req);
+        const body = requestContext.response.body;
+        if (!reason || body.kind !== "single") return;
+        body.singleResult.extensions = {
+          ...body.singleResult.extensions,
+          session: { status: reason, message: SESSION_END_MESSAGES[reason] }
+        };
+      }
+    };
+  }
+};
 
 // auth/impersonation.ts
 var import_graphql = require("graphql");
@@ -13953,6 +13995,52 @@ async function provisionSignupCompany(context, userId, companyName) {
   return company.id;
 }
 
+// utils/analytics/attribution.ts
+var UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
+var MAX_TEXT = 200;
+var MAX_PATH = 300;
+function text70(value, max = MAX_TEXT) {
+  if (typeof value !== "string") return void 0;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, max) : void 0;
+}
+function hostOf(value) {
+  const raw = text70(value, 500);
+  if (!raw) return void 0;
+  try {
+    return new URL(raw.includes("://") ? raw : `https://${raw}`).hostname.toLowerCase() || void 0;
+  } catch {
+    return void 0;
+  }
+}
+function pathOf(value) {
+  const raw = text70(value, MAX_PATH);
+  if (!raw || !raw.startsWith("/")) return void 0;
+  return raw.split(/[?#]/)[0] || void 0;
+}
+function cleanAttribution(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const source = input;
+  const out = {};
+  for (const key of UTM_KEYS) {
+    const value = text70(source[key]);
+    if (value) out[key] = value.toLowerCase();
+  }
+  const referrer = hostOf(source.referrer);
+  if (referrer) out.referrer = referrer;
+  const landingPath = pathOf(source.landingPath);
+  if (landingPath) out.landingPath = landingPath;
+  const firstSeen = text70(source.firstSeenAt, 40);
+  if (firstSeen && !Number.isNaN(new Date(firstSeen).getTime())) out.firstSeenAt = firstSeen;
+  return Object.keys(out).length ? out : null;
+}
+function attributionChannel(attribution) {
+  if (!attribution) return "Sin dato";
+  if (attribution.utm_source) return attribution.utm_source;
+  if (attribution.referrer) return attribution.referrer.replace(/^www\./, "");
+  return "Directo";
+}
+
 // graphql/customs/mutations/auth/authenticateUserWithGoogle.ts
 var typeDefs = `
   # isNewUser: alta nueva, no el inicio de sesi\xF3n de una cuenta ya existente.
@@ -13976,6 +14064,7 @@ var definition = `
     idToken: String!
     referrerCode: String
     product: String
+    attribution: JSON
   ): AuthenticateUserWithGoogleResult!
 `;
 var VALID_ISSUERS = ["accounts.google.com", "https://accounts.google.com"];
@@ -14010,7 +14099,8 @@ var resolver = {
   authenticateUserWithGoogle: async (_root, {
     idToken,
     referrerCode,
-    product
+    product,
+    attribution
   }, context) => {
     const startedAt = Date.now();
     const isSaas = product === PRODUCT.SAAS;
@@ -14073,7 +14163,8 @@ var resolver = {
             verified: true,
             product: isSaas ? PRODUCT.SAAS : PRODUCT.PET,
             referredBy: referredByConnect,
-            roles: signupRoles
+            roles: signupRoles,
+            signupAttribution: cleanAttribution(attribution) ?? void 0
           },
           query: USER_QUERY
         });
@@ -14132,13 +14223,14 @@ var authenticateUserWithGoogle_default = { typeDefs, definition, resolver };
 // graphql/customs/mutations/auth/registerUser.ts
 var typeDefs2 = ``;
 var definition2 = `
-  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
+  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String, attribution: JSON): User
 `;
 var resolver2 = {
   registerUser: async (_root, {
     data,
     referrerCode,
-    companyName
+    companyName,
+    attribution
   }, context) => {
     const startedAt = Date.now();
     const emailStr = String(data?.email ?? "").trim();
@@ -14185,7 +14277,8 @@ var resolver2 = {
           // Este registro es el de Kadesh Negocios: define la marca de sus correos.
           product: PRODUCT.SAAS,
           referredBy: referredByConnect,
-          roles: { connect: signupRoleIds.map((id) => ({ id })) }
+          roles: { connect: signupRoleIds.map((id) => ({ id })) },
+          signupAttribution: cleanAttribution(attribution) ?? void 0
         },
         query: "id name lastName secondLastName email phone username referralCode referredBy { id }"
       });
@@ -14679,8 +14772,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text71 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text71}`;
+  const text72 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text72}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -15838,8 +15931,8 @@ async function getPlaceDetails3(placeId, apiKey2) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text71 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text71}`;
+  const text72 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text72}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -17828,11 +17921,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text71) {
-  return text71.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text72) {
+  return text72.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text71) {
-  const cleaned = stripSpoofedDelimiters(text71 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text72) {
+  const cleaned = stripSpoofedDelimiters(text72 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -17872,9 +17965,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text71) {
-  if (!text71) return 0;
-  return Math.max(1, Math.ceil(text71.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text72) {
+  if (!text72) return 0;
+  return Math.max(1, Math.ceil(text72.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -17908,15 +18001,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text71 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text71) {
+  const text72 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text72) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text71,
+    text: text72,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text71)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text72)
     }
   };
 }
@@ -17961,15 +18054,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text71 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text71) {
+  const text72 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text72) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text71,
+    text: text72,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text71)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text72)
     }
   };
 }
@@ -18006,15 +18099,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text71 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text71) {
+  const text72 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text72) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text71,
+    text: text72,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text71)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text72)
     }
   };
 }
@@ -18692,8 +18785,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text71) {
-  const stripped = text71.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text72) {
+  const stripped = text72.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -19133,11 +19226,11 @@ async function saveMarketInsight(context, params) {
     query: INSIGHT_QUERY2
   });
 }
-function parseMarketInsight(text71) {
-  const match = text71.match(/\{[\s\S]*\}/);
+function parseMarketInsight(text72) {
+  const match = text72.match(/\{[\s\S]*\}/);
   if (!match) {
     return {
-      summary: text71.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      summary: text72.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
       actions: []
     };
   }
@@ -19148,12 +19241,12 @@ function parseMarketInsight(text71) {
       detail: String(item.detail ?? "").trim()
     })).filter((item) => item.title && item.detail).slice(0, 3);
     return {
-      summary: String(parsed.summary ?? "").trim() || text71.trim().slice(0, 800),
+      summary: String(parsed.summary ?? "").trim() || text72.trim().slice(0, 800),
       actions
     };
   } catch {
     return {
-      summary: text71.trim().slice(0, 800),
+      summary: text72.trim().slice(0, 800),
       actions: []
     };
   }
@@ -19707,8 +19800,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text71) {
-  const stripped = text71.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text72) {
+  const stripped = text72.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -19718,8 +19811,8 @@ function parseJsonObject(text71) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text71, company) {
-  const parsed = parseJsonObject(text71);
+function parseCompanyBriefPillars(text72, company) {
+  const parsed = parseJsonObject(text72);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -20039,33 +20132,33 @@ function encodeDenueCondition(value, fallback) {
   const words = parts.length ? parts : [fallback];
   return words.map((word) => encodeURIComponent(word)).join(",");
 }
-function isDenueEmptyBody(text71) {
-  const trimmed = text71.trim().toLowerCase();
+function isDenueEmptyBody(text72) {
+  const trimmed = text72.trim().toLowerCase();
   if (!trimmed) return true;
   return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
 }
 async function parseDenueList(res) {
-  const text71 = await res.text();
-  if (isDenueEmptyBody(text71)) {
+  const text72 = await res.text();
+  if (isDenueEmptyBody(text72)) {
     console.log("[INEGI DENUE] empty body treated as no results", {
       status: res.status,
-      preview: text71.slice(0, 120)
+      preview: text72.slice(0, 120)
     });
     return [];
   }
   if (!res.ok) {
     console.error("[INEGI DENUE] HTTP error body", {
       status: res.status,
-      preview: text71.slice(0, 200)
+      preview: text72.slice(0, 200)
     });
-    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text71.slice(0, 200)}`);
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text72.slice(0, 200)}`);
   }
   let data;
   try {
-    data = JSON.parse(text71);
+    data = JSON.parse(text72);
   } catch {
     throw new Error(
-      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text71.slice(0, 200)}`
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text72.slice(0, 200)}`
     );
   }
   if (!Array.isArray(data)) {
@@ -20164,17 +20257,17 @@ async function getIndicator(indicatorId, geographicArea, recent = true, source =
   const area = geographicArea.trim() || "00";
   const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
   const res = await inegiFetch(url);
-  const text71 = await res.text();
+  const text72 = await res.text();
   if (!res.ok) {
     throw new Error(
-      `INEGI Indicadores HTTP ${res.status}: ${text71.slice(0, 200)}`
+      `INEGI Indicadores HTTP ${res.status}: ${text72.slice(0, 200)}`
     );
   }
   try {
-    return JSON.parse(text71);
+    return JSON.parse(text72);
   } catch {
     throw new Error(
-      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text71.slice(0, 200)}`
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text72.slice(0, 200)}`
     );
   }
 }
@@ -24040,7 +24133,7 @@ async function sendWhatsAppTemplateMessage({
             components: [
               {
                 type: "body",
-                parameters: bodyParams.map((text71) => ({ type: "text", text: text71 }))
+                parameters: bodyParams.map((text72) => ({ type: "text", text: text72 }))
               }
             ]
           } : {}
@@ -24738,8 +24831,8 @@ function buildDate(d1, d2, yearRaw, timeRaw) {
   const { hour, minute, second } = parseTimeParts(timeRaw);
   return new Date(year, month - 1, day, hour, minute, second);
 }
-function parseWhatsAppChatExport(text71) {
-  const lines = text71.split(/\r?\n/);
+function parseWhatsAppChatExport(text72) {
+  const lines = text72.split(/\r?\n/);
   const messages = [];
   for (const rawLine of lines) {
     const line = rawLine.replace(/^‎/, "");
@@ -26103,7 +26196,7 @@ var definition45 = `
 `;
 var MAX_EVENTS = 50;
 var MAX_METADATA_KEYS = 20;
-var MAX_TEXT = 200;
+var MAX_TEXT2 = 200;
 var CLOCK_WINDOW_MS = 10 * 60 * 1e3;
 var ADMIN_VIEW_DEDUPE_MS = 10 * 60 * 1e3;
 var MX_DAY = new Intl.DateTimeFormat("en-CA", {
@@ -26112,7 +26205,7 @@ var MX_DAY = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit"
 });
-function text70(value, max = MAX_TEXT) {
+function text71(value, max = MAX_TEXT2) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : null;
@@ -26122,7 +26215,7 @@ function flatMetadata(value) {
   const out = {};
   for (const [key, v] of Object.entries(value).slice(0, MAX_METADATA_KEYS)) {
     const k = key.slice(0, 40);
-    if (typeof v === "string") out[k] = v.slice(0, MAX_TEXT);
+    if (typeof v === "string") out[k] = v.slice(0, MAX_TEXT2);
     else if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
     else if (typeof v === "boolean" || v === null) out[k] = v;
   }
@@ -26136,9 +26229,9 @@ function clientTime(value) {
   return at;
 }
 function summaryFor(type, meta, label) {
-  const section = text70(meta.section) ?? text70(meta.tab) ?? "una secci\xF3n";
-  const feature = text70(meta.feature) ?? text70(meta.featureKey) ?? "un m\xF3dulo";
-  const tour = text70(meta.tour) ?? text70(meta.tourId) ?? "";
+  const section = text71(meta.section) ?? text71(meta.tab) ?? "una secci\xF3n";
+  const feature = text71(meta.feature) ?? text71(meta.featureKey) ?? "un m\xF3dulo";
+  const tour = text71(meta.tour) ?? text71(meta.tourId) ?? "";
   switch (type) {
     case ACTIVITY_EVENT.UI_SECTION_VIEWED:
       return `Abri\xF3 ${section}`;
@@ -26259,7 +26352,7 @@ var resolver45 = {
     let accepted = 0;
     let heartbeatDone = false;
     for (const input of batch) {
-      const type = text70(input?.type, 60);
+      const type = text71(input?.type, 60);
       if (!type) continue;
       try {
         if (type === HEARTBEAT_EVENT) {
@@ -26275,8 +26368,8 @@ var resolver45 = {
           await logActivity(context, {
             type,
             summary: summaryFor(type, metadata, null),
-            entityType: text70(input.entityType, 60),
-            entityId: text70(input.entityId, 60),
+            entityType: text71(input.entityType, 60),
+            entityId: text71(input.entityId, 60),
             metadata,
             source: ACTIVITY_SOURCE.WEB,
             occurredAt
@@ -26285,7 +26378,7 @@ var resolver45 = {
           continue;
         }
         if (CLIENT_ADMIN_EVENT_TYPES.has(type) && admin) {
-          const entityId = text70(input.entityId, 60);
+          const entityId = text71(input.entityId, 60);
           const target = await adminViewLabel(context, type, input);
           if (await recentlyViewed(context, userId, type, target.companyId, entityId)) {
             accepted += 1;
@@ -26295,7 +26388,7 @@ var resolver45 = {
             type,
             summary: summaryFor(type, metadata, target.label),
             companyId: target.companyId,
-            entityType: text70(input.entityType, 60),
+            entityType: text71(input.entityType, 60),
             entityId,
             metadata,
             source: ACTIVITY_SOURCE.ADMIN,
@@ -26536,6 +26629,27 @@ function clampInt(value, min, max, fallback) {
 function insensitive(value) {
   return { contains: value, mode: "insensitive" };
 }
+function companySearchWhere(search) {
+  const q = search?.trim();
+  if (!q) return {};
+  return {
+    OR: [
+      { name: insensitive(q) },
+      { contactEmail: insensitive(q) },
+      {
+        users: {
+          some: {
+            OR: [
+              { email: insensitive(q) },
+              { name: insensitive(q) },
+              { lastName: insensitive(q) }
+            ]
+          }
+        }
+      }
+    ]
+  };
+}
 function personRef(user) {
   if (!user) return null;
   return {
@@ -26605,6 +26719,18 @@ async function testCompanyIds(prisma) {
   });
   return new Set(rows.map((row) => row.id));
 }
+async function internalCompanyIds(prisma) {
+  const rows = await prisma.user.findMany({
+    where: { companyId: { not: null }, roles: { some: { name: "admin" /* ADMIN */ } } },
+    distinct: ["companyId"],
+    select: { companyId: true }
+  });
+  return new Set(rows.map((row) => row.companyId).filter((id) => Boolean(id)));
+}
+async function analyticsExcludedCompanyIds(prisma) {
+  const [test, internal] = await Promise.all([testCompanyIds(prisma), internalCompanyIds(prisma)]);
+  return /* @__PURE__ */ new Set([...test, ...internal]);
+}
 function companyCredits(params) {
   const plan = params.period?.planAllowance ?? params.planLeadLimit ?? 0;
   const bonus = params.period?.bonusAllowance ?? params.purchasedBonusCredits ?? 0;
@@ -26637,10 +26763,15 @@ function countsToList(rows) {
 }
 async function optional(read, fallback) {
   try {
-    return await read();
+    const result3 = await read();
+    return result3 instanceof Error ? fallback : result3;
   } catch {
     return fallback;
   }
+}
+function unwrapPrisma(result3) {
+  if (result3 instanceof Error) throw result3;
+  return result3;
 }
 async function lastSeenByCompany(prisma, companyIds) {
   if (!prisma.userActivityDay || !companyIds.length) return /* @__PURE__ */ new Map();
@@ -26734,8 +26865,8 @@ function fullName2(person) {
   return [person.name, person.lastName].filter(Boolean).join(" ").trim() || person.email || "una persona";
 }
 function cleanReason(reason) {
-  const text71 = reason?.trim() ?? "";
-  return text71.length >= MIN_REASON ? text71.slice(0, MAX_REASON) : null;
+  const text72 = reason?.trim() ?? "";
+  return text72.length >= MIN_REASON ? text72.slice(0, MAX_REASON) : null;
 }
 function maskTail(value) {
   if (!value) return null;
@@ -27201,7 +27332,7 @@ var resolver47 = {
     }
     const short = userId.slice(-8);
     const name = [user.name, user.lastName, user.secondLastName].filter(Boolean).join(" ").trim();
-    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text71) => Boolean(text71 && text71.length >= 4));
+    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text72) => Boolean(text72 && text72.length >= 4));
     await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
@@ -27327,9 +27458,9 @@ async function rollupCompanyDailyUsage(context, day) {
   const prisma = context.sudo().prisma;
   const { start, end } = mxDayWindow(day);
   const window = { gte: start, lt: end };
-  const dayDate = /* @__PURE__ */ new Date(`${day}T00:00:00.000Z`);
+  const dayDate3 = /* @__PURE__ */ new Date(`${day}T00:00:00.000Z`);
   const byCompany = /* @__PURE__ */ new Map();
-  const bump = (companyId, key, value) => {
+  const bump3 = (companyId, key, value) => {
     if (!companyId || !value) return;
     const current = byCompany.get(companyId) ?? { ...EMPTY };
     current[key] += value;
@@ -27350,7 +27481,7 @@ async function rollupCompanyDailyUsage(context, day) {
   ] = await Promise.all([
     prisma.userActivityDay.groupBy({
       by: ["companyId"],
-      where: { day: dayDate, companyId: { not: null } },
+      where: { day: dayDate3, companyId: { not: null } },
       _count: { _all: true },
       _sum: { minutes: true }
     }),
@@ -27426,8 +27557,8 @@ async function rollupCompanyDailyUsage(context, day) {
     })
   ]);
   for (const row of activityDays) {
-    bump(row.companyId, "activeUsers", row._count._all);
-    bump(row.companyId, "activeMinutes", row._sum.minutes ?? 0);
+    bump3(row.companyId, "activeUsers", row._count._all);
+    bump3(row.companyId, "activeMinutes", row._sum.minutes ?? 0);
   }
   const loginRows = logins;
   if (loginRows.length) {
@@ -27436,39 +27567,39 @@ async function rollupCompanyDailyUsage(context, day) {
       select: { id: true, companyId: true }
     });
     const companyOf = new Map(users.map((user) => [user.id, user.companyId]));
-    for (const row of loginRows) bump(companyOf.get(row.userId), "logins", row._count._all);
+    for (const row of loginRows) bump3(companyOf.get(row.userId), "logins", row._count._all);
   }
   for (const row of syncs) {
-    bump(row.companyId, "extractions", row._count._all);
-    if (!row.success) bump(row.companyId, "extractionsFailed", row._count._all);
+    bump3(row.companyId, "extractions", row._count._all);
+    if (!row.success) bump3(row.companyId, "extractionsFailed", row._count._all);
     if (row.success) {
-      bump(row.companyId, "leadsCreated", row._sum.created ?? 0);
-      bump(row.companyId, "leadsReused", row._sum.alreadyInDb ?? 0);
+      bump3(row.companyId, "leadsCreated", row._sum.created ?? 0);
+      bump3(row.companyId, "leadsReused", row._sum.alreadyInDb ?? 0);
     }
   }
   for (const row of credits) {
-    bump(row.companyId, "creditsConsumed", Math.abs(row._sum.amount ?? 0));
+    bump3(row.companyId, "creditsConsumed", Math.abs(row._sum.amount ?? 0));
   }
   for (const row of aiCalls) {
-    bump(row.companyId, "aiCalls", row._count._all);
+    bump3(row.companyId, "aiCalls", row._count._all);
   }
   for (const row of crmEvents) {
-    bump(row.companyId, "crmChanges", row._count._all);
+    bump3(row.companyId, "crmChanges", row._count._all);
   }
   for (const row of salesActivities) {
-    bump(row.workspace?.companyId ?? row.createdBy?.companyId, "activitiesLogged", 1);
+    bump3(row.workspace?.companyId ?? row.createdBy?.companyId, "activitiesLogged", 1);
   }
   for (const row of quotationsCreated) {
-    bump(row.companyId, "quotationsCreated", row._count._all);
+    bump3(row.companyId, "quotationsCreated", row._count._all);
   }
   for (const row of quotationsSent) {
-    bump(row.companyId, "quotationsSent", row._count._all);
+    bump3(row.companyId, "quotationsSent", row._count._all);
   }
   for (const row of quotationsAccepted) {
-    bump(row.companyId, "quotationsAccepted", row._count._all);
+    bump3(row.companyId, "quotationsAccepted", row._count._all);
   }
   for (const row of whatsapp) {
-    bump(row.companyId, row.direction === "inbound" ? "whatsappReceived" : "whatsappSent", row._count._all);
+    bump3(row.companyId, row.direction === "inbound" ? "whatsappReceived" : "whatsappSent", row._count._all);
   }
   const computedAt = /* @__PURE__ */ new Date();
   const companyIds = [...byCompany.keys()];
@@ -27479,12 +27610,12 @@ async function rollupCompanyDailyUsage(context, day) {
     const key = `${companyId}:${day}`;
     await prisma.saasCompanyDailyUsage.upsert({
       where: { key },
-      create: { key, companyId, day: dayDate, ...metrics, computedAt },
+      create: { key, companyId, day: dayDate3, ...metrics, computedAt },
       update: { ...metrics, computedAt }
     });
   }
   await prisma.saasCompanyDailyUsage.deleteMany({
-    where: { day: dayDate, companyId: { notIn: [...valid] } }
+    where: { day: dayDate3, companyId: { notIn: [...valid] } }
   });
   return { day, companies: valid.size };
 }
@@ -29477,16 +29608,518 @@ var resolver61 = {
 };
 var syncGoogleCalendarNow_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
+// utils/analytics/health.ts
+var HEALTH_WINDOW_DAYS = 28;
+var ACTIVE_DAYS_TARGET = 16;
+var USAGE_POINTS_TARGET = 60;
+var MINUTES_PER_PERSON_TARGET = 120;
+var NEW_COMPANY_DAYS = 21;
+var NEVER_USED_GRACE_DAYS = 3;
+var EARLY_EXHAUSTION_DAY = 20;
+function ratio(value, target) {
+  return target <= 0 ? 0 : Math.min(1, Math.max(0, value / target));
+}
+function billingPoints(status, paymentFailures) {
+  let points = 0;
+  if (status === SUBSCRIPTION_STATUS.ACTIVE) points = 15;
+  else if (status === SUBSCRIPTION_STATUS.TRIALING) points = 10;
+  if (paymentFailures > 0) points = Math.max(0, points - 5);
+  return points;
+}
+function activityPoints(row) {
+  return row.minutes + 10 * (row.extractions + row.crmChanges + row.activities + row.quotations);
+}
+function scoreHealth(input) {
+  const window = Math.max(1, Math.min(HEALTH_WINDOW_DAYS, input.ageDays));
+  const scale = window / HEALTH_WINDOW_DAYS;
+  const activeDaysTarget = Math.max(3, Math.round(ACTIVE_DAYS_TARGET * scale));
+  const usageTarget = Math.max(10, USAGE_POINTS_TARGET * scale);
+  const minutesTarget = Math.max(20, MINUTES_PER_PERSON_TARGET * scale);
+  const usagePoints = Math.max(0, input.extractions - input.extractionsFailed) * 3 + input.crmChanges + input.activities * 2 + input.quotations * 4 + input.whatsappSent * 0.5;
+  const recentAndPrevious = input.recentActivity + input.previousActivity;
+  const recency = recentAndPrevious > 0 ? Math.min(1, 0.5 + input.recentActivity / recentAndPrevious) : 1;
+  const components = {
+    activity: Math.round(ratio(input.activeDays, activeDaysTarget) * 30 * recency),
+    adoption: Math.round(input.teamSize ? ratio(input.activeUsers, input.teamSize) * 15 : 0),
+    usage: Math.round(ratio(usagePoints, usageTarget) * 25 * recency),
+    engagement: Math.round(
+      (input.teamSize ? ratio(input.minutes / input.teamSize, minutesTarget) : 0) * 15 * recency
+    ),
+    billing: billingPoints(input.status, input.paymentFailures)
+  };
+  const failingExtractions = input.extractions >= 3 && input.extractionsFailed / input.extractions > 0.3 ? 5 : 0;
+  const raw = components.activity + components.adoption + components.usage + components.engagement + components.billing - failingExtractions;
+  const score = Math.max(0, Math.min(100, Math.round(raw)));
+  const label = score >= 70 ? "healthy" : score >= 40 ? "watch" : "risk";
+  let trend;
+  let changePct = null;
+  if (input.ageDays < NEW_COMPANY_DAYS) {
+    trend = "new";
+  } else if (input.recentActivity === 0 && input.previousActivity === 0) {
+    trend = "inactive";
+  } else if (input.previousActivity === 0) {
+    trend = "up";
+  } else {
+    const change = (input.recentActivity - input.previousActivity) / input.previousActivity;
+    changePct = Math.round(change * 100);
+    trend = change > 0.2 ? "up" : change < -0.2 ? "down" : "stable";
+  }
+  const flags = [];
+  const hasPlan = input.status === SUBSCRIPTION_STATUS.ACTIVE || input.status === SUBSCRIPTION_STATUS.TRIALING;
+  const paymentProblem = input.status === SUBSCRIPTION_STATUS.PAST_DUE || input.status === SUBSCRIPTION_STATUS.UNPAID;
+  if (paymentProblem) {
+    flags.push({ key: "churn_risk", reason: "payment_overdue", label: "Pago vencido" });
+  } else if (hasPlan) {
+    if (input.daysSinceSeen == null && input.ageDays >= NEVER_USED_GRACE_DAYS) {
+      flags.push({ key: "churn_risk", reason: "never_used", label: "Nadie del equipo ha entrado" });
+    } else if (input.daysSinceSeen != null && input.daysSinceSeen >= 14) {
+      flags.push({
+        key: "churn_risk",
+        reason: "inactive",
+        label: `Nadie entra hace ${input.daysSinceSeen} d\xEDas`
+      });
+    } else if (trend === "down" && changePct != null && changePct <= -40) {
+      flags.push({
+        key: "churn_risk",
+        reason: "usage_drop",
+        label: `El uso cay\xF3 ${Math.abs(changePct)}% en 2 semanas`
+      });
+    } else if (label === "risk" && input.ageDays >= NEW_COMPANY_DAYS) {
+      flags.push({ key: "churn_risk", reason: "low_health", label: `Salud baja (${score})` });
+    }
+  }
+  if (input.creditsExhaustedDay != null && input.creditsExhaustedDay <= EARLY_EXHAUSTION_DAY) {
+    flags.push({
+      key: "upsell",
+      reason: "credits_exhausted",
+      label: `Se qued\xF3 sin cr\xE9ditos el d\xEDa ${input.creditsExhaustedDay}`
+    });
+  } else if (input.purchaseIntent >= 2) {
+    flags.push({
+      key: "upsell",
+      reason: "purchase_intent",
+      label: `Vio m\xF3dulos de otro plan o pidi\xF3 mejorar (${input.purchaseIntent} veces)`
+    });
+  } else if (input.status === SUBSCRIPTION_STATUS.TRIALING && score >= 60) {
+    flags.push({ key: "upsell", reason: "trial_ready", label: "Prueba con buen uso: lista para pagar" });
+  }
+  return { score, label, trend, changePct, components, flags };
+}
+
+// graphql/customs/queries/admin/healthData.ts
+var dayDate = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
+function bump(map, key, value = 1) {
+  if (key == null) return;
+  map.set(key, (map.get(key) ?? 0) + value);
+}
+async function loadCompanyHealth(prisma, companyIds) {
+  const empty2 = { ready: false, computedThrough: null, byCompany: /* @__PURE__ */ new Map() };
+  if (!prisma.saasCompanyDailyUsage) return empty2;
+  return optional(async () => {
+    const today = mxToday();
+    const lastDay = shiftDay(today, -1);
+    const firstDay = shiftDay(lastDay, -(HEALTH_WINDOW_DAYS - 1));
+    const midDay = shiftDay(lastDay, -13);
+    const windowStart = /* @__PURE__ */ new Date(`${firstDay}T00:00:00-06:00`);
+    const monthStart = /* @__PURE__ */ new Date(`${today.slice(0, 7)}-01T00:00:00-06:00`);
+    const byIds = companyIds ? { in: companyIds } : void 0;
+    const [
+      companies,
+      usageRows,
+      activePairs,
+      teams,
+      latest,
+      exhausted,
+      intent,
+      failedPayments,
+      seen,
+      logins,
+      latestRollup
+    ] = await Promise.all([
+      prisma.saasCompany.findMany({
+        where: byIds ? { id: byIds } : {},
+        select: { id: true, createdAt: true }
+      }),
+      prisma.saasCompanyDailyUsage.findMany({
+        where: {
+          day: { gte: dayDate(firstDay), lte: dayDate(lastDay) },
+          ...byIds ? { companyId: byIds } : {}
+        },
+        select: {
+          companyId: true,
+          day: true,
+          activeMinutes: true,
+          logins: true,
+          extractions: true,
+          extractionsFailed: true,
+          crmChanges: true,
+          activitiesLogged: true,
+          quotationsCreated: true,
+          whatsappSent: true
+        }
+      }),
+      prisma.userActivityDay.groupBy({
+        by: ["companyId", "userId"],
+        where: {
+          day: { gte: dayDate(firstDay), lte: dayDate(lastDay) },
+          companyId: byIds ?? { not: null }
+        }
+      }),
+      prisma.user.groupBy({
+        by: ["companyId"],
+        where: { companyId: byIds ?? { not: null }, anonymizedAt: null },
+        _count: { _all: true }
+      }),
+      latestSubscriptionsByCompany(prisma, companyIds),
+      prisma.activityEvent.findMany({
+        where: {
+          type: ACTIVITY_EVENT.CREDITS_EXHAUSTED,
+          createdAt: { gte: monthStart },
+          ...byIds ? { companyId: byIds } : {}
+        },
+        select: { companyId: true, createdAt: true }
+      }),
+      prisma.activityEvent.groupBy({
+        by: ["companyId"],
+        where: {
+          type: { in: [ACTIVITY_EVENT.UI_UPGRADE_CLICKED, ACTIVITY_EVENT.UI_FEATURE_LOCKED_VIEWED] },
+          createdAt: { gte: windowStart },
+          companyId: byIds ?? { not: null }
+        },
+        _count: { _all: true }
+      }),
+      prisma.saasPayment.findMany({
+        where: { status: "failed", createdAt: { gte: windowStart } },
+        select: {
+          subscription: { select: { companyId: true } },
+          user: { select: { companyId: true } }
+        }
+      }),
+      prisma.userActivityDay.groupBy({
+        by: ["companyId"],
+        where: { companyId: byIds ?? { not: null } },
+        _max: { lastSeenAt: true }
+      }),
+      prisma.user.groupBy({
+        by: ["companyId"],
+        where: { companyId: byIds ?? { not: null } },
+        _max: { lastLoginAt: true }
+      }),
+      prisma.saasCompanyDailyUsage.findFirst({ orderBy: { day: "desc" }, select: { day: true } })
+    ]);
+    const totals = /* @__PURE__ */ new Map();
+    const midDate = dayDate(midDay).getTime();
+    for (const row of usageRows) {
+      const t = totals.get(row.companyId) ?? { activeDays: 0, minutes: 0, extractions: 0, extractionsFailed: 0, crmChanges: 0, activities: 0, quotations: 0, whatsappSent: 0, recent: 0, previous: 0 };
+      const day = {
+        minutes: row.activeMinutes ?? 0,
+        extractions: Math.max(0, (row.extractions ?? 0) - (row.extractionsFailed ?? 0)),
+        crmChanges: row.crmChanges ?? 0,
+        activities: row.activitiesLogged ?? 0,
+        quotations: row.quotationsCreated ?? 0
+      };
+      const didSomething = day.minutes > 0 || (row.logins ?? 0) > 0 || (row.extractions ?? 0) > 0 || day.crmChanges + day.activities + day.quotations + (row.whatsappSent ?? 0) > 0;
+      if (didSomething) t.activeDays += 1;
+      t.minutes += day.minutes;
+      t.extractions += row.extractions ?? 0;
+      t.extractionsFailed += row.extractionsFailed ?? 0;
+      t.crmChanges += day.crmChanges;
+      t.activities += day.activities;
+      t.quotations += day.quotations;
+      t.whatsappSent += row.whatsappSent ?? 0;
+      const points = activityPoints(day);
+      if (new Date(row.day).getTime() >= midDate) t.recent += points;
+      else t.previous += points;
+      totals.set(row.companyId, t);
+    }
+    const activeUsers = /* @__PURE__ */ new Map();
+    for (const pair of activePairs) bump(activeUsers, pair.companyId);
+    const teamSize = new Map(
+      teams.filter((row) => row.companyId).map((row) => [row.companyId, row._count._all])
+    );
+    const exhaustedDay = /* @__PURE__ */ new Map();
+    for (const row of exhausted) {
+      if (!row.companyId) continue;
+      const day = Number(mxToday(new Date(row.createdAt)).slice(8, 10));
+      exhaustedDay.set(row.companyId, Math.min(exhaustedDay.get(row.companyId) ?? 99, day));
+    }
+    const intentCount = new Map(
+      intent.filter((row) => row.companyId).map((row) => [row.companyId, row._count._all])
+    );
+    const failures = /* @__PURE__ */ new Map();
+    for (const row of failedPayments) {
+      bump(failures, row.subscription?.companyId ?? row.user?.companyId);
+    }
+    const lastSeen = /* @__PURE__ */ new Map();
+    for (const row of seen) {
+      if (row.companyId && row._max.lastSeenAt) lastSeen.set(row.companyId, row._max.lastSeenAt);
+    }
+    for (const row of logins) {
+      if (!row.companyId || !row._max.lastLoginAt) continue;
+      const current = lastSeen.get(row.companyId);
+      if (!current || row._max.lastLoginAt > current) lastSeen.set(row.companyId, row._max.lastLoginAt);
+    }
+    const now = Date.now();
+    const byCompany = /* @__PURE__ */ new Map();
+    for (const company of companies) {
+      const t = totals.get(company.id);
+      const seenAt = lastSeen.get(company.id) ?? null;
+      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS2)) : HEALTH_WINDOW_DAYS;
+      const result3 = scoreHealth({
+        ageDays,
+        teamSize: teamSize.get(company.id) ?? 0,
+        activeUsers: activeUsers.get(company.id) ?? 0,
+        activeDays: t?.activeDays ?? 0,
+        minutes: t?.minutes ?? 0,
+        extractions: t?.extractions ?? 0,
+        extractionsFailed: t?.extractionsFailed ?? 0,
+        crmChanges: t?.crmChanges ?? 0,
+        activities: t?.activities ?? 0,
+        quotations: t?.quotations ?? 0,
+        whatsappSent: t?.whatsappSent ?? 0,
+        recentActivity: t?.recent ?? 0,
+        previousActivity: t?.previous ?? 0,
+        status: latest.get(company.id)?.status ?? null,
+        creditsExhaustedDay: exhaustedDay.get(company.id) ?? null,
+        purchaseIntent: intentCount.get(company.id) ?? 0,
+        paymentFailures: failures.get(company.id) ?? 0,
+        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS2) : null
+      });
+      byCompany.set(company.id, {
+        ...result3,
+        companyId: company.id,
+        teamSize: teamSize.get(company.id) ?? 0,
+        activeUsers: activeUsers.get(company.id) ?? 0,
+        lastSeenAt: seenAt
+      });
+    }
+    const computedThrough = latestRollup?.day ? new Date(latestRollup.day).toISOString().slice(0, 10) : null;
+    return { ready: Boolean(computedThrough), computedThrough, byCompany };
+  }, empty2);
+}
+
+// graphql/customs/queries/admin/adminHealth.ts
+var LIVE_STATUSES = [
+  SUBSCRIPTION_STATUS.ACTIVE,
+  SUBSCRIPTION_STATUS.TRIALING,
+  SUBSCRIPTION_STATUS.PAST_DUE,
+  SUBSCRIPTION_STATUS.UNPAID
+];
+var SORTS = ["risk", "best", "drop", "name"];
+var typeDefs65 = `
+  input AdminHealthInput {
+    search: String
+    """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
+    status: String
+    """healthy | watch | risk"""
+    label: String
+    """churn_risk | upsell"""
+    flag: String
+    accountManagerId: ID
+    """risk (peor salud primero, por defecto) | best | drop (mayor ca\xEDda de uso) | name"""
+    sort: String
+    """Solo esta empresa (ficha 360). Ignora los dem\xE1s filtros."""
+    companyId: ID
+    take: Int
+    skip: Int
+  }
+
+  """Puntos de cada parte de la salud (m\xE1ximos: 30, 15, 25, 15, 15)."""
+  type AdminHealthComponents {
+    activity: Int!
+    adoption: Int!
+    usage: Int!
+    engagement: Int!
+    billing: Int!
+  }
+
+  type AdminHealthFlag {
+    """churn_risk | upsell"""
+    key: String!
+    """payment_overdue | never_used | inactive | usage_drop | low_health | credits_exhausted | purchase_intent | trial_ready"""
+    reason: String!
+    label: String!
+  }
+
+  """Salud resumida para listas."""
+  type AdminHealthBrief {
+    score: Int!
+    label: String!
+    trend: String!
+    changePct: Int
+    flags: [AdminHealthFlag!]!
+  }
+
+  type AdminCompanyHealth {
+    companyId: ID!
+    companyName: String!
+    planName: String
+    subscriptionStatus: String
+    """0\u2013100"""
+    score: Int!
+    """healthy (70 o m\xE1s) | watch (40\u201369) | risk (menos de 40)"""
+    label: String!
+    """up | down | stable | new (menos de 21 d\xEDas) | inactive"""
+    trend: String!
+    """Actividad de las \xFAltimas 2 semanas contra las 2 anteriores (%)."""
+    changePct: Int
+    components: AdminHealthComponents!
+    flags: [AdminHealthFlag!]!
+    teamSize: Int!
+    """Personas que entraron en las \xFAltimas 4 semanas."""
+    activeUsers: Int!
+    lastSeenAt: String
+    accountManager: AdminPersonRef
+  }
+
+  type AdminHealthResult {
+    """false mientras no haya resumen diario: la salud saldr\xEDa en ceros."""
+    ready: Boolean!
+    """\xDAltimo d\xEDa con resumen (YYYY-MM-DD)."""
+    computedThrough: String
+    windowDays: Int!
+    total: Int!
+    """Con b\xFAsqueda y estado aplicados: healthy, watch, risk, churn_risk, upsell."""
+    counts: [AdminCount!]!
+    items: [AdminCompanyHealth!]!
+  }
+
+  type Query {
+    adminHealth(input: AdminHealthInput): AdminHealthResult!
+  }
+`;
+var definition62 = `
+  adminHealth(input: AdminHealthInput): AdminHealthResult!
+`;
+function healthBrief(health) {
+  if (!health) return null;
+  return {
+    score: health.score,
+    label: health.label,
+    trend: health.trend,
+    changePct: health.changePct,
+    flags: health.flags
+  };
+}
+function matchesStatus(status, filter) {
+  if (filter === "all") return true;
+  if (filter === "live") return Boolean(status && LIVE_STATUSES.includes(status));
+  if (filter === "none") return !status;
+  return status === filter;
+}
+var resolver62 = {
+  adminHealth: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const take = clampInt(input?.take, 1, 100, 25);
+    const skip = clampInt(input?.skip, 0, 1e6, 0);
+    const sort = SORTS.includes(input?.sort) ? input?.sort : "risk";
+    const statusFilter = input?.status?.trim() || "live";
+    const companyId = input?.companyId?.trim() || null;
+    let scopedIds;
+    if (companyId) {
+      scopedIds = [companyId];
+    } else {
+      const managerId = input?.accountManagerId?.trim();
+      const search = companySearchWhere(input?.search);
+      const matching = await prisma.saasCompany.findMany({
+        where: managerId ? { AND: [search, { accountManagerId: managerId }] } : search,
+        select: { id: true }
+      });
+      const excludedIds = await analyticsExcludedCompanyIds(prisma);
+      scopedIds = matching.map((c) => c.id).filter((id) => !excludedIds.has(id));
+    }
+    const latest = await latestSubscriptionsByCompany(prisma, scopedIds);
+    if (!companyId) {
+      scopedIds = scopedIds.filter((id) => matchesStatus(latest.get(id)?.status, statusFilter));
+    }
+    const { ready, computedThrough, byCompany } = await loadCompanyHealth(prisma, scopedIds);
+    const scored = scopedIds.map((id) => byCompany.get(id)).filter((health) => Boolean(health));
+    const counts = /* @__PURE__ */ new Map([
+      ["healthy", 0],
+      ["watch", 0],
+      ["risk", 0],
+      ["churn_risk", 0],
+      ["upsell", 0]
+    ]);
+    for (const health of scored) {
+      counts.set(health.label, (counts.get(health.label) ?? 0) + 1);
+      for (const key of new Set(health.flags.map((flag2) => flag2.key))) {
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    const label = input?.label?.trim();
+    const flag = input?.flag?.trim();
+    const filtered = scored.filter(
+      (health) => (!label || health.label === label) && (!flag || health.flags.some((item) => item.key === flag))
+    );
+    const companies = await prisma.saasCompany.findMany({
+      where: { id: { in: filtered.map((health) => health.companyId) } },
+      select: {
+        id: true,
+        name: true,
+        accountManager: { select: { id: true, name: true, lastName: true, email: true } }
+      }
+    });
+    const companyById = new Map(companies.map((company) => [company.id, company]));
+    const seen = (health) => health.lastSeenAt?.getTime() ?? 0;
+    const ordered = [...filtered].sort((a, b) => {
+      switch (sort) {
+        case "best":
+          return b.score - a.score || seen(b) - seen(a);
+        case "drop":
+          return (a.changePct ?? Infinity) - (b.changePct ?? Infinity) || a.score - b.score;
+        case "name":
+          return (companyById.get(a.companyId)?.name ?? "").localeCompare(
+            companyById.get(b.companyId)?.name ?? "",
+            "es"
+          );
+        default:
+          return a.score - b.score || seen(a) - seen(b);
+      }
+    });
+    const items = ordered.slice(skip, skip + take).map((health) => {
+      const company = companyById.get(health.companyId);
+      const sub = latest.get(health.companyId);
+      return {
+        companyId: health.companyId,
+        companyName: company?.name ?? "Empresa",
+        planName: sub?.planName || null,
+        subscriptionStatus: sub?.status ?? null,
+        score: health.score,
+        label: health.label,
+        trend: health.trend,
+        changePct: health.changePct,
+        components: health.components,
+        flags: health.flags,
+        teamSize: health.teamSize,
+        activeUsers: health.activeUsers,
+        lastSeenAt: toIso(health.lastSeenAt),
+        accountManager: personRef(company?.accountManager)
+      };
+    });
+    return {
+      ready,
+      computedThrough,
+      windowDays: HEALTH_WINDOW_DAYS,
+      total: filtered.length,
+      counts: [...counts.entries()].map(([key, count2]) => ({ key, count: count2 })),
+      items
+    };
+  }
+};
+var adminHealth_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
-var SORTS = ["recent", "name", "activity"];
-var typeDefs65 = `
+var SORTS2 = ["recent", "name", "activity", "health"];
+var typeDefs66 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
     """all | active | trialing | past_due | unpaid | cancelled | none (sin plan)"""
     status: String
-    """recent (alta) | name | activity (\xFAltimo acceso del equipo)"""
+    """recent (alta) | name | activity (\xFAltimo acceso del equipo) | health (peor salud primero)"""
     sort: String
     """Solo las cuentas de esta persona de Kadesh (due\xF1o de cuenta)."""
     accountManagerId: ID
@@ -29520,6 +30153,8 @@ var typeDefs65 = `
     accountManager: AdminPersonRef
     """Si Kadesh suspendi\xF3 el acceso de la empresa."""
     suspendedAt: String
+    """Salud de las \xFAltimas 4 semanas; null mientras no haya resumen diario."""
+    health: AdminHealthBrief
   }
 
   type AdminCompaniesResult {
@@ -29533,45 +30168,24 @@ var typeDefs65 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition62 = `
+var definition63 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
-function searchWhere(search) {
-  const q = search?.trim();
-  if (!q) return {};
-  return {
-    OR: [
-      { name: insensitive(q) },
-      { contactEmail: insensitive(q) },
-      {
-        users: {
-          some: {
-            OR: [
-              { email: insensitive(q) },
-              { name: insensitive(q) },
-              { lastName: insensitive(q) }
-            ]
-          }
-        }
-      }
-    ]
-  };
-}
 function pickOwner(users) {
   const admin = users.find(
     (u) => u.roles.some((r) => r.name === "admin_company" /* ADMIN_COMPANY */)
   );
   return admin ?? users[0] ?? null;
 }
-var resolver62 = {
+var resolver63 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const take = clampInt(input?.take, 1, 100, 25);
     const skip = clampInt(input?.skip, 0, 1e6, 0);
     const status = input?.status?.trim() || "all";
-    const sort = SORTS.includes(input?.sort) ? input?.sort : "recent";
-    const searchFilter = searchWhere(input?.search);
+    const sort = SORTS2.includes(input?.sort) ? input?.sort : "recent";
+    const searchFilter = companySearchWhere(input?.search);
     const managerId = input?.accountManagerId?.trim();
     const baseWhere = managerId ? { AND: [searchFilter, { accountManagerId: managerId }] } : searchFilter;
     const matching = await prisma.saasCompany.findMany({
@@ -29594,7 +30208,12 @@ var resolver62 = {
     );
     const total = filteredIds.length;
     let pageIds;
-    if (sort === "activity") {
+    let health = null;
+    if (sort === "health") {
+      health = await loadCompanyHealth(prisma, filteredIds);
+      const scoreOf = (id) => health?.byCompany.get(id)?.score ?? 101;
+      pageIds = [...filteredIds].sort((a, b) => scoreOf(a) - scoreOf(b)).slice(skip, skip + take);
+    } else if (sort === "activity") {
       const lastLogins = await prisma.user.groupBy({
         by: ["companyId"],
         where: { companyId: { in: filteredIds } },
@@ -29652,6 +30271,9 @@ var resolver62 = {
     });
     const byId = new Map(records.map((r) => [r.id, r]));
     const lastSeen = await lastSeenByCompany(prisma, pageIds);
+    health ??= await loadCompanyHealth(prisma, pageIds);
+    const healthReady = health.ready;
+    const healthById = health.byCompany;
     const items = pageIds.map((id) => byId.get(id)).filter((c) => Boolean(c)).map((c) => {
       const sub = latest.get(c.id) ?? null;
       const credits = companyCredits({
@@ -29685,19 +30307,20 @@ var resolver62 = {
         lastSeenAt: toIso(lastSeen.get(c.id) ?? null),
         owner: personRef(pickOwner(c.users)),
         accountManager: personRef(c.accountManager),
-        suspendedAt: toIso(c.suspendedAt)
+        suspendedAt: toIso(c.suspendedAt),
+        health: healthReady ? healthBrief(healthById.get(c.id)) : null
       };
     });
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var adminCompanies_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
-var typeDefs66 = `
+var typeDefs67 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -29706,7 +30329,7 @@ var typeDefs66 = `
   type AdminAttentionItem {
     companyId: ID!
     companyName: String!
-    """trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive"""
+    """trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive | churn_risk | upsell"""
     reason: String!
     detail: String
     """high | medium | low"""
@@ -29740,7 +30363,7 @@ var typeDefs66 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition63 = `
+var definition64 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -29751,7 +30374,7 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver63 = {
+var resolver64 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -29927,6 +30550,49 @@ var resolver63 = {
         at: toIso(last)
       });
     }
+    const internalIds = await internalCompanyIds(prisma);
+    const health = await loadCompanyHealth(
+      prisma,
+      realIds.filter((id) => !internalIds.has(id))
+    );
+    if (health.ready) {
+      const reasonsByCompany = /* @__PURE__ */ new Map();
+      for (const item of attention) {
+        const reasons = reasonsByCompany.get(item.companyId) ?? /* @__PURE__ */ new Set();
+        reasons.add(item.reason);
+        reasonsByCompany.set(item.companyId, reasons);
+      }
+      for (const [companyId, companyHealth] of health.byCompany) {
+        const reasons = reasonsByCompany.get(companyId) ?? /* @__PURE__ */ new Set();
+        const isTrial = latest.get(companyId)?.status === SUBSCRIPTION_STATUS.TRIALING;
+        const churn = companyHealth.flags.find(
+          (flag) => flag.key === "churn_risk" && (flag.reason === "usage_drop" || flag.reason === "low_health" || isTrial && (flag.reason === "inactive" || flag.reason === "never_used"))
+        );
+        if (churn) {
+          attention.push({
+            companyId,
+            companyName: nameById.get(companyId) ?? "Empresa",
+            reason: "churn_risk",
+            detail: `${churn.label} \xB7 salud ${companyHealth.score}`,
+            severity: "medium",
+            at: toIso(companyHealth.lastSeenAt)
+          });
+        }
+        const upsell = companyHealth.flags.find(
+          (flag) => flag.key === "upsell" && !(flag.reason === "credits_exhausted" && reasons.has("no_credits"))
+        );
+        if (upsell) {
+          attention.push({
+            companyId,
+            companyName: nameById.get(companyId) ?? "Empresa",
+            reason: "upsell",
+            detail: upsell.label,
+            severity: "low",
+            at: toIso(companyHealth.lastSeenAt)
+          });
+        }
+      }
+    }
     const seenUserIds = await activeUserIdsSince(prisma, since7d);
     const [
       newUsers7d,
@@ -29995,14 +30661,14 @@ var resolver63 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var adminOpsSummary_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs67 = `
+var typeDefs68 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -30107,7 +30773,7 @@ var typeDefs67 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition64 = `
+var definition65 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows, key) {
@@ -30245,7 +30911,7 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver64 = {
+var resolver65 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -30558,10 +31224,10 @@ var resolver64 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+var adminCompanyInsights_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // graphql/customs/queries/admin/adminCompanyTrends.ts
-var typeDefs68 = `
+var typeDefs69 = `
   type AdminUsageWeek {
     """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
     weekStart: String!
@@ -30602,7 +31268,7 @@ var typeDefs68 = `
     adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   }
 `;
-var definition65 = `
+var definition66 = `
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
 `;
 var WEEK_FIELDS = [
@@ -30634,7 +31300,7 @@ function median(values) {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
-var resolver65 = {
+var resolver66 = {
   adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -30714,7 +31380,7 @@ var resolver65 = {
     }, EMPTY2);
   }
 };
-var adminCompanyTrends_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+var adminCompanyTrends_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -30731,7 +31397,7 @@ var FEED_TYPES = [
   "product"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs69 = `
+var typeDefs70 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -30769,7 +31435,7 @@ var typeDefs69 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition66 = `
+var definition67 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -30836,8 +31502,8 @@ function money2(amount, currency) {
   }
 }
 function joinDetail(parts) {
-  const text71 = parts.filter(Boolean).join(" \xB7 ");
-  return text71 || null;
+  const text72 = parts.filter(Boolean).join(" \xB7 ");
+  return text72 || null;
 }
 function personSearch(q) {
   return {
@@ -31606,7 +32272,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver66 = {
+var resolver67 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -31642,7 +32308,810 @@ var resolver66 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+var adminActivityFeed_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+
+// graphql/customs/queries/admin/milestones.ts
+function earliest(map, companyId, at) {
+  if (!companyId || !at) return;
+  const date = new Date(at);
+  const current = map.get(companyId);
+  if (!current || date < current) map.set(companyId, date);
+}
+function groupMin(rows, field) {
+  return rows.map((row) => ({ companyId: row.companyId, at: row._min[field] ?? null }));
+}
+async function loadCompanyMilestones(prisma, companyIds) {
+  const result3 = /* @__PURE__ */ new Map();
+  if (!companyIds.length) return result3;
+  const ids = { in: companyIds };
+  const [profiles, extractions, quotations, whatsapp, statusChanges, activities, payments, paidPlans] = await Promise.all([
+    prisma.saasCompany.findMany({
+      where: { id: ids, onboardingMainOffer: { not: null }, NOT: { onboardingMainOffer: "" } },
+      select: { id: true }
+    }),
+    prisma.techLeadSyncLog.groupBy({
+      by: ["companyId"],
+      where: { companyId: ids, success: true },
+      _min: { createdAt: true }
+    }),
+    prisma.saasQuotation.groupBy({
+      by: ["companyId"],
+      where: { companyId: ids },
+      _min: { createdAt: true }
+    }),
+    prisma.techWhatsAppMessage.groupBy({
+      by: ["companyId"],
+      where: {
+        companyId: ids,
+        direction: { not: "inbound" },
+        OR: [{ source: null }, { source: { not: "imported" } }]
+      },
+      _min: { createdAt: true }
+    }),
+    optional(
+      () => prisma.activityEvent.groupBy({
+        by: ["companyId"],
+        where: {
+          companyId: ids,
+          type: ACTIVITY_EVENT.LEAD_STATUS_CHANGED,
+          source: ACTIVITY_SOURCE.WEB
+        },
+        _min: { createdAt: true }
+      }),
+      []
+    ),
+    // Las actividades no tienen empresa: cuenta el workspace o, si no hay, quien la creó.
+    prisma.$queryRaw`
+        SELECT COALESCE(w."company", u."company") AS "companyId", MIN(a."createdAt") AS "at"
+        FROM "TechSalesActivity" a
+        LEFT JOIN "SaasWorkspace" w ON w."id" = a."workspace"
+        LEFT JOIN "User" u ON u."id" = a."createdBy"
+        WHERE COALESCE(w."company", u."company") = ANY(${companyIds}::text[])
+        GROUP BY 1
+      `,
+    prisma.$queryRaw`
+        SELECT COALESCE(s."company", u."company") AS "companyId", MIN(p."createdAt") AS "at"
+        FROM "SaasPayment" p
+        LEFT JOIN "SaasCompanySubscription" s ON s."id" = p."subscription"
+        LEFT JOIN "User" u ON u."id" = p."user"
+        WHERE p."status" = 'succeeded'
+          AND COALESCE(s."company", u."company") = ANY(${companyIds}::text[])
+        GROUP BY 1
+      `,
+    prisma.saasCompanySubscription.groupBy({
+      by: ["companyId"],
+      where: { companyId: ids, status: SUBSCRIPTION_STATUS.ACTIVE, planCost: { gt: 0 } },
+      _min: { activatedAt: true, createdAt: true }
+    })
+  ]);
+  for (const result4 of [profiles, extractions, quotations, whatsapp, activities, payments, paidPlans]) {
+    unwrapPrisma(result4);
+  }
+  const firstExtraction = /* @__PURE__ */ new Map();
+  for (const row of groupMin(extractions, "createdAt")) earliest(firstExtraction, row.companyId, row.at);
+  const firstQuotation = /* @__PURE__ */ new Map();
+  for (const row of groupMin(quotations, "createdAt")) earliest(firstQuotation, row.companyId, row.at);
+  const firstContact = /* @__PURE__ */ new Map();
+  for (const row of groupMin(whatsapp, "createdAt")) earliest(firstContact, row.companyId, row.at);
+  for (const row of groupMin(statusChanges, "createdAt")) earliest(firstContact, row.companyId, row.at);
+  for (const row of activities) earliest(firstContact, row.companyId, row.at);
+  const paid = /* @__PURE__ */ new Map();
+  for (const row of payments) earliest(paid, row.companyId, row.at);
+  for (const row of paidPlans) {
+    earliest(paid, row.companyId, row._min.activatedAt ?? row._min.createdAt);
+  }
+  const profileDone = new Set(profiles.map((row) => row.id));
+  for (const companyId of companyIds) {
+    result3.set(companyId, {
+      profileDone: profileDone.has(companyId),
+      firstExtractionAt: firstExtraction.get(companyId) ?? null,
+      firstContactAt: firstContact.get(companyId) ?? null,
+      firstQuotationAt: firstQuotation.get(companyId) ?? null,
+      paidAt: paid.get(companyId) ?? null
+    });
+  }
+  return result3;
+}
+
+// graphql/customs/queries/admin/adminActivationFunnel.ts
+var typeDefs71 = `
+  input AdminActivationInput {
+    """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
+    days: Int
+  }
+
+  type AdminFunnelStep {
+    """signup | profile | extraction | contact | quotation | paid"""
+    key: String!
+    label: String!
+    companies: Int!
+    """Porcentaje de las registradas (0\u2013100)."""
+    pct: Float!
+    """Mediana de d\xEDas desde el registro; null si el paso no guarda fecha o nadie lleg\xF3."""
+    medianDays: Float
+  }
+
+  type AdminFunnelMonth {
+    """Mes de registro (YYYY-MM, hora de CDMX)."""
+    month: String!
+    companies: Int!
+    extraction: Int!
+    contact: Int!
+    quotation: Int!
+    paid: Int!
+  }
+
+  type AdminActivationFunnel {
+    from: String!
+    to: String!
+    cohortSize: Int!
+    steps: [AdminFunnelStep!]!
+    byMonth: [AdminFunnelMonth!]!
+  }
+
+  type Query {
+    adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
+  }
+`;
+var definition68 = `
+  adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
+`;
+var STEPS = [
+  { key: "profile", label: "Llen\xF3 su perfil de negocio", reached: (m) => m.profileDone },
+  { key: "extraction", label: "Primera extracci\xF3n", at: (m) => m.firstExtractionAt },
+  { key: "contact", label: "Primer contacto con un lead", at: (m) => m.firstContactAt },
+  { key: "quotation", label: "Primera cotizaci\xF3n", at: (m) => m.firstQuotationAt },
+  { key: "paid", label: "Pag\xF3", at: (m) => m.paidAt }
+];
+function median2(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const value = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return Math.round(value * 10) / 10;
+}
+var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
+var resolver68 = {
+  adminActivationFunnel: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 30, 365, 90);
+    const to = /* @__PURE__ */ new Date();
+    const from = daysAgo(days, to);
+    const excludedIds = await analyticsExcludedCompanyIds(prisma);
+    const companies = (await prisma.saasCompany.findMany({
+      where: { createdAt: { gte: from, lte: to } },
+      select: { id: true, createdAt: true }
+    })).filter((company) => !excludedIds.has(company.id));
+    const milestones = await loadCompanyMilestones(
+      prisma,
+      companies.map((company) => company.id)
+    );
+    const steps = [
+      {
+        key: "signup",
+        label: "Se registr\xF3",
+        companies: companies.length,
+        pct: companies.length ? 100 : 0,
+        medianDays: 0
+      },
+      ...STEPS.map((step) => {
+        let reached = 0;
+        const elapsed = [];
+        for (const company of companies) {
+          const m = milestones.get(company.id);
+          if (!m) continue;
+          if (step.reached) {
+            if (step.reached(m)) reached += 1;
+            continue;
+          }
+          const at = step.at?.(m);
+          if (!at) continue;
+          reached += 1;
+          if (company.createdAt) {
+            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS2));
+          }
+        }
+        return {
+          key: step.key,
+          label: step.label,
+          companies: reached,
+          pct: pct(reached, companies.length),
+          medianDays: step.reached ? null : median2(elapsed)
+        };
+      })
+    ];
+    const months = /* @__PURE__ */ new Map();
+    for (const company of companies) {
+      if (!company.createdAt) continue;
+      const month = toMxDay(company.createdAt).slice(0, 7);
+      const row = months.get(month) ?? { month, companies: 0, extraction: 0, contact: 0, quotation: 0, paid: 0 };
+      const m = milestones.get(company.id);
+      row.companies += 1;
+      if (m?.firstExtractionAt) row.extraction += 1;
+      if (m?.firstContactAt) row.contact += 1;
+      if (m?.firstQuotationAt) row.quotation += 1;
+      if (m?.paidAt) row.paid += 1;
+      months.set(month, row);
+    }
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      cohortSize: companies.length,
+      steps,
+      byMonth: [...months.values()].sort((a, b) => b.month.localeCompare(a.month))
+    };
+  }
+};
+var adminActivationFunnel_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+
+// graphql/customs/queries/admin/adminCohorts.ts
+var typeDefs72 = `
+  input AdminCohortsInput {
+    """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
+    months: Int
+  }
+
+  type AdminCohortRow {
+    """Mes de registro (YYYY-MM)."""
+    month: String!
+    size: Int!
+    """Empresas que usaron Kadesh en el mes de registro (posici\xF3n 0), el siguiente (1)\u2026 hasta el mes actual."""
+    active: [Int!]!
+  }
+
+  type AdminCohorts {
+    rows: [AdminCohortRow!]!
+  }
+
+  type Query {
+    adminCohorts(input: AdminCohortsInput): AdminCohorts!
+  }
+`;
+var definition69 = `
+  adminCohorts(input: AdminCohortsInput): AdminCohorts!
+`;
+function shiftMonth(month, offset) {
+  const [year, m] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(year, m - 1 + offset, 1));
+  return date.toISOString().slice(0, 7);
+}
+function monthsBetween(from, to) {
+  const [fy, fm] = from.split("-").map(Number);
+  const [ty, tm] = to.split("-").map(Number);
+  return (ty - fy) * 12 + (tm - fm);
+}
+var resolver69 = {
+  adminCohorts: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const monthsBack = clampInt(input?.months, 3, 12, 6);
+    const currentMonth = toMxDay(/* @__PURE__ */ new Date()).slice(0, 7);
+    const firstMonth = shiftMonth(currentMonth, -(monthsBack - 1));
+    const start = /* @__PURE__ */ new Date(`${firstMonth}-01T00:00:00.000-06:00`);
+    const startUtc = start.toISOString().slice(0, 23).replace("T", " ");
+    const excludedIds = await analyticsExcludedCompanyIds(prisma);
+    const companies = (await prisma.saasCompany.findMany({
+      where: { createdAt: { gte: start } },
+      select: { id: true, createdAt: true }
+    })).filter((company) => !excludedIds.has(company.id));
+    if (!companies.length) return { rows: [] };
+    const ids = companies.map((company) => company.id);
+    const activity = unwrapPrisma(await prisma.$queryRaw`
+      WITH activity AS (
+        SELECT "company" AS company_id, "day" AS d
+          FROM "UserActivityDay"
+          WHERE "company" = ANY(${ids}::text[]) AND "day" >= ${`${firstMonth}-01`}::date
+        UNION ALL
+        SELECT "company", (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date
+          FROM "TechLeadSyncLog"
+          WHERE "company" = ANY(${ids}::text[]) AND "createdAt" >= ${startUtc}::timestamp
+        UNION ALL
+        SELECT u."company", ((l."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date
+          FROM "UserAuthLog" l
+          JOIN "User" u ON u."id" = l."user"
+          WHERE l."success" AND u."company" = ANY(${ids}::text[]) AND l."createdAt" >= ${startUtc}::timestamp
+        UNION ALL
+        SELECT "company", (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date
+          FROM "ActivityEvent"
+          WHERE "company" = ANY(${ids}::text[]) AND "actor" IS NOT NULL AND "source" = 'web'
+            AND "createdAt" >= ${startUtc}::timestamp
+        UNION ALL
+        SELECT "company", (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date
+          FROM "SaasQuotation"
+          WHERE "company" = ANY(${ids}::text[]) AND "createdAt" >= ${startUtc}::timestamp
+      )
+      SELECT company_id AS "companyId", to_char(d, 'YYYY-MM') AS "month"
+      FROM activity
+      GROUP BY 1, 2
+    `);
+    const activeMonths = /* @__PURE__ */ new Map();
+    for (const row of activity) {
+      const set = activeMonths.get(row.companyId) ?? /* @__PURE__ */ new Set();
+      set.add(row.month);
+      activeMonths.set(row.companyId, set);
+    }
+    const cohorts = /* @__PURE__ */ new Map();
+    for (const company of companies) {
+      if (!company.createdAt) continue;
+      const month = toMxDay(company.createdAt).slice(0, 7);
+      cohorts.set(month, [...cohorts.get(month) ?? [], company.id]);
+    }
+    const rows = [];
+    for (let offset = 0; offset < monthsBack; offset += 1) {
+      const month = shiftMonth(firstMonth, offset);
+      const members = cohorts.get(month) ?? [];
+      const span = monthsBetween(month, currentMonth) + 1;
+      const active = Array.from({ length: span }, (_, index) => {
+        const target = shiftMonth(month, index);
+        return members.filter((id) => activeMonths.get(id)?.has(target)).length;
+      });
+      rows.push({ month, size: members.length, active });
+    }
+    return { rows };
+  }
+};
+var adminCohorts_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+
+// graphql/customs/queries/admin/adminEngagement.ts
+var MAU_DAYS = 30;
+var WAU_DAYS = 7;
+var MODULES = [
+  { key: "extraction", field: "extractions" },
+  { key: "crm", field: "crmChanges" },
+  { key: "activities", field: "activitiesLogged" },
+  { key: "quotations", field: "quotationsCreated" },
+  { key: "whatsapp", field: "whatsappSent" },
+  { key: "ai", field: "aiCalls" }
+];
+var typeDefs73 = `
+  input AdminEngagementInput {
+    """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
+    days: Int
+  }
+
+  type AdminDailyActive {
+    day: String!
+    users: Int!
+    companies: Int!
+  }
+
+  type AdminModuleAdoption {
+    """extraction | crm | activities | quotations | whatsapp | ai"""
+    key: String!
+    companies: Int!
+  }
+
+  type AdminPlanAdoption {
+    planName: String!
+    """Empresas activas o en prueba con este plan."""
+    companies: Int!
+    """Cu\xE1ntas usaron cada m\xF3dulo en los \xFAltimos 30 d\xEDas."""
+    modules: [AdminModuleAdoption!]!
+  }
+
+  type AdminSectionUsage {
+    """Clave de secci\xF3n del panel (la etiqueta la pone el front)."""
+    key: String!
+    views: Int!
+    users: Int!
+  }
+
+  type AdminEngagement {
+    """false mientras no haya latidos ni resumen diario."""
+    ready: Boolean!
+    through: String!
+    series: [AdminDailyActive!]!
+    """Promedio de personas activas por d\xEDa en los \xFAltimos 30 d\xEDas."""
+    dau: Float!
+    wau: Int!
+    mau: Int!
+    """DAU \xF7 MAU (0\u20131): qu\xE9 tan seguido vuelve quien usa Kadesh en el mes."""
+    stickiness: Float!
+    activeCompanies7d: Int!
+    activeCompanies30d: Int!
+    plans: [AdminPlanAdoption!]!
+    sections: [AdminSectionUsage!]!
+  }
+
+  type Query {
+    adminEngagement(input: AdminEngagementInput): AdminEngagement!
+  }
+`;
+var definition70 = `
+  adminEngagement(input: AdminEngagementInput): AdminEngagement!
+`;
+var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
+var resolver70 = {
+  adminEngagement: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 14, 90, 30);
+    const through = shiftDay(mxToday(), -1);
+    const firstDay = shiftDay(through, -(Math.max(days, MAU_DAYS) - 1));
+    const monthStartDay = shiftDay(through, -(MAU_DAYS - 1));
+    const weekStartDay = shiftDay(through, -(WAU_DAYS - 1));
+    const excludedIds = [...await analyticsExcludedCompanyIds(prisma)];
+    const excludedUsers = await prisma.user.findMany({
+      where: { OR: [{ userTest: true }, { roles: { some: { name: "admin" /* ADMIN */ } } }] },
+      select: { id: true }
+    });
+    const excludedUserIds = excludedUsers.map((user) => user.id);
+    const activity = prisma.userActivityDay ? await optional(
+      () => prisma.userActivityDay.findMany({
+        where: {
+          day: { gte: dayDate2(firstDay), lte: dayDate2(through) },
+          userId: { notIn: excludedUserIds },
+          OR: [{ companyId: null }, { companyId: { notIn: excludedIds } }]
+        },
+        select: { day: true, userId: true, companyId: true }
+      }),
+      []
+    ) : [];
+    const usersByDay = /* @__PURE__ */ new Map();
+    const companiesByDay = /* @__PURE__ */ new Map();
+    const weekUsers = /* @__PURE__ */ new Set();
+    const monthUsers = /* @__PURE__ */ new Set();
+    const weekCompanies = /* @__PURE__ */ new Set();
+    const monthCompanies = /* @__PURE__ */ new Set();
+    for (const row of activity) {
+      if (!row.userId) continue;
+      const day = new Date(row.day).toISOString().slice(0, 10);
+      const users = usersByDay.get(day) ?? /* @__PURE__ */ new Set();
+      users.add(row.userId);
+      usersByDay.set(day, users);
+      if (row.companyId) {
+        const companies = companiesByDay.get(day) ?? /* @__PURE__ */ new Set();
+        companies.add(row.companyId);
+        companiesByDay.set(day, companies);
+      }
+      if (day >= monthStartDay) {
+        monthUsers.add(row.userId);
+        if (row.companyId) monthCompanies.add(row.companyId);
+      }
+      if (day >= weekStartDay) {
+        weekUsers.add(row.userId);
+        if (row.companyId) weekCompanies.add(row.companyId);
+      }
+    }
+    const series = Array.from({ length: days }, (_, index) => {
+      const day = shiftDay(through, -(days - 1 - index));
+      return {
+        day,
+        users: usersByDay.get(day)?.size ?? 0,
+        companies: companiesByDay.get(day)?.size ?? 0
+      };
+    });
+    let monthDaily = 0;
+    for (let index = 0; index < MAU_DAYS; index += 1) {
+      monthDaily += usersByDay.get(shiftDay(through, -index))?.size ?? 0;
+    }
+    const dau = Math.round(monthDaily / MAU_DAYS * 10) / 10;
+    const mau = monthUsers.size;
+    const usage = prisma.saasCompanyDailyUsage ? await optional(
+      () => prisma.saasCompanyDailyUsage.groupBy({
+        by: ["companyId"],
+        where: {
+          day: { gte: dayDate2(monthStartDay), lte: dayDate2(through) },
+          companyId: { notIn: excludedIds }
+        },
+        _sum: Object.fromEntries(
+          [...MODULES.map((module2) => module2.field), "extractionsFailed"].map((field) => [field, true])
+        )
+      }),
+      []
+    ) : [];
+    const usageByCompany = new Map(usage.map((row) => [row.companyId, row._sum]));
+    const latest = await latestSubscriptionsByCompany(prisma);
+    const plans = /* @__PURE__ */ new Map();
+    for (const [companyId, sub] of latest) {
+      if (excludedIds.includes(companyId)) continue;
+      if (sub.status !== SUBSCRIPTION_STATUS.ACTIVE && sub.status !== SUBSCRIPTION_STATUS.TRIALING) continue;
+      const planName = sub.planName || "Sin nombre";
+      const plan = plans.get(planName) ?? { planName, companies: 0, modules: /* @__PURE__ */ new Map() };
+      plan.companies += 1;
+      const sums = usageByCompany.get(companyId);
+      for (const module2 of MODULES) {
+        let value = Number(sums?.[module2.field] ?? 0);
+        if (module2.key === "extraction") value -= Number(sums?.extractionsFailed ?? 0);
+        if (value > 0) plan.modules.set(module2.key, (plan.modules.get(module2.key) ?? 0) + 1);
+      }
+      plans.set(planName, plan);
+    }
+    const sectionsSince = `${monthStartDay} 06:00:00`;
+    const sections = await optional(
+      () => prisma.$queryRaw`
+        SELECT "metadata"->>'section' AS "key", COUNT(*)::int AS "views", COUNT(DISTINCT "actor")::int AS "users"
+        FROM "ActivityEvent"
+        WHERE "type" = ${ACTIVITY_EVENT.UI_SECTION_VIEWED}
+          AND "createdAt" >= ${sectionsSince}::timestamp
+          AND "actor" IS NOT NULL
+          AND NOT ("actor" = ANY(${excludedUserIds}::text[]))
+          AND ("company" IS NULL OR NOT ("company" = ANY(${excludedIds}::text[])))
+        GROUP BY 1
+        ORDER BY 3 DESC, 2 DESC
+        LIMIT 30
+      `,
+      []
+    );
+    return {
+      ready: activity.length > 0 || usage.length > 0,
+      through,
+      series,
+      dau,
+      wau: weekUsers.size,
+      mau,
+      stickiness: mau ? Math.round(dau / mau * 1e3) / 1e3 : 0,
+      activeCompanies7d: weekCompanies.size,
+      activeCompanies30d: monthCompanies.size,
+      plans: [...plans.values()].sort((a, b) => b.companies - a.companies).map((plan) => ({
+        planName: plan.planName,
+        companies: plan.companies,
+        modules: MODULES.map((module2) => ({ key: module2.key, companies: plan.modules.get(module2.key) ?? 0 }))
+      })),
+      sections: sections.filter((row) => row.key).map((row) => ({ key: row.key, views: row.views, users: row.users }))
+    };
+  }
+};
+var adminEngagement_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+
+// graphql/customs/queries/admin/adminDemandGaps.ts
+var ZONE_STEP = 0.1;
+var LIST_LIMIT = 25;
+var typeDefs74 = `
+  input AdminDemandGapsInput {
+    """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
+    days: Int
+    """Con estos resultados o menos la corrida cuenta como "pocos" (0\u201320, por defecto 5)."""
+    threshold: Int
+  }
+
+  type AdminDemandCategory {
+    category: String!
+    runs: Int!
+    lowRuns: Int!
+    avgResults: Float!
+    companies: Int!
+  }
+
+  type AdminDemandZone {
+    """Centro aproximado del cuadro de unos 11 km."""
+    lat: Float!
+    lng: Float!
+    runs: Int!
+    lowRuns: Int!
+    avgResults: Float!
+    companies: Int!
+    """Giros con pocos resultados en la zona (los que m\xE1s se repiten)."""
+    topCategories: [String!]!
+  }
+
+  type AdminDemandGap {
+    category: String!
+    lat: Float!
+    lng: Float!
+    runs: Int!
+    lowRuns: Int!
+    avgResults: Float!
+    companies: Int!
+    lastAt: String
+  }
+
+  type AdminDemandGaps {
+    days: Int!
+    threshold: Int!
+    runs: Int!
+    lowRuns: Int!
+    """Giros con m\xE1s corridas de pocos resultados."""
+    categories: [AdminDemandCategory!]!
+    zones: [AdminDemandZone!]!
+    """Giro + zona que se buscaron varias veces sin encontrar."""
+    gaps: [AdminDemandGap!]!
+  }
+
+  type Query {
+    adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
+  }
+`;
+var definition71 = `
+  adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
+`;
+function emptyBucket() {
+  return { runs: 0, lowRuns: 0, results: 0, companies: /* @__PURE__ */ new Set(), lastAt: null };
+}
+function addRun(bucket, results, low, companyId, at) {
+  bucket.runs += 1;
+  bucket.results += results;
+  if (low) bucket.lowRuns += 1;
+  if (companyId) bucket.companies.add(companyId);
+  if (at && (!bucket.lastAt || at > bucket.lastAt)) bucket.lastAt = at;
+}
+var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
+var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
+var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
+var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
+var resolver71 = {
+  adminDemandGaps: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 7, 365, 90);
+    const threshold = clampInt(input?.threshold, 0, 20, 5);
+    const excludedIds = [...await analyticsExcludedCompanyIds(prisma)];
+    const runs = await prisma.techLeadSyncLog.findMany({
+      where: {
+        success: true,
+        createdAt: { gte: daysAgo(days) },
+        OR: [{ companyId: null }, { companyId: { notIn: excludedIds } }]
+      },
+      select: {
+        companyId: true,
+        category: true,
+        lat: true,
+        lng: true,
+        created: true,
+        alreadyInDb: true,
+        createdAt: true
+      }
+    });
+    const categories = /* @__PURE__ */ new Map();
+    const zones = /* @__PURE__ */ new Map();
+    const gaps = /* @__PURE__ */ new Map();
+    let lowRuns = 0;
+    for (const run2 of runs) {
+      const results = (run2.created ?? 0) + (run2.alreadyInDb ?? 0);
+      const low = results <= threshold;
+      if (low) lowRuns += 1;
+      const category = run2.category?.trim() || "Sin giro";
+      const at = run2.createdAt ? new Date(run2.createdAt) : null;
+      const categoryBucket = categories.get(category) ?? emptyBucket();
+      addRun(categoryBucket, results, low, run2.companyId, at);
+      categories.set(category, categoryBucket);
+      if (run2.lat == null || run2.lng == null) continue;
+      const zone = zoneKey(run2.lat, run2.lng);
+      const zoneBucket = zones.get(zone) ?? { ...emptyBucket(), lowCategories: /* @__PURE__ */ new Map() };
+      addRun(zoneBucket, results, low, run2.companyId, at);
+      if (low) zoneBucket.lowCategories?.set(category, (zoneBucket.lowCategories.get(category) ?? 0) + 1);
+      zones.set(zone, zoneBucket);
+      const gapKey = `${category}|${zone}`;
+      const gapBucket = gaps.get(gapKey) ?? { ...emptyBucket(), category, zone };
+      addRun(gapBucket, results, low, run2.companyId, at);
+      gaps.set(gapKey, gapBucket);
+    }
+    const coords = (zone) => {
+      const [lat, lng] = zone.split(",").map(Number);
+      return { lat, lng };
+    };
+    return {
+      days,
+      threshold,
+      runs: runs.length,
+      lowRuns,
+      categories: [...categories.entries()].filter(([, bucket]) => bucket.lowRuns > 0).sort(([, a], [, b]) => byLowRuns(a, b)).slice(0, LIST_LIMIT).map(([category, bucket]) => ({
+        category,
+        runs: bucket.runs,
+        lowRuns: bucket.lowRuns,
+        avgResults: avg(bucket),
+        companies: bucket.companies.size
+      })),
+      zones: [...zones.entries()].filter(([, bucket]) => bucket.lowRuns > 0).sort(([, a], [, b]) => byLowRuns(a, b)).slice(0, LIST_LIMIT).map(([zone, bucket]) => ({
+        ...coords(zone),
+        runs: bucket.runs,
+        lowRuns: bucket.lowRuns,
+        avgResults: avg(bucket),
+        companies: bucket.companies.size,
+        topCategories: [...bucket.lowCategories?.entries() ?? []].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([category]) => category)
+      })),
+      // Una sola corrida floja puede ser un error de dedo: se piden al menos 2.
+      gaps: [...gaps.values()].filter((bucket) => bucket.lowRuns >= 2).sort(byLowRuns).slice(0, LIST_LIMIT).map((bucket) => ({
+        category: bucket.category,
+        ...coords(bucket.zone),
+        runs: bucket.runs,
+        lowRuns: bucket.lowRuns,
+        avgResults: avg(bucket),
+        companies: bucket.companies.size,
+        lastAt: toIso(bucket.lastAt)
+      }))
+    };
+  }
+};
+var adminDemandGaps_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+
+// graphql/customs/queries/admin/adminAcquisition.ts
+var LIST_LIMIT2 = 10;
+var REFERRAL = "Referido";
+var typeDefs75 = `
+  input AdminAcquisitionInput {
+    """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
+    days: Int
+  }
+
+  type AdminAcquisitionRow {
+    key: String!
+    companies: Int!
+    """Hicieron al menos una extracci\xF3n."""
+    activated: Int!
+    paid: Int!
+  }
+
+  type AdminAcquisition {
+    days: Int!
+    companies: Int!
+    """Empresas con atribuci\xF3n guardada (las anteriores a esta medici\xF3n salen como "Sin dato")."""
+    withData: Int!
+    """utm_source, dominio que refiri\xF3, Directo, Referido o Sin dato."""
+    channels: [AdminAcquisitionRow!]!
+    """P\xE1gina por la que entraron (sin query)."""
+    landings: [AdminAcquisitionRow!]!
+    """utm_campaign"""
+    campaigns: [AdminAcquisitionRow!]!
+  }
+
+  type Query {
+    adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
+  }
+`;
+var definition72 = `
+  adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
+`;
+function bump2(map, key, activated, paid) {
+  const row = map.get(key) ?? { key, companies: 0, activated: 0, paid: 0 };
+  row.companies += 1;
+  if (activated) row.activated += 1;
+  if (paid) row.paid += 1;
+  map.set(key, row);
+}
+var sortRows = (map, limit) => {
+  const rows = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
+  return limit ? rows.slice(0, limit) : rows;
+};
+var resolver72 = {
+  adminAcquisition: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 7, 365, 90);
+    const excludedIds = await analyticsExcludedCompanyIds(prisma);
+    const companies = (await prisma.saasCompany.findMany({
+      where: { createdAt: { gte: daysAgo(days) } },
+      select: { id: true }
+    })).filter((company) => !excludedIds.has(company.id));
+    const ids = companies.map((company) => company.id);
+    const users = ids.length ? await prisma.user.findMany({
+      where: { companyId: { in: ids } },
+      orderBy: [{ createdAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+      select: { companyId: true, signupAttribution: true, referredById: true }
+    }) : [];
+    const founder = /* @__PURE__ */ new Map();
+    for (const user of users) {
+      if (user.companyId && !founder.has(user.companyId)) founder.set(user.companyId, user);
+    }
+    const milestones = await loadCompanyMilestones(prisma, ids);
+    const channels = /* @__PURE__ */ new Map();
+    const landings = /* @__PURE__ */ new Map();
+    const campaigns = /* @__PURE__ */ new Map();
+    let withData = 0;
+    for (const companyId of ids) {
+      const user = founder.get(companyId);
+      const attribution = user?.signupAttribution ?? null;
+      const m = milestones.get(companyId);
+      const activated = Boolean(m?.firstExtractionAt);
+      const paid = Boolean(m?.paidAt);
+      if (attribution || user?.referredById) withData += 1;
+      const channel = user?.referredById ? REFERRAL : attributionChannel(attribution);
+      bump2(channels, channel, activated, paid);
+      if (attribution?.landingPath) bump2(landings, attribution.landingPath, activated, paid);
+      if (attribution?.utm_campaign) bump2(campaigns, attribution.utm_campaign, activated, paid);
+    }
+    return {
+      days,
+      companies: ids.length,
+      withData,
+      channels: sortRows(channels),
+      landings: sortRows(landings, LIST_LIMIT2),
+      campaigns: sortRows(campaigns, LIST_LIMIT2)
+    };
+  }
+};
+var adminAcquisition_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -31666,6 +33135,12 @@ var customQuery = {
     ${adminCompanyInsights_default.typeDefs}
     ${adminCompanyTrends_default.typeDefs}
     ${adminActivityFeed_default.typeDefs}
+    ${adminHealth_default.typeDefs}
+    ${adminActivationFunnel_default.typeDefs}
+    ${adminCohorts_default.typeDefs}
+    ${adminEngagement_default.typeDefs}
+    ${adminDemandGaps_default.typeDefs}
+    ${adminAcquisition_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -31689,6 +33164,12 @@ var customQuery = {
     ${adminCompanyInsights_default.definition}
     ${adminCompanyTrends_default.definition}
     ${adminActivityFeed_default.definition}
+    ${adminHealth_default.definition}
+    ${adminActivationFunnel_default.definition}
+    ${adminCohorts_default.definition}
+    ${adminEngagement_default.definition}
+    ${adminDemandGaps_default.definition}
+    ${adminAcquisition_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -31711,7 +33192,13 @@ var customQuery = {
     ...adminOpsSummary_default.resolver,
     ...adminCompanyInsights_default.resolver,
     ...adminCompanyTrends_default.resolver,
-    ...adminActivityFeed_default.resolver
+    ...adminActivityFeed_default.resolver,
+    ...adminHealth_default.resolver,
+    ...adminActivationFunnel_default.resolver,
+    ...adminCohorts_default.resolver,
+    ...adminEngagement_default.resolver,
+    ...adminDemandGaps_default.resolver,
+    ...adminAcquisition_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -32116,8 +33603,8 @@ function apiToken() {
   const value = process.env.CLICKUP_API_TOKEN?.trim();
   return value || void 0;
 }
-function clip(text71, max = 300) {
-  const trimmed = text71.replace(/\s+/g, " ").trim();
+function clip(text72, max = 300) {
+  const trimmed = text72.replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -32180,10 +33667,10 @@ async function getTaskComments(taskId) {
   if (!Array.isArray(comments)) return [];
   return comments.filter(isComment);
 }
-async function commentTask(taskId, text71) {
+async function commentTask(taskId, text72) {
   await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
     method: "POST",
-    body: { comment_text: text71, notify_all: false }
+    body: { comment_text: text72, notify_all: false }
   });
 }
 async function downloadClickUpFile(url, maxBytes) {
@@ -32235,11 +33722,11 @@ function apiKey() {
   const value = process.env.PIXABAY_API_KEY?.trim();
   return value || void 0;
 }
-function redact(text71) {
-  return text71.replace(/key=[^&\s]+/gi, "key=***");
+function redact(text72) {
+  return text72.replace(/key=[^&\s]+/gi, "key=***");
 }
-function clip2(text71, max = 200) {
-  const trimmed = redact(text71).replace(/\s+/g, " ").trim();
+function clip2(text72, max = 200) {
+  const trimmed = redact(text72).replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -32528,8 +34015,8 @@ function readLink(input, start, bold) {
   const label = input.slice(start + 1, labelEnd);
   const href = input.slice(labelEnd + 2, hrefEnd).trim();
   if (!label || !href || label.includes("[") || label.includes("]")) return null;
-  const text71 = bold ? { text: label, bold: true } : { text: label };
-  return { node: { type: "link", href, children: [text71] }, next: hrefEnd + 1 };
+  const text72 = bold ? { text: label, bold: true } : { text: label };
+  return { node: { type: "link", href, children: [text72] }, next: hrefEnd + 1 };
 }
 function parseInlines(input, bold = false) {
   const nodes = [];
@@ -32574,10 +34061,10 @@ function boldOnlyInner(line) {
   if (!inner.trim() || inner.includes("**")) return null;
   return inner.trim();
 }
-function listItem(text71) {
+function listItem(text72) {
   return {
     type: "list-item",
-    children: [{ type: "list-item-content", children: padInlines(parseInlines(text71.trim())) }]
+    children: [{ type: "list-item-content", children: padInlines(parseInlines(text72.trim())) }]
   };
 }
 function markdownToDocument(markdown) {
@@ -32586,10 +34073,10 @@ function markdownToDocument(markdown) {
   let paragraphLines = [];
   let list81 = null;
   const flushParagraph = () => {
-    const text71 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
+    const text72 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
     paragraphLines = [];
-    if (!text71) return;
-    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text71)) });
+    if (!text72) return;
+    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text72)) });
   };
   const flushList = () => {
     if (!list81 || list81.items.length === 0) {
@@ -32641,10 +34128,10 @@ function inlineToText(nodes) {
 function excerptFromDocument(nodes, max = EXCERPT_MAX) {
   for (const node of nodes) {
     if (node.type !== "paragraph") continue;
-    const text71 = inlineToText(node.children).replace(/\s+/g, " ").trim();
-    if (!text71) continue;
-    if (text71.length <= max) return text71;
-    const slice = text71.slice(0, max);
+    const text72 = inlineToText(node.children).replace(/\s+/g, " ").trim();
+    if (!text72) continue;
+    if (text72.length <= max) return text72;
+    const slice = text72.slice(0, max);
     const lastSpace = slice.lastIndexOf(" ");
     if (lastSpace <= 0) return slice.trimEnd();
     return slice.slice(0, lastSpace).trimEnd();
@@ -32826,10 +34313,10 @@ function isApprovedStatusUpdate(payload) {
 }
 function commentForError(err) {
   const message = err instanceof Error ? err.message : "";
-  const text71 = message.replace(/^\[clickup\]\s*/, "").trim();
-  if (!text71) return "No se pudo programar el post.";
-  if (text71.length <= 500) return text71;
-  return `${text71.slice(0, 500)}\u2026`;
+  const text72 = message.replace(/^\[clickup\]\s*/, "").trim();
+  if (!text72) return "No se pudo programar el post.";
+  if (text72.length <= 500) return text72;
+  return `${text72.slice(0, 500)}\u2026`;
 }
 async function handleClickUpWebhook(req, res, context) {
   try {
@@ -33482,6 +34969,8 @@ var keystone_default = withSessionGuards(withAuth(
         plugins: [
           // Con un token de "entrar como" no pasa ninguna mutación (solo lectura).
           impersonationReadOnlyPlugin,
+          // Token que ya no vale (sesiones cerradas, suspensión, vencido): se avisa al front.
+          sessionEndedNoticePlugin,
           {
             async requestDidStart() {
               return {

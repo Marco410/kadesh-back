@@ -279,3 +279,14 @@ Cada señal trae un motivo (`reason`) para que Inicio no repita avisos que ya ti
 **Qué se cambió:** `optionalRead` ahora trata un error devuelto igual que uno lanzado, y las consultas SQL crudas nuevas pasan por `unwrapPrisma`, que vuelve a lanzar el error para que no se confunda con "sin filas".
 
 **Qué no hacer:** no dar por hecho que un `await prisma.x.create(...)` con el Prisma de Keystone lanza si falla. Si importa, revisar `resultado instanceof Error`.
+
+## 2026-10-12 — Sesión terminada: el panel ya no se queda vacío
+
+**Qué pasaba:** al usar "Cerrar sesiones del equipo", el servidor dejaba de reconocer el token, pero el navegador no se enteraba: la persona se quedaba en un panel vacío ("No hay una empresa vinculada", "No se pudo guardar"). El front a propósito no borra al usuario cuando hay token y el servidor no lo reconoce (por un caso del login con Google), así que nunca salía.
+
+**Qué se cambió:**
+- El guardián de sesión anota por qué descartó el token de la petición: `revoked` (sesiones cerradas), `suspended`, `anonymized`, `impersonation_expired` o `expired` (vencido o inválido). `sessionEndedNoticePlugin` lo pone en la respuesta: `extensions.session: { status, message }`. Sin token no se agrega nada.
+- El front (Apollo y el latido del registro de uso) ve ese aviso, borra el token y lleva al login con el mensaje y con `redirect` para volver a donde estaba. Si es un admin en "entrar como", en vez de eso vuelve a Operaciones con su sesión.
+- `sessionBlockReason` revisa primero suspensión y anonimización y después la versión: suspender también sube la versión, y si no la persona vería "tu sesión expiró" en lugar del aviso de suspensión.
+
+**Por qué en la respuesta y no con un error:** con un error, cada pantalla tendría que manejarlo; con el aviso en `extensions` los datos siguen igual (vacíos) y un solo lugar del front decide qué hacer.

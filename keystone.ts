@@ -2,7 +2,7 @@ import "./env";
 import lists from "./models/schema";
 import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
-import { withSessionGuards } from "./auth/sessionGuards";
+import { sessionEndedNoticePlugin, withSessionGuards } from "./auth/sessionGuards";
 import { impersonationReadOnlyPlugin } from "./auth/impersonation";
 import extendGraphqlSchema from "./graphql/extendedSchema";
 import { isPlatformAdmin } from "./utils/access/tenant";
@@ -187,6 +187,8 @@ export default withSessionGuards(withAuth(
         plugins: [
           // Con un token de "entrar como" no pasa ninguna mutación (solo lectura).
           impersonationReadOnlyPlugin,
+          // Token que ya no vale (sesiones cerradas, suspensión, vencido): se avisa al front.
+          sessionEndedNoticePlugin,
           {
             async requestDidStart() {
               return {

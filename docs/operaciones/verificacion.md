@@ -105,3 +105,14 @@ Prueba de humo, 64 de 64, sobre una copia sembrada con 7 empresas de ejemplo (sa
 3. Para tener salud y uso con historia: `pnpm usage:rollup --from=AAAA-MM-DD --to=AAAA-MM-DD` (por ejemplo, los últimos 90 días). Sin resumen diario la salud no se muestra.
 4. Registrarse en una ventana privada entrando con `?utm_source=prueba&utm_campaign=prueba`: Operaciones → Analítica → Adquisición muestra el canal "prueba".
 5. Aviso de privacidad: mencionar la atribución de registro (UTM, sitio de origen y página de entrada).
+
+## Sesión terminada — lo que ya se probó (2026-10-12, copia desechable)
+
+Por HTTP: con token válido o sin token la respuesta no trae aviso; con un token inválido trae `extensions.session.status = "expired"`.
+
+En el navegador:
+- Jose con el panel abierto; Kadesh cierra las sesiones de su equipo; al moverse en el panel sale al login con "Tu sesión expiró. Vuelve a iniciar sesión." y sin token guardado.
+- Al volver a entrar regresa a la misma sección.
+- Una persona suspendida con un token de antes llega al login con el aviso de suspensión.
+- Un admin viendo el panel "como" Jose: al cerrarse las sesiones de Jose vuelve a Operaciones con su propia sesión.
+- Un token viejo en la pantalla de login no provoca vueltas.
