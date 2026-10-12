@@ -5,6 +5,8 @@ import {
   canManageCompanyWhatsapp,
   denyCompanyWhatsappAccessMessage,
 } from "./access";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 /**
  * "Guardar como cliente" de un número que escribió sin ser cliente: los mensajes que ya llegaron
@@ -69,6 +71,16 @@ const resolver = {
         OR: [{ fromPhone: { endsWith: tail } }, { toPhone: { endsWith: tail } }],
       },
       data: { businessLeadId },
+    });
+
+    // Sin el teléfono del contacto: basta con el lead y cuántos mensajes se enlazaron.
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.WHATSAPP_CONTACT_LINKED,
+      companyId,
+      entityType: "TechBusinessLead",
+      entityId: businessLeadId,
+      summary: `Enlazó una conversación de WhatsApp a un cliente (${count} mensajes)`,
+      metadata: { linkedMessages: count },
     });
 
     return toResult(true, "Conversación enlazada al cliente", count);

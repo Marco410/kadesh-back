@@ -2,11 +2,15 @@ import "./env";
 import lists from "./models/schema";
 import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
+import { sessionEndedNoticePlugin, withSessionGuards } from "./auth/sessionGuards";
+import { impersonationReadOnlyPlugin } from "./auth/impersonation";
+import { appErrorsPlugin } from "./utils/activity/appErrorsPlugin";
 import extendGraphqlSchema from "./graphql/extendedSchema";
 import { isPlatformAdmin } from "./utils/access/tenant";
 import registerWhatsAppWebhook from "./webhooks/whatsapp";
 import registerClickUpWebhook from "./webhooks/clickup";
 import registerMetaDataDeletionWebhook from "./webhooks/metaDataDeletion";
+import registerStripeWebhook from "./webhooks/stripe";
 
 // Setup environment variables
 const path = require("path");
@@ -152,7 +156,8 @@ const storage: Record<string, any> = {
       }),
 };
 
-export default withAuth(
+// withSessionGuards va por fuera de withAuth: revisa la sesión ya con sus datos (suspensión, versión, "entrar como").
+export default withSessionGuards(withAuth(
   config({
     db: {
       provider: "postgresql",
@@ -170,6 +175,7 @@ export default withAuth(
         registerWhatsAppWebhook(app, context);
         registerClickUpWebhook(app, context);
         registerMetaDataDeletionWebhook(app, context);
+        registerStripeWebhook(app, context);
       },
     },
     storage,
@@ -180,6 +186,12 @@ export default withAuth(
       bodyParser: { limit: "15mb" },
       apolloConfig: {
         plugins: [
+          // Con un token de "entrar como" no pasa ninguna mutación (solo lectura).
+          impersonationReadOnlyPlugin,
+          // Token que ya no vale (sesiones cerradas, suspensión, vencido): se avisa al front.
+          sessionEndedNoticePlugin,
+          // Errores que ve alguien con sesión: quedan en Actividad → Errores (sin variables).
+          appErrorsPlugin,
           {
             async requestDidStart() {
               return {
@@ -203,4 +215,4 @@ export default withAuth(
     lists,
     session,
   }),
-);
+));

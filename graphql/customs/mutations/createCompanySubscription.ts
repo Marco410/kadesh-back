@@ -5,6 +5,7 @@ import { PLAN_FREQUENCY } from "../../../models/Saas/SaasPlan/constants";
 import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../models/Saas/SaasSubscriptionLog/constants";
 import { writeSaasSubscriptionLog } from "../../../utils/saas/saasSubscriptionLogWrite";
 import { grantPlanCreditsOnSubscription } from "../../../utils/saas/companyCredits";
+import { canActForEmail } from "../../../utils/access/tenant";
 
 const typeDefs = `
   input CreateCompanySubscriptionInput {
@@ -162,6 +163,15 @@ const resolver = {
     };
 
     try {
+      if (!canActForEmail(context.session, input.email)) {
+        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
+          success: false,
+          message: "Inicia sesión con la cuenta que va a contratar el plan.",
+          subscriptionId: null,
+          paymentId: null,
+        });
+      }
+
       if (!process.env.STRIPE_SECRET_KEY) {
         return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,

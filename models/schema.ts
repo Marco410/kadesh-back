@@ -6,6 +6,9 @@ import AnimalLog from "./Pet/Animal/AnimalLog/AnimalLog";
 import AnimalComment from "./Pet/Animal/AnimalComment/AnimalComment";
 import User from "./User/User";
 import UserAuthLog from "./User/UserAuthLog/UserAuthLog";
+import UserActivityDay from "./User/UserActivityDay/UserActivityDay";
+import ActivityEvent from "./ActivityEvent/ActivityEvent";
+import { withActivityHooks } from "../utils/activity/listActivityHooks";
 import AnimalBreed from "./Pet/Animal/AnimalBreed/AnimalBreed";
 import Pet from "./Pet/Pet";
 import PetMultimedia from "./Pet/PetMultimedia/PetMultimedia";
@@ -39,6 +42,7 @@ import ContactForm from "./ContactForm/ContactForm";
 import MetaDataDeletionRequest from "./Saas/MetaDataDeletionRequest/MetaDataDeletionRequest";
 import TechBusinessLead from "./Saas/Tech/BusinessLead/TechBusinessLead";
 import TechStatusBusinessLead from "./Saas/Tech/StatusBusinessLead/TechStatusBusinessLead";
+import TechLeadStageChange from "./Saas/Tech/LeadStageChange/TechLeadStageChange";
 import TechFollowUpTask from "./Saas/Tech/FollowUpTask/TechFollowUpTask";
 import TechProposal from "./Saas/Tech/Proposal/TechProposal";
 import TechSalesActivity from "./Saas/Tech/SalesActivity/TechSalesActivity";
@@ -58,6 +62,8 @@ import SaasCredit from "./Saas/SaasCredit/SaasCredit";
 import SaasCompanyMonthlyLeadSync from "./Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync";
 import SaasCompanyCreditPeriod from "./Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod";
 import SaasCompanyCreditLedger from "./Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger";
+import SaasCompanyNote from "./Saas/SaasCompanyNote/SaasCompanyNote";
+import SaasCompanyDailyUsage from "./Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage";
 import SaasCompanySubscription from "./Saas/SaasCompanySubscription/SaasCompanySubscription";
 import SaasPaymentMethod from "./Saas/SaasPaymentMethod/SaasPaymentMethod";
 import SaasPayment from "./Saas/SaasPayment/SaasPayment";
@@ -75,7 +81,9 @@ import TechCalendarEvent from "./Saas/Tech/CalendarEvent/TechCalendarEvent";
 import TechCalendarEventGoogleLink from "./Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink";
 import TechGoogleCalendarSyncLog from "./Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog";
 
-export default {
+// withActivityHooks agrega el registro de cambios (ActivityEvent) a las lists del CRM, equipo y planes.
+export default withActivityHooks({
+  ActivityEvent,
   Ad,
   Animal,
   AnimalBreed,
@@ -111,6 +119,8 @@ export default {
   SaasCompanyMonthlyLeadSync,
   SaasCompanyCreditPeriod,
   SaasCompanyCreditLedger,
+  SaasCompanyDailyUsage,
+  SaasCompanyNote,
   SaasCompanySubscription,
   SaasPayment,
   SaasPaymentMethod,
@@ -142,6 +152,7 @@ export default {
   TechSalesActivity,
   TechTask,
   TechStatusBusinessLead,
+  TechLeadStageChange,
   TechWhatsAppMessage,
   GoogleCalendarAccount,
   GoogleCalendarSelection,
@@ -150,6 +161,7 @@ export default {
   TechGoogleCalendarSyncLog,
   TokenNotification,
   User,
+  UserActivityDay,
   UserAuthLog,
   WishList,
-};
+});

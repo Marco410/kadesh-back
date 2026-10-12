@@ -88,5 +88,10 @@
     "key": "whatsapp",
     "name": "WhatsApp Business",
     "description": "Conecta tu WhatsApp Business para mandar y recibir mensajes con tus leads desde el CRM."
+  },
+  {
+    "key": "analytics",
+    "name": "Analítica de ventas",
+    "description": "Mide tu tasa de cierre, en cuántos días cierras, qué tan rápido contactas y contestas por WhatsApp, los tratos estancados y el desempeño de cada vendedor."
   }
 ]

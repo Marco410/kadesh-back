@@ -6,6 +6,7 @@ Movimientos de saldo (`SaasCompanyCreditLedger`). Lo escribe `utils/saas/company
 
 - `amount` es con signo: positivo = grant, negativo = consume.
 - `referenceType` dice **de dónde vino** el movimiento; no reutilizar `payment` si no hubo cobro.
+- Por API solo el admin de plataforma crea, edita o borra filas (desde 2026-10-10). La empresa solo lee las suyas; antes podía editar o borrar su propio saldo.
 
 | type | referenceType | Quién |
 | --- | --- | --- |

@@ -12,6 +12,8 @@ import {
 } from "../../../../utils/ai";
 import { encrypt, maskApiKey } from "../../../../utils/helpers/encryption";
 import { canManageCompanyAi, denyCompanyAiAccessMessage } from "./access";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 const typeDefs = `
   input UpdateCompanyAiSettingsInput {
@@ -196,6 +198,23 @@ const resolver = {
       data,
       query: SETTINGS_QUERY,
     })) as CompanyAiSettingsRecord;
+
+    // Nunca la llave: solo si se puso o se quitó.
+    const changes: Record<string, unknown> = {};
+    for (const field of ["aiBillingMode", "aiProvider", "aiModel"] as const) {
+      if (field in data) changes[field] = [existing[field] ?? null, data[field] ?? null];
+    }
+    if ("aiApiKeyEncrypted" in data) {
+      changes.apiKeyAction = data.aiApiKeyEncrypted ? "replaced" : "removed";
+    }
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.AI_SETTINGS_UPDATED,
+      companyId: input.companyId,
+      entityType: "SaasCompany",
+      entityId: input.companyId,
+      summary: "Cambió la configuración de IA",
+      metadata: { changes },
+    });
 
     return toResult(true, "Configuración de IA guardada", updated);
   },

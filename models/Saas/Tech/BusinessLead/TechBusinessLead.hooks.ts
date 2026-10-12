@@ -26,13 +26,19 @@ function connectIds(connect: unknown): string[] {
     .filter((id): id is string => !!id);
 }
 
+/** Keystone resuelve las relaciones to-many con `disconnect: []` aunque no se mande nada. */
+function isNoop(value: unknown) {
+  return value == null || (Array.isArray(value) && value.length === 0);
+}
+
 /**
  * El cliente no elige tenant: se fuerza la empresa de la sesión.
  * Admin de plataforma puede mandar saasCompany en el input.
  *
- * En update se permite `connect` solo a la propia empresa (p. ej. syncLeadsFront
- * asignando leads ya existentes). Antes se strippeaba todo saasCompany en update
- * y el sync cobraba créditos sin ligar el lead a la company.
+ * En update se permite `connect` solo a la propia empresa (las syncs asignando leads
+ * que ya existían). Ojo: en update Keystone siempre entrega `disconnect: []`; comparar
+ * con `== null` strippeaba el connect de todo usuario que no fuera admin de plataforma,
+ * y la sync de INEGI cobraba leads que nunca quedaban en la empresa.
  */
 export const businessLeadHooks = {
   resolveInput: async ({
@@ -58,7 +64,7 @@ export const businessLeadHooks = {
       const onlyOwnConnect =
         ids.length > 0 &&
         ids.every((id) => id === companyId) &&
-        sc.disconnect == null &&
+        isNoop(sc.disconnect) &&
         sc.set == null;
       if (onlyOwnConnect) {
         return {

@@ -273,7 +273,9 @@ var PERMISSION_KEYS = {
   ESPACIOS_CREAR: "espacios.crear",
   ESPACIOS_MIEMBROS: "espacios.miembros",
   WHATSAPP_VER: "whatsapp.ver",
-  WHATSAPP_CONFIGURAR: "whatsapp.configurar"
+  WHATSAPP_CONFIGURAR: "whatsapp.configurar",
+  ANALITICA_VER: "analitica.ver",
+  ANALITICA_VER_EQUIPO: "analitica.ver_equipo"
 };
 var ALL_KEYS = new Set(Object.values(PERMISSION_KEYS));
 function isPermissionKey(value) {
@@ -315,9 +317,9 @@ function sessionPermissions(session2) {
 function hasPermission(session2, key, legacyFallback) {
   if (!session2?.data) return false;
   if (hasRole(session2, ["admin" /* ADMIN */, "admin_company" /* ADMIN_COMPANY */])) return true;
-  const list77 = sessionPermissions(session2);
-  if (list77 == null) return legacyFallback();
-  return list77.includes(key);
+  const list82 = sessionPermissions(session2);
+  if (list82 == null) return legacyFallback();
+  return list82.includes(key);
 }
 
 // utils/access/tenant.ts
@@ -332,6 +334,17 @@ function isSignedIn(session2) {
 }
 function isPlatformAdmin(session2) {
   return hasRole(session2, ["admin" /* ADMIN */]);
+}
+function getSessionEmail(session2) {
+  const email = session2?.data?.email?.trim().toLowerCase();
+  return email || null;
+}
+function canActForEmail(session2, email) {
+  if (!isSignedIn(session2)) return false;
+  if (isPlatformAdmin(session2)) return true;
+  const sessionEmail = getSessionEmail(session2);
+  const target = email?.trim().toLowerCase();
+  return Boolean(sessionEmail && target && sessionEmail === target);
 }
 function isCompanyAdmin(session2) {
   return hasRole(session2, ["admin_company" /* ADMIN_COMPANY */]);
@@ -562,12 +575,12 @@ function emailButton(brand, label, href) {
     </tr>
   </table>`;
 }
-function emailInfoTable(rows) {
-  const body = rows.map(
+function emailInfoTable(rows2) {
+  const body = rows2.map(
     ([label, value], i) => `
       <tr>
-        <td style="padding:12px 16px;${i < rows.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:${EMAIL_TEXT.muted};width:36%;vertical-align:top;">${escapeHtml(label)}</td>
-        <td style="padding:12px 16px;${i < rows.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:15px;font-weight:500;color:${EMAIL_TEXT.heading};vertical-align:top;">${value}</td>
+        <td style="padding:12px 16px;${i < rows2.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:${EMAIL_TEXT.muted};width:36%;vertical-align:top;">${escapeHtml(label)}</td>
+        <td style="padding:12px 16px;${i < rows2.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:15px;font-weight:500;color:${EMAIL_TEXT.heading};vertical-align:top;">${value}</td>
       </tr>`
   ).join("");
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0 0;background:${EMAIL_TEXT.surface};border:1px solid ${EMAIL_TEXT.line};border-radius:12px;border-collapse:separate;">${body}</table>`;
@@ -580,9 +593,9 @@ function emailCallout(brand, html) {
     </tr>
   </table>`;
 }
-function emailPill(brand, text66) {
+function emailPill(brand, text73) {
   const { color, soft } = EMAIL_BRANDS[brand];
-  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text66)}</span>`;
+  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text73)}</span>`;
 }
 function emailParagraph(html) {
   return `<p style="margin:0 0 16px 0;font-family:${FONT};font-size:16px;line-height:1.7;color:${EMAIL_TEXT.body};">${html}</p>`;
@@ -830,7 +843,7 @@ async function sendAdminNewAnimalEmail({
   }
   const brand = "pet";
   const { name: brandName } = EMAIL_BRANDS[brand];
-  const rows = [
+  const rows2 = [
     ["Nombre", escapeHtml(animalName)],
     ["Tipo", escapeHtml(animalType || "(sin tipo)")],
     ["Slug", escapeHtml(slug || "(pendiente)")],
@@ -847,7 +860,7 @@ async function sendAdminNewAnimalEmail({
       ${emailParagraph(
       `<strong>${escapeHtml(creatorName)}</strong> registr\xF3 un animal nuevo en Kadesh Pet.`
     )}
-      ${emailInfoTable(rows)}
+      ${emailInfoTable(rows2)}
       ${publicUrl ? emailButton(brand, "Ver en la app", publicUrl) : emailCallout(
       brand,
       "Rev\xEDsalo en Keystone \u2192 <strong>Animal</strong>."
@@ -986,7 +999,7 @@ function buildPetPlaceAppointmentEmailHtml(params) {
   const customerName = escapeHtml(params.customerName);
   const petName = params.petName ? escapeHtml(params.petName) : null;
   const bodyText = isOwner ? `<strong>${customerName}</strong> reserv\xF3 una cita${petName ? ` para <strong>${petName}</strong>` : ""} en <strong>${petPlaceName}</strong>.` : `Tu cita en <strong>${petPlaceName}</strong> ahora est\xE1 <strong>${escapeHtml(statusLabel)}</strong>.`;
-  const rows = [
+  const rows2 = [
     ["Negocio", petPlaceName],
     ...isOwner ? [["Cliente", customerName]] : [],
     ...petName ? [["Mascota", petName]] : [],
@@ -1002,7 +1015,7 @@ function buildPetPlaceAppointmentEmailHtml(params) {
     bodyHtml: `
       ${emailGreeting(isOwner ? params.ownerName : params.customerName)}
       ${emailParagraph(bodyText)}
-      ${emailInfoTable(rows)}`,
+      ${emailInfoTable(rows2)}`,
     footerNote: "Mensaje autom\xE1tico de tu agenda. No respondas a este correo."
   });
 }
@@ -1085,10 +1098,10 @@ function matchesAudience(audience, hasCompany) {
 async function resolveBroadcastRecipients(params) {
   const { context, audience, emails } = params;
   if (audience === "custom") {
-    const list77 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
+    const list82 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
     const seen2 = /* @__PURE__ */ new Set();
     const recipients2 = [];
-    for (const email of list77) {
+    for (const email of list82) {
       const key = email.toLowerCase();
       if (seen2.has(key)) continue;
       seen2.add(key);
@@ -1334,14 +1347,14 @@ async function publishAnimalToFacebook(animal) {
   const message = animal.physical_description ? `${animal.name}
 
 ${animal.physical_description}` : animal.name || "Nuevo animal en Kadesh";
-  const result = await postToFacebookPage({
+  const result3 = await postToFacebookPage({
     product: PRODUCT.PET,
     message,
     link: animalPublicUrl(animal.slug)
   });
-  if (result?.id) {
+  if (result3?.id) {
     console.log(
-      `[facebook] Animal publicado en la P\xE1gina de Pet: ${result.id}`
+      `[facebook] Animal publicado en la P\xE1gina de Pet: ${result3.id}`
     );
   }
 }
@@ -1775,12 +1788,12 @@ async function findReportDuplicates(context, input) {
   const found = /* @__PURE__ */ new Map();
   const sourceUrl = input.sourceUrl?.trim();
   if (sourceUrl) {
-    const rows = await context.sudo().query.Animal.findMany({
+    const rows2 = await context.sudo().query.Animal.findMany({
       where: { sourceUrl: { equals: sourceUrl } },
       query: "id name slug",
       take: 5
     });
-    for (const row of rows) {
+    for (const row of rows2) {
       const dup = toDuplicate(row);
       if (dup) found.set(dup.id, dup);
     }
@@ -1790,7 +1803,7 @@ async function findReportDuplicates(context, input) {
   const name = input.name?.trim();
   if (phone && typeId && name) {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3).toISOString();
-    const rows = await context.sudo().query.Animal.findMany({
+    const rows2 = await context.sudo().query.Animal.findMany({
       where: {
         contactNumber: { equals: phone },
         animal_type: { id: { equals: typeId } },
@@ -1799,7 +1812,7 @@ async function findReportDuplicates(context, input) {
       query: "id name slug",
       take: 30
     });
-    for (const row of rows) {
+    for (const row of rows2) {
       if (!namesSimilar(name, row.name || "")) continue;
       const dup = toDuplicate(row);
       if (dup) found.set(dup.id, dup);
@@ -1987,12 +2000,12 @@ function slugifyUsername(value) {
   return slug || "user";
 }
 async function usernameTaken(context, username) {
-  const rows = await context.sudo().query.User.findMany({
+  const rows2 = await context.sudo().query.User.findMany({
     where: { username: { equals: username } },
     take: 1,
     query: "id"
   });
-  return rows.length > 0;
+  return rows2.length > 0;
 }
 var userNameHook = {
   resolveInput: async ({ resolvedData, item, context, operation }) => {
@@ -2025,8 +2038,8 @@ async function checkUserName(name, lastName, context, preferred) {
 }
 function relationIds(value) {
   if (!value) return [];
-  const rows = Array.isArray(value) ? value : [value];
-  return rows.map(
+  const rows2 = Array.isArray(value) ? value : [value];
+  return rows2.map(
     (row) => row && typeof row === "object" && "id" in row ? String(row.id) : ""
   ).filter(Boolean);
 }
@@ -2158,12 +2171,12 @@ async function userCompanyManagedValidateInput({
 }
 var REFERRAL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 function generateReferralSuffix(length = 5) {
-  let result = "";
+  let result3 = "";
   for (let i = 0; i < length; i++) {
     const index = Math.floor(Math.random() * REFERRAL_CHARS.length);
-    result += REFERRAL_CHARS[index];
+    result3 += REFERRAL_CHARS[index];
   }
-  return result;
+  return result3;
 }
 async function generateUniqueReferralCode(context) {
   while (true) {
@@ -2456,6 +2469,11 @@ var userStripeFieldAccess = {
   create: () => true,
   update: () => false
 };
+var userAccountControlFieldAccess = {
+  read: ({ session: session2 }) => isPlatformAdmin(session2),
+  create: () => false,
+  update: () => false
+};
 var User_access_default = userAccess;
 
 // models/User/User.ts
@@ -2724,7 +2742,7 @@ var User_default = (0, import_core7.list)({
     authLogs: (0, import_fields7.relationship)({
       ref: "UserAuthLog.user",
       many: true,
-      ui: { description: "Registro de login / registro (customAuth, registerUser)" }
+      ui: { description: "Registro de login / registro (contrase\xF1a, Google, registerUser)" }
     }),
     quotationsCreated: (0, import_fields7.relationship)({
       ref: "SaasQuotation.createdBy",
@@ -2847,6 +2865,52 @@ var User_default = (0, import_core7.list)({
         description: "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
         createView: { fieldMode: "hidden" }
       }
+    }),
+    // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
+    suspendedAt: (0, import_fields7.timestamp)({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Suspendida por Kadesh: no puede iniciar sesi\xF3n y sus sesiones dejan de valer",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    suspendedReason: (0, import_fields7.text)({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Motivo de la suspensi\xF3n (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    sessionVersion: (0, import_fields7.integer)({
+      defaultValue: 0,
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Sube al cerrar sus sesiones: los tokens con otra versi\xF3n dejan de valer",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    anonymizedAt: (0, import_fields7.timestamp)({
+      db: { isNullable: true },
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Datos personales borrados a petici\xF3n (ARCO)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    // De dónde llegó al registrarse (UTM, dominio que refirió, página de entrada). Ver utils/analytics/attribution.ts.
+    signupAttribution: (0, import_fields7.json)({
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Primer contacto antes de registrarse: UTM, sitio que refiri\xF3 y p\xE1gina de entrada",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     })
   }
 });
@@ -2859,7 +2923,7 @@ var import_fields8 = require("@keystone-6/core/fields");
 var userAuthLogAccess = {
   operation: {
     query: () => true,
-    create: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
     update: () => false,
     delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
@@ -2954,6 +3018,14 @@ var UserAuthLog_default = (0, import_core8.list)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
+    ip: (0, import_fields8.text)({
+      db: { isNullable: true },
+      ui: { description: "IP de la petici\xF3n (x-forwarded-for del proxy si existe)" }
+    }),
+    userAgent: (0, import_fields8.text)({
+      db: { isNullable: true },
+      ui: { description: "Navegador o cliente del intento" }
+    }),
     createdAt: (0, import_fields8.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del evento" }
@@ -2961,14 +3033,1440 @@ var UserAuthLog_default = (0, import_core8.list)({
   }
 });
 
-// models/Pet/Animal/AnimalBreed/AnimalBreed.ts
+// models/User/UserActivityDay/UserActivityDay.ts
 var import_core9 = require("@keystone-6/core");
 var import_fields9 = require("@keystone-6/core/fields");
-var AnimalBreed_default = (0, import_core9.list)({
+
+// models/User/UserActivityDay/UserActivityDay.access.ts
+var userActivityDayAccess = {
+  operation: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    create: () => false,
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/User/UserActivityDay/UserActivityDay.ts
+var UserActivityDay_default = (0, import_core9.list)({
+  access: userActivityDayAccess,
+  ui: {
+    hideCreate: true,
+    listView: {
+      initialColumns: ["day", "user", "company", "minutes", "lastSeenAt"],
+      initialSort: { field: "day", direction: "DESC" }
+    }
+  },
+  fields: {
+    key: (0, import_fields9.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: { description: "userId:YYYY-MM-DD (permite sumar sin duplicar el d\xEDa)" }
+    }),
+    user: (0, import_fields9.relationship)({ ref: "User", many: false }),
+    company: (0, import_fields9.relationship)({
+      ref: "SaasCompany",
+      many: false,
+      ui: { description: "Empresa de la persona ese d\xEDa" }
+    }),
+    day: (0, import_fields9.calendarDay)({
+      isIndexed: true,
+      validation: { isRequired: true },
+      ui: { description: "D\xEDa en hora de CDMX" }
+    }),
+    minutes: (0, import_fields9.integer)({
+      defaultValue: 0,
+      ui: { description: "Minutos con el panel abierto y la pesta\xF1a visible" }
+    }),
+    firstSeenAt: (0, import_fields9.timestamp)({ db: { isNullable: true } }),
+    lastSeenAt: (0, import_fields9.timestamp)({ db: { isNullable: true }, isIndexed: true })
+  }
+});
+
+// models/ActivityEvent/ActivityEvent.ts
+var import_core10 = require("@keystone-6/core");
+var import_fields10 = require("@keystone-6/core/fields");
+
+// models/ActivityEvent/ActivityEvent.access.ts
+var activityEventAccess = {
+  operation: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    create: () => false,
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/ActivityEvent/constants.ts
+var ACTIVITY_CATEGORY = {
+  AUTH: "auth",
+  EXTRACTION: "extraction",
+  CRM: "crm",
+  TEAM: "team",
+  AI: "ai",
+  CREDITS: "credits",
+  BILLING: "billing",
+  WHATSAPP: "whatsapp",
+  CALENDAR: "calendar",
+  ADMIN: "admin",
+  PRODUCT: "product",
+  ERRORS: "errors"
+};
+var ACTIVITY_CATEGORY_OPTIONS = [
+  { label: "Accesos", value: ACTIVITY_CATEGORY.AUTH },
+  { label: "Extracci\xF3n", value: ACTIVITY_CATEGORY.EXTRACTION },
+  { label: "CRM", value: ACTIVITY_CATEGORY.CRM },
+  { label: "Equipo y empresa", value: ACTIVITY_CATEGORY.TEAM },
+  { label: "IA", value: ACTIVITY_CATEGORY.AI },
+  { label: "Cr\xE9ditos", value: ACTIVITY_CATEGORY.CREDITS },
+  { label: "Plan y pagos", value: ACTIVITY_CATEGORY.BILLING },
+  { label: "WhatsApp", value: ACTIVITY_CATEGORY.WHATSAPP },
+  { label: "Calendario", value: ACTIVITY_CATEGORY.CALENDAR },
+  { label: "Kadesh (admin)", value: ACTIVITY_CATEGORY.ADMIN },
+  { label: "Navegaci\xF3n", value: ACTIVITY_CATEGORY.PRODUCT },
+  { label: "Errores", value: ACTIVITY_CATEGORY.ERRORS }
+];
+var ACTIVITY_SOURCE = {
+  /** Una persona desde el panel (API con sesión). */
+  WEB: "web",
+  /** Un admin de Kadesh actuando sobre datos de otra empresa. */
+  ADMIN: "admin",
+  /** Aviso de un proveedor (Stripe). */
+  WEBHOOK: "webhook",
+  /** Proceso del servidor sin persona detrás (sync con Stripe al abrir el panel, scripts). */
+  SYSTEM: "system"
+};
+var ACTIVITY_SOURCE_OPTIONS = [
+  { label: "Panel", value: ACTIVITY_SOURCE.WEB },
+  { label: "Admin de Kadesh", value: ACTIVITY_SOURCE.ADMIN },
+  { label: "Webhook", value: ACTIVITY_SOURCE.WEBHOOK },
+  { label: "Sistema", value: ACTIVITY_SOURCE.SYSTEM }
+];
+var ACTIVITY_EVENT = {
+  // Accesos
+  AUTH_LOGOUT: "auth.logout",
+  // CRM: leads
+  LEAD_ADDED_MANUALLY: "lead.added_manually",
+  LEAD_PROMOTED_FROM_INEGI: "lead.promoted_from_inegi",
+  LEAD_STATUS_CHANGED: "lead.status_changed",
+  LEAD_ASSIGNED: "lead.assigned",
+  LEAD_OPPORTUNITY_CHANGED: "lead.opportunity_changed",
+  LEAD_UPDATED: "lead.updated",
+  LEAD_REMOVED: "lead.removed",
+  LEAD_DELETED: "lead.deleted",
+  LEAD_EXPORTED: "lead.exported",
+  // CRM: cotizaciones (un tipo por estatus: el feed ya muestra "enviada" y "aceptada" desde SaasQuotation)
+  QUOTATION_SENT: "quotation.sent",
+  QUOTATION_ACCEPTED: "quotation.accepted",
+  QUOTATION_REJECTED: "quotation.rejected",
+  QUOTATION_EXPIRED: "quotation.expired",
+  QUOTATION_REOPENED: "quotation.reopened",
+  QUOTATION_DELETED: "quotation.deleted",
+  // CRM: propuestas, proyectos, seguimientos, tareas, archivos
+  PROPOSAL_STATUS_CHANGED: "proposal.status_changed",
+  PROPOSAL_DELETED: "proposal.deleted",
+  PROJECT_CREATED: "project.created",
+  PROJECT_STATUS_CHANGED: "project.status_changed",
+  PROJECT_DELETED: "project.deleted",
+  FOLLOWUP_CREATED: "followup.created",
+  FOLLOWUP_STATUS_CHANGED: "followup.status_changed",
+  FOLLOWUP_DELETED: "followup.deleted",
+  TASK_CREATED: "task.created",
+  TASK_DELETED: "task.deleted",
+  ACTIVITY_DELETED: "activity.deleted",
+  BOARD_CARD_MOVED: "board.card_moved",
+  FILE_UPLOADED: "file.uploaded",
+  FILE_DELETED: "file.deleted",
+  // Equipo y empresa
+  TEAM_USER_CREATED: "team.user_created",
+  TEAM_USER_UPDATED: "team.user_updated",
+  TEAM_ROLES_CHANGED: "team.roles_changed",
+  TEAM_PERMISSIONS_CHANGED: "team.permissions_changed",
+  TEAM_COMPANY_CHANGED: "team.company_changed",
+  TEAM_USER_DELETED: "team.user_deleted",
+  WORKSPACE_CREATED: "workspace.created",
+  WORKSPACE_DELETED: "workspace.deleted",
+  WORKSPACE_MEMBERS_CHANGED: "workspace.members_changed",
+  COMPANY_UPDATED: "company.updated",
+  // Integraciones y ajustes
+  AI_SETTINGS_UPDATED: "ai.settings_updated",
+  WHATSAPP_SETTINGS_UPDATED: "whatsapp.settings_updated",
+  WHATSAPP_CONVERSATION_ASSIGNED: "whatsapp.conversation_assigned",
+  WHATSAPP_CONTACT_LINKED: "whatsapp.contact_linked",
+  WHATSAPP_CHAT_IMPORTED: "whatsapp.chat_imported",
+  CALENDAR_CONNECTED: "calendar.connected",
+  CALENDAR_DISCONNECTED: "calendar.disconnected",
+  // Créditos
+  CREDITS_EXHAUSTED: "credits.exhausted",
+  // Plan y pagos (Stripe)
+  BILLING_STATUS_CHANGED: "billing.status_changed",
+  BILLING_RENEWED: "billing.renewed",
+  BILLING_PAYMENT_FAILED: "billing.payment_failed",
+  BILLING_REFUNDED: "billing.refunded",
+  BILLING_CANCELLED: "billing.cancelled",
+  // Kadesh (admin de plataforma)
+  ADMIN_VIEWED_COMPANY: "admin.viewed_company",
+  ADMIN_VIEWED_PERSON: "admin.viewed_person",
+  ADMIN_VIEWED_AI_PROMPT: "admin.viewed_ai_prompt",
+  ADMIN_SUBSCRIPTION_CHANGED: "admin.subscription_changed",
+  ADMIN_PLAN_CATALOG_CHANGED: "admin.plan_catalog_changed",
+  ADMIN_CREDIT_PACKAGE_CHANGED: "admin.credit_package_changed",
+  ADMIN_FEATURE_CATALOG_UPDATED: "admin.feature_catalog_updated",
+  ADMIN_EMAIL_BROADCAST: "admin.email_broadcast",
+  // Control de cuentas (fase 3)
+  ADMIN_COMPANY_SUSPENDED: "admin.company_suspended",
+  ADMIN_COMPANY_REACTIVATED: "admin.company_reactivated",
+  ADMIN_USER_SUSPENDED: "admin.user_suspended",
+  ADMIN_USER_REACTIVATED: "admin.user_reactivated",
+  ADMIN_SESSIONS_REVOKED: "admin.sessions_revoked",
+  ADMIN_TRIAL_EXTENDED: "admin.trial_extended",
+  ADMIN_IMPERSONATION_STARTED: "admin.impersonation_started",
+  ADMIN_IMPERSONATION_ENDED: "admin.impersonation_ended",
+  ADMIN_OWNERSHIP_TRANSFERRED: "admin.ownership_transferred",
+  ADMIN_ACCOUNT_MANAGER_ASSIGNED: "admin.account_manager_assigned",
+  ADMIN_NOTE_ADDED: "admin.note_added",
+  ADMIN_NOTE_DELETED: "admin.note_deleted",
+  ADMIN_PERSON_DATA_EXPORTED: "admin.person_data_exported",
+  ADMIN_USER_ANONYMIZED: "admin.user_anonymized",
+  // Navegación (lo manda el front con trackEvents)
+  UI_SECTION_VIEWED: "ui.section_viewed",
+  UI_FEATURE_LOCKED_VIEWED: "ui.feature_locked_viewed",
+  UI_UPGRADE_CLICKED: "ui.upgrade_clicked",
+  UI_TOUR_COMPLETED: "ui.tour_completed",
+  UI_TOUR_SKIPPED: "ui.tour_skipped",
+  // Errores que vio alguien en el panel (plugin de Apollo, fase 5)
+  APP_ERROR: "app.error"
+};
+var HEARTBEAT_EVENT = "auth.heartbeat";
+var HEARTBEAT_MINUTES = 5;
+var CLIENT_EVENT_TYPES = /* @__PURE__ */ new Set([
+  ACTIVITY_EVENT.AUTH_LOGOUT,
+  ACTIVITY_EVENT.LEAD_EXPORTED,
+  ACTIVITY_EVENT.UI_SECTION_VIEWED,
+  ACTIVITY_EVENT.UI_FEATURE_LOCKED_VIEWED,
+  ACTIVITY_EVENT.UI_UPGRADE_CLICKED,
+  ACTIVITY_EVENT.UI_TOUR_COMPLETED,
+  ACTIVITY_EVENT.UI_TOUR_SKIPPED
+]);
+var CLIENT_ADMIN_EVENT_TYPES = /* @__PURE__ */ new Set([
+  ACTIVITY_EVENT.ADMIN_VIEWED_COMPANY,
+  ACTIVITY_EVENT.ADMIN_VIEWED_PERSON,
+  ACTIVITY_EVENT.ADMIN_VIEWED_AI_PROMPT
+]);
+var FEED_HIDDEN_EVENT_TYPES = [
+  ACTIVITY_EVENT.QUOTATION_SENT,
+  ACTIVITY_EVENT.QUOTATION_ACCEPTED,
+  ACTIVITY_EVENT.BILLING_PAYMENT_FAILED,
+  ACTIVITY_EVENT.BILLING_REFUNDED
+];
+var CATEGORY_BY_PREFIX = {
+  auth: ACTIVITY_CATEGORY.AUTH,
+  extraction: ACTIVITY_CATEGORY.EXTRACTION,
+  lead: ACTIVITY_CATEGORY.CRM,
+  quotation: ACTIVITY_CATEGORY.CRM,
+  proposal: ACTIVITY_CATEGORY.CRM,
+  project: ACTIVITY_CATEGORY.CRM,
+  followup: ACTIVITY_CATEGORY.CRM,
+  task: ACTIVITY_CATEGORY.CRM,
+  activity: ACTIVITY_CATEGORY.CRM,
+  board: ACTIVITY_CATEGORY.CRM,
+  file: ACTIVITY_CATEGORY.CRM,
+  team: ACTIVITY_CATEGORY.TEAM,
+  workspace: ACTIVITY_CATEGORY.TEAM,
+  company: ACTIVITY_CATEGORY.TEAM,
+  ai: ACTIVITY_CATEGORY.AI,
+  credits: ACTIVITY_CATEGORY.CREDITS,
+  billing: ACTIVITY_CATEGORY.BILLING,
+  whatsapp: ACTIVITY_CATEGORY.WHATSAPP,
+  calendar: ACTIVITY_CATEGORY.CALENDAR,
+  admin: ACTIVITY_CATEGORY.ADMIN,
+  ui: ACTIVITY_CATEGORY.PRODUCT,
+  app: ACTIVITY_CATEGORY.ERRORS
+};
+function categoryForType(type) {
+  const prefix2 = type.split(".")[0] ?? "";
+  return CATEGORY_BY_PREFIX[prefix2] ?? ACTIVITY_CATEGORY.PRODUCT;
+}
+
+// models/ActivityEvent/ActivityEvent.ts
+var ActivityEvent_default = (0, import_core10.list)({
+  access: activityEventAccess,
+  ui: {
+    hideCreate: true,
+    listView: {
+      initialColumns: ["createdAt", "type", "summary", "actor", "company", "source", "success"],
+      initialSort: { field: "createdAt", direction: "DESC" }
+    }
+  },
+  fields: {
+    type: (0, import_fields10.text)({
+      isIndexed: true,
+      validation: { isRequired: true },
+      ui: { description: "Tipo de evento (ver models/ActivityEvent/constants.ts), p. ej. lead.status_changed" }
+    }),
+    category: (0, import_fields10.select)({
+      type: "string",
+      options: [...ACTIVITY_CATEGORY_OPTIONS],
+      isIndexed: true,
+      validation: { isRequired: true },
+      ui: { description: "Sale del prefijo del tipo; coincide con los filtros del feed de Operaciones" }
+    }),
+    actor: (0, import_fields10.relationship)({
+      ref: "User",
+      many: false,
+      ui: { description: "Qui\xE9n lo hizo (vac\xEDo si fue el sistema o un webhook)" }
+    }),
+    company: (0, import_fields10.relationship)({
+      ref: "SaasCompany",
+      many: false,
+      ui: { description: "Empresa a la que pertenece el dato afectado" }
+    }),
+    workspace: (0, import_fields10.relationship)({
+      ref: "SaasWorkspace",
+      many: false,
+      ui: { description: "Espacio de trabajo, si aplica" }
+    }),
+    entityType: (0, import_fields10.text)({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "List afectada (TechBusinessLead, SaasQuotation\u2026)" }
+    }),
+    entityId: (0, import_fields10.text)({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "Id del item afectado" }
+    }),
+    summary: (0, import_fields10.text)({
+      ui: { displayMode: "textarea", description: "Texto legible en espa\xF1ol" }
+    }),
+    metadata: (0, import_fields10.json)({
+      ui: {
+        description: "Cambios {campo: [antes, despu\xE9s]}, conteos, montos. Nunca contrase\xF1as, tokens, prompts ni cuerpos de mensajes"
+      }
+    }),
+    source: (0, import_fields10.select)({
+      type: "string",
+      options: [...ACTIVITY_SOURCE_OPTIONS],
+      isIndexed: true,
+      ui: { description: "panel, admin de Kadesh, webhook o sistema" }
+    }),
+    success: (0, import_fields10.checkbox)({ defaultValue: true }),
+    errorMessage: (0, import_fields10.text)({
+      db: { isNullable: true },
+      ui: { displayMode: "textarea" }
+    }),
+    ip: (0, import_fields10.text)({
+      db: { isNullable: true },
+      ui: { description: "IP de la petici\xF3n (x-forwarded-for del proxy si existe)" }
+    }),
+    userAgent: (0, import_fields10.text)({
+      db: { isNullable: true },
+      ui: { description: "Navegador o cliente que hizo la petici\xF3n" }
+    }),
+    createdAt: (0, import_fields10.timestamp)({
+      defaultValue: { kind: "now" },
+      isIndexed: true,
+      ui: { description: "Cu\xE1ndo ocurri\xF3" }
+    })
+  }
+});
+
+// models/Saas/Quotation/SaasQuotation.constants.ts
+var QUOTATION_STATUS = {
+  DRAFT: "draft",
+  SENT: "sent",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected",
+  EXPIRED: "expired"
+};
+var QUOTATION_STATUS_OPTIONS = [
+  { label: "Borrador", value: QUOTATION_STATUS.DRAFT },
+  { label: "Enviada", value: QUOTATION_STATUS.SENT },
+  { label: "Aceptada", value: QUOTATION_STATUS.ACCEPTED },
+  { label: "Rechazada", value: QUOTATION_STATUS.REJECTED },
+  { label: "Expirada", value: QUOTATION_STATUS.EXPIRED }
+];
+var QUOTATION_DISCOUNT_TYPE = {
+  NONE: "none",
+  PERCENT: "percent",
+  AMOUNT: "amount"
+};
+var QUOTATION_DISCOUNT_TYPE_OPTIONS = [
+  { label: "Sin descuento", value: QUOTATION_DISCOUNT_TYPE.NONE },
+  { label: "Porcentaje", value: QUOTATION_DISCOUNT_TYPE.PERCENT },
+  { label: "Monto fijo", value: QUOTATION_DISCOUNT_TYPE.AMOUNT }
+];
+
+// utils/activity/requestMeta.ts
+var MAX_IP = 64;
+var MAX_USER_AGENT = 300;
+function firstHeader(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+function requestIp(req) {
+  if (!req) return null;
+  const forwarded = firstHeader(req.headers?.["x-forwarded-for"])?.split(",")[0]?.trim();
+  const ip = forwarded || req.socket?.remoteAddress || "";
+  const clean = ip.replace(/^::ffff:/, "").slice(0, MAX_IP);
+  return clean || null;
+}
+function requestUserAgent(req) {
+  const ua = firstHeader(req?.headers?.["user-agent"])?.trim();
+  return ua ? ua.slice(0, MAX_USER_AGENT) : null;
+}
+
+// utils/activity/logActivity.ts
+var SENSITIVE_KEY = /pass(word)?|secret|token|api[-_]?key|authorization|cookie|prompt|response|body|message_?text|card_?number|cvc|clabe/i;
+var MAX_STRING = 500;
+var MAX_ARRAY = 50;
+var MAX_DEPTH = 4;
+var MAX_METADATA_BYTES = 8e3;
+var MAX_SUMMARY = 500;
+var MAX_ERROR = 1e3;
+function scrubValue(value, depth) {
+  if (value == null) return null;
+  if (typeof value === "string") return value.length > MAX_STRING ? `${value.slice(0, MAX_STRING)}\u2026` : value;
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (value instanceof Date) return value.toISOString();
+  if (depth >= MAX_DEPTH) return "[\u2026]";
+  if (Array.isArray(value)) return value.slice(0, MAX_ARRAY).map((v) => scrubValue(v, depth + 1));
+  if (typeof value === "object") {
+    const out = {};
+    for (const [key, v] of Object.entries(value)) {
+      out[key] = SENSITIVE_KEY.test(key) ? "[oculto]" : scrubValue(v, depth + 1);
+    }
+    return out;
+  }
+  return String(value);
+}
+function scrubMetadata(metadata) {
+  if (!metadata) return null;
+  const clean = scrubValue(metadata, 0);
+  try {
+    if (JSON.stringify(clean).length > MAX_METADATA_BYTES) {
+      return { truncated: true, keys: Object.keys(clean).slice(0, MAX_ARRAY) };
+    }
+  } catch {
+    return null;
+  }
+  return clean;
+}
+function resolveSource(context, companyId) {
+  const session2 = context.session;
+  if (!getSessionUserId(session2)) return ACTIVITY_SOURCE.SYSTEM;
+  if (isPlatformAdmin(session2) && companyId && companyId !== getSessionCompanyId(session2)) {
+    return ACTIVITY_SOURCE.ADMIN;
+  }
+  return ACTIVITY_SOURCE.WEB;
+}
+var WARN_EVERY_MS = 6e4;
+var lastWarnAt = 0;
+function warnOnce(type, error) {
+  const now = Date.now();
+  if (now - lastWarnAt < WARN_EVERY_MS) return;
+  lastWarnAt = now;
+  console.warn(
+    `[activity] no se pudo registrar ${type}:`,
+    error instanceof Error ? error.message : error
+  );
+}
+function truncate(text73, max) {
+  if (!text73) return null;
+  return text73.length > max ? `${text73.slice(0, max - 1)}\u2026` : text73;
+}
+async function logActivity(context, input) {
+  try {
+    const session2 = context.session;
+    const actorId = input.actorId === void 0 ? getSessionUserId(session2) : input.actorId;
+    const companyId = input.companyId === void 0 ? getSessionCompanyId(session2) : input.companyId;
+    const prisma = context.sudo().prisma;
+    if (!prisma?.activityEvent) return;
+    await prisma.activityEvent.create({
+      data: {
+        type: input.type,
+        category: categoryForType(input.type),
+        actorId: actorId || null,
+        companyId: companyId || null,
+        workspaceId: input.workspaceId || null,
+        entityType: input.entityType ?? null,
+        entityId: input.entityId ?? null,
+        summary: truncate(input.summary, MAX_SUMMARY) ?? "",
+        metadata: scrubMetadata(input.metadata) ?? void 0,
+        source: input.source ?? resolveSource(context, companyId || null),
+        success: input.success ?? true,
+        errorMessage: truncate(input.errorMessage, MAX_ERROR),
+        ip: requestIp(context.req),
+        userAgent: requestUserAgent(context.req),
+        ...input.occurredAt ? { createdAt: input.occurredAt } : {}
+      }
+    });
+  } catch (error) {
+    warnOnce(input.type, error);
+  }
+}
+
+// utils/activity/listActivityHooks.ts
+var sudoCache = /* @__PURE__ */ new WeakMap();
+function isSudoContext(context) {
+  const cached = sudoCache.get(context);
+  if (cached !== void 0) return cached;
+  let sudo = false;
+  try {
+    sudo = context.graphql.schema === context.sudo().graphql.schema;
+  } catch {
+    sudo = false;
+  }
+  sudoCache.set(context, sudo);
+  return sudo;
+}
+function shouldTrack(context) {
+  return !isSudoContext(context) && Boolean(getSessionUserId(context.session));
+}
+function prismaOf(context) {
+  return context.sudo().prisma;
+}
+function normalize(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (value && typeof value === "object") return JSON.stringify(value);
+  return value ?? null;
+}
+function isChanged(before, after) {
+  return normalize(before) !== normalize(after);
+}
+function plain(value) {
+  if (value instanceof Date) return value.toISOString();
+  return value ?? null;
+}
+function changesOf(before, after, fields) {
+  const out = {};
+  for (const field of fields) {
+    const a = before?.[field];
+    const b = after?.[field];
+    if (isChanged(a, b)) out[field] = [plain(a), plain(b)];
+  }
+  return out;
+}
+var SYSTEM_FIELDS = /* @__PURE__ */ new Set(["id", "createdAt", "updatedAt"]);
+var FILE_SUFFIX = /_(filename|filesize|extension|width|height|id|mode)$/;
+function changedFieldNames(before, after, ignore = /* @__PURE__ */ new Set()) {
+  if (!before || !after) return [];
+  const names = /* @__PURE__ */ new Set();
+  for (const key of Object.keys(after)) {
+    if (SYSTEM_FIELDS.has(key) || ignore.has(key)) continue;
+    if (!isChanged(before[key], after[key])) continue;
+    const name = key.replace(FILE_SUFFIX, "");
+    if (!ignore.has(name)) names.add(name);
+  }
+  return [...names];
+}
+function idsOf(value) {
+  const list82 = Array.isArray(value) ? value : value ? [value] : [];
+  return list82.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
+}
+function relationInput(value) {
+  if (!value || typeof value !== "object") return null;
+  const input = value;
+  const result3 = {
+    connect: idsOf(input.connect),
+    disconnect: idsOf(input.disconnect),
+    set: input.set === void 0 ? null : idsOf(input.set)
+  };
+  if (!result3.connect.length && !result3.disconnect.length && result3.set === null) return null;
+  return result3;
+}
+function fullName(person) {
+  if (!person) return null;
+  const text73 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
+  return text73 || null;
+}
+async function leadName(context, leadId) {
+  if (!leadId) return null;
+  const lead = await prismaOf(context).techBusinessLead.findUnique({
+    where: { id: leadId },
+    select: { businessName: true }
+  });
+  return lead?.businessName || null;
+}
+async function userNames(context, ids) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return {};
+  const users = await prismaOf(context).user.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, name: true, lastName: true, email: true }
+  });
+  return Object.fromEntries(users.map((u) => [u.id, fullName(u) ?? u.email ?? u.id]));
+}
+async function workspaceCompanyId(context, workspaceId) {
+  if (!workspaceId) return void 0;
+  const ws = await prismaOf(context).saasWorkspace.findUnique({
+    where: { id: workspaceId },
+    select: { companyId: true }
+  });
+  return ws?.companyId ?? void 0;
+}
+async function columnNames(context, ids) {
+  const unique = [...new Set(ids.filter((id) => Boolean(id)))];
+  if (!unique.length) return {};
+  const rows2 = await prismaOf(
+    context
+  ).saasWorkspaceCrmStatus.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, name: true }
+  });
+  return Object.fromEntries(rows2.map((r) => [r.id, r.name ?? "sin nombre"]));
+}
+function log(context, input) {
+  return logActivity(context, input);
+}
+function quoted(text73, fallback) {
+  return text73 ? `"${text73}"` : fallback;
+}
+async function logCardMove(args, entityType, label) {
+  const { originalItem: before, item: after, context } = args;
+  if (!before || !after || !isChanged(before.statusCrmId, after.statusCrmId)) return;
+  const names = await columnNames(context, [before.statusCrmId, after.statusCrmId]);
+  const from = before.statusCrmId ? names[before.statusCrmId] ?? null : null;
+  const to = after.statusCrmId ? names[after.statusCrmId] ?? null : null;
+  await log(context, {
+    type: ACTIVITY_EVENT.BOARD_CARD_MOVED,
+    companyId: await workspaceCompanyId(context, after.workspaceId),
+    workspaceId: after.workspaceId ?? null,
+    entityType,
+    entityId: after.id,
+    summary: `Movi\xF3 ${label} a la columna ${quoted(to, "sin columna")}`,
+    metadata: { from, to, fromId: before.statusCrmId ?? null, toId: after.statusCrmId ?? null }
+  });
+}
+var LEAD_STATUS_DETAIL_FIELDS = ["estimatedValue", "productOffered", "firstContactDate", "notes"];
+var statusBusinessLeadTracker = {
+  // El panel crea el estatus la primera vez que alguien mueve un lead sin estatus.
+  create: async ({ item, context }) => {
+    if (!item?.pipelineStatus) return;
+    const name = await leadName(context, item.businessLeadId);
+    await log(context, {
+      type: ACTIVITY_EVENT.LEAD_STATUS_CHANGED,
+      companyId: item.saasCompanyId || void 0,
+      entityType: "TechBusinessLead",
+      entityId: item.businessLeadId ?? item.id,
+      summary: `Movi\xF3 ${name ?? "un lead"} a ${item.pipelineStatus}`,
+      metadata: { from: null, to: item.pipelineStatus, statusId: item.id }
+    });
+  },
+  update: async ({ originalItem: before, item: after, context }) => {
+    if (!before || !after) return;
+    const companyId = after.saasCompanyId || void 0;
+    const entityId = after.businessLeadId ?? after.id;
+    const name = await leadName(context, after.businessLeadId) ?? "un lead";
+    if (isChanged(before.pipelineStatus, after.pipelineStatus)) {
+      await log(context, {
+        type: ACTIVITY_EVENT.LEAD_STATUS_CHANGED,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId,
+        summary: `Movi\xF3 ${name} de ${before.pipelineStatus ?? "sin etapa"} a ${after.pipelineStatus ?? "sin etapa"}`,
+        metadata: { from: before.pipelineStatus ?? null, to: after.pipelineStatus ?? null, statusId: after.id }
+      });
+    }
+    if (isChanged(before.opportunityLevel, after.opportunityLevel)) {
+      await log(context, {
+        type: ACTIVITY_EVENT.LEAD_OPPORTUNITY_CHANGED,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId,
+        summary: `Cambi\xF3 la oportunidad de ${name} a ${after.opportunityLevel ?? "sin nivel"}`,
+        metadata: { from: before.opportunityLevel ?? null, to: after.opportunityLevel ?? null }
+      });
+    }
+    const details = changesOf(before, after, LEAD_STATUS_DETAIL_FIELDS);
+    const fields = Object.keys(details);
+    if (fields.length) {
+      await log(context, {
+        type: ACTIVITY_EVENT.LEAD_UPDATED,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId,
+        summary: `Edit\xF3 el seguimiento de ${name}`,
+        // El valor estimado sí va (sirve para analítica); el resto solo el nombre del campo.
+        metadata: {
+          fields,
+          ...details.estimatedValue ? { estimatedValue: details.estimatedValue } : {}
+        }
+      });
+    }
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    const name = await leadName(context, before.businessLeadId);
+    await log(context, {
+      type: ACTIVITY_EVENT.LEAD_REMOVED,
+      companyId: before.saasCompanyId || void 0,
+      entityType: "TechBusinessLead",
+      entityId: before.businessLeadId ?? before.id,
+      summary: `Quit\xF3 ${name ?? "un lead"} de su CRM`,
+      metadata: { pipelineStatus: before.pipelineStatus ?? null, statusId: before.id }
+    });
+  }
+};
+var LEAD_IGNORED_FIELDS = /* @__PURE__ */ new Set(["websitePromptContent"]);
+var businessLeadTracker = {
+  update: async ({ originalItem: before, item: after, inputData, context }) => {
+    if (!before || !after) return;
+    const name = after.businessName || "un lead";
+    const sellers = relationInput(inputData?.salesPerson);
+    if (sellers) {
+      const names = await userNames(context, [
+        ...sellers.connect,
+        ...sellers.disconnect,
+        ...sellers.set ?? []
+      ]);
+      const added = (sellers.set ?? sellers.connect).map((id) => names[id] ?? id);
+      const removed = sellers.disconnect.map((id) => names[id] ?? id);
+      const summary = added.length ? `Asign\xF3 ${name} a ${added.join(", ")}` : `Quit\xF3 a ${removed.join(", ")} de ${name}`;
+      await log(context, {
+        type: ACTIVITY_EVENT.LEAD_ASSIGNED,
+        entityType: "TechBusinessLead",
+        entityId: after.id,
+        summary,
+        metadata: {
+          connected: sellers.connect,
+          disconnected: sellers.disconnect,
+          set: sellers.set,
+          to: added.length ? added.join(", ") : null
+        }
+      });
+    }
+    const fields = changedFieldNames(before, after, LEAD_IGNORED_FIELDS);
+    if (fields.length) {
+      await log(context, {
+        type: ACTIVITY_EVENT.LEAD_UPDATED,
+        entityType: "TechBusinessLead",
+        entityId: after.id,
+        summary: `Edit\xF3 los datos de ${name}`,
+        metadata: { fields }
+      });
+    }
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.LEAD_DELETED,
+      entityType: "TechBusinessLead",
+      entityId: before.id,
+      summary: `Borr\xF3 el lead ${before.businessName || before.id}`,
+      metadata: { source: before.source ?? null, category: before.category ?? null }
+    });
+  }
+};
+var QUOTATION_EVENT_BY_STATUS = {
+  [QUOTATION_STATUS.SENT]: ACTIVITY_EVENT.QUOTATION_SENT,
+  [QUOTATION_STATUS.ACCEPTED]: ACTIVITY_EVENT.QUOTATION_ACCEPTED,
+  [QUOTATION_STATUS.REJECTED]: ACTIVITY_EVENT.QUOTATION_REJECTED,
+  [QUOTATION_STATUS.EXPIRED]: ACTIVITY_EVENT.QUOTATION_EXPIRED,
+  [QUOTATION_STATUS.DRAFT]: ACTIVITY_EVENT.QUOTATION_REOPENED
+};
+var QUOTATION_STATUS_LABELS = {
+  [QUOTATION_STATUS.DRAFT]: "borrador",
+  [QUOTATION_STATUS.SENT]: "enviada",
+  [QUOTATION_STATUS.ACCEPTED]: "aceptada",
+  [QUOTATION_STATUS.REJECTED]: "rechazada",
+  [QUOTATION_STATUS.EXPIRED]: "expirada"
+};
+function quotationLabel(item) {
+  return item.quotationNumber ? `#${item.quotationNumber}` : "sin n\xFAmero";
+}
+var quotationTracker = {
+  update: async ({ originalItem: before, item: after, context }) => {
+    if (!before || !after || !isChanged(before.status, after.status)) return;
+    const type = QUOTATION_EVENT_BY_STATUS[after.status];
+    if (!type) return;
+    const lead = await leadName(context, after.leadId);
+    await log(context, {
+      type,
+      companyId: after.companyId || void 0,
+      entityType: "SaasQuotation",
+      entityId: after.id,
+      summary: `Marc\xF3 la cotizaci\xF3n ${quotationLabel(after)} como ${QUOTATION_STATUS_LABELS[after.status] ?? after.status}${lead ? ` (${lead})` : ""}`,
+      metadata: {
+        from: before.status ?? null,
+        to: after.status,
+        total: after.total ?? null,
+        currency: after.currency ?? null,
+        quotationNumber: after.quotationNumber ?? null
+      }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.QUOTATION_DELETED,
+      companyId: before.companyId || void 0,
+      entityType: "SaasQuotation",
+      entityId: before.id,
+      summary: `Borr\xF3 la cotizaci\xF3n ${quotationLabel(before)}`,
+      metadata: { status: before.status ?? null, total: before.total ?? null, currency: before.currency ?? null }
+    });
+  }
+};
+var proposalTracker = {
+  update: async (args) => {
+    const { originalItem: before, item: after, context } = args;
+    if (!before || !after) return;
+    const changes = changesOf(before, after, ["status", "approved", "paid"]);
+    if (Object.keys(changes).length) {
+      const lead = await leadName(context, after.businessLeadId) ?? "un lead";
+      const parts = [];
+      if (changes.status) parts.push(`estatus ${after.status}`);
+      if (changes.approved) parts.push(after.approved ? "aprobada" : "sin aprobar");
+      if (changes.paid) parts.push(after.paid ? "pagada" : "sin pagar");
+      await log(context, {
+        type: ACTIVITY_EVENT.PROPOSAL_STATUS_CHANGED,
+        companyId: await workspaceCompanyId(context, after.workspaceId),
+        workspaceId: after.workspaceId ?? null,
+        entityType: "TechProposal",
+        entityId: after.id,
+        summary: `Propuesta para ${lead}: ${parts.join(", ")}`,
+        metadata: { changes, amount: after.amount ?? null }
+      });
+    }
+    await logCardMove(args, "TechProposal", "una propuesta");
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    const lead = await leadName(context, before.businessLeadId);
+    await log(context, {
+      type: ACTIVITY_EVENT.PROPOSAL_DELETED,
+      companyId: await workspaceCompanyId(context, before.workspaceId),
+      workspaceId: before.workspaceId ?? null,
+      entityType: "TechProposal",
+      entityId: before.id,
+      summary: `Borr\xF3 una propuesta${lead ? ` de ${lead}` : ""}`,
+      metadata: { status: before.status ?? null, amount: before.amount ?? null }
+    });
+  }
+};
+var projectTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.PROJECT_CREATED,
+      companyId: item.companyId || void 0,
+      entityType: "SaasProject",
+      entityId: item.id,
+      summary: `Cre\xF3 el proyecto ${quoted(item.name, "sin nombre")}`,
+      metadata: { status: item.status ?? null, serviceType: item.serviceType ?? null }
+    });
+  },
+  update: async ({ originalItem: before, item: after, context }) => {
+    if (!before || !after || !isChanged(before.status, after.status)) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.PROJECT_STATUS_CHANGED,
+      companyId: after.companyId || void 0,
+      entityType: "SaasProject",
+      entityId: after.id,
+      summary: `Proyecto ${quoted(after.name, "sin nombre")}: ${after.status ?? "sin estatus"}`,
+      metadata: { from: before.status ?? null, to: after.status ?? null }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.PROJECT_DELETED,
+      companyId: before.companyId || void 0,
+      entityType: "SaasProject",
+      entityId: before.id,
+      summary: `Borr\xF3 el proyecto ${quoted(before.name, "sin nombre")}`,
+      metadata: { status: before.status ?? null }
+    });
+  }
+};
+var followUpTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    const lead = await leadName(context, item.businessLeadId);
+    await log(context, {
+      type: ACTIVITY_EVENT.FOLLOWUP_CREATED,
+      companyId: await workspaceCompanyId(context, item.workspaceId),
+      workspaceId: item.workspaceId ?? null,
+      entityType: "TechFollowUpTask",
+      entityId: item.id,
+      summary: `Agend\xF3 un seguimiento${lead ? ` con ${lead}` : ""}${item.scheduledDate ? ` para el ${plain(item.scheduledDate)}` : ""}`,
+      metadata: {
+        scheduledDate: plain(item.scheduledDate),
+        priority: item.priority ?? null,
+        assignedSellerId: item.assignedSellerId ?? null
+      }
+    });
+  },
+  update: async (args) => {
+    const { originalItem: before, item: after, context } = args;
+    if (!before || !after) return;
+    if (isChanged(before.status, after.status)) {
+      const lead = await leadName(context, after.businessLeadId);
+      await log(context, {
+        type: ACTIVITY_EVENT.FOLLOWUP_STATUS_CHANGED,
+        companyId: await workspaceCompanyId(context, after.workspaceId),
+        workspaceId: after.workspaceId ?? null,
+        entityType: "TechFollowUpTask",
+        entityId: after.id,
+        summary: `Seguimiento${lead ? ` con ${lead}` : ""}: ${after.status ?? "sin estatus"}`,
+        metadata: { from: before.status ?? null, to: after.status ?? null }
+      });
+    }
+    await logCardMove(args, "TechFollowUpTask", "un seguimiento");
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.FOLLOWUP_DELETED,
+      companyId: await workspaceCompanyId(context, before.workspaceId),
+      workspaceId: before.workspaceId ?? null,
+      entityType: "TechFollowUpTask",
+      entityId: before.id,
+      summary: "Borr\xF3 un seguimiento",
+      metadata: { status: before.status ?? null, scheduledDate: plain(before.scheduledDate) }
+    });
+  }
+};
+var taskTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.TASK_CREATED,
+      companyId: await workspaceCompanyId(context, item.workspaceId),
+      workspaceId: item.workspaceId ?? null,
+      entityType: "TechTask",
+      entityId: item.id,
+      summary: `Cre\xF3 la tarea ${quoted(item.title, "sin t\xEDtulo")}`,
+      metadata: { priority: item.priority ?? null, responsibleId: item.responsibleId ?? null }
+    });
+  },
+  update: (args) => logCardMove(args, "TechTask", "una tarea"),
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.TASK_DELETED,
+      companyId: await workspaceCompanyId(context, before.workspaceId),
+      workspaceId: before.workspaceId ?? null,
+      entityType: "TechTask",
+      entityId: before.id,
+      summary: `Borr\xF3 la tarea ${quoted(before.title, "sin t\xEDtulo")}`,
+      metadata: null
+    });
+  }
+};
+var salesActivityTracker = {
+  update: (args) => logCardMove(args, "TechSalesActivity", "una actividad"),
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ACTIVITY_DELETED,
+      companyId: await workspaceCompanyId(context, before.workspaceId),
+      workspaceId: before.workspaceId ?? null,
+      entityType: "TechSalesActivity",
+      entityId: before.id,
+      summary: `Borr\xF3 la actividad ${quoted(before.title, "sin t\xEDtulo")}`,
+      metadata: { activityType: before.type ?? null }
+    });
+  }
+};
+var fileTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.FILE_UPLOADED,
+      companyId: item.companyId || void 0,
+      entityType: "TechFile",
+      entityId: item.id,
+      summary: `Subi\xF3 el archivo ${quoted(item.title, "sin t\xEDtulo")}`,
+      metadata: { category: item.category ?? null, filesize: item.file_filesize ?? null }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.FILE_DELETED,
+      companyId: before.companyId || void 0,
+      entityType: "TechFile",
+      entityId: before.id,
+      summary: `Borr\xF3 el archivo ${quoted(before.title, "sin t\xEDtulo")}`,
+      metadata: { category: before.category ?? null }
+    });
+  }
+};
+var workspaceTracker = {
+  snapshotBefore: async ({ inputData, originalItem, context }) => {
+    if (!originalItem || !relationInput(inputData?.members)?.set) return null;
+    const ws = await prismaOf(context).saasWorkspace.findUnique({
+      where: { id: originalItem.id },
+      select: { members: { select: { id: true } } }
+    });
+    return { memberIds: (ws?.members ?? []).map((m) => m.id) };
+  },
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.WORKSPACE_CREATED,
+      companyId: item.companyId || void 0,
+      workspaceId: item.id,
+      entityType: "SaasWorkspace",
+      entityId: item.id,
+      summary: `Cre\xF3 el espacio ${quoted(item.name, "sin nombre")}`,
+      metadata: null
+    });
+  },
+  update: async ({ item: after, inputData, context }, before) => {
+    if (!after) return;
+    const members = relationInput(inputData?.members);
+    if (!members) return;
+    let added = members.connect;
+    let removed = members.disconnect;
+    if (members.set) {
+      const previous = before?.memberIds ?? [];
+      added = members.set.filter((id) => !previous.includes(id));
+      removed = previous.filter((id) => !members.set.includes(id));
+    }
+    if (!added.length && !removed.length) return;
+    const names = await userNames(context, [...added, ...removed]);
+    const parts = [
+      added.length ? `agreg\xF3 a ${added.map((id) => names[id] ?? id).join(", ")}` : null,
+      removed.length ? `quit\xF3 a ${removed.map((id) => names[id] ?? id).join(", ")}` : null
+    ].filter(Boolean);
+    await log(context, {
+      type: ACTIVITY_EVENT.WORKSPACE_MEMBERS_CHANGED,
+      companyId: after.companyId || void 0,
+      workspaceId: after.id,
+      entityType: "SaasWorkspace",
+      entityId: after.id,
+      summary: `Espacio ${quoted(after.name, "sin nombre")}: ${parts.join(" y ")}`,
+      metadata: { added, removed }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.WORKSPACE_DELETED,
+      companyId: before.companyId || void 0,
+      entityType: "SaasWorkspace",
+      entityId: before.id,
+      summary: `Borr\xF3 el espacio ${quoted(before.name, "sin nombre")}`,
+      metadata: null
+    });
+  }
+};
+var USER_NOISE_FIELDS = /* @__PURE__ */ new Set([
+  "onboardingState",
+  "lastLoginAt",
+  "smsRegistrationId",
+  "password"
+]);
+function permissionList(value) {
+  return Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
+}
+var userTracker = {
+  snapshotBefore: async ({ inputData, originalItem, context }) => {
+    if (!originalItem || inputData?.roles === void 0) return null;
+    const user = await prismaOf(context).user.findUnique({
+      where: { id: originalItem.id },
+      select: { roles: { select: { name: true } } }
+    });
+    return { roles: (user?.roles ?? []).map((r) => r.name).sort() };
+  },
+  // Alta hecha por otra persona (admin de empresa o de Kadesh). El registro propio va en UserAuthLog.
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.TEAM_USER_CREATED,
+      companyId: item.companyId || void 0,
+      entityType: "User",
+      entityId: item.id,
+      summary: `Dio de alta a ${fullName(item) ?? item.email ?? "una persona"}`,
+      metadata: { userId: item.id, email: item.email ?? null }
+    });
+  },
+  update: async ({ originalItem: before, item: after, inputData, context }, snapshot) => {
+    if (!before || !after) return;
+    const companyId = after.companyId || before.companyId || void 0;
+    const target = fullName(after) ?? after.email ?? "una persona";
+    const selfEdit = getSessionUserId(context.session) === after.id;
+    if (inputData?.roles !== void 0) {
+      const user = await prismaOf(context).user.findUnique({
+        where: { id: after.id },
+        select: { roles: { select: { name: true } } }
+      });
+      const to = (user?.roles ?? []).map((r) => r.name).sort();
+      const from = snapshot?.roles ?? [];
+      if (from.join("|") !== to.join("|")) {
+        await log(context, {
+          type: ACTIVITY_EVENT.TEAM_ROLES_CHANGED,
+          companyId,
+          entityType: "User",
+          entityId: after.id,
+          summary: `Cambi\xF3 los roles de ${target}: ${to.join(", ") || "sin roles"}`,
+          metadata: {
+            from,
+            to,
+            added: to.filter((r) => !from.includes(r)),
+            removed: from.filter((r) => !to.includes(r))
+          }
+        });
+      }
+    }
+    if (isChanged(before.permissions, after.permissions)) {
+      const from = permissionList(before.permissions);
+      const to = permissionList(after.permissions);
+      await log(context, {
+        type: ACTIVITY_EVENT.TEAM_PERMISSIONS_CHANGED,
+        companyId,
+        entityType: "User",
+        entityId: after.id,
+        summary: `Cambi\xF3 los permisos de ${target}`,
+        metadata: {
+          added: to.filter((p) => !from.includes(p)),
+          removed: from.filter((p) => !to.includes(p)),
+          legacy: after.permissions == null
+        }
+      });
+    }
+    if (isChanged(before.companyId, after.companyId)) {
+      await log(context, {
+        type: ACTIVITY_EVENT.TEAM_COMPANY_CHANGED,
+        companyId,
+        entityType: "User",
+        entityId: after.id,
+        summary: after.companyId ? `Cambi\xF3 de empresa a ${target}` : `Sac\xF3 a ${target} de su empresa`,
+        metadata: { from: before.companyId ?? null, to: after.companyId ?? null }
+      });
+    }
+    if (selfEdit) return;
+    const fields = changedFieldNames(
+      before,
+      after,
+      /* @__PURE__ */ new Set([...USER_NOISE_FIELDS, "permissions", "companyId"])
+    );
+    const passwordChanged = isChanged(before.password, after.password);
+    if (!fields.length && !passwordChanged) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.TEAM_USER_UPDATED,
+      companyId,
+      entityType: "User",
+      entityId: after.id,
+      summary: `Edit\xF3 el perfil de ${target}${passwordChanged ? " (incluida la contrase\xF1a)" : ""}`,
+      metadata: { fields: passwordChanged ? [...fields, "password"] : fields }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.TEAM_USER_DELETED,
+      companyId: before.companyId || void 0,
+      entityType: "User",
+      entityId: before.id,
+      summary: `Borr\xF3 la cuenta de ${fullName(before) ?? before.email ?? "una persona"}`,
+      metadata: { email: before.email ?? null }
+    });
+  }
+};
+var COMPANY_NOISE_FIELDS = /* @__PURE__ */ new Set(["whatsappLastWebhookAt", "purchasedBonusCredits"]);
+var companyTracker = {
+  update: async ({ originalItem: before, item: after, context }) => {
+    if (!before || !after) return;
+    const fields = changedFieldNames(before, after, COMPANY_NOISE_FIELDS);
+    if (!fields.length) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.COMPANY_UPDATED,
+      companyId: after.id,
+      entityType: "SaasCompany",
+      entityId: after.id,
+      summary: `Edit\xF3 los datos de la empresa ${after.name ?? ""}`.trim(),
+      metadata: { fields }
+    });
+  }
+};
+var SUBSCRIPTION_FIELDS = [
+  "status",
+  "planName",
+  "planCost",
+  "planFrequency",
+  "planLeadLimit",
+  "newCreditsAdded",
+  "activatedAt",
+  "currentPeriodEnd",
+  "stripeSubscriptionId"
+];
+function featureKeys(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((f) => f && typeof f === "object" ? f.key : null).filter((k) => typeof k === "string").sort();
+}
+function featureChanges(before, after) {
+  const from = featureKeys(before);
+  const to = featureKeys(after);
+  const added = to.filter((k) => !from.includes(k));
+  const removed = from.filter((k) => !to.includes(k));
+  return added.length || removed.length ? { added, removed } : null;
+}
+var subscriptionTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_SUBSCRIPTION_CHANGED,
+      companyId: item.companyId || void 0,
+      entityType: "SaasCompanySubscription",
+      entityId: item.id,
+      summary: `Cre\xF3 la suscripci\xF3n ${item.planName || "sin plan"} (${item.status ?? "sin estatus"})`,
+      metadata: { created: true, status: item.status ?? null, planName: item.planName ?? null }
+    });
+  },
+  update: async ({ originalItem: before, item: after, context }) => {
+    if (!before || !after) return;
+    const changes = changesOf(before, after, SUBSCRIPTION_FIELDS);
+    const features = featureChanges(before.planFeatures, after.planFeatures);
+    if (!Object.keys(changes).length && !features) return;
+    const parts = Object.keys(changes);
+    if (features) parts.push("m\xF3dulos");
+    const plan = after.planName ? ` ${after.planName}` : "";
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_SUBSCRIPTION_CHANGED,
+      companyId: after.companyId || void 0,
+      entityType: "SaasCompanySubscription",
+      entityId: after.id,
+      summary: `Ajust\xF3 el plan${plan}: ${parts.join(", ")}`,
+      metadata: { changes, ...features ? { features } : {} }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_SUBSCRIPTION_CHANGED,
+      companyId: before.companyId || void 0,
+      entityType: "SaasCompanySubscription",
+      entityId: before.id,
+      summary: `Borr\xF3 la suscripci\xF3n ${before.planName || before.id}`,
+      metadata: { deleted: true, status: before.status ?? null }
+    });
+  }
+};
+var PLAN_FIELDS = [
+  "name",
+  "cost",
+  "costOld",
+  "frequency",
+  "currency",
+  "leadLimit",
+  "active",
+  "bestSeller",
+  "stripePriceId",
+  "referralUpfrontCommissionPct",
+  "referralRecurringCommissionPct"
+];
+var planTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_PLAN_CATALOG_CHANGED,
+      companyId: null,
+      entityType: "SaasPlan",
+      entityId: item.id,
+      summary: `Cre\xF3 el plan ${item.name ?? item.id}`,
+      metadata: { created: true, cost: item.cost ?? null, leadLimit: item.leadLimit ?? null }
+    });
+  },
+  update: async ({ originalItem: before, item: after, context }) => {
+    if (!before || !after) return;
+    const changes = changesOf(before, after, PLAN_FIELDS);
+    const features = featureChanges(before.planFeatures, after.planFeatures);
+    if (!Object.keys(changes).length && !features) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_PLAN_CATALOG_CHANGED,
+      companyId: null,
+      entityType: "SaasPlan",
+      entityId: after.id,
+      summary: `Edit\xF3 el plan ${after.name ?? after.id}`,
+      metadata: { changes, ...features ? { features } : {} }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_PLAN_CATALOG_CHANGED,
+      companyId: null,
+      entityType: "SaasPlan",
+      entityId: before.id,
+      summary: `Borr\xF3 el plan ${before.name ?? before.id}`,
+      metadata: { deleted: true }
+    });
+  }
+};
+var CREDIT_PACKAGE_FIELDS = [
+  "name",
+  "slug",
+  "cost",
+  "costOld",
+  "currency",
+  "creditsToAdd",
+  "active",
+  "bestSeller",
+  "stripePriceId"
+];
+var creditPackageTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_CREDIT_PACKAGE_CHANGED,
+      companyId: null,
+      entityType: "SaasCredit",
+      entityId: item.id,
+      summary: `Cre\xF3 el paquete de cr\xE9ditos ${item.name ?? item.id}`,
+      metadata: { created: true, cost: item.cost ?? null, creditsToAdd: item.creditsToAdd ?? null }
+    });
+  },
+  update: async ({ originalItem: before, item: after, context }) => {
+    if (!before || !after) return;
+    const changes = changesOf(before, after, CREDIT_PACKAGE_FIELDS);
+    if (!Object.keys(changes).length) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_CREDIT_PACKAGE_CHANGED,
+      companyId: null,
+      entityType: "SaasCredit",
+      entityId: after.id,
+      summary: `Edit\xF3 el paquete de cr\xE9ditos ${after.name ?? after.id}`,
+      metadata: { changes }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_CREDIT_PACKAGE_CHANGED,
+      companyId: null,
+      entityType: "SaasCredit",
+      entityId: before.id,
+      summary: `Borr\xF3 el paquete de cr\xE9ditos ${before.name ?? before.id}`,
+      metadata: { deleted: true }
+    });
+  }
+};
+var companyNoteTracker = {
+  create: async ({ item, context }) => {
+    if (!item) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_NOTE_ADDED,
+      companyId: item.companyId || null,
+      entityType: "SaasCompanyNote",
+      entityId: item.id,
+      summary: `Agreg\xF3 una nota interna${item.pinned ? " (fijada)" : ""}`,
+      metadata: { pinned: Boolean(item.pinned) }
+    });
+  },
+  delete: async ({ originalItem: before, context }) => {
+    if (!before) return;
+    await log(context, {
+      type: ACTIVITY_EVENT.ADMIN_NOTE_DELETED,
+      companyId: before.companyId || null,
+      entityType: "SaasCompanyNote",
+      entityId: before.id,
+      summary: "Borr\xF3 una nota interna",
+      metadata: null
+    });
+  }
+};
+var ACTIVITY_TRACKERS = {
+  TechStatusBusinessLead: statusBusinessLeadTracker,
+  TechBusinessLead: businessLeadTracker,
+  SaasQuotation: quotationTracker,
+  TechProposal: proposalTracker,
+  SaasProject: projectTracker,
+  TechFollowUpTask: followUpTracker,
+  TechTask: taskTracker,
+  TechSalesActivity: salesActivityTracker,
+  TechFile: fileTracker,
+  SaasWorkspace: workspaceTracker,
+  User: userTracker,
+  SaasCompany: companyTracker,
+  SaasCompanySubscription: subscriptionTracker,
+  SaasPlan: planTracker,
+  SaasCredit: creditPackageTracker,
+  SaasCompanyNote: companyNoteTracker
+};
+function asMap(hook) {
+  if (!hook) return {};
+  if (typeof hook === "function") {
+    const fn = hook;
+    return { create: fn, update: fn, delete: fn };
+  }
+  return hook;
+}
+var snapshots = /* @__PURE__ */ new WeakMap();
+function runTracker(fn, args) {
+  if (!fn || !shouldTrack(args.context)) return;
+  const before = args.inputData ? snapshots.get(args.inputData) ?? null : null;
+  void Promise.resolve().then(() => fn(args, before)).catch((error) => {
+    console.warn(
+      `[activity] hook ${args.listKey}.${args.operation}:`,
+      error instanceof Error ? error.message : error
+    );
+  });
+}
+function composeHooks(existing, tracker) {
+  const hooks2 = { ...existing ?? {} };
+  const after = asMap(existing?.afterOperation);
+  hooks2.afterOperation = {
+    create: async (args) => {
+      await after.create?.(args);
+      runTracker(tracker.create, args);
+    },
+    update: async (args) => {
+      await after.update?.(args);
+      runTracker(tracker.update, args);
+    },
+    delete: async (args) => {
+      await after.delete?.(args);
+      runTracker(tracker.delete, args);
+    }
+  };
+  if (tracker.snapshotBefore) {
+    const before = asMap(existing?.beforeOperation);
+    const snapshot = tracker.snapshotBefore;
+    hooks2.beforeOperation = {
+      ...before,
+      update: async (args) => {
+        await before.update?.(args);
+        if (!args.inputData || !shouldTrack(args.context)) return;
+        try {
+          snapshots.set(args.inputData, await snapshot(args));
+        } catch {
+        }
+      }
+    };
+  }
+  return hooks2;
+}
+function withActivityHooks(lists) {
+  const out = { ...lists };
+  for (const [listKey, tracker] of Object.entries(ACTIVITY_TRACKERS)) {
+    const config2 = lists[listKey];
+    if (!config2) continue;
+    out[listKey] = { ...config2, hooks: composeHooks(config2.hooks, tracker) };
+  }
+  return out;
+}
+
+// models/Pet/Animal/AnimalBreed/AnimalBreed.ts
+var import_core11 = require("@keystone-6/core");
+var import_fields11 = require("@keystone-6/core/fields");
+var AnimalBreed_default = (0, import_core11.list)({
   access: access_default,
   fields: {
-    breed: (0, import_fields9.text)(),
-    animal_type: (0, import_fields9.relationship)({
+    breed: (0, import_fields11.text)(),
+    animal_type: (0, import_fields11.relationship)({
       ref: "AnimalType.animal_breed"
     })
   },
@@ -2978,16 +4476,16 @@ var AnimalBreed_default = (0, import_core9.list)({
 });
 
 // models/Pet/Pet.ts
-var import_core10 = require("@keystone-6/core");
-var import_fields10 = require("@keystone-6/core/fields");
-var Pet_default = (0, import_core10.list)({
+var import_core12 = require("@keystone-6/core");
+var import_fields12 = require("@keystone-6/core/fields");
+var Pet_default = (0, import_core12.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields10.text)({ validation: { isRequired: true } }),
-    birthday: (0, import_fields10.calendarDay)({ validation: { isRequired: true } }),
-    age: (0, import_fields10.virtual)({
-      field: import_core10.graphql.field({
-        type: import_core10.graphql.String,
+    name: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    birthday: (0, import_fields12.calendarDay)({ validation: { isRequired: true } }),
+    age: (0, import_fields12.virtual)({
+      field: import_core12.graphql.field({
+        type: import_core12.graphql.String,
         async resolve(item) {
           if (item?.birthday) {
             const today = /* @__PURE__ */ new Date();
@@ -3003,23 +4501,23 @@ var Pet_default = (0, import_core10.list)({
         }
       })
     }),
-    animal_type: (0, import_fields10.relationship)({
+    animal_type: (0, import_fields12.relationship)({
       ref: "AnimalType",
       many: false
     }),
-    animal_breed: (0, import_fields10.relationship)({
+    animal_breed: (0, import_fields12.relationship)({
       ref: "AnimalBreed",
       many: false
     }),
-    user: (0, import_fields10.relationship)({
+    user: (0, import_fields12.relationship)({
       ref: "User",
       many: false
     }),
-    multimedia: (0, import_fields10.relationship)({
+    multimedia: (0, import_fields12.relationship)({
       ref: "PetMultimedia.pet",
       many: true
     }),
-    createdAt: (0, import_fields10.timestamp)({
+    createdAt: (0, import_fields12.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -3032,18 +4530,18 @@ var Pet_default = (0, import_core10.list)({
 });
 
 // models/Pet/PetMultimedia/PetMultimedia.ts
-var import_core11 = require("@keystone-6/core");
-var import_fields11 = require("@keystone-6/core/fields");
-var PetMultimedia_default = (0, import_core11.list)({
+var import_core13 = require("@keystone-6/core");
+var import_fields13 = require("@keystone-6/core/fields");
+var PetMultimedia_default = (0, import_core13.list)({
   access: access_default,
   fields: {
-    image: (0, import_fields11.image)({
+    image: (0, import_fields13.image)({
       storage: "s3_pets"
     }),
-    pet: (0, import_fields11.relationship)({
+    pet: (0, import_fields13.relationship)({
       ref: "Pet.multimedia"
     }),
-    createdAt: (0, import_fields11.timestamp)({
+    createdAt: (0, import_fields13.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -3052,16 +4550,16 @@ var PetMultimedia_default = (0, import_core11.list)({
 });
 
 // models/Pet/PetPlace/PetPlace.ts
-var import_core13 = require("@keystone-6/core");
-var import_fields13 = require("@keystone-6/core/fields");
+var import_core15 = require("@keystone-6/core");
+var import_fields15 = require("@keystone-6/core/fields");
 
 // models/Pet/Schedule/Schedule.ts
-var import_core12 = require("@keystone-6/core");
-var import_fields12 = require("@keystone-6/core/fields");
-var Schedule_default = (0, import_core12.list)({
+var import_core14 = require("@keystone-6/core");
+var import_fields14 = require("@keystone-6/core/fields");
+var Schedule_default = (0, import_core14.list)({
   access: access_default,
   fields: {
-    day: (0, import_fields12.select)({
+    day: (0, import_fields14.select)({
       options: [
         "Domingo" /* DOM */,
         "Lunes" /* LUN */,
@@ -3073,12 +4571,12 @@ var Schedule_default = (0, import_core12.list)({
       ],
       validation: { isRequired: true }
     }),
-    timeIni: (0, import_fields12.integer)({ validation: { isRequired: true } }),
-    timeEnd: (0, import_fields12.integer)({ validation: { isRequired: true } }),
-    pet_place: (0, import_fields12.relationship)({
+    timeIni: (0, import_fields14.integer)({ validation: { isRequired: true } }),
+    timeEnd: (0, import_fields14.integer)({ validation: { isRequired: true } }),
+    pet_place: (0, import_fields14.relationship)({
       ref: "PetPlace.pet_place_schedules"
     }),
-    createdAt: (0, import_fields12.timestamp)({
+    createdAt: (0, import_fields14.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -3278,7 +4776,7 @@ var pipelineOptions = Object.values(PIPELINE_STATUS).map((value) => ({
   label: value,
   value
 }));
-var PetPlace_default = (0, import_core13.list)({
+var PetPlace_default = (0, import_core15.list)({
   access: access_default,
   ui: {
     listView: {
@@ -3315,8 +4813,8 @@ var PetPlace_default = (0, import_core13.list)({
     }
   },
   fields: {
-    name: (0, import_fields13.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields13.text)({
+    name: (0, import_fields15.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields15.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -3325,81 +4823,81 @@ var PetPlace_default = (0, import_core13.list)({
         description: "URL amigable. Se genera sola (nombre + municipio) y no cambia si editas el nombre."
       }
     }),
-    description: (0, import_fields13.text)({ validation: { isRequired: true } }),
-    phone: (0, import_fields13.text)(),
-    whatsapp: (0, import_fields13.text)({
+    description: (0, import_fields15.text)({ validation: { isRequired: true } }),
+    phone: (0, import_fields15.text)(),
+    whatsapp: (0, import_fields15.text)({
       ui: { description: "WhatsApp de la cl\xEDnica (solo d\xEDgitos, con lada)" }
     }),
-    website: (0, import_fields13.text)(),
-    email: (0, import_fields13.text)({
+    website: (0, import_fields15.text)(),
+    email: (0, import_fields15.text)({
       ui: { description: "Correo p\xFAblico de la cl\xEDnica" }
     }),
-    emergencies: (0, import_fields13.checkbox)({
+    emergencies: (0, import_fields15.checkbox)({
       defaultValue: false,
       ui: { description: "Atiende urgencias 24/7" }
     }),
-    parking: (0, import_fields13.checkbox)({
+    parking: (0, import_fields15.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene estacionamiento" }
     }),
-    appointmentRequired: (0, import_fields13.checkbox)({
+    appointmentRequired: (0, import_fields15.checkbox)({
       defaultValue: false,
       ui: { description: "Atiende solo con cita" }
     }),
-    street: (0, import_fields13.text)(),
-    municipality: (0, import_fields13.text)(),
-    state: (0, import_fields13.text)(),
-    country: (0, import_fields13.text)(),
-    cp: (0, import_fields13.text)(),
-    lat: (0, import_fields13.text)(),
-    lng: (0, import_fields13.text)(),
-    views: (0, import_fields13.integer)(),
-    types: (0, import_fields13.relationship)({
+    street: (0, import_fields15.text)(),
+    municipality: (0, import_fields15.text)(),
+    state: (0, import_fields15.text)(),
+    country: (0, import_fields15.text)(),
+    cp: (0, import_fields15.text)(),
+    lat: (0, import_fields15.text)(),
+    lng: (0, import_fields15.text)(),
+    views: (0, import_fields15.integer)(),
+    types: (0, import_fields15.relationship)({
       ref: "PetPlaceType",
       many: true
     }),
-    services: (0, import_fields13.relationship)({
+    services: (0, import_fields15.relationship)({
       ref: "PetPlaceService",
       many: true
     }),
-    requested_services: (0, import_fields13.relationship)({
+    requested_services: (0, import_fields15.relationship)({
       ref: "PetPlaceService.requestedFor",
       many: true,
       ui: { description: "Servicios que esta cl\xEDnica pidi\xF3 al cat\xE1logo" }
     }),
-    patients: (0, import_fields13.relationship)({
+    patients: (0, import_fields15.relationship)({
       ref: "User.clinic_patients_of",
       many: true,
       ui: { description: "Pacientes dados de alta por esta cl\xEDnica" }
     }),
-    user: (0, import_fields13.relationship)({
+    user: (0, import_fields15.relationship)({
       ref: "User.pet_places",
       many: false,
       ui: { description: "Due\xF1o o solicitante de la ficha" }
     }),
-    verified: (0, import_fields13.checkbox)({
+    verified: (0, import_fields15.checkbox)({
       defaultValue: false,
       ui: {
         description: "Marca cuando un admin ya valid\xF3 que la cl\xEDnica es de este usuario"
       }
     }),
-    verifiedAt: (0, import_fields13.timestamp)({
+    verifiedAt: (0, import_fields15.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    claimStatus: (0, import_fields13.select)({
+    claimStatus: (0, import_fields15.select)({
       options: PET_PLACE_CLAIM_STATUS_OPTIONS,
       defaultValue: PET_PLACE_CLAIM_STATUS.UNCLAIMED,
       ui: { displayMode: "segmented-control" }
     }),
-    claimRole: (0, import_fields13.select)({
+    claimRole: (0, import_fields15.select)({
       options: PET_PLACE_CLAIM_ROLE_OPTIONS,
       ui: { description: "Rol declarado al reclamar" }
     }),
-    pipelineStatus: (0, import_fields13.select)({
+    pipelineStatus: (0, import_fields15.select)({
       type: "string",
       options: pipelineOptions,
       defaultValue: PIPELINE_STATUS.DETECTADO,
@@ -3408,25 +4906,25 @@ var PetPlace_default = (0, import_core13.list)({
         description: "Estatus comercial interno (solo admin). No lo ve el due\xF1o de la ficha."
       }
     }),
-    claimPhone: (0, import_fields13.text)({
+    claimPhone: (0, import_fields15.text)({
       ui: { description: "Tel\xE9fono que dej\xF3 en la solicitud" }
     }),
-    claimNotes: (0, import_fields13.text)({
+    claimNotes: (0, import_fields15.text)({
       ui: {
         displayMode: "textarea",
         description: "C\xF3mo comprueba que es suya (c\xE9dula, RFC, etc.)"
       }
     }),
-    claimedAt: (0, import_fields13.timestamp)({
+    claimedAt: (0, import_fields15.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    isOpen: (0, import_fields13.virtual)({
-      field: import_core13.graphql.field({
-        type: import_core13.graphql.Boolean,
+    isOpen: (0, import_fields15.virtual)({
+      field: import_core15.graphql.field({
+        type: import_core15.graphql.Boolean,
         async resolve(item, args, context) {
           const today = /* @__PURE__ */ new Date();
           const schedules = await context.query.Schedule.findMany({
@@ -3454,29 +4952,29 @@ var PetPlace_default = (0, import_core13.list)({
         }
       })
     }),
-    pet_place_social_media: (0, import_fields13.relationship)({
+    pet_place_social_media: (0, import_fields15.relationship)({
       ref: "SocialMedia.pet_place",
       many: true
     }),
-    pet_place_likes: (0, import_fields13.relationship)({
+    pet_place_likes: (0, import_fields15.relationship)({
       ref: "PetPlaceLike.pet_place",
       many: true
     }),
-    pet_place_schedules: (0, import_fields13.relationship)({
+    pet_place_schedules: (0, import_fields15.relationship)({
       ref: "Schedule.pet_place",
       many: true
     }),
-    pet_place_appointments: (0, import_fields13.relationship)({
+    pet_place_appointments: (0, import_fields15.relationship)({
       ref: "PetPlaceAppointment.pet_place",
       many: true
     }),
-    pet_place_reviews: (0, import_fields13.relationship)({
+    pet_place_reviews: (0, import_fields15.relationship)({
       ref: "Review.pet_place",
       many: true
     }),
-    reviewsCount: (0, import_fields13.virtual)({
-      field: import_core13.graphql.field({
-        type: import_core13.graphql.Int,
+    reviewsCount: (0, import_fields15.virtual)({
+      field: import_core15.graphql.field({
+        type: import_core15.graphql.Int,
         async resolve(item, args, context) {
           const reviews = await context.query.Review.findMany({
             where: {
@@ -3492,9 +4990,9 @@ var PetPlace_default = (0, import_core13.list)({
         }
       })
     }),
-    averageRating: (0, import_fields13.virtual)({
-      field: import_core13.graphql.field({
-        type: import_core13.graphql.Float,
+    averageRating: (0, import_fields15.virtual)({
+      field: import_core15.graphql.field({
+        type: import_core15.graphql.Float,
         async resolve(item, args, context) {
           const reviews = await context.query.Review.findMany({
             where: {
@@ -3517,18 +5015,18 @@ var PetPlace_default = (0, import_core13.list)({
         }
       })
     }),
-    pet_place_ads: (0, import_fields13.relationship)({
+    pet_place_ads: (0, import_fields15.relationship)({
       ref: "Ad.pet_place",
       many: true
     }),
-    address: (0, import_fields13.text)(),
-    google_place_id: (0, import_fields13.text)({
+    address: (0, import_fields15.text)(),
+    google_place_id: (0, import_fields15.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       validation: { isRequired: false }
     }),
-    google_opening_hours: (0, import_fields13.text)(),
-    createdAt: (0, import_fields13.timestamp)({
+    google_opening_hours: (0, import_fields15.text)(),
+    createdAt: (0, import_fields15.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -3541,8 +5039,8 @@ var PetPlace_default = (0, import_core13.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
-var import_core14 = require("@keystone-6/core");
-var import_fields14 = require("@keystone-6/core/fields");
+var import_core16 = require("@keystone-6/core");
+var import_fields16 = require("@keystone-6/core/fields");
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.access.ts
 function visibleWhere(session2) {
@@ -3725,7 +5223,7 @@ var petPlaceAppointmentEmailHook = {
 };
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
-var PetPlaceAppointment_default = (0, import_core14.list)({
+var PetPlaceAppointment_default = (0, import_core16.list)({
   access: petPlaceAppointmentAccess,
   ui: {
     listView: {
@@ -3744,59 +5242,59 @@ var PetPlaceAppointment_default = (0, import_core14.list)({
     afterOperation: petPlaceAppointmentEmailHook.afterOperation
   },
   fields: {
-    pet_place: (0, import_fields14.relationship)({
+    pet_place: (0, import_fields16.relationship)({
       ref: "PetPlace.pet_place_appointments",
       many: false,
       ui: { description: "Negocio (veterinaria, refugio, hotel, etc.)" }
     }),
-    customer: (0, import_fields14.relationship)({
+    customer: (0, import_fields16.relationship)({
       ref: "User.my_appointments",
       many: false,
       ui: { description: "Usuario que reserv\xF3 la cita" }
     }),
-    service: (0, import_fields14.relationship)({
+    service: (0, import_fields16.relationship)({
       ref: "PetPlaceService",
       many: false,
       ui: { description: "Servicio del cat\xE1logo (opcional)" }
     }),
-    startsAt: (0, import_fields14.timestamp)({
+    startsAt: (0, import_fields16.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Inicio de la cita / check-in" }
     }),
-    endsAt: (0, import_fields14.timestamp)({
+    endsAt: (0, import_fields16.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Fin de la cita / check-out" }
     }),
-    status: (0, import_fields14.select)({
+    status: (0, import_fields16.select)({
       type: "string",
       options: PET_PLACE_APPOINTMENT_STATUS_OPTIONS,
       defaultValue: PET_PLACE_APPOINTMENT_STATUS.PENDING,
       validation: { isRequired: true },
       ui: { displayMode: "segmented-control" }
     }),
-    petName: (0, import_fields14.text)({
+    petName: (0, import_fields16.text)({
       ui: { description: "Nombre de la mascota" }
     }),
-    petSpecies: (0, import_fields14.text)({
+    petSpecies: (0, import_fields16.text)({
       ui: { description: "Especie/raza (texto libre, ej. Perro - Labrador)" }
     }),
-    notes: (0, import_fields14.text)({
+    notes: (0, import_fields16.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas del cliente (motivo de la visita, indicaciones)"
       }
     }),
-    ownerNotes: (0, import_fields14.text)({
+    ownerNotes: (0, import_fields16.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas internas del negocio (no visibles para el cliente)"
       }
     }),
-    cancelReason: (0, import_fields14.text)({
+    cancelReason: (0, import_fields16.text)({
       db: { isNullable: true },
       ui: { description: "Motivo de cancelaci\xF3n" }
     }),
-    createdAt: (0, import_fields14.timestamp)({
+    createdAt: (0, import_fields16.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -3807,19 +5305,19 @@ var PetPlaceAppointment_default = (0, import_core14.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts
-var import_core15 = require("@keystone-6/core");
-var import_fields15 = require("@keystone-6/core/fields");
-var PetPlaceLike_default = (0, import_core15.list)({
+var import_core17 = require("@keystone-6/core");
+var import_fields17 = require("@keystone-6/core/fields");
+var PetPlaceLike_default = (0, import_core17.list)({
   access: access_default,
   fields: {
-    user: (0, import_fields15.relationship)({
+    user: (0, import_fields17.relationship)({
       ref: "User",
       many: false
     }),
-    pet_place: (0, import_fields15.relationship)({
+    pet_place: (0, import_fields17.relationship)({
       ref: "PetPlace.pet_place_likes"
     }),
-    createdAt: (0, import_fields15.timestamp)({
+    createdAt: (0, import_fields17.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -3828,8 +5326,8 @@ var PetPlaceLike_default = (0, import_core15.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
-var import_core16 = require("@keystone-6/core");
-var import_fields16 = require("@keystone-6/core/fields");
+var import_core18 = require("@keystone-6/core");
+var import_fields18 = require("@keystone-6/core/fields");
 
 // models/Pet/PetPlace/PetPlaceService/status.ts
 var PET_PLACE_SERVICE_STATUS = {
@@ -3898,7 +5396,7 @@ var petPlaceServiceHooks = {
 };
 
 // models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
-var PetPlaceService_default = (0, import_core16.list)({
+var PetPlaceService_default = (0, import_core18.list)({
   access: access_default,
   ui: {
     listView: {
@@ -3910,16 +5408,16 @@ var PetPlaceService_default = (0, import_core16.list)({
     afterOperation: petPlaceServiceHooks.afterOperation
   },
   fields: {
-    name: (0, import_fields16.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields16.text)({ isIndexed: "unique" }),
-    description: (0, import_fields16.text)({ ui: { displayMode: "textarea" } }),
-    active: (0, import_fields16.checkbox)({
+    name: (0, import_fields18.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields18.text)({ isIndexed: "unique" }),
+    description: (0, import_fields18.text)({ ui: { displayMode: "textarea" } }),
+    active: (0, import_fields18.checkbox)({
       defaultValue: true,
       ui: {
         description: "Visible en el cat\xE1logo y en fichas. Solo si est\xE1 aprobado."
       }
     }),
-    status: (0, import_fields16.select)({
+    status: (0, import_fields18.select)({
       type: "string",
       options: PET_PLACE_SERVICE_STATUS_OPTIONS,
       defaultValue: PET_PLACE_SERVICE_STATUS.APPROVED,
@@ -3929,17 +5427,17 @@ var PetPlaceService_default = (0, import_core16.list)({
         description: "Pendiente = lo pidi\xF3 un due\xF1o. Aprobado = sale en el cat\xE1logo. Rechazado = no sale."
       }
     }),
-    requestedBy: (0, import_fields16.relationship)({
+    requestedBy: (0, import_fields18.relationship)({
       ref: "User.requested_pet_place_services",
       many: false,
       ui: { description: "Due\xF1o que pidi\xF3 este servicio" }
     }),
-    requestedFor: (0, import_fields16.relationship)({
+    requestedFor: (0, import_fields18.relationship)({
       ref: "PetPlace.requested_services",
       many: false,
       ui: { description: "Cl\xEDnica que lo pidi\xF3; al aprobar se conecta a sus servicios" }
     }),
-    createdAt: (0, import_fields16.timestamp)({
+    createdAt: (0, import_fields18.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -3948,22 +5446,22 @@ var PetPlaceService_default = (0, import_core16.list)({
 });
 
 // models/Pet/SocialMedia/SocialMedia.ts
-var import_core17 = require("@keystone-6/core");
-var import_fields17 = require("@keystone-6/core/fields");
-var SocialMedia_default = (0, import_core17.list)({
+var import_core19 = require("@keystone-6/core");
+var import_fields19 = require("@keystone-6/core/fields");
+var SocialMedia_default = (0, import_core19.list)({
   access: access_default,
   fields: {
-    social_media: (0, import_fields17.select)({
+    social_media: (0, import_fields19.select)({
       options: ["Facebook", "Instagram", "X", "LinkedIn", "TikTok"],
       validation: { isRequired: true }
     }),
-    link: (0, import_fields17.text)({
+    link: (0, import_fields19.text)({
       validation: { isRequired: true }
     }),
-    pet_place: (0, import_fields17.relationship)({
+    pet_place: (0, import_fields19.relationship)({
       ref: "PetPlace.pet_place_social_media"
     }),
-    createdAt: (0, import_fields17.timestamp)({
+    createdAt: (0, import_fields19.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -3976,8 +5474,8 @@ var SocialMedia_default = (0, import_core17.list)({
 });
 
 // models/SystemRelease/SystemRelease.ts
-var import_core18 = require("@keystone-6/core");
-var import_fields18 = require("@keystone-6/core/fields");
+var import_core20 = require("@keystone-6/core");
+var import_fields20 = require("@keystone-6/core/fields");
 
 // models/SystemRelease/systemRelease.access.ts
 var systemReleaseAccess = {
@@ -4132,7 +5630,7 @@ var systemReleaseEmailHook = {
 };
 
 // models/SystemRelease/SystemRelease.ts
-var SystemRelease_default = (0, import_core18.list)({
+var SystemRelease_default = (0, import_core20.list)({
   access: systemReleaseAccess,
   hooks: {
     afterOperation: systemReleaseEmailHook.afterOperation
@@ -4151,12 +5649,12 @@ var SystemRelease_default = (0, import_core18.list)({
     }
   },
   fields: {
-    version: (0, import_fields18.text)({
+    version: (0, import_fields20.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Versi\xF3n semver o etiqueta (ej. 1.4.0)" }
     }),
-    product: (0, import_fields18.select)({
+    product: (0, import_fields20.select)({
       options: SYSTEM_RELEASE_PRODUCT_OPTIONS,
       validation: { isRequired: true },
       ui: {
@@ -4164,24 +5662,24 @@ var SystemRelease_default = (0, import_core18.list)({
         description: "Pet, SaaS o ambas apps"
       }
     }),
-    title: (0, import_fields18.text)({
+    title: (0, import_fields20.text)({
       ui: { description: "T\xEDtulo corto del release (opcional)" }
     }),
-    body: (0, import_fields18.text)({
+    body: (0, import_fields20.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas de cambio (texto o markdown seg\xFAn el front)"
       }
     }),
-    releasedAt: (0, import_fields18.timestamp)({
+    releasedAt: (0, import_fields20.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Fecha en que aplica / se publica el release" }
     }),
-    isPublished: (0, import_fields18.checkbox)({
+    isPublished: (0, import_fields20.checkbox)({
       defaultValue: false,
       ui: { description: "Si est\xE1 desmarcado, solo admins lo ven en listados" }
     }),
-    createdAt: (0, import_fields18.timestamp)({
+    createdAt: (0, import_fields20.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -4192,93 +5690,25 @@ var SystemRelease_default = (0, import_core18.list)({
 });
 
 // models/Pet/Review/Review.ts
-var import_core19 = require("@keystone-6/core");
-var import_fields19 = require("@keystone-6/core/fields");
-var Review_default = (0, import_core19.list)({
-  access: access_default,
-  fields: {
-    rating: (0, import_fields19.integer)(),
-    review: (0, import_fields19.text)(),
-    pet_place: (0, import_fields19.relationship)({
-      ref: "PetPlace.pet_place_reviews"
-    }),
-    product: (0, import_fields19.relationship)({
-      ref: "Product.product_reviews"
-    }),
-    user: (0, import_fields19.relationship)({
-      ref: "User",
-      many: false
-    }),
-    google_user: (0, import_fields19.text)(),
-    google_user_photo: (0, import_fields19.text)(),
-    createdAt: (0, import_fields19.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Pet/Store/Product/Product.ts
-var import_core20 = require("@keystone-6/core");
-var import_fields20 = require("@keystone-6/core/fields");
-var Product_default = (0, import_core20.list)({
-  access: access_default,
-  fields: {
-    name: (0, import_fields20.text)({ validation: { isRequired: true } }),
-    price: (0, import_fields20.integer)({ validation: { isRequired: true } }),
-    description: (0, import_fields20.text)({ validation: { isRequired: true } }),
-    category: (0, import_fields20.select)({
-      validation: { isRequired: true },
-      options: PRODUCT_CATEGORIES
-    }),
-    brand: (0, import_fields20.select)({
-      validation: { isRequired: true },
-      options: BRANDS
-    }),
-    type: (0, import_fields20.select)({
-      validation: { isRequired: true },
-      options: ANIMAL_TYPE_OPTIONS
-    }),
-    product_reviews: (0, import_fields20.relationship)({
-      ref: "Review.product",
-      many: true
-    }),
-    product_ads: (0, import_fields20.relationship)({
-      ref: "Ad.product",
-      many: true
-    }),
-    createdAt: (0, import_fields20.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Pet/Store/WishList/WishList.ts
 var import_core21 = require("@keystone-6/core");
 var import_fields21 = require("@keystone-6/core/fields");
-var WishList_default = (0, import_core21.list)({
+var Review_default = (0, import_core21.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields21.text)({ validation: { isRequired: true } }),
+    rating: (0, import_fields21.integer)(),
+    review: (0, import_fields21.text)(),
+    pet_place: (0, import_fields21.relationship)({
+      ref: "PetPlace.pet_place_reviews"
+    }),
+    product: (0, import_fields21.relationship)({
+      ref: "Product.product_reviews"
+    }),
     user: (0, import_fields21.relationship)({
       ref: "User",
       many: false
     }),
-    product: (0, import_fields21.relationship)({
-      ref: "Product",
-      many: true
-    }),
+    google_user: (0, import_fields21.text)(),
+    google_user_photo: (0, import_fields21.text)(),
     createdAt: (0, import_fields21.timestamp)({
       defaultValue: {
         kind: "now"
@@ -4291,19 +5721,33 @@ var WishList_default = (0, import_core21.list)({
   }
 });
 
-// models/Pet/Store/Cart/Cart.ts
+// models/Pet/Store/Product/Product.ts
 var import_core22 = require("@keystone-6/core");
 var import_fields22 = require("@keystone-6/core/fields");
-var Cart_default = (0, import_core22.list)({
+var Product_default = (0, import_core22.list)({
   access: access_default,
   fields: {
     name: (0, import_fields22.text)({ validation: { isRequired: true } }),
-    user: (0, import_fields22.relationship)({
-      ref: "User",
-      many: false
+    price: (0, import_fields22.integer)({ validation: { isRequired: true } }),
+    description: (0, import_fields22.text)({ validation: { isRequired: true } }),
+    category: (0, import_fields22.select)({
+      validation: { isRequired: true },
+      options: PRODUCT_CATEGORIES
     }),
-    product: (0, import_fields22.relationship)({
-      ref: "Product",
+    brand: (0, import_fields22.select)({
+      validation: { isRequired: true },
+      options: BRANDS
+    }),
+    type: (0, import_fields22.select)({
+      validation: { isRequired: true },
+      options: ANIMAL_TYPE_OPTIONS
+    }),
+    product_reviews: (0, import_fields22.relationship)({
+      ref: "Review.product",
+      many: true
+    }),
+    product_ads: (0, import_fields22.relationship)({
+      ref: "Ad.product",
       many: true
     }),
     createdAt: (0, import_fields22.timestamp)({
@@ -4318,25 +5762,20 @@ var Cart_default = (0, import_core22.list)({
   }
 });
 
-// models/Pet/Store/Order/Order.ts
+// models/Pet/Store/WishList/WishList.ts
 var import_core23 = require("@keystone-6/core");
 var import_fields23 = require("@keystone-6/core/fields");
-var Order_default = (0, import_core23.list)({
+var WishList_default = (0, import_core23.list)({
   access: access_default,
   fields: {
-    total: (0, import_fields23.integer)(),
-    status: (0, import_fields23.select)({ validation: { isRequired: true }, options: ORDER_STATUS }),
-    cart: (0, import_fields23.relationship)({
-      ref: "Cart",
-      many: false
-    }),
+    name: (0, import_fields23.text)({ validation: { isRequired: true } }),
     user: (0, import_fields23.relationship)({
       ref: "User",
       many: false
     }),
-    payment: (0, import_fields23.relationship)({
-      ref: "Payment.order_payment",
-      many: false
+    product: (0, import_fields23.relationship)({
+      ref: "Product",
+      many: true
     }),
     createdAt: (0, import_fields23.timestamp)({
       defaultValue: {
@@ -4350,23 +5789,82 @@ var Order_default = (0, import_core23.list)({
   }
 });
 
-// models/Pet/Store/Payment/Payment.ts
-var import_fields24 = require("@keystone-6/core/fields");
+// models/Pet/Store/Cart/Cart.ts
 var import_core24 = require("@keystone-6/core");
-var Payment_default = (0, import_core24.list)({
+var import_fields24 = require("@keystone-6/core/fields");
+var Cart_default = (0, import_core24.list)({
   access: access_default,
   fields: {
-    order_payment: (0, import_fields24.relationship)({
+    name: (0, import_fields24.text)({ validation: { isRequired: true } }),
+    user: (0, import_fields24.relationship)({
+      ref: "User",
+      many: false
+    }),
+    product: (0, import_fields24.relationship)({
+      ref: "Product",
+      many: true
+    }),
+    createdAt: (0, import_fields24.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Pet/Store/Order/Order.ts
+var import_core25 = require("@keystone-6/core");
+var import_fields25 = require("@keystone-6/core/fields");
+var Order_default = (0, import_core25.list)({
+  access: access_default,
+  fields: {
+    total: (0, import_fields25.integer)(),
+    status: (0, import_fields25.select)({ validation: { isRequired: true }, options: ORDER_STATUS }),
+    cart: (0, import_fields25.relationship)({
+      ref: "Cart",
+      many: false
+    }),
+    user: (0, import_fields25.relationship)({
+      ref: "User",
+      many: false
+    }),
+    payment: (0, import_fields25.relationship)({
+      ref: "Payment.order_payment",
+      many: false
+    }),
+    createdAt: (0, import_fields25.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Pet/Store/Payment/Payment.ts
+var import_fields26 = require("@keystone-6/core/fields");
+var import_core26 = require("@keystone-6/core");
+var Payment_default = (0, import_core26.list)({
+  access: access_default,
+  fields: {
+    order_payment: (0, import_fields26.relationship)({
       ref: "Order.payment"
     }),
-    paymentMethod: (0, import_fields24.relationship)({
+    paymentMethod: (0, import_fields26.relationship)({
       ref: "PaymentMethod.payment"
     }),
-    amount: (0, import_fields24.decimal)({
+    amount: (0, import_fields26.decimal)({
       scale: 6,
       defaultValue: "0.000000"
     }),
-    status: (0, import_fields24.select)({
+    status: (0, import_fields26.select)({
       type: "enum",
       validation: {
         isRequired: true
@@ -4381,14 +5879,14 @@ var Payment_default = (0, import_core24.list)({
         { label: "Devuelto", value: "refunded" }
       ]
     }),
-    processorStripeChargeId: (0, import_fields24.text)(),
-    stripeErrorMessage: (0, import_fields24.text)({
+    processorStripeChargeId: (0, import_fields26.text)(),
+    stripeErrorMessage: (0, import_fields26.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    processorRefundId: (0, import_fields24.text)(),
-    createdAt: (0, import_fields24.timestamp)({
+    processorRefundId: (0, import_fields26.text)(),
+    createdAt: (0, import_fields26.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4397,7 +5895,7 @@ var Payment_default = (0, import_core24.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields24.timestamp)({
+    updatedAt: (0, import_fields26.timestamp)({
       defaultValue: { kind: "now" },
       db: { updatedAt: true }
     })
@@ -4405,31 +5903,31 @@ var Payment_default = (0, import_core24.list)({
 });
 
 // models/Pet/Store/PaymentMethod/PaymentMethod.ts
-var import_fields25 = require("@keystone-6/core/fields");
-var import_core25 = require("@keystone-6/core");
-var PaymentMethod_default = (0, import_core25.list)({
+var import_fields27 = require("@keystone-6/core/fields");
+var import_core27 = require("@keystone-6/core");
+var PaymentMethod_default = (0, import_core27.list)({
   access: access_default,
   fields: {
-    user: (0, import_fields25.relationship)({
+    user: (0, import_fields27.relationship)({
       ref: "User"
     }),
-    cardType: (0, import_fields25.text)(),
-    isDefault: (0, import_fields25.checkbox)(),
-    lastFourDigits: (0, import_fields25.text)(),
-    expMonth: (0, import_fields25.text)(),
-    expYear: (0, import_fields25.text)(),
-    stripeProcessorId: (0, import_fields25.text)(),
-    address: (0, import_fields25.text)(),
-    postalCode: (0, import_fields25.text)(),
-    ownerName: (0, import_fields25.text)(),
-    country: (0, import_fields25.text)(),
+    cardType: (0, import_fields27.text)(),
+    isDefault: (0, import_fields27.checkbox)(),
+    lastFourDigits: (0, import_fields27.text)(),
+    expMonth: (0, import_fields27.text)(),
+    expYear: (0, import_fields27.text)(),
+    stripeProcessorId: (0, import_fields27.text)(),
+    address: (0, import_fields27.text)(),
+    postalCode: (0, import_fields27.text)(),
+    ownerName: (0, import_fields27.text)(),
+    country: (0, import_fields27.text)(),
     // Two-letter country code (ISO 3166-1 alpha-2).
-    payment: (0, import_fields25.relationship)({
+    payment: (0, import_fields27.relationship)({
       ref: "Payment.paymentMethod",
       many: true
     }),
-    type: (0, import_fields25.select)({ options: PAYMENT_TYPES }),
-    createdAt: (0, import_fields25.timestamp)({
+    type: (0, import_fields27.select)({ options: PAYMENT_TYPES }),
+    createdAt: (0, import_fields27.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4438,7 +5936,7 @@ var PaymentMethod_default = (0, import_core25.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields25.timestamp)({
+    updatedAt: (0, import_fields27.timestamp)({
       defaultValue: { kind: "now" },
       db: { updatedAt: true }
     })
@@ -4446,8 +5944,8 @@ var PaymentMethod_default = (0, import_core25.list)({
 });
 
 // models/TokenNotification/TokenNotification.ts
-var import_fields26 = require("@keystone-6/core/fields");
-var import_core26 = require("@keystone-6/core");
+var import_fields28 = require("@keystone-6/core/fields");
+var import_core28 = require("@keystone-6/core");
 
 // models/TokenNotification/TokenNotification.hooks.ts
 var hooks = {
@@ -4487,16 +5985,16 @@ var hooks = {
 var TokenNotification_hooks_default = { hooks };
 
 // models/TokenNotification/TokenNotification.ts
-var TokenNotification_default = (0, import_core26.list)({
+var TokenNotification_default = (0, import_core28.list)({
   access: access_default,
   hooks: TokenNotification_hooks_default.hooks,
   fields: {
-    token: (0, import_fields26.text)({
+    token: (0, import_fields28.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    user: (0, import_fields26.relationship)({
+    user: (0, import_fields28.relationship)({
       ref: "User",
       many: false
     })
@@ -4504,43 +6002,43 @@ var TokenNotification_default = (0, import_core26.list)({
 });
 
 // models/Pet/Ad/Ad.ts
-var import_core27 = require("@keystone-6/core");
-var import_fields27 = require("@keystone-6/core/fields");
-var Ad_default = (0, import_core27.list)({
+var import_core29 = require("@keystone-6/core");
+var import_fields29 = require("@keystone-6/core/fields");
+var Ad_default = (0, import_core29.list)({
   access: access_default,
   fields: {
-    title: (0, import_fields27.text)(),
-    description: (0, import_fields27.text)({
+    title: (0, import_fields29.text)(),
+    description: (0, import_fields29.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    active: (0, import_fields27.checkbox)(),
-    start_date: (0, import_fields27.calendarDay)(),
-    end_date: (0, import_fields27.calendarDay)(),
-    price: (0, import_fields27.integer)(),
-    status: (0, import_fields27.select)({
+    active: (0, import_fields29.checkbox)(),
+    start_date: (0, import_fields29.calendarDay)(),
+    end_date: (0, import_fields29.calendarDay)(),
+    price: (0, import_fields29.integer)(),
+    status: (0, import_fields29.select)({
       options: STATUS_AD
     }),
-    type: (0, import_fields27.select)({
+    type: (0, import_fields29.select)({
       options: TYPES_AD
     }),
-    lat: (0, import_fields27.text)(),
-    lng: (0, import_fields27.text)(),
-    image: (0, import_fields27.image)({
+    lat: (0, import_fields29.text)(),
+    lng: (0, import_fields29.text)(),
+    image: (0, import_fields29.image)({
       storage: "s3_ads"
     }),
-    pet_place: (0, import_fields27.relationship)({
+    pet_place: (0, import_fields29.relationship)({
       ref: "PetPlace.pet_place_ads"
     }),
-    product: (0, import_fields27.relationship)({
+    product: (0, import_fields29.relationship)({
       ref: "Product.product_ads"
     }),
-    user: (0, import_fields27.relationship)({
+    user: (0, import_fields29.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields27.timestamp)({
+    createdAt: (0, import_fields29.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4553,8 +6051,8 @@ var Ad_default = (0, import_core27.list)({
 });
 
 // models/Blog/Post/Post.ts
-var import_core28 = require("@keystone-6/core");
-var import_fields28 = require("@keystone-6/core/fields");
+var import_core30 = require("@keystone-6/core");
+var import_fields30 = require("@keystone-6/core/fields");
 
 // models/Blog/Post/Post.hooks.ts
 function subscriberProductsFor(product) {
@@ -4768,9 +6266,9 @@ ${fullPost.excerpt}` : fullPost.title;
     for (const product of facebookProductsFor(postProduct)) {
       const link = `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`;
       try {
-        const result = await postToFacebookPage({ product, message, link });
-        if (result) {
-          console.log(`[facebook] Post publicado en la P\xE1gina de "${product}": ${result.id}`);
+        const result3 = await postToFacebookPage({ product, message, link });
+        if (result3) {
+          console.log(`[facebook] Post publicado en la P\xE1gina de "${product}": ${result3.id}`);
         }
       } catch (error) {
         console.error(`[facebook] Error publicando en la P\xE1gina de "${product}":`, error);
@@ -4795,7 +6293,7 @@ var postPublishSideEffectsHook = {
 
 // models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
-var Post_default = (0, import_core28.list)({
+var Post_default = (0, import_core30.list)({
   access: access_default,
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
@@ -4808,7 +6306,7 @@ var Post_default = (0, import_core28.list)({
     }
   },
   fields: {
-    product: (0, import_fields28.select)({
+    product: (0, import_fields30.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -4818,8 +6316,8 @@ var Post_default = (0, import_core28.list)({
         description: "Pet, SaaS o ambas apps. Su categor\xEDa debe ser del mismo producto."
       }
     }),
-    title: (0, import_fields28.text)({ validation: { isRequired: true } }),
-    url: (0, import_fields28.text)({
+    title: (0, import_fields30.text)({ validation: { isRequired: true } }),
+    url: (0, import_fields30.text)({
       isIndexed: "unique",
       hooks: postUrlHook,
       ui: {
@@ -4832,21 +6330,21 @@ var Post_default = (0, import_core28.list)({
       dividers: true,
       links: true
     }),
-    excerpt: (0, import_fields28.text)({
+    excerpt: (0, import_fields30.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    image: (0, import_fields28.image)({
+    image: (0, import_fields30.image)({
       storage: "s3_posts"
     }),
-    published: (0, import_fields28.checkbox)({
+    published: (0, import_fields30.checkbox)({
       defaultValue: false,
       ui: {
         description: 'Marca esto y deja "Published at" vac\xEDo para publicar de inmediato, o ponle una fecha futura para programarlo.'
       }
     }),
-    publishedAt: (0, import_fields28.timestamp)({
+    publishedAt: (0, import_fields30.timestamp)({
       ui: {
         createView: { fieldMode: "edit" },
         itemView: { fieldMode: "edit" },
@@ -4854,14 +6352,14 @@ var Post_default = (0, import_core28.list)({
       }
     }),
     /** Cuándo se mandó el correo de "nuevo post". No editable: evita reenvíos en guardados posteriores. */
-    publishedNotifiedAt: (0, import_fields28.timestamp)({
+    publishedNotifiedAt: (0, import_fields30.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
     /** Cuándo se publicó en la Página de Facebook. Editable: vaciarlo fuerza un reintento. */
-    publishedToFacebookAt: (0, import_fields28.timestamp)({
+    publishedToFacebookAt: (0, import_fields30.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "edit" },
@@ -4872,7 +6370,7 @@ var Post_default = (0, import_core28.list)({
      * Tarea de ClickUp que originó el post. Único para no duplicar si el webhook reintenta.
      * Vacío cuando el post se creó en el Admin.
      */
-    clickupTaskId: (0, import_fields28.text)({
+    clickupTaskId: (0, import_fields30.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
@@ -4881,35 +6379,35 @@ var Post_default = (0, import_core28.list)({
         description: "Id de la tarea de ClickUp. Lo llena el webhook al aprobar una publicaci\xF3n."
       }
     }),
-    category: (0, import_fields28.relationship)({
+    category: (0, import_fields30.relationship)({
       ref: "Category.posts",
       many: false
     }),
-    tags: (0, import_fields28.relationship)({
+    tags: (0, import_fields30.relationship)({
       ref: "Tag.posts",
       many: true
     }),
-    author: (0, import_fields28.relationship)({
+    author: (0, import_fields30.relationship)({
       ref: "User",
       many: false
     }),
-    comments: (0, import_fields28.relationship)({
+    comments: (0, import_fields30.relationship)({
       ref: "PostComment.post",
       many: true
     }),
-    post_likes: (0, import_fields28.relationship)({
+    post_likes: (0, import_fields30.relationship)({
       ref: "PostLike.post",
       many: true
     }),
-    post_favorites: (0, import_fields28.relationship)({
+    post_favorites: (0, import_fields30.relationship)({
       ref: "PostFavorite.post",
       many: true
     }),
-    post_views: (0, import_fields28.relationship)({
+    post_views: (0, import_fields30.relationship)({
       ref: "PostView.post",
       many: true
     }),
-    createdAt: (0, import_fields28.timestamp)({
+    createdAt: (0, import_fields30.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4918,7 +6416,7 @@ var Post_default = (0, import_core28.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields28.timestamp)({
+    updatedAt: (0, import_fields30.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4934,24 +6432,24 @@ var Post_default = (0, import_core28.list)({
 });
 
 // models/Blog/Post/PostComment/PostComment.ts
-var import_core29 = require("@keystone-6/core");
-var import_fields29 = require("@keystone-6/core/fields");
-var PostComment_default = (0, import_core29.list)({
+var import_core31 = require("@keystone-6/core");
+var import_fields31 = require("@keystone-6/core/fields");
+var PostComment_default = (0, import_core31.list)({
   access: access_default,
   fields: {
-    comment: (0, import_fields29.text)({
+    comment: (0, import_fields31.text)({
       validation: { isRequired: true },
       ui: { displayMode: "textarea" }
     }),
-    post: (0, import_fields29.relationship)({
+    post: (0, import_fields31.relationship)({
       ref: "Post.comments",
       many: false
     }),
-    user: (0, import_fields29.relationship)({
+    user: (0, import_fields31.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields29.timestamp)({
+    createdAt: (0, import_fields31.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4960,7 +6458,7 @@ var PostComment_default = (0, import_core29.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields29.timestamp)({
+    updatedAt: (0, import_fields31.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4976,61 +6474,9 @@ var PostComment_default = (0, import_core29.list)({
 });
 
 // models/Blog/Post/PostLike/PostLike.ts
-var import_core30 = require("@keystone-6/core");
-var import_fields30 = require("@keystone-6/core/fields");
-var PostLike_default = (0, import_core30.list)({
-  access: access_default,
-  fields: {
-    user: (0, import_fields30.relationship)({
-      ref: "User",
-      many: false
-    }),
-    post: (0, import_fields30.relationship)({
-      ref: "Post.post_likes",
-      many: false
-    }),
-    createdAt: (0, import_fields30.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Blog/Post/PostFavorite/PostFavorite.ts
-var import_core31 = require("@keystone-6/core");
-var import_fields31 = require("@keystone-6/core/fields");
-var PostFavorite_default = (0, import_core31.list)({
-  access: access_default,
-  fields: {
-    user: (0, import_fields31.relationship)({
-      ref: "User",
-      many: false
-    }),
-    post: (0, import_fields31.relationship)({
-      ref: "Post.post_favorites",
-      many: false
-    }),
-    createdAt: (0, import_fields31.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Blog/Post/PostView/PostView.ts
 var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
-var PostView_default = (0, import_core32.list)({
+var PostLike_default = (0, import_core32.list)({
   access: access_default,
   fields: {
     user: (0, import_fields32.relationship)({
@@ -5038,7 +6484,7 @@ var PostView_default = (0, import_core32.list)({
       many: false
     }),
     post: (0, import_fields32.relationship)({
-      ref: "Post.post_views",
+      ref: "Post.post_likes",
       many: false
     }),
     createdAt: (0, import_fields32.timestamp)({
@@ -5053,19 +6499,19 @@ var PostView_default = (0, import_core32.list)({
   }
 });
 
-// models/Blog/Tag/Tag.ts
+// models/Blog/Post/PostFavorite/PostFavorite.ts
 var import_core33 = require("@keystone-6/core");
 var import_fields33 = require("@keystone-6/core/fields");
-var Tag_default = (0, import_core33.list)({
+var PostFavorite_default = (0, import_core33.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields33.text)({
-      validation: { isRequired: true },
-      isIndexed: "unique"
+    user: (0, import_fields33.relationship)({
+      ref: "User",
+      many: false
     }),
-    posts: (0, import_fields33.relationship)({
-      ref: "Post.tags",
-      many: true
+    post: (0, import_fields33.relationship)({
+      ref: "Post.post_favorites",
+      many: false
     }),
     createdAt: (0, import_fields33.timestamp)({
       defaultValue: {
@@ -5079,14 +6525,66 @@ var Tag_default = (0, import_core33.list)({
   }
 });
 
-// models/Blog/Category/Category.ts
+// models/Blog/Post/PostView/PostView.ts
 var import_core34 = require("@keystone-6/core");
 var import_fields34 = require("@keystone-6/core/fields");
+var PostView_default = (0, import_core34.list)({
+  access: access_default,
+  fields: {
+    user: (0, import_fields34.relationship)({
+      ref: "User",
+      many: false
+    }),
+    post: (0, import_fields34.relationship)({
+      ref: "Post.post_views",
+      many: false
+    }),
+    createdAt: (0, import_fields34.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Tag/Tag.ts
+var import_core35 = require("@keystone-6/core");
+var import_fields35 = require("@keystone-6/core/fields");
+var Tag_default = (0, import_core35.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields35.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique"
+    }),
+    posts: (0, import_fields35.relationship)({
+      ref: "Post.tags",
+      many: true
+    }),
+    createdAt: (0, import_fields35.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Category/Category.ts
+var import_core36 = require("@keystone-6/core");
+var import_fields36 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text66) {
+function sanitizeUrl2(text73) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text66.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text73.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -5123,13 +6621,13 @@ async function checkCategoryUrl(name, currentCategoryId, context) {
 }
 
 // models/Blog/Category/Category.ts
-var Category_default = (0, import_core34.list)({
+var Category_default = (0, import_core36.list)({
   access: access_default,
   ui: {
     listView: { initialColumns: ["name", "product", "url"] }
   },
   fields: {
-    product: (0, import_fields34.select)({
+    product: (0, import_fields36.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -5139,13 +6637,13 @@ var Category_default = (0, import_core34.list)({
         description: "Pet, SaaS o ambas apps. Define d\xF3nde aparece la categor\xEDa."
       }
     }),
-    name: (0, import_fields34.text)({
+    name: (0, import_fields36.text)({
       isIndexed: "unique",
       ui: {
         description: "Nombre visible. La direcci\xF3n se arma sola y no conviene cambiarla si ya hay art\xEDculos."
       }
     }),
-    url: (0, import_fields34.text)({
+    url: (0, import_fields36.text)({
       isIndexed: "unique",
       hooks: categoryUrlHook,
       ui: {
@@ -5153,14 +6651,14 @@ var Category_default = (0, import_core34.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    image: (0, import_fields34.image)({
+    image: (0, import_fields36.image)({
       storage: "s3_categories"
     }),
-    posts: (0, import_fields34.relationship)({
+    posts: (0, import_fields36.relationship)({
       ref: "Post.category",
       many: true
     }),
-    createdAt: (0, import_fields34.timestamp)({
+    createdAt: (0, import_fields36.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -5173,8 +6671,8 @@ var Category_default = (0, import_core34.list)({
 });
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var import_core35 = require("@keystone-6/core");
-var import_fields35 = require("@keystone-6/core/fields");
+var import_core37 = require("@keystone-6/core");
+var import_fields37 = require("@keystone-6/core/fields");
 
 // models/Blog/BlogSubscription/BlogSubscription.hooks.ts
 function normalizeEmail(email) {
@@ -5242,7 +6740,7 @@ var blogSubscriptionHooks = {
 };
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var BlogSubscription_default = (0, import_core35.list)({
+var BlogSubscription_default = (0, import_core37.list)({
   access: access_default,
   hooks: {
     resolveInput: blogSubscriptionHooks.resolveInput,
@@ -5250,14 +6748,14 @@ var BlogSubscription_default = (0, import_core35.list)({
     afterOperation: blogSubscriptionHooks.afterOperation
   },
   fields: {
-    email: (0, import_fields35.text)({
+    email: (0, import_fields37.text)({
       // No es único: la unicidad es (email, product), ver BlogSubscription.hooks.ts
       isIndexed: true,
       ui: {
         displayMode: "input"
       }
     }),
-    product: (0, import_fields35.select)({
+    product: (0, import_fields37.select)({
       options: SINGLE_PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -5267,20 +6765,20 @@ var BlogSubscription_default = (0, import_core35.list)({
         description: "Blog al que est\xE1 suscrito: Pet o SaaS"
       }
     }),
-    user: (0, import_fields35.relationship)({
+    user: (0, import_fields37.relationship)({
       ref: "User.blog_subscriptions",
       many: false,
       ui: {
         displayMode: "select"
       }
     }),
-    active: (0, import_fields35.checkbox)({
+    active: (0, import_fields37.checkbox)({
       defaultValue: true,
       ui: {
         description: "Si est\xE1 activo, recibir\xE1 notificaciones de nuevos posts"
       }
     }),
-    createdAt: (0, import_fields35.timestamp)({
+    createdAt: (0, import_fields37.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -5299,8 +6797,8 @@ var BlogSubscription_default = (0, import_core35.list)({
 });
 
 // models/Role/Role.ts
-var import_core36 = require("@keystone-6/core");
-var import_fields36 = require("@keystone-6/core/fields");
+var import_core38 = require("@keystone-6/core");
+var import_fields38 = require("@keystone-6/core/fields");
 
 // models/Role/Role.access.ts
 var roleAccess = {
@@ -5323,19 +6821,19 @@ var roleUsersFieldAccess = {
 };
 
 // models/Role/Role.ts
-var Role_default = (0, import_core36.list)({
+var Role_default = (0, import_core38.list)({
   access: roleAccess,
   fields: {
-    name: (0, import_fields36.select)({
+    name: (0, import_fields38.select)({
       options: ROLES,
       isIndexed: "unique"
     }),
-    users: (0, import_fields36.relationship)({
+    users: (0, import_fields38.relationship)({
       ref: "User.roles",
       many: true,
       access: roleUsersFieldAccess
     }),
-    createdAt: (0, import_fields36.timestamp)({
+    createdAt: (0, import_fields38.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -5348,8 +6846,8 @@ var Role_default = (0, import_core36.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceType/PetPlaceType.ts
-var import_core37 = require("@keystone-6/core");
-var import_fields37 = require("@keystone-6/core/fields");
+var import_core39 = require("@keystone-6/core");
+var import_fields39 = require("@keystone-6/core/fields");
 var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
   label: type.label,
   value: type.value
@@ -5372,22 +6870,22 @@ var pluralHook = {
     return resolvedData.plural || item?.plural;
   }
 };
-var PetPlaceType_default = (0, import_core37.list)({
+var PetPlaceType_default = (0, import_core39.list)({
   access: access_default,
   fields: {
-    value: (0, import_fields37.select)({
+    value: (0, import_fields39.select)({
       validation: { isRequired: true },
       isIndexed: "unique",
       options: PET_PLACE_TYPE_OPTIONS
     }),
-    label: (0, import_fields37.text)({
+    label: (0, import_fields39.text)({
       isIndexed: "unique",
       hooks: labelHook,
       ui: {
         itemView: { fieldMode: "read" }
       }
     }),
-    plural: (0, import_fields37.text)({
+    plural: (0, import_fields39.text)({
       hooks: pluralHook,
       ui: {
         itemView: { fieldMode: "read" }
@@ -5400,55 +6898,55 @@ var PetPlaceType_default = (0, import_core37.list)({
 });
 
 // models/ContactForm/ContactForm.ts
-var import_core38 = require("@keystone-6/core");
-var import_fields38 = require("@keystone-6/core/fields");
+var import_core40 = require("@keystone-6/core");
+var import_fields40 = require("@keystone-6/core/fields");
 var CONTACT_FORM_STATUS_OPTIONS = [
   { label: "Nuevo", value: "new" },
   { label: "Le\xEDdo", value: "read" },
   { label: "En proceso", value: "in_progress" },
   { label: "Resuelto", value: "resolved" }
 ];
-var ContactForm_default = (0, import_core38.list)({
+var ContactForm_default = (0, import_core40.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields38.text)({
+    name: (0, import_fields40.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    email: (0, import_fields38.text)({
+    email: (0, import_fields40.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    phone: (0, import_fields38.text)({
+    phone: (0, import_fields40.text)({
       validation: { isRequired: false },
       ui: {
         displayMode: "input"
       }
     }),
-    subject: (0, import_fields38.text)({
+    subject: (0, import_fields40.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    message: (0, import_fields38.text)({
+    message: (0, import_fields40.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea"
       }
     }),
-    status: (0, import_fields38.select)({
+    status: (0, import_fields40.select)({
       options: CONTACT_FORM_STATUS_OPTIONS,
       defaultValue: "new",
       ui: {
         displayMode: "select"
       }
     }),
-    createdAt: (0, import_fields38.timestamp)({
+    createdAt: (0, import_fields40.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -5467,8 +6965,8 @@ var ContactForm_default = (0, import_core38.list)({
 });
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var import_core39 = require("@keystone-6/core");
-var import_fields39 = require("@keystone-6/core/fields");
+var import_core41 = require("@keystone-6/core");
+var import_fields41 = require("@keystone-6/core/fields");
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.access.ts
 var metaDataDeletionRequestAccess = {
@@ -5493,7 +6991,7 @@ var META_DATA_DELETION_STATUS_OPTIONS = [
 ];
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var MetaDataDeletionRequest_default = (0, import_core39.list)({
+var MetaDataDeletionRequest_default = (0, import_core41.list)({
   access: metaDataDeletionRequestAccess,
   ui: {
     label: "Eliminaci\xF3n de datos (Meta)",
@@ -5502,21 +7000,21 @@ var MetaDataDeletionRequest_default = (0, import_core39.list)({
     }
   },
   fields: {
-    metaUserId: (0, import_fields39.text)({
+    metaUserId: (0, import_fields41.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "App-scoped user id que Meta manda en el signed_request (user_id)."
       }
     }),
-    confirmationCode: (0, import_fields39.text)({
+    confirmationCode: (0, import_fields41.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "C\xF3digo p\xFAblico para consultar el estado. No es un dato de Meta."
       }
     }),
-    status: (0, import_fields39.select)({
+    status: (0, import_fields41.select)({
       type: "string",
       options: META_DATA_DELETION_STATUS_OPTIONS,
       defaultValue: "pending" /* PENDING */,
@@ -5524,16 +7022,16 @@ var MetaDataDeletionRequest_default = (0, import_core39.list)({
       isIndexed: true,
       ui: { displayMode: "select" }
     }),
-    requestedAt: (0, import_fields39.timestamp)({
+    requestedAt: (0, import_fields41.timestamp)({
       validation: { isRequired: true },
       defaultValue: { kind: "now" },
       ui: { description: "Cu\xE1ndo lleg\xF3 el callback de Meta." }
     }),
-    completedAt: (0, import_fields39.timestamp)({
+    completedAt: (0, import_fields41.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo se marc\xF3 completed. Vac\xEDo si sigue pending o failed." }
     }),
-    notes: (0, import_fields39.text)({
+    notes: (0, import_fields41.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
@@ -5544,8 +7042,8 @@ var MetaDataDeletionRequest_default = (0, import_core39.list)({
 });
 
 // models/Saas/Tech/BusinessLead/TechBusinessLead.ts
-var import_core40 = require("@keystone-6/core");
-var import_fields40 = require("@keystone-6/core/fields");
+var import_core42 = require("@keystone-6/core");
+var import_fields42 = require("@keystone-6/core/fields");
 
 // utils/access/leadScopedFilter.ts
 function leadInCompany(companyId) {
@@ -5555,19 +7053,7 @@ function leadAssignedToUser(companyId, userId) {
   return {
     AND: [
       leadInCompany(companyId),
-      {
-        OR: [
-          { salesPerson: { some: { id: { equals: userId } } } },
-          {
-            status: {
-              some: {
-                saasCompany: { id: { equals: companyId } },
-                salesPerson: { id: { equals: userId } }
-              }
-            }
-          }
-        ]
-      }
+      { salesPerson: { some: { id: { equals: userId } } } }
     ]
   };
 }
@@ -5590,16 +7076,7 @@ function leadCompanyScopedWhere(session2) {
   return leadAssignedToUser(companyId, userId);
 }
 function statusInCompany(companyId) {
-  return {
-    OR: [
-      { saasCompany: { id: { equals: companyId } } },
-      {
-        businessLead: {
-          saasCompany: { some: { id: { equals: companyId } } }
-        }
-      }
-    ]
-  };
+  return { saasCompany: { id: { equals: companyId } } };
 }
 function statusLeadCompanyScopedWhere(session2) {
   if (isPlatformAdmin(session2)) return true;
@@ -5613,7 +7090,7 @@ function statusLeadCompanyScopedWhere(session2) {
   return {
     AND: [
       statusInCompany(companyId),
-      { salesPerson: { id: { equals: userId } } }
+      { businessLead: { salesPerson: { some: { id: { equals: userId } } } } }
     ]
   };
 }
@@ -5661,14 +7138,17 @@ function stripTenantFromClient(resolvedData, key) {
 }
 function connectIds(connect) {
   if (!connect) return [];
-  const list77 = Array.isArray(connect) ? connect : [connect];
-  return list77.map((item) => {
+  const list82 = Array.isArray(connect) ? connect : [connect];
+  return list82.map((item) => {
     if (typeof item === "string") return item;
     if (item && typeof item === "object" && "id" in item) {
       return String(item.id);
     }
     return null;
   }).filter((id) => !!id);
+}
+function isNoop(value) {
+  return value == null || Array.isArray(value) && value.length === 0;
 }
 var businessLeadHooks = {
   resolveInput: async ({
@@ -5689,7 +7169,7 @@ var businessLeadHooks = {
     if (operation === "update" && companyId && resolvedData?.saasCompany) {
       const sc = resolvedData.saasCompany;
       const ids = connectIds(sc.connect);
-      const onlyOwnConnect = ids.length > 0 && ids.every((id) => id === companyId) && sc.disconnect == null && sc.set == null;
+      const onlyOwnConnect = ids.length > 0 && ids.every((id) => id === companyId) && isNoop(sc.disconnect) && sc.set == null;
       if (onlyOwnConnect) {
         return {
           ...resolvedData,
@@ -5708,7 +7188,7 @@ var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechBusinessLead_default = (0, import_core40.list)({
+var TechBusinessLead_default = (0, import_core42.list)({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
@@ -5723,95 +7203,95 @@ var TechBusinessLead_default = (0, import_core40.list)({
     }
   },
   fields: {
-    businessName: (0, import_fields40.text)({
+    businessName: (0, import_fields42.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    category: (0, import_fields40.text)({ isIndexed: true }),
-    phone: (0, import_fields40.text)(),
-    email: (0, import_fields40.text)(),
-    address: (0, import_fields40.text)(),
-    city: (0, import_fields40.text)({ isIndexed: true }),
-    state: (0, import_fields40.text)({ isIndexed: true }),
-    country: (0, import_fields40.text)({ isIndexed: true }),
-    rating: (0, import_fields40.float)(),
-    lat: (0, import_fields40.float)(),
-    lng: (0, import_fields40.float)(),
-    reviewCount: (0, import_fields40.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
-    hasWebsite: (0, import_fields40.checkbox)({
+    category: (0, import_fields42.text)({ isIndexed: true }),
+    phone: (0, import_fields42.text)(),
+    email: (0, import_fields42.text)(),
+    address: (0, import_fields42.text)(),
+    city: (0, import_fields42.text)({ isIndexed: true }),
+    state: (0, import_fields42.text)({ isIndexed: true }),
+    country: (0, import_fields42.text)({ isIndexed: true }),
+    rating: (0, import_fields42.float)(),
+    lat: (0, import_fields42.float)(),
+    lng: (0, import_fields42.float)(),
+    reviewCount: (0, import_fields42.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
+    hasWebsite: (0, import_fields42.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene sitio web" }
     }),
-    websiteUrl: (0, import_fields40.text)(),
-    source: (0, import_fields40.select)({
+    websiteUrl: (0, import_fields42.text)(),
+    source: (0, import_fields42.select)({
       type: "string",
       options: sourceOptions,
       defaultValue: "Google Maps",
       ui: { description: "Fuente del lead" }
     }),
-    status: (0, import_fields40.relationship)({
+    status: (0, import_fields42.relationship)({
       ref: "TechStatusBusinessLead.businessLead",
       many: true,
       ui: { description: "Estado y datos variables del lead" }
     }),
-    instagram: (0, import_fields40.text)({ ui: { description: "Usuario o URL de Instagram" } }),
-    facebook: (0, import_fields40.text)({ ui: { description: "URL de Facebook" } }),
-    xTwitter: (0, import_fields40.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
-    tiktok: (0, import_fields40.text)({ ui: { description: "Usuario o URL de TikTok" } }),
+    instagram: (0, import_fields42.text)({ ui: { description: "Usuario o URL de Instagram" } }),
+    facebook: (0, import_fields42.text)({ ui: { description: "URL de Facebook" } }),
+    xTwitter: (0, import_fields42.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
+    tiktok: (0, import_fields42.text)({ ui: { description: "Usuario o URL de TikTok" } }),
     // Reseñas de Google (máx. 5 positivas) para uso en prompt de IA
-    topReview1: (0, import_fields40.text)({
+    topReview1: (0, import_fields42.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 1 (Google)" }
     }),
-    topReview2: (0, import_fields40.text)({
+    topReview2: (0, import_fields42.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 2 (Google)" }
     }),
-    topReview3: (0, import_fields40.text)({
+    topReview3: (0, import_fields42.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 3 (Google)" }
     }),
-    topReview4: (0, import_fields40.text)({
+    topReview4: (0, import_fields42.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 4 (Google)" }
     }),
-    topReview5: (0, import_fields40.text)({
+    topReview5: (0, import_fields42.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 5 (Google)" }
     }),
     // Prompt listo para copiar y usar en vibe coding / IA (info del negocio + reseñas)
-    websitePromptContent: (0, import_fields40.text)({
+    websitePromptContent: (0, import_fields42.text)({
       ui: {
         displayMode: "textarea",
         description: "Prompt listo para IA: crear sitio web con la info del negocio y las 5 rese\xF1as positivas de Google. Copiar y pegar en tu herramienta de vibe coding."
       }
     }),
     // Relaciones inversas
-    activities: (0, import_fields40.relationship)({
+    activities: (0, import_fields42.relationship)({
       ref: "TechSalesActivity.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields40.relationship)({
+    tasks: (0, import_fields42.relationship)({
       ref: "TechTask.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace ligadas al lead" }
     }),
-    proposals: (0, import_fields40.relationship)({
+    proposals: (0, import_fields42.relationship)({
       ref: "TechProposal.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    projects: (0, import_fields40.relationship)({
+    projects: (0, import_fields42.relationship)({
       ref: "SaasProject.businessLead",
       many: true,
       ui: { description: "Proyectos creados tras venta cerrada (cliente)" }
     }),
-    followUpTasks: (0, import_fields40.relationship)({
+    followUpTasks: (0, import_fields42.relationship)({
       ref: "TechFollowUpTask.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    googleMapsUrl: (0, import_fields40.text)({
+    googleMapsUrl: (0, import_fields42.text)({
       ui: { description: "URL de Google Maps del negocio" }
     }),
     // Para importación desde Google (opcional)
-    googlePlaceId: (0, import_fields40.text)({
+    googlePlaceId: (0, import_fields42.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -5819,41 +7299,41 @@ var TechBusinessLead_default = (0, import_core40.list)({
         listView: { fieldMode: "hidden" }
       }
     }),
-    sourceEstablishment: (0, import_fields40.relationship)({
+    sourceEstablishment: (0, import_fields42.relationship)({
       ref: "TechInegiEstablishment.promotedLeads",
       many: false,
       ui: {
         description: "Establecimiento DENUE del que se promovi\xF3 este lead"
       }
     }),
-    salesPerson: (0, import_fields40.relationship)({
+    salesPerson: (0, import_fields42.relationship)({
       ref: "User.businessLeadsAssigned",
       many: true,
       ui: { description: "Vendedor asignado" }
     }),
-    saasCompany: (0, import_fields40.relationship)({
+    saasCompany: (0, import_fields42.relationship)({
       ref: "SaasCompany.leads",
       many: true,
       ui: { description: "Empresa a la que pertenece el lead" }
     }),
-    quotations: (0, import_fields40.relationship)({
+    quotations: (0, import_fields42.relationship)({
       ref: "SaasQuotation.lead",
       many: true,
       ui: { description: "Cotizaciones ligadas a este lead" }
     }),
-    whatsappMessages: (0, import_fields40.relationship)({
+    whatsappMessages: (0, import_fields42.relationship)({
       ref: "TechWhatsAppMessage.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Historial de WhatsApp con este lead" }
     }),
-    createdAt: (0, import_fields40.timestamp)({
+    createdAt: (0, import_fields42.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields40.timestamp)({
+    updatedAt: (0, import_fields42.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5864,8 +7344,8 @@ var TechBusinessLead_default = (0, import_core40.list)({
 });
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
-var import_core41 = require("@keystone-6/core");
-var import_fields41 = require("@keystone-6/core/fields");
+var import_core43 = require("@keystone-6/core");
+var import_fields43 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
 var statusBusinessLeadAccess = {
@@ -5883,27 +7363,68 @@ var statusBusinessLeadAccess = {
 };
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.hooks.ts
+function connectedId(rel) {
+  return rel?.connect?.id ?? null;
+}
 var statusBusinessLeadHooks = {
   resolveInput: async ({
     resolvedData,
     context,
     operation
   }) => {
-    if (hasRole(context.session, ["admin" /* ADMIN */])) {
-      return resolvedData;
-    }
-    const companyId = getSessionCompanyId(context.session);
-    if (operation === "create" && companyId) {
-      return {
-        ...resolvedData,
-        saasCompany: { connect: { id: companyId } }
-      };
-    }
     const next = { ...resolvedData };
-    delete next.saasCompany;
+    delete next.salesPerson;
+    const isAdmin = hasRole(context.session, ["admin" /* ADMIN */]);
+    const companyId = getSessionCompanyId(context.session);
+    if (!isAdmin) {
+      if (operation === "create" && companyId) {
+        next.saasCompany = { connect: { id: companyId } };
+      } else {
+        delete next.saasCompany;
+      }
+    }
+    if (operation === "create") {
+      const leadId = connectedId(next.businessLead);
+      const statusCompanyId = connectedId(next.saasCompany);
+      if (leadId && statusCompanyId) {
+        const existing = await context.sudo().db.TechStatusBusinessLead.count({
+          where: {
+            businessLead: { id: { equals: leadId } },
+            saasCompany: { id: { equals: statusCompanyId } }
+          }
+        });
+        if (existing > 0) {
+          throw new Error(
+            "Este lead ya tiene estatus en el pipeline de tu empresa. Actualiza el existente."
+          );
+        }
+      }
+    }
     return next;
   }
 };
+
+// models/Saas/Tech/StatusBusinessLead/recordStageChange.ts
+async function recordStageChange(context, item, previous) {
+  if (!item?.pipelineStatus || item.pipelineStatus === previous) return;
+  try {
+    const prisma = context.sudo().prisma;
+    if (!prisma.techLeadStageChange) return;
+    const session2 = context.session;
+    await prisma.techLeadStageChange.create({
+      data: {
+        statusId: item.id,
+        companyId: item.saasCompanyId ?? null,
+        businessLeadId: item.businessLeadId ?? null,
+        fromStatus: previous,
+        toStatus: item.pipelineStatus,
+        changedById: session2?.itemId ?? null,
+        source: session2?.itemId ? "web" : "system"
+      }
+    });
+  } catch {
+  }
+}
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
 var pipelineOptions2 = Object.entries(PIPELINE_STATUS).map(([k, v]) => ({
@@ -5914,9 +7435,19 @@ var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechStatusBusinessLead_default = (0, import_core41.list)({
+var TechStatusBusinessLead_default = (0, import_core43.list)({
   access: statusBusinessLeadAccess,
-  hooks: { resolveInput: statusBusinessLeadHooks.resolveInput },
+  db: {
+    extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@unique([businessLeadId, saasCompanyId])\n}")
+  },
+  hooks: {
+    resolveInput: statusBusinessLeadHooks.resolveInput,
+    // Historial de etapas (velocidad comercial): toda escritura, de personas o del servidor.
+    afterOperation: {
+      create: async ({ item, context }) => recordStageChange(context, item, null),
+      update: async ({ item, originalItem, context }) => recordStageChange(context, item, originalItem?.pipelineStatus ?? null)
+    }
+  },
   ui: {
     listView: {
       initialColumns: [
@@ -5928,38 +7459,38 @@ var TechStatusBusinessLead_default = (0, import_core41.list)({
     }
   },
   fields: {
-    businessLead: (0, import_fields41.relationship)({
+    businessLead: (0, import_fields43.relationship)({
       ref: "TechBusinessLead.status",
       many: false,
       ui: { description: "Lead de negocio asociado" }
     }),
-    opportunityLevel: (0, import_fields41.select)({
+    opportunityLevel: (0, import_fields43.select)({
       type: "string",
       options: opportunityOptions,
       defaultValue: "Media",
       isIndexed: true,
       ui: { description: "Nivel de oportunidad" }
     }),
-    pipelineStatus: (0, import_fields41.select)({
+    pipelineStatus: (0, import_fields43.select)({
       type: "string",
       options: pipelineOptions2,
       defaultValue: PIPELINE_STATUS.DETECTADO,
       isIndexed: true,
       ui: { description: "Estado en el pipeline" }
     }),
-    estimatedValue: (0, import_fields41.float)({
+    estimatedValue: (0, import_fields43.float)({
       ui: { description: "Valor estimado del proyecto" }
     }),
-    productOffered: (0, import_fields41.text)({
+    productOffered: (0, import_fields43.text)({
       ui: { description: "Producto ofrecido (web, e-commerce, etc.)" }
     }),
-    firstContactDate: (0, import_fields41.calendarDay)({
+    firstContactDate: (0, import_fields43.calendarDay)({
       ui: { description: "Fecha primer contacto" }
     }),
     /** Virtual: next follow-up date from the latest FollowUpTask with status Pendiente or Pospuesto */
-    nextFollowUpDate: (0, import_fields41.virtual)({
-      field: import_core41.graphql.field({
-        type: import_core41.graphql.String,
+    nextFollowUpDate: (0, import_fields43.virtual)({
+      field: import_core43.graphql.field({
+        type: import_core43.graphql.String,
         async resolve(item, _args, context) {
           let businessLeadId = item.businessLeadId;
           if (businessLeadId == null) {
@@ -5987,25 +7518,94 @@ var TechStatusBusinessLead_default = (0, import_core41.list)({
       }),
       ui: { description: "Pr\xF3xima fecha de seguimiento (del \xFAltimo FollowUpTask Pendiente o Pospuesto)" }
     }),
-    saasCompany: (0, import_fields41.relationship)({
+    saasCompany: (0, import_fields43.relationship)({
       ref: "SaasCompany.techStatusBusinessLeads",
       many: false,
       ui: { description: "Empresa a la que pertenece el lead" }
     }),
-    salesPerson: (0, import_fields41.relationship)({
+    /**
+     * @deprecated El estatus es de la empresa, no de un vendedor. Se conserva la columna por los
+     * datos históricos; el hook la ignora en escrituras. El vendedor asignado es
+     * `TechBusinessLead.salesPerson`.
+     */
+    salesPerson: (0, import_fields43.relationship)({
       ref: "User.techStatusBusinessLeads",
       many: false,
-      ui: { description: "Vendedor asignado" }
+      ui: { description: "Deprecado: el vendedor asignado vive en el lead (TechBusinessLead.salesPerson)" }
     }),
-    notes: (0, import_fields41.text)({
+    notes: (0, import_fields43.text)({
       ui: { displayMode: "textarea", description: "Notas generales" }
     })
   }
 });
 
+// models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
+var import_core44 = require("@keystone-6/core");
+var import_fields44 = require("@keystone-6/core/fields");
+
+// models/Saas/Tech/LeadStageChange/TechLeadStageChange.access.ts
+var techLeadStageChangeAccess = {
+  operation: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    create: () => false,
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
+var pipelineOptions3 = Object.values(PIPELINE_STATUS).map((value) => ({ label: value, value }));
+var TechLeadStageChange_default = (0, import_core44.list)({
+  access: techLeadStageChangeAccess,
+  ui: {
+    hideCreate: true,
+    listView: {
+      initialColumns: ["changedAt", "company", "businessLead", "fromStatus", "toStatus", "changedBy"],
+      initialSort: { field: "changedAt", direction: "DESC" }
+    }
+  },
+  fields: {
+    company: (0, import_fields44.relationship)({ ref: "SaasCompany", many: false }),
+    businessLead: (0, import_fields44.relationship)({ ref: "TechBusinessLead", many: false }),
+    statusId: (0, import_fields44.text)({
+      isIndexed: true,
+      validation: { isRequired: true },
+      ui: { description: "TechStatusBusinessLead (estatus del lead en esa empresa)" }
+    }),
+    fromStatus: (0, import_fields44.select)({
+      type: "string",
+      options: pipelineOptions3,
+      db: { isNullable: true },
+      ui: { description: "Etapa anterior (vac\xEDa si es la primera)" }
+    }),
+    toStatus: (0, import_fields44.select)({
+      type: "string",
+      options: pipelineOptions3,
+      isIndexed: true,
+      validation: { isRequired: true },
+      ui: { description: "Etapa nueva" }
+    }),
+    changedBy: (0, import_fields44.relationship)({ ref: "User", many: false }),
+    source: (0, import_fields44.text)({
+      db: { isNullable: true },
+      ui: { description: "web (una persona), system (servidor) o backfill (recuperado de ActivityEvent)" }
+    }),
+    changedAt: (0, import_fields44.timestamp)({
+      defaultValue: { kind: "now" },
+      isIndexed: true,
+      validation: { isRequired: true }
+    })
+  }
+});
+
 // models/Saas/Tech/FollowUpTask/TechFollowUpTask.ts
-var import_core42 = require("@keystone-6/core");
-var import_fields42 = require("@keystone-6/core/fields");
+var import_core45 = require("@keystone-6/core");
+var import_fields45 = require("@keystone-6/core/fields");
 
 // utils/access/crmWorkspaceScopedFilter.ts
 var getCompanyId = (session2) => session2?.data?.company?.id;
@@ -6359,7 +7959,7 @@ var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechFollowUpTask_default = (0, import_core42.list)({
+var TechFollowUpTask_default = (0, import_core45.list)({
   access: followUpTaskAccess,
   hooks: followUpTaskHooks,
   ui: {
@@ -6374,62 +7974,62 @@ var TechFollowUpTask_default = (0, import_core42.list)({
     }
   },
   fields: {
-    scheduledDate: (0, import_fields42.calendarDay)({
+    scheduledDate: (0, import_fields45.calendarDay)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Fecha programada" }
     }),
-    status: (0, import_fields42.select)({
+    status: (0, import_fields45.select)({
       type: "string",
       options: statusOptions,
       defaultValue: FOLLOW_UP_TASK_STATUS.PENDIENTE,
       isIndexed: true
     }),
-    priority: (0, import_fields42.select)({
+    priority: (0, import_fields45.select)({
       type: "string",
       options: priorityOptions,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    businessLead: (0, import_fields42.relationship)({
+    businessLead: (0, import_fields45.relationship)({
       ref: "TechBusinessLead.followUpTasks",
       many: false
     }),
-    assignedSeller: (0, import_fields42.relationship)({
+    assignedSeller: (0, import_fields45.relationship)({
       ref: "User.followUpTasks",
       many: false
     }),
-    createdBy: (0, import_fields42.relationship)({
+    createdBy: (0, import_fields45.relationship)({
       ref: "User.createdByFollowUpTasks",
       many: false
     }),
-    workspace: (0, import_fields42.relationship)({
+    workspace: (0, import_fields45.relationship)({
       ref: "SaasWorkspace.followUpTasks",
       many: false,
       ui: { description: "Workspace a la que pertenece la tarea" }
     }),
-    statusCrm: (0, import_fields42.relationship)({
+    statusCrm: (0, import_fields45.relationship)({
       ref: "SaasWorkspaceCrmStatus.followUpTasks",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo tarea)" }
     }),
-    calendarEvent: (0, import_fields42.relationship)({
+    calendarEvent: (0, import_fields45.relationship)({
       ref: "TechCalendarEvent.followUpTask",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    notes: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
-    hiddenInWorkspace: (0, import_fields42.checkbox)({
+    notes: (0, import_fields45.text)({ ui: { displayMode: "textarea" } }),
+    hiddenInWorkspace: (0, import_fields45.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields42.timestamp)({
+    createdAt: (0, import_fields45.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields42.timestamp)({
+    updatedAt: (0, import_fields45.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6440,8 +8040,8 @@ var TechFollowUpTask_default = (0, import_core42.list)({
 });
 
 // models/Saas/Tech/Proposal/TechProposal.ts
-var import_core43 = require("@keystone-6/core");
-var import_fields43 = require("@keystone-6/core/fields");
+var import_core46 = require("@keystone-6/core");
+var import_fields46 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Proposal/TechProposal.access.ts
 var getCompanyId3 = (session2) => session2?.data?.company?.id;
@@ -6488,18 +8088,24 @@ var proposalHooks = {
     if (operation === "update" && resolvedData?.status === PROPOSAL_STATUS.COMPRADA) {
       const proposal = await context.query.TechProposal.findOne({
         where: { id: item.id },
-        query: "id status businessLead { id }"
+        query: "id status businessLead { id } workspace { company { id } }"
       });
       if (!proposal?.businessLead?.id || proposal.status !== PROPOSAL_STATUS.COMPRADA)
         return;
+      const companyId = proposal.workspace?.company?.id ?? getSessionCompanyId(context.session);
+      if (!companyId) return;
       try {
-        const lead = await context.query.TechBusinessLead.findOne({
-          where: { id: proposal.businessLead.id },
-          query: "id status { id }"
+        const [status] = await context.sudo().query.TechStatusBusinessLead.findMany({
+          where: {
+            businessLead: { id: { equals: proposal.businessLead.id } },
+            saasCompany: { id: { equals: companyId } }
+          },
+          take: 1,
+          query: "id"
         });
-        if (lead?.status?.id) {
+        if (status?.id) {
           await context.db.TechStatusBusinessLead.updateOne({
-            where: { id: lead.status.id },
+            where: { id: status.id },
             data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO }
           });
         }
@@ -6515,7 +8121,7 @@ var statusOptions2 = Object.entries(PROPOSAL_STATUS).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechProposal_default = (0, import_core43.list)({
+var TechProposal_default = (0, import_core46.list)({
   access: proposalAccess,
   hooks: proposalHooks,
   ui: {
@@ -6524,81 +8130,81 @@ var TechProposal_default = (0, import_core43.list)({
     }
   },
   fields: {
-    sentDate: (0, import_fields43.calendarDay)({
+    sentDate: (0, import_fields46.calendarDay)({
       validation: { isRequired: true },
       ui: { description: "Fecha env\xEDo" }
     }),
-    amount: (0, import_fields43.float)({ ui: { description: "Monto" } }),
-    status: (0, import_fields43.select)({
+    amount: (0, import_fields46.float)({ ui: { description: "Monto" } }),
+    status: (0, import_fields46.select)({
       type: "string",
       options: statusOptions2,
       defaultValue: PROPOSAL_STATUS.ENVIADA,
       isIndexed: true
     }),
-    fileOrUrl: (0, import_fields43.text)({
+    fileOrUrl: (0, import_fields46.text)({
       ui: { description: "URL o referencia al archivo de la propuesta" }
     }),
-    approved: (0, import_fields43.checkbox)({
+    approved: (0, import_fields46.checkbox)({
       defaultValue: false,
       ui: { description: "Aprobado por administrador" }
     }),
-    paid: (0, import_fields43.checkbox)({
+    paid: (0, import_fields46.checkbox)({
       defaultValue: false,
       ui: { description: "Pagado" }
     }),
-    product: (0, import_fields43.text)({
+    product: (0, import_fields46.text)({
       ui: { description: "Producto o servicio principal cotizado" }
     }),
-    notes: (0, import_fields43.text)({
+    notes: (0, import_fields46.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas adicionales o condiciones de la propuesta"
       }
     }),
-    businessLead: (0, import_fields43.relationship)({
+    businessLead: (0, import_fields46.relationship)({
       ref: "TechBusinessLead.proposals",
       many: false
     }),
-    assignedSeller: (0, import_fields43.relationship)({
+    assignedSeller: (0, import_fields46.relationship)({
       ref: "User.proposals",
       many: false
     }),
-    createdBy: (0, import_fields43.relationship)({
+    createdBy: (0, import_fields46.relationship)({
       ref: "User.createdByProposals",
       many: false
     }),
-    workspace: (0, import_fields43.relationship)({
+    workspace: (0, import_fields46.relationship)({
       ref: "SaasWorkspace.proposals",
       many: false,
       ui: { description: "Workspace a la que pertenece la propuesta" }
     }),
-    statusCrm: (0, import_fields43.relationship)({
+    statusCrm: (0, import_fields46.relationship)({
       ref: "SaasWorkspaceCrmStatus.proposals",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo propuesta)" }
     }),
-    calendarEvent: (0, import_fields43.relationship)({
+    calendarEvent: (0, import_fields46.relationship)({
       ref: "TechCalendarEvent.proposal",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo propuestas nuevas)" }
     }),
-    project: (0, import_fields43.relationship)({
+    project: (0, import_fields46.relationship)({
       ref: "SaasProject.proposal",
       many: false,
       ui: { description: "Proyecto creado a partir de esta propuesta" }
     }),
-    hiddenInWorkspace: (0, import_fields43.checkbox)({
+    hiddenInWorkspace: (0, import_fields46.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields43.timestamp)({
+    createdAt: (0, import_fields46.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields43.timestamp)({
+    updatedAt: (0, import_fields46.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6609,8 +8215,8 @@ var TechProposal_default = (0, import_core43.list)({
 });
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.ts
-var import_core44 = require("@keystone-6/core");
-var import_fields44 = require("@keystone-6/core/fields");
+var import_core47 = require("@keystone-6/core");
+var import_fields47 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.access.ts
 var getCompanyId4 = (session2) => session2?.data?.company?.id;
@@ -6658,7 +8264,7 @@ var priorityOptions2 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechSalesActivity_default = (0, import_core44.list)({
+var TechSalesActivity_default = (0, import_core47.list)({
   access: salesActivityAccess,
   hooks: salesActivityHooks,
   ui: {
@@ -6675,63 +8281,63 @@ var TechSalesActivity_default = (0, import_core44.list)({
     }
   },
   fields: {
-    title: (0, import_fields44.text)({
+    title: (0, import_fields47.text)({
       ui: { description: "T\xEDtulo de la actividad" }
     }),
-    type: (0, import_fields44.select)({
+    type: (0, import_fields47.select)({
       type: "string",
       options: activityTypeOptions,
       validation: { isRequired: true },
       isIndexed: true
     }),
-    activityDate: (0, import_fields44.timestamp)({
+    activityDate: (0, import_fields47.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    dueDate: (0, import_fields44.calendarDay)({
+    dueDate: (0, import_fields47.calendarDay)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Deadline for this activity" }
     }),
-    priority: (0, import_fields44.select)({
+    priority: (0, import_fields47.select)({
       type: "string",
       options: priorityOptions2,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields44.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
-    comments: (0, import_fields44.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields44.relationship)({
+    result: (0, import_fields47.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
+    comments: (0, import_fields47.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields47.relationship)({
       ref: "TechBusinessLead.activities",
       many: false
     }),
-    assignedSeller: (0, import_fields44.relationship)({
+    assignedSeller: (0, import_fields47.relationship)({
       ref: "User.salesActivities",
       many: false
     }),
-    createdBy: (0, import_fields44.relationship)({
+    createdBy: (0, import_fields47.relationship)({
       ref: "User.createdBySalesActivities",
       many: false
     }),
-    workspace: (0, import_fields44.relationship)({
+    workspace: (0, import_fields47.relationship)({
       ref: "SaasWorkspace.salesActivities",
       many: false,
       ui: { description: "Workspace a la que pertenece la actividad" }
     }),
-    statusCrm: (0, import_fields44.relationship)({
+    statusCrm: (0, import_fields47.relationship)({
       ref: "SaasWorkspaceCrmStatus.salesActivities",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo actividad)" }
     }),
-    calendarEvent: (0, import_fields44.relationship)({
+    calendarEvent: (0, import_fields47.relationship)({
       ref: "TechCalendarEvent.salesActivity",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo actividades nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields44.checkbox)({
+    hiddenInWorkspace: (0, import_fields47.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields44.timestamp)({
+    createdAt: (0, import_fields47.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6742,8 +8348,8 @@ var TechSalesActivity_default = (0, import_core44.list)({
 });
 
 // models/Saas/Tech/Task/TechTask.ts
-var import_core45 = require("@keystone-6/core");
-var import_fields45 = require("@keystone-6/core/fields");
+var import_core48 = require("@keystone-6/core");
+var import_fields48 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Task/TechTask.access.ts
 var getCompanyId5 = (session2) => session2?.data?.company?.id;
@@ -6785,7 +8391,7 @@ var priorityOptions3 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechTask_default = (0, import_core45.list)({
+var TechTask_default = (0, import_core48.list)({
   access: techTaskAccess,
   hooks: techTaskHooks,
   ui: {
@@ -6802,62 +8408,62 @@ var TechTask_default = (0, import_core45.list)({
     }
   },
   fields: {
-    title: (0, import_fields45.text)({
+    title: (0, import_fields48.text)({
       ui: { description: "T\xEDtulo de la tarea" }
     }),
-    startDate: (0, import_fields45.timestamp)({
+    startDate: (0, import_fields48.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true },
       ui: { description: "Fecha de la tarea (programada o realizada)" }
     }),
-    dueDate: (0, import_fields45.timestamp)({
+    dueDate: (0, import_fields48.timestamp)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Fecha l\xEDmite de la tarea" }
     }),
-    priority: (0, import_fields45.select)({
+    priority: (0, import_fields48.select)({
       type: "string",
       options: priorityOptions3,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields45.text)({
+    result: (0, import_fields48.text)({
       ui: { description: "Resultado o cierre de la tarea" }
     }),
-    comments: (0, import_fields45.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields45.relationship)({
+    comments: (0, import_fields48.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields48.relationship)({
       ref: "TechBusinessLead.tasks",
       many: false
     }),
-    responsible: (0, import_fields45.relationship)({
+    responsible: (0, import_fields48.relationship)({
       ref: "User.tasksResponsible",
       many: false
     }),
-    workspace: (0, import_fields45.relationship)({
+    workspace: (0, import_fields48.relationship)({
       ref: "SaasWorkspace.tasks",
       many: false,
       ui: { description: "Workspace al que pertenece esta tarea" }
     }),
-    statusCrm: (0, import_fields45.relationship)({
+    statusCrm: (0, import_fields48.relationship)({
       ref: "SaasWorkspaceCrmStatus.tasks",
       many: false,
       ui: {
         description: "Estado CRM din\xE1mico (workspace + tipo de tarea)"
       }
     }),
-    createdBy: (0, import_fields45.relationship)({
+    createdBy: (0, import_fields48.relationship)({
       ref: "User.createdByTasks",
       many: false
     }),
-    calendarEvent: (0, import_fields45.relationship)({
+    calendarEvent: (0, import_fields48.relationship)({
       ref: "TechCalendarEvent.task",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields45.checkbox)({
+    hiddenInWorkspace: (0, import_fields48.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields45.timestamp)({
+    createdAt: (0, import_fields48.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6868,8 +8474,8 @@ var TechTask_default = (0, import_core45.list)({
 });
 
 // models/Saas/Tech/TechFiles/TechFiles.ts
-var import_core46 = require("@keystone-6/core");
-var import_fields46 = require("@keystone-6/core/fields");
+var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/TechFiles/TechFiles.access.ts
 function canUploadFiles(session2) {
@@ -6925,7 +8531,7 @@ var CATEGORY_OPTIONS = [
   { label: "Speech / Guion", value: "speech_script" },
   { label: "Otro", value: "other" }
 ];
-var TechFiles_default = (0, import_core46.list)({
+var TechFiles_default = (0, import_core49.list)({
   access: techFilesAccess,
   hooks: {
     resolveInput: async ({ resolvedData, context, operation }) => {
@@ -6948,18 +8554,18 @@ var TechFiles_default = (0, import_core46.list)({
     }
   },
   fields: {
-    title: (0, import_fields46.text)({
+    title: (0, import_fields49.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del archivo o recurso" }
     }),
-    description: (0, import_fields46.text)({
+    description: (0, import_fields49.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n opcional del contenido"
       }
     }),
-    category: (0, import_fields46.select)({
+    category: (0, import_fields49.select)({
       type: "string",
       options: [...CATEGORY_OPTIONS],
       defaultValue: "otro",
@@ -6968,27 +8574,27 @@ var TechFiles_default = (0, import_core46.list)({
         description: "Tipo de material (proceso, t\xE9cnica, cierre, speech, etc.)"
       }
     }),
-    file: (0, import_fields46.file)({
+    file: (0, import_fields49.file)({
       storage: "s3_tech_files",
       ui: { description: "Archivo (PDF, DOC, etc.)" }
     }),
-    company: (0, import_fields46.relationship)({
+    company: (0, import_fields49.relationship)({
       ref: "SaasCompany.techFiles",
       many: false
     }),
-    aiInsights: (0, import_fields46.relationship)({
+    aiInsights: (0, import_fields49.relationship)({
       ref: "TechAiInsight.relatedFile",
       many: true,
       ui: { description: "An\xE1lisis de IA ligados a este archivo" }
     }),
-    createdAt: (0, import_fields46.timestamp)({
+    createdAt: (0, import_fields49.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields46.timestamp)({
+    updatedAt: (0, import_fields49.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6999,8 +8605,8 @@ var TechFiles_default = (0, import_core46.list)({
 });
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var import_core47 = require("@keystone-6/core");
-var import_fields47 = require("@keystone-6/core/fields");
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
 var getCompanyId6 = (session2) => session2?.data?.company?.id;
@@ -7009,7 +8615,7 @@ var techLeadSyncLogAccess = {
     query: () => true,
     create: () => false,
     update: () => false,
-    delete: () => true
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -7021,19 +8627,12 @@ var techLeadSyncLogAccess = {
       return { company: { id: { equals: companyId } } };
     },
     update: () => false,
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId6(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var TechLeadSyncLog_default = (0, import_core47.list)({
+var TechLeadSyncLog_default = (0, import_core50.list)({
   access: techLeadSyncLogAccess,
   ui: {
     listView: {
@@ -7050,63 +8649,63 @@ var TechLeadSyncLog_default = (0, import_core47.list)({
     }
   },
   fields: {
-    user: (0, import_fields47.relationship)({
+    user: (0, import_fields50.relationship)({
       ref: "User.leadSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 la sincronizaci\xF3n" }
     }),
-    company: (0, import_fields47.relationship)({
+    company: (0, import_fields50.relationship)({
       ref: "SaasCompany.leadSyncLogs",
       many: false,
       ui: { description: "Empresa" }
     }),
-    success: (0, import_fields47.checkbox)({
+    success: (0, import_fields50.checkbox)({
       defaultValue: false,
       ui: { description: "Si la operaci\xF3n fue exitosa" }
     }),
-    message: (0, import_fields47.text)({
+    message: (0, import_fields50.text)({
       ui: { description: "Mensaje de resultado" }
     }),
-    created: (0, import_fields47.integer)({
+    created: (0, import_fields50.integer)({
       defaultValue: 0,
       ui: { description: "Leads creados desde Google" }
     }),
-    alreadyInDb: (0, import_fields47.integer)({
+    alreadyInDb: (0, import_fields50.integer)({
       defaultValue: 0,
       ui: { description: "Leads ya en BD asignados a la company" }
     }),
-    skippedLowRating: (0, import_fields47.integer)({
+    skippedLowRating: (0, import_fields50.integer)({
       defaultValue: 0,
       ui: { description: "Leads omitidos por rating/rese\xF1as bajas" }
     }),
-    syncedLeadsCount: (0, import_fields47.integer)({
+    syncedLeadsCount: (0, import_fields50.integer)({
       defaultValue: 0,
       ui: { description: "Total de leads asignados en esta ejecuci\xF3n" }
     }),
-    syncedCount: (0, import_fields47.integer)({
+    syncedCount: (0, import_fields50.integer)({
       db: { isNullable: true },
       ui: { description: "Cuota usada este mes (total)" }
     }),
-    leadLimit: (0, import_fields47.integer)({
+    leadLimit: (0, import_fields50.integer)({
       db: { isNullable: true },
       ui: { description: "L\xEDmite de leads del plan" }
     }),
-    lat: (0, import_fields47.float)({
+    lat: (0, import_fields50.float)({
       db: { isNullable: true },
       ui: { description: "Latitud del centro de b\xFAsqueda" }
     }),
-    lng: (0, import_fields47.float)({
+    lng: (0, import_fields50.float)({
       db: { isNullable: true },
       ui: { description: "Longitud del centro de b\xFAsqueda" }
     }),
-    radius: (0, import_fields47.float)({
+    radius: (0, import_fields50.float)({
       db: { isNullable: true },
       ui: { description: "Radio de b\xFAsqueda (km)" }
     }),
-    category: (0, import_fields47.text)({
+    category: (0, import_fields50.text)({
       ui: { description: "Categor\xEDa buscada" }
     }),
-    createdAt: (0, import_fields47.timestamp)({
+    createdAt: (0, import_fields50.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Fecha y hora de la ejecuci\xF3n" }
     })
@@ -7114,8 +8713,8 @@ var TechLeadSyncLog_default = (0, import_core47.list)({
 });
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var import_core48 = require("@keystone-6/core");
-var import_fields48 = require("@keystone-6/core/fields");
+var import_core51 = require("@keystone-6/core");
+var import_fields51 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.access.ts
 var techAiCallLogAccess = {
@@ -7195,7 +8794,7 @@ var MANAGED_GEMINI_FALLBACK = [
 var AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var TechAiCallLog_default = (0, import_core48.list)({
+var TechAiCallLog_default = (0, import_core51.list)({
   access: techAiCallLogAccess,
   ui: {
     listView: {
@@ -7214,40 +8813,40 @@ var TechAiCallLog_default = (0, import_core48.list)({
     }
   },
   fields: {
-    user: (0, import_fields48.relationship)({
+    user: (0, import_fields51.relationship)({
       ref: "User.aiCallLogs",
       many: false,
       ui: { description: "Usuario que dispar\xF3 la llamada" }
     }),
-    company: (0, import_fields48.relationship)({
+    company: (0, import_fields51.relationship)({
       ref: "SaasCompany.aiCallLogs",
       many: false,
       ui: { description: "Empresa due\xF1a de Kadesh Urim AI" }
     }),
-    feature: (0, import_fields48.text)({
+    feature: (0, import_fields51.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: {
         description: "Origen de la llamada (connection_test, daily_digest, monthly_narrative, file_analysis)"
       }
     }),
-    billingMode: (0, import_fields48.select)({
+    billingMode: (0, import_fields51.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       db: { isNullable: true },
       ui: { description: "byok o managed al momento de la llamada" }
     }),
-    provider: (0, import_fields48.select)({
+    provider: (0, import_fields51.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
       ui: { description: "Proveedor usado" }
     }),
-    model: (0, import_fields48.text)({
+    model: (0, import_fields51.text)({
       db: { isNullable: true },
       ui: { description: "Modelo usado" }
     }),
-    featurePrompt: (0, import_fields48.text)({
+    featurePrompt: (0, import_fields51.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -7255,7 +8854,7 @@ var TechAiCallLog_default = (0, import_core48.list)({
         description: "Instrucci\xF3n de la feature (parte del system prompt)"
       }
     }),
-    systemPrompt: (0, import_fields48.text)({
+    systemPrompt: (0, import_fields51.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -7263,7 +8862,7 @@ var TechAiCallLog_default = (0, import_core48.list)({
         description: "System prompt completo enviado al proveedor (Cerebro + feature)"
       }
     }),
-    userPrompt: (0, import_fields48.text)({
+    userPrompt: (0, import_fields51.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -7271,7 +8870,7 @@ var TechAiCallLog_default = (0, import_core48.list)({
         description: "Prompt de usuario enviado al proveedor"
       }
     }),
-    response: (0, import_fields48.text)({
+    response: (0, import_fields51.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -7279,44 +8878,44 @@ var TechAiCallLog_default = (0, import_core48.list)({
         description: "Texto que devolvi\xF3 la IA"
       }
     }),
-    inputTokens: (0, import_fields48.integer)({
+    inputTokens: (0, import_fields51.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de entrada reportados por el proveedor" }
     }),
-    outputTokens: (0, import_fields48.integer)({
+    outputTokens: (0, import_fields51.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de salida reportados por el proveedor" }
     }),
-    billableTokens: (0, import_fields48.integer)({
+    billableTokens: (0, import_fields51.integer)({
       defaultValue: 0,
       ui: {
         description: "Tokens equivalentes: input + output \xD7 5"
       }
     }),
-    creditsCharged: (0, import_fields48.integer)({
+    creditsCharged: (0, import_fields51.integer)({
       defaultValue: 0,
       ui: { description: "Cr\xE9ditos debitados de la bolsa de la empresa" }
     }),
-    billed: (0, import_fields48.checkbox)({
+    billed: (0, import_fields51.checkbox)({
       defaultValue: false,
       ui: { description: "Si esta llamada deb\xEDa cobrar cr\xE9ditos (managed y no ping)" }
     }),
-    success: (0, import_fields48.checkbox)({
+    success: (0, import_fields51.checkbox)({
       defaultValue: false,
       ui: { description: "Si el proveedor respondi\xF3 y se devolvi\xF3 texto" }
     }),
-    errorMessage: (0, import_fields48.text)({
+    errorMessage: (0, import_fields51.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Error si la llamada fall\xF3 (sin API keys)"
       }
     }),
-    durationMs: (0, import_fields48.integer)({
+    durationMs: (0, import_fields51.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n total de callCompanyAi en ms" }
     }),
-    createdAt: (0, import_fields48.timestamp)({
+    createdAt: (0, import_fields51.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento de la llamada" }
     })
@@ -7324,8 +8923,8 @@ var TechAiCallLog_default = (0, import_core48.list)({
 });
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var import_core49 = require("@keystone-6/core");
-var import_fields49 = require("@keystone-6/core/fields");
+var import_core52 = require("@keystone-6/core");
+var import_fields52 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiInsight/TechAiInsight.access.ts
 var getCompanyId7 = (session2) => session2?.data?.company?.id;
@@ -7376,7 +8975,7 @@ var AI_INSIGHT_KIND_OPTIONS = [
 ];
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var TechAiInsight_default = (0, import_core49.list)({
+var TechAiInsight_default = (0, import_core52.list)({
   access: techAiInsightAccess,
   ui: {
     listView: {
@@ -7390,47 +8989,47 @@ var TechAiInsight_default = (0, import_core49.list)({
     }
   },
   fields: {
-    company: (0, import_fields49.relationship)({
+    company: (0, import_fields52.relationship)({
       ref: "SaasCompany.aiInsights",
       many: false,
       ui: { description: "Empresa due\xF1a del insight" }
     }),
-    salesPerson: (0, import_fields49.relationship)({
+    salesPerson: (0, import_fields52.relationship)({
       ref: "User.aiInsights",
       many: false,
       ui: {
         description: "Vendedor due\xF1o del insight. Vac\xEDo = insight de empresa (admin / alcance global)"
       }
     }),
-    kind: (0, import_fields49.select)({
+    kind: (0, import_fields52.select)({
       type: "string",
       options: [...AI_INSIGHT_KIND_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Tipo de insight (digest, narrativa, archivo)" }
     }),
-    referenceKey: (0, import_fields49.text)({
+    referenceKey: (0, import_fields52.text)({
       isIndexed: true,
       ui: {
         description: 'Clave de cach\xE9: "YYYY-MM-DD", "YYYY-MM" o id de archivo'
       }
     }),
-    content: (0, import_fields49.text)({
+    content: (0, import_fields52.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Texto legible del insight"
       }
     }),
-    structuredData: (0, import_fields49.json)({
+    structuredData: (0, import_fields52.json)({
       ui: { description: "JSON de acciones / estructura (p. ej. 3 pasos)" }
     }),
-    relatedFile: (0, import_fields49.relationship)({
+    relatedFile: (0, import_fields52.relationship)({
       ref: "TechFile.aiInsights",
       many: false,
       ui: { description: "Archivo analizado (Fase 4)" }
     }),
-    generatedAt: (0, import_fields49.timestamp)({
+    generatedAt: (0, import_fields52.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento en que se gener\xF3 o regener\xF3" }
     })
@@ -7438,8 +9037,8 @@ var TechAiInsight_default = (0, import_core49.list)({
 });
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var import_core50 = require("@keystone-6/core");
-var import_fields50 = require("@keystone-6/core/fields");
+var import_core53 = require("@keystone-6/core");
+var import_fields53 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/access.ts
 var inegiCatalogAccess = {
@@ -7460,7 +9059,7 @@ var inegiSyncLogAccess = {
 };
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var TechInegiEconomicActivity_default = (0, import_core50.list)({
+var TechInegiEconomicActivity_default = (0, import_core53.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -7469,17 +9068,17 @@ var TechInegiEconomicActivity_default = (0, import_core50.list)({
     }
   },
   fields: {
-    scianCode: (0, import_fields50.text)({
+    scianCode: (0, import_fields53.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "C\xF3digo SCIAN (o clave sint\xE9tica si la API no lo trae)" }
     }),
-    name: (0, import_fields50.text)({
+    name: (0, import_fields53.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre de la clase de actividad econ\xF3mica" }
     }),
-    establishments: (0, import_fields50.relationship)({
+    establishments: (0, import_fields53.relationship)({
       ref: "TechInegiEstablishment.economicActivity",
       many: true,
       ui: { hideCreate: true }
@@ -7488,9 +9087,9 @@ var TechInegiEconomicActivity_default = (0, import_core50.list)({
 });
 
 // models/Saas/Tech/Inegi/Establishment/TechInegiEstablishment.ts
-var import_core51 = require("@keystone-6/core");
-var import_fields51 = require("@keystone-6/core/fields");
-var TechInegiEstablishment_default = (0, import_core51.list)({
+var import_core54 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
+var TechInegiEstablishment_default = (0, import_core54.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -7499,47 +9098,47 @@ var TechInegiEstablishment_default = (0, import_core51.list)({
     }
   },
   fields: {
-    clee: (0, import_fields51.text)({
+    clee: (0, import_fields54.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Clave \xFAnica INEGI (CLEE)" }
     }),
-    name: (0, import_fields51.text)({
+    name: (0, import_fields54.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    legalName: (0, import_fields51.text)({
+    legalName: (0, import_fields54.text)({
       ui: { description: "Raz\xF3n social" }
     }),
-    employeeStratum: (0, import_fields51.text)({
+    employeeStratum: (0, import_fields54.text)({
       ui: { description: "Estrato de personal ocupado (tal cual DENUE)" }
     }),
-    economicActivity: (0, import_fields51.relationship)({
+    economicActivity: (0, import_fields54.relationship)({
       ref: "TechInegiEconomicActivity.establishments",
       many: false,
       ui: { description: "Giro SCIAN" }
     }),
-    street: (0, import_fields51.text)(),
-    exteriorNumber: (0, import_fields51.text)(),
-    interiorNumber: (0, import_fields51.text)(),
-    neighborhood: (0, import_fields51.text)(),
-    postalCode: (0, import_fields51.text)(),
-    locality: (0, import_fields51.text)(),
-    municipality: (0, import_fields51.text)({ isIndexed: true }),
-    state: (0, import_fields51.text)({ isIndexed: true }),
-    phone: (0, import_fields51.text)(),
-    email: (0, import_fields51.text)(),
-    website: (0, import_fields51.text)(),
-    lat: (0, import_fields51.float)({ db: { isNullable: true } }),
-    lng: (0, import_fields51.float)({ db: { isNullable: true } }),
-    rawPayload: (0, import_fields51.json)({
+    street: (0, import_fields54.text)(),
+    exteriorNumber: (0, import_fields54.text)(),
+    interiorNumber: (0, import_fields54.text)(),
+    neighborhood: (0, import_fields54.text)(),
+    postalCode: (0, import_fields54.text)(),
+    locality: (0, import_fields54.text)(),
+    municipality: (0, import_fields54.text)({ isIndexed: true }),
+    state: (0, import_fields54.text)({ isIndexed: true }),
+    phone: (0, import_fields54.text)(),
+    email: (0, import_fields54.text)(),
+    website: (0, import_fields54.text)(),
+    lat: (0, import_fields54.float)({ db: { isNullable: true } }),
+    lng: (0, import_fields54.float)({ db: { isNullable: true } }),
+    rawPayload: (0, import_fields54.json)({
       ui: { description: "Respuesta cruda de INEGI (API o fila CSV)" }
     }),
-    lastSyncedAt: (0, import_fields51.timestamp)({
+    lastSyncedAt: (0, import_fields54.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima vez que se actualiz\xF3 desde INEGI" }
     }),
-    promotedLeads: (0, import_fields51.relationship)({
+    promotedLeads: (0, import_fields54.relationship)({
       ref: "TechBusinessLead.sourceEstablishment",
       many: true,
       ui: { hideCreate: true, description: "Leads CRM promovidos desde este establecimiento" }
@@ -7548,8 +9147,8 @@ var TechInegiEstablishment_default = (0, import_core51.list)({
 });
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var import_core52 = require("@keystone-6/core");
-var import_fields52 = require("@keystone-6/core/fields");
+var import_core55 = require("@keystone-6/core");
+var import_fields55 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/constants.ts
 var INEGI_SYNC_SOURCE = {
@@ -7583,7 +9182,7 @@ var INEGI_GEO_BOUNDARY_LEVEL_OPTIONS = [
 var INEGI_LIVE_SYNC_CAP = 250;
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var TechInegiGeoBoundary_default = (0, import_core52.list)({
+var TechInegiGeoBoundary_default = (0, import_core55.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -7592,38 +9191,38 @@ var TechInegiGeoBoundary_default = (0, import_core52.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields52.text)({
+    cacheKey: (0, import_fields55.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "level:geoCode" }
     }),
-    level: (0, import_fields52.select)({
+    level: (0, import_fields55.select)({
       type: "string",
       options: [...INEGI_GEO_BOUNDARY_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geoCode: (0, import_fields52.text)({
+    geoCode: (0, import_fields55.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    name: (0, import_fields52.text)({
+    name: (0, import_fields55.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    parentCode: (0, import_fields52.text)({
+    parentCode: (0, import_fields55.text)({
       db: { isNullable: true },
       ui: { description: "CVE_ENT para municipio; CVEGEO municipal para localidad" }
     }),
-    geometry: (0, import_fields52.json)({
+    geometry: (0, import_fields55.json)({
       ui: { description: "GeoJSON geometry (sin PostGIS)" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/Indicator/TechInegiIndicator.ts
-var import_core53 = require("@keystone-6/core");
-var import_fields53 = require("@keystone-6/core/fields");
-var TechInegiIndicator_default = (0, import_core53.list)({
+var import_core56 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
+var TechInegiIndicator_default = (0, import_core56.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "indicatorName",
@@ -7638,46 +9237,46 @@ var TechInegiIndicator_default = (0, import_core53.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields53.text)({
+    cacheKey: (0, import_fields56.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "indicatorId:geographicCode:period"
       }
     }),
-    indicatorId: (0, import_fields53.text)({
+    indicatorId: (0, import_fields56.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    indicatorName: (0, import_fields53.text)({
+    indicatorName: (0, import_fields56.text)({
       validation: { isRequired: true }
     }),
-    geographicLevel: (0, import_fields53.select)({
+    geographicLevel: (0, import_fields56.select)({
       type: "string",
       options: [...INEGI_GEOGRAPHIC_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geographicCode: (0, import_fields53.text)({
+    geographicCode: (0, import_fields56.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "00 nacional, 2 d\xEDgitos estado, 5 d\xEDgitos municipio" }
     }),
-    period: (0, import_fields53.text)({
+    period: (0, import_fields56.text)({
       validation: { isRequired: true },
       ui: { description: "TIME_PERIOD de BIE (p. ej. 2020)" }
     }),
-    value: (0, import_fields53.float)({ db: { isNullable: true } }),
-    unit: (0, import_fields53.text)(),
-    fetchedAt: (0, import_fields53.timestamp)({
+    value: (0, import_fields56.float)({ db: { isNullable: true } }),
+    unit: (0, import_fields56.text)(),
+    fetchedAt: (0, import_fields56.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/SyncLog/TechInegiSyncLog.ts
-var import_core54 = require("@keystone-6/core");
-var import_fields54 = require("@keystone-6/core/fields");
-var TechInegiSyncLog_default = (0, import_core54.list)({
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
+var TechInegiSyncLog_default = (0, import_core57.list)({
   access: inegiSyncLogAccess,
   ui: {
     listView: {
@@ -7694,49 +9293,49 @@ var TechInegiSyncLog_default = (0, import_core54.list)({
     }
   },
   fields: {
-    user: (0, import_fields54.relationship)({
+    user: (0, import_fields57.relationship)({
       ref: "User.inegiSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 el sync (vac\xEDo en scripts)" }
     }),
-    success: (0, import_fields54.checkbox)({
+    success: (0, import_fields57.checkbox)({
       defaultValue: false
     }),
-    message: (0, import_fields54.text)(),
-    created: (0, import_fields54.integer)({
+    message: (0, import_fields57.text)(),
+    created: (0, import_fields57.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos nuevos" }
     }),
-    updated: (0, import_fields54.integer)({
+    updated: (0, import_fields57.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos actualizados" }
     }),
-    alreadyInDb: (0, import_fields54.integer)({
+    alreadyInDb: (0, import_fields57.integer)({
       defaultValue: 0,
       ui: { description: "Ya exist\xEDan y no cambiaron (o se reencontraron)" }
     }),
-    totalFetched: (0, import_fields54.integer)({
+    totalFetched: (0, import_fields57.integer)({
       defaultValue: 0,
       ui: { description: "Filas recibidas de INEGI en esta corrida" }
     }),
-    sourceMethod: (0, import_fields54.select)({
+    sourceMethod: (0, import_fields57.select)({
       type: "string",
       options: [...INEGI_SYNC_SOURCE_OPTIONS],
       validation: { isRequired: true },
       defaultValue: "api"
     }),
-    searchParams: (0, import_fields54.json)({
+    searchParams: (0, import_fields57.json)({
       ui: { description: "Par\xE1metros de b\xFAsqueda o ruta del archivo" }
     }),
-    createdAt: (0, import_fields54.timestamp)({
+    createdAt: (0, import_fields57.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var import_core55 = require("@keystone-6/core");
-var import_fields55 = require("@keystone-6/core/fields");
+var import_core58 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
 var saasCompanyAccess = {
@@ -7786,6 +9385,11 @@ var whatsappTokenPreviewFieldAccess = {
     if (!isCompanyAdmin(session2)) return false;
     return getSessionCompanyId(session2) === item?.id;
   },
+  create: () => false,
+  update: () => false
+};
+var saasCompanyAccountControlFieldAccess = {
+  read: ({ session: session2 }) => isPlatformAdmin(session2),
   create: () => false,
   update: () => false
 };
@@ -7905,7 +9509,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core55.list)({
+var SaasCompany_default = (0, import_core58.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -7924,147 +9528,147 @@ var SaasCompany_default = (0, import_core55.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields55.text)({
+    name: (0, import_fields58.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields55.relationship)({
+    users: (0, import_fields58.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    workspaces: (0, import_fields55.relationship)({
+    workspaces: (0, import_fields58.relationship)({
       ref: "SaasWorkspace.company",
       many: true,
       ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields55.json)({
+    allowedGooglePlaceCategories: (0, import_fields58.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields55.relationship)({
+    leads: (0, import_fields58.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields55.relationship)({
+    plan: (0, import_fields58.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields55.calendarDay)({
+    subscriptionStartedAt: (0, import_fields58.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields55.relationship)({
+    subscriptions: (0, import_fields58.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields55.relationship)({
+    techStatusBusinessLeads: (0, import_fields58.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields55.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields58.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (legacy quota tracking)" }
     }),
     /** Cumulative purchased bonus credits (permanent monthly top-up) */
-    purchasedBonusCredits: (0, import_fields55.integer)({
+    purchasedBonusCredits: (0, import_fields58.integer)({
       defaultValue: 0,
       ui: {
         description: "Total extra credits purchased; added to the monthly allowance each period"
       }
     }),
-    creditPeriods: (0, import_fields55.relationship)({
+    creditPeriods: (0, import_fields58.relationship)({
       ref: "SaasCompanyCreditPeriod.company",
       many: true,
       ui: { description: "Monthly credit periods for this company" }
     }),
-    creditLedgerEntries: (0, import_fields55.relationship)({
+    creditLedgerEntries: (0, import_fields58.relationship)({
       ref: "SaasCompanyCreditLedger.company",
       many: true,
       ui: { description: "Credit grant/consume ledger for this company" }
     }),
-    techFiles: (0, import_fields55.relationship)({
+    techFiles: (0, import_fields58.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields55.relationship)({
+    projects: (0, import_fields58.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    leadSyncLogs: (0, import_fields55.relationship)({
+    leadSyncLogs: (0, import_fields58.relationship)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
-    aiCallLogs: (0, import_fields55.relationship)({
+    aiCallLogs: (0, import_fields58.relationship)({
       ref: "TechAiCallLog.company",
       many: true,
       ui: { description: "Historial de llamadas a IA (prompts, tokens, cr\xE9ditos)" }
     }),
-    aiInsights: (0, import_fields55.relationship)({
+    aiInsights: (0, import_fields58.relationship)({
       ref: "TechAiInsight.company",
       many: true,
       ui: { description: "Insights de IA (digest diario, narrativa, archivos)" }
     }),
-    saasSubscriptionLogs: (0, import_fields55.relationship)({
+    saasSubscriptionLogs: (0, import_fields58.relationship)({
       ref: "SaasSubscriptionLog.company",
       many: true,
       ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
-    quotations: (0, import_fields55.relationship)({
+    quotations: (0, import_fields58.relationship)({
       ref: "SaasQuotation.company",
       many: true,
       ui: { description: "Cotizaciones de la empresa" }
     }),
-    logo: (0, import_fields55.file)({
+    logo: (0, import_fields58.file)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    onboardingMainOffer: (0, import_fields55.text)({
+    onboardingMainOffer: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    onboardingIdealCustomer: (0, import_fields55.text)({
+    onboardingIdealCustomer: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    onboardingAvgTicketValue: (0, import_fields55.text)({
+    onboardingAvgTicketValue: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    onboardingSalesPain: (0, import_fields55.text)({
+    onboardingSalesPain: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
       }
     }),
-    aiBillingMode: (0, import_fields55.select)({
+    aiBillingMode: (0, import_fields58.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       defaultValue: AI_BILLING_MODE.BYOK,
@@ -8072,7 +9676,7 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "C\xF3mo paga la empresa la IA: API key propia (BYOK) o cr\xE9ditos administrados por Kadesh"
       }
     }),
-    aiProvider: (0, import_fields55.select)({
+    aiProvider: (0, import_fields58.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
@@ -8080,13 +9684,13 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "Proveedor de IA en modalidad BYOK (Claude, OpenAI o Gemini)"
       }
     }),
-    aiModel: (0, import_fields55.text)({
+    aiModel: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         description: "Override opcional del modelo. Vac\xEDo = default del proveedor."
       }
     }),
-    aiApiKeyEncrypted: (0, import_fields55.text)({
+    aiApiKeyEncrypted: (0, import_fields58.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -8100,42 +9704,42 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "API key cifrada (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    aiApiKeyPreview: (0, import_fields55.text)({
+    aiApiKeyPreview: (0, import_fields58.text)({
       db: { isNullable: true },
       access: aiApiKeyPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)"
       }
     }),
-    aiKeyUpdatedAt: (0, import_fields55.timestamp)({
+    aiKeyUpdatedAt: (0, import_fields58.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se guard\xF3 o borr\xF3 la API key de IA"
       }
     }),
-    whatsappPhoneNumberId: (0, import_fields55.text)({
+    whatsappPhoneNumberId: (0, import_fields58.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "Phone Number ID de WhatsApp Cloud API (Meta). \xDAnico por empresa: se usa para enrutar el webhook entrante."
       }
     }),
-    whatsappBusinessAccountId: (0, import_fields55.text)({
+    whatsappBusinessAccountId: (0, import_fields58.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "WhatsApp Business Account ID (WABA). \xDAnico por empresa: se usa para enrutar el webhook de estado de plantillas."
       }
     }),
-    whatsappDisplayPhoneNumber: (0, import_fields55.text)({
+    whatsappDisplayPhoneNumber: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "N\xFAmero mostrado por Meta (se llena al probar la conexi\xF3n)"
       }
     }),
-    whatsappAccessTokenEncrypted: (0, import_fields55.text)({
+    whatsappAccessTokenEncrypted: (0, import_fields58.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -8149,7 +9753,7 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "Access token cifrado (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    whatsappAppSecretEncrypted: (0, import_fields55.text)({
+    whatsappAppSecretEncrypted: (0, import_fields58.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -8163,28 +9767,28 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "App Secret de la App de Meta de esta empresa, cifrado. Verifica la firma del webhook entrante."
       }
     }),
-    whatsappTokenPreview: (0, import_fields55.text)({
+    whatsappTokenPreview: (0, import_fields58.text)({
       db: { isNullable: true },
       access: whatsappTokenPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada del access token (ej. EAAxyz...wXyz)"
       }
     }),
-    whatsappConnectedAt: (0, import_fields55.timestamp)({
+    whatsappConnectedAt: (0, import_fields58.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se conect\xF3 o desconect\xF3 WhatsApp"
       }
     }),
-    whatsappAppId: (0, import_fields55.text)({
+    whatsappAppId: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "App ID de la App de Meta de esta empresa (para configurar su webhook por API)"
       }
     }),
-    whatsappWebhookConfiguredAt: (0, import_fields55.timestamp)({
+    whatsappWebhookConfiguredAt: (0, import_fields58.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8192,7 +9796,7 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "Cu\xE1ndo Kadesh dej\xF3 configurado el webhook de su App por API (no implica que ya lleguen mensajes)"
       }
     }),
-    whatsappLastWebhookAt: (0, import_fields55.timestamp)({
+    whatsappLastWebhookAt: (0, import_fields58.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8200,22 +9804,22 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "\xDAltimo evento real de mensajes recibido con firma v\xE1lida. Vac\xEDo = nunca ha llegado uno (\xBFApp sin publicar en modo Live?)"
       }
     }),
-    googleCalendarAccounts: (0, import_fields55.relationship)({
+    googleCalendarAccounts: (0, import_fields58.relationship)({
       ref: "GoogleCalendarAccount.company",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar compartidas por la empresa" }
     }),
-    calendarEvents: (0, import_fields55.relationship)({
+    calendarEvents: (0, import_fields58.relationship)({
       ref: "TechCalendarEvent.company",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario de la empresa" }
     }),
-    whatsappMessages: (0, import_fields55.relationship)({
+    whatsappMessages: (0, import_fields58.relationship)({
       ref: "TechWhatsAppMessage.company",
       many: true,
       ui: { description: "Historial de mensajes de WhatsApp de esta empresa" }
     }),
-    whatsappTemplateName: (0, import_fields55.text)({
+    whatsappTemplateName: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8223,14 +9827,14 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "Nombre de la plantilla creada autom\xE1ticamente para iniciar conversaciones"
       }
     }),
-    whatsappTemplateLanguage: (0, import_fields55.text)({
+    whatsappTemplateLanguage: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    whatsappTemplateStatus: (0, import_fields55.select)({
+    whatsappTemplateStatus: (0, import_fields58.select)({
       type: "string",
       options: [
         { label: "Ninguna", value: "none" },
@@ -8243,47 +9847,76 @@ var SaasCompany_default = (0, import_core55.list)({
         description: "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexi\xF3n, y se actualiza v\xEDa webhook cuando Meta la revisa o reley\xE9ndolo de Meta en cada prueba de conexi\xF3n (por si el webhook no est\xE1 configurado)."
       }
     }),
-    termsQuotation: (0, import_fields55.text)({
+    termsQuotation: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
       }
     }),
-    colorPrimary: (0, import_fields55.text)({
+    colorPrimary: (0, import_fields58.text)({
       db: { isNullable: true },
       defaultValue: "#F7945E",
       ui: {
         description: "Color primario de la empresa"
       }
     }),
-    colorSecondary: (0, import_fields55.text)({
+    colorSecondary: (0, import_fields58.text)({
       db: { isNullable: true },
       defaultValue: "#E07C3A",
       ui: {
         description: "Color secundario de la empresa"
       }
     }),
-    contactEmail: (0, import_fields55.text)({
+    contactEmail: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de contacto de la empresa"
       }
     }),
-    contactPhone: (0, import_fields55.text)({
+    contactPhone: (0, import_fields58.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
-    createdAt: (0, import_fields55.timestamp)({
+    // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
+    suspendedAt: (0, import_fields58.timestamp)({
+      db: { isNullable: true },
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Suspendida por Kadesh: nadie del equipo puede entrar",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    suspendedReason: (0, import_fields58.text)({
+      db: { isNullable: true },
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Motivo de la suspensi\xF3n (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    accountManager: (0, import_fields58.relationship)({
+      ref: "User",
+      many: false,
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Persona de Kadesh responsable de la cuenta (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    createdAt: (0, import_fields58.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields55.timestamp)({
+    updatedAt: (0, import_fields58.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8294,8 +9927,8 @@ var SaasCompany_default = (0, import_core55.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core56 = require("@keystone-6/core");
-var import_fields56 = require("@keystone-6/core/fields");
+var import_core59 = require("@keystone-6/core");
+var import_fields59 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -8325,7 +9958,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core56.list)({
+var SaasPlan_default = (0, import_core59.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -8343,42 +9976,42 @@ var SaasPlan_default = (0, import_core56.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields56.text)({
+    name: (0, import_fields59.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields56.float)({
+    cost: (0, import_fields59.float)({
       ui: { description: "Plan cost per billing period" }
     }),
-    costOld: (0, import_fields56.float)({
+    costOld: (0, import_fields59.float)({
       ui: { description: "Plan cost original" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
-    referralUpfrontCommissionPct: (0, import_fields56.float)({
+    referralUpfrontCommissionPct: (0, import_fields59.float)({
       ui: {
         description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
       }
     }),
     /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
-    referralRecurringCommissionPct: (0, import_fields56.float)({
+    referralRecurringCommissionPct: (0, import_fields59.float)({
       ui: {
         description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
       }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields56.select)({
+    frequency: (0, import_fields59.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields56.text)({
+    currency: (0, import_fields59.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields56.integer)({
+    leadLimit: (0, import_fields59.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -8389,28 +10022,28 @@ var SaasPlan_default = (0, import_core56.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields56.json)({
+    planFeatures: (0, import_fields59.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields56.relationship)({
+    saasPayments: (0, import_fields59.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields56.checkbox)({
+    active: (0, import_fields59.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields56.checkbox)({
+    bestSeller: (0, import_fields59.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields56.text)({
+    stripePriceId: (0, import_fields59.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -8418,335 +10051,27 @@ var SaasPlan_default = (0, import_core56.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields56.text)({
+    stripeProductId: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
     /** Companies currently on this plan */
-    companies: (0, import_fields56.relationship)({
+    companies: (0, import_fields59.relationship)({
       ref: "SaasCompany.plan",
       many: true,
       ui: { description: "Companies on this plan" }
     }),
-    subscriptions: (0, import_fields56.relationship)({
+    subscriptions: (0, import_fields59.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
-    saasSubscriptionLogs: (0, import_fields56.relationship)({
+    saasSubscriptionLogs: (0, import_fields59.relationship)({
       ref: "SaasSubscriptionLog.plan",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
-    }),
-    createdAt: (0, import_fields56.timestamp)({
-      defaultValue: { kind: "now" },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
-    }),
-    updatedAt: (0, import_fields56.timestamp)({
-      db: { updatedAt: true },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Saas/SaasCredit/SaasCredit.ts
-var import_core57 = require("@keystone-6/core");
-var import_fields57 = require("@keystone-6/core/fields");
-
-// models/Saas/SaasCredit/SaasCredit.access.ts
-var saasCreditAccess = {
-  operation: {
-    query: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true
-  },
-  filter: {
-    query: () => true,
-    update: () => true,
-    delete: () => true
-  }
-};
-
-// models/Saas/SaasCredit/SaasCredit.ts
-var SaasCredit_default = (0, import_core57.list)({
-  access: saasCreditAccess,
-  ui: {
-    listView: {
-      initialColumns: [
-        "slug",
-        "name",
-        "cost",
-        "creditsToAdd",
-        "frequency",
-        "active",
-        "bestSeller",
-        "stripePriceId"
-      ]
-    }
-  },
-  fields: {
-    /** Internal key for upsert/seed (e.g. "Recarga Básica") */
-    slug: (0, import_fields57.text)({
-      validation: { isRequired: true },
-      isIndexed: "unique",
-      ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
-    }),
-    /** Package display name shown in the app */
-    name: (0, import_fields57.text)({
-      validation: { isRequired: true },
-      ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
-    }),
-    /** One-time price amount (in package currency) */
-    cost: (0, import_fields57.float)({
-      ui: { description: "One-time package cost" }
-    }),
-    costOld: (0, import_fields57.float)({
-      ui: { description: "Original price for strikethrough discount display" }
-    }),
-    /** Payment frequency (one-time for credit top-ups) */
-    frequency: (0, import_fields57.select)({
-      type: "string",
-      options: [...PLAN_FREQUENCY_OPTIONS],
-      defaultValue: "once",
-      ui: { description: "Payment frequency (once for credit packages)" }
-    }),
-    /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields57.text)({
-      defaultValue: "mxn",
-      ui: { description: "Stripe currency code (e.g. mxn, usd)" }
-    }),
-    /** Number of extra credits added on purchase (leads sync or managed AI) */
-    creditsToAdd: (0, import_fields57.integer)({
-      validation: { isRequired: true },
-      ui: { description: "Credits added to the company on successful purchase" }
-    }),
-    /** Shown in app and available for purchase */
-    active: (0, import_fields57.checkbox)({
-      defaultValue: true,
-      ui: { description: "Package enabled in app (visible for purchase)" }
-    }),
-    bestSeller: (0, import_fields57.checkbox)({
-      defaultValue: false,
-      ui: { description: "Highlight this package as best seller" }
-    }),
-    /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
-    stripePriceId: (0, import_fields57.text)({
-      isIndexed: "unique",
-      db: { isNullable: true },
-      ui: {
-        description: "Stripe Price ID (one-time price from Stripe Dashboard or API)"
-      }
-    }),
-    /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields57.text)({
-      db: { isNullable: true },
-      ui: {
-        description: "Stripe Product ID (optional, from Stripe when creating Product)"
-      }
-    }),
-    createdAt: (0, import_fields57.timestamp)({
-      defaultValue: { kind: "now" },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
-    }),
-    updatedAt: (0, import_fields57.timestamp)({
-      db: { updatedAt: true },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var import_core58 = require("@keystone-6/core");
-var import_fields58 = require("@keystone-6/core/fields");
-
-// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
-var getCompanyId8 = (session2) => session2?.data?.company?.id;
-var saasCompanyMonthlyLeadSyncAccess = {
-  operation: {
-    query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId8(session2),
-    update: () => true,
-    delete: () => true
-  },
-  filter: {
-    query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId8(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId8(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId8(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
-  }
-};
-
-// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core58.list)({
-  access: saasCompanyMonthlyLeadSyncAccess,
-  ui: {
-    listView: {
-      initialColumns: ["company", "year", "month", "syncedCount"]
-    }
-  },
-  fields: {
-    company: (0, import_fields58.relationship)({
-      ref: "SaasCompany.monthlyLeadSyncRecords",
-      many: false
-    }),
-    year: (0, import_fields58.integer)({
-      validation: { isRequired: true },
-      isIndexed: true,
-      ui: { description: "Year of the sync period" }
-    }),
-    month: (0, import_fields58.integer)({
-      validation: { isRequired: true },
-      isIndexed: true,
-      ui: { description: "Month of the sync period (1-12)" }
-    }),
-    /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields58.integer)({
-      defaultValue: 0,
-      ui: { description: "Number of leads synced this month (for quota tracking)" }
-    }),
-    createdAt: (0, import_fields58.timestamp)({
-      defaultValue: { kind: "now" },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
-    }),
-    updatedAt: (0, import_fields58.timestamp)({
-      db: { updatedAt: true },
-      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
-    })
-  }
-});
-
-// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var import_core59 = require("@keystone-6/core");
-var import_fields59 = require("@keystone-6/core/fields");
-
-// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
-var getCompanyId9 = (session2) => session2?.data?.company?.id;
-var companyCreditPeriodAccess = {
-  operation: {
-    query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId9(session2),
-    update: () => true,
-    delete: () => true
-  },
-  filter: {
-    query: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId9(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId9(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId9(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
-  }
-};
-
-// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var SaasCompanyCreditPeriod_default = (0, import_core59.list)({
-  access: companyCreditPeriodAccess,
-  ui: {
-    listView: {
-      initialColumns: [
-        "company",
-        "year",
-        "month",
-        "planAllowance",
-        "bonusAllowance",
-        "used",
-        "periodKey"
-      ]
-    }
-  },
-  fields: {
-    company: (0, import_fields59.relationship)({
-      ref: "SaasCompany.creditPeriods",
-      many: false,
-      ui: { description: "Company that owns this credit period" }
-    }),
-    subscription: (0, import_fields59.relationship)({
-      ref: "SaasCompanySubscription.creditPeriods",
-      many: false,
-      ui: { description: "Active subscription when this period was created" }
-    }),
-    periodKey: (0, import_fields59.text)({
-      isIndexed: "unique",
-      validation: { isRequired: true },
-      ui: {
-        description: "Unique key: companyId:year:month"
-      }
-    }),
-    year: (0, import_fields59.integer)({
-      validation: { isRequired: true },
-      isIndexed: true,
-      ui: { description: "Year of the credit period" }
-    }),
-    month: (0, import_fields59.integer)({
-      validation: { isRequired: true },
-      isIndexed: true,
-      ui: { description: "Month of the credit period (1-12)" }
-    }),
-    planAllowance: (0, import_fields59.integer)({
-      defaultValue: 0,
-      ui: { description: "Monthly lead allowance from the active plan" }
-    }),
-    bonusAllowance: (0, import_fields59.integer)({
-      defaultValue: 0,
-      ui: {
-        description: "Extra purchased credits added to the monthly allowance for this period"
-      }
-    }),
-    used: (0, import_fields59.integer)({
-      defaultValue: 0,
-      ui: { description: "Credits consumed in this period" }
-    }),
-    ledgerEntries: (0, import_fields59.relationship)({
-      ref: "SaasCompanyCreditLedger.period",
-      many: true,
-      ui: { description: "Ledger movements for this period" }
     }),
     createdAt: (0, import_fields59.timestamp)({
       defaultValue: { kind: "now" },
@@ -8765,18 +10090,302 @@ var SaasCompanyCreditPeriod_default = (0, import_core59.list)({
   }
 });
 
-// models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
+// models/Saas/SaasCredit/SaasCredit.ts
 var import_core60 = require("@keystone-6/core");
 var import_fields60 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCredit/SaasCredit.access.ts
+var saasCreditAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: () => true,
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/Saas/SaasCredit/SaasCredit.ts
+var SaasCredit_default = (0, import_core60.list)({
+  access: saasCreditAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "slug",
+        "name",
+        "cost",
+        "creditsToAdd",
+        "frequency",
+        "active",
+        "bestSeller",
+        "stripePriceId"
+      ]
+    }
+  },
+  fields: {
+    /** Internal key for upsert/seed (e.g. "Recarga Básica") */
+    slug: (0, import_fields60.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique",
+      ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
+    }),
+    /** Package display name shown in the app */
+    name: (0, import_fields60.text)({
+      validation: { isRequired: true },
+      ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
+    }),
+    /** One-time price amount (in package currency) */
+    cost: (0, import_fields60.float)({
+      ui: { description: "One-time package cost" }
+    }),
+    costOld: (0, import_fields60.float)({
+      ui: { description: "Original price for strikethrough discount display" }
+    }),
+    /** Payment frequency (one-time for credit top-ups) */
+    frequency: (0, import_fields60.select)({
+      type: "string",
+      options: [...PLAN_FREQUENCY_OPTIONS],
+      defaultValue: "once",
+      ui: { description: "Payment frequency (once for credit packages)" }
+    }),
+    /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
+    currency: (0, import_fields60.text)({
+      defaultValue: "mxn",
+      ui: { description: "Stripe currency code (e.g. mxn, usd)" }
+    }),
+    /** Number of extra credits added on purchase (leads sync or managed AI) */
+    creditsToAdd: (0, import_fields60.integer)({
+      validation: { isRequired: true },
+      ui: { description: "Credits added to the company on successful purchase" }
+    }),
+    /** Shown in app and available for purchase */
+    active: (0, import_fields60.checkbox)({
+      defaultValue: true,
+      ui: { description: "Package enabled in app (visible for purchase)" }
+    }),
+    bestSeller: (0, import_fields60.checkbox)({
+      defaultValue: false,
+      ui: { description: "Highlight this package as best seller" }
+    }),
+    /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
+    stripePriceId: (0, import_fields60.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        description: "Stripe Price ID (one-time price from Stripe Dashboard or API)"
+      }
+    }),
+    /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
+    stripeProductId: (0, import_fields60.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Stripe Product ID (optional, from Stripe when creating Product)"
+      }
+    }),
+    createdAt: (0, import_fields60.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields60.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
+var import_core61 = require("@keystone-6/core");
+var import_fields61 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
+var getCompanyId8 = (session2) => session2?.data?.company?.id;
+var saasCompanyMonthlyLeadSyncAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) {
+        return true;
+      }
+      const companyId = getCompanyId8(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
+  }
+};
+
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
+var SaasCompanyMonthlyLeadSync_default = (0, import_core61.list)({
+  access: saasCompanyMonthlyLeadSyncAccess,
+  ui: {
+    listView: {
+      initialColumns: ["company", "year", "month", "syncedCount"]
+    }
+  },
+  fields: {
+    company: (0, import_fields61.relationship)({
+      ref: "SaasCompany.monthlyLeadSyncRecords",
+      many: false
+    }),
+    year: (0, import_fields61.integer)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Year of the sync period" }
+    }),
+    month: (0, import_fields61.integer)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Month of the sync period (1-12)" }
+    }),
+    /** Number of leads synced in this month for this company (used vs plan leadLimit) */
+    syncedCount: (0, import_fields61.integer)({
+      defaultValue: 0,
+      ui: { description: "Number of leads synced this month (for quota tracking)" }
+    }),
+    createdAt: (0, import_fields61.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    }),
+    updatedAt: (0, import_fields61.timestamp)({
+      db: { updatedAt: true },
+      ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
+    })
+  }
+});
+
+// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
+var import_core62 = require("@keystone-6/core");
+var import_fields62 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
+var getCompanyId9 = (session2) => session2?.data?.company?.id;
+var companyCreditPeriodAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
+  },
+  filter: {
+    query: ({ session: session2 }) => {
+      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
+      const companyId = getCompanyId9(session2);
+      if (!companyId) return false;
+      return { company: { id: { equals: companyId } } };
+    },
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
+  }
+};
+
+// models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
+var SaasCompanyCreditPeriod_default = (0, import_core62.list)({
+  access: companyCreditPeriodAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "company",
+        "year",
+        "month",
+        "planAllowance",
+        "bonusAllowance",
+        "used",
+        "periodKey"
+      ]
+    }
+  },
+  fields: {
+    company: (0, import_fields62.relationship)({
+      ref: "SaasCompany.creditPeriods",
+      many: false,
+      ui: { description: "Company that owns this credit period" }
+    }),
+    subscription: (0, import_fields62.relationship)({
+      ref: "SaasCompanySubscription.creditPeriods",
+      many: false,
+      ui: { description: "Active subscription when this period was created" }
+    }),
+    periodKey: (0, import_fields62.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: {
+        description: "Unique key: companyId:year:month"
+      }
+    }),
+    year: (0, import_fields62.integer)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Year of the credit period" }
+    }),
+    month: (0, import_fields62.integer)({
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Month of the credit period (1-12)" }
+    }),
+    planAllowance: (0, import_fields62.integer)({
+      defaultValue: 0,
+      ui: { description: "Monthly lead allowance from the active plan" }
+    }),
+    bonusAllowance: (0, import_fields62.integer)({
+      defaultValue: 0,
+      ui: {
+        description: "Extra purchased credits added to the monthly allowance for this period"
+      }
+    }),
+    used: (0, import_fields62.integer)({
+      defaultValue: 0,
+      ui: { description: "Credits consumed in this period" }
+    }),
+    ledgerEntries: (0, import_fields62.relationship)({
+      ref: "SaasCompanyCreditLedger.period",
+      many: true,
+      ui: { description: "Ledger movements for this period" }
+    }),
+    createdAt: (0, import_fields62.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields62.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
+var import_core63 = require("@keystone-6/core");
+var import_fields63 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
 var getCompanyId10 = (session2) => session2?.data?.company?.id;
 var companyCreditLedgerAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]) || !!getCompanyId10(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -8785,18 +10394,8 @@ var companyCreditLedgerAccess = {
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId10(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) return true;
-      const companyId = getCompanyId10(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
@@ -8827,7 +10426,7 @@ var COMPANY_CREDIT_LEDGER_TYPE_OPTIONS = [
 ];
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var SaasCompanyCreditLedger_default = (0, import_core60.list)({
+var SaasCompanyCreditLedger_default = (0, import_core63.list)({
   access: companyCreditLedgerAccess,
   ui: {
     listView: {
@@ -8843,49 +10442,49 @@ var SaasCompanyCreditLedger_default = (0, import_core60.list)({
     }
   },
   fields: {
-    company: (0, import_fields60.relationship)({
+    company: (0, import_fields63.relationship)({
       ref: "SaasCompany.creditLedgerEntries",
       many: false,
       ui: { description: "Company this ledger entry belongs to" }
     }),
-    period: (0, import_fields60.relationship)({
+    period: (0, import_fields63.relationship)({
       ref: "SaasCompanyCreditPeriod.ledgerEntries",
       many: false,
       ui: { description: "Credit period this entry affects" }
     }),
-    type: (0, import_fields60.select)({
+    type: (0, import_fields63.select)({
       type: "string",
       options: [...COMPANY_CREDIT_LEDGER_TYPE_OPTIONS],
       validation: { isRequired: true },
       ui: { description: "Type of credit movement" }
     }),
-    amount: (0, import_fields60.integer)({
+    amount: (0, import_fields63.integer)({
       validation: { isRequired: true },
       ui: {
         description: "Signed amount: positive = grant, negative = consume"
       }
     }),
-    balanceAfter: (0, import_fields60.integer)({
+    balanceAfter: (0, import_fields63.integer)({
       ui: { description: "Remaining credits after this movement" }
     }),
-    referenceType: (0, import_fields60.text)({
+    referenceType: (0, import_fields63.text)({
       db: { isNullable: true },
       ui: {
         description: "Reference entity type (subscription, payment, admin, company, sync, ai)"
       }
     }),
-    referenceId: (0, import_fields60.text)({
+    referenceId: (0, import_fields63.text)({
       db: { isNullable: true },
       ui: { description: "Reference entity ID" }
     }),
-    notes: (0, import_fields60.text)({
+    notes: (0, import_fields63.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
-    metadata: (0, import_fields60.json)({
+    metadata: (0, import_fields63.json)({
       ui: { description: "Optional extra context for this movement" }
     }),
-    createdAt: (0, import_fields60.timestamp)({
+    createdAt: (0, import_fields63.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8895,18 +10494,136 @@ var SaasCompanyCreditLedger_default = (0, import_core60.list)({
   }
 });
 
+// models/Saas/SaasCompanyNote/SaasCompanyNote.ts
+var import_core64 = require("@keystone-6/core");
+var import_fields64 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompanyNote/SaasCompanyNote.access.ts
+var saasCompanyNoteAccess = {
+  operation: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/Saas/SaasCompanyNote/SaasCompanyNote.ts
+var SaasCompanyNote_default = (0, import_core64.list)({
+  access: saasCompanyNoteAccess,
+  hooks: {
+    resolveInput: {
+      create: ({ resolvedData, context }) => {
+        const userId = getSessionUserId(context.session);
+        return userId ? { ...resolvedData, author: { connect: { id: userId } } } : resolvedData;
+      }
+    }
+  },
+  ui: {
+    listView: {
+      initialColumns: ["createdAt", "company", "author", "pinned", "body"],
+      initialSort: { field: "createdAt", direction: "DESC" }
+    }
+  },
+  fields: {
+    company: (0, import_fields64.relationship)({
+      ref: "SaasCompany",
+      many: false,
+      ui: { description: "Empresa de la nota" }
+    }),
+    author: (0, import_fields64.relationship)({
+      ref: "User",
+      many: false,
+      ui: { description: "Qui\xE9n la escribi\xF3 (lo pone el servidor)", createView: { fieldMode: "hidden" } }
+    }),
+    body: (0, import_fields64.text)({
+      validation: { isRequired: true, length: { max: 4e3 } },
+      ui: { displayMode: "textarea" }
+    }),
+    pinned: (0, import_fields64.checkbox)({
+      defaultValue: false,
+      ui: { description: "Fijada arriba en el 360" }
+    }),
+    createdAt: (0, import_fields64.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
+    updatedAt: (0, import_fields64.timestamp)({ db: { updatedAt: true } })
+  }
+});
+
+// models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
+var import_core65 = require("@keystone-6/core");
+var import_fields65 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.access.ts
+var saasCompanyDailyUsageAccess = {
+  operation: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    create: () => false,
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: () => false,
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
+var count = (description) => (0, import_fields65.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
+var SaasCompanyDailyUsage_default = (0, import_core65.list)({
+  access: saasCompanyDailyUsageAccess,
+  ui: {
+    hideCreate: true,
+    listView: {
+      initialColumns: ["day", "company", "activeUsers", "activeMinutes", "extractions", "crmChanges"],
+      initialSort: { field: "day", direction: "DESC" }
+    }
+  },
+  fields: {
+    key: (0, import_fields65.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: { description: "companyId:YYYY-MM-DD" }
+    }),
+    company: (0, import_fields65.relationship)({ ref: "SaasCompany", many: false }),
+    day: (0, import_fields65.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
+    activeUsers: count("Personas con el panel abierto"),
+    activeMinutes: count("Minutos con el panel abierto (todo el equipo)"),
+    logins: count("Inicios de sesi\xF3n correctos"),
+    extractions: count("Extracciones"),
+    extractionsFailed: count("Extracciones con error"),
+    leadsCreated: count("Leads nuevos de extracciones"),
+    leadsReused: count("Leads que salieron de la base"),
+    creditsConsumed: count("Cr\xE9ditos gastados (extracci\xF3n + IA)"),
+    aiCalls: count("Llamadas a IA"),
+    crmChanges: count("Cambios registrados en CRM y equipo (ActivityEvent)"),
+    activitiesLogged: count("Actividades registradas (llamadas, reuniones\u2026)"),
+    quotationsCreated: count("Cotizaciones creadas"),
+    quotationsSent: count("Cotizaciones enviadas"),
+    quotationsAccepted: count("Cotizaciones aceptadas"),
+    whatsappSent: count("WhatsApp enviados"),
+    whatsappReceived: count("WhatsApp recibidos"),
+    computedAt: (0, import_fields65.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
+  }
+});
+
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var import_core61 = require("@keystone-6/core");
-var import_fields61 = require("@keystone-6/core/fields");
+var import_core66 = require("@keystone-6/core");
+var import_fields66 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
 var getCompanyId11 = (session2) => session2?.data?.company?.id;
 var saasCompanySubscriptionAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => !!getCompanyId11(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -8917,27 +10634,13 @@ var saasCompanySubscriptionAccess = {
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
-    update: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId11(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId11(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core61.list)({
+var SaasCompanySubscription_default = (0, import_core66.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -8955,102 +10658,102 @@ var SaasCompanySubscription_default = (0, import_core61.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields61.relationship)({
+    company: (0, import_fields66.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields61.text)({
+    planName: (0, import_fields66.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields61.float)({
+    planCost: (0, import_fields66.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields61.text)({
+    planFrequency: (0, import_fields66.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields61.integer)({
+    planLeadLimit: (0, import_fields66.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
-    newCreditsAdded: (0, import_fields61.integer)({
+    newCreditsAdded: (0, import_fields66.integer)({
       defaultValue: 0,
       ui: { description: "Extra credits purchased and added to this subscription" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields61.text)({
+    planStripePriceId: (0, import_fields66.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields61.text)({
+    planCurrency: (0, import_fields66.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields61.json)({
+    planFeatures: (0, import_fields66.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields61.select)({
+    status: (0, import_fields66.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields61.calendarDay)({
+    activatedAt: (0, import_fields66.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields61.calendarDay)({
+    currentPeriodEnd: (0, import_fields66.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields61.text)({
+    stripeSubscriptionId: (0, import_fields66.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields61.text)({
+    stripeCustomerId: (0, import_fields66.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields61.relationship)({
+    saasPayments: (0, import_fields66.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
-    creditPeriods: (0, import_fields61.relationship)({
+    creditPeriods: (0, import_fields66.relationship)({
       ref: "SaasCompanyCreditPeriod.subscription",
       many: true,
       ui: { description: "Credit periods linked to this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields61.relationship)({
+    plan: (0, import_fields66.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    saasSubscriptionLogs: (0, import_fields61.relationship)({
+    saasSubscriptionLogs: (0, import_fields66.relationship)({
       ref: "SaasSubscriptionLog.createdSubscription",
       many: true,
       ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
     }),
-    createdAt: (0, import_fields61.timestamp)({
+    createdAt: (0, import_fields66.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields61.timestamp)({
+    updatedAt: (0, import_fields66.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9061,8 +10764,8 @@ var SaasCompanySubscription_default = (0, import_core61.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core62 = require("@keystone-6/core");
-var import_fields62 = require("@keystone-6/core/fields");
+var import_core67 = require("@keystone-6/core");
+var import_fields67 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
 function paymentMethodFilter(session2) {
@@ -9088,7 +10791,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core62.list)({
+var SaasPaymentMethod_default = (0, import_core67.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -9103,61 +10806,61 @@ var SaasPaymentMethod_default = (0, import_core62.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields62.relationship)({
+    user: (0, import_fields67.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields62.text)({
+    cardType: (0, import_fields67.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields62.text)({
+    lastFourDigits: (0, import_fields67.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields62.text)({
+    expMonth: (0, import_fields67.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields62.text)({
+    expYear: (0, import_fields67.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields62.text)({
+    stripeProcessorId: (0, import_fields67.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields62.text)({
+    stripePaymentMethodId: (0, import_fields67.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields62.text)({
+    address: (0, import_fields67.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields62.text)({
+    postalCode: (0, import_fields67.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields62.text)({
+    ownerName: (0, import_fields67.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields62.text)({
+    country: (0, import_fields67.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields62.relationship)({
+    saasPayments: (0, import_fields67.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields62.timestamp)({
+    createdAt: (0, import_fields67.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields62.timestamp)({
+    updatedAt: (0, import_fields67.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -9165,8 +10868,8 @@ var SaasPaymentMethod_default = (0, import_core62.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core63 = require("@keystone-6/core");
-var import_fields63 = require("@keystone-6/core/fields");
+var import_core68 = require("@keystone-6/core");
+var import_fields68 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
 function paymentFilter(session2) {
@@ -9180,19 +10883,19 @@ function paymentFilter(session2) {
 var saasPaymentAccess = {
   operation: {
     query: () => true,
-    create: ({ session: session2 }) => isPlatformAdmin(session2) || !!getSessionUserId(session2),
-    update: () => true,
-    delete: () => true
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
   },
   filter: {
     query: ({ session: session2 }) => paymentFilter(session2),
-    update: ({ session: session2 }) => paymentFilter(session2),
-    delete: ({ session: session2 }) => paymentFilter(session2)
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
   }
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core63.list)({
+var SaasPayment_default = (0, import_core68.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -9210,30 +10913,30 @@ var SaasPayment_default = (0, import_core63.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields63.relationship)({
+    user: (0, import_fields68.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields63.text)({
+    paymentMethodType: (0, import_fields68.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields63.relationship)({
+    paymentMethod: (0, import_fields68.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields63.decimal)({
+    amount: (0, import_fields68.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields63.select)({
+    status: (0, import_fields68.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -9246,38 +10949,38 @@ var SaasPayment_default = (0, import_core63.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields63.text)({
+    processorStripeChargeId: (0, import_fields68.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields63.text)({
+    stripeErrorMessage: (0, import_fields68.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields63.text)({
+    notes: (0, import_fields68.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields63.relationship)({
+    plan: (0, import_fields68.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields63.relationship)({
+    subscription: (0, import_fields68.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields63.timestamp)({
+    createdAt: (0, import_fields68.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields63.timestamp)({
+    updatedAt: (0, import_fields68.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -9285,8 +10988,8 @@ var SaasPayment_default = (0, import_core63.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core64 = require("@keystone-6/core");
-var import_fields64 = require("@keystone-6/core/fields");
+var import_core69 = require("@keystone-6/core");
+var import_fields69 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
 var getCompanyId12 = (session2) => session2?.data?.company?.id;
@@ -9299,6 +11002,7 @@ var projectAccess = {
   },
   filter: {
     query: ({ session: session2 }) => {
+      if (isPlatformAdmin(session2)) return true;
       const companyId = getCompanyId12(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
@@ -9329,7 +11033,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core64.list)({
+var SaasProject_default = (0, import_core69.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -9344,78 +11048,78 @@ var SaasProject_default = (0, import_core64.list)({
     }
   },
   fields: {
-    name: (0, import_fields64.text)({
+    name: (0, import_fields69.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields64.text)({
+    serviceType: (0, import_fields69.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields64.relationship)({
+    responsible: (0, import_fields69.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields64.calendarDay)({
+    startDate: (0, import_fields69.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields64.calendarDay)({
+    estimatedEndDate: (0, import_fields69.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields64.text)({
+    description: (0, import_fields69.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields64.select)({
+    status: (0, import_fields69.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields64.text)({
+    urlData: (0, import_fields69.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields64.relationship)({
+    company: (0, import_fields69.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields64.relationship)({
+    businessLead: (0, import_fields69.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields64.relationship)({
+    proposal: (0, import_fields69.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields64.relationship)({
+    quotations: (0, import_fields69.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields64.timestamp)({
+    createdAt: (0, import_fields69.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields64.timestamp)({
+    updatedAt: (0, import_fields69.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9426,8 +11130,8 @@ var SaasProject_default = (0, import_core64.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core65 = require("@keystone-6/core");
-var import_fields65 = require("@keystone-6/core/fields");
+var import_core70 = require("@keystone-6/core");
+var import_fields70 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
 var getCompanyId13 = (session2) => session2?.data?.company?.id;
@@ -9439,7 +11143,9 @@ var quotationAccess = {
     delete: () => true
   },
   filter: {
+    // Admin de plataforma lee cotizaciones de cualquier empresa (Operaciones → Clientes 360).
     query: ({ session: session2 }) => {
+      if (isPlatformAdmin(session2)) return true;
       const companyId = getCompanyId13(session2);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
@@ -9457,44 +11163,18 @@ var quotationAccess = {
   }
 };
 
-// models/Saas/Quotation/SaasQuotation.constants.ts
-var QUOTATION_STATUS = {
-  DRAFT: "draft",
-  SENT: "sent",
-  ACCEPTED: "accepted",
-  REJECTED: "rejected",
-  EXPIRED: "expired"
-};
-var QUOTATION_STATUS_OPTIONS = [
-  { label: "Borrador", value: QUOTATION_STATUS.DRAFT },
-  { label: "Enviada", value: QUOTATION_STATUS.SENT },
-  { label: "Aceptada", value: QUOTATION_STATUS.ACCEPTED },
-  { label: "Rechazada", value: QUOTATION_STATUS.REJECTED },
-  { label: "Expirada", value: QUOTATION_STATUS.EXPIRED }
-];
-var QUOTATION_DISCOUNT_TYPE = {
-  NONE: "none",
-  PERCENT: "percent",
-  AMOUNT: "amount"
-};
-var QUOTATION_DISCOUNT_TYPE_OPTIONS = [
-  { label: "Sin descuento", value: QUOTATION_DISCOUNT_TYPE.NONE },
-  { label: "Porcentaje", value: QUOTATION_DISCOUNT_TYPE.PERCENT },
-  { label: "Monto fijo", value: QUOTATION_DISCOUNT_TYPE.AMOUNT }
-];
-
 // models/Saas/Quotation/SaasQuotation.hooks.ts
 async function nextQuotationNumber(context, companyId) {
   const year = (/* @__PURE__ */ new Date()).getFullYear();
   const prefix2 = `Q-${year}-`;
-  const rows = await context.sudo().query.SaasQuotation.findMany({
+  const rows2 = await context.sudo().query.SaasQuotation.findMany({
     where: { company: { id: { equals: companyId } } },
     orderBy: [{ createdAt: "desc" }],
     take: 500,
     query: "quotationNumber"
   });
   let max = 0;
-  for (const r of rows) {
+  for (const r of rows2) {
     const qn = r.quotationNumber;
     if (qn?.startsWith(prefix2)) {
       const part = qn.slice(prefix2.length);
@@ -9554,7 +11234,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core65.list)({
+var SaasQuotation_default = (0, import_core70.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -9572,117 +11252,117 @@ var SaasQuotation_default = (0, import_core65.list)({
     }
   },
   fields: {
-    company: (0, import_fields65.relationship)({
+    company: (0, import_fields70.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields65.relationship)({
+    lead: (0, import_fields70.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields65.relationship)({
+    project: (0, import_fields70.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields65.text)({
+    quotationNumber: (0, import_fields70.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields65.select)({
+    status: (0, import_fields70.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields65.text)({
+    currency: (0, import_fields70.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields65.float)({
+    exchangeRate: (0, import_fields70.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields65.float)({
+    subtotal: (0, import_fields70.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields65.float)({
+    discountTotal: (0, import_fields70.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields65.float)({
+    taxTotal: (0, import_fields70.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields65.float)({
+    total: (0, import_fields70.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields65.calendarDay)({
+    validUntil: (0, import_fields70.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields65.timestamp)({
+    sentAt: (0, import_fields70.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields65.timestamp)({
+    acceptedAt: (0, import_fields70.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields65.text)({
+    notes: (0, import_fields70.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields65.text)({
+    terms: (0, import_fields70.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields65.relationship)({
+    createdBy: (0, import_fields70.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields65.relationship)({
+    assignedSeller: (0, import_fields70.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields65.text)({
+    pdfFileOrUrl: (0, import_fields70.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields65.relationship)({
+    quotationProducts: (0, import_fields70.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields65.checkbox)({
+    showDiscount: (0, import_fields70.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields65.checkbox)({
+    showNotes: (0, import_fields70.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields65.timestamp)({
+    createdAt: (0, import_fields70.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields65.timestamp)({
+    updatedAt: (0, import_fields70.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9693,8 +11373,8 @@ var SaasQuotation_default = (0, import_core65.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core66 = require("@keystone-6/core");
-var import_fields66 = require("@keystone-6/core/fields");
+var import_core71 = require("@keystone-6/core");
+var import_fields71 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
 var getCompanyId14 = (session2) => session2?.data?.company?.id;
@@ -9706,7 +11386,9 @@ var quotationProductAccess = {
     delete: () => true
   },
   filter: {
+    // Admin de plataforma lee partidas de cotizaciones de cualquier empresa.
     query: ({ session: session2 }) => {
+      if (isPlatformAdmin(session2)) return true;
       const companyId = getCompanyId14(session2);
       if (!companyId) return false;
       return { quotation: { company: { id: { equals: companyId } } } };
@@ -9882,7 +11564,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core66.list)({
+var SaasQuotationProduct_default = (0, import_core71.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -9891,60 +11573,60 @@ var SaasQuotationProduct_default = (0, import_core66.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields66.relationship)({
+    quotation: (0, import_fields71.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields66.text)({
+    description: (0, import_fields71.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields66.float)({
+    quantity: (0, import_fields71.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields66.float)({
+    unitPrice: (0, import_fields71.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields66.select)({
+    discountType: (0, import_fields71.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields66.float)({
+    discountValue: (0, import_fields71.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields66.float)({
+    taxRate: (0, import_fields71.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields66.float)({
+    lineSubtotal: (0, import_fields71.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields66.float)({
+    lineTotal: (0, import_fields71.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields66.timestamp)({
+    createdAt: (0, import_fields71.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields66.timestamp)({
+    updatedAt: (0, import_fields71.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9955,8 +11637,8 @@ var SaasQuotationProduct_default = (0, import_core66.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core67 = require("@keystone-6/core");
-var import_fields67 = require("@keystone-6/core/fields");
+var import_core72 = require("@keystone-6/core");
+var import_fields72 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
 var getCompanyId15 = (session2) => session2?.data?.company?.id;
@@ -9982,12 +11664,12 @@ var saasReferralCommissionAccess = {
     query: () => true,
     /** Las comisiones las genera el backend; solo admin crea/edita desde Admin si hace falta */
     create: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
-    update: () => true,
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
     delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => referralCommissionFilter(session2),
-    update: ({ session: session2 }) => referralCommissionFilter(session2),
+    update: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */]),
     delete: ({ session: session2 }) => {
       if (hasRole(session2, ["admin" /* ADMIN */])) {
         return true;
@@ -9998,7 +11680,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core67.list)({
+var SaasReferralCommission_default = (0, import_core72.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -10017,27 +11699,27 @@ var SaasReferralCommission_default = (0, import_core67.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields67.relationship)({
+    referrer: (0, import_fields72.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields67.relationship)({
+    referredUser: (0, import_fields72.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields67.relationship)({
+    company: (0, import_fields72.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields67.relationship)({
+    subscription: (0, import_fields72.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields67.relationship)({
+    plan: (0, import_fields72.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields67.select)({
+    type: (0, import_fields72.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -10045,30 +11727,30 @@ var SaasReferralCommission_default = (0, import_core67.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields67.float)({
+    percentage: (0, import_fields72.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields67.float)({
+    amount: (0, import_fields72.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields67.text)({
+    currency: (0, import_fields72.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields67.float)({
+    periodIndex: (0, import_fields72.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields67.calendarDay)({
+    periodStart: (0, import_fields72.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields67.calendarDay)({
+    periodEnd: (0, import_fields72.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields67.select)({
+    status: (0, import_fields72.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -10079,18 +11761,18 @@ var SaasReferralCommission_default = (0, import_core67.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields67.text)({
+    notes: (0, import_fields72.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields67.timestamp)({
+    createdAt: (0, import_fields72.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields67.timestamp)({
+    updatedAt: (0, import_fields72.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -10101,8 +11783,8 @@ var SaasReferralCommission_default = (0, import_core67.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core68 = require("@keystone-6/core");
-var import_fields68 = require("@keystone-6/core/fields");
+var import_core73 = require("@keystone-6/core");
+var import_fields73 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
 var getCompanyId16 = (session2) => session2?.data?.company?.id;
@@ -10111,7 +11793,7 @@ var saasSubscriptionLogAccess = {
     query: () => true,
     create: () => false,
     update: () => false,
-    delete: () => true
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   },
   filter: {
     query: ({ session: session2 }) => {
@@ -10123,19 +11805,12 @@ var saasSubscriptionLogAccess = {
       return { company: { id: { equals: companyId } } };
     },
     update: () => false,
-    delete: ({ session: session2 }) => {
-      if (hasRole(session2, ["admin" /* ADMIN */])) {
-        return true;
-      }
-      const companyId = getCompanyId16(session2);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    }
+    delete: ({ session: session2 }) => hasRole(session2, ["admin" /* ADMIN */])
   }
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core68.list)({
+var SaasSubscriptionLog_default = (0, import_core73.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -10150,71 +11825,71 @@ var SaasSubscriptionLog_default = (0, import_core68.list)({
     }
   },
   fields: {
-    user: (0, import_fields68.relationship)({
+    user: (0, import_fields73.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields68.relationship)({
+    company: (0, import_fields73.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields68.relationship)({
+    plan: (0, import_fields73.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields68.relationship)({
+    createdSubscription: (0, import_fields73.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields68.checkbox)({
+    success: (0, import_fields73.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields68.text)({
+    step: (0, import_fields73.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields68.text)({
+    message: (0, import_fields73.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields68.json)({
+    responseSnapshot: (0, import_fields73.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields68.text)({
+    emailMasked: (0, import_fields73.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields68.text)({
+    planIdRequested: (0, import_fields73.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields68.text)({
+    totalSubmitted: (0, import_fields73.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields68.text)({
+    paymentMethodIdSubmitted: (0, import_fields73.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields68.text)({
+    paymentTypeSubmitted: (0, import_fields73.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields68.integer)({
+    durationMs: (0, import_fields73.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields68.text)({
+    stripeCustomerId: (0, import_fields73.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields68.text)({
+    stripeSubscriptionId: (0, import_fields73.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields68.timestamp)({
+    createdAt: (0, import_fields73.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
     })
@@ -10222,8 +11897,8 @@ var SaasSubscriptionLog_default = (0, import_core68.list)({
 });
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var import_core69 = require("@keystone-6/core");
-var import_fields69 = require("@keystone-6/core/fields");
+var import_core74 = require("@keystone-6/core");
+var import_fields74 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId17 = (session2) => session2?.data?.company?.id;
@@ -10331,7 +12006,7 @@ var saasWorkspaceSeedCrmStatusesHook = {
 };
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var SaasWorkspace_default = (0, import_core69.list)({
+var SaasWorkspace_default = (0, import_core74.list)({
   access: saasWorkspaceAccess,
   hooks: {
     afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
@@ -10342,63 +12017,63 @@ var SaasWorkspace_default = (0, import_core69.list)({
     }
   },
   fields: {
-    name: (0, import_fields69.text)({
+    name: (0, import_fields74.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
     }),
-    showActivities: (0, import_fields69.checkbox)({
+    showActivities: (0, import_fields74.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar actividades de CRM en este workspace" }
     }),
-    showProposals: (0, import_fields69.checkbox)({
+    showProposals: (0, import_fields74.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar propuestas de CRM en este workspace" }
     }),
-    showFollowUpTasks: (0, import_fields69.checkbox)({
+    showFollowUpTasks: (0, import_fields74.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
     }),
-    showTasks: (0, import_fields69.checkbox)({
+    showTasks: (0, import_fields74.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de workspace en este workspace" }
     }),
-    company: (0, import_fields69.relationship)({
+    company: (0, import_fields74.relationship)({
       ref: "SaasCompany.workspaces",
       many: false,
       ui: { description: "Empresa (tenant) a la que pertenece" }
     }),
-    members: (0, import_fields69.relationship)({
+    members: (0, import_fields74.relationship)({
       ref: "User.workspaces",
       many: true,
       ui: { description: "Usuarios con acceso a este workspace" }
     }),
-    salesActivities: (0, import_fields69.relationship)({
+    salesActivities: (0, import_fields74.relationship)({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" }
     }),
-    tasks: (0, import_fields69.relationship)({
+    tasks: (0, import_fields74.relationship)({
       ref: "TechTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
     }),
-    proposals: (0, import_fields69.relationship)({
+    proposals: (0, import_fields74.relationship)({
       ref: "TechProposal.workspace",
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
-    calendarEvents: (0, import_fields69.relationship)({
+    calendarEvents: (0, import_fields74.relationship)({
       ref: "TechCalendarEvent.workspace",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario del workspace" }
     }),
-    followUpTasks: (0, import_fields69.relationship)({
+    followUpTasks: (0, import_fields74.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
     }),
-    crmStatuses: (0, import_fields69.relationship)({
+    crmStatuses: (0, import_fields74.relationship)({
       ref: "SaasWorkspaceCrmStatus.workspace",
       many: true,
       ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
@@ -10407,8 +12082,8 @@ var SaasWorkspace_default = (0, import_core69.list)({
 });
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var import_core70 = require("@keystone-6/core");
-var import_fields70 = require("@keystone-6/core/fields");
+var import_core75 = require("@keystone-6/core");
+var import_fields75 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
 var getCompanyId18 = (session2) => session2?.data?.company?.id;
@@ -10653,7 +12328,7 @@ var saasWorkspaceCrmStatusHooks = {
 };
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var SaasWorkspaceCrmStatus_default = (0, import_core70.list)({
+var SaasWorkspaceCrmStatus_default = (0, import_core75.list)({
   access: saasWorkspaceCrmStatusAccess,
   hooks: saasWorkspaceCrmStatusHooks,
   ui: {
@@ -10662,58 +12337,58 @@ var SaasWorkspaceCrmStatus_default = (0, import_core70.list)({
     }
   },
   fields: {
-    workspace: (0, import_fields70.relationship)({
+    workspace: (0, import_fields75.relationship)({
       ref: "SaasWorkspace.crmStatuses",
       many: false,
       ui: { description: "Workspace al que pertenece este estado" }
     }),
-    name: (0, import_fields70.text)({
+    name: (0, import_fields75.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre visible (p. ej. Kanban)" }
     }),
-    color: (0, import_fields70.text)({
+    color: (0, import_fields75.text)({
       validation: { isRequired: true },
       ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
     }),
-    key: (0, import_fields70.text)({
+    key: (0, import_fields75.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
       }
     }),
-    order: (0, import_fields70.integer)({
+    order: (0, import_fields75.integer)({
       defaultValue: 0,
       isIndexed: true,
       ui: { description: "Orden en la UI (menor primero)" }
     }),
-    isDefault: (0, import_fields70.checkbox)({
+    isDefault: (0, import_fields75.checkbox)({
       defaultValue: false,
       ui: {
         description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
       }
     }),
-    isArchived: (0, import_fields70.checkbox)({
+    isArchived: (0, import_fields75.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en selectores sin borrar historial" }
     }),
-    followUpTasks: (0, import_fields70.relationship)({
+    followUpTasks: (0, import_fields75.relationship)({
       ref: "TechFollowUpTask.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields70.relationship)({
+    proposals: (0, import_fields75.relationship)({
       ref: "TechProposal.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    salesActivities: (0, import_fields70.relationship)({
+    salesActivities: (0, import_fields75.relationship)({
       ref: "TechSalesActivity.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields70.relationship)({
+    tasks: (0, import_fields75.relationship)({
       ref: "TechTask.statusCrm",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
@@ -10722,8 +12397,8 @@ var SaasWorkspaceCrmStatus_default = (0, import_core70.list)({
 });
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var import_core71 = require("@keystone-6/core");
-var import_fields71 = require("@keystone-6/core/fields");
+var import_core76 = require("@keystone-6/core");
+var import_fields76 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.access.ts
 var techWhatsAppMessageAccess = {
@@ -10740,7 +12415,7 @@ var techWhatsAppMessageAccess = {
 };
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var TechWhatsAppMessage_default = (0, import_core71.list)({
+var TechWhatsAppMessage_default = (0, import_core76.list)({
   access: techWhatsAppMessageAccess,
   ui: {
     listView: {
@@ -10755,12 +12430,12 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
     }
   },
   fields: {
-    company: (0, import_fields71.relationship)({
+    company: (0, import_fields76.relationship)({
       ref: "SaasCompany.whatsappMessages",
       many: false,
       ui: { description: "Empresa due\xF1a del n\xFAmero de WhatsApp" }
     }),
-    businessLead: (0, import_fields71.relationship)({
+    businessLead: (0, import_fields76.relationship)({
       ref: "TechBusinessLead.whatsappMessages",
       many: false,
       ui: { description: "Lead asociado (vac\xEDo si no matche\xF3 ning\xFAn tel\xE9fono conocido)" }
@@ -10768,7 +12443,7 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
     /** Conversación interna con alguien del equipo (vendedor) en vez de con un lead. Un
      * mensaje tiene `businessLead` O `teamMember`; si no tiene ninguno, no se pudo matchear
      * el teléfono y solo lo ven los admins de la empresa. */
-    teamMember: (0, import_fields71.relationship)({
+    teamMember: (0, import_fields76.relationship)({
       ref: "User.whatsappMessagesAsTeamMember",
       many: false,
       ui: {
@@ -10777,14 +12452,14 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
     }),
     /** Quién abrió el chat interno. Junto con `teamMember` define quién puede verlo
      * (ver whatsappMessageScopedWhere): solo esas dos personas, además de los admins. */
-    internalInitiator: (0, import_fields71.relationship)({
+    internalInitiator: (0, import_fields76.relationship)({
       ref: "User.whatsappInternalChatsStarted",
       many: false,
       ui: {
         description: "Qui\xE9n abri\xF3 la conversaci\xF3n interna. Con teamMember define qui\xE9n la puede ver."
       }
     }),
-    direction: (0, import_fields71.select)({
+    direction: (0, import_fields76.select)({
       type: "string",
       options: [
         { label: "Entrante", value: "inbound" },
@@ -10794,7 +12469,7 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    source: (0, import_fields71.select)({
+    source: (0, import_fields76.select)({
       type: "string",
       options: [
         { label: "Cloud API", value: "api" },
@@ -10804,21 +12479,21 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
       isIndexed: true,
       ui: { description: "Si lleg\xF3 en vivo por la Cloud API o se import\xF3 de un .txt exportado" }
     }),
-    senderLabel: (0, import_fields71.text)({
+    senderLabel: (0, import_fields76.text)({
       db: { isNullable: true },
       ui: {
         description: "Nombre del remitente: en un .txt importado, tal cual ven\xEDa (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribi\xF3."
       }
     }),
-    waMessageId: (0, import_fields71.text)({
+    waMessageId: (0, import_fields76.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: { description: "ID de Meta. Usado para no duplicar reintentos del webhook." }
     }),
-    fromPhone: (0, import_fields71.text)({ db: { isNullable: true } }),
-    toPhone: (0, import_fields71.text)({ db: { isNullable: true } }),
-    body: (0, import_fields71.text)({ ui: { displayMode: "textarea" } }),
-    messageKind: (0, import_fields71.select)({
+    fromPhone: (0, import_fields76.text)({ db: { isNullable: true } }),
+    toPhone: (0, import_fields76.text)({ db: { isNullable: true } }),
+    body: (0, import_fields76.text)({ ui: { displayMode: "textarea" } }),
+    messageKind: (0, import_fields76.select)({
       type: "string",
       options: [
         { label: "Texto", value: "text" },
@@ -10826,7 +12501,7 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
       ],
       defaultValue: "text"
     }),
-    mediaKey: (0, import_fields71.text)({
+    mediaKey: (0, import_fields76.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -10834,7 +12509,7 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
         description: "Key del archivo en R2 (no la URL \u2014 se firma al vuelo, ver mediaUrl)"
       }
     }),
-    mediaType: (0, import_fields71.select)({
+    mediaType: (0, import_fields76.select)({
       type: "string",
       options: [
         { label: "Imagen", value: "image" },
@@ -10842,8 +12517,8 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
       ],
       db: { isNullable: true }
     }),
-    mediaFileName: (0, import_fields71.text)({ db: { isNullable: true } }),
-    status: (0, import_fields71.select)({
+    mediaFileName: (0, import_fields76.text)({ db: { isNullable: true } }),
+    status: (0, import_fields76.select)({
       type: "string",
       options: [
         { label: "Enviado", value: "sent" },
@@ -10852,16 +12527,16 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
       ],
       defaultValue: "sent"
     }),
-    sentBy: (0, import_fields71.relationship)({
+    sentBy: (0, import_fields76.relationship)({
       ref: "User.whatsappMessagesSent",
       many: false,
       ui: { description: "Usuario que mand\xF3 el mensaje (solo salientes)" }
     }),
-    errorMessage: (0, import_fields71.text)({
+    errorMessage: (0, import_fields76.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si el env\xEDo fall\xF3" }
     }),
-    createdAt: (0, import_fields71.timestamp)({
+    createdAt: (0, import_fields76.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del mensaje" }
     })
@@ -10869,8 +12544,8 @@ var TechWhatsAppMessage_default = (0, import_core71.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.ts
-var import_core72 = require("@keystone-6/core");
-var import_fields72 = require("@keystone-6/core/fields");
+var import_core77 = require("@keystone-6/core");
+var import_fields77 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.access.ts
 function googleCalendarAccountVisibleWhere(session2) {
@@ -10923,7 +12598,7 @@ var hiddenTokenAccess = {
   create: () => false,
   update: () => false
 };
-var GoogleCalendarAccount_default = (0, import_core72.list)({
+var GoogleCalendarAccount_default = (0, import_core77.list)({
   access: googleCalendarAccountAccess,
   hooks: googleCalendarAccountHooks,
   ui: {
@@ -10940,7 +12615,7 @@ var GoogleCalendarAccount_default = (0, import_core72.list)({
     }
   },
   fields: {
-    scopeType: (0, import_fields72.select)({
+    scopeType: (0, import_fields77.select)({
       type: "string",
       options: [...GOOGLE_CALENDAR_SCOPE_TYPE_OPTIONS],
       defaultValue: "personal" /* PERSONAL */,
@@ -10948,27 +12623,27 @@ var GoogleCalendarAccount_default = (0, import_core72.list)({
       isIndexed: true,
       ui: { description: "Personal (de un usuario) o compartida por toda la empresa" }
     }),
-    user: (0, import_fields72.relationship)({
+    user: (0, import_fields77.relationship)({
       ref: "User.googleCalendarAccounts",
       many: false,
       ui: { description: "Due\xF1o de la cuenta (solo si es personal)" }
     }),
-    company: (0, import_fields72.relationship)({
+    company: (0, import_fields77.relationship)({
       ref: "SaasCompany.googleCalendarAccounts",
       many: false,
       ui: { description: "Empresa due\xF1a de la cuenta (solo si es compartida)" }
     }),
-    connectedByUser: (0, import_fields72.relationship)({
+    connectedByUser: (0, import_fields77.relationship)({
       ref: "User.connectedGoogleCalendarAccounts",
       many: false,
       ui: { description: "Qui\xE9n autoriz\xF3 la conexi\xF3n en Google (auditor\xEDa)" }
     }),
-    googleAccountEmail: (0, import_fields72.text)({
+    googleAccountEmail: (0, import_fields77.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Correo de la cuenta de Google conectada" }
     }),
-    accessTokenEncrypted: (0, import_fields72.text)({
+    accessTokenEncrypted: (0, import_fields77.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -10978,7 +12653,7 @@ var GoogleCalendarAccount_default = (0, import_core72.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    refreshTokenEncrypted: (0, import_fields72.text)({
+    refreshTokenEncrypted: (0, import_fields77.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -10988,39 +12663,39 @@ var GoogleCalendarAccount_default = (0, import_core72.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    tokenExpiresAt: (0, import_fields72.timestamp)({
+    tokenExpiresAt: (0, import_fields77.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo expira el access token actual" }
     }),
-    scope: (0, import_fields72.text)({
+    scope: (0, import_fields77.text)({
       db: { isNullable: true },
       ui: { description: "Scopes de Google otorgados" }
     }),
-    isActive: (0, import_fields72.checkbox)({
+    isActive: (0, import_fields77.checkbox)({
       defaultValue: true,
       ui: {
         description: "false si Google revoc\xF3 el acceso: el usuario debe reconectar la cuenta"
       }
     }),
-    lastSyncedAt: (0, import_fields72.timestamp)({
+    lastSyncedAt: (0, import_fields77.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima lectura exitosa desde Google" }
     }),
-    lastSyncError: (0, import_fields72.text)({
+    lastSyncError: (0, import_fields77.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "\xDAltimo error al hablar con Google" }
     }),
-    calendars: (0, import_fields72.relationship)({
+    calendars: (0, import_fields77.relationship)({
       ref: "GoogleCalendarSelection.account",
       many: true,
       ui: { hideCreate: true, description: "Calendarios de esta cuenta" }
     }),
-    syncLogs: (0, import_fields72.relationship)({
+    syncLogs: (0, import_fields77.relationship)({
       ref: "TechGoogleCalendarSyncLog.account",
       many: true,
       ui: { hideCreate: true, description: "Historial de llamadas a Google" }
     }),
-    createdAt: (0, import_fields72.timestamp)({
+    createdAt: (0, import_fields77.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11031,8 +12706,8 @@ var GoogleCalendarAccount_default = (0, import_core72.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var import_core73 = require("@keystone-6/core");
-var import_fields73 = require("@keystone-6/core/fields");
+var import_core78 = require("@keystone-6/core");
+var import_fields78 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.access.ts
 var googleCalendarSelectionAccess = {
@@ -11052,7 +12727,7 @@ var googleCalendarSelectionAccess = {
 };
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var GoogleCalendarSelection_default = (0, import_core73.list)({
+var GoogleCalendarSelection_default = (0, import_core78.list)({
   access: googleCalendarSelectionAccess,
   ui: {
     labelField: "calendarName",
@@ -11061,52 +12736,52 @@ var GoogleCalendarSelection_default = (0, import_core73.list)({
     }
   },
   fields: {
-    account: (0, import_fields73.relationship)({
+    account: (0, import_fields78.relationship)({
       ref: "GoogleCalendarAccount.calendars",
       many: false,
       ui: { description: "Cuenta de Google a la que pertenece este calendario" }
     }),
-    googleCalendarId: (0, import_fields73.text)({
+    googleCalendarId: (0, import_fields78.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "calendarId en Google (el principal suele ser el correo)" }
     }),
-    calendarName: (0, import_fields73.text)({
+    calendarName: (0, import_fields78.text)({
       validation: { isRequired: true },
       ui: { description: "Nombre visible del calendario" }
     }),
-    isPrimary: (0, import_fields73.checkbox)({ defaultValue: false }),
-    isSelected: (0, import_fields73.checkbox)({
+    isPrimary: (0, import_fields78.checkbox)({ defaultValue: false }),
+    isSelected: (0, import_fields78.checkbox)({
       defaultValue: false,
       ui: {
         description: "Si est\xE1 marcado, se ve en el calendario unificado y recibe los eventos creados en Kadesh"
       }
     }),
-    colorHex: (0, import_fields73.text)({ db: { isNullable: true } }),
+    colorHex: (0, import_fields78.text)({ db: { isNullable: true } }),
     // Qué registros del CRM se envían a este calendario (los eventos creados a mano eligen
     // sus calendarios destino uno a uno en `TechCalendarEvent.googleTargets`).
-    pushActivities: (0, import_fields73.checkbox)({
+    pushActivities: (0, import_fields78.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar actividades de venta nuevas a este calendario" }
     }),
-    pushProposals: (0, import_fields73.checkbox)({
+    pushProposals: (0, import_fields78.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar propuestas nuevas a este calendario" }
     }),
-    pushFollowUps: (0, import_fields73.checkbox)({
+    pushFollowUps: (0, import_fields78.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas de seguimiento nuevas a este calendario" }
     }),
-    pushTasks: (0, import_fields73.checkbox)({
+    pushTasks: (0, import_fields78.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas nuevas a este calendario" }
     }),
-    targetedEvents: (0, import_fields73.relationship)({
+    targetedEvents: (0, import_fields78.relationship)({
       ref: "TechCalendarEvent.googleTargets",
       many: true,
       ui: { hideCreate: true, description: "Eventos creados a mano que eligieron este calendario" }
     }),
-    eventLinks: (0, import_fields73.relationship)({
+    eventLinks: (0, import_fields78.relationship)({
       ref: "TechCalendarEventGoogleLink.calendarSelection",
       many: true,
       ui: { hideCreate: true, description: "Eventos de Kadesh enviados a este calendario" }
@@ -11115,8 +12790,8 @@ var GoogleCalendarSelection_default = (0, import_core73.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var import_core74 = require("@keystone-6/core");
-var import_fields74 = require("@keystone-6/core/fields");
+var import_core79 = require("@keystone-6/core");
+var import_fields79 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.access.ts
 function calendarEventScopedWhere(session2) {
@@ -11295,8 +12970,12 @@ async function deleteEvent(accessToken, calendarId, eventId) {
   );
 }
 
-// utils/googleCalendar/planFeature.ts
-async function companyHasCalendarFeature(context, companyId) {
+// utils/saas/planFeatures.ts
+var PLAN_FEATURE = {
+  CALENDAR_CRM: "calendar_crm",
+  ANALYTICS: "analytics"
+};
+async function companyHasPlanFeature(context, companyId, key) {
   const [subscription] = await context.sudo().query.SaasCompanySubscription.findMany({
     where: {
       company: { id: { equals: companyId } },
@@ -11308,9 +12987,12 @@ async function companyHasCalendarFeature(context, companyId) {
   });
   const features = subscription?.planFeatures;
   if (!Array.isArray(features)) return false;
-  return features.some(
-    (f) => f.key === GOOGLE_CALENDAR_FEATURE_KEY && f.included !== false
-  );
+  return features.some((f) => f.key === key && f.included !== false);
+}
+
+// utils/googleCalendar/planFeature.ts
+async function companyHasCalendarFeature(context, companyId) {
+  return companyHasPlanFeature(context, companyId, GOOGLE_CALENDAR_FEATURE_KEY);
 }
 var CALENDAR_FEATURE_DENIED_MESSAGE = "Tu plan actual no incluye la gesti\xF3n de calendario. Actualiza tu suscripci\xF3n para conectar Google Calendar.";
 
@@ -11851,7 +13533,7 @@ var techCalendarEventHooks = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var TechCalendarEvent_default = (0, import_core74.list)({
+var TechCalendarEvent_default = (0, import_core79.list)({
   access: techCalendarEventAccess,
   hooks: techCalendarEventHooks,
   ui: {
@@ -11861,27 +13543,27 @@ var TechCalendarEvent_default = (0, import_core74.list)({
     }
   },
   fields: {
-    title: (0, import_fields74.text)({ validation: { isRequired: true } }),
-    description: (0, import_fields74.text)({
+    title: (0, import_fields79.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     }),
-    startAt: (0, import_fields74.timestamp)({
+    startAt: (0, import_fields79.timestamp)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Inicio. En eventos de d\xEDa completo se usa la fecha en UTC (00:00Z)"
       }
     }),
-    endAt: (0, import_fields74.timestamp)({
+    endAt: (0, import_fields79.timestamp)({
       db: { isNullable: true },
       ui: {
         description: "Fin (opcional). Sin fin, el evento dura 60 min; en d\xEDa completo, es el \xFAltimo d\xEDa incluido"
       }
     }),
-    allDay: (0, import_fields74.checkbox)({ defaultValue: false }),
-    location: (0, import_fields74.text)({ db: { isNullable: true } }),
-    sourceType: (0, import_fields74.select)({
+    allDay: (0, import_fields79.checkbox)({ defaultValue: false }),
+    location: (0, import_fields79.text)({ db: { isNullable: true } }),
+    sourceType: (0, import_fields79.select)({
       type: "string",
       options: [...CALENDAR_EVENT_SOURCE_OPTIONS],
       defaultValue: "native" /* NATIVE */,
@@ -11889,46 +13571,46 @@ var TechCalendarEvent_default = (0, import_core74.list)({
       isIndexed: true,
       ui: { description: "Creado a mano o generado desde un registro del CRM" }
     }),
-    salesActivity: (0, import_fields74.relationship)({
+    salesActivity: (0, import_fields79.relationship)({
       ref: "TechSalesActivity.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    followUpTask: (0, import_fields74.relationship)({
+    followUpTask: (0, import_fields79.relationship)({
       ref: "TechFollowUpTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    task: (0, import_fields74.relationship)({
+    task: (0, import_fields79.relationship)({
       ref: "TechTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    proposal: (0, import_fields74.relationship)({
+    proposal: (0, import_fields79.relationship)({
       ref: "TechProposal.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    createdBy: (0, import_fields74.relationship)({
+    createdBy: (0, import_fields79.relationship)({
       ref: "User.createdCalendarEvents",
       many: false,
       ui: { description: "Usuario due\xF1o del evento (su cuenta personal recibe el push)" }
     }),
-    company: (0, import_fields74.relationship)({
+    company: (0, import_fields79.relationship)({
       ref: "SaasCompany.calendarEvents",
       many: false,
       ui: { description: "Empresa (su cuenta compartida recibe el push)" }
     }),
-    workspace: (0, import_fields74.relationship)({
+    workspace: (0, import_fields79.relationship)({
       ref: "SaasWorkspace.calendarEvents",
       many: false,
       ui: { description: "Workspace del CRM, si aplica" }
     }),
-    googleTargets: (0, import_fields74.relationship)({
+    googleTargets: (0, import_fields79.relationship)({
       ref: "GoogleCalendarSelection.targetedEvents",
       many: true,
       ui: {
@@ -11936,19 +13618,19 @@ var TechCalendarEvent_default = (0, import_core74.list)({
         description: "Calendarios de Google elegidos al crear el evento (solo eventos nativos; los del CRM siguen la configuraci\xF3n de cada calendario)"
       }
     }),
-    googleLinks: (0, import_fields74.relationship)({
+    googleLinks: (0, import_fields79.relationship)({
       ref: "TechCalendarEventGoogleLink.event",
       many: true,
       ui: { hideCreate: true, description: "Copias de este evento en Google Calendar" }
     }),
-    createdAt: (0, import_fields74.timestamp)({
+    createdAt: (0, import_fields79.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields74.timestamp)({
+    updatedAt: (0, import_fields79.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11959,8 +13641,8 @@ var TechCalendarEvent_default = (0, import_core74.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var import_core75 = require("@keystone-6/core");
-var import_fields75 = require("@keystone-6/core/fields");
+var import_core80 = require("@keystone-6/core");
+var import_fields80 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.access.ts
 var techCalendarEventGoogleLinkAccess = {
@@ -11980,7 +13662,7 @@ var techCalendarEventGoogleLinkAccess = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var TechCalendarEventGoogleLink_default = (0, import_core75.list)({
+var TechCalendarEventGoogleLink_default = (0, import_core80.list)({
   access: techCalendarEventGoogleLinkAccess,
   ui: {
     listView: {
@@ -11993,26 +13675,26 @@ var TechCalendarEventGoogleLink_default = (0, import_core75.list)({
     }
   },
   fields: {
-    event: (0, import_fields75.relationship)({
+    event: (0, import_fields80.relationship)({
       ref: "TechCalendarEvent.googleLinks",
       many: false
     }),
-    calendarSelection: (0, import_fields75.relationship)({
+    calendarSelection: (0, import_fields80.relationship)({
       ref: "GoogleCalendarSelection.eventLinks",
       many: false
     }),
-    googleEventId: (0, import_fields75.text)({
+    googleEventId: (0, import_fields80.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "id del evento en Google (se llena tras el push exitoso)" }
     }),
-    lastPushedAt: (0, import_fields75.timestamp)({ db: { isNullable: true } }),
-    lastPushStatus: (0, import_fields75.select)({
+    lastPushedAt: (0, import_fields80.timestamp)({ db: { isNullable: true } }),
+    lastPushStatus: (0, import_fields80.select)({
       type: "string",
       options: [...GOOGLE_LINK_STATUS_OPTIONS],
       defaultValue: "pending" /* PENDING */
     }),
-    lastPushError: (0, import_fields75.text)({
+    lastPushError: (0, import_fields80.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     })
@@ -12020,8 +13702,8 @@ var TechCalendarEventGoogleLink_default = (0, import_core75.list)({
 });
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var import_core76 = require("@keystone-6/core");
-var import_fields76 = require("@keystone-6/core/fields");
+var import_core81 = require("@keystone-6/core");
+var import_fields81 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.access.ts
 var techGoogleCalendarSyncLogAccess = {
@@ -12043,7 +13725,7 @@ var techGoogleCalendarSyncLogAccess = {
 };
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var TechGoogleCalendarSyncLog_default = (0, import_core76.list)({
+var TechGoogleCalendarSyncLog_default = (0, import_core81.list)({
   access: techGoogleCalendarSyncLogAccess,
   ui: {
     listView: {
@@ -12058,34 +13740,35 @@ var TechGoogleCalendarSyncLog_default = (0, import_core76.list)({
     }
   },
   fields: {
-    account: (0, import_fields76.relationship)({
+    account: (0, import_fields81.relationship)({
       ref: "GoogleCalendarAccount.syncLogs",
       many: false
     }),
-    direction: (0, import_fields76.select)({
+    direction: (0, import_fields81.select)({
       type: "string",
       options: [...GOOGLE_SYNC_DIRECTION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    operation: (0, import_fields76.select)({
+    operation: (0, import_fields81.select)({
       type: "string",
       options: [...GOOGLE_SYNC_OPERATION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    success: (0, import_fields76.checkbox)({ defaultValue: false }),
-    errorMessage: (0, import_fields76.text)({
+    success: (0, import_fields81.checkbox)({ defaultValue: false }),
+    errorMessage: (0, import_fields81.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si la llamada fall\xF3 (sin tokens)" }
     }),
-    durationMs: (0, import_fields76.integer)({ db: { isNullable: true } }),
-    createdAt: (0, import_fields76.timestamp)({ defaultValue: { kind: "now" } })
+    durationMs: (0, import_fields81.integer)({ db: { isNullable: true } }),
+    createdAt: (0, import_fields81.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
 // models/schema.ts
-var schema_default = {
+var schema_default = withActivityHooks({
+  ActivityEvent: ActivityEvent_default,
   Ad: Ad_default,
   Animal: Animal_default,
   AnimalBreed: AnimalBreed_default,
@@ -12121,6 +13804,8 @@ var schema_default = {
   SaasCompanyMonthlyLeadSync: SaasCompanyMonthlyLeadSync_default,
   SaasCompanyCreditPeriod: SaasCompanyCreditPeriod_default,
   SaasCompanyCreditLedger: SaasCompanyCreditLedger_default,
+  SaasCompanyDailyUsage: SaasCompanyDailyUsage_default,
+  SaasCompanyNote: SaasCompanyNote_default,
   SaasCompanySubscription: SaasCompanySubscription_default,
   SaasPayment: SaasPayment_default,
   SaasPaymentMethod: SaasPaymentMethod_default,
@@ -12152,6 +13837,7 @@ var schema_default = {
   TechSalesActivity: TechSalesActivity_default,
   TechTask: TechTask_default,
   TechStatusBusinessLead: TechStatusBusinessLead_default,
+  TechLeadStageChange: TechLeadStageChange_default,
   TechWhatsAppMessage: TechWhatsAppMessage_default,
   GoogleCalendarAccount: GoogleCalendarAccount_default,
   GoogleCalendarSelection: GoogleCalendarSelection_default,
@@ -12160,12 +13846,13 @@ var schema_default = {
   TechGoogleCalendarSyncLog: TechGoogleCalendarSyncLog_default,
   TokenNotification: TokenNotification_default,
   User: User_default,
+  UserActivityDay: UserActivityDay_default,
   UserAuthLog: UserAuthLog_default,
   WishList: WishList_default
-};
+});
 
 // keystone.ts
-var import_core77 = require("@keystone-6/core");
+var import_core82 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto2 = require("crypto");
@@ -12181,7 +13868,8 @@ var { withAuth } = (0, import_auth.createAuth)({
   // this is a GraphQL query fragment for fetching what data will be attached to a context.session
   //   this can be helpful for when you are writing your access control functions
   //   you can find out more at https://keystonejs.com/docs/guides/auth-and-access-control
-  sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } permissions createdAt company { id }",
+  // sessionVersion, suspendedAt, anonymizedAt y company.suspendedAt los revisa auth/sessionGuards.ts en cada petición.
+  sessionData: "id name lastName secondLastName username email verified profileImage { url } phone roles { name } permissions createdAt sessionVersion suspendedAt anonymizedAt company { id suspendedAt }",
   secretField: "password",
   ...process.env.NODE_ENV !== "production" ? {
     initFirstItem: {
@@ -12195,12 +13883,196 @@ var session = (0, import_session.statelessSessions)({
   secret: sessionSecret
 });
 
+// auth/sessionGuards.ts
+var SUSPENDED_MESSAGE = "Tu acceso a Kadesh est\xE1 suspendido. Escr\xEDbenos a contacto@kadesh.com.mx para revisarlo.";
+var SESSION_END_MESSAGES = {
+  expired: "Tu sesi\xF3n expir\xF3. Vuelve a iniciar sesi\xF3n.",
+  revoked: "Tu sesi\xF3n expir\xF3. Vuelve a iniciar sesi\xF3n.",
+  suspended: SUSPENDED_MESSAGE,
+  anonymized: "Esta cuenta ya no est\xE1 disponible.",
+  impersonation_expired: "Termin\xF3 el tiempo para ver el panel como esta persona."
+};
+var endedSessions = /* @__PURE__ */ new WeakMap();
+function hasSessionToken(req) {
+  const authorization = req?.headers?.authorization;
+  if (typeof authorization === "string" && authorization.replace("Bearer ", "").trim()) return true;
+  const cookie = req?.headers?.cookie;
+  return typeof cookie === "string" && /(?:^|;\s*)keystonejs-session=[^;\s]+/.test(cookie);
+}
+function sessionEndReason(req) {
+  return req && typeof req === "object" ? endedSessions.get(req) ?? null : null;
+}
+function isPlatformAdminData(data) {
+  return (data?.roles ?? []).some((role) => role?.name === "admin");
+}
+function sessionBlockReason(session2) {
+  const data = session2.data;
+  if (!data) return null;
+  if (data.anonymizedAt) return "anonymized";
+  if (data.suspendedAt) return "suspended";
+  if (data.company?.suspendedAt && !isPlatformAdminData(data)) return "suspended";
+  const tokenVersion = typeof session2.sessionVersion === "number" ? session2.sessionVersion : 0;
+  if ((data.sessionVersion ?? 0) !== tokenVersion) return "revoked";
+  if (session2.impersonation && Date.now() > session2.impersonation.expiresAt) {
+    return "impersonation_expired";
+  }
+  return null;
+}
+async function loginBlockedReason(context, userId) {
+  try {
+    const user = await context.sudo().prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        suspendedAt: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } },
+        company: { select: { suspendedAt: true } }
+      }
+    });
+    if (!user) return null;
+    if (user.anonymizedAt) return "anonymized";
+    if (user.suspendedAt) return "suspended";
+    if (user.company?.suspendedAt && !isPlatformAdminData(user)) return "suspended";
+    return null;
+  } catch {
+    return null;
+  }
+}
+function withSessionGuards(config2) {
+  const inner = config2.session;
+  if (!inner) return config2;
+  return {
+    ...config2,
+    session: {
+      ...inner,
+      async start({ data, context }) {
+        let sessionVersion = data?.sessionVersion;
+        if (data?.itemId && typeof sessionVersion !== "number") {
+          try {
+            const user = await context.sudo().prisma.user.findUnique({
+              where: { id: data.itemId },
+              select: { sessionVersion: true }
+            });
+            sessionVersion = user?.sessionVersion ?? 0;
+          } catch {
+            sessionVersion = 0;
+          }
+        }
+        return inner.start({ data: { ...data, sessionVersion }, context });
+      },
+      async get({ context }) {
+        const session2 = await inner.get({ context });
+        const reason = session2 ? sessionBlockReason(session2) : hasSessionToken(context.req) ? "expired" : null;
+        if (reason && context.req) endedSessions.set(context.req, reason);
+        return session2 && !reason ? session2 : void 0;
+      }
+    }
+  };
+}
+var sessionEndedNoticePlugin = {
+  async requestDidStart() {
+    return {
+      async willSendResponse(requestContext) {
+        const reason = sessionEndReason(requestContext.contextValue?.req);
+        const body = requestContext.response.body;
+        if (!reason || body.kind !== "single") return;
+        body.singleResult.extensions = {
+          ...body.singleResult.extensions,
+          session: { status: reason, message: SESSION_END_MESSAGES[reason] }
+        };
+      }
+    };
+  }
+};
+
+// auth/impersonation.ts
+var import_graphql = require("graphql");
+var IMPERSONATION_TTL_MS = 60 * 60 * 1e3;
+var ALLOWED_MUTATIONS = /* @__PURE__ */ new Set([
+  "endImpersonation",
+  "trackEvents",
+  "endSession",
+  // Es una lectura (créditos del mes) declarada como mutación; el panel la pide al cargar.
+  "remainingCredits"
+]);
+var IMPERSONATION_READ_ONLY_MESSAGE = "Est\xE1s viendo el panel como otra persona en modo solo lectura: no se pueden guardar cambios.";
+function getImpersonation(session2) {
+  const impersonation = session2?.impersonation;
+  return impersonation?.adminId ? impersonation : null;
+}
+function rootFields(operation) {
+  return operation.selectionSet.selections.map(
+    (selection) => selection.kind === import_graphql.Kind.FIELD ? selection.name.value : null
+  );
+}
+var impersonationReadOnlyPlugin = {
+  async requestDidStart() {
+    return {
+      async didResolveOperation(requestContext) {
+        if (!getImpersonation(requestContext.contextValue?.session)) return;
+        const operation = requestContext.operation;
+        if (!operation || operation.operation !== "mutation") return;
+        const fields = rootFields(operation);
+        const allowed = fields.every((field) => field !== null && ALLOWED_MUTATIONS.has(field));
+        if (allowed) return;
+        console.info(
+          `[impersonation] mutaci\xF3n bloqueada (solo lectura): ${requestContext.operationName ?? "sin nombre"} \u2192 ${fields.join(", ")}`
+        );
+        throw new import_graphql.GraphQLError(IMPERSONATION_READ_ONLY_MESSAGE, {
+          extensions: { code: "IMPERSONATION_READ_ONLY", http: { status: 200 } }
+        });
+      }
+    };
+  }
+};
+
+// utils/activity/appErrorsPlugin.ts
+var REPEAT_MS = 10 * 60 * 1e3;
+var IGNORED_CODES = /* @__PURE__ */ new Set(["IMPERSONATION_READ_ONLY"]);
+var recent = /* @__PURE__ */ new Map();
+function shouldLog(key, now) {
+  for (const [k, at] of recent) {
+    if (now - at > REPEAT_MS) recent.delete(k);
+  }
+  if (recent.has(key)) return false;
+  recent.set(key, now);
+  return true;
+}
+var appErrorsPlugin = {
+  async requestDidStart() {
+    return {
+      async didEncounterErrors(requestContext) {
+        const context = requestContext.contextValue;
+        const session2 = context?.session;
+        if (!context || !session2?.itemId || getImpersonation(session2)) return;
+        const errors = (requestContext.errors ?? []).filter(
+          (error) => !IGNORED_CODES.has(String(error.extensions?.code ?? ""))
+        );
+        if (errors.length === 0) return;
+        const companyId = session2.data?.company?.id ?? null;
+        const operation = requestContext.operationName ?? "sin nombre";
+        const message = errors[0].message ?? "Error desconocido";
+        if (!shouldLog(`${companyId}|${session2.itemId}|${operation}|${message}`, Date.now())) return;
+        void logActivity(context, {
+          type: ACTIVITY_EVENT.APP_ERROR,
+          companyId,
+          summary: `Fall\xF3 ${operation}`,
+          success: false,
+          errorMessage: message,
+          metadata: {
+            operation,
+            kind: requestContext.operation?.operation ?? null,
+            code: String(errors[0].extensions?.code ?? "") || null,
+            errors: errors.length
+          }
+        });
+      }
+    };
+  }
+};
+
 // graphql/extendedSchema.ts
 var import_schema = require("@graphql-tools/schema");
-
-// graphql/customs/mutations/auth/customAuth.ts
-var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
-var import_crypto3 = require("crypto");
 
 // utils/auth/userAuthLogWrite.ts
 function maskEmail(email) {
@@ -12226,113 +14098,14 @@ async function writeUserAuthLog(context, params) {
         emailMasked: maskEmail(params.email),
         durationMs,
         responseSnapshot: snapshot,
+        ip: requestIp(context.req),
+        userAgent: requestUserAgent(context.req),
         ...params.userId ? { user: { connect: { id: params.userId } } } : {}
       }
     });
   } catch {
   }
 }
-
-// graphql/customs/mutations/auth/customAuth.ts
-var typeDefs = `
-  type customAuthType {
-    message: String,
-    success: Boolean,
-    data: JSON
-  }
-`;
-var definition = "customAuth(email: String!, name: String, lastName: String): customAuthType";
-var resolver = {
-  customAuth: async (root, {
-    email,
-    name,
-    lastName
-  }, context) => {
-    const startedAt = Date.now();
-    const emailTrimmed = email.trim();
-    try {
-      const lastLoginAt = (/* @__PURE__ */ new Date()).toISOString();
-      let isNewUser = false;
-      let userFound = await context.sudo().query.User.findOne({
-        query: "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } ",
-        where: {
-          email: emailTrimmed
-        }
-      });
-      if (!userFound) {
-        isNewUser = true;
-        userFound = await context.db.User.createOne({
-          data: {
-            email: emailTrimmed,
-            name,
-            lastName,
-            username: await checkUserName(name, lastName, context),
-            role: "user",
-            lastLoginAt
-          }
-        });
-      } else {
-        userFound = await context.sudo().query.User.updateOne({
-          where: { id: userFound.id },
-          data: { lastLoginAt },
-          query: "id name lastName secondLastName username email phone role birthday age verified createdAt profileImage { url } "
-        });
-      }
-      let sessionSecret2 = process.env.SESSION_SECRET;
-      if (!sessionSecret2) {
-        sessionSecret2 = (0, import_crypto3.randomBytes)(32).toString("hex");
-      }
-      const sessionToken = import_jsonwebtoken.default.sign(
-        {
-          data: {
-            id: userFound.id,
-            email: userFound.email
-          }
-        },
-        sessionSecret2
-      );
-      await writeUserAuthLog(context, {
-        startedAt,
-        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
-        step: isNewUser ? USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP : USER_AUTH_LOG_STEP.CUSTOM_AUTH_LOGIN,
-        success: true,
-        message: "Success",
-        email: emailTrimmed,
-        userId: userFound.id,
-        responseSnapshot: {
-          success: true,
-          message: "Success",
-          userId: userFound.id,
-          isNewUser
-        }
-      });
-      return {
-        success: true,
-        message: "Success",
-        data: {
-          ...userFound,
-          sessionToken
-        }
-      };
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Error de autenticaci\xF3n.";
-      await writeUserAuthLog(context, {
-        startedAt,
-        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
-        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
-        success: false,
-        message,
-        email: emailTrimmed,
-        userId: null,
-        responseSnapshot: {
-          errorName: e instanceof Error ? e.name : "unknown"
-        }
-      });
-      throw e;
-    }
-  }
-};
-var customAuth_default = { typeDefs, definition, resolver };
 
 // utils/auth/signupRoles.ts
 var SIGNUP_ROLE_NAMES = ["vendedor" /* VENDEDOR */, "admin_company" /* ADMIN_COMPANY */];
@@ -12370,8 +14143,54 @@ async function provisionSignupCompany(context, userId, companyName) {
   return company.id;
 }
 
+// utils/analytics/attribution.ts
+var UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
+var MAX_TEXT = 200;
+var MAX_PATH = 300;
+function text71(value, max = MAX_TEXT) {
+  if (typeof value !== "string") return void 0;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, max) : void 0;
+}
+function hostOf(value) {
+  const raw = text71(value, 500);
+  if (!raw) return void 0;
+  try {
+    return new URL(raw.includes("://") ? raw : `https://${raw}`).hostname.toLowerCase() || void 0;
+  } catch {
+    return void 0;
+  }
+}
+function pathOf(value) {
+  const raw = text71(value, MAX_PATH);
+  if (!raw || !raw.startsWith("/")) return void 0;
+  return raw.split(/[?#]/)[0] || void 0;
+}
+function cleanAttribution(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const source = input;
+  const out = {};
+  for (const key of UTM_KEYS) {
+    const value = text71(source[key]);
+    if (value) out[key] = value.toLowerCase();
+  }
+  const referrer = hostOf(source.referrer);
+  if (referrer) out.referrer = referrer;
+  const landingPath = pathOf(source.landingPath);
+  if (landingPath) out.landingPath = landingPath;
+  const firstSeen = text71(source.firstSeenAt, 40);
+  if (firstSeen && !Number.isNaN(new Date(firstSeen).getTime())) out.firstSeenAt = firstSeen;
+  return Object.keys(out).length ? out : null;
+}
+function attributionChannel(attribution) {
+  if (!attribution) return "Sin dato";
+  if (attribution.utm_source) return attribution.utm_source;
+  if (attribution.referrer) return attribution.referrer.replace(/^www\./, "");
+  return "Directo";
+}
+
 // graphql/customs/mutations/auth/authenticateUserWithGoogle.ts
-var typeDefs2 = `
+var typeDefs = `
   # isNewUser: alta nueva, no el inicio de sesi\xF3n de una cuenta ya existente.
   # El front lo usa para mandar la conversi\xF3n de registro solo en las altas.
   type UserAuthenticationWithGoogleSuccess {
@@ -12388,11 +14207,12 @@ var typeDefs2 = `
     UserAuthenticationWithGoogleSuccess
     | UserAuthenticationWithGoogleFailure
 `;
-var definition2 = `
+var definition = `
   authenticateUserWithGoogle(
     idToken: String!
     referrerCode: String
     product: String
+    attribution: JSON
   ): AuthenticateUserWithGoogleResult!
 `;
 var VALID_ISSUERS = ["accounts.google.com", "https://accounts.google.com"];
@@ -12423,15 +14243,16 @@ async function verifyGoogleIdToken(idToken) {
   }
 }
 var USER_QUERY = "id lastName name phone email profileImage { url } roles { name } secondLastName username verified lastLoginAt";
-var resolver2 = {
+var resolver = {
   authenticateUserWithGoogle: async (_root, {
     idToken,
     referrerCode,
-    product
+    product,
+    attribution
   }, context) => {
     const startedAt = Date.now();
     const isSaas = product === PRODUCT.SAAS;
-    const fail10 = async (message, email, userId) => {
+    const fail11 = async (message, email, userId) => {
       await writeUserAuthLog(context, {
         startedAt,
         source: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
@@ -12449,7 +14270,7 @@ var resolver2 = {
     };
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
-      return fail10("Token de Google inv\xE1lido o expirado", "");
+      return fail11("Token de Google inv\xE1lido o expirado", "");
     }
     let user = await context.sudo().query.User.findOne({
       where: { email: payload.email },
@@ -12474,7 +14295,7 @@ var resolver2 = {
         if (isSaas) {
           const signupRoleIds = await findSignupRoleIds(context);
           if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
-            return fail10(
+            return fail11(
               "No se pudieron asignar los roles de empresa. Contacta a soporte.",
               payload.email
             );
@@ -12490,7 +14311,8 @@ var resolver2 = {
             verified: true,
             product: isSaas ? PRODUCT.SAAS : PRODUCT.PET,
             referredBy: referredByConnect,
-            roles: signupRoles
+            roles: signupRoles,
+            signupAttribution: cleanAttribution(attribution) ?? void 0
           },
           query: USER_QUERY
         });
@@ -12498,11 +14320,14 @@ var resolver2 = {
           await provisionSignupCompany(context, user.id, baseName);
         }
       } catch (err) {
-        return fail10(
+        return fail11(
           err instanceof Error ? err.message : "Error al crear usuario",
           payload.email
         );
       }
+    }
+    if (await loginBlockedReason(context, user.id)) {
+      return fail11(SUSPENDED_MESSAGE, payload.email, user.id);
     }
     user = await context.sudo().query.User.updateOne({
       where: { id: user.id },
@@ -12510,14 +14335,14 @@ var resolver2 = {
       query: USER_QUERY
     });
     if (!context.sessionStrategy) {
-      return fail10("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail11("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     const sessionToken = await context.sessionStrategy.start({
       data: { listKey: "User", itemId: user.id },
       context
     });
     if (typeof sessionToken !== "string" || sessionToken.length === 0) {
-      return fail10("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail11("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     await writeUserAuthLog(context, {
       startedAt,
@@ -12541,26 +14366,34 @@ var resolver2 = {
     };
   }
 };
-var authenticateUserWithGoogle_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
+var authenticateUserWithGoogle_default = { typeDefs, definition, resolver };
 
 // graphql/customs/mutations/auth/registerUser.ts
-var typeDefs3 = ``;
-var definition3 = `
-  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
+var REGISTER_ALLOWED_FIELDS = /* @__PURE__ */ new Set([
+  "name",
+  "lastName",
+  "secondLastName",
+  "username",
+  "email",
+  "password",
+  "phone"
+]);
+var typeDefs2 = ``;
+var definition2 = `
+  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String, attribution: JSON): User
 `;
-var resolver3 = {
+var resolver2 = {
   registerUser: async (_root, {
     data,
     referrerCode,
-    companyName
+    companyName,
+    attribution
   }, context) => {
     const startedAt = Date.now();
     const emailStr = String(data?.email ?? "").trim();
-    const {
-      company: _ignoredCompany,
-      roles: _ignoredRoles,
-      ...safeUserData
-    } = data;
+    const safeUserData = Object.fromEntries(
+      Object.entries(data ?? {}).filter(([key]) => REGISTER_ALLOWED_FIELDS.has(key))
+    );
     let referredByConnect;
     if (referrerCode) {
       const referrer = await context.sudo().query.User.findOne({
@@ -12599,7 +14432,8 @@ var resolver3 = {
           // Este registro es el de Kadesh Negocios: define la marca de sus correos.
           product: PRODUCT.SAAS,
           referredBy: referredByConnect,
-          roles: { connect: signupRoleIds.map((id) => ({ id })) }
+          roles: { connect: signupRoleIds.map((id) => ({ id })) },
+          signupAttribution: cleanAttribution(attribution) ?? void 0
         },
         query: "id name lastName secondLastName email phone username referralCode referredBy { id }"
       });
@@ -12643,10 +14477,10 @@ var resolver3 = {
     }
   }
 };
-var registerUser_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
+var registerUser_default = { typeDefs: typeDefs2, definition: definition2, resolver: resolver2 };
 
 // graphql/customs/mutations/importBusinessLeadFromGoogle.ts
-var typeDefs4 = `
+var typeDefs3 = `
   input ImportBusinessLeadFromGoogleInput {
     placeId: String!
     category: String
@@ -12663,7 +14497,7 @@ var typeDefs4 = `
     importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
   }
 `;
-var definition4 = `
+var definition3 = `
   importBusinessLeadFromGoogle(input: ImportBusinessLeadFromGoogleInput!): ImportBusinessLeadFromGoogleResult!
 `;
 async function getPlaceDetails(placeId, apiKey2) {
@@ -12685,7 +14519,7 @@ function parseAddressComponents(components) {
   }
   return { city, state, country };
 }
-async function ensureStatusForImport(context, leadId, companyId, sellerId) {
+async function ensureStatusForImport(context, leadId, companyId) {
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
     where: {
       businessLead: { id: { equals: leadId } },
@@ -12699,13 +14533,12 @@ async function ensureStatusForImport(context, leadId, companyId, sellerId) {
     data: {
       businessLead: { connect: { id: leadId } },
       saasCompany: { connect: { id: companyId } },
-      ...sellerId ? { salesPerson: { connect: { id: sellerId } } } : {},
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
       opportunityLevel: "Media"
     }
   });
 }
-var resolver4 = {
+var resolver3 = {
   importBusinessLeadFromGoogle: async (_root, {
     input
   }, context) => {
@@ -12766,7 +14599,7 @@ var resolver4 = {
           ...sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}
         }
       });
-      await ensureStatusForImport(context, existing.id, companyId, sellerId);
+      await ensureStatusForImport(context, existing.id, companyId);
       return {
         success: true,
         message: "Lead asignado a tu empresa",
@@ -12812,7 +14645,7 @@ var resolver4 = {
       const lead = await context.sudo().query.TechBusinessLead.createOne({
         data
       });
-      await ensureStatusForImport(context, lead.id, companyId, sellerId);
+      await ensureStatusForImport(context, lead.id, companyId);
       return {
         success: true,
         message: "Lead importado correctamente",
@@ -12838,10 +14671,10 @@ async function getVerifiedSalesPersonIds(context, companyId) {
   });
   return users.map((u) => u.id);
 }
-var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs4, definition: definition4, resolver: resolver4 };
+var importBusinessLeadFromGoogle_default = { typeDefs: typeDefs3, definition: definition3, resolver: resolver3 };
 
 // graphql/customs/mutations/importPetPlace.ts
-var typeDefs5 = `
+var typeDefs4 = `
   input ImportPetPlaceInput {
     inputValue: String!
     type: String!
@@ -12857,19 +14690,26 @@ var typeDefs5 = `
     executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
   }
 `;
-var definition5 = `
+var definition4 = `
   executeImportPetPlace(input: ImportPetPlaceInput!): ImportPetPlaceResult!
 `;
-var resolver5 = {
+var resolver4 = {
   executeImportPetPlace: async (root, { input }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return {
+        success: false,
+        message: "Solo un administrador de Kadesh puede importar veterinarias.",
+        result: null
+      };
+    }
     try {
       console.log("Ejecutando importaci\xF3n de lugares con datos:", input.inputValue, "tipo:", input.type);
-      const result = await importVeterinaries(input.inputValue, input.type, context);
-      console.log("Resultados de la importaci\xF3n:", result);
+      const result3 = await importVeterinaries(input.inputValue, input.type, context);
+      console.log("Resultados de la importaci\xF3n:", result3);
       return {
         success: true,
         message: "Veterinarias importadas exitosamente",
-        result
+        result: result3
       };
     } catch (error) {
       console.error("Error importando veterinarias:", error);
@@ -12963,7 +14803,7 @@ async function importVeterinaries(city, type, context) {
                   continue;
                 }
               }
-              const result = await context.sudo().query.PetPlace.createOne({
+              const result3 = await context.sudo().query.PetPlace.createOne({
                 data: {
                   name: place.name,
                   description: `Lugar ubicado en ${address}. ${rating > 0 ? `Calificaci\xF3n: ${rating}/5 (${userRatingsTotal} rese\xF1as)` : ""}`,
@@ -13001,7 +14841,7 @@ async function importVeterinaries(city, type, context) {
                     if (Object.keys(updateData).length > 0) {
                       try {
                         await context.sudo().query.PetPlace.updateOne({
-                          where: { id: result.id },
+                          where: { id: result3.id },
                           data: updateData
                         });
                       } catch (updateError) {
@@ -13022,7 +14862,7 @@ async function importVeterinaries(city, type, context) {
                               createdAt,
                               google_user: review.author_name || "",
                               google_user_photo: review.profile_photo_url || "",
-                              pet_place: { connect: { id: result.id } }
+                              pet_place: { connect: { id: result3.id } }
                             }
                           });
                         } catch (reviewError) {
@@ -13066,9 +14906,9 @@ ${errors.join("\n")}`;
   }
 }
 var importPetPlace_default = {
-  typeDefs: typeDefs5,
-  definition: definition5,
-  resolver: resolver5
+  typeDefs: typeDefs4,
+  definition: definition4,
+  resolver: resolver4
 };
 
 // utils/helpers/calculate_distances.ts
@@ -13086,8 +14926,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text66 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text66}`;
+  const text73 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text73}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -13147,7 +14987,7 @@ function parseYmdAsLocalDate(dateStr) {
   if (Number.isNaN(localDate.getTime())) return null;
   return localDate;
 }
-function getFreePlanTrialInfo(activatedAt) {
+function getFreePlanTrialInfo(activatedAt, currentPeriodEnd) {
   if (!activatedAt) {
     return { trialEnd: null, isExpired: false };
   }
@@ -13155,9 +14995,15 @@ function getFreePlanTrialInfo(activatedAt) {
   if (!activatedAtDate) {
     return { trialEnd: null, isExpired: false };
   }
-  const trialEndDate = new Date(activatedAtDate);
-  trialEndDate.setDate(trialEndDate.getDate() + TRIAL_DAYS_FREE_PLAN);
-  const trialEnd = toLocalYmd(trialEndDate);
+  const storedEnd = currentPeriodEnd ? parseYmdAsLocalDate(currentPeriodEnd) : null;
+  let trialEnd;
+  if (storedEnd && storedEnd >= activatedAtDate) {
+    trialEnd = toLocalYmd(storedEnd);
+  } else {
+    const trialEndDate2 = new Date(activatedAtDate);
+    trialEndDate2.setDate(trialEndDate2.getDate() + TRIAL_DAYS_FREE_PLAN);
+    trialEnd = toLocalYmd(trialEndDate2);
+  }
   const today = toLocalYmd(/* @__PURE__ */ new Date());
   return {
     trialEnd,
@@ -13179,6 +15025,24 @@ function getPeriodAllowance(period) {
 function getPeriodRemaining(period) {
   return Math.max(0, getPeriodAllowance(period) - (period.used ?? 0));
 }
+function logIfExhausted(context, companyId, period, consumed, ledgerType) {
+  if (getPeriodRemaining(period) > 0) return;
+  const allowance = getPeriodAllowance(period);
+  void logActivity(context, {
+    type: ACTIVITY_EVENT.CREDITS_EXHAUSTED,
+    companyId,
+    entityType: "SaasCompanyCreditPeriod",
+    entityId: period.id,
+    summary: `Se acabaron los cr\xE9ditos del mes (${allowance})`,
+    metadata: {
+      allowance,
+      used: period.used ?? 0,
+      lastConsumption: consumed,
+      ledgerType,
+      periodKey: period.periodKey
+    }
+  });
+}
 async function getActiveSubscription(context, companyId) {
   const [subscription] = await context.sudo().query.SaasCompanySubscription.findMany({
     where: {
@@ -13187,7 +15051,7 @@ async function getActiveSubscription(context, companyId) {
     },
     orderBy: [{ activatedAt: "desc" }],
     take: 1,
-    query: "id planLeadLimit planCost activatedAt newCreditsAdded"
+    query: "id planLeadLimit planCost activatedAt currentPeriodEnd newCreditsAdded"
   });
   return subscription ?? null;
 }
@@ -13236,14 +15100,16 @@ async function writeLedgerEntry(context, params) {
 async function ensureSaasCompanyCreditPeriod(context, companyId) {
   const { year, month } = getCurrentPeriodParts();
   const periodKey = buildPeriodKey(companyId, year, month);
-  const [existing] = await context.sudo().query.SaasCompanyCreditPeriod.findMany({
-    where: { periodKey: { equals: periodKey } },
-    take: 1,
-    query: "id periodKey year month planAllowance bonusAllowance used subscription { id }"
-  });
-  if (existing) {
-    return existing;
-  }
+  const findPeriod = async () => {
+    const [found] = await context.sudo().query.SaasCompanyCreditPeriod.findMany({
+      where: { periodKey: { equals: periodKey } },
+      take: 1,
+      query: "id periodKey year month planAllowance bonusAllowance used subscription { id }"
+    });
+    return found ?? null;
+  };
+  const existing = await findPeriod();
+  if (existing) return existing;
   const subscription = await getActiveSubscription(context, companyId);
   const purchasedBonus = await getCompanyPurchasedBonus(
     context,
@@ -13252,21 +15118,28 @@ async function ensureSaasCompanyCreditPeriod(context, companyId) {
   );
   const planAllowance = subscription?.planLeadLimit ?? 0;
   const legacyUsed = await getLegacyMonthlyUsed(context, companyId, year, month);
-  const period = await context.sudo().query.SaasCompanyCreditPeriod.createOne({
-    data: {
-      company: { connect: { id: companyId } },
-      periodKey,
-      year,
-      month,
-      planAllowance,
-      bonusAllowance: purchasedBonus,
-      used: legacyUsed,
-      ...subscription?.id && {
-        subscription: { connect: { id: subscription.id } }
-      }
-    },
-    query: "id periodKey year month planAllowance bonusAllowance used subscription { id }"
-  });
+  let period;
+  try {
+    period = await context.sudo().query.SaasCompanyCreditPeriod.createOne({
+      data: {
+        company: { connect: { id: companyId } },
+        periodKey,
+        year,
+        month,
+        planAllowance,
+        bonusAllowance: purchasedBonus,
+        used: legacyUsed,
+        ...subscription?.id && {
+          subscription: { connect: { id: subscription.id } }
+        }
+      },
+      query: "id periodKey year month planAllowance bonusAllowance used subscription { id }"
+    });
+  } catch (error) {
+    const created = await findPeriod();
+    if (created) return created;
+    throw error;
+  }
   const remaining = getPeriodRemaining(period);
   if (planAllowance > 0) {
     await writeLedgerEntry(context, {
@@ -13447,6 +15320,7 @@ async function consumeCompanyCredits(context, params) {
       notes: params.notes ?? null,
       metadata: params.metadata
     });
+    logIfExhausted(context, params.companyId, refreshed, params.amount, consumeType);
     return {
       success: true,
       consumed: params.amount,
@@ -13472,6 +15346,7 @@ async function consumeCompanyCredits(context, params) {
     notes: params.notes ?? null,
     metadata: params.metadata
   });
+  logIfExhausted(context, params.companyId, updated, params.amount, consumeType);
   return {
     success: true,
     consumed: params.amount,
@@ -13500,7 +15375,10 @@ async function getCompanyRemainingCredits(context, companyId) {
   }
   const isFreePlan = subscription.planCost != null && subscription.planCost <= 0;
   if (isFreePlan && subscription.activatedAt) {
-    const { isExpired } = getFreePlanTrialInfo(subscription.activatedAt);
+    const { isExpired } = getFreePlanTrialInfo(
+      subscription.activatedAt,
+      subscription.currentPeriodEnd
+    );
     if (isExpired) {
       return { ...empty2, blockingReason: "free_plan_expired", leadLimit: 0 };
     }
@@ -13564,90 +15442,94 @@ async function getPlaceDetails2(placeId, apiKey2) {
   return data.result;
 }
 
-// graphql/customs/mutations/syncLeadsFront.ts
-async function ensureStatusForLeadAssignment(context, leadId, companyId, userId, opportunityLevel = "Media") {
-  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
-    where: {
-      businessLead: { id: { equals: leadId } },
-      saasCompany: { id: { equals: companyId } }
-    },
-    take: 1,
-    query: "id"
-  });
-  if (existing) {
-    await context.sudo().query.TechStatusBusinessLead.updateOne({
-      where: { id: existing.id },
-      data: {
-        salesPerson: { connect: { id: userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel
-      }
-    });
-  } else {
-    await context.sudo().query.TechStatusBusinessLead.createOne({
-      data: {
-        businessLead: { connect: { id: leadId } },
-        saasCompany: { connect: { id: companyId } },
-        salesPerson: { connect: { id: userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel
-      }
+// utils/helpers/tech/lead_assignment.ts
+async function ensureLeadStatus(context, params) {
+  if (!canSeeCompanyWideLeads(context.session)) {
+    await context.sudo().query.TechBusinessLead.updateOne({
+      where: { id: params.leadId },
+      data: { salesPerson: { connect: [{ id: params.userId }] } }
     });
   }
+  const existing = await context.sudo().db.TechStatusBusinessLead.count({
+    where: {
+      businessLead: { id: { equals: params.leadId } },
+      saasCompany: { id: { equals: params.companyId } }
+    }
+  });
+  if (existing > 0) return;
+  await context.sudo().query.TechStatusBusinessLead.createOne({
+    data: {
+      businessLead: { connect: { id: params.leadId } },
+      saasCompany: { connect: { id: params.companyId } },
+      pipelineStatus: PIPELINE_STATUS.DETECTADO,
+      opportunityLevel: params.opportunityLevel ?? "Media"
+    }
+  });
 }
-async function assignExistingLeadToCompany(context, leadId, companyId, userId, opportunityLevel = "Media") {
+async function linkExistingLeadToCompany(context, params) {
+  await context.sudo().query.TechBusinessLead.updateOne({
+    where: { id: params.leadId },
+    data: {
+      saasCompany: { connect: [{ id: params.companyId }] },
+      ...params.sellerId ? { salesPerson: { connect: [{ id: params.sellerId }] } } : {}
+    }
+  });
+  const linked = await context.sudo().query.TechBusinessLead.findOne({
+    where: { id: params.leadId },
+    query: "id saasCompany { id }"
+  });
+  return (linked?.saasCompany ?? []).some((c) => c.id === params.companyId);
+}
+async function assignExistingLeadToCompany(context, params) {
   try {
-    await context.sudo().query.TechBusinessLead.updateOne({
-      where: { id: leadId },
-      data: { saasCompany: { connect: { id: companyId } } }
+    const linked = await linkExistingLeadToCompany(context, {
+      leadId: params.leadId,
+      companyId: params.companyId,
+      sellerId: params.connectSeller ? params.userId : null
     });
-    const linked = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: leadId },
-      query: "id saasCompany { id }"
-    });
-    const companies = linked?.saasCompany ?? [];
-    if (!companies.some((c) => c.id === companyId)) {
-      console.warn(
-        "[syncLeadsFront] connect saasCompany no persisti\xF3; no se cobra este lead",
-        { leadId, companyId }
-      );
+    if (!linked) {
+      console.warn(`[${params.logTag}] el lead no qued\xF3 ligado a la empresa; no se cobra`, {
+        leadId: params.leadId,
+        companyId: params.companyId
+      });
       return false;
     }
-    await ensureStatusForLeadAssignment(
-      context,
-      leadId,
-      companyId,
-      userId,
-      opportunityLevel
-    );
+    await ensureLeadStatus(context, {
+      leadId: params.leadId,
+      companyId: params.companyId,
+      userId: params.userId,
+      opportunityLevel: params.opportunityLevel
+    });
     return true;
   } catch (err) {
-    console.warn("[syncLeadsFront] assignExistingLeadToCompany failed", {
-      leadId,
-      companyId,
+    console.warn(`[${params.logTag}] no se pudo asignar el lead`, {
+      leadId: params.leadId,
+      companyId: params.companyId,
       err: err instanceof Error ? err.message : err
     });
     return false;
   }
 }
+
+// graphql/customs/mutations/syncLeadsFront.ts
 var MIN_RATING = 0;
 var MIN_REVIEWS = 0;
 var DEFAULT_MAX_RESULTS = 60;
-async function logSyncLeadsResult(context, userId, companyId, input, result) {
+async function logSyncLeadsResult(context, userId, companyId, input, result3) {
   if (!userId) return;
   try {
     await context.sudo().query.TechLeadSyncLog.createOne({
       data: {
         user: { connect: { id: userId } },
         ...companyId && { company: { connect: { id: companyId } } },
-        success: result.success,
-        message: result.message,
-        created: result.created,
-        alreadyInDb: result.alreadyInDb,
-        skippedLowRating: result.skippedLowRating,
-        syncedLeadsCount: result.syncedLeadsCount,
-        syncedCount: result.syncedCount,
-        leadLimit: result.leadLimit,
+        success: result3.success,
+        message: result3.message,
+        created: result3.created,
+        alreadyInDb: result3.alreadyInDb,
+        skippedLowRating: result3.skippedLowRating,
+        syncedLeadsCount: result3.syncedLeadsCount,
+        syncedCount: result3.syncedCount,
+        leadLimit: result3.leadLimit,
         lat: input.lat,
         lng: input.lng,
         radius: input.radius,
@@ -13657,7 +15539,7 @@ async function logSyncLeadsResult(context, userId, companyId, input, result) {
   } catch (_) {
   }
 }
-var typeDefs6 = `
+var typeDefs5 = `
   input SyncLeadsFrontInput {
     lat: Float!
     lng: Float!
@@ -13683,10 +15565,10 @@ var typeDefs6 = `
     syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
   }
 `;
-var definition6 = `
+var definition5 = `
   syncLeadsFront(input: SyncLeadsFrontInput!): SyncLeadsFrontResult!
 `;
-var resolver6 = {
+var resolver5 = {
   syncLeadsFront: async (_root, {
     input
   }, context) => {
@@ -13708,8 +15590,6 @@ var resolver6 = {
       category: input?.category,
       maxResults: input?.maxResults
     });
-    fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "pre-fix", hypothesisId: "D", location: "syncLeadsFront.ts:entry", message: "syncLeadsFront called", data: { hasUserId: !!userId, lat: input?.lat, lng: input?.lng, radius: input?.radius, category: input?.category, maxResults: input?.maxResults }, timestamp: Date.now() }) }).catch(() => {
-    });
     if (!userId) {
       return {
         success: false,
@@ -13723,66 +15603,66 @@ var resolver6 = {
     });
     const company = user?.company;
     if (!company?.id) {
-      const result = {
+      const result3 = {
         success: false,
         message: "Tu usuario no tiene una empresa asignada",
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, void 0, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, void 0, input, result3);
+      return result3;
     }
     const credits = await getRemainingCredits(context, company.id);
     const { remainingQuota, syncedCount, leadLimit } = credits;
     const companyLabel = company?.name ?? "la empresa";
     if (credits.blockingReason === "no_subscription") {
-      const result = {
+      const result3 = {
         success: false,
         message: `"${company?.name ?? "La empresa"}" no tiene una suscripci\xF3n activa. Contrata o activa una suscripci\xF3n para sincronizar leads.`,
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     if (credits.blockingReason === "free_plan_expired") {
-      const result = {
+      const result3 = {
         success: false,
         message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.",
         ...emptyResult2,
         leadLimit: 0
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     if (credits.blockingReason === "no_lead_limit") {
-      const result = {
+      const result3 = {
         success: false,
         message: `La suscripci\xF3n activa de "${companyLabel}" no tiene l\xEDmite de leads configurado.`,
         ...emptyResult2,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     if (credits.blockingReason === "lead_limit_too_low") {
-      const result = {
+      const result3 = {
         success: false,
         message: `La suscripci\xF3n activa de "${companyLabel}" no permite sincronizar leads.`,
         ...emptyResult2,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     if (remainingQuota === 0) {
-      const result = {
+      const result3 = {
         success: false,
         message: `Cuota mensual de tu suscripci\xF3n alcanzada (${syncedCount}/${leadLimit} leads). Pr\xF3ximo reinicio el mes siguiente.`,
         ...emptyResult2,
         syncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     const maxResults = Math.min(
       input.maxResults ?? DEFAULT_MAX_RESULTS,
@@ -13832,12 +15712,12 @@ var resolver6 = {
     }
     let assignedFromDb = 0;
     for (const leadId of existingIds) {
-      const ok = await assignExistingLeadToCompany(
-        context,
+      const ok = await assignExistingLeadToCompany(context, {
         leadId,
-        company.id,
-        userId
-      );
+        companyId: company.id,
+        userId,
+        logTag: "syncLeadsFront"
+      });
       if (ok) assignedFromDb++;
     }
     let syncedThisRequest = assignedFromDb;
@@ -13858,20 +15738,20 @@ var resolver6 = {
         notes: "Leads asignados desde BD"
       });
       if (!consumeResult.success) {
-        const result = {
+        const result3 = {
           success: false,
           message: `Cuota mensual alcanzada (${consumeResult.syncedCount}/${consumeResult.leadLimit} leads).`,
           ...emptyResult2,
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result);
-        return result;
+        await logSyncLeadsResult(context, userId, company.id, input, result3);
+        return result3;
       }
       currentSyncedCount = consumeResult.syncedCount;
     }
     if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
-      const result = {
+      const result3 = {
         success: true,
         message: `${assignedFromDb} leads asignados. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
         created: 0,
@@ -13881,13 +15761,13 @@ var resolver6 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey2) {
       if (syncedThisRequest > 0) {
-        const result2 = {
+        const result4 = {
           success: true,
           message: `${syncedThisRequest} leads asignados desde BD. GOOGLE_MAPS_API_KEY no configurada para buscar m\xE1s. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
           created: 0,
@@ -13897,16 +15777,16 @@ var resolver6 = {
           syncedCount: currentSyncedCount,
           leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result2);
-        return result2;
+        await logSyncLeadsResult(context, userId, company.id, input, result4);
+        return result4;
       }
-      const result = {
+      const result3 = {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
     const { lat, lng, radius, category } = input;
     const radiusMeters = Math.round(radius * 1e3);
@@ -13926,8 +15806,6 @@ var resolver6 = {
       syncedThisRequest,
       maxResults
     });
-    fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "credits+pages", location: "syncLeadsFront.ts:beforeGoogle", message: "About to collect Google Nearby pages first", data: { lat, lng, radius, radiusMeters, category, keyword, assignedFromDb, syncedThisRequest, maxResults }, timestamp: Date.now() }) }).catch(() => {
-    });
     let googleCreditsCharged = false;
     const chargeGoogleCreditsIfNeeded = async () => {
       const googleSynced = syncedThisRequest - assignedFromDb;
@@ -13939,8 +15817,6 @@ var resolver6 = {
         alreadyInDb,
         syncedThisRequest,
         assignedFromDb
-      });
-      fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "credits", location: "syncLeadsFront.ts:chargeCredits", message: "Consuming credits for Google-synced leads", data: { googleSynced, created, alreadyInDb, syncedThisRequest, assignedFromDb }, timestamp: Date.now() }) }).catch(() => {
       });
       const consumeResult = await consumeCompanyCredits(context, {
         companyId: company.id,
@@ -13977,8 +15853,6 @@ var resolver6 = {
           collectedSoFar: nearbyPlaces.length,
           url: urlForLog
         });
-        fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "pages-first", location: "syncLeadsFront.ts:pageFetch", message: "Fetching nearby page before details", data: { page: page + 1, hasPageToken: !!pageToken, collectedSoFar: nearbyPlaces.length }, timestamp: Date.now() }) }).catch(() => {
-        });
         const res = await fetch(url);
         const data = await res.json();
         console.log("[syncLeadsFront] GOOGLE page response", {
@@ -13986,8 +15860,6 @@ var resolver6 = {
           googleStatus: data?.status,
           resultsCount: Array.isArray(data?.results) ? data.results.length : 0,
           hasNextPageToken: !!data?.next_page_token
-        });
-        fetch("http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0a11d1" }, body: JSON.stringify({ sessionId: "0a11d1", runId: "post-fix", hypothesisId: "pages-first", location: "syncLeadsFront.ts:pageResponse", message: "Nearby page response", data: { page: page + 1, googleStatus: data?.status, resultsCount: Array.isArray(data?.results) ? data.results.length : 0, hasNextPageToken: !!data?.next_page_token }, timestamp: Date.now() }) }).catch(() => {
         });
         if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
           if (page === 0) {
@@ -14010,7 +15882,7 @@ var resolver6 = {
         if (!pageToken) break;
       }
       if (firstPageError && nearbyPlaces.length === 0) {
-        const result2 = {
+        const result4 = {
           success: false,
           message: firstPageError,
           created,
@@ -14020,8 +15892,8 @@ var resolver6 = {
           syncedCount: currentSyncedCount,
           leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result2);
-        return result2;
+        await logSyncLeadsResult(context, userId, company.id, input, result4);
+        return result4;
       }
       console.log("[syncLeadsFront] GOOGLE places collected", {
         total: nearbyPlaces.length
@@ -14046,13 +15918,13 @@ var resolver6 = {
           }
           const leadId = lead.id;
           const level = placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja";
-          const ok = await assignExistingLeadToCompany(
-            context,
+          const ok = await assignExistingLeadToCompany(context, {
             leadId,
-            company.id,
+            companyId: company.id,
             userId,
-            level
-          );
+            opportunityLevel: level,
+            logTag: "syncLeadsFront"
+          });
           if (ok) {
             alreadyInDb++;
             syncedThisRequest++;
@@ -14114,14 +15986,11 @@ var resolver6 = {
           const newLead = await context.sudo().query.TechBusinessLead.createOne({
             data: leadData
           });
-          await context.sudo().query.TechStatusBusinessLead.createOne({
-            data: {
-              businessLead: { connect: { id: newLead.id } },
-              saasCompany: { connect: { id: company.id } },
-              salesPerson: { connect: { id: userId } },
-              pipelineStatus: PIPELINE_STATUS.DETECTADO,
-              opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja"
-            }
+          await ensureLeadStatus(context, {
+            leadId: newLead.id,
+            companyId: company.id,
+            userId,
+            opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja"
           });
           created++;
           syncedThisRequest++;
@@ -14130,7 +15999,7 @@ var resolver6 = {
         }
       }
       await chargeGoogleCreditsIfNeeded();
-      const result = {
+      const result3 = {
         success: true,
         message: `Sincronizaci\xF3n completada. Leads asignados a tu empresa: ${syncedThisRequest} ${leadLimit !== null ? ` Cuota: ${currentSyncedCount}/${leadLimit} este mes.` : ""}`,
         created,
@@ -14140,12 +16009,12 @@ var resolver6 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     } catch (err) {
       console.error("[syncLeadsFront] EXCEPTION in Google sync", err);
       await chargeGoogleCreditsIfNeeded();
-      const result = {
+      const result3 = {
         success: false,
         message: err instanceof Error ? err.message : "Error en sincronizaci\xF3n",
         created,
@@ -14155,12 +16024,12 @@ var resolver6 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result);
-      return result;
+      await logSyncLeadsResult(context, userId, company.id, input, result3);
+      return result3;
     }
   }
 };
-var syncLeadsFront_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
+var syncLeadsFront_default = { typeDefs: typeDefs5, definition: definition5, resolver: resolver5 };
 
 // graphql/customs/mutations/syncBusinessLeadsFromGoogle.ts
 async function getVerifiedSalesPersonIds2(context) {
@@ -14176,7 +16045,7 @@ async function getVerifiedSalesPersonIds2(context) {
 var MIN_RATING2 = 4;
 var MIN_REVIEWS2 = 20;
 var DEFAULT_MAX_RESULTS2 = 60;
-var typeDefs7 = `
+var typeDefs6 = `
   input SyncBusinessLeadsFromGoogleInput {
     lat: Float!
     lng: Float!
@@ -14198,7 +16067,7 @@ var typeDefs7 = `
     syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
   }
 `;
-var definition7 = `
+var definition6 = `
   syncBusinessLeadsFromGoogle(input: SyncBusinessLeadsFromGoogleInput!): SyncBusinessLeadsFromGoogleResult!
 `;
 var PROMPT_PREFIX2 = "Escribe un prompt que pueda usar en un vibe coding software para crear un sitio web atractivo, para una empresa que no tiene pagina web ahorita mismo, muestra funcionalidades que se puedan implementar en un sitio web para el negocio con la info: ";
@@ -14214,8 +16083,8 @@ async function getPlaceDetails3(placeId, apiKey2) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text66 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text66}`;
+  const text73 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text73}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -14254,10 +16123,19 @@ function parseAddressComponents3(components) {
   }
   return { city, state, country };
 }
-var resolver7 = {
+var resolver6 = {
   syncBusinessLeadsFromGoogle: async (_root, {
     input
   }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return {
+        success: false,
+        message: "Solo un administrador de Kadesh puede importar leads desde Google.",
+        created: 0,
+        alreadyInDb: 0,
+        skippedLowRating: 0
+      };
+    }
     const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey2) {
       return {
@@ -14356,15 +16234,8 @@ var resolver7 = {
             leadData.salesPerson = { connect: { id: sellerId } };
           }
           try {
-            const lead = await context.sudo().query.TechBusinessLead.createOne({
+            await context.sudo().query.TechBusinessLead.createOne({
               data: leadData
-            });
-            await context.sudo().query.TechStatusBusinessLead.createOne({
-              data: {
-                businessLead: { connect: { id: lead.id } },
-                pipelineStatus: PIPELINE_STATUS.DETECTADO,
-                opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja"
-              }
             });
             created++;
           } catch (_) {
@@ -14390,11 +16261,13 @@ var resolver7 = {
     }
   }
 };
-var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
+var syncBusinessLeadsFromGoogle_default = { typeDefs: typeDefs6, definition: definition6, resolver: resolver6 };
 
 // models/Saas/SaasSubscriptionLog/constants.ts
 var SAAS_SUBSCRIPTION_LOG_STEP = {
   STRIPE_KEY_MISSING: "STRIPE_KEY_MISSING",
+  /** La sesión no es la del correo que paga (ni admin de plataforma). */
+  SESSION_MISMATCH: "SESSION_MISMATCH",
   USER_NOT_FOUND: "USER_NOT_FOUND",
   NO_COMPANY: "NO_COMPANY",
   NO_PLAN_RESOLVED: "NO_PLAN_RESOLVED",
@@ -14455,7 +16328,7 @@ async function writeSaasSubscriptionLog(context, params) {
 }
 
 // graphql/customs/mutations/createCompanySubscription.ts
-var typeDefs8 = `
+var typeDefs7 = `
   input CreateCompanySubscriptionInput {
     planId: ID!
     notes: String
@@ -14478,7 +16351,7 @@ var typeDefs8 = `
     createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
   }
 `;
-var definition8 = `
+var definition7 = `
   createCompanySubscription(input: CreateCompanySubscriptionInput!): CreateCompanySubscriptionResult!
 `;
 async function createStripeSubscription(params) {
@@ -14506,7 +16379,7 @@ function getProcessorStripeIdFromSubscription(subscription) {
   }
   return invoice.id ?? subscription.id;
 }
-var resolver8 = {
+var resolver7 = {
   createCompanySubscription: async (_root, {
     input
   }, context) => {
@@ -14523,15 +16396,15 @@ var resolver8 = {
     let logUserId;
     let logCompanyId;
     let logPlanId;
-    const finish = async (step, result, opts) => {
+    const finish2 = async (step, result3, opts) => {
       await writeSaasSubscriptionLog(context, {
         startedAt,
         input: logInput,
         step,
-        success: result.success,
-        message: result.message,
-        subscriptionId: result.subscriptionId,
-        paymentId: result.paymentId,
+        success: result3.success,
+        message: result3.message,
+        subscriptionId: result3.subscriptionId,
+        paymentId: result3.paymentId,
         userId: logUserId ?? null,
         companyId: logCompanyId ?? null,
         planId: logPlanId ?? null,
@@ -14540,11 +16413,19 @@ var resolver8 = {
         stripeSubscriptionId: opts?.stripeSubscriptionId ?? null,
         extra: opts?.extra
       });
-      return result;
+      return result3;
     };
     try {
+      if (!canActForEmail(context.session, input.email)) {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
+          success: false,
+          message: "Inicia sesi\xF3n con la cuenta que va a contratar el plan.",
+          subscriptionId: null,
+          paymentId: null
+        });
+      }
       if (!process.env.STRIPE_SECRET_KEY) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,
           message: "STRIPE_SECRET_KEY no configurada",
           subscriptionId: null,
@@ -14556,7 +16437,7 @@ var resolver8 = {
         query: "id name email stripeCustomerId referredBy { id } company { id plan { id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId referralUpfrontCommissionPct referralRecurringCommissionPct } }"
       });
       if (!user) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
           success: false,
           message: "Usuario no encontrado con ese email",
           subscriptionId: null,
@@ -14578,7 +16459,7 @@ var resolver8 = {
       }
       const company = user.company;
       if (!company?.id) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
           success: false,
           message: "Tu usuario no tiene una empresa asignada",
           subscriptionId: null,
@@ -14595,7 +16476,7 @@ var resolver8 = {
         plan = planRecord;
       }
       if (!plan?.id) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_PLAN_RESOLVED, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_PLAN_RESOLVED, {
           success: false,
           message: "Indica un plan (planId) o asigna un plan a la empresa",
           subscriptionId: null,
@@ -14605,7 +16486,7 @@ var resolver8 = {
       logPlanId = plan.id;
       const stripePriceId = plan.stripePriceId ?? null;
       if (!stripePriceId || typeof stripePriceId !== "string") {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
           success: false,
           message: "El plan no tiene un Stripe Price ID configurado. Crea un Price recurrente en Stripe y asigna stripePriceId al plan.",
           subscriptionId: null,
@@ -14617,7 +16498,7 @@ var resolver8 = {
       const roundedTotalFront = parseFloat(Number(input.total).toFixed(2));
       const difference = Math.abs(roundedTotalFront - roundedTotalBack);
       if (difference > 0.01) {
-        return await finish(
+        return await finish2(
           SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH,
           {
             success: false,
@@ -14638,7 +16519,7 @@ var resolver8 = {
         query: "id stripePaymentMethodId"
       });
       if (!paymentMethod?.stripePaymentMethodId) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
           success: false,
           message: "M\xE9todo de pago no encontrado",
           subscriptionId: null,
@@ -14837,7 +16718,7 @@ var resolver8 = {
         where: { id: company.id },
         data: { plan: { connect: { id: plan.id } } }
       });
-      return await finish(
+      return await finish2(
         SAAS_SUBSCRIPTION_LOG_STEP.SUCCESS,
         {
           success: true,
@@ -14884,7 +16765,7 @@ var resolver8 = {
     }
   }
 };
-var createCompanySubscription_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
+var createCompanySubscription_default = { typeDefs: typeDefs7, definition: definition7, resolver: resolver7 };
 
 // graphql/customs/mutations/addOwnLead.ts
 var ADD_OWN_LEADS_FEATURE_KEY = "add_own_leads";
@@ -14892,7 +16773,7 @@ function subscriptionHasFeature(planFeatures, featureKey) {
   if (!Array.isArray(planFeatures)) return false;
   return planFeatures.some((f) => f.key === featureKey);
 }
-var typeDefs9 = `
+var typeDefs8 = `
   input AddOwnLeadInput {
     businessName: String!
     category: String
@@ -14929,10 +16810,10 @@ var typeDefs9 = `
     addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
   }
 `;
-var definition9 = `
+var definition8 = `
   addOwnLead(input: AddOwnLeadInput!): AddOwnLeadResult!
 `;
-var resolver9 = {
+var resolver8 = {
   addOwnLead: async (_root, {
     input
   }, context) => {
@@ -15018,11 +16899,18 @@ var resolver9 = {
         data: {
           businessLead: { connect: { id: newLead.id } },
           saasCompany: { connect: { id: company.id } },
-          salesPerson: { connect: { id: userId } },
           pipelineStatus: PIPELINE_STATUS.DETECTADO,
           opportunityLevel: ["Alta", "Media", "Baja"].includes(input.opportunityLevel ?? "") ? input.opportunityLevel : "Media",
           notes: input.notes ?? ""
         }
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.LEAD_ADDED_MANUALLY,
+        companyId: company.id,
+        entityType: "TechBusinessLead",
+        entityId: newLead.id,
+        summary: `Agreg\xF3 a mano el lead ${input.businessName}`,
+        metadata: { source, category: input.category ?? null, city: input.city ?? null }
       });
       return {
         success: true,
@@ -15038,7 +16926,7 @@ var resolver9 = {
     }
   }
 };
-var addOwnLead_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
+var addOwnLead_default = { typeDefs: typeDefs8, definition: definition8, resolver: resolver8 };
 
 // graphql/customs/mutations/subcription/remainingCredits.ts
 var BLOCKING_MESSAGES = {
@@ -15047,7 +16935,7 @@ var BLOCKING_MESSAGES = {
   no_lead_limit: "La suscripci\xF3n activa no tiene l\xEDmite de leads configurado.",
   lead_limit_too_low: "La suscripci\xF3n activa no permite sincronizar leads o te has excedido el l\xEDmite de leads."
 };
-var typeDefs10 = `
+var typeDefs9 = `
   type RemainingCreditsResult {
     success: Boolean!
     message: String
@@ -15064,10 +16952,10 @@ var typeDefs10 = `
     remainingCredits(companyId: ID): RemainingCreditsResult!
   }
 `;
-var definition10 = `
+var definition9 = `
   remainingCredits(companyId: ID): RemainingCreditsResult!
 `;
-var resolver10 = {
+var resolver9 = {
   remainingCredits: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -15125,10 +17013,10 @@ var resolver10 = {
     };
   }
 };
-var remainingCredits_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
+var remainingCredits_default = { typeDefs: typeDefs9, definition: definition9, resolver: resolver9 };
 
 // graphql/customs/mutations/credits/purchaseCredits.ts
-var typeDefs11 = `
+var typeDefs10 = `
   input PurchaseCreditsInput {
     creditPackageId: ID!
     notes: String
@@ -15152,7 +17040,7 @@ var typeDefs11 = `
     purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
   }
 `;
-var definition11 = `
+var definition10 = `
   purchaseCredits(input: PurchaseCreditsInput!): PurchaseCreditsResult!
 `;
 async function createStripeOneTimePayment(params) {
@@ -15171,7 +17059,7 @@ async function createStripeOneTimePayment(params) {
   });
   return paymentIntent;
 }
-var resolver11 = {
+var resolver10 = {
   purchaseCredits: async (_root, {
     input
   }, context) => {
@@ -15188,14 +17076,14 @@ var resolver11 = {
     let logUserId;
     let logCompanyId;
     let logSubscriptionId;
-    const finish = async (step, result, opts) => {
+    const finish2 = async (step, result3, opts) => {
       const response = {
-        creditsAdded: result.creditsAdded ?? null,
-        newCreditsTotal: result.newCreditsTotal ?? null,
-        subscriptionId: result.subscriptionId ?? null,
-        success: result.success,
-        message: result.message,
-        paymentId: result.paymentId
+        creditsAdded: result3.creditsAdded ?? null,
+        newCreditsTotal: result3.newCreditsTotal ?? null,
+        subscriptionId: result3.subscriptionId ?? null,
+        success: result3.success,
+        message: result3.message,
+        paymentId: result3.paymentId
       };
       await writeSaasSubscriptionLog(context, {
         startedAt,
@@ -15207,17 +17095,29 @@ var resolver11 = {
         paymentId: response.paymentId,
         userId: logUserId ?? null,
         companyId: logCompanyId ?? null,
-        planId: input.creditPackageId,
+        // El paquete de créditos no es un SaasPlan: conectarlo como `plan` hacía fallar
+        // (en silencio) el log de toda recarga. Va en `planIdRequested` y en el snapshot.
+        planId: null,
         createdSubscriptionId: response.subscriptionId,
         stripeCustomerId: opts?.stripeCustomerId ?? null,
         stripeSubscriptionId: opts?.stripePaymentIntentId ?? null,
-        extra: opts?.extra
+        extra: { creditPackageId: input.creditPackageId, ...opts?.extra ?? {} }
       });
       return response;
     };
     try {
+      if (!canActForEmail(context.session, input.email)) {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
+          success: false,
+          message: "Inicia sesi\xF3n con la cuenta que va a comprar los cr\xE9ditos.",
+          paymentId: null,
+          creditsAdded: null,
+          newCreditsTotal: null,
+          subscriptionId: null
+        });
+      }
       if (!process.env.STRIPE_SECRET_KEY) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,
           message: "STRIPE_SECRET_KEY no configurada",
           paymentId: null,
@@ -15231,7 +17131,7 @@ var resolver11 = {
         query: "id name email stripeCustomerId company { id }"
       });
       if (!user) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
           success: false,
           message: "Usuario no encontrado con ese email",
           paymentId: null,
@@ -15255,7 +17155,7 @@ var resolver11 = {
       }
       const company = user.company;
       if (!company?.id) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
           success: false,
           message: "Tu usuario no tiene una empresa asignada",
           paymentId: null,
@@ -15270,7 +17170,7 @@ var resolver11 = {
         query: "id name cost currency creditsToAdd active stripePriceId"
       });
       if (!creditPackage?.id) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE, {
           success: false,
           message: "Paquete de cr\xE9ditos no encontrado",
           paymentId: null,
@@ -15280,7 +17180,7 @@ var resolver11 = {
         });
       }
       if (!creditPackage.active) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_PACKAGE_INACTIVE, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_PACKAGE_INACTIVE, {
           success: false,
           message: "Este paquete de cr\xE9ditos no est\xE1 disponible para compra",
           paymentId: null,
@@ -15291,7 +17191,7 @@ var resolver11 = {
       }
       const stripePriceId = creditPackage.stripePriceId ?? null;
       if (!stripePriceId || typeof stripePriceId !== "string") {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
           success: false,
           message: "El paquete no tiene un Stripe Price ID configurado. Configura stripePriceId en el paquete de cr\xE9ditos.",
           paymentId: null,
@@ -15305,7 +17205,7 @@ var resolver11 = {
       const roundedTotalFront = parseFloat(Number(input.total).toFixed(2));
       const difference = Math.abs(roundedTotalFront - roundedTotalBack);
       if (difference > 0.01) {
-        return await finish(
+        return await finish2(
           SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH,
           {
             success: false,
@@ -15326,7 +17226,7 @@ var resolver11 = {
       }
       const creditsToAdd = creditPackage.creditsToAdd ?? 0;
       if (creditsToAdd < 1) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE, {
           success: false,
           message: "El paquete de cr\xE9ditos no tiene cr\xE9ditos configurados",
           paymentId: null,
@@ -15342,10 +17242,10 @@ var resolver11 = {
         },
         orderBy: [{ activatedAt: "desc" }],
         take: 1,
-        query: "id planCost activatedAt newCreditsAdded"
+        query: "id planCost activatedAt currentPeriodEnd newCreditsAdded"
       });
       if (!activeSubscription) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
           success: false,
           message: "No tienes una suscripci\xF3n activa. Contrata un plan antes de comprar cr\xE9ditos extra.",
           paymentId: null,
@@ -15358,9 +17258,9 @@ var resolver11 = {
       logSubscriptionId = sub.id;
       const isFreePlan = sub.planCost != null && sub.planCost <= 0;
       if (isFreePlan && sub.activatedAt) {
-        const { isExpired } = getFreePlanTrialInfo(sub.activatedAt);
+        const { isExpired } = getFreePlanTrialInfo(sub.activatedAt, sub.currentPeriodEnd);
         if (isExpired) {
-          return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
+          return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
             success: false,
             message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n antes de comprar cr\xE9ditos extra.",
             paymentId: null,
@@ -15375,7 +17275,7 @@ var resolver11 = {
         query: "id stripePaymentMethodId"
       });
       if (!paymentMethod?.stripePaymentMethodId) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
           success: false,
           message: "M\xE9todo de pago no encontrado",
           paymentId: null,
@@ -15424,7 +17324,7 @@ var resolver11 = {
           },
           query: "id"
         });
-        return await finish(
+        return await finish2(
           SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR,
           {
             success: false,
@@ -15464,7 +17364,7 @@ var resolver11 = {
       const credits = await getRemainingCredits(context, company.id);
       const newCreditsTotal = credits.remainingQuota;
       const extraCreditsStored = credits.extraCredits;
-      return await finish(
+      return await finish2(
         SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_SUCCESS,
         {
           success: true,
@@ -15518,11 +17418,11 @@ var resolver11 = {
     }
   }
 };
-var purchaseCredits_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
+var purchaseCredits_default = { typeDefs: typeDefs10, definition: definition10, resolver: resolver10 };
 
 // graphql/customs/mutations/credits/grantAdminCredits.ts
 var MAX_GRANT = 5e4;
-var typeDefs12 = `
+var typeDefs11 = `
   input GrantAdminCreditsInput {
     companyId: ID!
     subscriptionId: ID!
@@ -15542,10 +17442,10 @@ var typeDefs12 = `
     grantAdminCredits(input: GrantAdminCreditsInput!): GrantAdminCreditsResult!
   }
 `;
-var definition12 = `
+var definition11 = `
   grantAdminCredits(input: GrantAdminCreditsInput!): GrantAdminCreditsResult!
 `;
-var resolver12 = {
+var resolver11 = {
   grantAdminCredits: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return {
@@ -15644,10 +17544,10 @@ var resolver12 = {
     };
   }
 };
-var grantAdminCredits_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
+var grantAdminCredits_default = { typeDefs: typeDefs11, definition: definition11, resolver: resolver11 };
 
 // graphql/customs/mutations/saas/updatePlanFeatureCatalog.ts
-var typeDefs13 = `
+var typeDefs12 = `
   input PlanFeatureCatalogItemInput {
     key: String!
     name: String!
@@ -15671,7 +17571,7 @@ var typeDefs13 = `
     ): UpdatePlanFeatureCatalogResult!
   }
 `;
-var definition13 = `
+var definition12 = `
   updatePlanFeatureCatalog(input: UpdatePlanFeatureCatalogInput!): UpdatePlanFeatureCatalogResult!
 `;
 function fail(message) {
@@ -15689,9 +17589,9 @@ function asFeatureArray(value) {
   );
 }
 function applyFeatureCatalog(current, catalogByKey) {
-  const rows = asFeatureArray(current);
+  const rows2 = asFeatureArray(current);
   let changed = false;
-  const next = rows.map((row) => {
+  const next = rows2.map((row) => {
     const meta = catalogByKey.get(row.key);
     if (!meta) return row;
     if (row.name === meta.name && row.description === meta.description) {
@@ -15706,7 +17606,7 @@ function applyFeatureCatalog(current, catalogByKey) {
   });
   return { next, changed };
 }
-var resolver13 = {
+var resolver12 = {
   updatePlanFeatureCatalog: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return fail("Solo operaciones puede editar los m\xF3dulos.");
@@ -15762,6 +17662,15 @@ var resolver13 = {
       });
       subscriptionsUpdated += 1;
     }
+    if (plansUpdated || subscriptionsUpdated) {
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_FEATURE_CATALOG_UPDATED,
+        companyId: null,
+        entityType: "SaasPlan",
+        summary: `Actualiz\xF3 el texto de ${catalogByKey.size} m\xF3dulo${catalogByKey.size === 1 ? "" : "s"}`,
+        metadata: { keys: [...catalogByKey.keys()], plansUpdated, subscriptionsUpdated }
+      });
+    }
     return {
       success: true,
       message: plansUpdated === 0 && subscriptionsUpdated === 0 ? "Sin cambios: el texto ya era el mismo en todos lados." : `Actualizado en ${plansUpdated} plan${plansUpdated === 1 ? "" : "es"} y ${subscriptionsUpdated} suscripci\xF3n${subscriptionsUpdated === 1 ? "" : "es"}.`,
@@ -15770,7 +17679,7 @@ var resolver13 = {
     };
   }
 };
-var updatePlanFeatureCatalog_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
+var updatePlanFeatureCatalog_default = { typeDefs: typeDefs12, definition: definition12, resolver: resolver12 };
 
 // graphql/customs/mutations/sendTestEmail.ts
 var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15798,7 +17707,7 @@ function buildTestEmailHtml() {
     </div>
   `;
 }
-var typeDefs14 = `
+var typeDefs13 = `
   type SendTestEmailResult {
     success: Boolean!
     message: String!
@@ -15812,10 +17721,10 @@ var typeDefs14 = `
     sendTestEmail(email: String!): SendTestEmailResult!
   }
 `;
-var definition14 = `
+var definition13 = `
   sendTestEmail(email: String!): SendTestEmailResult!
 `;
-var resolver14 = {
+var resolver13 = {
   sendTestEmail: async (_root, { email }, context) => {
     const session2 = context.session;
     const diagnostics = mailDiagnostics();
@@ -15877,7 +17786,7 @@ var resolver14 = {
     }
   }
 };
-var sendTestEmail_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
+var sendTestEmail_default = { typeDefs: typeDefs13, definition: definition13, resolver: resolver13 };
 
 // graphql/customs/mutations/sendAdminBroadcastEmail.ts
 var EMAIL_REGEX2 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15893,7 +17802,7 @@ var AUDIENCES = /* @__PURE__ */ new Set([
   "custom"
 ]);
 var BRANDS2 = /* @__PURE__ */ new Set(["saas", "pet"]);
-var typeDefs15 = `
+var typeDefs14 = `
   enum AdminEmailAudience {
     saas
     pet
@@ -15937,7 +17846,7 @@ var typeDefs15 = `
     sendAdminBroadcastEmail(input: SendAdminBroadcastEmailInput!): SendAdminBroadcastEmailResult!
   }
 `;
-var definition15 = `
+var definition14 = `
   sendAdminBroadcastEmail(input: SendAdminBroadcastEmailInput!): SendAdminBroadcastEmailResult!
 `;
 function fail2(message, partial) {
@@ -15956,14 +17865,14 @@ function trimOrEmpty(value, max) {
   return (value ?? "").trim().slice(0, max);
 }
 function parseCustomEmails(raw) {
-  const list77 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
-  if (list77.length === 0) {
+  const list82 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
+  if (list82.length === 0) {
     return {
       emails: [],
       error: "Agrega al menos un correo para el env\xEDo a usuarios espec\xEDficos."
     };
   }
-  if (list77.length > MAX_CUSTOM_RECIPIENTS) {
+  if (list82.length > MAX_CUSTOM_RECIPIENTS) {
     return {
       emails: [],
       error: `M\xE1ximo ${MAX_CUSTOM_RECIPIENTS} correos por env\xEDo a usuarios espec\xEDficos.`
@@ -15971,7 +17880,7 @@ function parseCustomEmails(raw) {
   }
   const seen = /* @__PURE__ */ new Set();
   const emails = [];
-  for (const email of list77) {
+  for (const email of list82) {
     if (!EMAIL_REGEX2.test(email)) {
       return { emails: [], error: `Correo inv\xE1lido: ${email}` };
     }
@@ -15982,7 +17891,7 @@ function parseCustomEmails(raw) {
   }
   return { emails, error: null };
 }
-var resolver15 = {
+var resolver14 = {
   sendAdminBroadcastEmail: async (_root, { input }, context) => {
     if (!hasRole(context.session, ["admin" /* ADMIN */])) {
       return fail2("Solo administradores de plataforma pueden enviar correos.");
@@ -16036,7 +17945,7 @@ var resolver15 = {
       );
     }
     try {
-      const result = await sendAdminBroadcastEmail({
+      const result3 = await sendAdminBroadcastEmail({
         context,
         audience,
         brand,
@@ -16052,7 +17961,7 @@ var resolver15 = {
         footerNote,
         dryRun
       });
-      if (result.recipientCount === 0) {
+      if (result3.recipientCount === 0) {
         return fail2(
           audience === "custom" ? "No hay correos v\xE1lidos para enviar." : "No hay destinatarios con correo en esa audiencia.",
           { brand, audience, dryRun, recipientCount: 0 }
@@ -16061,8 +17970,8 @@ var resolver15 = {
       if (dryRun) {
         return {
           success: true,
-          message: `Listos ${result.recipientCount} destinatarios. Nada se envi\xF3 (solo conteo).`,
-          recipientCount: result.recipientCount,
+          message: `Listos ${result3.recipientCount} destinatarios. Nada se envi\xF3 (solo conteo).`,
+          recipientCount: result3.recipientCount,
           sentCount: 0,
           failedCount: 0,
           dryRun: true,
@@ -16070,13 +17979,30 @@ var resolver15 = {
           audience
         };
       }
-      const ok = result.failedCount === 0;
+      const ok = result3.failedCount === 0;
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_EMAIL_BROADCAST,
+        companyId: null,
+        entityType: "Email",
+        summary: `Envi\xF3 el correo "${subject}" a ${result3.sentCount} destinatarios`,
+        success: ok,
+        errorMessage: ok ? null : `Fallaron ${result3.failedCount} env\xEDos`,
+        metadata: {
+          audience,
+          brand,
+          subject,
+          recipientCount: result3.recipientCount,
+          sentCount: result3.sentCount,
+          failedCount: result3.failedCount,
+          customRecipients: audience === "custom" ? customEmails?.length ?? 0 : null
+        }
+      });
       return {
         success: ok,
-        message: ok ? `Enviado a ${result.sentCount} destinatarios.` : `Enviado a ${result.sentCount}; fallaron ${result.failedCount}.`,
-        recipientCount: result.recipientCount,
-        sentCount: result.sentCount,
-        failedCount: result.failedCount,
+        message: ok ? `Enviado a ${result3.sentCount} destinatarios.` : `Enviado a ${result3.sentCount}; fallaron ${result3.failedCount}.`,
+        recipientCount: result3.recipientCount,
+        sentCount: result3.sentCount,
+        failedCount: result3.failedCount,
         dryRun: false,
         brand,
         audience
@@ -16087,7 +18013,7 @@ var resolver15 = {
     }
   }
 };
-var sendAdminBroadcastEmail_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
+var sendAdminBroadcastEmail_default = { typeDefs: typeDefs14, definition: definition14, resolver: resolver14 };
 
 // utils/ai/errors.ts
 var AiNotConfiguredError = class extends Error {
@@ -16139,11 +18065,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text66) {
-  return text66.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text73) {
+  return text73.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text66) {
-  const cleaned = stripSpoofedDelimiters(text66 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text73) {
+  const cleaned = stripSpoofedDelimiters(text73 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -16183,9 +18109,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text66) {
-  if (!text66) return 0;
-  return Math.max(1, Math.ceil(text66.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text73) {
+  if (!text73) return 0;
+  return Math.max(1, Math.ceil(text73.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -16219,15 +18145,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text66 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text66) {
+  const text73 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text73) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text66,
+    text: text73,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text66)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text73)
     }
   };
 }
@@ -16272,15 +18198,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text66 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text66) {
+  const text73 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text73) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text66,
+    text: text73,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text66)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text73)
     }
   };
 }
@@ -16317,15 +18243,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text66 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text66) {
+  const text73 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text73) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text66,
+    text: text73,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text66)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text73)
     }
   };
 }
@@ -16407,13 +18333,13 @@ function retryAfterFromOldest(oldestCreatedAt, windowMs) {
   return Math.max(1, Math.ceil((windowMs - elapsed) / 1e3));
 }
 async function oldestInWindow(context, where) {
-  const rows = await context.sudo().prisma.techAiCallLog.findMany({
+  const rows2 = await context.sudo().prisma.techAiCallLog.findMany({
     where,
     orderBy: { createdAt: "asc" },
     take: 1,
     select: { createdAt: true }
   });
-  return rows[0]?.createdAt ?? null;
+  return rows2[0]?.createdAt ?? null;
 }
 function quotaError(quota, label, kind, retryAfterSec) {
   const wait = `Espera ${retryAfterSec} s y vuelve a intentar.`;
@@ -16797,7 +18723,7 @@ function denyCompanyAiUseMessage(session2) {
 }
 
 // graphql/customs/mutations/ai/updateCompanyAiSettings.ts
-var typeDefs16 = `
+var typeDefs15 = `
   input UpdateCompanyAiSettingsInput {
     companyId: ID!
     billingMode: String
@@ -16826,7 +18752,7 @@ var typeDefs16 = `
     testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
   }
 `;
-var definition16 = `
+var definition15 = `
   updateCompanyAiSettings(input: UpdateCompanyAiSettingsInput!): UpdateCompanyAiSettingsResult!
   testCompanyAiConnection(companyId: ID!): TestCompanyAiConnectionResult!
 `;
@@ -16851,7 +18777,7 @@ function friendlyAiError(err) {
   }
   return err instanceof Error ? err.message : "Error al llamar a la IA";
 }
-var resolver16 = {
+var resolver15 = {
   updateCompanyAiSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyAi(session2, input.companyId)) {
@@ -16920,6 +18846,21 @@ var resolver16 = {
       data,
       query: SETTINGS_QUERY
     });
+    const changes = {};
+    for (const field of ["aiBillingMode", "aiProvider", "aiModel"]) {
+      if (field in data) changes[field] = [existing[field] ?? null, data[field] ?? null];
+    }
+    if ("aiApiKeyEncrypted" in data) {
+      changes.apiKeyAction = data.aiApiKeyEncrypted ? "replaced" : "removed";
+    }
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.AI_SETTINGS_UPDATED,
+      companyId: input.companyId,
+      entityType: "SaasCompany",
+      entityId: input.companyId,
+      summary: "Cambi\xF3 la configuraci\xF3n de IA",
+      metadata: { changes }
+    });
     return toResult(true, "Configuraci\xF3n de IA guardada", updated);
   },
   testCompanyAiConnection: async (_root, { companyId }, context) => {
@@ -16952,7 +18893,7 @@ var resolver16 = {
     }
   }
 };
-var updateCompanyAiSettings_default = { typeDefs: typeDefs16, definition: definition16, resolver: resolver16 };
+var updateCompanyAiSettings_default = { typeDefs: typeDefs15, definition: definition15, resolver: resolver15 };
 
 // utils/ai/dailyDigest.ts
 var DIGEST_TIMEZONE = "America/Mexico_City";
@@ -16988,8 +18929,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text66) {
-  const stripped = text66.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text73) {
+  const stripped = text73.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -17045,7 +18986,7 @@ function formatActionsAsContent(actions) {
 }
 var INSIGHT_QUERY = "id referenceKey content structuredData generatedAt salesPerson { id }";
 async function findDailyDigestInsight(context, params) {
-  const rows = await context.sudo().query.TechAiInsight.findMany({
+  const rows2 = await context.sudo().query.TechAiInsight.findMany({
     where: {
       company: { id: { equals: params.companyId } },
       kind: { equals: AI_INSIGHT_KIND.DAILY_DIGEST },
@@ -17055,7 +18996,7 @@ async function findDailyDigestInsight(context, params) {
     orderBy: [{ generatedAt: "desc" }],
     query: INSIGHT_QUERY
   });
-  const match = rows.find(
+  const match = rows2.find(
     (row) => params.salesPersonId ? row.salesPerson?.id === params.salesPersonId : !row.salesPerson
   );
   return match ?? null;
@@ -17129,7 +19070,7 @@ async function gatherDailyDigestSnapshot(context, params) {
   const today = todayKey();
   const coldSince = daysAgoKey(COLD_LEAD_DAYS);
   const sudo = context.sudo();
-  const sellerStatus = params.salesPersonId ? { salesPerson: { id: { equals: params.salesPersonId } } } : {};
+  const sellerStatus = params.salesPersonId ? { businessLead: { salesPerson: { some: { id: { equals: params.salesPersonId } } } } } : {};
   const sellerQuote = params.salesPersonId ? { assignedSeller: { id: { equals: params.salesPersonId } } } : {};
   const sellerFollowUp = params.salesPersonId ? { assignedSeller: { id: { equals: params.salesPersonId } } } : {};
   const [quotes, uncontacted, overdue, cold] = await Promise.all([
@@ -17179,7 +19120,7 @@ async function gatherDailyDigestSnapshot(context, params) {
           { saasCompany: { id: { equals: params.companyId } } },
           { firstContactDate: { lte: coldSince } },
           { pipelineStatus: { notIn: CLOSED_PIPELINE } },
-          ...params.salesPersonId ? [{ salesPerson: { id: { equals: params.salesPersonId } } }] : []
+          ...params.salesPersonId ? [sellerStatus] : []
         ]
       },
       orderBy: [{ firstContactDate: "asc" }],
@@ -17319,13 +19260,13 @@ async function gatherMarketSnapshot(context, params) {
     });
   }
   if (and.length) where.AND = and;
-  const rows = await context.sudo().query.TechInegiEstablishment.findMany({
+  const rows2 = await context.sudo().query.TechInegiEstablishment.findMany({
     where,
     take: ESTABLISHMENT_SAMPLE,
     query: "id economicActivity { name scianCode }"
   });
   const counts = /* @__PURE__ */ new Map();
-  for (const row of rows) {
+  for (const row of rows2) {
     const name = row.economicActivity?.name?.trim() || "Sin giro";
     const scianCode = row.economicActivity?.scianCode ?? null;
     const key = scianCode || name;
@@ -17363,7 +19304,7 @@ async function gatherMarketSnapshot(context, params) {
     municipality: params.municipality?.trim() || "*",
     activity: params.activity?.trim() || "*",
     geographicCode: geographicCode || "*",
-    totalSampled: rows.length,
+    totalSampled: rows2.length,
     activities,
     indicators
   };
@@ -17429,11 +19370,11 @@ async function saveMarketInsight(context, params) {
     query: INSIGHT_QUERY2
   });
 }
-function parseMarketInsight(text66) {
-  const match = text66.match(/\{[\s\S]*\}/);
+function parseMarketInsight(text73) {
+  const match = text73.match(/\{[\s\S]*\}/);
   if (!match) {
     return {
-      summary: text66.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      summary: text73.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
       actions: []
     };
   }
@@ -17444,19 +19385,19 @@ function parseMarketInsight(text66) {
       detail: String(item.detail ?? "").trim()
     })).filter((item) => item.title && item.detail).slice(0, 3);
     return {
-      summary: String(parsed.summary ?? "").trim() || text66.trim().slice(0, 800),
+      summary: String(parsed.summary ?? "").trim() || text73.trim().slice(0, 800),
       actions
     };
   } catch {
     return {
-      summary: text66.trim().slice(0, 800),
+      summary: text73.trim().slice(0, 800),
       actions: []
     };
   }
 }
 
 // graphql/customs/ai/generateMarketInsight.ts
-var typeDefs17 = `
+var typeDefs16 = `
   type MarketInsightAction {
     title: String!
     detail: String!
@@ -17566,7 +19507,7 @@ var mutationResolver = {
     try {
       const snapshot = await gatherMarketSnapshot(context, args);
       const userPrompt = formatMarketSnapshotPrompt(snapshot);
-      const result = await callCompanyAi({
+      const result3 = await callCompanyAi({
         context,
         companyId: args.companyId,
         featurePrompt: MARKET_ANALYSIS_FEATURE_PROMPT,
@@ -17575,7 +19516,7 @@ var mutationResolver = {
         bill: true,
         maxTokens: 800
       });
-      const parsed = parseMarketInsight(result.text);
+      const parsed = parseMarketInsight(result3.text);
       const content = parsed.summary + (parsed.actions.length ? "\n" + parsed.actions.map((action, index) => `${index + 1}. ${action.title} \u2014 ${action.detail}`).join("\n") : "");
       const saved = await saveMarketInsight(context, {
         companyId: args.companyId,
@@ -17586,7 +19527,7 @@ var mutationResolver = {
       });
       return toResult2(true, "An\xE1lisis de mercado listo", {
         cached: false,
-        creditsCharged: result.creditsCharged,
+        creditsCharged: result3.creditsCharged,
         insight: toPayload(saved)
       });
     } catch (err) {
@@ -17595,7 +19536,7 @@ var mutationResolver = {
   }
 };
 var generateMarketInsight_default = {
-  typeDefs: typeDefs17,
+  typeDefs: typeDefs16,
   queryDefinition,
   mutationDefinition,
   queryResolver,
@@ -17649,7 +19590,7 @@ function fallbackPlaybookActions(prompt) {
   ];
 }
 async function findProfilePlaybook(context, companyId) {
-  const rows = await context.sudo().query.TechAiInsight.findMany({
+  const rows2 = await context.sudo().query.TechAiInsight.findMany({
     where: {
       company: { id: { equals: companyId } },
       kind: { equals: AI_INSIGHT_KIND.PROFILE_PLAYBOOK },
@@ -17659,7 +19600,7 @@ async function findProfilePlaybook(context, companyId) {
     orderBy: [{ generatedAt: "desc" }],
     query: INSIGHT_QUERY3
   });
-  return rows.find((row) => !row.salesPerson) ?? null;
+  return rows2.find((row) => !row.salesPerson) ?? null;
 }
 async function saveProfilePlaybook(context, params) {
   const data = {
@@ -17684,7 +19625,7 @@ async function saveProfilePlaybook(context, params) {
 }
 
 // graphql/customs/ai/dailyDigest.ts
-var typeDefs18 = `
+var typeDefs17 = `
   type DailyDigestAction {
     title: String!
     detail: String!
@@ -17823,7 +19764,7 @@ var mutationResolver2 = {
         salesPersonId
       });
       const userPrompt = formatSnapshotPrompt(snapshot);
-      const result = await callCompanyAi({
+      const result3 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: DAILY_DIGEST_FEATURE_PROMPT,
@@ -17832,7 +19773,7 @@ var mutationResolver2 = {
         bill: true,
         maxTokens: 800
       });
-      let actions = parseDigestActions(result.text);
+      let actions = parseDigestActions(result3.text);
       if (actions.length < 3) {
         const fallback = fallbackActions(userPrompt);
         actions = [...actions, ...fallback].slice(0, 3);
@@ -17847,7 +19788,7 @@ var mutationResolver2 = {
       });
       return toResult3(true, "Listo. Estos son tus 3 siguientes pasos de hoy.", {
         cached: false,
-        creditsCharged: result.creditsCharged,
+        creditsCharged: result3.creditsCharged,
         insight: toDigestInsightPayload(saved)
       });
     } catch (err) {
@@ -17873,7 +19814,7 @@ var mutationResolver2 = {
         query: "id name onboardingMainOffer onboardingIdealCustomer onboardingAvgTicketValue onboardingSalesPain allowedGooglePlaceCategories"
       });
       const userPrompt = playbookUserPrompt(company ?? {});
-      const result = await callCompanyAi({
+      const result3 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: PROFILE_PLAYBOOK_FEATURE_PROMPT,
@@ -17882,7 +19823,7 @@ var mutationResolver2 = {
         bill: true,
         maxTokens: 900
       });
-      let actions = parseDigestActions(result.text);
+      let actions = parseDigestActions(result3.text);
       if (actions.length < 3) {
         actions = [...actions, ...fallbackPlaybookActions(userPrompt)].slice(
           0,
@@ -17896,7 +19837,7 @@ var mutationResolver2 = {
       });
       return toResult3(true, "Listo. Estas recomendaciones salen de tu perfil.", {
         cached: false,
-        creditsCharged: result.creditsCharged,
+        creditsCharged: result3.creditsCharged,
         insight: toDigestInsightPayload(saved)
       });
     } catch (err) {
@@ -17905,7 +19846,7 @@ var mutationResolver2 = {
   }
 };
 var dailyDigest_default = {
-  typeDefs: typeDefs18,
+  typeDefs: typeDefs17,
   queryDefinition: queryDefinition2,
   mutationDefinition: mutationDefinition2,
   queryResolver: queryResolver2,
@@ -18003,8 +19944,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text66) {
-  const stripped = text66.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text73) {
+  const stripped = text73.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -18014,8 +19955,8 @@ function parseJsonObject(text66) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text66, company) {
-  const parsed = parseJsonObject(text66);
+function parseCompanyBriefPillars(text73, company) {
+  const parsed = parseJsonObject(text73);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -18080,7 +20021,7 @@ ${pillar.summary}${gaps}`;
   }).join("\n\n");
 }
 async function findCompanyBrief(context, companyId) {
-  const rows = await context.sudo().query.TechAiInsight.findMany({
+  const rows2 = await context.sudo().query.TechAiInsight.findMany({
     where: {
       company: { id: { equals: companyId } },
       kind: { equals: AI_INSIGHT_KIND.COMPANY_BRIEF },
@@ -18090,7 +20031,7 @@ async function findCompanyBrief(context, companyId) {
     orderBy: [{ generatedAt: "desc" }],
     query: INSIGHT_QUERY4
   });
-  return rows.find((row) => !row.salesPerson) ?? null;
+  return rows2.find((row) => !row.salesPerson) ?? null;
 }
 async function saveCompanyBrief(context, params) {
   const data = {
@@ -18118,7 +20059,7 @@ async function saveCompanyBrief(context, params) {
 }
 
 // graphql/customs/ai/companyBrief.ts
-var typeDefs19 = `
+var typeDefs18 = `
   type CompanyAiBriefPillar {
     key: String!
     title: String!
@@ -18233,7 +20174,7 @@ var mutationResolver3 = {
       });
     }
     try {
-      const result = await callCompanyAi({
+      const result3 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: COMPANY_BRIEF_FEATURE_PROMPT,
@@ -18242,7 +20183,7 @@ var mutationResolver3 = {
         bill: true,
         maxTokens: 900
       });
-      let pillars = parseCompanyBriefPillars(result.text, company);
+      let pillars = parseCompanyBriefPillars(result3.text, company);
       if (pillars.every((pillar) => !pillar.summary.trim())) {
         pillars = fallbackCompanyBriefPillars(company);
       }
@@ -18254,7 +20195,7 @@ var mutationResolver3 = {
       });
       return toResult4(true, "Listo. Esto es lo que Kadesh AI ya sabe de tu negocio.", {
         cached: false,
-        creditsCharged: result.creditsCharged,
+        creditsCharged: result3.creditsCharged,
         insight: toCompanyBriefPayload(saved, company)
       });
     } catch (err) {
@@ -18268,7 +20209,7 @@ var mutationResolver3 = {
   }
 };
 var companyBrief_default = {
-  typeDefs: typeDefs19,
+  typeDefs: typeDefs18,
   queryDefinition: queryDefinition3,
   mutationDefinition: mutationDefinition3,
   queryResolver: queryResolver3,
@@ -18335,33 +20276,33 @@ function encodeDenueCondition(value, fallback) {
   const words = parts.length ? parts : [fallback];
   return words.map((word) => encodeURIComponent(word)).join(",");
 }
-function isDenueEmptyBody(text66) {
-  const trimmed = text66.trim().toLowerCase();
+function isDenueEmptyBody(text73) {
+  const trimmed = text73.trim().toLowerCase();
   if (!trimmed) return true;
   return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
 }
 async function parseDenueList(res) {
-  const text66 = await res.text();
-  if (isDenueEmptyBody(text66)) {
+  const text73 = await res.text();
+  if (isDenueEmptyBody(text73)) {
     console.log("[INEGI DENUE] empty body treated as no results", {
       status: res.status,
-      preview: text66.slice(0, 120)
+      preview: text73.slice(0, 120)
     });
     return [];
   }
   if (!res.ok) {
     console.error("[INEGI DENUE] HTTP error body", {
       status: res.status,
-      preview: text66.slice(0, 200)
+      preview: text73.slice(0, 200)
     });
-    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text66.slice(0, 200)}`);
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text73.slice(0, 200)}`);
   }
   let data;
   try {
-    data = JSON.parse(text66);
+    data = JSON.parse(text73);
   } catch {
     throw new Error(
-      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text66.slice(0, 200)}`
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text73.slice(0, 200)}`
     );
   }
   if (!Array.isArray(data)) {
@@ -18389,9 +20330,9 @@ async function searchByLocation(params) {
     status: res.status,
     ok: res.ok
   });
-  const rows = await parseDenueList(res);
-  console.log("[INEGI DENUE] searchByLocation parsed", { rowCount: rows.length });
-  return rows;
+  const rows2 = await parseDenueList(res);
+  console.log("[INEGI DENUE] searchByLocation parsed", { rowCount: rows2.length });
+  return rows2;
 }
 async function searchByAreaActivity(params) {
   const token = denueToken();
@@ -18455,22 +20396,22 @@ function parseValue(raw) {
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }
-async function getIndicator(indicatorId, geographicArea, recent = true, source = "BISE") {
+async function getIndicator(indicatorId, geographicArea, recent2 = true, source = "BISE") {
   const token = indicadoresToken();
   const area = geographicArea.trim() || "00";
-  const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
+  const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent2}/${source}/2.0/${token}?type=json`;
   const res = await inegiFetch(url);
-  const text66 = await res.text();
+  const text73 = await res.text();
   if (!res.ok) {
     throw new Error(
-      `INEGI Indicadores HTTP ${res.status}: ${text66.slice(0, 200)}`
+      `INEGI Indicadores HTTP ${res.status}: ${text73.slice(0, 200)}`
     );
   }
   try {
-    return JSON.parse(text66);
+    return JSON.parse(text73);
   } catch {
     throw new Error(
-      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text66.slice(0, 200)}`
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text73.slice(0, 200)}`
     );
   }
 }
@@ -18670,9 +20611,9 @@ async function upsertMappedIndicator(context, mapped) {
   });
   return "created";
 }
-async function fetchAndCacheIndicator(context, indicatorId, geographicCode, recent = true) {
+async function fetchAndCacheIndicator(context, indicatorId, geographicCode, recent2 = true) {
   const catalog = findCatalogIndicator(indicatorId);
-  const payload = await getIndicator(indicatorId, geographicCode, recent);
+  const payload = await getIndicator(indicatorId, geographicCode, recent2);
   const mapped = mapIndicatorResponse(
     indicatorId,
     geographicCode,
@@ -18682,15 +20623,15 @@ async function fetchAndCacheIndicator(context, indicatorId, geographicCode, rece
   let created = 0;
   let updated = 0;
   for (const row of mapped) {
-    const result = await upsertMappedIndicator(context, row);
-    if (result === "created") created += 1;
+    const result3 = await upsertMappedIndicator(context, row);
+    if (result3 === "created") created += 1;
     else updated += 1;
   }
   return { mapped, created, updated };
 }
 
 // graphql/customs/mutations/inegi/syncEstablishmentsFromInegi.ts
-var typeDefs20 = `
+var typeDefs19 = `
   input SyncEstablishmentsFromInegiInput {
     lat: Float
     lng: Float
@@ -18716,7 +20657,7 @@ var typeDefs20 = `
     syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
   }
 `;
-var definition17 = `
+var definition16 = `
   syncEstablishmentsFromInegi(input: SyncEstablishmentsFromInegiInput!): SyncEstablishmentsFromInegiResult!
 `;
 function emptyResult(message, extras) {
@@ -18730,17 +20671,17 @@ function emptyResult(message, extras) {
     ...extras
   };
 }
-async function logSync(context, userId, input, result) {
+async function logSync(context, userId, input, result3) {
   try {
     await context.sudo().query.TechInegiSyncLog.createOne({
       data: {
         ...userId ? { user: { connect: { id: userId } } } : {},
-        success: result.success,
-        message: result.message,
-        created: result.created,
-        updated: result.updated,
-        alreadyInDb: result.alreadyInDb,
-        totalFetched: result.totalFetched,
+        success: result3.success,
+        message: result3.message,
+        created: result3.created,
+        updated: result3.updated,
+        alreadyInDb: result3.alreadyInDb,
+        totalFetched: result3.totalFetched,
         sourceMethod: INEGI_SYNC_SOURCE.API,
         searchParams: input
       }
@@ -18775,7 +20716,7 @@ async function fetchRows(input, cap) {
     "Indica lat/lng (b\xFAsqueda por radio) o stateCode (b\xFAsqueda por \xE1rea)"
   );
 }
-var resolver17 = {
+var resolver16 = {
   syncEstablishmentsFromInegi: async (_root, { input }, context) => {
     if (!isSignedIn(context.session)) {
       return emptyResult("Debes iniciar sesi\xF3n para sincronizar DENUE");
@@ -18789,11 +20730,11 @@ var resolver17 = {
       INEGI_LIVE_SYNC_CAP
     );
     if (typeof input.radiusMeters === "number" && input.radiusMeters > DENUE_MAX_RADIUS_METERS) {
-      const result = emptyResult(
+      const result3 = emptyResult(
         `El radio m\xE1ximo de DENUE es ${DENUE_MAX_RADIUS_METERS} metros`
       );
-      await logSync(context, userId, input, result);
-      return result;
+      await logSync(context, userId, input, result3);
+      return result3;
     }
     console.log("[syncEstablishmentsFromInegi] START", {
       userId,
@@ -18806,14 +20747,14 @@ var resolver17 = {
       cap
     });
     try {
-      const rows = (await fetchRows(input, cap)).slice(0, cap);
+      const rows2 = (await fetchRows(input, cap)).slice(0, cap);
       console.log("[syncEstablishmentsFromInegi] fetched", {
-        totalFetched: rows.length
+        totalFetched: rows2.length
       });
       let created = 0;
       let updated = 0;
       let skipped = 0;
-      for (const row of rows) {
+      for (const row of rows2) {
         const mapped = mapDenueApiRow(row);
         if (!mapped) {
           skipped += 1;
@@ -18823,30 +20764,30 @@ var resolver17 = {
         if (status === "created") created += 1;
         else updated += 1;
       }
-      const result = {
+      const result3 = {
         success: true,
         message: `DENUE: ${created} nuevos, ${updated} actualizados, ${skipped} omitidos`,
         created,
         updated,
         alreadyInDb: updated,
-        totalFetched: rows.length
+        totalFetched: rows2.length
       };
-      await logSync(context, userId, input, result);
-      return result;
+      await logSync(context, userId, input, result3);
+      return result3;
     } catch (err) {
       console.error("[syncEstablishmentsFromInegi] failed", {
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : void 0
       });
-      const result = emptyResult(
+      const result3 = emptyResult(
         err instanceof Error ? err.message : "Error al consultar DENUE"
       );
-      await logSync(context, userId, input, result);
-      return result;
+      await logSync(context, userId, input, result3);
+      return result3;
     }
   }
 };
-var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
+var syncEstablishmentsFromInegi_default = { typeDefs: typeDefs19, definition: definition16, resolver: resolver16 };
 
 // utils/constants/googlePlaceCategories.ts
 var GOOGLE_PLACE_CATEGORIES = [
@@ -19444,7 +21385,7 @@ var MSG = {
   quotaFull: (synced, limit) => limit != null && synced != null ? `Ya usaste tu cuota de este mes (${synced}/${limit}). Se reinicia el pr\xF3ximo mes.` : "Ya usaste tu cuota de este mes. Se reinicia el pr\xF3ximo mes.",
   searchFailed: "No pudimos completar la b\xFAsqueda. Intenta de nuevo en unos minutos.",
   noneFound: "No encontramos negocios cerca con esa b\xFAsqueda. Prueba otra categor\xEDa o un radio m\xE1s amplio.",
-  added: (count) => count === 1 ? "Agregamos 1 negocio a tu lista." : `Agregamos ${count} negocios a tu lista.`
+  added: (count2) => count2 === 1 ? "Agregamos 1 negocio a tu lista." : `Agregamos ${count2} negocios a tu lista.`
 };
 var ESTABLISHMENT_QUERY = `
   id
@@ -19465,7 +21406,7 @@ var ESTABLISHMENT_QUERY = `
   lng
   economicActivity { id name scianCode }
 `;
-var typeDefs21 = `
+var typeDefs20 = `
   input SyncLeadsFromInegiInput {
     lat: Float!
     lng: Float!
@@ -19489,7 +21430,7 @@ var typeDefs21 = `
     syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
   }
 `;
-var definition18 = `
+var definition17 = `
   syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
 `;
 function emptyFields() {
@@ -19514,51 +21455,21 @@ function boundingBoxFilters(lat, lng, radiusKm) {
     { lng: { gte: lng - lngDelta, lte: lng + lngDelta } }
   ];
 }
-async function ensureStatus(context, leadId, companyId, userId) {
-  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
-    where: {
-      businessLead: { id: { equals: leadId } },
-      saasCompany: { id: { equals: companyId } }
-    },
-    take: 1,
-    query: "id"
-  });
-  if (existing) {
-    await context.sudo().query.TechStatusBusinessLead.updateOne({
-      where: { id: existing.id },
-      data: {
-        salesPerson: { connect: { id: userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel: "Media"
-      }
-    });
-    return;
-  }
-  await context.sudo().query.TechStatusBusinessLead.createOne({
-    data: {
-      businessLead: { connect: { id: leadId } },
-      saasCompany: { connect: { id: companyId } },
-      salesPerson: { connect: { id: userId } },
-      pipelineStatus: PIPELINE_STATUS.DETECTADO,
-      opportunityLevel: "Media"
-    }
-  });
-}
-async function logResult(context, userId, companyId, input, result) {
+async function logResult(context, userId, companyId, input, result3) {
   if (!userId) return;
   try {
     await context.sudo().query.TechLeadSyncLog.createOne({
       data: {
         user: { connect: { id: userId } },
         ...companyId ? { company: { connect: { id: companyId } } } : {},
-        success: result.success,
-        message: result.message,
-        created: result.created,
-        alreadyInDb: result.alreadyInDb,
-        skippedLowRating: result.skippedLowRating,
-        syncedLeadsCount: result.syncedLeadsCount,
-        syncedCount: result.syncedCount,
-        leadLimit: result.leadLimit,
+        success: result3.success,
+        message: result3.message,
+        created: result3.created,
+        alreadyInDb: result3.alreadyInDb,
+        skippedLowRating: result3.skippedLowRating,
+        syncedLeadsCount: result3.syncedLeadsCount,
+        syncedCount: result3.syncedCount,
+        leadLimit: result3.leadLimit,
         lat: input.lat,
         lng: input.lng,
         radius: input.radius,
@@ -19609,6 +21520,22 @@ function leadDataFromEstablishment(establishment, category, companyId, userId) {
     salesPerson: { connect: [{ id: userId }] }
   };
 }
+async function establishmentsOwnedByCompany(context, companyId, establishmentIds) {
+  if (establishmentIds.length === 0) return /* @__PURE__ */ new Set();
+  const leads = await context.sudo().query.TechBusinessLead.findMany({
+    where: {
+      AND: [
+        { sourceEstablishment: { id: { in: establishmentIds } } },
+        { saasCompany: { some: { id: { equals: companyId } } } }
+      ]
+    },
+    take: establishmentIds.length,
+    query: "sourceEstablishment { id }"
+  });
+  return new Set(
+    leads.map((lead) => lead.sourceEstablishment?.id).filter((id) => Boolean(id))
+  );
+}
 async function assignEstablishment(context, establishment, companyId, userId, category) {
   const [existing] = await context.sudo().query.TechBusinessLead.findMany({
     where: { sourceEstablishment: { id: { equals: establishment.id } } },
@@ -19620,15 +21547,14 @@ async function assignEstablishment(context, establishment, companyId, userId, ca
       (c) => c.id === companyId
     );
     if (already) return "skipped";
-    await context.sudo().query.TechBusinessLead.updateOne({
-      where: { id: existing.id },
-      data: {
-        saasCompany: { connect: [{ id: companyId }] },
-        salesPerson: { connect: [{ id: userId }] }
-      }
+    const assigned = await assignExistingLeadToCompany(context, {
+      leadId: existing.id,
+      companyId,
+      userId,
+      connectSeller: true,
+      logTag: "syncLeadsFromInegi"
     });
-    await ensureStatus(context, existing.id, companyId, userId);
-    return "assigned";
+    return assigned ? "assigned" : "skipped";
   }
   const lead = await context.sudo().query.TechBusinessLead.createOne({
     data: leadDataFromEstablishment(
@@ -19639,10 +21565,10 @@ async function assignEstablishment(context, establishment, companyId, userId, ca
     ),
     query: "id"
   });
-  await ensureStatus(context, lead.id, companyId, userId);
+  await ensureLeadStatus(context, { leadId: lead.id, companyId, userId });
   return "created";
 }
-var resolver18 = {
+var resolver17 = {
   syncLeadsFromInegi: async (_root, {
     input
   }, context) => {
@@ -19671,13 +21597,13 @@ var resolver18 = {
     });
     const company = user?.company;
     if (!company?.id) {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.noCompany,
         ...empty2
       };
-      await logResult(context, userId, void 0, input, result2);
-      return result2;
+      await logResult(context, userId, void 0, input, result4);
+      return result4;
     }
     const credits = await getRemainingCredits(context, company.id);
     const { remainingQuota, syncedCount, leadLimit } = credits;
@@ -19689,54 +21615,54 @@ var resolver18 = {
       blockingReason: credits.blockingReason ?? null
     });
     if (credits.blockingReason === "no_subscription") {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.noSubscription,
         ...empty2
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "free_plan_expired") {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.freeExpired,
         ...empty2,
         leadLimit: 0
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "no_lead_limit") {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.noLeadLimit,
         ...empty2,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "lead_limit_too_low") {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.leadLimitTooLow,
         ...empty2,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (remainingQuota === 0) {
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.quotaFull(syncedCount, leadLimit),
         ...empty2,
         syncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     const maxResults = Math.min(
       Math.max(1, input.maxResults ?? DEFAULT_MAX_RESULTS3),
@@ -19789,18 +21715,14 @@ var resolver18 = {
     });
     let assignedFromDb = 0;
     for (const leadId of toAssignFromCrm) {
-      try {
-        await context.sudo().query.TechBusinessLead.updateOne({
-          where: { id: leadId },
-          data: {
-            saasCompany: { connect: [{ id: company.id }] },
-            salesPerson: { connect: [{ id: userId }] }
-          }
-        });
-        await ensureStatus(context, leadId, company.id, userId);
-        assignedFromDb += 1;
-      } catch (_) {
-      }
+      const ok = await assignExistingLeadToCompany(context, {
+        leadId,
+        companyId: company.id,
+        userId,
+        connectSeller: true,
+        logTag: "syncLeadsFromInegi"
+      });
+      if (ok) assignedFromDb += 1;
     }
     let syncedThisRequest = assignedFromDb;
     let currentSyncedCount = syncedCount;
@@ -19814,7 +21736,7 @@ var resolver18 = {
         notes: "Leads INEGI asignados desde BD"
       });
       if (!consumeResult.success) {
-        const result2 = {
+        const result4 = {
           success: false,
           message: MSG.quotaFull(
             consumeResult.syncedCount,
@@ -19824,8 +21746,8 @@ var resolver18 = {
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
-        await logResult(context, userId, company.id, input, result2);
-        return result2;
+        await logResult(context, userId, company.id, input, result4);
+        return result4;
       }
       currentSyncedCount = consumeResult.syncedCount;
     }
@@ -19835,7 +21757,7 @@ var resolver18 = {
       currentSyncedCount
     });
     if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
-      const result2 = {
+      const result4 = {
         success: true,
         message: MSG.added(assignedFromDb),
         created: 0,
@@ -19845,8 +21767,8 @@ var resolver18 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     const catalogWhere = {
       AND: [
@@ -19895,18 +21817,27 @@ var resolver18 = {
       catalogRowsInBox: catalogRows.length,
       nearbyInRadius: nearbyCatalog.length
     });
+    const ownedEstablishments = await establishmentsOwnedByCompany(
+      context,
+      company.id,
+      nearbyCatalog.map((row) => row.id)
+    );
+    const availableInCatalog = nearbyCatalog.filter(
+      (row) => !ownedEstablishments.has(row.id)
+    ).length;
     const token = process.env.INEGI_DENUE_TOKEN?.trim();
     const stillNeed = maxResults - syncedThisRequest;
-    const willCallDenue = nearbyCatalog.length < stillNeed && Boolean(token);
+    const willCallDenue = availableInCatalog < stillNeed && Boolean(token);
     console.log("[syncLeadsFromInegi] DENUE live sync decision", {
       stillNeed,
       nearbyCatalog: nearbyCatalog.length,
+      availableInCatalog,
       willCallDenue,
       radiusKm,
       radiusMetersCap: DENUE_MAX_RADIUS_METERS,
-      reasonSkipDenue: !token ? "no_token" : nearbyCatalog.length >= stillNeed ? "catalog_sufficient" : null
+      reasonSkipDenue: !token ? "no_token" : availableInCatalog >= stillNeed ? "catalog_sufficient" : null
     });
-    if (nearbyCatalog.length < stillNeed && token) {
+    if (willCallDenue) {
       const radiusMeters = Math.min(
         Math.max(1, Math.round(radiusKm * 1e3)),
         DENUE_MAX_RADIUS_METERS
@@ -19974,33 +21905,34 @@ var resolver18 = {
           syncedThisRequest
         });
         if (nearbyCatalog.length === 0 && syncedThisRequest === 0) {
-          const result2 = {
+          const result4 = {
             success: false,
             message: MSG.searchFailed,
             ...empty2,
             syncedCount: currentSyncedCount,
             leadLimit
           };
-          await logResult(context, userId, company.id, input, result2);
-          return result2;
+          await logResult(context, userId, company.id, input, result4);
+          return result4;
         }
       }
     } else if (nearbyCatalog.length === 0 && !token && syncedThisRequest === 0) {
       console.warn("[syncLeadsFromInegi] abort: empty catalog and no INEGI_DENUE_TOKEN");
-      const result2 = {
+      const result4 = {
         success: false,
         message: MSG.searchFailed,
         ...empty2,
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result2);
-      return result2;
+      await logResult(context, userId, company.id, input, result4);
+      return result4;
     }
     let assignedFromCatalog = 0;
     for (const establishment of nearbyCatalog) {
       if (syncedThisRequest >= maxResults) break;
       if (leadLimit !== null && currentSyncedCount >= leadLimit) break;
+      if (ownedEstablishments.has(establishment.id)) continue;
       try {
         const kind = await assignEstablishment(
           context,
@@ -20032,7 +21964,7 @@ var resolver18 = {
         currentSyncedCount = consumeResult.syncedCount;
       }
     }
-    const result = {
+    const result3 = {
       success: true,
       message: syncedThisRequest === 0 ? MSG.noneFound : MSG.added(syncedThisRequest),
       created,
@@ -20043,21 +21975,21 @@ var resolver18 = {
       leadLimit
     };
     console.log("[syncLeadsFromInegi] DONE", {
-      success: result.success,
+      success: result3.success,
       syncedThisRequest,
       created,
       alreadyInDb,
       assignedFromCatalog,
-      message: result.message
+      message: result3.message
     });
-    await logResult(context, userId, company.id, input, result);
-    return result;
+    await logResult(context, userId, company.id, input, result3);
+    return result3;
   }
 };
-var syncLeadsFromInegi_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
+var syncLeadsFromInegi_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
 
 // graphql/customs/mutations/inegi/promoteInegiEstablishmentToLead.ts
-var typeDefs22 = `
+var typeDefs21 = `
   input PromoteInegiEstablishmentToLeadInput {
     establishmentId: ID!
     assignedSellerId: ID
@@ -20075,7 +22007,7 @@ var typeDefs22 = `
     promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
   }
 `;
-var definition19 = `
+var definition18 = `
   promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
 `;
 function fail3(message) {
@@ -20100,7 +22032,7 @@ var ESTABLISHMENT_QUERY2 = `
   lng
   economicActivity { id name scianCode }
 `;
-async function ensureStatusForImport2(context, leadId, companyId, sellerId) {
+async function ensureStatusForImport2(context, leadId, companyId) {
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
     where: {
       businessLead: { id: { equals: leadId } },
@@ -20114,7 +22046,6 @@ async function ensureStatusForImport2(context, leadId, companyId, sellerId) {
     data: {
       businessLead: { connect: { id: leadId } },
       saasCompany: { connect: { id: companyId } },
-      ...sellerId ? { salesPerson: { connect: { id: sellerId } } } : {},
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
       opportunityLevel: "Media"
     }
@@ -20149,7 +22080,7 @@ function quotaMessage(blockingReason, remainingQuota, syncedCount, leadLimit) {
   }
   return null;
 }
-var resolver19 = {
+var resolver18 = {
   promoteInegiEstablishmentToLead: async (_root, { input }, context) => {
     if (!isSignedIn(context.session)) {
       return fail3("Debes iniciar sesi\xF3n para promover un establecimiento");
@@ -20205,12 +22136,7 @@ var resolver19 = {
       (company) => company.id === companyId
     );
     if (existingLead && alreadyOnCompany) {
-      await ensureStatusForImport2(
-        context,
-        existingLead.id,
-        companyId,
-        sellerId
-      );
+      await ensureStatusForImport2(context, existingLead.id, companyId);
       return {
         success: true,
         message: "Este establecimiento ya es un lead de tu empresa",
@@ -20226,12 +22152,7 @@ var resolver19 = {
           ...sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}
         }
       });
-      await ensureStatusForImport2(
-        context,
-        existingLead.id,
-        companyId,
-        sellerId
-      );
+      await ensureStatusForImport2(context, existingLead.id, companyId);
       const consumeResult = await consumeCompanyCredits(context, {
         companyId,
         amount: 1,
@@ -20242,6 +22163,14 @@ var resolver19 = {
       if (!consumeResult.success) {
         return fail3("No se pudieron descontar cr\xE9ditos para asignar el lead");
       }
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.LEAD_PROMOTED_FROM_INEGI,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId: existingLead.id,
+        summary: `Tom\xF3 del cat\xE1logo INEGI a ${establishment.name} (ya estaba en Kadesh)`,
+        metadata: { establishmentId: establishment.id, creditsCharged: 1, alreadyInDb: true, sellerId }
+      });
       return {
         success: true,
         message: "Lead asignado a tu empresa",
@@ -20295,7 +22224,7 @@ var resolver19 = {
         data,
         query: "id"
       });
-      await ensureStatusForImport2(context, lead.id, companyId, sellerId);
+      await ensureStatusForImport2(context, lead.id, companyId);
       const consumeResult = await consumeCompanyCredits(context, {
         companyId,
         amount: 1,
@@ -20306,6 +22235,14 @@ var resolver19 = {
       if (!consumeResult.success) {
         return fail3("No se pudieron descontar cr\xE9ditos para crear el lead");
       }
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.LEAD_PROMOTED_FROM_INEGI,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId: lead.id,
+        summary: `Tom\xF3 del cat\xE1logo INEGI a ${establishment.name}`,
+        metadata: { establishmentId: establishment.id, creditsCharged: 1, alreadyInDb: false, sellerId }
+      });
       return {
         success: true,
         message: "Lead importado desde INEGI DENUE",
@@ -20317,10 +22254,10 @@ var resolver19 = {
     }
   }
 };
-var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
+var promoteInegiEstablishmentToLead_default = { typeDefs: typeDefs21, definition: definition18, resolver: resolver18 };
 
 // graphql/customs/mutations/inegi/fetchInegiIndicator.ts
-var typeDefs23 = `
+var typeDefs22 = `
   input FetchInegiIndicatorInput {
     indicatorId: String!
     geographicCode: String!
@@ -20350,7 +22287,7 @@ var typeDefs23 = `
     fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   }
 `;
-var definition20 = `
+var definition19 = `
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
 `;
 var empty = {
@@ -20358,7 +22295,7 @@ var empty = {
   updated: 0,
   indicators: []
 };
-var resolver20 = {
+var resolver19 = {
   fetchInegiIndicator: async (_root, {
     input
   }, context) => {
@@ -20402,7 +22339,7 @@ var resolver20 = {
     }
   }
 };
-var fetchInegiIndicator_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
+var fetchInegiIndicator_default = { typeDefs: typeDefs22, definition: definition19, resolver: resolver19 };
 
 // graphql/customs/mutations/pet/veterinary/claimPetPlace.ts
 var PHONE_PATTERN = /^\+?\d{10,}$/;
@@ -20414,7 +22351,7 @@ function normalizePhone(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var typeDefs24 = `
+var typeDefs23 = `
   input ClaimPetPlaceInput {
     petPlaceId: String!
     role: String!
@@ -20429,10 +22366,10 @@ var typeDefs24 = `
     petPlaceId: String
   }
 `;
-var definition21 = `
+var definition20 = `
   claimPetPlace(input: ClaimPetPlaceInput!): ClaimPetPlaceResult!
 `;
-var resolver21 = {
+var resolver20 = {
   claimPetPlace: async (_root, {
     input
   }, context) => {
@@ -20525,7 +22462,7 @@ var resolver21 = {
     };
   }
 };
-var claimPetPlace_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
+var claimPetPlace_default = { typeDefs: typeDefs23, definition: definition20, resolver: resolver20 };
 
 // graphql/customs/mutations/pet/veterinary/ensurePetPlaceType.ts
 async function ensurePetPlaceType(context, value) {
@@ -20556,12 +22493,12 @@ async function ensurePetPlaceType(context, value) {
 }
 async function ensurePetPlaceTypes(context, values) {
   const unique = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-  const rows = [];
+  const rows2 = [];
   for (const value of unique) {
     const row = await ensurePetPlaceType(context, value);
-    if (row) rows.push(row);
+    if (row) rows2.push(row);
   }
-  return rows;
+  return rows2;
 }
 
 // graphql/customs/mutations/pet/veterinary/updateMyPetPlace.ts
@@ -20578,7 +22515,7 @@ function normalizePhone2(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var typeDefs25 = `
+var typeDefs24 = `
   input UpdateMyPetPlaceInput {
     petPlaceId: String!
     name: String
@@ -20619,10 +22556,10 @@ var typeDefs25 = `
     petPlaceId: String
   }
 `;
-var definition22 = `
+var definition21 = `
   updateMyPetPlace(input: UpdateMyPetPlaceInput!): UpdateMyPetPlaceResult!
 `;
-var resolver22 = {
+var resolver21 = {
   updateMyPetPlace: async (_root, {
     input
   }, context) => {
@@ -20851,13 +22788,13 @@ var resolver22 = {
             where: existing.map((item) => ({ id: item.id }))
           });
         }
-        const rows = (socialMedia ?? []).filter((item) => {
+        const rows2 = (socialMedia ?? []).filter((item) => {
           const link = item.link?.trim() ?? "";
           return Boolean(link) && SOCIAL_MEDIA_OPTIONS.includes(
             item.social_media
           );
         });
-        for (const row of rows) {
+        for (const row of rows2) {
           await context.sudo().query.SocialMedia.createOne({
             data: {
               social_media: row.social_media,
@@ -20881,10 +22818,10 @@ var resolver22 = {
     };
   }
 };
-var updateMyPetPlace_default = { typeDefs: typeDefs25, definition: definition22, resolver: resolver22 };
+var updateMyPetPlace_default = { typeDefs: typeDefs24, definition: definition21, resolver: resolver21 };
 
 // graphql/customs/mutations/pet/veterinary/verifyPetPlace.ts
-var typeDefs26 = `
+var typeDefs25 = `
   input VerifyPetPlaceInput {
     petPlaceId: String!
     approved: Boolean!
@@ -20897,10 +22834,10 @@ var typeDefs26 = `
     verified: Boolean
   }
 `;
-var definition23 = `
+var definition22 = `
   verifyPetPlace(input: VerifyPetPlaceInput!): VerifyPetPlaceResult!
 `;
-var resolver23 = {
+var resolver22 = {
   verifyPetPlace: async (_root, {
     input
   }, context) => {
@@ -20983,7 +22920,7 @@ var resolver23 = {
     }
   }
 };
-var verifyPetPlace_default = { typeDefs: typeDefs26, definition: definition23, resolver: resolver23 };
+var verifyPetPlace_default = { typeDefs: typeDefs25, definition: definition22, resolver: resolver22 };
 
 // graphql/customs/mutations/pet/veterinary/ownedPlace.ts
 async function requireOwnedVerifiedPlace(context, petPlaceId, query = "id name verified claimStatus user { id }") {
@@ -21019,7 +22956,7 @@ async function requireOwnedVerifiedPlace(context, petPlaceId, query = "id name v
 }
 
 // graphql/customs/mutations/pet/veterinary/requestPetPlaceService.ts
-var typeDefs27 = `
+var typeDefs26 = `
   input RequestPetPlaceServiceInput {
     petPlaceId: String!
     name: String!
@@ -21033,13 +22970,13 @@ var typeDefs27 = `
     status: String
   }
 `;
-var definition24 = `
+var definition23 = `
   requestPetPlaceService(input: RequestPetPlaceServiceInput!): RequestPetPlaceServiceResult!
 `;
 function normalizeName(value) {
   return value.trim().replace(/\s+/g, " ");
 }
-var resolver24 = {
+var resolver23 = {
   requestPetPlaceService: async (_root, { input }, context) => {
     const owned = await requireOwnedVerifiedPlace(context, input.petPlaceId);
     if ("success" in owned) return { ...owned, serviceId: null, status: null };
@@ -21118,12 +23055,12 @@ var resolver24 = {
     };
   }
 };
-var requestPetPlaceService_default = { typeDefs: typeDefs27, definition: definition24, resolver: resolver24 };
+var requestPetPlaceService_default = { typeDefs: typeDefs26, definition: definition23, resolver: resolver23 };
 
 // graphql/customs/mutations/pet/veterinary/createPetPlacePatient.ts
 var PHONE_PATTERN3 = /^\+?\d{10,}$/;
 var EMAIL_PATTERN = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-var typeDefs28 = `
+var typeDefs27 = `
   input CreatePetPlacePatientInput {
     petPlaceId: String!
     name: String!
@@ -21147,7 +23084,7 @@ var typeDefs28 = `
     patient: PetPlacePatient
   }
 `;
-var definition25 = `
+var definition24 = `
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
 `;
 function normalizePhone3(value) {
@@ -21157,7 +23094,7 @@ function normalizePhone3(value) {
   const digits = trimmed.replace(/\D/g, "");
   return hasPlus ? `+${digits}` : digits;
 }
-var resolver25 = {
+var resolver24 = {
   createPetPlacePatient: async (_root, {
     input
   }, context) => {
@@ -21242,10 +23179,10 @@ var resolver25 = {
     };
   }
 };
-var createPetPlacePatient_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
+var createPetPlacePatient_default = { typeDefs: typeDefs27, definition: definition24, resolver: resolver24 };
 
 // graphql/customs/mutations/pet/veterinary/createClinicAppointment.ts
-var typeDefs29 = `
+var typeDefs28 = `
   input CreateClinicAppointmentInput {
     petPlaceId: String!
     customerId: ID!
@@ -21263,10 +23200,10 @@ var typeDefs29 = `
     appointmentId: String
   }
 `;
-var definition26 = `
+var definition25 = `
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
 `;
-var resolver26 = {
+var resolver25 = {
   createClinicAppointment: async (_root, {
     input
   }, context) => {
@@ -21344,7 +23281,7 @@ var resolver26 = {
     }
   }
 };
-var createClinicAppointment_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+var createClinicAppointment_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
 
 // graphql/customs/mutations/pet/veterinary/index.ts
 var veterinaryMutations = {
@@ -21377,7 +23314,7 @@ var veterinary_default = veterinaryMutations;
 
 // graphql/customs/mutations/pet/createAnimalReport.ts
 var import_stream = require("stream");
-var import_graphql = require("graphql");
+var import_graphql2 = require("graphql");
 var import_image_size = require("image-size");
 var TYPE_ALIASES = {
   perro: "dog",
@@ -21393,7 +23330,7 @@ var TYPE_ALIASES = {
   mam\u00EDfero: "mammal",
   mammal: "mammal"
 };
-var typeDefs30 = `
+var typeDefs29 = `
   input CreateAnimalReportInput {
     type: String!
     name: String!
@@ -21424,7 +23361,7 @@ var typeDefs30 = `
     url: String!
   }
 `;
-var definition27 = `
+var definition26 = `
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
 `;
 function serviceToken(context) {
@@ -21438,7 +23375,7 @@ function assertCanCreate(context) {
   const token = serviceToken(context);
   if (expected && token && token === expected) return;
   if (isSignedIn(context.session)) return;
-  throw new import_graphql.GraphQLError("No autorizado para crear reportes.");
+  throw new import_graphql2.GraphQLError("No autorizado para crear reportes.");
 }
 function parseLostDate(value) {
   const raw = value?.trim();
@@ -21446,17 +23383,17 @@ function parseLostDate(value) {
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   const date = dateOnly ? /* @__PURE__ */ new Date(`${raw}T12:00:00-06:00`) : new Date(raw);
   if (Number.isNaN(date.getTime())) {
-    throw new import_graphql.GraphQLError("La fecha no es v\xE1lida.");
+    throw new import_graphql2.GraphQLError("La fecha no es v\xE1lida.");
   }
   if (date.getTime() > Date.now()) {
-    throw new import_graphql.GraphQLError("La fecha no puede ser posterior a hoy.");
+    throw new import_graphql2.GraphQLError("La fecha no puede ser posterior a hoy.");
   }
   return date.toISOString();
 }
 async function resolveType(context, type) {
   const key = type.trim();
   const alias = TYPE_ALIASES[key.toLowerCase()] || key;
-  const rows = await context.sudo().query.AnimalType.findMany({
+  const rows2 = await context.sudo().query.AnimalType.findMany({
     where: {
       OR: [
         { id: { equals: key } },
@@ -21467,13 +23404,13 @@ async function resolveType(context, type) {
     query: "id name",
     take: 1
   });
-  if (!rows[0]) throw new import_graphql.GraphQLError("Elige un tipo de animal v\xE1lido.");
-  return rows[0];
+  if (!rows2[0]) throw new import_graphql2.GraphQLError("Elige un tipo de animal v\xE1lido.");
+  return rows2[0];
 }
 async function resolveBreed(context, typeId, breed) {
   const key = breed?.trim();
   if (key) {
-    const rows = await context.sudo().query.AnimalBreed.findMany({
+    const rows2 = await context.sudo().query.AnimalBreed.findMany({
       where: {
         animal_type: { id: { equals: typeId } },
         OR: [{ id: { equals: key } }, { breed: { equals: key } }]
@@ -21481,7 +23418,7 @@ async function resolveBreed(context, typeId, breed) {
       query: "id breed",
       take: 1
     });
-    if (rows[0]) return rows[0].id;
+    if (rows2[0]) return rows2[0].id;
   }
   const fallback = await context.sudo().query.AnimalBreed.findMany({
     where: { animal_type: { id: { equals: typeId } } },
@@ -21497,19 +23434,19 @@ async function storeRemoteImage(context, url) {
   const res = await fetch(url, {
     headers: { "User-Agent": "KadeshPet/1.0 (https://pet.kadesh.com.mx)" }
   });
-  if (!res.ok) throw new import_graphql.GraphQLError("No se pudo descargar una imagen del reporte.");
+  if (!res.ok) throw new import_graphql2.GraphQLError("No se pudo descargar una imagen del reporte.");
   const buffer = Buffer.from(await res.arrayBuffer());
   if (buffer.length > 8 * 1024 * 1024) {
-    throw new import_graphql.GraphQLError("Una imagen pesa m\xE1s de 8 MB.");
+    throw new import_graphql2.GraphQLError("Una imagen pesa m\xE1s de 8 MB.");
   }
   let probed;
   try {
     probed = (0, import_image_size.imageSize)(buffer);
   } catch {
-    throw new import_graphql.GraphQLError("La imagen debe ser jpg, png o webp.");
+    throw new import_graphql2.GraphQLError("La imagen debe ser jpg, png o webp.");
   }
   if (probed.type !== "jpg" && probed.type !== "png" && probed.type !== "webp") {
-    throw new import_graphql.GraphQLError("La imagen debe ser jpg, png o webp.");
+    throw new import_graphql2.GraphQLError("La imagen debe ser jpg, png o webp.");
   }
   const images = context.images("s3_animals");
   const stored = await images.getDataFromStream(
@@ -21518,7 +23455,7 @@ async function storeRemoteImage(context, url) {
   );
   return stored;
 }
-var resolver27 = {
+var resolver26 = {
   createAnimalReport: async (_root, { input }, context) => {
     try {
       assertCanCreate(context);
@@ -21540,7 +23477,7 @@ var resolver27 = {
         name: input.name
       });
       if (duplicates.length && !input.confirmDuplicate) {
-        throw new import_graphql.GraphQLError(
+        throw new import_graphql2.GraphQLError(
           `Parece que este reporte ya existe: ${duplicates[0].url}`
         );
       }
@@ -21607,17 +23544,17 @@ var resolver27 = {
       return { id: animal.id, slug, url: petPublicUrl(slug) };
     } catch (error) {
       console.error("[animal] createAnimalReport", error);
-      if (error instanceof import_graphql.GraphQLError) throw error;
+      if (error instanceof import_graphql2.GraphQLError) throw error;
       const message = error instanceof Error ? error.message : "No se pudo publicar el reporte.";
-      throw new import_graphql.GraphQLError(message);
+      throw new import_graphql2.GraphQLError(message);
     }
   }
 };
-var createAnimalReport = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
+var createAnimalReport = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
 var createAnimalReport_default = createAnimalReport;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs31 = `
+var typeDefs30 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -21627,10 +23564,10 @@ var typeDefs31 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition28 = `
+var definition27 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver28 = {
+var resolver27 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -21681,10 +23618,10 @@ var resolver28 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var unsubscribeBlog_default = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs32 = `
+var typeDefs31 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -21695,10 +23632,10 @@ var typeDefs32 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition29 = `
+var definition28 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver29 = {
+var resolver28 = {
   /**
    * Pensada para un cron externo (GitHub Actions, ver .github/workflows/publish-scheduled-posts.yml),
    * no para un usuario logueado: se autoriza con `CRON_SECRET`, no con sesión/rol.
@@ -21746,10 +23683,10 @@ var resolver29 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var publishScheduledPosts_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs33 = `
+var typeDefs32 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -21760,7 +23697,7 @@ var typeDefs33 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition30 = `
+var definition29 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -21769,7 +23706,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver30 = {
+var resolver29 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -21837,7 +23774,7 @@ var resolver30 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -21932,7 +23869,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs34 = `
+var typeDefs33 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -21956,7 +23893,7 @@ var typeDefs34 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition31 = `
+var definition30 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -21972,7 +23909,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver31 = {
+var resolver30 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -22053,13 +23990,33 @@ var resolver31 = {
       data,
       query: SETTINGS_QUERY2
     });
+    const secretFields = {
+      whatsappAccessTokenEncrypted: "accessToken",
+      whatsappAppSecretEncrypted: "appSecret"
+    };
+    const changes = {};
+    for (const [field, value] of Object.entries(data)) {
+      if (field in secretFields) {
+        changes[secretFields[field]] = value ? "replaced" : "removed";
+      } else if (field === "whatsappPhoneNumberId" || field === "whatsappBusinessAccountId") {
+        changes[field] = value ?? null;
+      }
+    }
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.WHATSAPP_SETTINGS_UPDATED,
+      companyId: input.companyId,
+      entityType: "SaasCompany",
+      entityId: input.companyId,
+      summary: "Cambi\xF3 la configuraci\xF3n de WhatsApp",
+      metadata: { changes }
+    });
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // utils/intregrations/whatsapp.ts
-var import_crypto4 = __toESM(require("crypto"));
+var import_crypto3 = __toESM(require("crypto"));
 var GRAPH_API_VERSION2 = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
 function parseGraphError(bodyText) {
   try {
@@ -22309,7 +24266,7 @@ async function sendWhatsAppTemplateMessage({
             components: [
               {
                 type: "body",
-                parameters: bodyParams.map((text66) => ({ type: "text", text: text66 }))
+                parameters: bodyParams.map((text73) => ({ type: "text", text: text73 }))
               }
             ]
           } : {}
@@ -22564,12 +24521,12 @@ function verifyWhatsAppSignature({
   signatureHeader
 }) {
   if (!signatureHeader) return false;
-  const expected = import_crypto4.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const expected = import_crypto3.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
   const received = signatureHeader.replace(/^sha256=/, "");
   const expectedBuf = Buffer.from(expected, "hex");
   const receivedBuf = Buffer.from(received, "hex");
   if (expectedBuf.length !== receivedBuf.length) return false;
-  return import_crypto4.default.timingSafeEqual(expectedBuf, receivedBuf);
+  return import_crypto3.default.timingSafeEqual(expectedBuf, receivedBuf);
 }
 
 // utils/whatsapp/templateStatus.ts
@@ -22677,7 +24634,7 @@ async function ensureOutreachTemplate(company, context) {
       });
       return { error: null };
     }
-    const result = await createWhatsAppTemplate({
+    const result3 = await createWhatsAppTemplate({
       wabaId: company.whatsappBusinessAccountId,
       accessToken,
       name: OUTREACH_TEMPLATE_NAME,
@@ -22690,7 +24647,7 @@ async function ensureOutreachTemplate(company, context) {
       data: {
         whatsappTemplateName: OUTREACH_TEMPLATE_NAME,
         whatsappTemplateLanguage: OUTREACH_TEMPLATE_LANGUAGE,
-        whatsappTemplateStatus: mapTemplateStatus(result.status) ?? "pending"
+        whatsappTemplateStatus: mapTemplateStatus(result3.status) ?? "pending"
       }
     });
     return { error: null };
@@ -22704,7 +24661,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs35 = `
+var typeDefs34 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -22718,10 +24675,10 @@ var typeDefs35 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition32 = `
+var definition31 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver32 = {
+var resolver31 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -22766,7 +24723,7 @@ var resolver32 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -22904,7 +24861,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs36 = `
+var typeDefs35 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -22915,10 +24872,10 @@ var typeDefs36 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition33 = `
+var definition32 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver33 = {
+var resolver32 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -22952,16 +24909,16 @@ var resolver33 = {
     };
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
-      const result = await sendWhatsAppTextMessage({
+      const result3 = await sendWhatsAppTextMessage({
         phoneNumberId: company.whatsappPhoneNumberId,
         accessToken,
         to: target.to,
         body: trimmedBody
       });
       await context.sudo().query.TechWhatsAppMessage.createOne({
-        data: { ...baseData, waMessageId: result.id, status: "sent" }
+        data: { ...baseData, waMessageId: result3.id, status: "sent" }
       });
-      return { success: true, message: "Mensaje enviado", messageId: result.id };
+      return { success: true, message: "Mensaje enviado", messageId: result3.id };
     } catch (err) {
       const graphCode = err?.graphCode;
       const isOutsideWindow = graphCode === 131047;
@@ -22979,7 +24936,7 @@ var resolver33 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -23007,8 +24964,8 @@ function buildDate(d1, d2, yearRaw, timeRaw) {
   const { hour, minute, second } = parseTimeParts(timeRaw);
   return new Date(year, month - 1, day, hour, minute, second);
 }
-function parseWhatsAppChatExport(text66) {
-  const lines = text66.split(/\r?\n/);
+function parseWhatsAppChatExport(text73) {
+  const lines = text73.split(/\r?\n/);
   const messages = [];
   for (const rawLine of lines) {
     const line = rawLine.replace(/^‎/, "");
@@ -23035,19 +24992,19 @@ ${line}`.trim();
 }
 function distinctSenders(messages) {
   const seen = /* @__PURE__ */ new Set();
-  const result = [];
+  const result3 = [];
   for (const msg of messages) {
     if (!seen.has(msg.sender)) {
       seen.add(msg.sender);
-      result.push(msg.sender);
+      result3.push(msg.sender);
     }
   }
-  return result;
+  return result3;
 }
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs37 = `
+var typeDefs36 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -23064,7 +25021,7 @@ var typeDefs37 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition34 = `
+var definition33 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -23075,7 +25032,7 @@ var definition34 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver34 = {
+var resolver33 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -23116,15 +25073,15 @@ var resolver34 = {
       existing.map((m) => `${new Date(m.createdAt).getTime()}|${m.body}`)
     );
     const normalizedLeadSender = leadSenderName?.trim() || null;
-    const rows = parsed.map((msg) => ({
+    const rows2 = parsed.map((msg) => ({
       key: `${msg.timestamp.getTime()}|${msg.body}`,
       msg
     })).filter(({ key }) => !existingKeys.has(key));
-    const skippedDuplicates = parsed.length - rows.length;
-    if (rows.length === 0) {
+    const skippedDuplicates = parsed.length - rows2.length;
+    if (rows2.length === 0) {
       return toResult6(true, "No hay mensajes nuevos que importar (ya se hab\xEDan importado)", 0, skippedDuplicates);
     }
-    const data = rows.map(({ msg }) => {
+    const data = rows2.map(({ msg }) => {
       const direction = !normalizedLeadSender ? "unknown" : msg.sender === normalizedLeadSender ? "inbound" : "outbound";
       return {
         companyId: effectiveCompanyId,
@@ -23145,6 +25102,14 @@ var resolver34 = {
         err instanceof Error ? err.message : "No se pudo guardar el historial importado"
       );
     }
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.WHATSAPP_CHAT_IMPORTED,
+      companyId: effectiveCompanyId,
+      entityType: "TechBusinessLead",
+      entityId: businessLeadId,
+      summary: `Import\xF3 ${data.length} mensajes de un chat de WhatsApp`,
+      metadata: { imported: data.length, skippedDuplicates }
+    });
     return toResult6(
       true,
       `${data.length} mensajes importados${skippedDuplicates ? `, ${skippedDuplicates} ya exist\xEDan` : ""}`,
@@ -23153,10 +25118,10 @@ var resolver34 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs38 = `
+var typeDefs37 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -23166,7 +25131,7 @@ var typeDefs38 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition35 = `
+var definition34 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -23178,7 +25143,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver35 = {
+var resolver34 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -23284,10 +25249,10 @@ var resolver35 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var import_crypto5 = __toESM(require("crypto"));
+var import_crypto4 = __toESM(require("crypto"));
 
 // utils/intregrations/s3Storage.ts
 var import_client_s3 = require("@aws-sdk/client-s3");
@@ -23333,7 +25298,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs39 = `
+var typeDefs38 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -23344,7 +25309,7 @@ var typeDefs39 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition36 = `
+var definition35 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -23357,7 +25322,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver36 = {
+var resolver35 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -23383,7 +25348,7 @@ var resolver36 = {
     const { filename, mimetype, createReadStream } = await media;
     const buffer = await streamToBuffer(createReadStream());
     const mediaType = mimetype.startsWith("image/") ? "image" : "document";
-    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto5.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto4.default.randomUUID()}-${filename}`;
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
       const uploaded = await uploadMediaToWhatsApp({
@@ -23441,10 +25406,10 @@ var resolver36 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs40 = `
+var typeDefs39 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -23454,13 +25419,13 @@ var typeDefs40 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition37 = `
+var definition36 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver37 = {
+var resolver36 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -23492,19 +25457,35 @@ var resolver37 = {
         data: { salesPerson: { set: [{ id: salesPersonId }] } }
       });
       const name = [person.name, person.lastName].filter(Boolean).join(" ");
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.WHATSAPP_CONVERSATION_ASSIGNED,
+        companyId: effectiveCompanyId,
+        entityType: "TechBusinessLead",
+        entityId: businessLeadId,
+        summary: `Asign\xF3 el chat de ${lead.businessName ?? "un lead"} a ${name || "un vendedor"}`,
+        metadata: { toUserId: salesPersonId, to: name || null }
+      });
       return toResult9(true, `Chat asignado a ${name || "el vendedor"}`);
     }
     await context.sudo().query.TechBusinessLead.updateOne({
       where: { id: businessLeadId },
       data: { salesPerson: { set: [] } }
     });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.WHATSAPP_CONVERSATION_ASSIGNED,
+      companyId: effectiveCompanyId,
+      entityType: "TechBusinessLead",
+      entityId: businessLeadId,
+      summary: `Dej\xF3 sin asignar el chat de ${lead.businessName ?? "un lead"}`,
+      metadata: { toUserId: null, to: null }
+    });
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs41 = `
+var typeDefs40 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -23515,13 +25496,13 @@ var typeDefs41 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition38 = `
+var definition37 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver38 = {
+var resolver37 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -23538,7 +25519,7 @@ var resolver38 = {
       (c) => c.id === companyId
     );
     if (!lead || !inCompany) return toResult10(false, "No se encontr\xF3 el cliente");
-    const { count } = await context.sudo().prisma.techWhatsAppMessage.updateMany({
+    const { count: count2 } = await context.sudo().prisma.techWhatsAppMessage.updateMany({
       where: {
         companyId,
         businessLeadId: null,
@@ -23547,10 +25528,18 @@ var resolver38 = {
       },
       data: { businessLeadId }
     });
-    return toResult10(true, "Conversaci\xF3n enlazada al cliente", count);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.WHATSAPP_CONTACT_LINKED,
+      companyId,
+      entityType: "TechBusinessLead",
+      entityId: businessLeadId,
+      summary: `Enlaz\xF3 una conversaci\xF3n de WhatsApp a un cliente (${count2} mensajes)`,
+      metadata: { linkedMessages: count2 }
+    });
+    return toResult10(true, "Conversaci\xF3n enlazada al cliente", count2);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -23563,7 +25552,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs42 = `
+var typeDefs41 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -23599,7 +25588,7 @@ var typeDefs42 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition39 = `
+var definition38 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
 function fail4(message, detail = null) {
@@ -23616,7 +25605,7 @@ function fail4(message, detail = null) {
     templateError: null
   };
 }
-var resolver39 = {
+var resolver38 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -23790,11 +25779,11 @@ var resolver39 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // utils/googleCalendar/state.ts
-var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
-var import_crypto6 = require("crypto");
+var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
+var import_crypto5 = require("crypto");
 var PURPOSE = "google-calendar-connect";
 var devFallbackSecret = null;
 function getSecret() {
@@ -23803,15 +25792,15 @@ function getSecret() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("SESSION_SECRET es requerido para firmar el state de Google Calendar");
   }
-  devFallbackSecret ??= (0, import_crypto6.randomBytes)(32).toString("hex");
+  devFallbackSecret ??= (0, import_crypto5.randomBytes)(32).toString("hex");
   return devFallbackSecret;
 }
 function signGoogleCalendarState(payload) {
-  return import_jsonwebtoken2.default.sign({ ...payload, purpose: PURPOSE }, getSecret(), { expiresIn: "15m" });
+  return import_jsonwebtoken.default.sign({ ...payload, purpose: PURPOSE }, getSecret(), { expiresIn: "15m" });
 }
 function verifyGoogleCalendarState(state) {
   try {
-    const decoded = import_jsonwebtoken2.default.verify(state, getSecret());
+    const decoded = import_jsonwebtoken.default.verify(state, getSecret());
     if (decoded.purpose !== PURPOSE || typeof decoded.uid !== "string" || typeof decoded.cid !== "string" || typeof decoded.st !== "string") {
       return null;
     }
@@ -23857,7 +25846,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs43 = `
+var typeDefs42 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -23868,11 +25857,11 @@ var typeDefs43 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition40 = `
+var definition39 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
 var fail5 = (message) => ({ success: false, message, url: null });
-var resolver40 = {
+var resolver39 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -23902,7 +25891,7 @@ var resolver40 = {
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -23957,7 +25946,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs44 = `
+var typeDefs43 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -23970,7 +25959,7 @@ var typeDefs44 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition41 = `
+var definition40 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
 var fail6 = (message) => ({
@@ -23980,7 +25969,7 @@ var fail6 = (message) => ({
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver41 = {
+var resolver40 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -24048,6 +26037,14 @@ var resolver41 = {
         operation: "list_calendars",
         success: true
       });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.CALENDAR_CONNECTED,
+        companyId,
+        entityType: "GoogleCalendarAccount",
+        entityId: account.id,
+        summary: `Conect\xF3 Google Calendar (${account.googleAccountEmail})`,
+        metadata: { scopeType, calendarsCount, reconnected: Boolean(existing) }
+      });
       return {
         success: true,
         message: "Cuenta de Google conectada",
@@ -24061,10 +26058,10 @@ var resolver41 = {
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs45 = `
+var typeDefs44 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -24074,15 +26071,15 @@ var typeDefs45 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition42 = `
+var definition41 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver42 = {
+var resolver41 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
-      query: `id refreshTokenEncrypted ${ACCOUNT_SCOPE_QUERY}`
+      query: `id googleAccountEmail refreshTokenEncrypted ${ACCOUNT_SCOPE_QUERY}`
     });
     if (!account) return { success: false, message: "Cuenta no encontrada" };
     if (!canManageGoogleCalendarAccount(context.session, account)) {
@@ -24098,6 +26095,14 @@ var resolver42 = {
       });
       await deleteSelections(context, selections.map((s) => s.id));
       await sudo.query.GoogleCalendarAccount.deleteOne({ where: { id: accountId } });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.CALENDAR_DISCONNECTED,
+        companyId: accountCompanyId(account),
+        entityType: "GoogleCalendarAccount",
+        entityId: accountId,
+        summary: `Desconect\xF3 Google Calendar${account.googleAccountEmail ? ` (${account.googleAccountEmail})` : ""}`,
+        metadata: { scopeType: account.scopeType ?? null }
+      });
       return { success: true, message: "Cuenta de Google desconectada" };
     } catch (err) {
       console.error("disconnectGoogleCalendarAccount:", err);
@@ -24105,10 +26110,10 @@ var resolver42 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs46 = `
+var typeDefs45 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -24119,10 +26124,10 @@ var typeDefs46 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition43 = `
+var definition42 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver43 = {
+var resolver42 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -24168,10 +26173,10 @@ var resolver43 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs47 = `
+var typeDefs46 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -24183,10 +26188,10 @@ var typeDefs47 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition44 = `
+var definition43 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver44 = {
+var resolver43 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -24220,10 +26225,10 @@ var resolver44 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs48 = `
+var typeDefs47 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -24245,7 +26250,7 @@ var typeDefs48 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition45 = `
+var definition44 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
@@ -24258,7 +26263,7 @@ var fail7 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver45 = {
+var resolver44 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -24293,12 +26298,1527 @@ var resolver45 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+
+// graphql/customs/mutations/activity/trackEvents.ts
+var typeDefs48 = `
+  input TrackEventInput {
+    """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
+    type: String!
+    """Datos chicos y planos: secci\xF3n, m\xF3dulo, conteo\u2026 (sin datos personales)."""
+    metadata: JSON
+    entityType: String
+    entityId: String
+    """Solo admin.*: la empresa que se est\xE1 viendo."""
+    companyId: ID
+    """Hora del navegador (ISO). Se usa si es de los \xFAltimos 10 minutos."""
+    occurredAt: String
+  }
+
+  type TrackEventsResult {
+    accepted: Int!
+    rejected: Int!
+  }
+
+  type Mutation {
+    trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
+  }
+`;
+var definition45 = `
+  trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
+`;
+var MAX_EVENTS = 50;
+var MAX_METADATA_KEYS = 20;
+var MAX_TEXT2 = 200;
+var CLOCK_WINDOW_MS = 10 * 60 * 1e3;
+var ADMIN_VIEW_DEDUPE_MS = 10 * 60 * 1e3;
+var MX_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+function text72(value, max = MAX_TEXT2) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, max) : null;
+}
+function flatMetadata(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out = {};
+  for (const [key, v] of Object.entries(value).slice(0, MAX_METADATA_KEYS)) {
+    const k = key.slice(0, 40);
+    if (typeof v === "string") out[k] = v.slice(0, MAX_TEXT2);
+    else if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    else if (typeof v === "boolean" || v === null) out[k] = v;
+  }
+  return out;
+}
+function clientTime(value) {
+  if (!value) return void 0;
+  const at = new Date(value);
+  const diff = Date.now() - at.getTime();
+  if (Number.isNaN(at.getTime()) || diff > CLOCK_WINDOW_MS || diff < -6e4) return void 0;
+  return at;
+}
+function summaryFor(type, meta, label) {
+  const section = text72(meta.section) ?? text72(meta.tab) ?? "una secci\xF3n";
+  const feature = text72(meta.feature) ?? text72(meta.featureKey) ?? "un m\xF3dulo";
+  const tour = text72(meta.tour) ?? text72(meta.tourId) ?? "";
+  switch (type) {
+    case ACTIVITY_EVENT.UI_SECTION_VIEWED:
+      return `Abri\xF3 ${section}`;
+    case ACTIVITY_EVENT.UI_FEATURE_LOCKED_VIEWED:
+      return `Vio bloqueado: ${feature}`;
+    case ACTIVITY_EVENT.UI_UPGRADE_CLICKED:
+      return `Hizo clic en mejorar plan (${feature})`;
+    case ACTIVITY_EVENT.UI_TOUR_COMPLETED:
+      return `Complet\xF3 el tour ${tour}`.trim();
+    case ACTIVITY_EVENT.UI_TOUR_SKIPPED:
+      return `Salt\xF3 el tour ${tour}`.trim();
+    case ACTIVITY_EVENT.LEAD_EXPORTED: {
+      const count2 = typeof meta.count === "number" ? meta.count : null;
+      return count2 != null ? `Export\xF3 ${count2} leads` : "Export\xF3 leads";
+    }
+    case ACTIVITY_EVENT.AUTH_LOGOUT:
+      return "Cerr\xF3 sesi\xF3n";
+    case ACTIVITY_EVENT.ADMIN_VIEWED_COMPANY:
+      return `Abri\xF3 el 360 de ${label ?? "una empresa"}`;
+    case ACTIVITY_EVENT.ADMIN_VIEWED_PERSON:
+      return `Abri\xF3 la ficha de ${label ?? "una persona"}`;
+    case ACTIVITY_EVENT.ADMIN_VIEWED_AI_PROMPT:
+      return `Vio una conversaci\xF3n de IA${label ? ` de ${label}` : ""}`;
+    default:
+      return type;
+  }
+}
+async function recordHeartbeat(context, userId, companyId) {
+  const prisma = context.sudo().prisma;
+  if (!prisma?.userActivityDay) return false;
+  const now = /* @__PURE__ */ new Date();
+  const day = MX_DAY.format(now);
+  const key = `${userId}:${day}`;
+  const existing = await prisma.userActivityDay.findUnique({
+    where: { key },
+    select: { lastSeenAt: true }
+  });
+  if (!existing) {
+    try {
+      await prisma.userActivityDay.create({
+        data: {
+          key,
+          userId,
+          companyId,
+          day: /* @__PURE__ */ new Date(`${day}T00:00:00.000Z`),
+          minutes: HEARTBEAT_MINUTES,
+          firstSeenAt: now,
+          lastSeenAt: now
+        }
+      });
+      return true;
+    } catch {
+    }
+  }
+  const last = existing?.lastSeenAt ? new Date(existing.lastSeenAt).getTime() : 0;
+  const tooSoon = now.getTime() - last < (HEARTBEAT_MINUTES - 1) * 6e4;
+  await prisma.userActivityDay.update({
+    where: { key },
+    data: {
+      lastSeenAt: now,
+      companyId,
+      ...tooSoon ? {} : { minutes: { increment: HEARTBEAT_MINUTES } }
+    }
+  });
+  return true;
+}
+async function adminViewLabel(context, type, input) {
+  const prisma = context.sudo().prisma;
+  if (type === ACTIVITY_EVENT.ADMIN_VIEWED_COMPANY && input.companyId) {
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: input.companyId },
+      select: { name: true }
+    });
+    return { label: company?.name ?? null, companyId: input.companyId };
+  }
+  if (type === ACTIVITY_EVENT.ADMIN_VIEWED_PERSON && input.entityId) {
+    const user = await prisma.user.findUnique({
+      where: { id: input.entityId },
+      select: { name: true, lastName: true, email: true, companyId: true }
+    });
+    const name = [user?.name, user?.lastName].filter(Boolean).join(" ") || user?.email || null;
+    return { label: name, companyId: input.companyId ?? user?.companyId ?? null };
+  }
+  if (type === ACTIVITY_EVENT.ADMIN_VIEWED_AI_PROMPT && input.entityId) {
+    const call = await prisma.techAiCallLog.findUnique({
+      where: { id: input.entityId },
+      select: { companyId: true, company: { select: { name: true } } }
+    });
+    return { label: call?.company?.name ?? null, companyId: call?.companyId ?? input.companyId ?? null };
+  }
+  return { label: null, companyId: input.companyId ?? null };
+}
+async function recentlyViewed(context, actorId, type, companyId, entityId) {
+  const prisma = context.sudo().prisma;
+  if (!prisma?.activityEvent) return false;
+  const found = await prisma.activityEvent.findFirst({
+    where: {
+      actorId,
+      type,
+      companyId,
+      entityId,
+      createdAt: { gte: new Date(Date.now() - ADMIN_VIEW_DEDUPE_MS) }
+    },
+    select: { id: true }
+  });
+  return Boolean(found);
+}
+var resolver45 = {
+  trackEvents: async (_root, { events }, context) => {
+    const session2 = context.session;
+    const userId = getSessionUserId(session2);
+    const list82 = Array.isArray(events) ? events : [];
+    if (!userId) return { accepted: 0, rejected: list82.length };
+    if (getImpersonation(context.session)) return { accepted: 0, rejected: list82.length };
+    const companyId = getSessionCompanyId(session2);
+    const admin = isPlatformAdmin(session2);
+    const batch = list82.slice(0, MAX_EVENTS);
+    let accepted = 0;
+    let heartbeatDone = false;
+    for (const input of batch) {
+      const type = text72(input?.type, 60);
+      if (!type) continue;
+      try {
+        if (type === HEARTBEAT_EVENT) {
+          if (!heartbeatDone) {
+            heartbeatDone = true;
+            if (await recordHeartbeat(context, userId, companyId)) accepted += 1;
+          }
+          continue;
+        }
+        const metadata = flatMetadata(input.metadata);
+        const occurredAt = clientTime(input.occurredAt);
+        if (CLIENT_EVENT_TYPES.has(type)) {
+          await logActivity(context, {
+            type,
+            summary: summaryFor(type, metadata, null),
+            entityType: text72(input.entityType, 60),
+            entityId: text72(input.entityId, 60),
+            metadata,
+            source: ACTIVITY_SOURCE.WEB,
+            occurredAt
+          });
+          accepted += 1;
+          continue;
+        }
+        if (CLIENT_ADMIN_EVENT_TYPES.has(type) && admin) {
+          const entityId = text72(input.entityId, 60);
+          const target = await adminViewLabel(context, type, input);
+          if (await recentlyViewed(context, userId, type, target.companyId, entityId)) {
+            accepted += 1;
+            continue;
+          }
+          await logActivity(context, {
+            type,
+            summary: summaryFor(type, metadata, target.label),
+            companyId: target.companyId,
+            entityType: text72(input.entityType, 60),
+            entityId,
+            metadata,
+            source: ACTIVITY_SOURCE.ADMIN,
+            occurredAt
+          });
+          accepted += 1;
+        }
+      } catch (error) {
+        console.warn(
+          `[activity] trackEvents ${type}:`,
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
+    return { accepted, rejected: list82.length - accepted };
+  }
+};
+var trackEvents_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+
+// graphql/customs/mutations/admin/companyOps.ts
+var typeDefs49 = `
+  type AdminOpsActionResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type Mutation {
+    adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
+    adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
+  }
+`;
+var definition46 = `
+  adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
+  adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
+`;
+var MAX_EXTENSION_DAYS = 90;
+var YMD = /^\d{4}-\d{2}-\d{2}$/;
+var MX_DAY2 = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+function result(success, message) {
+  return { success, message };
+}
+function addDays(ymd, days) {
+  const date = /* @__PURE__ */ new Date(`${ymd}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+function ymdOf(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
+function personName(user) {
+  if (!user) return null;
+  return [user.name, user.lastName].filter(Boolean).join(" ") || user.email || null;
+}
+var REVIVABLE_STATUSES = /* @__PURE__ */ new Set([
+  SUBSCRIPTION_STATUS.PAST_DUE,
+  SUBSCRIPTION_STATUS.UNPAID,
+  SUBSCRIPTION_STATUS.CANCELLED
+]);
+var resolver46 = {
+  /**
+   * Mueve el fin de la prueba gratuita (`currentPeriodEnd` de la suscripción vigente).
+   * `days` suma desde hoy o desde el fin actual (lo que sea más tarde); `until` fija la fecha.
+   * Si la prueba ya había vencido, la suscripción vuelve a "en prueba".
+   */
+  adminExtendTrial: async (_root, { companyId, days, until }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return result(false, "Solo un administrador de Kadesh puede extender pruebas.");
+    }
+    const prisma = context.sudo().prisma;
+    const sub = await prisma.saasCompanySubscription.findFirst({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        planName: true,
+        planCost: true,
+        activatedAt: true,
+        currentPeriodEnd: true,
+        stripeSubscriptionId: true
+      }
+    });
+    if (!sub) return result(false, "La empresa no tiene suscripci\xF3n.");
+    if ((sub.planCost ?? 0) > 0 || sub.stripeSubscriptionId) {
+      return result(false, "La empresa tiene un plan de pago: la prueba solo aplica al plan gratuito.");
+    }
+    const today = MX_DAY2.format(/* @__PURE__ */ new Date());
+    const activated = ymdOf(sub.activatedAt);
+    const currentEnd = ymdOf(sub.currentPeriodEnd) ?? (activated ? addDays(activated, TRIAL_DAYS_FREE_PLAN) : today);
+    let newEnd;
+    if (until) {
+      if (!YMD.test(until)) return result(false, "La fecha debe tener el formato AAAA-MM-DD.");
+      if (until <= today) return result(false, "La nueva fecha tiene que ser posterior a hoy.");
+      if (until > addDays(today, MAX_EXTENSION_DAYS * 2)) {
+        return result(false, "Esa fecha est\xE1 demasiado lejos; usa un plan si van a ser meses.");
+      }
+      newEnd = until;
+    } else {
+      const extra = Math.floor(Number(days));
+      if (!Number.isFinite(extra) || extra < 1 || extra > MAX_EXTENSION_DAYS) {
+        return result(false, `Indica entre 1 y ${MAX_EXTENSION_DAYS} d\xEDas.`);
+      }
+      newEnd = addDays(currentEnd > today ? currentEnd : today, extra);
+    }
+    const revive = REVIVABLE_STATUSES.has(sub.status ?? "");
+    await context.sudo().query.SaasCompanySubscription.updateOne({
+      where: { id: sub.id },
+      data: {
+        currentPeriodEnd: newEnd,
+        ...revive ? { status: SUBSCRIPTION_STATUS.TRIALING } : {}
+      }
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_TRIAL_EXTENDED,
+      companyId,
+      entityType: "SaasCompanySubscription",
+      entityId: sub.id,
+      summary: `Extendi\xF3 la prueba hasta el ${newEnd}${revive ? " (estaba vencida)" : ""}`,
+      metadata: { from: currentEnd, to: newEnd, reactivated: revive, previousStatus: sub.status }
+    });
+    return result(
+      true,
+      revive ? `Prueba reactivada hasta el ${newEnd}.` : `Prueba extendida hasta el ${newEnd}.`
+    );
+  },
+  /** Persona de Kadesh responsable de la cuenta. `userId: null` la quita. */
+  adminSetCompanyAccountManager: async (_root, { companyId, userId }, context) => {
+    if (!isPlatformAdmin(context.session)) {
+      return result(false, "Solo un administrador de Kadesh puede asignar cuentas.");
+    }
+    const prisma = context.sudo().prisma;
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        accountManager: { select: { id: true, name: true, lastName: true, email: true } }
+      }
+    });
+    if (!company) return result(false, "No se encontr\xF3 la empresa.");
+    let manager = null;
+    if (userId) {
+      manager = await prisma.user.findFirst({
+        where: { id: userId, roles: { some: { name: "admin" /* ADMIN */ } } },
+        select: { id: true, name: true, lastName: true, email: true }
+      });
+      if (!manager) return result(false, "Esa persona no es del equipo de Kadesh.");
+    }
+    if ((company.accountManager?.id ?? null) === (manager?.id ?? null)) {
+      return result(true, "Sin cambios.");
+    }
+    await prisma.saasCompany.update({
+      where: { id: companyId },
+      data: { accountManagerId: manager?.id ?? null }
+    });
+    const from = personName(company.accountManager);
+    const to = personName(manager);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_ACCOUNT_MANAGER_ASSIGNED,
+      companyId,
+      entityType: "SaasCompany",
+      entityId: companyId,
+      summary: to ? `Asign\xF3 la cuenta ${company.name} a ${to}${manager?.id === getSessionUserId(context.session) ? " (a s\xED mismo)" : ""}` : `Quit\xF3 el due\xF1o de cuenta de ${company.name}`,
+      metadata: { from, to, fromUserId: company.accountManager?.id ?? null, toUserId: manager?.id ?? null }
+    });
+    return result(true, to ? `Ahora la cuenta es de ${to}.` : "La cuenta qued\xF3 sin due\xF1o.");
+  }
+};
+var companyOps_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+
+// graphql/customs/queries/admin/shared.ts
+var adminSharedTypeDefs = `
+  type AdminCount {
+    key: String!
+    count: Int!
+  }
+
+  type AdminAmountCount {
+    key: String!
+    count: Int!
+    amount: Float!
+  }
+
+  type AdminPersonRef {
+    id: ID!
+    name: String!
+    lastName: String
+    email: String
+  }
+
+  type AdminCompanyRef {
+    id: ID!
+    name: String!
+  }
+`;
+var ADMIN_ONLY_MESSAGE = "Solo un administrador de Kadesh puede ver esta informaci\xF3n.";
+function assertPlatformAdmin(context) {
+  if (!isPlatformAdmin(context.session)) {
+    throw new Error(ADMIN_ONLY_MESSAGE);
+  }
+}
+function adminPrisma(context) {
+  return context.sudo().prisma;
+}
+var DAY_MS2 = 24 * 60 * 60 * 1e3;
+function daysAgo(days, from = /* @__PURE__ */ new Date()) {
+  return new Date(from.getTime() - days * DAY_MS2);
+}
+function toIso(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+function toYmd(value) {
+  const iso = toIso(value);
+  return iso ? iso.slice(0, 10) : null;
+}
+var MX_DAY3 = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+function toMxDay(value) {
+  return MX_DAY3.format(value instanceof Date ? value : new Date(value));
+}
+function clampInt(value, min, max, fallback) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(value)));
+}
+function insensitive(value) {
+  return { contains: value, mode: "insensitive" };
+}
+function companySearchWhere(search) {
+  const q = search?.trim();
+  if (!q) return {};
+  return {
+    OR: [
+      { name: insensitive(q) },
+      { contactEmail: insensitive(q) },
+      {
+        users: {
+          some: {
+            OR: [
+              { email: insensitive(q) },
+              { name: insensitive(q) },
+              { lastName: insensitive(q) }
+            ]
+          }
+        }
+      }
+    ]
+  };
+}
+function personRef(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name ?? "",
+    lastName: user.lastName ?? null,
+    email: user.email ?? null
+  };
+}
+var PERSON_SELECT = {
+  id: true,
+  name: true,
+  lastName: true,
+  email: true
+};
+async function latestSubscriptionsByCompany(prisma, companyIds) {
+  const rows2 = await prisma.saasCompanySubscription.findMany({
+    where: { companyId: companyIds ? { in: companyIds } : { not: null } },
+    orderBy: [
+      { companyId: "asc" },
+      { createdAt: { sort: "desc", nulls: "last" } },
+      { id: "desc" }
+    ],
+    distinct: ["companyId"],
+    select: {
+      id: true,
+      companyId: true,
+      status: true,
+      planName: true,
+      planCost: true,
+      planCurrency: true,
+      planFrequency: true,
+      planLeadLimit: true,
+      activatedAt: true,
+      currentPeriodEnd: true,
+      stripeCustomerId: true,
+      createdAt: true
+    }
+  });
+  return new Map(rows2.map((row) => [row.companyId, row]));
+}
+function trialEndDate(sub) {
+  if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
+  if (sub.currentPeriodEnd) return new Date(sub.currentPeriodEnd);
+  if (!sub.activatedAt) return null;
+  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS2);
+}
+function monthlyAmount(cost, frequency) {
+  if (!cost || cost <= 0) return 0;
+  switch (frequency) {
+    case PLAN_FREQUENCY.MONTHLY:
+      return cost;
+    case PLAN_FREQUENCY.ANNUAL:
+      return cost / 12;
+    case PLAN_FREQUENCY.WEEKLY:
+      return cost * 52 / 12;
+    default:
+      return 0;
+  }
+}
+async function testCompanyIds(prisma) {
+  const rows2 = await prisma.saasCompany.findMany({
+    where: {
+      users: { some: { userTest: true }, none: { userTest: false } }
+    },
+    select: { id: true }
+  });
+  return new Set(rows2.map((row) => row.id));
+}
+async function internalCompanyIds(prisma) {
+  const rows2 = await prisma.user.findMany({
+    where: { companyId: { not: null }, roles: { some: { name: "admin" /* ADMIN */ } } },
+    distinct: ["companyId"],
+    select: { companyId: true }
+  });
+  return new Set(rows2.map((row) => row.companyId).filter((id) => Boolean(id)));
+}
+async function analyticsExcludedCompanyIds(prisma) {
+  const [test, internal] = await Promise.all([testCompanyIds(prisma), internalCompanyIds(prisma)]);
+  return /* @__PURE__ */ new Set([...test, ...internal]);
+}
+function companyCredits(params) {
+  const plan = params.period?.planAllowance ?? params.planLeadLimit ?? 0;
+  const bonus = params.period?.bonusAllowance ?? params.purchasedBonusCredits ?? 0;
+  const used = params.period?.used ?? 0;
+  return { plan, bonus, used, remaining: Math.max(0, plan + bonus - used) };
+}
+function currentPeriod() {
+  return getCurrentPeriodParts();
+}
+function crmCompanyScope(companyId, assigneeField = "assignedSeller") {
+  return {
+    OR: [
+      { workspace: { companyId } },
+      {
+        AND: [
+          { workspaceId: null },
+          {
+            OR: [
+              { createdBy: { companyId } },
+              { [assigneeField]: { companyId } }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
+function countsToList(rows2) {
+  return rows2.map((row) => ({ key: row.key ?? "", count: row.count })).sort((a, b) => b.count - a.count);
+}
+async function optional(read, fallback) {
+  try {
+    const result3 = await read();
+    return result3 instanceof Error ? fallback : result3;
+  } catch {
+    return fallback;
+  }
+}
+function unwrapPrisma(result3) {
+  if (result3 instanceof Error) throw result3;
+  return result3;
+}
+async function lastSeenByCompany(prisma, companyIds) {
+  if (!prisma.userActivityDay || !companyIds.length) return /* @__PURE__ */ new Map();
+  return optional(async () => {
+    const rows2 = await prisma.userActivityDay.groupBy({
+      by: ["companyId"],
+      where: { companyId: { in: companyIds } },
+      _max: { lastSeenAt: true }
+    });
+    return new Map(
+      rows2.filter((row) => row.companyId && row._max.lastSeenAt).map((row) => [row.companyId, row._max.lastSeenAt])
+    );
+  }, /* @__PURE__ */ new Map());
+}
+async function activeUserIdsSince(prisma, since) {
+  if (!prisma.userActivityDay) return [];
+  return optional(async () => {
+    const rows2 = await prisma.userActivityDay.findMany({
+      where: { lastSeenAt: { gte: since } },
+      distinct: ["userId"],
+      select: { userId: true }
+    });
+    return rows2.map((row) => row.userId).filter((id) => Boolean(id));
+  }, []);
+}
+function latestDate(...dates) {
+  return dates.reduce(
+    (max, date) => date && (!max || date > max) ? date : max,
+    null
+  );
+}
+
+// graphql/customs/mutations/admin/accountControl.ts
+var typeDefs50 = `
+  type AdminControlResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type AdminImpersonationResult {
+    success: Boolean!
+    message: String!
+    """Token de sesi\xF3n de la persona, solo lectura. Lo guarda el front en lugar del token del admin."""
+    token: String
+    expiresAt: String
+    user: AdminPersonRef
+    companyName: String
+  }
+
+  type Mutation {
+    adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+    adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+    adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
+    adminTransferCompanyOwnership(companyId: ID!, newOwnerId: ID!, removeOtherAdmins: Boolean): AdminControlResult!
+    adminStartImpersonation(userId: ID!, reason: String!): AdminImpersonationResult!
+    endImpersonation: AdminControlResult!
+    adminExportPersonData(userId: ID!): JSON!
+    adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
+  }
+`;
+var definition47 = `
+  adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+  adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
+  adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
+  adminTransferCompanyOwnership(companyId: ID!, newOwnerId: ID!, removeOtherAdmins: Boolean): AdminControlResult!
+  adminStartImpersonation(userId: ID!, reason: String!): AdminImpersonationResult!
+  endImpersonation: AdminControlResult!
+  adminExportPersonData(userId: ID!): JSON!
+  adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
+`;
+var MIN_REASON = 5;
+var MAX_REASON = 500;
+var COMPANY_ROLE_NAMES = [
+  "admin_company" /* ADMIN_COMPANY */,
+  "gerencia" /* GERENCIA */,
+  "vendedor" /* VENDEDOR */,
+  "user_company" /* USER_COMPANY */
+];
+var ANONYMIZED_LABEL = "persona anonimizada";
+function result2(success, message) {
+  return { success, message };
+}
+function prismaOf2(context) {
+  return context.sudo().prisma;
+}
+function hasPlatformRole(roles) {
+  return (roles ?? []).some((role) => role.name === "admin" /* ADMIN */);
+}
+function fullName2(person) {
+  if (!person) return "una persona";
+  return [person.name, person.lastName].filter(Boolean).join(" ").trim() || person.email || "una persona";
+}
+function cleanReason(reason) {
+  const text73 = reason?.trim() ?? "";
+  return text73.length >= MIN_REASON ? text73.slice(0, MAX_REASON) : null;
+}
+function maskTail(value) {
+  if (!value) return null;
+  const digits = value.replace(/\s+/g, "");
+  return digits.length <= 4 ? "****" : `****${digits.slice(-4)}`;
+}
+function adminIdOf(context) {
+  const session2 = context.session;
+  return isPlatformAdmin(session2) ? getSessionUserId(session2) : null;
+}
+var NOT_ADMIN = result2(false, "Solo un administrador de Kadesh puede hacer esto.");
+var REASON_REQUIRED = result2(false, `Escribe el motivo (m\xEDnimo ${MIN_REASON} letras).`);
+var resolver47 = {
+  /** Nadie del equipo puede entrar mientras la empresa esté suspendida; al suspender se cierran sus sesiones. */
+  adminSetCompanySuspension: async (_root, { companyId, suspended, reason }, context) => {
+    if (!adminIdOf(context)) return NOT_ADMIN;
+    const prisma = prismaOf2(context);
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        suspendedAt: true,
+        suspendedReason: true,
+        users: { select: { id: true, roles: { select: { name: true } } } }
+      }
+    });
+    if (!company) return result2(false, "No se encontr\xF3 la empresa.");
+    if (suspended) {
+      const why = cleanReason(reason);
+      if (!why) return REASON_REQUIRED;
+      if (company.suspendedAt) return result2(false, "La empresa ya est\xE1 suspendida.");
+      if (company.users.some((user) => hasPlatformRole(user.roles))) {
+        return result2(false, "En esta empresa hay personas del equipo de Kadesh: no se puede suspender.");
+      }
+      await prisma.saasCompany.update({
+        where: { id: companyId },
+        data: { suspendedAt: /* @__PURE__ */ new Date(), suspendedReason: why }
+      });
+      const { count: count2 } = await prisma.user.updateMany({
+        where: { companyId },
+        data: { sessionVersion: { increment: 1 } }
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_COMPANY_SUSPENDED,
+        companyId,
+        entityType: "SaasCompany",
+        entityId: companyId,
+        summary: `Suspendi\xF3 el acceso de ${company.name}`,
+        metadata: { reason: why, sessionsClosedFor: count2 }
+      });
+      return result2(true, `${company.name} qued\xF3 suspendida. Se cerraron las sesiones de ${count2} persona${count2 === 1 ? "" : "s"}.`);
+    }
+    if (!company.suspendedAt) return result2(false, "La empresa no est\xE1 suspendida.");
+    await prisma.saasCompany.update({
+      where: { id: companyId },
+      data: { suspendedAt: null, suspendedReason: null }
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_COMPANY_REACTIVATED,
+      companyId,
+      entityType: "SaasCompany",
+      entityId: companyId,
+      summary: `Reactiv\xF3 el acceso de ${company.name}`,
+      metadata: { previousReason: company.suspendedReason ?? null }
+    });
+    return result2(true, `${company.name} puede volver a entrar.`);
+  },
+  /** La persona no puede entrar mientras esté suspendida; al suspender se cierran sus sesiones. */
+  adminSetUserSuspension: async (_root, { userId, suspended, reason }, context) => {
+    const adminId = adminIdOf(context);
+    if (!adminId) return NOT_ADMIN;
+    if (userId === adminId) return result2(false, "No puedes suspenderte a ti mismo.");
+    const prisma = prismaOf2(context);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        email: true,
+        companyId: true,
+        suspendedAt: true,
+        suspendedReason: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } }
+      }
+    });
+    if (!user) return result2(false, "No se encontr\xF3 a la persona.");
+    if (hasPlatformRole(user.roles)) return result2(false, "No se puede suspender a alguien del equipo de Kadesh.");
+    if (user.anonymizedAt) return result2(false, "La cuenta est\xE1 anonimizada.");
+    const name = fullName2(user);
+    if (suspended) {
+      const why = cleanReason(reason);
+      if (!why) return REASON_REQUIRED;
+      if (user.suspendedAt) return result2(false, "La persona ya est\xE1 suspendida.");
+      await prisma.user.update({
+        where: { id: userId },
+        data: { suspendedAt: /* @__PURE__ */ new Date(), suspendedReason: why, sessionVersion: { increment: 1 } }
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_USER_SUSPENDED,
+        companyId: user.companyId ?? null,
+        entityType: "User",
+        entityId: userId,
+        summary: `Suspendi\xF3 el acceso de ${name}`,
+        metadata: { reason: why }
+      });
+      return result2(true, `${name} ya no puede entrar. Se cerraron sus sesiones.`);
+    }
+    if (!user.suspendedAt) return result2(false, "La persona no est\xE1 suspendida.");
+    await prisma.user.update({
+      where: { id: userId },
+      data: { suspendedAt: null, suspendedReason: null }
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_USER_REACTIVATED,
+      companyId: user.companyId ?? null,
+      entityType: "User",
+      entityId: userId,
+      summary: `Reactiv\xF3 el acceso de ${name}`,
+      metadata: { previousReason: user.suspendedReason ?? null }
+    });
+    return result2(true, `${name} puede volver a entrar.`);
+  },
+  /** Cierra las sesiones abiertas de una persona o de todo un equipo (tendrán que volver a iniciar sesión). */
+  adminRevokeSessions: async (_root, { userId, companyId }, context) => {
+    const adminId = adminIdOf(context);
+    if (!adminId) return NOT_ADMIN;
+    if (Boolean(userId) === Boolean(companyId)) {
+      return result2(false, "Indica una persona o una empresa.");
+    }
+    const prisma = prismaOf2(context);
+    if (userId) {
+      if (userId === adminId) return result2(false, "Para cerrar tus propias sesiones usa Cerrar sesi\xF3n.");
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, lastName: true, email: true, companyId: true }
+      });
+      if (!user) return result2(false, "No se encontr\xF3 a la persona.");
+      await prisma.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_SESSIONS_REVOKED,
+        companyId: user.companyId ?? null,
+        entityType: "User",
+        entityId: userId,
+        summary: `Cerr\xF3 las sesiones de ${fullName2(user)}`,
+        metadata: { users: 1 }
+      });
+      return result2(true, `Se cerraron las sesiones de ${fullName2(user)}.`);
+    }
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: companyId },
+      select: { id: true, name: true }
+    });
+    if (!company) return result2(false, "No se encontr\xF3 la empresa.");
+    const { count: count2 } = await prisma.user.updateMany({
+      where: { companyId, id: { not: adminId } },
+      data: { sessionVersion: { increment: 1 } }
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_SESSIONS_REVOKED,
+      companyId: company.id,
+      entityType: "SaasCompany",
+      entityId: company.id,
+      summary: `Cerr\xF3 las sesiones del equipo de ${company.name}`,
+      metadata: { users: count2 }
+    });
+    return result2(true, `Se cerraron las sesiones de ${count2} persona${count2 === 1 ? "" : "s"} de ${company.name}.`);
+  },
+  /**
+   * Hace administrador de la empresa a otra persona del equipo. Opcionalmente quita ese rol a
+   * los demás (sin tocar al equipo de Kadesh); quien se queda sin rol de empresa queda como usuario.
+   * La facturación no cambia: la tarjeta y el cliente de Stripe siguen siendo de quien pagó.
+   */
+  adminTransferCompanyOwnership: async (_root, {
+    companyId,
+    newOwnerId,
+    removeOtherAdmins
+  }, context) => {
+    if (!adminIdOf(context)) return NOT_ADMIN;
+    const prisma = prismaOf2(context);
+    const company = await prisma.saasCompany.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        users: {
+          select: {
+            id: true,
+            name: true,
+            lastName: true,
+            email: true,
+            suspendedAt: true,
+            anonymizedAt: true,
+            roles: { select: { id: true, name: true } }
+          }
+        }
+      }
+    });
+    if (!company) return result2(false, "No se encontr\xF3 la empresa.");
+    const target = company.users.find((user) => user.id === newOwnerId);
+    if (!target) return result2(false, "Esa persona no es de esta empresa.");
+    if (target.suspendedAt || target.anonymizedAt) {
+      return result2(false, "Esa persona est\xE1 suspendida o anonimizada.");
+    }
+    const roles = await prisma.role.findMany({
+      where: { name: { in: ["admin_company" /* ADMIN_COMPANY */, "user_company" /* USER_COMPANY */] } },
+      select: { id: true, name: true }
+    });
+    const adminCompanyRole = roles.find((role) => role.name === "admin_company" /* ADMIN_COMPANY */);
+    const userCompanyRole = roles.find((role) => role.name === "user_company" /* USER_COMPANY */);
+    if (!adminCompanyRole) return result2(false, "No existe el rol de administrador de empresa.");
+    if (!target.roles.some((role) => role.name === "admin_company" /* ADMIN_COMPANY */)) {
+      await prisma.user.update({
+        where: { id: target.id },
+        data: { roles: { connect: { id: adminCompanyRole.id } } }
+      });
+    }
+    const removed = [];
+    if (removeOtherAdmins) {
+      for (const user of company.users) {
+        if (user.id === target.id || hasPlatformRole(user.roles)) continue;
+        if (!user.roles.some((role) => role.name === "admin_company" /* ADMIN_COMPANY */)) continue;
+        const keepsCompanyRole = user.roles.some(
+          (role) => role.name !== "admin_company" /* ADMIN_COMPANY */ && COMPANY_ROLE_NAMES.includes(role.name)
+        );
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            roles: {
+              disconnect: { id: adminCompanyRole.id },
+              ...keepsCompanyRole || !userCompanyRole ? {} : { connect: { id: userCompanyRole.id } }
+            }
+          }
+        });
+        removed.push(fullName2(user));
+      }
+    }
+    const to = fullName2(target);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_OWNERSHIP_TRANSFERRED,
+      companyId,
+      entityType: "User",
+      entityId: target.id,
+      summary: `Hizo a ${to} administrador de ${company.name}${removed.length ? ` y quit\xF3 el rol a ${removed.join(", ")}` : ""}`,
+      metadata: { toUserId: target.id, to, removed }
+    });
+    return result2(
+      true,
+      removed.length ? `${to} ahora administra ${company.name}. Se quit\xF3 el rol a ${removed.join(", ")}.` : `${to} ahora administra ${company.name}.`
+    );
+  },
+  /**
+   * "Entrar como": devuelve un token de la persona que dura una hora y solo permite ver
+   * (`auth/impersonation.ts` bloquea toda mutación). Exige motivo y queda registrado.
+   */
+  adminStartImpersonation: async (_root, { userId, reason }, context) => {
+    const adminId = adminIdOf(context);
+    if (!adminId) return { ...NOT_ADMIN, token: null };
+    if (getImpersonation(context.session)) {
+      return { ...result2(false, "Ya est\xE1s viendo como otra persona."), token: null };
+    }
+    if (userId === adminId) return { ...result2(false, "No puedes entrar como t\xFA mismo."), token: null };
+    const why = cleanReason(reason);
+    if (!why) return { ...REASON_REQUIRED, token: null };
+    const prisma = prismaOf2(context);
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        email: true,
+        suspendedAt: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } },
+        company: { select: { id: true, name: true, suspendedAt: true } }
+      }
+    });
+    if (!target) return { ...result2(false, "No se encontr\xF3 a la persona."), token: null };
+    if (hasPlatformRole(target.roles)) {
+      return { ...result2(false, "No se puede entrar como alguien del equipo de Kadesh."), token: null };
+    }
+    if (target.suspendedAt || target.company?.suspendedAt || target.anonymizedAt) {
+      return { ...result2(false, "La cuenta est\xE1 suspendida o anonimizada."), token: null };
+    }
+    if (!context.sessionStrategy) {
+      return { ...result2(false, "No se pudo iniciar la sesi\xF3n."), token: null };
+    }
+    const expiresAt = Date.now() + IMPERSONATION_TTL_MS;
+    const token = await context.sessionStrategy.start({
+      data: { listKey: "User", itemId: target.id, impersonation: { adminId, expiresAt, reason: why } },
+      context: { ...context, res: { setHeader() {
+      } } }
+    });
+    if (typeof token !== "string" || !token) {
+      return { ...result2(false, "No se pudo iniciar la sesi\xF3n."), token: null };
+    }
+    const name = fullName2(target);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_IMPERSONATION_STARTED,
+      companyId: target.company?.id ?? null,
+      entityType: "User",
+      entityId: target.id,
+      summary: `Entr\xF3 como ${name} (solo lectura)`,
+      metadata: { reason: why, expiresAt: new Date(expiresAt).toISOString() },
+      source: ACTIVITY_SOURCE.ADMIN
+    });
+    return {
+      success: true,
+      message: `Est\xE1s viendo el panel como ${name}. Solo lectura, por una hora.`,
+      token,
+      expiresAt: new Date(expiresAt).toISOString(),
+      user: { id: target.id, name: target.name ?? "", lastName: target.lastName ?? null, email: target.email ?? null },
+      companyName: target.company?.name ?? null
+    };
+  },
+  /** Lo llama el front con el token de "entrar como" al salir: registra cuánto duró. */
+  endImpersonation: async (_root, _args, context) => {
+    const impersonation = getImpersonation(context.session);
+    if (!impersonation) return result2(false, "No estabas viendo como otra persona.");
+    const session2 = context.session;
+    const startedAt = impersonation.expiresAt - IMPERSONATION_TTL_MS;
+    const minutes = Math.max(0, Math.round((Date.now() - startedAt) / 6e4));
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_IMPERSONATION_ENDED,
+      actorId: impersonation.adminId,
+      companyId: session2?.data?.company?.id ?? null,
+      entityType: "User",
+      entityId: session2?.itemId ?? null,
+      summary: `Sali\xF3 de la cuenta de ${fullName2(session2?.data ?? null)} (${minutes} min)`,
+      metadata: { minutes },
+      source: ACTIVITY_SOURCE.ADMIN
+    });
+    return result2(true, "Saliste de la cuenta.");
+  },
+  /**
+   * Derecho de acceso (ARCO): todo lo que Kadesh guarda de una persona, en un JSON para
+   * entregárselo. Datos bancarios enmascarados; sin contraseña ni tokens.
+   */
+  adminExportPersonData: async (_root, { userId }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = prismaOf2(context);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        secondLastName: true,
+        username: true,
+        email: true,
+        businessEmail: true,
+        phone: true,
+        businessPhone: true,
+        birthday: true,
+        verified: true,
+        product: true,
+        createdAt: true,
+        lastLoginAt: true,
+        bank: true,
+        clabe: true,
+        cardNumber: true,
+        permissions: true,
+        suspendedAt: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } },
+        company: { select: { id: true, name: true } }
+      }
+    });
+    if (!user) throw new Error("No se encontr\xF3 a la persona.");
+    const [accesses, activity, activeDays, payments, blog] = await Promise.all([
+      prisma.userAuthLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 500,
+        select: { createdAt: true, source: true, step: true, success: true, ip: true, userAgent: true }
+      }),
+      prisma.activityEvent.findMany({
+        where: { actorId: userId },
+        orderBy: { createdAt: "desc" },
+        take: 1e3,
+        select: { createdAt: true, type: true, summary: true }
+      }),
+      prisma.userActivityDay.findMany({
+        where: { userId },
+        orderBy: { day: "desc" },
+        take: 400,
+        select: { day: true, minutes: true }
+      }),
+      prisma.saasPayment.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true, amount: true, status: true, notes: true }
+      }),
+      prisma.blogSubscription.findMany({
+        where: { OR: [{ userId }, ...user.email ? [{ email: user.email }] : []] },
+        select: { product: true, email: true, active: true, createdAt: true }
+      })
+    ]);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_PERSON_DATA_EXPORTED,
+      companyId: user.company?.id ?? null,
+      entityType: "User",
+      entityId: userId,
+      summary: "Export\xF3 los datos personales de una cuenta (ARCO)",
+      metadata: { userId }
+    });
+    return {
+      generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      generatedBy: "Kadesh",
+      person: {
+        ...user,
+        clabe: maskTail(user.clabe),
+        cardNumber: maskTail(user.cardNumber),
+        roles: user.roles.map((role) => role.name)
+      },
+      accesses,
+      activity,
+      activeDays: activeDays.map((row) => ({
+        day: new Date(row.day).toISOString().slice(0, 10),
+        minutes: row.minutes ?? 0
+      })),
+      payments: payments.map((row) => ({
+        ...row,
+        amount: row.amount == null ? null : Number(row.amount)
+      })),
+      blogSubscriptions: blog
+    };
+  },
+  /**
+   * Derecho de cancelación (ARCO): borra los datos personales de la cuenta y la deja sin acceso.
+   * No borra la fila: el CRM de la empresa (actividades, cotizaciones) sigue apuntando a ella y
+   * ahora muestra "Usuario eliminado". Irreversible; exige escribir el correo de la cuenta.
+   */
+  adminAnonymizeUser: async (_root, { userId, confirmEmail, reason }, context) => {
+    const adminId = adminIdOf(context);
+    if (!adminId) return NOT_ADMIN;
+    if (userId === adminId) return result2(false, "No puedes anonimizar tu propia cuenta.");
+    const why = cleanReason(reason);
+    if (!why) return REASON_REQUIRED;
+    const prisma = prismaOf2(context);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        secondLastName: true,
+        email: true,
+        companyId: true,
+        anonymizedAt: true,
+        roles: { select: { name: true } }
+      }
+    });
+    if (!user) return result2(false, "No se encontr\xF3 a la persona.");
+    if (hasPlatformRole(user.roles)) return result2(false, "No se puede anonimizar a alguien del equipo de Kadesh.");
+    if (user.anonymizedAt) return result2(false, "La cuenta ya est\xE1 anonimizada.");
+    const email = (user.email ?? "").trim().toLowerCase();
+    if (!email || confirmEmail.trim().toLowerCase() !== email) {
+      return result2(false, "El correo no coincide con el de la cuenta.");
+    }
+    const short = userId.slice(-8);
+    const name = [user.name, user.lastName, user.secondLastName].filter(Boolean).join(" ").trim();
+    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text73) => Boolean(text73 && text73.length >= 4));
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: "Usuario",
+          lastName: "eliminado",
+          secondLastName: null,
+          username: `eliminado-${short}`,
+          referralCode: `eliminado-${short}`,
+          email: `eliminado+${userId}@kadesh.invalid`,
+          businessEmail: null,
+          businessPhone: null,
+          phone: "",
+          birthday: null,
+          bank: "",
+          clabe: null,
+          cardNumber: null,
+          smsRegistrationId: "",
+          profileImage_id: null,
+          profileImage_extension: null,
+          profileImage_filesize: null,
+          profileImage_width: null,
+          profileImage_height: null,
+          password: null,
+          verified: false,
+          onboardingState: {},
+          anonymizedAt: /* @__PURE__ */ new Date(),
+          sessionVersion: { increment: 1 },
+          company: { disconnect: true },
+          roles: { set: [] },
+          workspaces: { set: [] }
+        }
+      }),
+      prisma.userAuthLog.updateMany({
+        where: { userId },
+        data: { ip: null, userAgent: null, emailMasked: "***" }
+      }),
+      prisma.activityEvent.updateMany({
+        where: { actorId: userId },
+        data: { ip: null, userAgent: null }
+      }),
+      prisma.blogSubscription.deleteMany({
+        where: { OR: [{ userId }, ...user.email ? [{ email: user.email }] : []] }
+      }),
+      prisma.tokenNotification.deleteMany({ where: { userId } }),
+      prisma.techWhatsAppMessage.updateMany({
+        where: { sentById: userId },
+        data: { senderLabel: ANONYMIZED_LABEL }
+      }),
+      // Menciones en el texto de otros eventos ("Asignó el lead a …", "Cambió los roles de …"),
+      // solo en eventos de su empresa o sobre ella. strpos y no LIKE: un "_" del correo es comodín.
+      ...mentions.map(
+        (mention) => prisma.$executeRaw`
+          UPDATE "ActivityEvent"
+          SET "summary" = replace("summary", ${mention}, ${ANONYMIZED_LABEL})
+          WHERE strpos("summary", ${mention}) > 0
+            AND ("company" = ${user.companyId} OR "actor" = ${userId} OR "entityId" = ${userId})
+        `
+      ),
+      // En la metadata no se reemplaza a medias (podría romper el JSON): se limpia completa.
+      ...mentions.map(
+        (mention) => prisma.$executeRaw`
+          UPDATE "ActivityEvent"
+          SET "metadata" = '{"anonymized": true}'::jsonb
+          WHERE strpos("metadata"::text, ${mention}) > 0
+            AND ("company" = ${user.companyId} OR "actor" = ${userId} OR "entityId" = ${userId})
+        `
+      )
+    ]);
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_USER_ANONYMIZED,
+      companyId: user.companyId ?? null,
+      entityType: "User",
+      entityId: userId,
+      summary: "Anonimiz\xF3 una cuenta a petici\xF3n de la persona (ARCO)",
+      metadata: { reason: why }
+    });
+    return result2(true, "Cuenta anonimizada: se borraron sus datos personales y ya no puede entrar.");
+  }
+};
+var accountControl_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+
+// utils/usage/dailyUsageRollup.ts
+var MX_DAY4 = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+var YMD_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+function mxToday(now = /* @__PURE__ */ new Date()) {
+  return MX_DAY4.format(now);
+}
+function shiftDay(ymd, days) {
+  const date = /* @__PURE__ */ new Date(`${ymd}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+function mxDayWindow(day) {
+  const start = /* @__PURE__ */ new Date(`${day}T00:00:00.000-06:00`);
+  return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1e3) };
+}
+var EMPTY = {
+  activeUsers: 0,
+  activeMinutes: 0,
+  logins: 0,
+  extractions: 0,
+  extractionsFailed: 0,
+  leadsCreated: 0,
+  leadsReused: 0,
+  creditsConsumed: 0,
+  aiCalls: 0,
+  crmChanges: 0,
+  activitiesLogged: 0,
+  quotationsCreated: 0,
+  quotationsSent: 0,
+  quotationsAccepted: 0,
+  whatsappSent: 0,
+  whatsappReceived: 0
+};
+async function rollupCompanyDailyUsage(context, day) {
+  if (!YMD_PATTERN.test(day)) throw new Error(`D\xEDa inv\xE1lido: ${day}`);
+  const prisma = context.sudo().prisma;
+  const { start, end } = mxDayWindow(day);
+  const window = { gte: start, lt: end };
+  const dayDate3 = /* @__PURE__ */ new Date(`${day}T00:00:00.000Z`);
+  const byCompany = /* @__PURE__ */ new Map();
+  const bump3 = (companyId, key, value) => {
+    if (!companyId || !value) return;
+    const current = byCompany.get(companyId) ?? { ...EMPTY };
+    current[key] += value;
+    byCompany.set(companyId, current);
+  };
+  const [
+    activityDays,
+    logins,
+    syncs,
+    credits,
+    aiCalls,
+    crmEvents,
+    salesActivities,
+    quotationsCreated,
+    quotationsSent,
+    quotationsAccepted,
+    whatsapp
+  ] = await Promise.all([
+    prisma.userActivityDay.groupBy({
+      by: ["companyId"],
+      where: { day: dayDate3, companyId: { not: null } },
+      _count: { _all: true },
+      _sum: { minutes: true }
+    }),
+    prisma.userAuthLog.groupBy({
+      by: ["userId"],
+      where: { createdAt: window, success: true, userId: { not: null } },
+      _count: { _all: true }
+    }),
+    prisma.techLeadSyncLog.groupBy({
+      by: ["companyId", "success"],
+      where: { createdAt: window, companyId: { not: null } },
+      _count: { _all: true },
+      _sum: { created: true, alreadyInDb: true }
+    }),
+    prisma.saasCompanyCreditLedger.groupBy({
+      by: ["companyId"],
+      where: {
+        createdAt: window,
+        companyId: { not: null },
+        type: {
+          in: [COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC, COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI]
+        }
+      },
+      _sum: { amount: true }
+    }),
+    prisma.techAiCallLog.groupBy({
+      by: ["companyId"],
+      where: { createdAt: window, companyId: { not: null } },
+      _count: { _all: true }
+    }),
+    // Lo que hizo el equipo de la empresa; los cambios del admin de Kadesh no cuentan.
+    prisma.activityEvent.groupBy({
+      by: ["companyId"],
+      where: {
+        createdAt: window,
+        companyId: { not: null },
+        category: { in: [ACTIVITY_CATEGORY.CRM, ACTIVITY_CATEGORY.TEAM] },
+        source: { not: ACTIVITY_SOURCE.ADMIN }
+      },
+      _count: { _all: true }
+    }),
+    prisma.techSalesActivity.findMany({
+      where: { createdAt: window },
+      select: {
+        workspace: { select: { companyId: true } },
+        createdBy: { select: { companyId: true } }
+      }
+    }),
+    prisma.saasQuotation.groupBy({
+      by: ["companyId"],
+      where: { createdAt: window, companyId: { not: null } },
+      _count: { _all: true }
+    }),
+    prisma.saasQuotation.groupBy({
+      by: ["companyId"],
+      where: { sentAt: window, companyId: { not: null } },
+      _count: { _all: true }
+    }),
+    prisma.saasQuotation.groupBy({
+      by: ["companyId"],
+      where: { acceptedAt: window, companyId: { not: null } },
+      _count: { _all: true }
+    }),
+    // Los importados traen la fecha del chat original: no son actividad de ese día.
+    prisma.techWhatsAppMessage.groupBy({
+      by: ["companyId", "direction"],
+      where: {
+        createdAt: window,
+        companyId: { not: null },
+        OR: [{ source: null }, { source: { not: "imported" } }]
+      },
+      _count: { _all: true }
+    })
+  ]);
+  for (const row of activityDays) {
+    bump3(row.companyId, "activeUsers", row._count._all);
+    bump3(row.companyId, "activeMinutes", row._sum.minutes ?? 0);
+  }
+  const loginRows = logins;
+  if (loginRows.length) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: loginRows.map((row) => row.userId) } },
+      select: { id: true, companyId: true }
+    });
+    const companyOf = new Map(users.map((user) => [user.id, user.companyId]));
+    for (const row of loginRows) bump3(companyOf.get(row.userId), "logins", row._count._all);
+  }
+  for (const row of syncs) {
+    bump3(row.companyId, "extractions", row._count._all);
+    if (!row.success) bump3(row.companyId, "extractionsFailed", row._count._all);
+    if (row.success) {
+      bump3(row.companyId, "leadsCreated", row._sum.created ?? 0);
+      bump3(row.companyId, "leadsReused", row._sum.alreadyInDb ?? 0);
+    }
+  }
+  for (const row of credits) {
+    bump3(row.companyId, "creditsConsumed", Math.abs(row._sum.amount ?? 0));
+  }
+  for (const row of aiCalls) {
+    bump3(row.companyId, "aiCalls", row._count._all);
+  }
+  for (const row of crmEvents) {
+    bump3(row.companyId, "crmChanges", row._count._all);
+  }
+  for (const row of salesActivities) {
+    bump3(row.workspace?.companyId ?? row.createdBy?.companyId, "activitiesLogged", 1);
+  }
+  for (const row of quotationsCreated) {
+    bump3(row.companyId, "quotationsCreated", row._count._all);
+  }
+  for (const row of quotationsSent) {
+    bump3(row.companyId, "quotationsSent", row._count._all);
+  }
+  for (const row of quotationsAccepted) {
+    bump3(row.companyId, "quotationsAccepted", row._count._all);
+  }
+  for (const row of whatsapp) {
+    bump3(row.companyId, row.direction === "inbound" ? "whatsappReceived" : "whatsappSent", row._count._all);
+  }
+  const computedAt = /* @__PURE__ */ new Date();
+  const companyIds = [...byCompany.keys()];
+  const existing = companyIds.length ? await prisma.saasCompany.findMany({ where: { id: { in: companyIds } }, select: { id: true } }) : [];
+  const valid = new Set(existing.map((company) => company.id));
+  for (const [companyId, metrics] of byCompany) {
+    if (!valid.has(companyId)) continue;
+    const key = `${companyId}:${day}`;
+    await prisma.saasCompanyDailyUsage.upsert({
+      where: { key },
+      create: { key, companyId, day: dayDate3, ...metrics, computedAt },
+      update: { ...metrics, computedAt }
+    });
+  }
+  await prisma.saasCompanyDailyUsage.deleteMany({
+    where: { day: dayDate3, companyId: { notIn: [...valid] } }
+  });
+  return { day, companies: valid.size };
+}
+async function rollupDailyUsageRange(context, lastDay, days) {
+  const results = [];
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    results.push(await rollupCompanyDailyUsage(context, shiftDay(lastDay, -offset)));
+  }
+  return results;
+}
+
+// graphql/customs/mutations/rollupDailyUsage.ts
+var typeDefs51 = `
+  type RollupDailyUsageDay {
+    day: String!
+    companies: Int!
+  }
+
+  type RollupDailyUsageResult {
+    success: Boolean!
+    message: String!
+    days: [RollupDailyUsageDay!]!
+  }
+
+  type Mutation {
+    rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
+  }
+`;
+var definition48 = `
+  rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
+`;
+var MAX_DAYS = 62;
+var resolver48 = {
+  /**
+   * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). La llama un cron diario
+   * (.github/workflows/rollup-daily-usage.yml) con `CRON_SECRET`, igual que publishScheduledPosts.
+   * Sin `day`, calcula ayer (CDMX). `days` recalcula hacia atrás (p. ej. 3 por si un día falló).
+   */
+  rollupDailyUsage: async (_root, { secret, day, days }, context) => {
+    const expected = process.env.CRON_SECRET?.trim();
+    if (!expected || secret !== expected) {
+      return { success: false, message: "No autorizado.", days: [] };
+    }
+    const lastDay = day?.trim() || shiftDay(mxToday(), -1);
+    if (!YMD_PATTERN.test(lastDay)) {
+      return { success: false, message: "El d\xEDa debe tener el formato AAAA-MM-DD.", days: [] };
+    }
+    const count2 = Math.min(MAX_DAYS, Math.max(1, Math.floor(Number(days) || 1)));
+    try {
+      const results = await rollupDailyUsageRange(context, lastDay, count2);
+      return {
+        success: true,
+        message: `Resumen listo: ${results.length} d\xEDa${results.length === 1 ? "" : "s"}.`,
+        days: results
+      };
+    } catch (error) {
+      console.error("[rollupDailyUsage]", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "No se pudo calcular el resumen.",
+        days: []
+      };
+    }
+  }
+};
+var rollupDailyUsage_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
   typeDefs: `
-    ${customAuth_default.typeDefs}
     ${authenticateUserWithGoogle_default.typeDefs}
     ${registerUser_default.typeDefs}
     ${importPetPlace_default.typeDefs}
@@ -24341,9 +27861,12 @@ var customMutation = {
     ${refreshGoogleCalendarList_default.typeDefs}
     ${toggleGoogleCalendarSelection_default.typeDefs}
     ${setGoogleCalendarPushSettings_default.typeDefs}
+    ${trackEvents_default.typeDefs}
+    ${companyOps_default.typeDefs}
+    ${accountControl_default.typeDefs}
+    ${rollupDailyUsage_default.typeDefs}
   `,
   definitions: `
-    ${customAuth_default.definition}
     ${authenticateUserWithGoogle_default.definition}
     ${registerUser_default.definition}
     ${importPetPlace_default.definition}
@@ -24386,9 +27909,12 @@ var customMutation = {
     ${refreshGoogleCalendarList_default.definition}
     ${toggleGoogleCalendarSelection_default.definition}
     ${setGoogleCalendarPushSettings_default.definition}
+    ${trackEvents_default.definition}
+    ${companyOps_default.definition}
+    ${accountControl_default.definition}
+    ${rollupDailyUsage_default.definition}
   `,
   resolvers: {
-    ...customAuth_default.resolver,
     ...authenticateUserWithGoogle_default.resolver,
     ...registerUser_default.resolver,
     ...importPetPlace_default.resolver,
@@ -24430,7 +27956,11 @@ var customMutation = {
     ...disconnectGoogleCalendarAccount_default.resolver,
     ...refreshGoogleCalendarList_default.resolver,
     ...toggleGoogleCalendarSelection_default.resolver,
-    ...setGoogleCalendarPushSettings_default.resolver
+    ...setGoogleCalendarPushSettings_default.resolver,
+    ...trackEvents_default.resolver,
+    ...companyOps_default.resolver,
+    ...accountControl_default.resolver,
+    ...rollupDailyUsage_default.resolver
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {
@@ -24441,7 +27971,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs49 = `
+var typeDefs52 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -24500,7 +28030,7 @@ var typeDefs49 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition46 = `
+var definition49 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -24541,16 +28071,16 @@ async function getLatestAnimalLogs(animalIds, context) {
   });
   const latestLogsMap = /* @__PURE__ */ new Map();
   const seenAnimals = /* @__PURE__ */ new Set();
-  for (const log of logs) {
-    const animalId = log.animal?.id;
+  for (const log2 of logs) {
+    const animalId = log2.animal?.id;
     if (animalId && !seenAnimals.has(animalId)) {
-      latestLogsMap.set(animalId, log);
+      latestLogsMap.set(animalId, log2);
       seenAnimals.add(animalId);
     }
   }
   return latestLogsMap;
 }
-var resolver46 = {
+var resolver49 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -24713,10 +28243,10 @@ var resolver46 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var nearbyAnimals_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs50 = `
+var typeDefs53 = `
   type AnimalReportDuplicate {
     id: ID!
     name: String!
@@ -24724,7 +28254,7 @@ var typeDefs50 = `
     url: String!
   }
 `;
-var definition47 = `
+var definition50 = `
   findAnimalReportDuplicates(
     phone: String
     animalTypeId: ID
@@ -24732,7 +28262,7 @@ var definition47 = `
     sourceUrl: String
   ): [AnimalReportDuplicate!]!
 `;
-var resolver47 = {
+var resolver50 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     if (!isSignedIn(context.session) && !getSessionUserId(context.session)) {
       throw new Error("Inicia sesi\xF3n para revisar reportes parecidos.");
@@ -24748,7 +28278,7 @@ var resolver47 = {
     });
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -24760,7 +28290,7 @@ function convertGoogleTimeToHours(timeString) {
   return isNaN(hours) ? 0 : hours;
 }
 function parseAddressComponents4(addressComponents) {
-  const result = {
+  const result3 = {
     street: "",
     municipality: "",
     state: "",
@@ -24768,7 +28298,7 @@ function parseAddressComponents4(addressComponents) {
     cp: ""
   };
   if (!Array.isArray(addressComponents)) {
-    return result;
+    return result3;
   }
   let streetNumber = "";
   let route = "";
@@ -24782,26 +28312,26 @@ function parseAddressComponents4(addressComponents) {
       route = longName;
     }
     if (types.includes("locality")) {
-      result.municipality = longName;
+      result3.municipality = longName;
     }
     if (types.includes("administrative_area_level_1")) {
-      result.state = longName;
+      result3.state = longName;
     }
     if (types.includes("country")) {
-      result.country = longName;
+      result3.country = longName;
     }
     if (types.includes("postal_code")) {
-      result.cp = longName;
+      result3.cp = longName;
     }
   }
   if (streetNumber && route) {
-    result.street = `${streetNumber} ${route}`.trim();
+    result3.street = `${streetNumber} ${route}`.trim();
   } else if (streetNumber) {
-    result.street = streetNumber;
+    result3.street = streetNumber;
   } else if (route) {
-    result.street = route;
+    result3.street = route;
   }
-  return result;
+  return result3;
 }
 async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
   if (!place.name) {
@@ -24843,7 +28373,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
       return null;
     }
   }
-  const result = await context.sudo().query.PetPlace.createOne({
+  const result3 = await context.sudo().query.PetPlace.createOne({
     data: {
       name: place.name,
       description: `Place located at ${address}. ${rating > 0 ? `Rating: ${rating}/5 (${userRatingsTotal} reviews)` : ""}`,
@@ -24889,7 +28419,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
           }
           if (Object.keys(updateData).length > 0) {
             await context.sudo().query.PetPlace.updateOne({
-              where: { id: result.id },
+              where: { id: result3.id },
               data: updateData
             });
           }
@@ -24907,7 +28437,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
                         day: dayName,
                         timeIni: openTime,
                         timeEnd: closeTime,
-                        pet_place: { connect: { id: result.id } }
+                        pet_place: { connect: { id: result3.id } }
                       }
                     });
                   }
@@ -24934,7 +28464,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
                     createdAt,
                     google_user: review.author_name || "",
                     google_user_photo: review.profile_photo_url || "",
-                    pet_place: { connect: { id: result.id } }
+                    pet_place: { connect: { id: result3.id } }
                   }
                 });
               } catch (reviewError) {
@@ -24951,7 +28481,7 @@ async function createPetPlaceFromGoogleResult(place, type, apiKey2, context) {
       console.error(`Error getting details for ${place.name}:`, detailsError);
     }
   }
-  return result;
+  return result3;
 }
 async function searchPlacesByLocation(lat, lng, type, radius, limit, context) {
   const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
@@ -25062,7 +28592,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs51 = `
+var typeDefs54 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -25122,10 +28652,10 @@ var typeDefs51 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition48 = `
+var definition51 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver48 = {
+var resolver51 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -25162,7 +28692,7 @@ var resolver48 = {
         const ratingB = b.averageRating || 0;
         return ratingB - ratingA;
       });
-      const result2 = sortedPlaces.slice(0, limit).map((place) => ({
+      const result4 = sortedPlaces.slice(0, limit).map((place) => ({
         ...place,
         pet_place_reviews: place.pet_place_reviews ?? [],
         distance: null
@@ -25170,8 +28700,8 @@ var resolver48 = {
       }));
       return {
         success: true,
-        message: result2.length > 0 ? "PetPlaces found" : "No PetPlaces found",
-        petPlaces: result2
+        message: result4.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+        petPlaces: result4
       };
     }
     if (typeof lat !== "number" || typeof lng !== "number") {
@@ -25196,21 +28726,21 @@ var resolver48 = {
       return { ...place, distance };
     }).filter((place) => place && place.distance <= radius);
     withDistance.sort((a, b) => a.distance - b.distance);
-    const result = withDistance.slice(0, limit).map((place) => ({
+    const result3 = withDistance.slice(0, limit).map((place) => ({
       ...place,
       pet_place_reviews: place.pet_place_reviews ?? []
     }));
     return {
       success: true,
-      message: result.length > 0 ? "PetPlaces found" : "No PetPlaces found",
-      petPlaces: result
+      message: result3.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+      petPlaces: result3
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs52 = `
+var typeDefs55 = `
   type StripeCard {
     brand: String
     country: String
@@ -25244,10 +28774,10 @@ var typeDefs52 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition49 = `
+var definition52 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver49 = {
+var resolver52 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -25283,10 +28813,10 @@ var resolver49 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var stripePaymentMethods_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs53 = `
+var typeDefs56 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -25324,7 +28854,7 @@ var typeDefs53 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition50 = `
+var definition53 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -25344,7 +28874,7 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver50 = {
+var resolver53 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return fail8("Solo operaciones puede verificar planes con Stripe.");
@@ -25445,14 +28975,23 @@ var resolver50 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var stripePlanCheck_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
+var UNAVAILABLE = {
+  status: null,
+  currentPeriodEnd: null,
+  active: false,
+  unavailable: true
+};
+function stripePeriodEnd(subscription) {
+  if (typeof subscription.current_period_end === "number") return subscription.current_period_end;
+  const ends = (subscription.items?.data ?? []).map((item) => item.current_period_end).filter((end) => typeof end === "number");
+  return ends.length ? Math.max(...ends) : null;
+}
 async function getStripeSubscription(subscriptionId) {
-  if (!STRIPE_SECRET) {
-    return { status: null, currentPeriodEnd: null, active: false };
-  }
+  if (!STRIPE_SECRET) return UNAVAILABLE;
   try {
     const res = await fetch(
       `https://api.stripe.com/v1/subscriptions/${subscriptionId}`,
@@ -25463,21 +29002,25 @@ async function getStripeSubscription(subscriptionId) {
         }
       }
     );
-    if (!res.ok) return { status: null, currentPeriodEnd: null, active: false };
+    if (res.status === 404) {
+      return { status: null, currentPeriodEnd: null, active: false, unavailable: false };
+    }
+    if (!res.ok) return UNAVAILABLE;
     const data = await res.json();
     const status = data.status ?? null;
     const active = status === "active" || status === "trialing";
     return {
       status,
-      currentPeriodEnd: data.current_period_end ?? null,
-      active
+      currentPeriodEnd: stripePeriodEnd(data),
+      active,
+      unavailable: false
     };
   } catch {
-    return { status: null, currentPeriodEnd: null, active: false };
+    return UNAVAILABLE;
   }
 }
 
-// graphql/customs/queries/saas/subscriptionStatus.ts
+// utils/saas/stripeSubscriptionSync.ts
 function stripeStatusToLocal(stripeStatus) {
   if (!stripeStatus) return SUBSCRIPTION_STATUS.CANCELLED;
   const s = stripeStatus.toLowerCase();
@@ -25488,6 +29031,78 @@ function stripeStatusToLocal(stripeStatus) {
   if (s === "unpaid") return SUBSCRIPTION_STATUS.UNPAID;
   return s;
 }
+function unixToDay(seconds) {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) return null;
+  return new Date(seconds * 1e3).toISOString().slice(0, 10);
+}
+var INACTIVE_STATUSES = /* @__PURE__ */ new Set([
+  SUBSCRIPTION_STATUS.CANCELLED,
+  SUBSCRIPTION_STATUS.UNPAID,
+  SUBSCRIPTION_STATUS.PAST_DUE
+]);
+var STATUS_LABELS = {
+  [SUBSCRIPTION_STATUS.ACTIVE]: "activa",
+  [SUBSCRIPTION_STATUS.TRIALING]: "en prueba",
+  [SUBSCRIPTION_STATUS.PAST_DUE]: "con pago vencido",
+  [SUBSCRIPTION_STATUS.UNPAID]: "sin pagar",
+  [SUBSCRIPTION_STATUS.CANCELLED]: "cancelada"
+};
+async function cancelPendingCommissions(context, subscriptionId) {
+  const pendingCommissions = await context.sudo().query.SaasReferralCommission.findMany({
+    where: {
+      subscription: { id: { equals: subscriptionId } },
+      status: { equals: "PENDING" }
+    },
+    query: "id"
+  });
+  for (const commission of pendingCommissions) {
+    await context.sudo().query.SaasReferralCommission.updateOne({
+      where: { id: commission.id },
+      data: {
+        status: "CANCELLED",
+        notes: "Comisi\xF3n cancelada porque el cliente cancel\xF3 o dej\xF3 de pagar la suscripci\xF3n."
+      }
+    });
+  }
+}
+async function applySubscriptionState(context, sub, next, meta) {
+  const statusChanged = next.status !== sub.status;
+  const periodChanged = Boolean(next.currentPeriodEnd) && next.currentPeriodEnd !== sub.currentPeriodEnd;
+  if (!statusChanged && !periodChanged) return { statusChanged, periodChanged };
+  await context.sudo().query.SaasCompanySubscription.updateOne({
+    where: { id: sub.id },
+    data: {
+      ...statusChanged ? { status: next.status } : {},
+      ...periodChanged ? { currentPeriodEnd: next.currentPeriodEnd } : {}
+    }
+  });
+  if (statusChanged && INACTIVE_STATUSES.has(next.status)) {
+    await cancelPendingCommissions(context, sub.id);
+  }
+  if (statusChanged) {
+    const cancelled = next.status === SUBSCRIPTION_STATUS.CANCELLED;
+    const plan = sub.planName ? ` ${sub.planName}` : "";
+    void logActivity(context, {
+      type: cancelled ? ACTIVITY_EVENT.BILLING_CANCELLED : ACTIVITY_EVENT.BILLING_STATUS_CHANGED,
+      actorId: null,
+      companyId: sub.companyId ?? null,
+      entityType: "SaasCompanySubscription",
+      entityId: sub.id,
+      summary: `La suscripci\xF3n${plan} qued\xF3 ${STATUS_LABELS[next.status] ?? next.status}`,
+      metadata: {
+        from: sub.status,
+        to: next.status,
+        currentPeriodEnd: next.currentPeriodEnd,
+        reason: meta.reason ?? null
+      },
+      source: meta.source,
+      occurredAt: meta.occurredAt
+    });
+  }
+  return { statusChanged, periodChanged };
+}
+
+// graphql/customs/queries/saas/subscriptionStatus.ts
 function daysUntil(dateStr) {
   if (!dateStr) return null;
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -25498,7 +29113,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs54 = `
+var typeDefs57 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -25526,10 +29141,10 @@ var typeDefs54 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition51 = `
+var definition54 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver51 = {
+var resolver54 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -25575,54 +29190,45 @@ var resolver51 = {
     let newStatus = sub.status;
     let periodEnd = sub.currentPeriodEnd;
     let subscriptionActive = false;
+    const localRef = {
+      id: sub.id,
+      status: sub.status,
+      currentPeriodEnd: sub.currentPeriodEnd,
+      companyId: companyIdToUse,
+      planName: sub.planName
+    };
     if (sub.stripeSubscriptionId) {
       const stripeInfo = await getStripeSubscription(sub.stripeSubscriptionId);
-      subscriptionActive = stripeInfo.active;
-      if (stripeInfo.currentPeriodEnd) {
-        periodEnd = new Date(stripeInfo.currentPeriodEnd * 1e3).toISOString().slice(0, 10);
-      }
-      const mappedStatus = stripeStatusToLocal(stripeInfo.status);
-      if (mappedStatus !== sub.status) {
-        newStatus = mappedStatus;
-        await context.sudo().query.SaasCompanySubscription.updateOne({
-          where: { id: sub.id },
-          data: {
-            status: newStatus,
-            ...periodEnd ? { currentPeriodEnd: periodEnd } : {}
-          }
-        });
-        if (newStatus === SUBSCRIPTION_STATUS.CANCELLED || newStatus === SUBSCRIPTION_STATUS.UNPAID || newStatus === SUBSCRIPTION_STATUS.PAST_DUE) {
-          const pendingCommissions = await context.sudo().query.SaasReferralCommission.findMany({
-            where: {
-              subscription: { id: { equals: sub.id } },
-              status: { equals: "PENDING" }
-            },
-            query: "id"
-          });
-          for (const commission of pendingCommissions) {
-            await context.sudo().query.SaasReferralCommission.updateOne({
-              where: { id: commission.id },
-              data: {
-                status: "CANCELLED",
-                notes: "Comisi\xF3n cancelada porque el cliente cancel\xF3 o dej\xF3 de pagar la suscripci\xF3n."
-              }
-            });
-          }
-        }
+      if (stripeInfo.unavailable) {
+        subscriptionActive = sub.status === SUBSCRIPTION_STATUS.ACTIVE || sub.status === SUBSCRIPTION_STATUS.TRIALING;
+      } else {
+        subscriptionActive = stripeInfo.active;
+        const stripePeriodEnd2 = unixToDay(stripeInfo.currentPeriodEnd);
+        if (stripePeriodEnd2) periodEnd = stripePeriodEnd2;
+        newStatus = stripeStatusToLocal(stripeInfo.status);
+        await applySubscriptionState(
+          context,
+          localRef,
+          { status: newStatus, currentPeriodEnd: stripePeriodEnd2 },
+          { source: ACTIVITY_SOURCE.SYSTEM, reason: "panel_check" }
+        );
       }
     } else if (isFreePlan && sub.activatedAt) {
       const { trialEnd: trialEndStr, isExpired } = getFreePlanTrialInfo(
-        sub.activatedAt
+        sub.activatedAt,
+        sub.currentPeriodEnd
       );
       if (!trialEndStr) {
         periodEnd = null;
         subscriptionActive = false;
       } else if (isExpired) {
         newStatus = SUBSCRIPTION_STATUS.PAST_DUE;
-        await context.sudo().query.SaasCompanySubscription.updateOne({
-          where: { id: sub.id },
-          data: { status: newStatus }
-        });
+        await applySubscriptionState(
+          context,
+          localRef,
+          { status: newStatus, currentPeriodEnd: null },
+          { source: ACTIVITY_SOURCE.SYSTEM, reason: "trial_expired" }
+        );
         periodEnd = trialEndStr;
         subscriptionActive = false;
       } else {
@@ -25656,11 +29262,11 @@ var resolver51 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var subscriptionStatus_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs55 = `
+var typeDefs58 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -25672,10 +29278,10 @@ var typeDefs55 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition52 = `
+var definition55 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver52 = {
+var resolver55 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -25708,10 +29314,10 @@ var resolver52 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs56 = `
+var typeDefs59 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -25723,10 +29329,10 @@ var typeDefs56 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition53 = `
+var definition56 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver53 = {
+var resolver56 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -25748,11 +29354,11 @@ var resolver53 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs57 = `
+var typeDefs60 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -25781,14 +29387,14 @@ var typeDefs57 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition54 = `
+var definition57 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
-function fullName(person) {
+function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver54 = {
+var resolver57 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -25826,11 +29432,11 @@ var resolver54 = {
         teamMemberId,
         phoneKey: phoneKey || null,
         kind: leadId ? "lead" : teamMemberId ? "team" : "phone",
-        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : teamMemberId ? fullName(msg.teamMember) || "Sin nombre" : "",
+        name: leadId ? msg.businessLead?.businessName || "Sin nombre" : teamMemberId ? fullName3(msg.teamMember) || "Sin nombre" : "",
         // se completa abajo con el nombre de perfil o el teléfono
         phone: (leadId ? msg.businessLead?.phone : teamMemberId ? msg.teamMember?.phone : rawPhone && `+${rawPhone.replace(/\D/g, "")}`) || null,
         assignedToId: assigned?.id ?? null,
-        assignedToName: assigned ? fullName(assigned) || null : null,
+        assignedToName: assigned ? fullName3(assigned) || null : null,
         lastMessageBody: msg.body || "",
         lastMessageAt: msg.createdAt,
         lastMessageDirection: msg.direction || "unknown"
@@ -25844,11 +29450,11 @@ var resolver54 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var whatsappConversations_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs58 = `
+var typeDefs61 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -25860,10 +29466,10 @@ var typeDefs58 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition55 = `
+var definition58 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver55 = {
+var resolver58 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -25904,10 +29510,10 @@ var resolver55 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs59 = `
+var typeDefs62 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -25925,10 +29531,10 @@ var typeDefs59 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition56 = `
+var definition59 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver56 = {
+var resolver59 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -25954,10 +29560,10 @@ var resolver56 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs60 = `
+var typeDefs63 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -25983,13 +29589,13 @@ var typeDefs60 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition57 = `
+var definition60 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
 function fail9(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver57 = {
+var resolver60 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -26046,11 +29652,11 @@ var resolver57 = {
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs61 = `
+var typeDefs64 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -26078,25 +29684,25 @@ var typeDefs61 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition58 = `
+var definition61 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver58 = {
+var resolver61 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
     timeMax
   }, context) => {
-    const fail10 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail10(denyGoogleCalendarAccessMessage(context.session));
+    const fail11 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail11(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail10(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail11(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail10("Rango de fechas inv\xE1lido");
+      return fail11("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -26113,7 +29719,7 @@ var resolver58 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail10(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail11(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -26133,7 +29739,4151 @@ var resolver58 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+
+// utils/analytics/health.ts
+var HEALTH_WINDOW_DAYS = 28;
+var ACTIVE_DAYS_TARGET = 16;
+var USAGE_POINTS_TARGET = 60;
+var MINUTES_PER_PERSON_TARGET = 120;
+var NEW_COMPANY_DAYS = 21;
+var NEVER_USED_GRACE_DAYS = 3;
+var EARLY_EXHAUSTION_DAY = 20;
+function ratio(value, target) {
+  return target <= 0 ? 0 : Math.min(1, Math.max(0, value / target));
+}
+function billingPoints(status, paymentFailures) {
+  let points = 0;
+  if (status === SUBSCRIPTION_STATUS.ACTIVE) points = 15;
+  else if (status === SUBSCRIPTION_STATUS.TRIALING) points = 10;
+  if (paymentFailures > 0) points = Math.max(0, points - 5);
+  return points;
+}
+function activityPoints(row) {
+  return row.minutes + 10 * (row.extractions + row.crmChanges + row.activities + row.quotations);
+}
+function scoreHealth(input) {
+  const window = Math.max(1, Math.min(HEALTH_WINDOW_DAYS, input.ageDays));
+  const scale = window / HEALTH_WINDOW_DAYS;
+  const activeDaysTarget = Math.max(3, Math.round(ACTIVE_DAYS_TARGET * scale));
+  const usageTarget = Math.max(10, USAGE_POINTS_TARGET * scale);
+  const minutesTarget = Math.max(20, MINUTES_PER_PERSON_TARGET * scale);
+  const usagePoints = Math.max(0, input.extractions - input.extractionsFailed) * 3 + input.crmChanges + input.activities * 2 + input.quotations * 4 + input.whatsappSent * 0.5;
+  const recentAndPrevious = input.recentActivity + input.previousActivity;
+  const recency = recentAndPrevious > 0 ? Math.min(1, 0.5 + input.recentActivity / recentAndPrevious) : 1;
+  const components = {
+    activity: Math.round(ratio(input.activeDays, activeDaysTarget) * 30 * recency),
+    adoption: Math.round(input.teamSize ? ratio(input.activeUsers, input.teamSize) * 15 : 0),
+    usage: Math.round(ratio(usagePoints, usageTarget) * 25 * recency),
+    engagement: Math.round(
+      (input.teamSize ? ratio(input.minutes / input.teamSize, minutesTarget) : 0) * 15 * recency
+    ),
+    billing: billingPoints(input.status, input.paymentFailures)
+  };
+  const failingExtractions = input.extractions >= 3 && input.extractionsFailed / input.extractions > 0.3 ? 5 : 0;
+  const raw = components.activity + components.adoption + components.usage + components.engagement + components.billing - failingExtractions;
+  const score = Math.max(0, Math.min(100, Math.round(raw)));
+  const label = score >= 70 ? "healthy" : score >= 40 ? "watch" : "risk";
+  let trend;
+  let changePct = null;
+  if (input.ageDays < NEW_COMPANY_DAYS) {
+    trend = "new";
+  } else if (input.recentActivity === 0 && input.previousActivity === 0) {
+    trend = "inactive";
+  } else if (input.previousActivity === 0) {
+    trend = "up";
+  } else {
+    const change = (input.recentActivity - input.previousActivity) / input.previousActivity;
+    changePct = Math.round(change * 100);
+    trend = change > 0.2 ? "up" : change < -0.2 ? "down" : "stable";
+  }
+  const flags = [];
+  const hasPlan = input.status === SUBSCRIPTION_STATUS.ACTIVE || input.status === SUBSCRIPTION_STATUS.TRIALING;
+  const paymentProblem = input.status === SUBSCRIPTION_STATUS.PAST_DUE || input.status === SUBSCRIPTION_STATUS.UNPAID;
+  if (paymentProblem) {
+    flags.push({ key: "churn_risk", reason: "payment_overdue", label: "Pago vencido" });
+  } else if (hasPlan) {
+    if (input.daysSinceSeen == null && input.ageDays >= NEVER_USED_GRACE_DAYS) {
+      flags.push({ key: "churn_risk", reason: "never_used", label: "Nadie del equipo ha entrado" });
+    } else if (input.daysSinceSeen != null && input.daysSinceSeen >= 14) {
+      flags.push({
+        key: "churn_risk",
+        reason: "inactive",
+        label: `Nadie entra hace ${input.daysSinceSeen} d\xEDas`
+      });
+    } else if (trend === "down" && changePct != null && changePct <= -40) {
+      flags.push({
+        key: "churn_risk",
+        reason: "usage_drop",
+        label: `El uso cay\xF3 ${Math.abs(changePct)}% en 2 semanas`
+      });
+    } else if (label === "risk" && input.ageDays >= NEW_COMPANY_DAYS) {
+      flags.push({ key: "churn_risk", reason: "low_health", label: `Salud baja (${score})` });
+    }
+  }
+  if (input.creditsExhaustedDay != null && input.creditsExhaustedDay <= EARLY_EXHAUSTION_DAY) {
+    flags.push({
+      key: "upsell",
+      reason: "credits_exhausted",
+      label: `Se qued\xF3 sin cr\xE9ditos el d\xEDa ${input.creditsExhaustedDay}`
+    });
+  } else if (input.purchaseIntent >= 2) {
+    flags.push({
+      key: "upsell",
+      reason: "purchase_intent",
+      label: `Vio m\xF3dulos de otro plan o pidi\xF3 mejorar (${input.purchaseIntent} veces)`
+    });
+  } else if (input.status === SUBSCRIPTION_STATUS.TRIALING && score >= 60) {
+    flags.push({ key: "upsell", reason: "trial_ready", label: "Prueba con buen uso: lista para pagar" });
+  }
+  return { score, label, trend, changePct, components, flags };
+}
+
+// graphql/customs/queries/admin/healthData.ts
+var dayDate = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
+function bump(map, key, value = 1) {
+  if (key == null) return;
+  map.set(key, (map.get(key) ?? 0) + value);
+}
+async function loadCompanyHealth(prisma, companyIds) {
+  const empty2 = { ready: false, computedThrough: null, byCompany: /* @__PURE__ */ new Map() };
+  if (!prisma.saasCompanyDailyUsage) return empty2;
+  return optional(async () => {
+    const today = mxToday();
+    const lastDay = shiftDay(today, -1);
+    const firstDay = shiftDay(lastDay, -(HEALTH_WINDOW_DAYS - 1));
+    const midDay = shiftDay(lastDay, -13);
+    const windowStart = /* @__PURE__ */ new Date(`${firstDay}T00:00:00-06:00`);
+    const monthStart = /* @__PURE__ */ new Date(`${today.slice(0, 7)}-01T00:00:00-06:00`);
+    const byIds = companyIds ? { in: companyIds } : void 0;
+    const [
+      companies,
+      usageRows,
+      activePairs,
+      teams,
+      latest,
+      exhausted,
+      intent,
+      failedPayments,
+      seen,
+      logins,
+      latestRollup
+    ] = await Promise.all([
+      prisma.saasCompany.findMany({
+        where: byIds ? { id: byIds } : {},
+        select: { id: true, createdAt: true }
+      }),
+      prisma.saasCompanyDailyUsage.findMany({
+        where: {
+          day: { gte: dayDate(firstDay), lte: dayDate(lastDay) },
+          ...byIds ? { companyId: byIds } : {}
+        },
+        select: {
+          companyId: true,
+          day: true,
+          activeMinutes: true,
+          logins: true,
+          extractions: true,
+          extractionsFailed: true,
+          crmChanges: true,
+          activitiesLogged: true,
+          quotationsCreated: true,
+          whatsappSent: true
+        }
+      }),
+      prisma.userActivityDay.groupBy({
+        by: ["companyId", "userId"],
+        where: {
+          day: { gte: dayDate(firstDay), lte: dayDate(lastDay) },
+          companyId: byIds ?? { not: null }
+        }
+      }),
+      prisma.user.groupBy({
+        by: ["companyId"],
+        where: { companyId: byIds ?? { not: null }, anonymizedAt: null },
+        _count: { _all: true }
+      }),
+      latestSubscriptionsByCompany(prisma, companyIds),
+      prisma.activityEvent.findMany({
+        where: {
+          type: ACTIVITY_EVENT.CREDITS_EXHAUSTED,
+          createdAt: { gte: monthStart },
+          ...byIds ? { companyId: byIds } : {}
+        },
+        select: { companyId: true, createdAt: true }
+      }),
+      prisma.activityEvent.groupBy({
+        by: ["companyId"],
+        where: {
+          type: { in: [ACTIVITY_EVENT.UI_UPGRADE_CLICKED, ACTIVITY_EVENT.UI_FEATURE_LOCKED_VIEWED] },
+          createdAt: { gte: windowStart },
+          companyId: byIds ?? { not: null }
+        },
+        _count: { _all: true }
+      }),
+      prisma.saasPayment.findMany({
+        where: { status: "failed", createdAt: { gte: windowStart } },
+        select: {
+          subscription: { select: { companyId: true } },
+          user: { select: { companyId: true } }
+        }
+      }),
+      prisma.userActivityDay.groupBy({
+        by: ["companyId"],
+        where: { companyId: byIds ?? { not: null } },
+        _max: { lastSeenAt: true }
+      }),
+      prisma.user.groupBy({
+        by: ["companyId"],
+        where: { companyId: byIds ?? { not: null } },
+        _max: { lastLoginAt: true }
+      }),
+      prisma.saasCompanyDailyUsage.findFirst({ orderBy: { day: "desc" }, select: { day: true } })
+    ]);
+    const totals = /* @__PURE__ */ new Map();
+    const midDate = dayDate(midDay).getTime();
+    for (const row of usageRows) {
+      const t = totals.get(row.companyId) ?? { activeDays: 0, minutes: 0, extractions: 0, extractionsFailed: 0, crmChanges: 0, activities: 0, quotations: 0, whatsappSent: 0, recent: 0, previous: 0 };
+      const day = {
+        minutes: row.activeMinutes ?? 0,
+        extractions: Math.max(0, (row.extractions ?? 0) - (row.extractionsFailed ?? 0)),
+        crmChanges: row.crmChanges ?? 0,
+        activities: row.activitiesLogged ?? 0,
+        quotations: row.quotationsCreated ?? 0
+      };
+      const didSomething = day.minutes > 0 || (row.logins ?? 0) > 0 || (row.extractions ?? 0) > 0 || day.crmChanges + day.activities + day.quotations + (row.whatsappSent ?? 0) > 0;
+      if (didSomething) t.activeDays += 1;
+      t.minutes += day.minutes;
+      t.extractions += row.extractions ?? 0;
+      t.extractionsFailed += row.extractionsFailed ?? 0;
+      t.crmChanges += day.crmChanges;
+      t.activities += day.activities;
+      t.quotations += day.quotations;
+      t.whatsappSent += row.whatsappSent ?? 0;
+      const points = activityPoints(day);
+      if (new Date(row.day).getTime() >= midDate) t.recent += points;
+      else t.previous += points;
+      totals.set(row.companyId, t);
+    }
+    const activeUsers = /* @__PURE__ */ new Map();
+    for (const pair of activePairs) bump(activeUsers, pair.companyId);
+    const teamSize = new Map(
+      teams.filter((row) => row.companyId).map((row) => [row.companyId, row._count._all])
+    );
+    const exhaustedDay = /* @__PURE__ */ new Map();
+    for (const row of exhausted) {
+      if (!row.companyId) continue;
+      const day = Number(mxToday(new Date(row.createdAt)).slice(8, 10));
+      exhaustedDay.set(row.companyId, Math.min(exhaustedDay.get(row.companyId) ?? 99, day));
+    }
+    const intentCount = new Map(
+      intent.filter((row) => row.companyId).map((row) => [row.companyId, row._count._all])
+    );
+    const failures = /* @__PURE__ */ new Map();
+    for (const row of failedPayments) {
+      bump(failures, row.subscription?.companyId ?? row.user?.companyId);
+    }
+    const lastSeen = /* @__PURE__ */ new Map();
+    for (const row of seen) {
+      if (row.companyId && row._max.lastSeenAt) lastSeen.set(row.companyId, row._max.lastSeenAt);
+    }
+    for (const row of logins) {
+      if (!row.companyId || !row._max.lastLoginAt) continue;
+      const current = lastSeen.get(row.companyId);
+      if (!current || row._max.lastLoginAt > current) lastSeen.set(row.companyId, row._max.lastLoginAt);
+    }
+    const now = Date.now();
+    const byCompany = /* @__PURE__ */ new Map();
+    for (const company of companies) {
+      const t = totals.get(company.id);
+      const seenAt = lastSeen.get(company.id) ?? null;
+      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS2)) : HEALTH_WINDOW_DAYS;
+      const result3 = scoreHealth({
+        ageDays,
+        teamSize: teamSize.get(company.id) ?? 0,
+        activeUsers: activeUsers.get(company.id) ?? 0,
+        activeDays: t?.activeDays ?? 0,
+        minutes: t?.minutes ?? 0,
+        extractions: t?.extractions ?? 0,
+        extractionsFailed: t?.extractionsFailed ?? 0,
+        crmChanges: t?.crmChanges ?? 0,
+        activities: t?.activities ?? 0,
+        quotations: t?.quotations ?? 0,
+        whatsappSent: t?.whatsappSent ?? 0,
+        recentActivity: t?.recent ?? 0,
+        previousActivity: t?.previous ?? 0,
+        status: latest.get(company.id)?.status ?? null,
+        creditsExhaustedDay: exhaustedDay.get(company.id) ?? null,
+        purchaseIntent: intentCount.get(company.id) ?? 0,
+        paymentFailures: failures.get(company.id) ?? 0,
+        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS2) : null
+      });
+      byCompany.set(company.id, {
+        ...result3,
+        companyId: company.id,
+        teamSize: teamSize.get(company.id) ?? 0,
+        activeUsers: activeUsers.get(company.id) ?? 0,
+        lastSeenAt: seenAt
+      });
+    }
+    const computedThrough = latestRollup?.day ? new Date(latestRollup.day).toISOString().slice(0, 10) : null;
+    return { ready: Boolean(computedThrough), computedThrough, byCompany };
+  }, empty2);
+}
+
+// graphql/customs/queries/admin/adminHealth.ts
+var LIVE_STATUSES = [
+  SUBSCRIPTION_STATUS.ACTIVE,
+  SUBSCRIPTION_STATUS.TRIALING,
+  SUBSCRIPTION_STATUS.PAST_DUE,
+  SUBSCRIPTION_STATUS.UNPAID
+];
+var SORTS = ["risk", "best", "drop", "name"];
+var typeDefs65 = `
+  input AdminHealthInput {
+    search: String
+    """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
+    status: String
+    """healthy | watch | risk"""
+    label: String
+    """churn_risk | upsell"""
+    flag: String
+    accountManagerId: ID
+    """risk (peor salud primero, por defecto) | best | drop (mayor ca\xEDda de uso) | name"""
+    sort: String
+    """Solo esta empresa (ficha 360). Ignora los dem\xE1s filtros."""
+    companyId: ID
+    take: Int
+    skip: Int
+  }
+
+  """Puntos de cada parte de la salud (m\xE1ximos: 30, 15, 25, 15, 15)."""
+  type AdminHealthComponents {
+    activity: Int!
+    adoption: Int!
+    usage: Int!
+    engagement: Int!
+    billing: Int!
+  }
+
+  type AdminHealthFlag {
+    """churn_risk | upsell"""
+    key: String!
+    """payment_overdue | never_used | inactive | usage_drop | low_health | credits_exhausted | purchase_intent | trial_ready"""
+    reason: String!
+    label: String!
+  }
+
+  """Salud resumida para listas."""
+  type AdminHealthBrief {
+    score: Int!
+    label: String!
+    trend: String!
+    changePct: Int
+    flags: [AdminHealthFlag!]!
+  }
+
+  type AdminCompanyHealth {
+    companyId: ID!
+    companyName: String!
+    planName: String
+    subscriptionStatus: String
+    """0\u2013100"""
+    score: Int!
+    """healthy (70 o m\xE1s) | watch (40\u201369) | risk (menos de 40)"""
+    label: String!
+    """up | down | stable | new (menos de 21 d\xEDas) | inactive"""
+    trend: String!
+    """Actividad de las \xFAltimas 2 semanas contra las 2 anteriores (%)."""
+    changePct: Int
+    components: AdminHealthComponents!
+    flags: [AdminHealthFlag!]!
+    teamSize: Int!
+    """Personas que entraron en las \xFAltimas 4 semanas."""
+    activeUsers: Int!
+    lastSeenAt: String
+    accountManager: AdminPersonRef
+  }
+
+  type AdminHealthResult {
+    """false mientras no haya resumen diario: la salud saldr\xEDa en ceros."""
+    ready: Boolean!
+    """\xDAltimo d\xEDa con resumen (YYYY-MM-DD)."""
+    computedThrough: String
+    windowDays: Int!
+    total: Int!
+    """Con b\xFAsqueda y estado aplicados: healthy, watch, risk, churn_risk, upsell."""
+    counts: [AdminCount!]!
+    items: [AdminCompanyHealth!]!
+  }
+
+  type Query {
+    adminHealth(input: AdminHealthInput): AdminHealthResult!
+  }
+`;
+var definition62 = `
+  adminHealth(input: AdminHealthInput): AdminHealthResult!
+`;
+function healthBrief(health) {
+  if (!health) return null;
+  return {
+    score: health.score,
+    label: health.label,
+    trend: health.trend,
+    changePct: health.changePct,
+    flags: health.flags
+  };
+}
+function matchesStatus(status, filter) {
+  if (filter === "all") return true;
+  if (filter === "live") return Boolean(status && LIVE_STATUSES.includes(status));
+  if (filter === "none") return !status;
+  return status === filter;
+}
+var resolver62 = {
+  adminHealth: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const take = clampInt(input?.take, 1, 100, 25);
+    const skip = clampInt(input?.skip, 0, 1e6, 0);
+    const sort = SORTS.includes(input?.sort) ? input?.sort : "risk";
+    const statusFilter = input?.status?.trim() || "live";
+    const companyId = input?.companyId?.trim() || null;
+    let scopedIds;
+    if (companyId) {
+      scopedIds = [companyId];
+    } else {
+      const managerId = input?.accountManagerId?.trim();
+      const search = companySearchWhere(input?.search);
+      const matching = await prisma.saasCompany.findMany({
+        where: managerId ? { AND: [search, { accountManagerId: managerId }] } : search,
+        select: { id: true }
+      });
+      const excludedIds = await analyticsExcludedCompanyIds(prisma);
+      scopedIds = matching.map((c) => c.id).filter((id) => !excludedIds.has(id));
+    }
+    const latest = await latestSubscriptionsByCompany(prisma, scopedIds);
+    if (!companyId) {
+      scopedIds = scopedIds.filter((id) => matchesStatus(latest.get(id)?.status, statusFilter));
+    }
+    const { ready, computedThrough, byCompany } = await loadCompanyHealth(prisma, scopedIds);
+    const scored = scopedIds.map((id) => byCompany.get(id)).filter((health) => Boolean(health));
+    const counts = /* @__PURE__ */ new Map([
+      ["healthy", 0],
+      ["watch", 0],
+      ["risk", 0],
+      ["churn_risk", 0],
+      ["upsell", 0]
+    ]);
+    for (const health of scored) {
+      counts.set(health.label, (counts.get(health.label) ?? 0) + 1);
+      for (const key of new Set(health.flags.map((flag2) => flag2.key))) {
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    const label = input?.label?.trim();
+    const flag = input?.flag?.trim();
+    const filtered = scored.filter(
+      (health) => (!label || health.label === label) && (!flag || health.flags.some((item) => item.key === flag))
+    );
+    const companies = await prisma.saasCompany.findMany({
+      where: { id: { in: filtered.map((health) => health.companyId) } },
+      select: {
+        id: true,
+        name: true,
+        accountManager: { select: { id: true, name: true, lastName: true, email: true } }
+      }
+    });
+    const companyById = new Map(companies.map((company) => [company.id, company]));
+    const seen = (health) => health.lastSeenAt?.getTime() ?? 0;
+    const ordered = [...filtered].sort((a, b) => {
+      switch (sort) {
+        case "best":
+          return b.score - a.score || seen(b) - seen(a);
+        case "drop":
+          return (a.changePct ?? Infinity) - (b.changePct ?? Infinity) || a.score - b.score;
+        case "name":
+          return (companyById.get(a.companyId)?.name ?? "").localeCompare(
+            companyById.get(b.companyId)?.name ?? "",
+            "es"
+          );
+        default:
+          return a.score - b.score || seen(a) - seen(b);
+      }
+    });
+    const items = ordered.slice(skip, skip + take).map((health) => {
+      const company = companyById.get(health.companyId);
+      const sub = latest.get(health.companyId);
+      return {
+        companyId: health.companyId,
+        companyName: company?.name ?? "Empresa",
+        planName: sub?.planName || null,
+        subscriptionStatus: sub?.status ?? null,
+        score: health.score,
+        label: health.label,
+        trend: health.trend,
+        changePct: health.changePct,
+        components: health.components,
+        flags: health.flags,
+        teamSize: health.teamSize,
+        activeUsers: health.activeUsers,
+        lastSeenAt: toIso(health.lastSeenAt),
+        accountManager: personRef(company?.accountManager)
+      };
+    });
+    return {
+      ready,
+      computedThrough,
+      windowDays: HEALTH_WINDOW_DAYS,
+      total: filtered.length,
+      counts: [...counts.entries()].map(([key, count2]) => ({ key, count: count2 })),
+      items
+    };
+  }
+};
+var adminHealth_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+
+// graphql/customs/queries/admin/adminCompanies.ts
+var STATUS_NONE = "none";
+var SORTS2 = ["recent", "name", "activity", "health"];
+var typeDefs66 = `
+  input AdminCompaniesInput {
+    """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
+    search: String
+    """all | active | trialing | past_due | unpaid | cancelled | none (sin plan)"""
+    status: String
+    """recent (alta) | name | activity (\xFAltimo acceso del equipo) | health (peor salud primero)"""
+    sort: String
+    """Solo las cuentas de esta persona de Kadesh (due\xF1o de cuenta)."""
+    accountManagerId: ID
+    take: Int
+    skip: Int
+  }
+
+  type AdminCompanyRow {
+    id: ID!
+    name: String!
+    createdAt: String
+    contactEmail: String
+    isTest: Boolean!
+    planName: String
+    subscriptionId: ID
+    subscriptionStatus: String
+    activatedAt: String
+    currentPeriodEnd: String
+    trialEndsAt: String
+    creditsPlan: Int!
+    creditsBonus: Int!
+    creditsUsed: Int!
+    creditsRemaining: Int!
+    usersCount: Int!
+    leadsCount: Int!
+    lastLoginAt: String
+    """\xDAltima vez que alguien del equipo tuvo el panel abierto (latido). M\xE1s fiel que el \xFAltimo login: la sesi\xF3n dura 30 d\xEDas."""
+    lastSeenAt: String
+    owner: AdminPersonRef
+    """Persona de Kadesh responsable de la cuenta."""
+    accountManager: AdminPersonRef
+    """Si Kadesh suspendi\xF3 el acceso de la empresa."""
+    suspendedAt: String
+    """Salud de las \xFAltimas 4 semanas; null mientras no haya resumen diario."""
+    health: AdminHealthBrief
+  }
+
+  type AdminCompaniesResult {
+    items: [AdminCompanyRow!]!
+    total: Int!
+    """Conteo por estado vigente con la b\xFAsqueda aplicada (para los chips)."""
+    statusCounts: [AdminCount!]!
+  }
+
+  type Query {
+    adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
+  }
+`;
+var definition63 = `
+  adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
+`;
+function pickOwner(users) {
+  const admin = users.find(
+    (u) => u.roles.some((r) => r.name === "admin_company" /* ADMIN_COMPANY */)
+  );
+  return admin ?? users[0] ?? null;
+}
+var resolver63 = {
+  adminCompanies: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const take = clampInt(input?.take, 1, 100, 25);
+    const skip = clampInt(input?.skip, 0, 1e6, 0);
+    const status = input?.status?.trim() || "all";
+    const sort = SORTS2.includes(input?.sort) ? input?.sort : "recent";
+    const searchFilter = companySearchWhere(input?.search);
+    const managerId = input?.accountManagerId?.trim();
+    const baseWhere = managerId ? { AND: [searchFilter, { accountManagerId: managerId }] } : searchFilter;
+    const matching = await prisma.saasCompany.findMany({
+      where: baseWhere,
+      select: { id: true }
+    });
+    const matchingIds = matching.map((c) => c.id);
+    const latest = await latestSubscriptionsByCompany(prisma, matchingIds);
+    const counts = /* @__PURE__ */ new Map();
+    for (const id of matchingIds) {
+      const key = latest.get(id)?.status ?? STATUS_NONE;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const statusCounts = [
+      { key: "all", count: matchingIds.length },
+      ...[...counts.entries()].map(([key, count2]) => ({ key, count: count2 }))
+    ];
+    const filteredIds = status === "all" ? matchingIds : matchingIds.filter(
+      (id) => (latest.get(id)?.status ?? STATUS_NONE) === status
+    );
+    const total = filteredIds.length;
+    let pageIds;
+    let health = null;
+    if (sort === "health") {
+      health = await loadCompanyHealth(prisma, filteredIds);
+      const scoreOf = (id) => health?.byCompany.get(id)?.score ?? 101;
+      pageIds = [...filteredIds].sort((a, b) => scoreOf(a) - scoreOf(b)).slice(skip, skip + take);
+    } else if (sort === "activity") {
+      const lastLogins = await prisma.user.groupBy({
+        by: ["companyId"],
+        where: { companyId: { in: filteredIds } },
+        _max: { lastLoginAt: true }
+      });
+      const seen = await lastSeenByCompany(prisma, filteredIds);
+      const lastByCompany = new Map(
+        lastLogins.map((row) => [
+          row.companyId,
+          latestDate(row._max.lastLoginAt, row.companyId ? seen.get(row.companyId) : null)?.getTime() ?? 0
+        ])
+      );
+      pageIds = [...filteredIds].sort((a, b) => (lastByCompany.get(b) ?? 0) - (lastByCompany.get(a) ?? 0)).slice(skip, skip + take);
+    } else {
+      const ordered = await prisma.saasCompany.findMany({
+        where: { id: { in: filteredIds } },
+        orderBy: sort === "name" ? [{ name: "asc" }] : [{ createdAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+        skip,
+        take,
+        select: { id: true }
+      });
+      pageIds = ordered.map((c) => c.id);
+    }
+    const { year, month } = currentPeriod();
+    const records = await prisma.saasCompany.findMany({
+      where: { id: { in: pageIds } },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        contactEmail: true,
+        purchasedBonusCredits: true,
+        accountManager: { select: { id: true, name: true, lastName: true, email: true } },
+        suspendedAt: true,
+        plan: { select: { name: true, leadLimit: true } },
+        creditPeriods: {
+          where: { year, month },
+          take: 1,
+          select: { planAllowance: true, bonusAllowance: true, used: true }
+        },
+        users: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            name: true,
+            lastName: true,
+            email: true,
+            lastLoginAt: true,
+            userTest: true,
+            roles: { select: { name: true } }
+          }
+        },
+        _count: { select: { users: true, leads: true } }
+      }
+    });
+    const byId = new Map(records.map((r) => [r.id, r]));
+    const lastSeen = await lastSeenByCompany(prisma, pageIds);
+    health ??= await loadCompanyHealth(prisma, pageIds);
+    const healthReady = health.ready;
+    const healthById = health.byCompany;
+    const items = pageIds.map((id) => byId.get(id)).filter((c) => Boolean(c)).map((c) => {
+      const sub = latest.get(c.id) ?? null;
+      const credits = companyCredits({
+        period: c.creditPeriods[0] ?? null,
+        planLeadLimit: sub?.planLeadLimit ?? c.plan?.leadLimit ?? null,
+        purchasedBonusCredits: c.purchasedBonusCredits
+      });
+      const lastLogin = c.users.reduce(
+        (max, u) => u.lastLoginAt && (!max || u.lastLoginAt > max) ? u.lastLoginAt : max,
+        null
+      );
+      return {
+        id: c.id,
+        name: c.name,
+        createdAt: toIso(c.createdAt),
+        contactEmail: c.contactEmail,
+        isTest: c.users.length > 0 && c.users.every((u) => u.userTest),
+        planName: sub?.planName || c.plan?.name || null,
+        subscriptionId: sub?.id ?? null,
+        subscriptionStatus: sub?.status ?? null,
+        activatedAt: toYmd(sub?.activatedAt),
+        currentPeriodEnd: toYmd(sub?.currentPeriodEnd),
+        trialEndsAt: toYmd(trialEndDate(sub)),
+        creditsPlan: credits.plan,
+        creditsBonus: credits.bonus,
+        creditsUsed: credits.used,
+        creditsRemaining: credits.remaining,
+        usersCount: c._count.users,
+        leadsCount: c._count.leads,
+        lastLoginAt: toIso(lastLogin),
+        lastSeenAt: toIso(lastSeen.get(c.id) ?? null),
+        owner: personRef(pickOwner(c.users)),
+        accountManager: personRef(c.accountManager),
+        suspendedAt: toIso(c.suspendedAt),
+        health: healthReady ? healthBrief(healthById.get(c.id)) : null
+      };
+    });
+    return { items, total, statusCounts };
+  }
+};
+var adminCompanies_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+
+// graphql/customs/queries/admin/adminOpsSummary.ts
+var ATTENTION_LIMIT = 25;
+var TRIAL_SOON_DAYS = 3;
+var INACTIVE_DAYS = 14;
+var APP_ERRORS_THRESHOLD = 3;
+var typeDefs67 = `
+  type AdminMoney {
+    currency: String!
+    amount: Float!
+  }
+
+  type AdminAttentionItem {
+    companyId: ID!
+    companyName: String!
+    """trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive | churn_risk | upsell | app_errors"""
+    reason: String!
+    detail: String
+    """high | medium | low"""
+    severity: String!
+    at: String
+  }
+
+  type AdminOpsSummary {
+    companiesTotal: Int!
+    """Estado vigente por empresa (sin cuentas de prueba); none = sin suscripci\xF3n."""
+    statusCounts: [AdminCount!]!
+    trialsEndingSoon: Int!
+    paymentIssues: Int!
+    newUsers7d: Int!
+    newCompanies7d: Int!
+    activeUsers7d: Int!
+    syncs24h: Int!
+    failedSyncs24h: Int!
+    aiCalls7d: Int!
+    creditsConsumedMonth: Int!
+    """Leads de extracciones de este mes que se crearon nuevos (Google Maps o cat\xE1logo INEGI)."""
+    leadsCreatedMonth: Int!
+    """Leads de este mes que salieron de la base: ya exist\xEDan, no se le pag\xF3 a Google ni a INEGI por ellos."""
+    leadsReusedMonth: Int!
+    """MRR estimado por moneda: suscripciones activas normalizadas a mes."""
+    mrr: [AdminMoney!]!
+    attention: [AdminAttentionItem!]!
+  }
+
+  type Query {
+    adminOpsSummary: AdminOpsSummary!
+  }
+`;
+var definition64 = `
+  adminOpsSummary: AdminOpsSummary!
+`;
+var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
+function formatDay(date) {
+  return date.toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "short",
+    timeZone: "America/Mexico_City"
+  });
+}
+var resolver64 = {
+  adminOpsSummary: async (_root, _args, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const now = /* @__PURE__ */ new Date();
+    const since24h = new Date(now.getTime() - DAY_MS2);
+    const since7d = daysAgo(7, now);
+    const sinceInactive = daysAgo(INACTIVE_DAYS, now);
+    const { year, month } = currentPeriod();
+    const monthStart = new Date(year, month - 1, 1);
+    const testIds = await testCompanyIds(prisma);
+    const companies = await prisma.saasCompany.findMany({
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        purchasedBonusCredits: true,
+        plan: { select: { leadLimit: true } },
+        creditPeriods: {
+          where: { year, month },
+          take: 1,
+          select: { planAllowance: true, bonusAllowance: true, used: true }
+        }
+      }
+    });
+    const real = companies.filter((c) => !testIds.has(c.id));
+    const realIds = real.map((c) => c.id);
+    const nameById = new Map(real.map((c) => [c.id, c.name]));
+    const latest = await latestSubscriptionsByCompany(prisma, realIds);
+    const statusCounts = /* @__PURE__ */ new Map();
+    const mrr = /* @__PURE__ */ new Map();
+    const attention = [];
+    let trialsEndingSoon = 0;
+    let paymentIssues = 0;
+    for (const company of real) {
+      const sub = latest.get(company.id);
+      const status = sub?.status ?? "none";
+      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
+      if (sub?.status === SUBSCRIPTION_STATUS.ACTIVE) {
+        const amount = monthlyAmount(sub.planCost, sub.planFrequency);
+        if (amount > 0) {
+          const currency = (sub.planCurrency || "mxn").toUpperCase();
+          mrr.set(currency, (mrr.get(currency) ?? 0) + amount);
+        }
+      }
+      if (sub?.status === SUBSCRIPTION_STATUS.PAST_DUE || sub?.status === SUBSCRIPTION_STATUS.UNPAID) {
+        paymentIssues += 1;
+        attention.push({
+          companyId: company.id,
+          companyName: company.name,
+          reason: sub.status,
+          detail: sub.planName ? `Plan ${sub.planName}` : null,
+          severity: "high",
+          at: toIso(sub.currentPeriodEnd)
+        });
+      }
+      const trialEnd = trialEndDate(sub);
+      if (trialEnd) {
+        const msLeft = trialEnd.getTime() - now.getTime();
+        if (msLeft < 0) {
+          attention.push({
+            companyId: company.id,
+            companyName: company.name,
+            reason: "trial_expired",
+            detail: `Termin\xF3 el ${formatDay(trialEnd)}`,
+            severity: "high",
+            at: toIso(trialEnd)
+          });
+        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS2) {
+          trialsEndingSoon += 1;
+          attention.push({
+            companyId: company.id,
+            companyName: company.name,
+            reason: "trial_ending",
+            detail: `Vence el ${formatDay(trialEnd)}`,
+            severity: "medium",
+            at: toIso(trialEnd)
+          });
+        }
+      }
+      const isLive = sub?.status === SUBSCRIPTION_STATUS.ACTIVE || sub?.status === SUBSCRIPTION_STATUS.TRIALING;
+      if (isLive) {
+        const credits = companyCredits({
+          period: company.creditPeriods[0] ?? null,
+          planLeadLimit: sub?.planLeadLimit ?? company.plan?.leadLimit ?? null,
+          purchasedBonusCredits: company.purchasedBonusCredits
+        });
+        if (credits.plan + credits.bonus > 0 && credits.remaining === 0) {
+          attention.push({
+            companyId: company.id,
+            companyName: company.name,
+            reason: "no_credits",
+            detail: `Us\xF3 ${credits.used} de ${credits.plan + credits.bonus} este mes`,
+            severity: "medium",
+            at: null
+          });
+        }
+      }
+    }
+    const [failedSyncGroups, checkoutFailures, checkoutSuccesses, recentLogins] = await Promise.all([
+      prisma.techLeadSyncLog.groupBy({
+        by: ["companyId"],
+        where: { success: false, createdAt: { gte: since7d }, companyId: { in: realIds } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.saasSubscriptionLog.groupBy({
+        by: ["companyId"],
+        where: {
+          success: false,
+          createdAt: { gte: since7d },
+          companyId: { in: realIds },
+          step: { notIn: [SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH] }
+        },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.saasSubscriptionLog.groupBy({
+        by: ["companyId"],
+        where: { success: true, createdAt: { gte: since7d }, companyId: { in: realIds } },
+        _max: { createdAt: true }
+      }),
+      prisma.user.groupBy({
+        by: ["companyId"],
+        where: { companyId: { in: realIds } },
+        _max: { lastLoginAt: true }
+      })
+    ]);
+    for (const row of failedSyncGroups) {
+      if (row._count._all < 2) continue;
+      attention.push({
+        companyId: row.companyId,
+        companyName: nameById.get(row.companyId) ?? "Empresa",
+        reason: "sync_failures",
+        detail: `${row._count._all} extracciones fallidas en 7 d\xEDas`,
+        severity: "medium",
+        at: toIso(row._max.createdAt)
+      });
+    }
+    const lastSuccess = new Map(
+      checkoutSuccesses.map(
+        (row) => [row.companyId, row._max.createdAt?.getTime() ?? 0]
+      )
+    );
+    for (const row of checkoutFailures) {
+      const failedAt = row._max.createdAt?.getTime() ?? 0;
+      if ((lastSuccess.get(row.companyId) ?? 0) > failedAt) continue;
+      attention.push({
+        companyId: row.companyId,
+        companyName: nameById.get(row.companyId) ?? "Empresa",
+        reason: "checkout_failed",
+        detail: `${row._count._all} intento${row._count._all === 1 ? "" : "s"} de pago sin completar`,
+        severity: "medium",
+        at: toIso(row._max.createdAt)
+      });
+    }
+    const lastLoginByCompany = new Map(
+      recentLogins.map(
+        (row) => [row.companyId, row._max.lastLoginAt]
+      )
+    );
+    const lastSeen = await lastSeenByCompany(prisma, realIds);
+    for (const company of real) {
+      const sub = latest.get(company.id);
+      if (sub?.status !== SUBSCRIPTION_STATUS.ACTIVE) continue;
+      const last = latestDate(lastLoginByCompany.get(company.id), lastSeen.get(company.id));
+      if (last && last >= sinceInactive) continue;
+      attention.push({
+        companyId: company.id,
+        companyName: company.name,
+        reason: "inactive",
+        detail: last ? `\xDAltimo acceso ${formatDay(last)}` : "Nadie del equipo ha entrado",
+        severity: "low",
+        at: toIso(last)
+      });
+    }
+    const internalIds = await internalCompanyIds(prisma);
+    const health = await loadCompanyHealth(
+      prisma,
+      realIds.filter((id) => !internalIds.has(id))
+    );
+    if (health.ready) {
+      const reasonsByCompany = /* @__PURE__ */ new Map();
+      for (const item of attention) {
+        const reasons = reasonsByCompany.get(item.companyId) ?? /* @__PURE__ */ new Set();
+        reasons.add(item.reason);
+        reasonsByCompany.set(item.companyId, reasons);
+      }
+      for (const [companyId, companyHealth] of health.byCompany) {
+        const reasons = reasonsByCompany.get(companyId) ?? /* @__PURE__ */ new Set();
+        const isTrial = latest.get(companyId)?.status === SUBSCRIPTION_STATUS.TRIALING;
+        const churn = companyHealth.flags.find(
+          (flag) => flag.key === "churn_risk" && (flag.reason === "usage_drop" || flag.reason === "low_health" || isTrial && (flag.reason === "inactive" || flag.reason === "never_used"))
+        );
+        if (churn) {
+          attention.push({
+            companyId,
+            companyName: nameById.get(companyId) ?? "Empresa",
+            reason: "churn_risk",
+            detail: `${churn.label} \xB7 salud ${companyHealth.score}`,
+            severity: "medium",
+            at: toIso(companyHealth.lastSeenAt)
+          });
+        }
+        const upsell = companyHealth.flags.find(
+          (flag) => flag.key === "upsell" && !(flag.reason === "credits_exhausted" && reasons.has("no_credits"))
+        );
+        if (upsell) {
+          attention.push({
+            companyId,
+            companyName: nameById.get(companyId) ?? "Empresa",
+            reason: "upsell",
+            detail: upsell.label,
+            severity: "low",
+            at: toIso(companyHealth.lastSeenAt)
+          });
+        }
+      }
+    }
+    const errorGroups = await optional(
+      () => prisma.activityEvent.groupBy({
+        by: ["companyId"],
+        where: { type: ACTIVITY_EVENT.APP_ERROR, createdAt: { gte: since24h }, companyId: { in: realIds } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      []
+    );
+    for (const row of Array.isArray(errorGroups) ? errorGroups : []) {
+      if (!row.companyId || row._count._all < APP_ERRORS_THRESHOLD) continue;
+      attention.push({
+        companyId: row.companyId,
+        companyName: nameById.get(row.companyId) ?? "Empresa",
+        reason: "app_errors",
+        detail: `${row._count._all} errores en el panel en 24 h`,
+        severity: "medium",
+        at: toIso(row._max.createdAt)
+      });
+    }
+    const seenUserIds = await activeUserIdsSince(prisma, since7d);
+    const [
+      newUsers7d,
+      newCompanies7d,
+      activeUsers7d,
+      syncs24h,
+      failedSyncs24h,
+      aiCalls7d,
+      consumed,
+      extractionMonth
+    ] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: since7d }, userTest: false } }),
+      Promise.resolve(real.filter((c) => c.createdAt && c.createdAt >= since7d).length),
+      prisma.user.count({
+        where: {
+          userTest: false,
+          OR: [
+            { lastLoginAt: { gte: since7d } },
+            ...seenUserIds.length ? [{ id: { in: seenUserIds } }] : []
+          ]
+        }
+      }),
+      prisma.techLeadSyncLog.count({ where: { createdAt: { gte: since24h }, companyId: { in: realIds } } }),
+      prisma.techLeadSyncLog.count({
+        where: { createdAt: { gte: since24h }, success: false, companyId: { in: realIds } }
+      }),
+      prisma.techAiCallLog.count({ where: { createdAt: { gte: since7d }, companyId: { in: realIds } } }),
+      prisma.saasCompanyCreditLedger.aggregate({
+        where: {
+          createdAt: { gte: monthStart },
+          companyId: { in: realIds },
+          type: {
+            in: [COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC, COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI]
+          }
+        },
+        _sum: { amount: true }
+      }),
+      // Reutilizar leads que ya existen es lo que ahorra llamadas a Google Maps / INEGI.
+      prisma.techLeadSyncLog.aggregate({
+        where: { createdAt: { gte: monthStart }, success: true, companyId: { in: realIds } },
+        _sum: { created: true, alreadyInDb: true }
+      })
+    ]);
+    attention.sort(
+      (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || (b.at ?? "").localeCompare(a.at ?? "")
+    );
+    return {
+      companiesTotal: real.length,
+      statusCounts: [...statusCounts.entries()].map(([key, count2]) => ({ key, count: count2 })),
+      trialsEndingSoon,
+      paymentIssues,
+      newUsers7d,
+      newCompanies7d,
+      activeUsers7d,
+      syncs24h,
+      failedSyncs24h,
+      aiCalls7d,
+      creditsConsumedMonth: Math.abs(consumed?._sum?.amount ?? 0),
+      leadsCreatedMonth: extractionMonth?._sum?.created ?? 0,
+      leadsReusedMonth: extractionMonth?._sum?.alreadyInDb ?? 0,
+      mrr: [...mrr.entries()].map(([currency, amount]) => ({
+        currency,
+        amount: Math.round(amount * 100) / 100
+      })),
+      attention: attention.slice(0, ATTENTION_LIMIT)
+    };
+  }
+};
+var adminOpsSummary_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+
+// graphql/customs/queries/admin/adminCompanyInsights.ts
+var FOLLOW_UP_PENDING = "Pendiente";
+var WHATSAPP_OUTBOUND = "outbound";
+var WHATSAPP_INBOUND = "inbound";
+var WHATSAPP_FAILED = "failed";
+var typeDefs68 = `
+  type AdminTeamMemberStats {
+    userId: ID!
+    """Accesos correctos en la ventana (login, alta)."""
+    logins: Int!
+    failedLogins: Int!
+    lastLoginAt: String
+    """\xDAltima acci\xF3n registrada (acceso, extracci\xF3n, IA, CRM, WhatsApp)."""
+    lastActivityAt: String
+    leadsAssigned: Int!
+    activities: Int!
+    quotations: Int!
+    extractions: Int!
+    aiCalls: Int!
+    whatsappSent: Int!
+    toursCompleted: Int!
+    toursSkipped: Int!
+    """\xDAltima vez con el panel abierto (latido). M\xE1s fiel que lastLoginAt: la sesi\xF3n dura 30 d\xEDas."""
+    lastSeenAt: String
+    """D\xEDas con el panel abierto en la ventana."""
+    activeDays: Int!
+    """Minutos con el panel abierto y la pesta\xF1a visible en la ventana."""
+    activeMinutes: Int!
+    """Cambios registrados en ActivityEvent (CRM, equipo, ajustes) en la ventana."""
+    changes: Int!
+  }
+
+  type AdminUsageStats {
+    """false hasta correr la migraci\xF3n de la Fase 2: todav\xEDa no hay latido ni eventos."""
+    ready: Boolean!
+    activeUsers: Int!
+    activeMinutes: Int!
+    """Minutos activos del equipo por d\xEDa (hora de CDMX)."""
+    minutesByDay: [AdminDayValue!]!
+    """Secciones del panel que m\xE1s abren."""
+    topSections: [AdminCount!]!
+    """M\xF3dulos bloqueados que vieron: intenci\xF3n de compra."""
+    lockedFeatures: [AdminCount!]!
+    upgradeClicks: Int!
+    exports: Int!
+  }
+
+  type AdminExtractionStats {
+    runs: Int!
+    failed: Int!
+    created: Int!
+    alreadyInDb: Int!
+    creditsUsed: Int!
+  }
+
+  type AdminDayValue {
+    date: String!
+    value: Int!
+  }
+
+  type AdminFeatureUsage {
+    feature: String!
+    calls: Int!
+    credits: Int!
+  }
+
+  type AdminAiStats {
+    calls: Int!
+    failed: Int!
+    credits: Int!
+    byFeature: [AdminFeatureUsage!]!
+  }
+
+  type AdminWhatsappStats {
+    outbound: Int!
+    inbound: Int!
+    failed: Int!
+    lastMessageAt: String
+  }
+
+  type AdminCompanyInsights {
+    companyId: ID!
+    days: Int!
+    lastActivityAt: String
+    team: [AdminTeamMemberStats!]!
+    """Leads por etapa del pipeline (estatus de esta empresa)."""
+    pipeline: [AdminCount!]!
+    leadsTotal: Int!
+    leadsWithoutOwner: Int!
+    extraction: AdminExtractionStats!
+    """Cr\xE9ditos gastados por d\xEDa (sync + IA), hora de CDMX."""
+    creditsByDay: [AdminDayValue!]!
+    ai: AdminAiStats!
+    activitiesByType: [AdminCount!]!
+    followUpsPending: Int!
+    followUpsOverdue: Int!
+    proposalsByStatus: [AdminAmountCount!]!
+    quotationsByStatus: [AdminAmountCount!]!
+    whatsapp: AdminWhatsappStats!
+    calendarAccounts: Int!
+    calendarLastSyncedAt: String
+    calendarLastError: String
+    checkoutFailures: Int!
+    """Errores que vio alguien de la empresa en el panel (app.error) en la ventana."""
+    appErrors: Int!
+    usage: AdminUsageStats!
+  }
+
+  type Query {
+    adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
+  }
+`;
+var definition65 = `
+  adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
+`;
+function groupMap(rows2, key) {
+  const map = /* @__PURE__ */ new Map();
+  for (const row of rows2) {
+    const id = row[key];
+    if (typeof id !== "string") continue;
+    map.set(id, { count: row._count._all, last: row._max?.createdAt ?? null });
+  }
+  return map;
+}
+function maxDate(...dates) {
+  return dates.reduce(
+    (max, d) => d && (!max || d > max) ? d : max,
+    null
+  );
+}
+var EMPTY_USAGE = {
+  ready: false,
+  byUser: /* @__PURE__ */ new Map(),
+  lastSeen: /* @__PURE__ */ new Map(),
+  changes: /* @__PURE__ */ new Map(),
+  stats: {
+    ready: false,
+    activeUsers: 0,
+    activeMinutes: 0,
+    minutesByDay: [],
+    topSections: [],
+    lockedFeatures: [],
+    upgradeClicks: 0,
+    exports: 0
+  }
+};
+var PRODUCT_SIGNAL_TYPES = [
+  ACTIVITY_EVENT.UI_SECTION_VIEWED,
+  ACTIVITY_EVENT.UI_FEATURE_LOCKED_VIEWED,
+  ACTIVITY_EVENT.UI_UPGRADE_CLICKED,
+  ACTIVITY_EVENT.LEAD_EXPORTED
+];
+function tally(values) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const value of values) {
+    if (!value) continue;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return countsToList([...counts.entries()].map(([key, count2]) => ({ key, count: count2 }))).slice(0, 10);
+}
+function metaText(metadata, ...keys) {
+  if (!metadata || typeof metadata !== "object") return null;
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return null;
+}
+async function loadUsage(prisma, companyId, userIds, since) {
+  if (!prisma.userActivityDay || !prisma.activityEvent) return EMPTY_USAGE;
+  return optional(async () => {
+    const sinceDay = /* @__PURE__ */ new Date(`${toMxDay(since)}T00:00:00.000Z`);
+    const [dayRows, lastSeenRows, changeGroups, productRows] = await Promise.all([
+      prisma.userActivityDay.findMany({
+        where: { companyId, day: { gte: sinceDay } },
+        select: { userId: true, day: true, minutes: true }
+      }),
+      userIds.length ? prisma.userActivityDay.groupBy({
+        by: ["userId"],
+        where: { userId: { in: userIds } },
+        _max: { lastSeenAt: true }
+      }) : [],
+      userIds.length ? prisma.activityEvent.groupBy({
+        by: ["actorId"],
+        where: {
+          actorId: { in: userIds },
+          createdAt: { gte: since },
+          category: { not: ACTIVITY_CATEGORY.PRODUCT }
+        },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }) : [],
+      prisma.activityEvent.findMany({
+        where: { companyId, createdAt: { gte: since }, type: { in: PRODUCT_SIGNAL_TYPES } },
+        select: { type: true, metadata: true },
+        take: 5e3
+      })
+    ]);
+    const byUser = /* @__PURE__ */ new Map();
+    const byDay = /* @__PURE__ */ new Map();
+    let activeMinutes = 0;
+    for (const row of dayRows) {
+      const minutes = row.minutes ?? 0;
+      activeMinutes += minutes;
+      const date = new Date(row.day).toISOString().slice(0, 10);
+      byDay.set(date, (byDay.get(date) ?? 0) + minutes);
+      if (!row.userId) continue;
+      const current = byUser.get(row.userId) ?? { days: 0, minutes: 0 };
+      byUser.set(row.userId, { days: current.days + 1, minutes: current.minutes + minutes });
+    }
+    const lastSeen = /* @__PURE__ */ new Map();
+    for (const row of lastSeenRows) {
+      if (row.userId && row._max.lastSeenAt) lastSeen.set(row.userId, row._max.lastSeenAt);
+    }
+    const changes = groupMap(changeGroups, "actorId");
+    const product = productRows;
+    return {
+      ready: true,
+      byUser,
+      lastSeen,
+      changes,
+      stats: {
+        ready: true,
+        activeUsers: byUser.size,
+        activeMinutes,
+        minutesByDay: [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value })),
+        topSections: tally(
+          product.filter((row) => row.type === ACTIVITY_EVENT.UI_SECTION_VIEWED).map((row) => metaText(row.metadata, "section", "tab"))
+        ),
+        lockedFeatures: tally(
+          product.filter((row) => row.type === ACTIVITY_EVENT.UI_FEATURE_LOCKED_VIEWED).map((row) => metaText(row.metadata, "feature", "featureKey"))
+        ),
+        upgradeClicks: product.filter((row) => row.type === ACTIVITY_EVENT.UI_UPGRADE_CLICKED).length,
+        exports: product.filter((row) => row.type === ACTIVITY_EVENT.LEAD_EXPORTED).length
+      }
+    };
+  }, EMPTY_USAGE);
+}
+function tourCounts(state) {
+  let completed = 0;
+  let skipped = 0;
+  if (state && typeof state === "object") {
+    for (const value of Object.values(state)) {
+      const status = value?.status;
+      if (status === "completed") completed += 1;
+      if (status === "skipped") skipped += 1;
+    }
+  }
+  return { completed, skipped };
+}
+var resolver65 = {
+  adminCompanyInsights: async (_root, { companyId, days }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const windowDays = clampInt(days, 1, 365, 30);
+    const now = /* @__PURE__ */ new Date();
+    const since = daysAgo(windowDays, now);
+    const todayMx = toMxDay(now);
+    const todayStart = /* @__PURE__ */ new Date(`${todayMx}T00:00:00.000Z`);
+    const crmScope = crmCompanyScope(companyId);
+    const users = await prisma.user.findMany({
+      where: { companyId },
+      select: { id: true, lastLoginAt: true, onboardingState: true }
+    });
+    const userIds = users.map((u) => u.id);
+    const [
+      authGroups,
+      leadsAssigned,
+      activityGroups,
+      quotationGroups,
+      extractionGroups,
+      aiGroups,
+      whatsappGroups
+    ] = await Promise.all([
+      prisma.userAuthLog.groupBy({
+        by: ["userId", "success"],
+        where: { userId: { in: userIds }, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      // Leads asignados = `TechBusinessLead.salesPerson` (N:M, no se puede agrupar): uno por persona.
+      Promise.all(
+        userIds.map(async (salesPersonId) => ({
+          salesPersonId,
+          _count: {
+            _all: await prisma.techBusinessLead.count({
+              where: {
+                saasCompany: { some: { id: companyId } },
+                salesPerson: { some: { id: salesPersonId } }
+              }
+            })
+          }
+        }))
+      ),
+      prisma.techSalesActivity.groupBy({
+        by: ["createdById"],
+        where: { AND: [crmScope, { createdAt: { gte: since } }] },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.saasQuotation.groupBy({
+        by: ["createdById"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.techLeadSyncLog.groupBy({
+        by: ["userId"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.techAiCallLog.groupBy({
+        by: ["userId"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }),
+      prisma.techWhatsAppMessage.groupBy({
+        by: ["sentById"],
+        where: { companyId, direction: WHATSAPP_OUTBOUND, createdAt: { gte: since } },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      })
+    ]);
+    const loginsOk = groupMap(
+      authGroups.filter((r) => r.success),
+      "userId"
+    );
+    const loginsFail = groupMap(
+      authGroups.filter((r) => !r.success),
+      "userId"
+    );
+    const assigned = groupMap(leadsAssigned, "salesPersonId");
+    const activities = groupMap(activityGroups, "createdById");
+    const quotations = groupMap(quotationGroups, "createdById");
+    const extractions = groupMap(extractionGroups, "userId");
+    const aiCalls = groupMap(aiGroups, "userId");
+    const whatsappSent = groupMap(whatsappGroups, "sentById");
+    const usage = await loadUsage(prisma, companyId, userIds, since);
+    const team = users.map((user) => {
+      const tours = tourCounts(user.onboardingState);
+      const lastActivity = maxDate(
+        loginsOk.get(user.id)?.last,
+        activities.get(user.id)?.last,
+        quotations.get(user.id)?.last,
+        extractions.get(user.id)?.last,
+        aiCalls.get(user.id)?.last,
+        whatsappSent.get(user.id)?.last,
+        usage.changes.get(user.id)?.last
+      );
+      return {
+        userId: user.id,
+        logins: loginsOk.get(user.id)?.count ?? 0,
+        failedLogins: loginsFail.get(user.id)?.count ?? 0,
+        lastLoginAt: toIso(user.lastLoginAt),
+        lastActivityAt: toIso(lastActivity),
+        leadsAssigned: assigned.get(user.id)?.count ?? 0,
+        activities: activities.get(user.id)?.count ?? 0,
+        quotations: quotations.get(user.id)?.count ?? 0,
+        extractions: extractions.get(user.id)?.count ?? 0,
+        aiCalls: aiCalls.get(user.id)?.count ?? 0,
+        whatsappSent: whatsappSent.get(user.id)?.count ?? 0,
+        toursCompleted: tours.completed,
+        toursSkipped: tours.skipped,
+        lastSeenAt: toIso(usage.lastSeen.get(user.id) ?? null),
+        activeDays: usage.byUser.get(user.id)?.days ?? 0,
+        activeMinutes: usage.byUser.get(user.id)?.minutes ?? 0,
+        changes: usage.changes.get(user.id)?.count ?? 0
+      };
+    });
+    const consumeTypes = [
+      COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC,
+      COMPANY_CREDIT_LEDGER_TYPE.CONSUME_AI
+    ];
+    const [
+      pipelineGroups,
+      leadsTotal,
+      leadsWithoutOwner,
+      extractionAgg,
+      extractionFailed,
+      syncCreditsAgg,
+      consumeRows,
+      aiFeatureGroups,
+      aiFailed,
+      activityTypeGroups,
+      followUpsPending,
+      followUpsOverdue,
+      proposalGroups,
+      quotationStatusGroups,
+      whatsappDirectionGroups,
+      whatsappFailed,
+      whatsappLast,
+      calendarAccounts,
+      checkoutFailures
+    ] = await Promise.all([
+      prisma.techStatusBusinessLead.groupBy({
+        by: ["pipelineStatus"],
+        where: { saasCompanyId: companyId },
+        _count: { _all: true }
+      }),
+      prisma.techBusinessLead.count({
+        where: { saasCompany: { some: { id: companyId } } }
+      }),
+      prisma.techBusinessLead.count({
+        where: { saasCompany: { some: { id: companyId } }, salesPerson: { none: {} } }
+      }),
+      prisma.techLeadSyncLog.aggregate({
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _sum: { created: true, alreadyInDb: true }
+      }),
+      prisma.techLeadSyncLog.count({
+        where: { companyId, createdAt: { gte: since }, success: false }
+      }),
+      prisma.saasCompanyCreditLedger.aggregate({
+        where: {
+          companyId,
+          createdAt: { gte: since },
+          type: COMPANY_CREDIT_LEDGER_TYPE.CONSUME_SYNC
+        },
+        _sum: { amount: true }
+      }),
+      prisma.saasCompanyCreditLedger.findMany({
+        where: { companyId, createdAt: { gte: since }, type: { in: consumeTypes } },
+        select: { amount: true, createdAt: true }
+      }),
+      prisma.techAiCallLog.groupBy({
+        by: ["feature"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true },
+        _sum: { creditsCharged: true }
+      }),
+      prisma.techAiCallLog.count({
+        where: { companyId, createdAt: { gte: since }, success: false }
+      }),
+      prisma.techSalesActivity.groupBy({
+        by: ["type"],
+        where: { AND: [crmScope, { createdAt: { gte: since } }] },
+        _count: { _all: true }
+      }),
+      prisma.techFollowUpTask.count({
+        where: { AND: [crmScope, { status: FOLLOW_UP_PENDING }] }
+      }),
+      prisma.techFollowUpTask.count({
+        where: {
+          AND: [crmScope, { status: FOLLOW_UP_PENDING }, { scheduledDate: { lt: todayStart } }]
+        }
+      }),
+      prisma.techProposal.groupBy({
+        by: ["status"],
+        where: crmScope,
+        _count: { _all: true },
+        _sum: { amount: true }
+      }),
+      prisma.saasQuotation.groupBy({
+        by: ["status"],
+        where: { companyId },
+        _count: { _all: true },
+        _sum: { total: true }
+      }),
+      prisma.techWhatsAppMessage.groupBy({
+        by: ["direction"],
+        where: { companyId, createdAt: { gte: since } },
+        _count: { _all: true }
+      }),
+      prisma.techWhatsAppMessage.count({
+        where: { companyId, createdAt: { gte: since }, status: WHATSAPP_FAILED }
+      }),
+      prisma.techWhatsAppMessage.aggregate({
+        where: { companyId },
+        _max: { createdAt: true }
+      }),
+      prisma.googleCalendarAccount.findMany({
+        where: { OR: [{ companyId }, { user: { companyId } }] },
+        orderBy: { lastSyncedAt: { sort: "desc", nulls: "last" } },
+        select: { lastSyncedAt: true, lastSyncError: true, isActive: true }
+      }),
+      prisma.saasSubscriptionLog.count({
+        where: { companyId, createdAt: { gte: since }, success: false }
+      })
+    ]);
+    const byDay = /* @__PURE__ */ new Map();
+    for (const row of consumeRows) {
+      if (!row.createdAt) continue;
+      const day = toMxDay(row.createdAt);
+      byDay.set(day, (byDay.get(day) ?? 0) + Math.abs(row.amount));
+    }
+    const creditsByDay = [];
+    for (let i = windowDays - 1; i >= 0; i -= 1) {
+      const day = toMxDay(new Date(now.getTime() - i * DAY_MS2));
+      creditsByDay.push({ date: day, value: byDay.get(day) ?? 0 });
+    }
+    const whatsappDirections = new Map(
+      whatsappDirectionGroups.map(
+        (row) => [row.direction, row._count._all]
+      )
+    );
+    const accounts = calendarAccounts;
+    const accountWithError = accounts.find((a) => a.lastSyncError);
+    const companyLastActivity = maxDate(
+      ...team.map((m) => m.lastActivityAt ? new Date(m.lastActivityAt) : null),
+      ...[...usage.lastSeen.values()]
+    );
+    return {
+      companyId,
+      days: windowDays,
+      lastActivityAt: toIso(companyLastActivity),
+      team,
+      pipeline: countsToList(
+        pipelineGroups.map(
+          (row) => ({ key: row.pipelineStatus, count: row._count._all })
+        )
+      ),
+      leadsTotal,
+      leadsWithoutOwner,
+      extraction: {
+        runs: extractionAgg?._count?._all ?? 0,
+        failed: extractionFailed,
+        created: extractionAgg?._sum?.created ?? 0,
+        alreadyInDb: extractionAgg?._sum?.alreadyInDb ?? 0,
+        creditsUsed: Math.abs(syncCreditsAgg?._sum?.amount ?? 0)
+      },
+      creditsByDay,
+      ai: {
+        calls: aiFeatureGroups.reduce(
+          (sum, row) => sum + row._count._all,
+          0
+        ),
+        failed: aiFailed,
+        credits: aiFeatureGroups.reduce(
+          (sum, row) => sum + (row._sum.creditsCharged ?? 0),
+          0
+        ),
+        byFeature: aiFeatureGroups.map((row) => ({
+          feature: row.feature ?? "otro",
+          calls: row._count._all,
+          credits: row._sum.creditsCharged ?? 0
+        })).sort((a, b) => b.calls - a.calls)
+      },
+      activitiesByType: countsToList(
+        activityTypeGroups.map((row) => ({
+          key: row.type,
+          count: row._count._all
+        }))
+      ),
+      followUpsPending,
+      followUpsOverdue,
+      proposalsByStatus: proposalGroups.map((row) => ({
+        key: row.status ?? "",
+        count: row._count._all,
+        amount: row._sum.amount ?? 0
+      })),
+      quotationsByStatus: quotationStatusGroups.map((row) => ({
+        key: row.status ?? "",
+        count: row._count._all,
+        amount: row._sum.total ?? 0
+      })),
+      whatsapp: {
+        outbound: whatsappDirections.get(WHATSAPP_OUTBOUND) ?? 0,
+        inbound: whatsappDirections.get(WHATSAPP_INBOUND) ?? 0,
+        failed: whatsappFailed,
+        lastMessageAt: toIso(whatsappLast?._max?.createdAt ?? null)
+      },
+      calendarAccounts: accounts.length,
+      calendarLastSyncedAt: toIso(accounts[0]?.lastSyncedAt ?? null),
+      calendarLastError: accountWithError?.lastSyncError ?? null,
+      checkoutFailures,
+      appErrors: await optional(
+        async () => {
+          const count2 = await prisma.activityEvent.count({
+            where: { companyId, type: ACTIVITY_EVENT.APP_ERROR, createdAt: { gte: since } }
+          });
+          return typeof count2 === "number" ? count2 : 0;
+        },
+        0
+      ),
+      usage: usage.stats
+    };
+  }
+};
+var adminCompanyInsights_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+
+// graphql/customs/queries/admin/adminCompanyTrends.ts
+var typeDefs69 = `
+  type AdminUsageWeek {
+    """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
+    weekStart: String!
+    activeDays: Int!
+    activeMinutes: Int!
+    logins: Int!
+    extractions: Int!
+    leadsCreated: Int!
+    leadsReused: Int!
+    creditsConsumed: Int!
+    aiCalls: Int!
+    crmChanges: Int!
+    activitiesLogged: Int!
+    quotationsCreated: Int!
+    quotationsAccepted: Int!
+    whatsappSent: Int!
+  }
+
+  type AdminBenchmarkMetric {
+    key: String!
+    """Total de esta empresa en las \xFAltimas 4 semanas."""
+    company: Int!
+    """Mediana de las empresas del mismo plan (incluye las que no hicieron nada)."""
+    median: Int
+  }
+
+  type AdminCompanyTrends {
+    """false si todav\xEDa no hay resumen diario (falta migrar o correr el cron)."""
+    ready: Boolean!
+    weeks: [AdminUsageWeek!]!
+    planName: String
+    """Empresas del mismo plan que entran en la comparaci\xF3n (sin cuentas de prueba)."""
+    peers: Int!
+    benchmark: [AdminBenchmarkMetric!]!
+  }
+
+  type Query {
+    adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
+  }
+`;
+var definition66 = `
+  adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
+`;
+var WEEK_FIELDS = [
+  "activeMinutes",
+  "logins",
+  "extractions",
+  "leadsCreated",
+  "leadsReused",
+  "creditsConsumed",
+  "aiCalls",
+  "crmChanges",
+  "activitiesLogged",
+  "quotationsCreated",
+  "quotationsAccepted",
+  "whatsappSent"
+];
+var BENCHMARK_FIELDS = [
+  "activeMinutes",
+  "extractions",
+  "crmChanges",
+  "activitiesLogged",
+  "quotationsCreated"
+];
+var MIN_PEERS = 3;
+function median(values) {
+  if (values.length < MIN_PEERS) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
+var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
+var resolver66 = {
+  adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    if (!prisma.saasCompanyDailyUsage) return EMPTY2;
+    const weekCount = clampInt(weeks, 4, 26, 12);
+    const lastDay = shiftDay(mxToday(), -1);
+    const firstDay = shiftDay(lastDay, -(weekCount * 7 - 1));
+    const benchmarkFrom = shiftDay(lastDay, -27);
+    return optional(async () => {
+      const rows2 = await prisma.saasCompanyDailyUsage.findMany({
+        where: {
+          companyId,
+          day: { gte: /* @__PURE__ */ new Date(`${firstDay}T00:00:00.000Z`), lte: /* @__PURE__ */ new Date(`${lastDay}T00:00:00.000Z`) }
+        },
+        select: { companyId: true, day: true, ...Object.fromEntries(WEEK_FIELDS.map((f) => [f, true])) }
+      });
+      const anyRow = rows2.length ? true : Boolean(await prisma.saasCompanyDailyUsage.findFirst({ select: { id: true } }));
+      const series = Array.from({ length: weekCount }, (_, index) => {
+        const weekStart = shiftDay(firstDay, index * 7);
+        return {
+          weekStart,
+          activeDays: 0,
+          ...Object.fromEntries(WEEK_FIELDS.map((field) => [field, 0]))
+        };
+      });
+      for (const row of rows2) {
+        const day = new Date(row.day).toISOString().slice(0, 10);
+        const index = Math.floor(
+          ((/* @__PURE__ */ new Date(`${day}T00:00:00.000Z`)).getTime() - (/* @__PURE__ */ new Date(`${firstDay}T00:00:00.000Z`)).getTime()) / (7 * 24 * 60 * 60 * 1e3)
+        );
+        const week = series[index];
+        if (!week) continue;
+        if ((row.activeMinutes ?? 0) > 0) week.activeDays += 1;
+        for (const field of WEEK_FIELDS) week[field] += row[field] ?? 0;
+      }
+      const latest = await latestSubscriptionsByCompany(prisma);
+      const planName = latest.get(companyId)?.planName || null;
+      const tests = await testCompanyIds(prisma);
+      const peerIds = planName ? [...latest.entries()].filter(([id, sub]) => sub.planName === planName && !tests.has(id)).map(([id]) => id) : [];
+      const totals = new Map(
+        peerIds.map((id) => [id, Object.fromEntries(WEEK_FIELDS.map((f) => [f, 0]))])
+      );
+      if (peerIds.length) {
+        const peerRows = await prisma.saasCompanyDailyUsage.groupBy({
+          by: ["companyId"],
+          where: {
+            companyId: { in: peerIds },
+            day: { gte: /* @__PURE__ */ new Date(`${benchmarkFrom}T00:00:00.000Z`), lte: /* @__PURE__ */ new Date(`${lastDay}T00:00:00.000Z`) }
+          },
+          _sum: Object.fromEntries(BENCHMARK_FIELDS.map((f) => [f, true]))
+        });
+        for (const row of peerRows) {
+          const total = totals.get(row.companyId);
+          if (!total) continue;
+          for (const field of BENCHMARK_FIELDS) total[field] = row._sum[field] ?? 0;
+        }
+      }
+      const own = series.slice(-4).reduce(
+        (acc, week) => {
+          for (const field of BENCHMARK_FIELDS) acc[field] += week[field];
+          return acc;
+        },
+        Object.fromEntries(BENCHMARK_FIELDS.map((f) => [f, 0]))
+      );
+      const others = [...totals.entries()].filter(([id]) => id !== companyId).map(([, total]) => total);
+      return {
+        ready: anyRow,
+        weeks: series,
+        planName,
+        peers: others.length,
+        benchmark: BENCHMARK_FIELDS.map((key) => ({
+          key,
+          company: own[key] ?? 0,
+          median: median(others.map((total) => total[key]))
+        }))
+      };
+    }, EMPTY2);
+  }
+};
+var adminCompanyTrends_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+
+// graphql/customs/queries/admin/adminActivityFeed.ts
+var FEED_TYPES = [
+  "auth",
+  "extraction",
+  "crm",
+  "team",
+  "ai",
+  "credits",
+  "billing",
+  "whatsapp",
+  "calendar",
+  "admin",
+  "product",
+  "errors"
+];
+var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
+var typeDefs70 = `
+  input AdminActivityFeedInput {
+    companyId: ID
+    userId: ID
+    """auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegaci\xF3n; solo si se pide) | errors (lo que le fall\xF3 a alguien en el panel)"""
+    types: [String!]
+    onlyErrors: Boolean
+    search: String
+    """Cursor: devuelve lo ocurrido antes de esta fecha (ISO)."""
+    before: String
+    take: Int
+  }
+
+  type AdminActivityItem {
+    id: ID!
+    type: String!
+    kind: String!
+    occurredAt: String!
+    title: String!
+    detail: String
+    success: Boolean!
+    actor: AdminPersonRef
+    company: AdminCompanyRef
+    entityType: String
+    entityId: String
+    meta: JSON
+  }
+
+  type AdminActivityFeedResult {
+    items: [AdminActivityItem!]!
+    nextBefore: String
+    hasMore: Boolean!
+  }
+
+  type Query {
+    adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
+  }
+`;
+var definition67 = `
+  adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
+`;
+var COMPANY_SELECT = { select: { id: true, name: true } };
+var PERSON_WITH_COMPANY = {
+  select: { ...PERSON_SELECT, company: COMPANY_SELECT }
+};
+var AI_FEATURE_LABELS = {
+  [AI_FEATURE.CONNECTION_TEST]: "prueba de conexi\xF3n",
+  [AI_FEATURE.DAILY_DIGEST]: "resumen diario",
+  [AI_FEATURE.MONTHLY_NARRATIVE]: "narrativa mensual",
+  [AI_FEATURE.FILE_ANALYSIS]: "an\xE1lisis de archivo",
+  [AI_FEATURE.PROFILE_PLAYBOOK]: "playbook de perfil",
+  [AI_FEATURE.COMPANY_BRIEF]: "brief de empresa",
+  [AI_FEATURE.MARKET_ANALYSIS]: "an\xE1lisis de mercado"
+};
+var ACTIVITY_TYPE_LABELS = {
+  Llamada: "una llamada",
+  WhatsApp: "un WhatsApp",
+  Email: "un correo",
+  Reuni\u00F3n: "una reuni\xF3n",
+  Otra: "una actividad"
+};
+var CALENDAR_OPERATION_LABELS = {
+  create: "crear un evento",
+  update: "actualizar un evento",
+  delete: "borrar un evento",
+  list_events: "leer eventos",
+  token_refresh: "renovar el acceso",
+  list_calendars: "leer calendarios"
+};
+var SUBSCRIPTION_STEP_LABELS = {
+  [SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND]: "usuario no encontrado",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY]: "sin empresa",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_PLAN_RESOLVED]: "plan no encontrado",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID]: "plan sin precio de Stripe",
+  [SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH]: "el total no coincide",
+  [SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND]: "tarjeta no encontrada",
+  [SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR]: "error de Stripe o del servidor",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE]: "paquete de cr\xE9ditos no encontrado",
+  [SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION]: "sin suscripci\xF3n activa",
+  [SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_PACKAGE_INACTIVE]: "paquete de cr\xE9ditos apagado",
+  [SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING]: "Stripe sin configurar",
+  [SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH]: "sesi\xF3n de otra cuenta"
+};
+var PAYMENT_STATUS_TITLES = {
+  failed: "Cobro rechazado",
+  refunded: "Cobro reembolsado",
+  cancelled: "Cobro cancelado",
+  pending: "Cobro pendiente",
+  processing: "Cobro en proceso"
+};
+function timeFilter(before) {
+  return before ? { lt: before } : { not: null };
+}
+function money2(amount, currency) {
+  if (amount == null) return null;
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: (currency || "MXN").toUpperCase()
+    }).format(amount);
+  } catch {
+    return `$${amount}`;
+  }
+}
+function joinDetail(parts) {
+  const text73 = parts.filter(Boolean).join(" \xB7 ");
+  return text73 || null;
+}
+function personSearch(q) {
+  return {
+    OR: [{ name: insensitive(q) }, { lastName: insensitive(q) }, { email: insensitive(q) }]
+  };
+}
+async function authSource(c) {
+  if (!c.types.has("auth")) return [];
+  const where = { createdAt: timeFilter(c.before) };
+  const and = [];
+  if (c.userId) where.userId = c.userId;
+  if (c.companyId) and.push({ user: { companyId: c.companyId } });
+  if (c.onlyErrors) where.success = false;
+  if (c.search) {
+    and.push({
+      OR: [
+        { emailMasked: insensitive(c.search) },
+        { message: insensitive(c.search) },
+        { user: personSearch(c.search) }
+      ]
+    });
+  }
+  if (and.length) where.AND = and;
+  const rows2 = await c.prisma.userAuthLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      source: true,
+      step: true,
+      success: true,
+      message: true,
+      emailMasked: true,
+      createdAt: true,
+      user: PERSON_WITH_COMPANY
+    }
+  });
+  return rows2.map((row) => {
+    const google = row.step.startsWith("GOOGLE");
+    let kind = "auth.login";
+    let title = google ? "Inici\xF3 sesi\xF3n con Google" : "Inici\xF3 sesi\xF3n con contrase\xF1a";
+    switch (row.step) {
+      case USER_AUTH_LOG_STEP.REGISTER_SUCCESS:
+      case USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP:
+        kind = "auth.signup";
+        title = "Se registr\xF3";
+        break;
+      case USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP:
+        kind = "auth.signup";
+        title = "Se registr\xF3 con Google";
+        break;
+      case USER_AUTH_LOG_STEP.REGISTER_FAIL:
+        kind = "auth.signup_failed";
+        title = "Fall\xF3 el registro";
+        break;
+      case USER_AUTH_LOG_STEP.REGISTER_FAIL_INVALID_REFERRER:
+        kind = "auth.signup_failed";
+        title = "Registro con c\xF3digo de referido inv\xE1lido";
+        break;
+      case USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL:
+      case USER_AUTH_LOG_STEP.GOOGLE_AUTH_FAIL:
+        kind = "auth.login_failed";
+        title = google ? "Fall\xF3 el inicio de sesi\xF3n con Google" : "Fall\xF3 el inicio de sesi\xF3n";
+        break;
+      default:
+        break;
+    }
+    return {
+      id: `auth:${row.id}`,
+      type: "auth",
+      kind,
+      occurredAt: row.createdAt,
+      title,
+      detail: row.success ? null : joinDetail([row.message, row.user ? null : row.emailMasked]),
+      success: row.success,
+      actor: row.user,
+      company: row.user?.company ?? null,
+      entityType: "UserAuthLog",
+      entityId: row.id,
+      meta: null
+    };
+  });
+}
+async function extractionSource(c) {
+  if (!c.types.has("extraction")) return [];
+  const where = { createdAt: timeFilter(c.before) };
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) where.userId = c.userId;
+  if (c.onlyErrors) where.success = false;
+  if (c.search) {
+    where.OR = [
+      { category: insensitive(c.search) },
+      { message: insensitive(c.search) },
+      { company: { name: insensitive(c.search) } },
+      { user: personSearch(c.search) }
+    ];
+  }
+  const rows2 = await c.prisma.techLeadSyncLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      success: true,
+      message: true,
+      created: true,
+      alreadyInDb: true,
+      skippedLowRating: true,
+      syncedLeadsCount: true,
+      syncedCount: true,
+      leadLimit: true,
+      lat: true,
+      lng: true,
+      radius: true,
+      category: true,
+      createdAt: true,
+      user: { select: PERSON_SELECT },
+      company: COMPANY_SELECT
+    }
+  });
+  return rows2.map((row) => {
+    const created = row.created ?? 0;
+    const already = row.alreadyInDb ?? 0;
+    return {
+      id: `extraction:${row.id}`,
+      type: "extraction",
+      kind: "extraction.run",
+      occurredAt: row.createdAt,
+      title: row.success ? `Extracci\xF3n: ${created} nuevo${created === 1 ? "" : "s"}${already ? ` \xB7 ${already} desde la base` : ""}` : "Extracci\xF3n con error",
+      detail: joinDetail([
+        row.category || null,
+        row.radius != null ? `${row.radius} km` : null,
+        row.success ? null : row.message
+      ]),
+      success: row.success,
+      actor: row.user,
+      company: row.company,
+      entityType: "TechLeadSyncLog",
+      entityId: row.id,
+      meta: {
+        created,
+        alreadyInDb: already,
+        skippedLowRating: row.skippedLowRating ?? 0,
+        syncedLeadsCount: row.syncedLeadsCount ?? 0,
+        syncedCount: row.syncedCount,
+        leadLimit: row.leadLimit,
+        lat: row.lat,
+        lng: row.lng,
+        radius: row.radius,
+        category: row.category,
+        message: row.message || null
+      }
+    };
+  });
+}
+async function creditsSource(c) {
+  const ledgerTypes = [];
+  if (c.types.has("credits")) {
+    ledgerTypes.push(
+      COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN,
+      COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE,
+      COMPANY_CREDIT_LEDGER_TYPE.ADJUST
+    );
+  }
+  if (c.types.has("admin")) ledgerTypes.push(COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN);
+  if (!ledgerTypes.length || c.onlyErrors) return [];
+  const where = {
+    createdAt: timeFilter(c.before),
+    type: { in: ledgerTypes }
+  };
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) {
+    where.type = COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN;
+    where.referenceId = c.userId;
+    if (!ledgerTypes.includes(COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN)) return [];
+  }
+  if (c.search) {
+    where.OR = [
+      { notes: insensitive(c.search) },
+      { company: { name: insensitive(c.search) } }
+    ];
+  }
+  const rows2 = await c.prisma.saasCompanyCreditLedger.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      type: true,
+      amount: true,
+      balanceAfter: true,
+      referenceType: true,
+      referenceId: true,
+      notes: true,
+      createdAt: true,
+      company: COMPANY_SELECT
+    }
+  });
+  const adminIds = [
+    ...new Set(
+      rows2.filter((r) => r.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN && r.referenceId).map((r) => r.referenceId)
+    )
+  ];
+  const admins = adminIds.length ? await c.prisma.user.findMany({ where: { id: { in: adminIds } }, select: PERSON_SELECT }) : [];
+  const adminById = new Map(admins.map((a) => [a.id, a]));
+  return rows2.map((row) => {
+    const isAdmin = row.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN;
+    const signed = `${row.amount > 0 ? "+" : ""}${row.amount}`;
+    let title = `Ajuste de cr\xE9ditos: ${signed}`;
+    if (row.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_PLAN) title = `Cr\xE9ditos del plan: ${signed}`;
+    if (row.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_PURCHASE) title = `Recarga: ${signed} cr\xE9ditos`;
+    if (isAdmin) title = `Kadesh agreg\xF3 ${row.amount} cr\xE9ditos`;
+    return {
+      id: `credits:${row.id}`,
+      type: isAdmin ? "admin" : "credits",
+      kind: isAdmin ? "admin.credits_granted" : `credits.${row.type.toLowerCase()}`,
+      occurredAt: row.createdAt,
+      title,
+      detail: joinDetail([row.notes, row.balanceAfter != null ? `Saldo ${row.balanceAfter}` : null]),
+      success: true,
+      actor: isAdmin && row.referenceId ? adminById.get(row.referenceId) ?? null : null,
+      company: row.company,
+      entityType: "SaasCompanyCreditLedger",
+      entityId: row.id,
+      meta: { amount: row.amount, balanceAfter: row.balanceAfter, ledgerType: row.type }
+    };
+  });
+}
+async function aiSource(c) {
+  if (!c.types.has("ai")) return [];
+  const where = { createdAt: timeFilter(c.before) };
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) where.userId = c.userId;
+  if (c.onlyErrors) where.success = false;
+  if (c.search) {
+    where.OR = [
+      { feature: insensitive(c.search) },
+      { model: insensitive(c.search) },
+      { errorMessage: insensitive(c.search) },
+      { company: { name: insensitive(c.search) } },
+      { user: personSearch(c.search) }
+    ];
+  }
+  const rows2 = await c.prisma.techAiCallLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    // Sin featurePrompt/systemPrompt/userPrompt/response a propósito.
+    select: {
+      id: true,
+      feature: true,
+      provider: true,
+      model: true,
+      billingMode: true,
+      inputTokens: true,
+      outputTokens: true,
+      creditsCharged: true,
+      success: true,
+      errorMessage: true,
+      durationMs: true,
+      createdAt: true,
+      user: { select: PERSON_SELECT },
+      company: COMPANY_SELECT
+    }
+  });
+  return rows2.map((row) => ({
+    id: `ai:${row.id}`,
+    type: "ai",
+    kind: "ai.call",
+    occurredAt: row.createdAt,
+    title: `IA: ${AI_FEATURE_LABELS[row.feature ?? ""] ?? row.feature ?? "llamada"}`,
+    detail: row.success ? joinDetail([
+      row.creditsCharged ? `${row.creditsCharged} cr\xE9ditos` : null,
+      row.model
+    ]) : joinDetail([row.errorMessage ?? "Fall\xF3 la llamada", row.model]),
+    success: row.success,
+    actor: row.user,
+    company: row.company,
+    entityType: "TechAiCallLog",
+    entityId: row.id,
+    meta: {
+      feature: row.feature,
+      provider: row.provider,
+      model: row.model,
+      billingMode: row.billingMode,
+      inputTokens: row.inputTokens ?? 0,
+      outputTokens: row.outputTokens ?? 0,
+      creditsCharged: row.creditsCharged ?? 0,
+      durationMs: row.durationMs
+    }
+  }));
+}
+async function billingSource(c) {
+  if (!c.types.has("billing")) return [];
+  const logWhere = { createdAt: timeFilter(c.before) };
+  if (c.companyId) logWhere.companyId = c.companyId;
+  if (c.userId) logWhere.userId = c.userId;
+  if (c.onlyErrors) logWhere.success = false;
+  if (c.search) {
+    logWhere.OR = [
+      { message: insensitive(c.search) },
+      { step: insensitive(c.search) },
+      { emailMasked: insensitive(c.search) },
+      { company: { name: insensitive(c.search) } }
+    ];
+  }
+  const paymentWhere = {
+    createdAt: timeFilter(c.before),
+    status: c.onlyErrors ? "failed" : { notIn: ["succeeded"] }
+  };
+  const paymentAnd = [];
+  if (c.companyId) {
+    paymentAnd.push({
+      OR: [{ subscription: { companyId: c.companyId } }, { user: { companyId: c.companyId } }]
+    });
+  }
+  if (c.userId) paymentWhere.userId = c.userId;
+  if (c.search) {
+    paymentAnd.push({
+      OR: [{ notes: insensitive(c.search) }, { stripeErrorMessage: insensitive(c.search) }]
+    });
+  }
+  if (paymentAnd.length) paymentWhere.AND = paymentAnd;
+  const [logs, payments] = await Promise.all([
+    c.prisma.saasSubscriptionLog.findMany({
+      where: logWhere,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        step: true,
+        success: true,
+        message: true,
+        totalSubmitted: true,
+        createdAt: true,
+        user: { select: PERSON_SELECT },
+        company: COMPANY_SELECT,
+        plan: { select: { name: true } }
+      }
+    }),
+    c.prisma.saasPayment.findMany({
+      where: paymentWhere,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        notes: true,
+        stripeErrorMessage: true,
+        createdAt: true,
+        user: PERSON_WITH_COMPANY,
+        subscription: { select: { company: COMPANY_SELECT } }
+      }
+    })
+  ]);
+  const logItems = logs.map((row) => {
+    let kind = "billing.checkout_failed";
+    let title = "Pago no completado";
+    if (row.step === SAAS_SUBSCRIPTION_LOG_STEP.SUCCESS) {
+      kind = "billing.subscribed";
+      title = row.plan?.name ? `Contrat\xF3 el plan ${row.plan.name}` : "Contrat\xF3 un plan";
+    } else if (row.step === SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_SUCCESS) {
+      kind = "billing.credits_purchased";
+      title = "Compr\xF3 cr\xE9ditos";
+    }
+    const total = Number(row.totalSubmitted);
+    return {
+      id: `billing-log:${row.id}`,
+      type: "billing",
+      kind,
+      occurredAt: row.createdAt,
+      title,
+      detail: row.success ? Number.isFinite(total) && total > 0 ? money2(total) : null : joinDetail([SUBSCRIPTION_STEP_LABELS[row.step] ?? row.step, row.message]),
+      success: row.success,
+      actor: row.user,
+      company: row.company,
+      entityType: "SaasSubscriptionLog",
+      entityId: row.id,
+      meta: { step: row.step, total: row.totalSubmitted || null }
+    };
+  });
+  const paymentItems = payments.map((row) => {
+    const amount = row.amount == null ? null : Number(row.amount);
+    return {
+      id: `payment:${row.id}`,
+      type: "billing",
+      kind: `billing.payment_${row.status ?? "unknown"}`,
+      occurredAt: row.createdAt,
+      title: PAYMENT_STATUS_TITLES[row.status ?? ""] ?? "Cobro",
+      detail: joinDetail([money2(amount), row.stripeErrorMessage ?? row.notes]),
+      success: row.status !== "failed",
+      actor: row.user,
+      company: row.subscription?.company ?? row.user?.company ?? null,
+      entityType: "SaasPayment",
+      entityId: row.id,
+      meta: { amount, status: row.status }
+    };
+  });
+  return [...logItems, ...paymentItems];
+}
+async function whatsappSource(c) {
+  if (!c.types.has("whatsapp")) return [];
+  const where = {
+    createdAt: timeFilter(c.before),
+    direction: "outbound"
+  };
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) where.sentById = c.userId;
+  if (c.onlyErrors) where.status = "failed";
+  if (c.search) {
+    where.OR = [
+      { toPhone: insensitive(c.search) },
+      { senderLabel: insensitive(c.search) },
+      { businessLead: { businessName: insensitive(c.search) } },
+      { company: { name: insensitive(c.search) } }
+    ];
+  }
+  const rows2 = await c.prisma.techWhatsAppMessage.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      status: true,
+      toPhone: true,
+      messageKind: true,
+      mediaType: true,
+      source: true,
+      errorMessage: true,
+      createdAt: true,
+      sentBy: { select: PERSON_SELECT },
+      company: COMPANY_SELECT,
+      businessLead: { select: { id: true, businessName: true } },
+      teamMember: { select: { name: true, lastName: true } }
+    }
+  });
+  return rows2.map((row) => {
+    const target = row.businessLead?.businessName || [row.teamMember?.name, row.teamMember?.lastName].filter(Boolean).join(" ") || row.toPhone || "un contacto";
+    const failed = row.status === "failed";
+    return {
+      id: `whatsapp:${row.id}`,
+      type: "whatsapp",
+      kind: failed ? "whatsapp.failed" : "whatsapp.sent",
+      occurredAt: row.createdAt,
+      title: failed ? `WhatsApp no enviado a ${target}` : `Envi\xF3 WhatsApp a ${target}`,
+      detail: joinDetail([
+        row.messageKind === "template" ? "Plantilla" : null,
+        row.mediaType ? "Con archivo" : null,
+        row.source === "imported" ? "Importado" : null,
+        failed ? row.errorMessage : null
+      ]),
+      success: !failed,
+      actor: row.sentBy,
+      company: row.company,
+      entityType: row.businessLead ? "TechBusinessLead" : "TechWhatsAppMessage",
+      entityId: row.businessLead?.id ?? row.id,
+      meta: { messageKind: row.messageKind, status: row.status }
+    };
+  });
+}
+async function crmSource(c) {
+  if (!c.types.has("crm") || c.onlyErrors) return [];
+  const scope = c.companyId ? crmCompanyScope(c.companyId) : null;
+  const byPerson = c.userId ? { OR: [{ createdById: c.userId }, { assignedSellerId: c.userId }] } : null;
+  const leadSearch = c.search ? { businessLead: { businessName: insensitive(c.search) } } : null;
+  const activityWhere = {
+    AND: [
+      { createdAt: timeFilter(c.before) },
+      ...scope ? [scope] : [],
+      ...byPerson ? [byPerson] : [],
+      ...c.search ? [{ OR: [{ title: insensitive(c.search) }, { type: insensitive(c.search) }, leadSearch] }] : []
+    ]
+  };
+  const proposalWhere = {
+    AND: [
+      { createdAt: timeFilter(c.before) },
+      ...scope ? [scope] : [],
+      ...byPerson ? [byPerson] : [],
+      ...c.search ? [{ OR: [{ product: insensitive(c.search) }, leadSearch] }] : []
+    ]
+  };
+  const quotationBase = [];
+  if (c.companyId) quotationBase.push({ companyId: c.companyId });
+  if (byPerson) quotationBase.push(byPerson);
+  if (c.search) {
+    quotationBase.push({
+      OR: [
+        { quotationNumber: insensitive(c.search) },
+        { lead: { businessName: insensitive(c.search) } },
+        { company: { name: insensitive(c.search) } }
+      ]
+    });
+  }
+  const quotationSelect = {
+    id: true,
+    quotationNumber: true,
+    status: true,
+    total: true,
+    currency: true,
+    createdAt: true,
+    sentAt: true,
+    acceptedAt: true,
+    createdBy: { select: PERSON_SELECT },
+    assignedSeller: { select: PERSON_SELECT },
+    company: COMPANY_SELECT,
+    lead: { select: { id: true, businessName: true } }
+  };
+  const [activities, proposals, quotationsCreated, quotationsSent, quotationsAccepted] = await Promise.all([
+    c.prisma.techSalesActivity.findMany({
+      where: activityWhere,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        result: true,
+        createdAt: true,
+        createdBy: PERSON_WITH_COMPANY,
+        assignedSeller: PERSON_WITH_COMPANY,
+        businessLead: { select: { id: true, businessName: true } },
+        workspace: { select: { company: COMPANY_SELECT } }
+      }
+    }),
+    c.prisma.techProposal.findMany({
+      where: proposalWhere,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        status: true,
+        amount: true,
+        product: true,
+        createdAt: true,
+        createdBy: PERSON_WITH_COMPANY,
+        assignedSeller: PERSON_WITH_COMPANY,
+        businessLead: { select: { id: true, businessName: true } },
+        workspace: { select: { company: COMPANY_SELECT } }
+      }
+    }),
+    c.prisma.saasQuotation.findMany({
+      where: { AND: [...quotationBase, { createdAt: timeFilter(c.before) }] },
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: quotationSelect
+    }),
+    c.prisma.saasQuotation.findMany({
+      where: { AND: [...quotationBase, { sentAt: timeFilter(c.before) }] },
+      orderBy: { sentAt: "desc" },
+      take: c.take,
+      select: quotationSelect
+    }),
+    c.prisma.saasQuotation.findMany({
+      where: { AND: [...quotationBase, { acceptedAt: timeFilter(c.before) }] },
+      orderBy: { acceptedAt: "desc" },
+      take: c.take,
+      select: quotationSelect
+    })
+  ]);
+  const activityItems = activities.map((row) => {
+    const actor = row.createdBy ?? row.assignedSeller;
+    return {
+      id: `activity:${row.id}`,
+      type: "crm",
+      kind: "crm.activity_logged",
+      occurredAt: row.createdAt,
+      title: `Registr\xF3 ${ACTIVITY_TYPE_LABELS[row.type] ?? "una actividad"} con ${row.businessLead?.businessName ?? "un lead"}`,
+      detail: joinDetail([row.title || null, row.result || null]),
+      success: true,
+      actor,
+      company: row.workspace?.company ?? actor?.company ?? null,
+      entityType: row.businessLead ? "TechBusinessLead" : "TechSalesActivity",
+      entityId: row.businessLead?.id ?? row.id,
+      meta: { activityType: row.type, activityId: row.id }
+    };
+  });
+  const proposalItems = proposals.map((row) => {
+    const actor = row.createdBy ?? row.assignedSeller;
+    return {
+      id: `proposal:${row.id}`,
+      type: "crm",
+      kind: "crm.proposal_created",
+      occurredAt: row.createdAt,
+      title: `Registr\xF3 una propuesta para ${row.businessLead?.businessName ?? "un lead"}`,
+      detail: joinDetail([money2(row.amount), row.status, row.product || null]),
+      success: true,
+      actor,
+      company: row.workspace?.company ?? actor?.company ?? null,
+      entityType: row.businessLead ? "TechBusinessLead" : "TechProposal",
+      entityId: row.businessLead?.id ?? row.id,
+      meta: { proposalId: row.id, status: row.status, amount: row.amount }
+    };
+  });
+  const quotationItem = (row, milestone, at) => {
+    if (!at) return null;
+    const label = row.quotationNumber ? `#${row.quotationNumber}` : "";
+    const titles = {
+      created: `Cre\xF3 la cotizaci\xF3n ${label}`.trim(),
+      sent: `Envi\xF3 la cotizaci\xF3n ${label}`.trim(),
+      accepted: `Aceptaron la cotizaci\xF3n ${label}`.trim()
+    };
+    return {
+      id: `quotation:${row.id}:${milestone}`,
+      type: "crm",
+      kind: `crm.quotation_${milestone}`,
+      occurredAt: at,
+      title: titles[milestone],
+      detail: joinDetail([row.lead?.businessName, money2(row.total, row.currency)]),
+      success: true,
+      actor: row.createdBy ?? row.assignedSeller,
+      company: row.company,
+      entityType: "SaasQuotation",
+      entityId: row.id,
+      meta: { status: row.status, total: row.total, currency: row.currency }
+    };
+  };
+  const quotationItems = [
+    ...quotationsCreated.map((r) => quotationItem(r, "created", r.createdAt)),
+    ...quotationsSent.map((r) => quotationItem(r, "sent", r.sentAt)),
+    ...quotationsAccepted.map((r) => quotationItem(r, "accepted", r.acceptedAt))
+  ].filter((item) => Boolean(item));
+  return [...activityItems, ...proposalItems, ...quotationItems];
+}
+async function calendarSource(c) {
+  if (!c.types.has("calendar")) return [];
+  const where = {
+    createdAt: timeFilter(c.before),
+    success: false
+  };
+  const accountFilters = [];
+  if (c.companyId) {
+    accountFilters.push({
+      OR: [{ companyId: c.companyId }, { user: { companyId: c.companyId } }]
+    });
+  }
+  if (c.userId) {
+    accountFilters.push({ OR: [{ userId: c.userId }, { connectedByUserId: c.userId }] });
+  }
+  if (accountFilters.length) where.account = { AND: accountFilters };
+  if (c.search) {
+    where.OR = [
+      { errorMessage: insensitive(c.search) },
+      { account: { googleAccountEmail: insensitive(c.search) } }
+    ];
+  }
+  const rows2 = await c.prisma.techGoogleCalendarSyncLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: c.take,
+    select: {
+      id: true,
+      direction: true,
+      operation: true,
+      errorMessage: true,
+      createdAt: true,
+      account: {
+        select: {
+          googleAccountEmail: true,
+          company: COMPANY_SELECT,
+          user: PERSON_WITH_COMPANY
+        }
+      }
+    }
+  });
+  return rows2.map((row) => ({
+    id: `calendar:${row.id}`,
+    type: "calendar",
+    kind: "calendar.sync_failed",
+    occurredAt: row.createdAt,
+    title: `Calendario: fall\xF3 ${CALENDAR_OPERATION_LABELS[row.operation] ?? row.operation}`,
+    detail: joinDetail([row.account?.googleAccountEmail, row.errorMessage]),
+    success: false,
+    actor: row.account?.user ?? null,
+    company: row.account?.company ?? row.account?.user?.company ?? null,
+    entityType: "TechGoogleCalendarSyncLog",
+    entityId: row.id,
+    meta: { direction: row.direction, operation: row.operation }
+  }));
+}
+var SOURCE_DETAIL = {
+  [ACTIVITY_SOURCE.ADMIN]: "Admin de Kadesh",
+  [ACTIVITY_SOURCE.WEBHOOK]: "Aviso de Stripe",
+  [ACTIVITY_SOURCE.SYSTEM]: "Autom\xE1tico"
+};
+async function activityEventSource(c) {
+  if (!c.prisma.activityEvent) return [];
+  const categories = [...c.types];
+  if (!categories.length) return [];
+  const where = {
+    createdAt: timeFilter(c.before),
+    category: { in: categories },
+    // Ya salen de su propia tabla (hitos de cotización, cobros de SaasPayment).
+    type: { notIn: [...FEED_HIDDEN_EVENT_TYPES] }
+  };
+  const and = [];
+  if (c.companyId) where.companyId = c.companyId;
+  if (c.userId) and.push({ OR: [{ actorId: c.userId }, { entityType: "User", entityId: c.userId }] });
+  if (c.onlyErrors) where.success = false;
+  if (c.search) {
+    and.push({
+      OR: [
+        { summary: insensitive(c.search) },
+        { type: insensitive(c.search) },
+        { company: { name: insensitive(c.search) } },
+        { actor: personSearch(c.search) }
+      ]
+    });
+  }
+  if (and.length) where.AND = and;
+  let rows2;
+  try {
+    rows2 = await c.prisma.activityEvent.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: c.take,
+      select: {
+        id: true,
+        type: true,
+        category: true,
+        summary: true,
+        metadata: true,
+        source: true,
+        success: true,
+        errorMessage: true,
+        entityType: true,
+        entityId: true,
+        createdAt: true,
+        actor: { select: PERSON_SELECT },
+        company: COMPANY_SELECT
+      }
+    });
+  } catch {
+    return [];
+  }
+  return rows2.map((row) => ({
+    id: `event:${row.id}`,
+    type: FEED_TYPES.includes(row.category) ? row.category : "product",
+    kind: row.type,
+    occurredAt: row.createdAt,
+    title: row.summary || row.type,
+    detail: joinDetail([
+      row.source ? SOURCE_DETAIL[row.source] : null,
+      row.success ? null : row.errorMessage
+    ]),
+    success: row.success,
+    actor: row.actor,
+    company: row.company,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    meta: {
+      ...row.metadata && typeof row.metadata === "object" ? row.metadata : {},
+      source: row.source
+    }
+  }));
+}
+var SOURCES = [
+  authSource,
+  extractionSource,
+  creditsSource,
+  aiSource,
+  billingSource,
+  whatsappSource,
+  crmSource,
+  calendarSource,
+  activityEventSource
+];
+var resolver67 = {
+  adminActivityFeed: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const take = clampInt(input?.take, 1, 100, 30);
+    const requested = (input?.types ?? []).filter(
+      (t) => FEED_TYPES.includes(t)
+    );
+    const before = input?.before ? new Date(input.before) : null;
+    const ctx = {
+      prisma: adminPrisma(context),
+      companyId: input?.companyId?.trim() || null,
+      userId: input?.userId?.trim() || null,
+      onlyErrors: Boolean(input?.onlyErrors),
+      search: input?.search?.trim() || null,
+      before: before && !Number.isNaN(before.getTime()) ? before : null,
+      // Uno de más por fuente para saber si hay otra página.
+      take: take + 1,
+      types: new Set(requested.length ? requested : DEFAULT_FEED_TYPES)
+    };
+    const batches = await Promise.all(SOURCES.map((source) => source(ctx)));
+    const merged = batches.flat().sort(
+      (a, b) => b.occurredAt.getTime() - a.occurredAt.getTime() || b.id.localeCompare(a.id)
+    );
+    const page = merged.slice(0, take);
+    const hasMore = merged.length > take;
+    return {
+      items: page.map((item) => ({
+        ...item,
+        occurredAt: item.occurredAt.toISOString(),
+        actor: personRef(item.actor)
+      })),
+      nextBefore: hasMore && page.length ? page[page.length - 1].occurredAt.toISOString() : null,
+      hasMore
+    };
+  }
+};
+var adminActivityFeed_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+
+// graphql/customs/queries/admin/milestones.ts
+function earliest(map, companyId, at) {
+  if (!companyId || !at) return;
+  const date = new Date(at);
+  const current = map.get(companyId);
+  if (!current || date < current) map.set(companyId, date);
+}
+function groupMin(rows2, field) {
+  return rows2.map((row) => ({ companyId: row.companyId, at: row._min[field] ?? null }));
+}
+async function loadCompanyMilestones(prisma, companyIds) {
+  const result3 = /* @__PURE__ */ new Map();
+  if (!companyIds.length) return result3;
+  const ids = { in: companyIds };
+  const [profiles, extractions, quotations, whatsapp, statusChanges, activities, payments, paidPlans] = await Promise.all([
+    prisma.saasCompany.findMany({
+      where: { id: ids, onboardingMainOffer: { not: null }, NOT: { onboardingMainOffer: "" } },
+      select: { id: true }
+    }),
+    prisma.techLeadSyncLog.groupBy({
+      by: ["companyId"],
+      where: { companyId: ids, success: true },
+      _min: { createdAt: true }
+    }),
+    prisma.saasQuotation.groupBy({
+      by: ["companyId"],
+      where: { companyId: ids },
+      _min: { createdAt: true }
+    }),
+    prisma.techWhatsAppMessage.groupBy({
+      by: ["companyId"],
+      where: {
+        companyId: ids,
+        direction: { not: "inbound" },
+        OR: [{ source: null }, { source: { not: "imported" } }]
+      },
+      _min: { createdAt: true }
+    }),
+    optional(
+      () => prisma.activityEvent.groupBy({
+        by: ["companyId"],
+        where: {
+          companyId: ids,
+          type: ACTIVITY_EVENT.LEAD_STATUS_CHANGED,
+          source: ACTIVITY_SOURCE.WEB
+        },
+        _min: { createdAt: true }
+      }),
+      []
+    ),
+    // Las actividades no tienen empresa: cuenta el workspace o, si no hay, quien la creó.
+    prisma.$queryRaw`
+        SELECT COALESCE(w."company", u."company") AS "companyId", MIN(a."createdAt") AS "at"
+        FROM "TechSalesActivity" a
+        LEFT JOIN "SaasWorkspace" w ON w."id" = a."workspace"
+        LEFT JOIN "User" u ON u."id" = a."createdBy"
+        WHERE COALESCE(w."company", u."company") = ANY(${companyIds}::text[])
+        GROUP BY 1
+      `,
+    prisma.$queryRaw`
+        SELECT COALESCE(s."company", u."company") AS "companyId", MIN(p."createdAt") AS "at"
+        FROM "SaasPayment" p
+        LEFT JOIN "SaasCompanySubscription" s ON s."id" = p."subscription"
+        LEFT JOIN "User" u ON u."id" = p."user"
+        WHERE p."status" = 'succeeded'
+          AND COALESCE(s."company", u."company") = ANY(${companyIds}::text[])
+        GROUP BY 1
+      `,
+    prisma.saasCompanySubscription.groupBy({
+      by: ["companyId"],
+      where: { companyId: ids, status: SUBSCRIPTION_STATUS.ACTIVE, planCost: { gt: 0 } },
+      _min: { activatedAt: true, createdAt: true }
+    })
+  ]);
+  for (const result4 of [profiles, extractions, quotations, whatsapp, activities, payments, paidPlans]) {
+    unwrapPrisma(result4);
+  }
+  const firstExtraction = /* @__PURE__ */ new Map();
+  for (const row of groupMin(extractions, "createdAt")) earliest(firstExtraction, row.companyId, row.at);
+  const firstQuotation = /* @__PURE__ */ new Map();
+  for (const row of groupMin(quotations, "createdAt")) earliest(firstQuotation, row.companyId, row.at);
+  const firstContact = /* @__PURE__ */ new Map();
+  for (const row of groupMin(whatsapp, "createdAt")) earliest(firstContact, row.companyId, row.at);
+  for (const row of groupMin(statusChanges, "createdAt")) earliest(firstContact, row.companyId, row.at);
+  for (const row of activities) earliest(firstContact, row.companyId, row.at);
+  const paid = /* @__PURE__ */ new Map();
+  for (const row of payments) earliest(paid, row.companyId, row.at);
+  for (const row of paidPlans) {
+    earliest(paid, row.companyId, row._min.activatedAt ?? row._min.createdAt);
+  }
+  const profileDone = new Set(profiles.map((row) => row.id));
+  for (const companyId of companyIds) {
+    result3.set(companyId, {
+      profileDone: profileDone.has(companyId),
+      firstExtractionAt: firstExtraction.get(companyId) ?? null,
+      firstContactAt: firstContact.get(companyId) ?? null,
+      firstQuotationAt: firstQuotation.get(companyId) ?? null,
+      paidAt: paid.get(companyId) ?? null
+    });
+  }
+  return result3;
+}
+
+// graphql/customs/queries/admin/adminActivationFunnel.ts
+var typeDefs71 = `
+  input AdminActivationInput {
+    """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
+    days: Int
+  }
+
+  type AdminFunnelStep {
+    """signup | profile | extraction | contact | quotation | paid"""
+    key: String!
+    label: String!
+    companies: Int!
+    """Porcentaje de las registradas (0\u2013100)."""
+    pct: Float!
+    """Mediana de d\xEDas desde el registro; null si el paso no guarda fecha o nadie lleg\xF3."""
+    medianDays: Float
+  }
+
+  type AdminFunnelMonth {
+    """Mes de registro (YYYY-MM, hora de CDMX)."""
+    month: String!
+    companies: Int!
+    extraction: Int!
+    contact: Int!
+    quotation: Int!
+    paid: Int!
+  }
+
+  type AdminActivationFunnel {
+    from: String!
+    to: String!
+    cohortSize: Int!
+    steps: [AdminFunnelStep!]!
+    byMonth: [AdminFunnelMonth!]!
+  }
+
+  type Query {
+    adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
+  }
+`;
+var definition68 = `
+  adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
+`;
+var STEPS = [
+  { key: "profile", label: "Llen\xF3 su perfil de negocio", reached: (m) => m.profileDone },
+  { key: "extraction", label: "Primera extracci\xF3n", at: (m) => m.firstExtractionAt },
+  { key: "contact", label: "Primer contacto con un lead", at: (m) => m.firstContactAt },
+  { key: "quotation", label: "Primera cotizaci\xF3n", at: (m) => m.firstQuotationAt },
+  { key: "paid", label: "Pag\xF3", at: (m) => m.paidAt }
+];
+function median2(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const value = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return Math.round(value * 10) / 10;
+}
+var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
+var resolver68 = {
+  adminActivationFunnel: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 30, 365, 90);
+    const to = /* @__PURE__ */ new Date();
+    const from = daysAgo(days, to);
+    const excludedIds = await analyticsExcludedCompanyIds(prisma);
+    const companies = (await prisma.saasCompany.findMany({
+      where: { createdAt: { gte: from, lte: to } },
+      select: { id: true, createdAt: true }
+    })).filter((company) => !excludedIds.has(company.id));
+    const milestones = await loadCompanyMilestones(
+      prisma,
+      companies.map((company) => company.id)
+    );
+    const steps = [
+      {
+        key: "signup",
+        label: "Se registr\xF3",
+        companies: companies.length,
+        pct: companies.length ? 100 : 0,
+        medianDays: 0
+      },
+      ...STEPS.map((step) => {
+        let reached = 0;
+        const elapsed = [];
+        for (const company of companies) {
+          const m = milestones.get(company.id);
+          if (!m) continue;
+          if (step.reached) {
+            if (step.reached(m)) reached += 1;
+            continue;
+          }
+          const at = step.at?.(m);
+          if (!at) continue;
+          reached += 1;
+          if (company.createdAt) {
+            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS2));
+          }
+        }
+        return {
+          key: step.key,
+          label: step.label,
+          companies: reached,
+          pct: pct(reached, companies.length),
+          medianDays: step.reached ? null : median2(elapsed)
+        };
+      })
+    ];
+    const months = /* @__PURE__ */ new Map();
+    for (const company of companies) {
+      if (!company.createdAt) continue;
+      const month = toMxDay(company.createdAt).slice(0, 7);
+      const row = months.get(month) ?? { month, companies: 0, extraction: 0, contact: 0, quotation: 0, paid: 0 };
+      const m = milestones.get(company.id);
+      row.companies += 1;
+      if (m?.firstExtractionAt) row.extraction += 1;
+      if (m?.firstContactAt) row.contact += 1;
+      if (m?.firstQuotationAt) row.quotation += 1;
+      if (m?.paidAt) row.paid += 1;
+      months.set(month, row);
+    }
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      cohortSize: companies.length,
+      steps,
+      byMonth: [...months.values()].sort((a, b) => b.month.localeCompare(a.month))
+    };
+  }
+};
+var adminActivationFunnel_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+
+// graphql/customs/queries/admin/adminCohorts.ts
+var typeDefs72 = `
+  input AdminCohortsInput {
+    """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
+    months: Int
+  }
+
+  type AdminCohortRow {
+    """Mes de registro (YYYY-MM)."""
+    month: String!
+    size: Int!
+    """Empresas que usaron Kadesh en el mes de registro (posici\xF3n 0), el siguiente (1)\u2026 hasta el mes actual."""
+    active: [Int!]!
+  }
+
+  type AdminCohorts {
+    rows: [AdminCohortRow!]!
+  }
+
+  type Query {
+    adminCohorts(input: AdminCohortsInput): AdminCohorts!
+  }
+`;
+var definition69 = `
+  adminCohorts(input: AdminCohortsInput): AdminCohorts!
+`;
+function shiftMonth(month, offset) {
+  const [year, m] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(year, m - 1 + offset, 1));
+  return date.toISOString().slice(0, 7);
+}
+function monthsBetween(from, to) {
+  const [fy, fm] = from.split("-").map(Number);
+  const [ty, tm] = to.split("-").map(Number);
+  return (ty - fy) * 12 + (tm - fm);
+}
+var resolver69 = {
+  adminCohorts: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const monthsBack = clampInt(input?.months, 3, 12, 6);
+    const currentMonth = toMxDay(/* @__PURE__ */ new Date()).slice(0, 7);
+    const firstMonth = shiftMonth(currentMonth, -(monthsBack - 1));
+    const start = /* @__PURE__ */ new Date(`${firstMonth}-01T00:00:00.000-06:00`);
+    const startUtc = start.toISOString().slice(0, 23).replace("T", " ");
+    const excludedIds = await analyticsExcludedCompanyIds(prisma);
+    const companies = (await prisma.saasCompany.findMany({
+      where: { createdAt: { gte: start } },
+      select: { id: true, createdAt: true }
+    })).filter((company) => !excludedIds.has(company.id));
+    if (!companies.length) return { rows: [] };
+    const ids = companies.map((company) => company.id);
+    const activity = unwrapPrisma(await prisma.$queryRaw`
+      WITH activity AS (
+        SELECT "company" AS company_id, "day" AS d
+          FROM "UserActivityDay"
+          WHERE "company" = ANY(${ids}::text[]) AND "day" >= ${`${firstMonth}-01`}::date
+        UNION ALL
+        SELECT "company", (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date
+          FROM "TechLeadSyncLog"
+          WHERE "company" = ANY(${ids}::text[]) AND "createdAt" >= ${startUtc}::timestamp
+        UNION ALL
+        SELECT u."company", ((l."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date
+          FROM "UserAuthLog" l
+          JOIN "User" u ON u."id" = l."user"
+          WHERE l."success" AND u."company" = ANY(${ids}::text[]) AND l."createdAt" >= ${startUtc}::timestamp
+        UNION ALL
+        SELECT "company", (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date
+          FROM "ActivityEvent"
+          WHERE "company" = ANY(${ids}::text[]) AND "actor" IS NOT NULL AND "source" = 'web'
+            AND "createdAt" >= ${startUtc}::timestamp
+        UNION ALL
+        SELECT "company", (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date
+          FROM "SaasQuotation"
+          WHERE "company" = ANY(${ids}::text[]) AND "createdAt" >= ${startUtc}::timestamp
+      )
+      SELECT company_id AS "companyId", to_char(d, 'YYYY-MM') AS "month"
+      FROM activity
+      GROUP BY 1, 2
+    `);
+    const activeMonths = /* @__PURE__ */ new Map();
+    for (const row of activity) {
+      const set = activeMonths.get(row.companyId) ?? /* @__PURE__ */ new Set();
+      set.add(row.month);
+      activeMonths.set(row.companyId, set);
+    }
+    const cohorts = /* @__PURE__ */ new Map();
+    for (const company of companies) {
+      if (!company.createdAt) continue;
+      const month = toMxDay(company.createdAt).slice(0, 7);
+      cohorts.set(month, [...cohorts.get(month) ?? [], company.id]);
+    }
+    const rows2 = [];
+    for (let offset = 0; offset < monthsBack; offset += 1) {
+      const month = shiftMonth(firstMonth, offset);
+      const members = cohorts.get(month) ?? [];
+      const span = monthsBetween(month, currentMonth) + 1;
+      const active = Array.from({ length: span }, (_, index) => {
+        const target = shiftMonth(month, index);
+        return members.filter((id) => activeMonths.get(id)?.has(target)).length;
+      });
+      rows2.push({ month, size: members.length, active });
+    }
+    return { rows: rows2 };
+  }
+};
+var adminCohorts_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+
+// graphql/customs/queries/admin/adminEngagement.ts
+var MAU_DAYS = 30;
+var WAU_DAYS = 7;
+var MODULES = [
+  { key: "extraction", field: "extractions" },
+  { key: "crm", field: "crmChanges" },
+  { key: "activities", field: "activitiesLogged" },
+  { key: "quotations", field: "quotationsCreated" },
+  { key: "whatsapp", field: "whatsappSent" },
+  { key: "ai", field: "aiCalls" }
+];
+var typeDefs73 = `
+  input AdminEngagementInput {
+    """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
+    days: Int
+  }
+
+  type AdminDailyActive {
+    day: String!
+    users: Int!
+    companies: Int!
+  }
+
+  type AdminModuleAdoption {
+    """extraction | crm | activities | quotations | whatsapp | ai"""
+    key: String!
+    companies: Int!
+  }
+
+  type AdminPlanAdoption {
+    planName: String!
+    """Empresas activas o en prueba con este plan."""
+    companies: Int!
+    """Cu\xE1ntas usaron cada m\xF3dulo en los \xFAltimos 30 d\xEDas."""
+    modules: [AdminModuleAdoption!]!
+  }
+
+  type AdminSectionUsage {
+    """Clave de secci\xF3n del panel (la etiqueta la pone el front)."""
+    key: String!
+    views: Int!
+    users: Int!
+  }
+
+  type AdminEngagement {
+    """false mientras no haya latidos ni resumen diario."""
+    ready: Boolean!
+    through: String!
+    series: [AdminDailyActive!]!
+    """Promedio de personas activas por d\xEDa en los \xFAltimos 30 d\xEDas."""
+    dau: Float!
+    wau: Int!
+    mau: Int!
+    """DAU \xF7 MAU (0\u20131): qu\xE9 tan seguido vuelve quien usa Kadesh en el mes."""
+    stickiness: Float!
+    activeCompanies7d: Int!
+    activeCompanies30d: Int!
+    plans: [AdminPlanAdoption!]!
+    sections: [AdminSectionUsage!]!
+  }
+
+  type Query {
+    adminEngagement(input: AdminEngagementInput): AdminEngagement!
+  }
+`;
+var definition70 = `
+  adminEngagement(input: AdminEngagementInput): AdminEngagement!
+`;
+var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
+var resolver70 = {
+  adminEngagement: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 14, 90, 30);
+    const through = shiftDay(mxToday(), -1);
+    const firstDay = shiftDay(through, -(Math.max(days, MAU_DAYS) - 1));
+    const monthStartDay = shiftDay(through, -(MAU_DAYS - 1));
+    const weekStartDay = shiftDay(through, -(WAU_DAYS - 1));
+    const excludedIds = [...await analyticsExcludedCompanyIds(prisma)];
+    const excludedUsers = await prisma.user.findMany({
+      where: { OR: [{ userTest: true }, { roles: { some: { name: "admin" /* ADMIN */ } } }] },
+      select: { id: true }
+    });
+    const excludedUserIds = excludedUsers.map((user) => user.id);
+    const activity = prisma.userActivityDay ? await optional(
+      () => prisma.userActivityDay.findMany({
+        where: {
+          day: { gte: dayDate2(firstDay), lte: dayDate2(through) },
+          userId: { notIn: excludedUserIds },
+          OR: [{ companyId: null }, { companyId: { notIn: excludedIds } }]
+        },
+        select: { day: true, userId: true, companyId: true }
+      }),
+      []
+    ) : [];
+    const usersByDay = /* @__PURE__ */ new Map();
+    const companiesByDay = /* @__PURE__ */ new Map();
+    const weekUsers = /* @__PURE__ */ new Set();
+    const monthUsers = /* @__PURE__ */ new Set();
+    const weekCompanies = /* @__PURE__ */ new Set();
+    const monthCompanies = /* @__PURE__ */ new Set();
+    for (const row of activity) {
+      if (!row.userId) continue;
+      const day = new Date(row.day).toISOString().slice(0, 10);
+      const users = usersByDay.get(day) ?? /* @__PURE__ */ new Set();
+      users.add(row.userId);
+      usersByDay.set(day, users);
+      if (row.companyId) {
+        const companies = companiesByDay.get(day) ?? /* @__PURE__ */ new Set();
+        companies.add(row.companyId);
+        companiesByDay.set(day, companies);
+      }
+      if (day >= monthStartDay) {
+        monthUsers.add(row.userId);
+        if (row.companyId) monthCompanies.add(row.companyId);
+      }
+      if (day >= weekStartDay) {
+        weekUsers.add(row.userId);
+        if (row.companyId) weekCompanies.add(row.companyId);
+      }
+    }
+    const series = Array.from({ length: days }, (_, index) => {
+      const day = shiftDay(through, -(days - 1 - index));
+      return {
+        day,
+        users: usersByDay.get(day)?.size ?? 0,
+        companies: companiesByDay.get(day)?.size ?? 0
+      };
+    });
+    let monthDaily = 0;
+    for (let index = 0; index < MAU_DAYS; index += 1) {
+      monthDaily += usersByDay.get(shiftDay(through, -index))?.size ?? 0;
+    }
+    const dau = Math.round(monthDaily / MAU_DAYS * 10) / 10;
+    const mau = monthUsers.size;
+    const usage = prisma.saasCompanyDailyUsage ? await optional(
+      () => prisma.saasCompanyDailyUsage.groupBy({
+        by: ["companyId"],
+        where: {
+          day: { gte: dayDate2(monthStartDay), lte: dayDate2(through) },
+          companyId: { notIn: excludedIds }
+        },
+        _sum: Object.fromEntries(
+          [...MODULES.map((module2) => module2.field), "extractionsFailed"].map((field) => [field, true])
+        )
+      }),
+      []
+    ) : [];
+    const usageByCompany = new Map(usage.map((row) => [row.companyId, row._sum]));
+    const latest = await latestSubscriptionsByCompany(prisma);
+    const plans = /* @__PURE__ */ new Map();
+    for (const [companyId, sub] of latest) {
+      if (excludedIds.includes(companyId)) continue;
+      if (sub.status !== SUBSCRIPTION_STATUS.ACTIVE && sub.status !== SUBSCRIPTION_STATUS.TRIALING) continue;
+      const planName = sub.planName || "Sin nombre";
+      const plan = plans.get(planName) ?? { planName, companies: 0, modules: /* @__PURE__ */ new Map() };
+      plan.companies += 1;
+      const sums = usageByCompany.get(companyId);
+      for (const module2 of MODULES) {
+        let value = Number(sums?.[module2.field] ?? 0);
+        if (module2.key === "extraction") value -= Number(sums?.extractionsFailed ?? 0);
+        if (value > 0) plan.modules.set(module2.key, (plan.modules.get(module2.key) ?? 0) + 1);
+      }
+      plans.set(planName, plan);
+    }
+    const sectionsSince = `${monthStartDay} 06:00:00`;
+    const sections = await optional(
+      () => prisma.$queryRaw`
+        SELECT "metadata"->>'section' AS "key", COUNT(*)::int AS "views", COUNT(DISTINCT "actor")::int AS "users"
+        FROM "ActivityEvent"
+        WHERE "type" = ${ACTIVITY_EVENT.UI_SECTION_VIEWED}
+          AND "createdAt" >= ${sectionsSince}::timestamp
+          AND "actor" IS NOT NULL
+          AND NOT ("actor" = ANY(${excludedUserIds}::text[]))
+          AND ("company" IS NULL OR NOT ("company" = ANY(${excludedIds}::text[])))
+        GROUP BY 1
+        ORDER BY 3 DESC, 2 DESC
+        LIMIT 30
+      `,
+      []
+    );
+    return {
+      ready: activity.length > 0 || usage.length > 0,
+      through,
+      series,
+      dau,
+      wau: weekUsers.size,
+      mau,
+      stickiness: mau ? Math.round(dau / mau * 1e3) / 1e3 : 0,
+      activeCompanies7d: weekCompanies.size,
+      activeCompanies30d: monthCompanies.size,
+      plans: [...plans.values()].sort((a, b) => b.companies - a.companies).map((plan) => ({
+        planName: plan.planName,
+        companies: plan.companies,
+        modules: MODULES.map((module2) => ({ key: module2.key, companies: plan.modules.get(module2.key) ?? 0 }))
+      })),
+      sections: sections.filter((row) => row.key).map((row) => ({ key: row.key, views: row.views, users: row.users }))
+    };
+  }
+};
+var adminEngagement_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+
+// graphql/customs/queries/admin/adminDemandGaps.ts
+var ZONE_STEP = 0.1;
+var LIST_LIMIT = 25;
+var typeDefs74 = `
+  input AdminDemandGapsInput {
+    """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
+    days: Int
+    """Con estos resultados o menos la corrida cuenta como "pocos" (0\u201320, por defecto 5)."""
+    threshold: Int
+  }
+
+  type AdminDemandCategory {
+    category: String!
+    runs: Int!
+    lowRuns: Int!
+    avgResults: Float!
+    companies: Int!
+  }
+
+  type AdminDemandZone {
+    """Centro aproximado del cuadro de unos 11 km."""
+    lat: Float!
+    lng: Float!
+    runs: Int!
+    lowRuns: Int!
+    avgResults: Float!
+    companies: Int!
+    """Giros con pocos resultados en la zona (los que m\xE1s se repiten)."""
+    topCategories: [String!]!
+  }
+
+  type AdminDemandGap {
+    category: String!
+    lat: Float!
+    lng: Float!
+    runs: Int!
+    lowRuns: Int!
+    avgResults: Float!
+    companies: Int!
+    lastAt: String
+  }
+
+  type AdminDemandGaps {
+    days: Int!
+    threshold: Int!
+    runs: Int!
+    lowRuns: Int!
+    """Giros con m\xE1s corridas de pocos resultados."""
+    categories: [AdminDemandCategory!]!
+    zones: [AdminDemandZone!]!
+    """Giro + zona que se buscaron varias veces sin encontrar."""
+    gaps: [AdminDemandGap!]!
+  }
+
+  type Query {
+    adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
+  }
+`;
+var definition71 = `
+  adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
+`;
+function emptyBucket() {
+  return { runs: 0, lowRuns: 0, results: 0, companies: /* @__PURE__ */ new Set(), lastAt: null };
+}
+function addRun(bucket, results, low, companyId, at) {
+  bucket.runs += 1;
+  bucket.results += results;
+  if (low) bucket.lowRuns += 1;
+  if (companyId) bucket.companies.add(companyId);
+  if (at && (!bucket.lastAt || at > bucket.lastAt)) bucket.lastAt = at;
+}
+var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
+var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
+var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
+var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
+var resolver71 = {
+  adminDemandGaps: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 7, 365, 90);
+    const threshold = clampInt(input?.threshold, 0, 20, 5);
+    const excludedIds = [...await analyticsExcludedCompanyIds(prisma)];
+    const runs = await prisma.techLeadSyncLog.findMany({
+      where: {
+        success: true,
+        createdAt: { gte: daysAgo(days) },
+        OR: [{ companyId: null }, { companyId: { notIn: excludedIds } }]
+      },
+      select: {
+        companyId: true,
+        category: true,
+        lat: true,
+        lng: true,
+        created: true,
+        alreadyInDb: true,
+        createdAt: true
+      }
+    });
+    const categories = /* @__PURE__ */ new Map();
+    const zones = /* @__PURE__ */ new Map();
+    const gaps = /* @__PURE__ */ new Map();
+    let lowRuns = 0;
+    for (const run2 of runs) {
+      const results = (run2.created ?? 0) + (run2.alreadyInDb ?? 0);
+      const low = results <= threshold;
+      if (low) lowRuns += 1;
+      const category = run2.category?.trim() || "Sin giro";
+      const at = run2.createdAt ? new Date(run2.createdAt) : null;
+      const categoryBucket = categories.get(category) ?? emptyBucket();
+      addRun(categoryBucket, results, low, run2.companyId, at);
+      categories.set(category, categoryBucket);
+      if (run2.lat == null || run2.lng == null) continue;
+      const zone = zoneKey(run2.lat, run2.lng);
+      const zoneBucket = zones.get(zone) ?? { ...emptyBucket(), lowCategories: /* @__PURE__ */ new Map() };
+      addRun(zoneBucket, results, low, run2.companyId, at);
+      if (low) zoneBucket.lowCategories?.set(category, (zoneBucket.lowCategories.get(category) ?? 0) + 1);
+      zones.set(zone, zoneBucket);
+      const gapKey = `${category}|${zone}`;
+      const gapBucket = gaps.get(gapKey) ?? { ...emptyBucket(), category, zone };
+      addRun(gapBucket, results, low, run2.companyId, at);
+      gaps.set(gapKey, gapBucket);
+    }
+    const coords = (zone) => {
+      const [lat, lng] = zone.split(",").map(Number);
+      return { lat, lng };
+    };
+    return {
+      days,
+      threshold,
+      runs: runs.length,
+      lowRuns,
+      categories: [...categories.entries()].filter(([, bucket]) => bucket.lowRuns > 0).sort(([, a], [, b]) => byLowRuns(a, b)).slice(0, LIST_LIMIT).map(([category, bucket]) => ({
+        category,
+        runs: bucket.runs,
+        lowRuns: bucket.lowRuns,
+        avgResults: avg(bucket),
+        companies: bucket.companies.size
+      })),
+      zones: [...zones.entries()].filter(([, bucket]) => bucket.lowRuns > 0).sort(([, a], [, b]) => byLowRuns(a, b)).slice(0, LIST_LIMIT).map(([zone, bucket]) => ({
+        ...coords(zone),
+        runs: bucket.runs,
+        lowRuns: bucket.lowRuns,
+        avgResults: avg(bucket),
+        companies: bucket.companies.size,
+        topCategories: [...bucket.lowCategories?.entries() ?? []].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([category]) => category)
+      })),
+      // Una sola corrida floja puede ser un error de dedo: se piden al menos 2.
+      gaps: [...gaps.values()].filter((bucket) => bucket.lowRuns >= 2).sort(byLowRuns).slice(0, LIST_LIMIT).map((bucket) => ({
+        category: bucket.category,
+        ...coords(bucket.zone),
+        runs: bucket.runs,
+        lowRuns: bucket.lowRuns,
+        avgResults: avg(bucket),
+        companies: bucket.companies.size,
+        lastAt: toIso(bucket.lastAt)
+      }))
+    };
+  }
+};
+var adminDemandGaps_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+
+// graphql/customs/queries/admin/adminAcquisition.ts
+var LIST_LIMIT2 = 10;
+var REFERRAL = "Referido";
+var typeDefs75 = `
+  input AdminAcquisitionInput {
+    """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
+    days: Int
+  }
+
+  type AdminAcquisitionRow {
+    key: String!
+    companies: Int!
+    """Hicieron al menos una extracci\xF3n."""
+    activated: Int!
+    paid: Int!
+  }
+
+  type AdminAcquisition {
+    days: Int!
+    companies: Int!
+    """Empresas con atribuci\xF3n guardada (las anteriores a esta medici\xF3n salen como "Sin dato")."""
+    withData: Int!
+    """utm_source, dominio que refiri\xF3, Directo, Referido o Sin dato."""
+    channels: [AdminAcquisitionRow!]!
+    """P\xE1gina por la que entraron (sin query)."""
+    landings: [AdminAcquisitionRow!]!
+    """utm_campaign"""
+    campaigns: [AdminAcquisitionRow!]!
+  }
+
+  type Query {
+    adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
+  }
+`;
+var definition72 = `
+  adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
+`;
+function bump2(map, key, activated, paid) {
+  const row = map.get(key) ?? { key, companies: 0, activated: 0, paid: 0 };
+  row.companies += 1;
+  if (activated) row.activated += 1;
+  if (paid) row.paid += 1;
+  map.set(key, row);
+}
+var sortRows = (map, limit) => {
+  const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
+  return limit ? rows2.slice(0, limit) : rows2;
+};
+var resolver72 = {
+  adminAcquisition: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 7, 365, 90);
+    const excludedIds = await analyticsExcludedCompanyIds(prisma);
+    const companies = (await prisma.saasCompany.findMany({
+      where: { createdAt: { gte: daysAgo(days) } },
+      select: { id: true }
+    })).filter((company) => !excludedIds.has(company.id));
+    const ids = companies.map((company) => company.id);
+    const users = ids.length ? await prisma.user.findMany({
+      where: { companyId: { in: ids } },
+      orderBy: [{ createdAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+      select: { companyId: true, signupAttribution: true, referredById: true }
+    }) : [];
+    const founder = /* @__PURE__ */ new Map();
+    for (const user of users) {
+      if (user.companyId && !founder.has(user.companyId)) founder.set(user.companyId, user);
+    }
+    const milestones = await loadCompanyMilestones(prisma, ids);
+    const channels = /* @__PURE__ */ new Map();
+    const landings = /* @__PURE__ */ new Map();
+    const campaigns = /* @__PURE__ */ new Map();
+    let withData = 0;
+    for (const companyId of ids) {
+      const user = founder.get(companyId);
+      const attribution = user?.signupAttribution ?? null;
+      const m = milestones.get(companyId);
+      const activated = Boolean(m?.firstExtractionAt);
+      const paid = Boolean(m?.paidAt);
+      if (attribution || user?.referredById) withData += 1;
+      const channel = user?.referredById ? REFERRAL : attributionChannel(attribution);
+      bump2(channels, channel, activated, paid);
+      if (attribution?.landingPath) bump2(landings, attribution.landingPath, activated, paid);
+      if (attribution?.utm_campaign) bump2(campaigns, attribution.utm_campaign, activated, paid);
+    }
+    return {
+      days,
+      companies: ids.length,
+      withData,
+      channels: sortRows(channels),
+      landings: sortRows(landings, LIST_LIMIT2),
+      campaigns: sortRows(campaigns, LIST_LIMIT2)
+    };
+  }
+};
+var adminAcquisition_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
+
+// utils/analytics/salesVelocity.ts
+var DAY_MS3 = 24 * 60 * 60 * 1e3;
+var P = PIPELINE_STATUS;
+var RANK = {
+  [P.DETECTADO]: 1,
+  [P.SELECCIONADO]: 2,
+  [P.CONTACTADO]: 3,
+  [P.SIN_RESPUESTA]: 3,
+  [P.INTERESADO]: 4,
+  [P.CREANDO_PROYECTO_PROPUESTA]: 5,
+  [P.PROPUESTA_ENVIADA]: 6,
+  [P.SEGUIMIENTO]: 6,
+  [P.EN_NEGOCIACION]: 7,
+  [P.PROPUESTA_ACEPTADA]: 8,
+  [P.CERRADO_GANADO]: 9
+};
+var WON = /* @__PURE__ */ new Set([P.PROPUESTA_ACEPTADA, P.CERRADO_GANADO]);
+var LOST = /* @__PURE__ */ new Set([P.PROPUESTA_RECHAZADA, P.CERRADO_PERDIDO, P.DESCARTADO]);
+var CONTACT_RANK = 3;
+var STALLED_DAYS = 14;
+var LOOKBACK_DAYS = 180;
+var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS3;
+var emptyGroup = () => ({
+  entered: 0,
+  contacted: 0,
+  contactedWithin2Days: 0,
+  won: 0,
+  lost: 0,
+  cycles: [],
+  firstContactHours: [],
+  stalled: 0
+});
+function median3(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const value = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return Math.round(value * 10) / 10;
+}
+var rate = (part, total) => total ? Math.round(part / total * 1e3) / 1e3 : null;
+var isOpen = (stage) => !WON.has(stage) && !LOST.has(stage);
+var isProgress = (from, to) => !LOST.has(to) && (RANK[to] ?? 0) > (RANK[from] ?? 0);
+function finish(group) {
+  return {
+    entered: group.entered,
+    contacted: group.contacted,
+    contactedWithin2Days: group.contactedWithin2Days,
+    won: group.won,
+    lost: group.lost,
+    winRate: rate(group.won, group.won + group.lost),
+    medianCycleDays: median3(group.cycles),
+    medianFirstContactHours: median3(group.firstContactHours),
+    stalled: group.stalled
+  };
+}
+async function rows(read, fallback) {
+  try {
+    const result3 = await read();
+    return result3 instanceof Error ? fallback : result3;
+  } catch {
+    return fallback;
+  }
+}
+async function computeSalesVelocity(prisma, options) {
+  const { days, companyWhere } = options;
+  const now = Date.now();
+  const since = new Date(now - days * DAY_MS3);
+  const sinceMs = since.getTime();
+  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS3);
+  const sellerScope = options.salesPersonId ?? null;
+  const needStatuses = Boolean(options.bySeller || sellerScope);
+  const [allChanges, firstChange, activities, allMessages, statuses] = await Promise.all([
+    rows(
+      () => prisma.techLeadStageChange.findMany({
+        where: { changedAt: { gte: lookback }, companyId: companyWhere },
+        orderBy: [{ changedAt: "asc" }, { id: "asc" }],
+        select: { statusId: true, companyId: true, businessLeadId: true, fromStatus: true, toStatus: true, changedAt: true }
+      }),
+      []
+    ),
+    rows(
+      () => prisma.techLeadStageChange.findFirst({
+        where: { companyId: companyWhere },
+        orderBy: { changedAt: "asc" },
+        select: { changedAt: true }
+      }),
+      null
+    ),
+    rows(
+      () => prisma.techSalesActivity.findMany({
+        where: { createdAt: { gte: since }, businessLeadId: { not: null } },
+        select: {
+          businessLeadId: true,
+          createdAt: true,
+          workspace: { select: { companyId: true } },
+          createdBy: { select: { companyId: true } }
+        }
+      }),
+      []
+    ),
+    rows(
+      () => prisma.techWhatsAppMessage.findMany({
+        where: {
+          createdAt: { gte: since },
+          businessLeadId: { not: null },
+          companyId: companyWhere,
+          OR: [{ source: null }, { source: { not: "imported" } }]
+        },
+        orderBy: { createdAt: "asc" },
+        select: { companyId: true, businessLeadId: true, direction: true, createdAt: true }
+      }),
+      []
+    ),
+    needStatuses ? rows(
+      () => prisma.techStatusBusinessLead.findMany({
+        where: { saasCompanyId: companyWhere },
+        select: {
+          id: true,
+          saasCompanyId: true,
+          businessLeadId: true,
+          businessLead: { select: { salesPerson: { select: { id: true, companyId: true } } } }
+        }
+      }),
+      []
+    ) : Promise.resolve([])
+  ]);
+  const sellersOf = (status) => (status.businessLead?.salesPerson ?? []).filter((user) => user.companyId === status.saasCompanyId).map((user) => user.id);
+  const sellerOf = new Map(statuses.map((status) => [status.id, sellersOf(status)[0] ?? ""]));
+  const ownStatuses = sellerScope ? statuses.filter((s) => sellersOf(s).includes(sellerScope)) : null;
+  const ownStatusIds = ownStatuses ? new Set(ownStatuses.map((s) => s.id)) : null;
+  const ownLeadIds = ownStatuses ? new Set(ownStatuses.filter((s) => s.businessLeadId).map((s) => s.businessLeadId)) : null;
+  const changes = ownStatusIds ? allChanges.filter((change) => ownStatusIds.has(change.statusId)) : allChanges;
+  const messages = ownLeadIds ? allMessages.filter((m) => ownLeadIds.has(m.businessLeadId)) : allMessages;
+  const byStatus = /* @__PURE__ */ new Map();
+  for (const change of changes) {
+    const list82 = byStatus.get(change.statusId) ?? [];
+    list82.push(change);
+    byStatus.set(change.statusId, list82);
+  }
+  const contactKey = (company, lead) => `${company}|${lead}`;
+  const contactTimes = /* @__PURE__ */ new Map();
+  const addContact = (key, at) => {
+    const list82 = contactTimes.get(key) ?? [];
+    list82.push(new Date(at).getTime());
+    contactTimes.set(key, list82);
+  };
+  for (const activity of activities) {
+    const company = activity.workspace?.companyId ?? activity.createdBy?.companyId ?? null;
+    if (company) addContact(contactKey(company, activity.businessLeadId), activity.createdAt);
+  }
+  for (const message of messages) {
+    if (message.direction !== "inbound") addContact(contactKey(message.companyId, message.businessLeadId), message.createdAt);
+  }
+  const stageStats = /* @__PURE__ */ new Map();
+  const stageOf = (stage) => {
+    const stats = stageStats.get(stage) ?? { entered: 0, advanced: 0, lost: 0, durations: [], stalled: 0 };
+    stageStats.set(stage, stats);
+    return stats;
+  };
+  const total = emptyGroup();
+  const companies = /* @__PURE__ */ new Map();
+  const sellers = /* @__PURE__ */ new Map();
+  const groupsFor = (companyId, statusId) => {
+    const list82 = [total];
+    if (companyId) {
+      const group = companies.get(companyId) ?? emptyGroup();
+      companies.set(companyId, group);
+      list82.push(group);
+    }
+    if (needStatuses) {
+      const seller = sellerOf.get(statusId) ?? "";
+      const group = sellers.get(seller) ?? emptyGroup();
+      sellers.set(seller, group);
+      list82.push(group);
+    }
+    return list82;
+  };
+  const wonStatusIds = [];
+  const stalledDeals = [];
+  const cycles = [];
+  for (const [statusId, history] of byStatus) {
+    const last = history[history.length - 1];
+    const groups = groupsFor(last.companyId, statusId);
+    const entry = history[0].fromStatus == null ? history[0] : null;
+    history.forEach((change, index) => {
+      const at = change.changedAt.getTime();
+      const next = history[index + 1];
+      if (at >= sinceMs) {
+        const stage = stageOf(change.toStatus);
+        stage.entered += 1;
+        if (next) {
+          if (isProgress(change.toStatus, next.toStatus)) stage.advanced += 1;
+          if (LOST.has(next.toStatus)) stage.lost += 1;
+        }
+        if (WON.has(change.toStatus) && !(change.fromStatus && WON.has(change.fromStatus))) {
+          wonStatusIds.push(statusId);
+          for (const group of groups) group.won += 1;
+          if (entry) {
+            const cycle = (at - entry.changedAt.getTime()) / DAY_MS3;
+            cycles.push(cycle);
+            for (const group of groups) group.cycles.push(cycle);
+          }
+        }
+        if (LOST.has(change.toStatus) && !(change.fromStatus && LOST.has(change.fromStatus))) {
+          for (const group of groups) group.lost += 1;
+        }
+      }
+      if (next && next.changedAt.getTime() >= sinceMs) {
+        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS3);
+      }
+    });
+    const idle = now - last.changedAt.getTime();
+    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS3) {
+      stageOf(last.toStatus).stalled += 1;
+      for (const group of groups) group.stalled += 1;
+      stalledDeals.push({
+        statusId,
+        companyId: last.companyId,
+        businessLeadId: last.businessLeadId,
+        salesPersonId: sellerOf.get(statusId) || null,
+        stage: last.toStatus,
+        since: last.changedAt,
+        days: Math.floor(idle / DAY_MS3)
+      });
+    }
+    if (entry && entry.changedAt.getTime() >= sinceMs) {
+      for (const group of groups) group.entered += 1;
+      const enteredAt = entry.changedAt.getTime();
+      const candidates = [];
+      const reached = history.find((change) => (RANK[change.toStatus] ?? 0) >= CONTACT_RANK);
+      if (reached) candidates.push(reached.changedAt.getTime());
+      for (const at of contactTimes.get(contactKey(last.companyId, entry.businessLeadId)) ?? []) {
+        if (at >= enteredAt) candidates.push(at);
+      }
+      if (candidates.length) {
+        const hours = (Math.min(...candidates) - enteredAt) / (60 * 60 * 1e3);
+        for (const group of groups) {
+          group.contacted += 1;
+          if (hours <= 48) group.contactedWithin2Days += 1;
+          group.firstContactHours.push(hours);
+        }
+      }
+    }
+  }
+  const conversations = /* @__PURE__ */ new Map();
+  for (const message of messages) {
+    const key = contactKey(message.companyId, message.businessLeadId);
+    const list82 = conversations.get(key) ?? [];
+    list82.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
+    conversations.set(key, list82);
+  }
+  let whatsappInbound = 0;
+  let whatsappAnswered = 0;
+  let whatsappAnsweredWithin1h = 0;
+  let whatsappConversations = 0;
+  let whatsappReplied = 0;
+  const responseMinutes = [];
+  for (const list82 of conversations.values()) {
+    list82.forEach((message, index) => {
+      if (message.direction !== "in" || list82[index - 1]?.direction === "in") return;
+      whatsappInbound += 1;
+      const reply = list82.slice(index + 1).find((m) => m.direction === "out");
+      if (!reply) return;
+      whatsappAnswered += 1;
+      const minutes = (reply.at - message.at) / 6e4;
+      responseMinutes.push(minutes);
+      if (minutes <= 60) whatsappAnsweredWithin1h += 1;
+    });
+    const firstOut = list82.findIndex((m) => m.direction === "out");
+    if (firstOut >= 0 && (firstOut === 0 || list82[firstOut - 1].direction === "out")) {
+      whatsappConversations += 1;
+      const start = list82[firstOut].at;
+      if (list82.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
+        whatsappReplied += 1;
+      }
+    }
+  }
+  const wonStatuses = wonStatusIds.length ? await rows(
+    () => prisma.techStatusBusinessLead.findMany({
+      where: { id: { in: wonStatusIds } },
+      select: { estimatedValue: true }
+    }),
+    []
+  ) : [];
+  const wonValue = wonStatuses.reduce((sum, row) => sum + (row.estimatedValue ?? 0), 0);
+  const stageOrder = Object.values(PIPELINE_STATUS);
+  const totals = finish(total);
+  return {
+    days,
+    dataSince: firstChange?.changedAt ?? null,
+    stages: stageOrder.filter((stage) => stageStats.has(stage)).map((stage) => {
+      const stats = stageStats.get(stage);
+      return {
+        stage,
+        entered: stats.entered,
+        advanced: stats.advanced,
+        lost: stats.lost,
+        medianDays: median3(stats.durations),
+        stalled: stats.stalled
+      };
+    }),
+    won: totals.won,
+    lost: totals.lost,
+    winRate: totals.winRate,
+    wonValue: Math.round(wonValue * 100) / 100,
+    medianCycleDays: median3(cycles),
+    cycleSample: cycles.length,
+    newLeads: totals.entered,
+    contacted: totals.contacted,
+    contactedWithin2Days: totals.contactedWithin2Days,
+    medianFirstContactHours: totals.medianFirstContactHours,
+    stalled: totals.stalled,
+    whatsappInbound,
+    whatsappAnswered,
+    whatsappAnsweredWithin1h,
+    whatsappMedianResponseMinutes: median3(responseMinutes),
+    whatsappConversations,
+    whatsappReplied,
+    byCompany: new Map([...companies].map(([id, group]) => [id, finish(group)])),
+    bySeller: new Map([...sellers].map(([id, group]) => [id, finish(group)])),
+    stalledDeals: stalledDeals.sort((a, b) => b.days - a.days)
+  };
+}
+
+// graphql/customs/queries/admin/adminSalesVelocity.ts
+var COMPANY_LIMIT = 25;
+var typeDefs76 = `
+  input AdminSalesVelocityInput {
+    """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
+    days: Int
+    """Solo esta empresa (ficha 360)."""
+    companyId: ID
+  }
+
+  type AdminStageVelocity {
+    stage: String!
+    """Leads que entraron a la etapa en el periodo."""
+    entered: Int!
+    """De esos, cu\xE1ntos pasaron a una etapa m\xE1s adelante."""
+    advanced: Int!
+    """De esos, cu\xE1ntos se perdieron (rechazada, perdido o descartado)."""
+    lost: Int!
+    """Mediana de d\xEDas que se quedaron en la etapa (solo los que ya salieron)."""
+    medianDays: Float
+    """Siguen ah\xED hace 14 d\xEDas o m\xE1s sin moverse."""
+    stalled: Int!
+  }
+
+  type AdminCompanyVelocity {
+    companyId: ID!
+    companyName: String!
+    entered: Int!
+    won: Int!
+    lost: Int!
+    winRate: Float
+    medianCycleDays: Float
+    medianFirstContactHours: Float
+    stalled: Int!
+  }
+
+  type AdminSalesVelocity {
+    days: Int!
+    """Desde cu\xE1ndo hay historial de etapas (antes no se guardaba)."""
+    dataSince: String
+    stages: [AdminStageVelocity!]!
+    won: Int!
+    lost: Int!
+    """Ganados \xF7 (ganados + perdidos) cerrados en el periodo (0\u20131)."""
+    winRate: Float
+    """Suma del valor estimado de los ganados."""
+    wonValue: Float!
+    """Mediana de d\xEDas desde que el lead entr\xF3 al pipeline hasta ganarse."""
+    medianCycleDays: Float
+    cycleSample: Int!
+    """Leads que entraron al pipeline en el periodo."""
+    newLeads: Int!
+    """De esos, cu\xE1ntos ya tuvieron contacto."""
+    contacted: Int!
+    contactedWithin2Days: Int!
+    medianFirstContactHours: Float
+    """Tratos abiertos (de Contactado a Negociaci\xF3n) sin moverse en 14 d\xEDas o m\xE1s."""
+    stalled: Int!
+    whatsappInbound: Int!
+    whatsappAnswered: Int!
+    whatsappAnsweredWithin1h: Int!
+    """Mediana de minutos para contestar un WhatsApp de un lead."""
+    whatsappMedianResponseMinutes: Float
+    """Conversaciones donde la empresa escribi\xF3 primero."""
+    whatsappConversations: Int!
+    """De esas, en cu\xE1ntas contest\xF3 el lead (en 7 d\xEDas)."""
+    whatsappReplied: Int!
+    companies: [AdminCompanyVelocity!]!
+  }
+
+  type Query {
+    adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
+  }
+`;
+var definition73 = `
+  adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
+`;
+var resolver73 = {
+  adminSalesVelocity: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(input?.days, 30, 365, 90);
+    const companyId = input?.companyId?.trim() || null;
+    const excluded = companyId ? [] : [...await analyticsExcludedCompanyIds(prisma)];
+    const velocity = await computeSalesVelocity(prisma, {
+      days,
+      companyWhere: companyId ?? { notIn: excluded }
+    });
+    let companies = [];
+    if (!companyId && velocity.byCompany.size) {
+      const names = await prisma.saasCompany.findMany({
+        where: { id: { in: [...velocity.byCompany.keys()] } },
+        select: { id: true, name: true }
+      });
+      const nameById = new Map(names.map((company) => [company.id, company.name]));
+      companies = [...velocity.byCompany.entries()].filter(([id]) => nameById.has(id)).map(([id, stats]) => ({ companyId: id, companyName: nameById.get(id) ?? "Empresa", ...stats })).sort((a, b) => Number(b.stalled) - Number(a.stalled) || Number(b.entered) - Number(a.entered)).slice(0, COMPANY_LIMIT);
+    }
+    const { byCompany: _byCompany, bySeller: _bySeller, stalledDeals: _stalled, dataSince, ...totals } = velocity;
+    return { ...totals, dataSince: toIso(dataSince), companies };
+  }
+};
+var adminSalesVelocity_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+
+// graphql/customs/queries/analytics/companyAnalytics.ts
+var import_graphql3 = require("graphql");
+var STALLED_LIMIT = 50;
+var typeDefs77 = `
+  input CompanyAnalyticsInput {
+    """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
+    days: Int
+  }
+
+  type CompanyStageVelocity {
+    stage: String!
+    entered: Int!
+    advanced: Int!
+    lost: Int!
+    medianDays: Float
+    stalled: Int!
+  }
+
+  type CompanySellerVelocity {
+    """Vac\xEDo = leads sin vendedor asignado."""
+    userId: ID
+    name: String!
+    entered: Int!
+    contacted: Int!
+    contactedWithin2Days: Int!
+    won: Int!
+    lost: Int!
+    winRate: Float
+    medianCycleDays: Float
+    medianFirstContactHours: Float
+    stalled: Int!
+    """Actividades que registr\xF3 en el periodo."""
+    activities: Int!
+    """WhatsApp que mand\xF3 en el periodo."""
+    whatsappSent: Int!
+  }
+
+  type CompanyStalledDeal {
+    businessLeadId: ID
+    leadName: String!
+    stage: String!
+    """Desde cu\xE1ndo est\xE1 en esa etapa."""
+    since: String!
+    days: Int!
+    sellerName: String
+  }
+
+  type CompanyAnalytics {
+    """team (todo el equipo) | own (solo sus leads)"""
+    scope: String!
+    days: Int!
+    dataSince: String
+    stages: [CompanyStageVelocity!]!
+    won: Int!
+    lost: Int!
+    winRate: Float
+    wonValue: Float!
+    medianCycleDays: Float
+    cycleSample: Int!
+    newLeads: Int!
+    contacted: Int!
+    contactedWithin2Days: Int!
+    medianFirstContactHours: Float
+    stalled: Int!
+    whatsappInbound: Int!
+    whatsappAnswered: Int!
+    whatsappAnsweredWithin1h: Int!
+    whatsappMedianResponseMinutes: Float
+    whatsappConversations: Int!
+    whatsappReplied: Int!
+    """Solo con permiso de ver al equipo."""
+    sellers: [CompanySellerVelocity!]!
+    stalledDeals: [CompanyStalledDeal!]!
+  }
+
+  type Query {
+    companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
+  }
+`;
+var definition74 = `
+  companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
+`;
+var fail10 = (message, code) => new import_graphql3.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
+var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
+var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
+var resolver74 = {
+  companyAnalytics: async (_root, { input }, context) => {
+    const session2 = context.session;
+    const userId = getSessionUserId(session2);
+    const companyId = getSessionCompanyId(session2);
+    if (!userId) throw fail10("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
+    if (!companyId) throw fail10("Tu cuenta no tiene empresa.", "NO_COMPANY");
+    if (!hasPermission(session2, PERMISSION_KEYS.ANALITICA_VER, () => true)) {
+      throw fail10("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
+    }
+    if (!isPlatformAdmin(session2) && !await companyHasPlanFeature(context, companyId, PLAN_FEATURE.ANALYTICS)) {
+      throw fail10("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
+    }
+    const seesTeam = hasPermission(
+      session2,
+      PERMISSION_KEYS.ANALITICA_VER_EQUIPO,
+      () => hasRole(session2, ["gerencia" /* GERENCIA */])
+    );
+    const prisma = context.sudo().prisma;
+    const days = clampDays(input?.days);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1e3);
+    const velocity = await computeSalesVelocity(prisma, {
+      days,
+      companyWhere: companyId,
+      salesPersonId: seesTeam ? null : userId,
+      bySeller: seesTeam
+    });
+    const stalled = velocity.stalledDeals.slice(0, STALLED_LIMIT);
+    const [activityGroups, whatsappGroups, people, leads] = await Promise.all([
+      seesTeam ? prisma.techSalesActivity.groupBy({
+        by: ["createdById"],
+        where: { createdAt: { gte: since }, ...crmCompanyScope(companyId) },
+        _count: { _all: true }
+      }) : [],
+      seesTeam ? prisma.techWhatsAppMessage.groupBy({
+        by: ["sentById"],
+        where: { companyId, createdAt: { gte: since }, direction: { not: "inbound" } },
+        _count: { _all: true }
+      }) : [],
+      prisma.user.findMany({
+        where: {
+          id: {
+            in: [...velocity.bySeller.keys(), ...stalled.map((deal) => deal.salesPersonId ?? "")].filter(Boolean)
+          }
+        },
+        select: { id: true, name: true, lastName: true }
+      }),
+      prisma.techBusinessLead.findMany({
+        where: { id: { in: stalled.map((deal) => deal.businessLeadId ?? "").filter(Boolean) } },
+        select: { id: true, businessName: true }
+      })
+    ]);
+    const personById = new Map(people.map((p) => [p.id, p]));
+    const leadName2 = new Map(leads.map((l) => [l.id, l.businessName]));
+    const countBy = (groups, field) => new Map(
+      (Array.isArray(groups) ? groups : []).map((row) => [row[field] ?? "", row._count._all])
+    );
+    const activitiesBy = countBy(activityGroups, "createdById");
+    const whatsappBy = countBy(whatsappGroups, "sentById");
+    const sellers = seesTeam ? [...velocity.bySeller.entries()].map(([id, stats]) => ({
+      userId: id || null,
+      name: id ? fullName4(personById.get(id)) : "Sin vendedor",
+      ...stats,
+      activities: id ? activitiesBy.get(id) ?? 0 : 0,
+      whatsappSent: id ? whatsappBy.get(id) ?? 0 : 0
+    })).sort((a, b) => b.entered + b.won - (a.entered + a.won)) : [];
+    const { byCompany: _company, bySeller: _seller, stalledDeals: _deals, dataSince, ...totals } = velocity;
+    return {
+      ...totals,
+      scope: seesTeam ? "team" : "own",
+      dataSince: dataSince ? dataSince.toISOString() : null,
+      sellers,
+      stalledDeals: stalled.map((deal) => ({
+        businessLeadId: deal.businessLeadId,
+        leadName: deal.businessLeadId && leadName2.get(deal.businessLeadId) || "Lead",
+        stage: deal.stage,
+        since: deal.since.toISOString(),
+        days: deal.days,
+        sellerName: deal.salesPersonId ? fullName4(personById.get(deal.salesPersonId)) : null
+      }))
+    };
+  }
+};
+var companyAnalytics_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -26151,6 +33901,20 @@ var customQuery = {
     ${companyWhatsappTeam_default.typeDefs}
     ${companyWhatsappTemplates_default.typeDefs}
     ${syncGoogleCalendarNow_default.typeDefs}
+    ${adminSharedTypeDefs}
+    ${adminCompanies_default.typeDefs}
+    ${adminOpsSummary_default.typeDefs}
+    ${adminCompanyInsights_default.typeDefs}
+    ${adminCompanyTrends_default.typeDefs}
+    ${adminActivityFeed_default.typeDefs}
+    ${adminHealth_default.typeDefs}
+    ${adminActivationFunnel_default.typeDefs}
+    ${adminCohorts_default.typeDefs}
+    ${adminEngagement_default.typeDefs}
+    ${adminDemandGaps_default.typeDefs}
+    ${adminAcquisition_default.typeDefs}
+    ${adminSalesVelocity_default.typeDefs}
+    ${companyAnalytics_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -26169,6 +33933,19 @@ var customQuery = {
     ${companyWhatsappTeam_default.definition}
     ${companyWhatsappTemplates_default.definition}
     ${syncGoogleCalendarNow_default.definition}
+    ${adminCompanies_default.definition}
+    ${adminOpsSummary_default.definition}
+    ${adminCompanyInsights_default.definition}
+    ${adminCompanyTrends_default.definition}
+    ${adminActivityFeed_default.definition}
+    ${adminHealth_default.definition}
+    ${adminActivationFunnel_default.definition}
+    ${adminCohorts_default.definition}
+    ${adminEngagement_default.definition}
+    ${adminDemandGaps_default.definition}
+    ${adminAcquisition_default.definition}
+    ${adminSalesVelocity_default.definition}
+    ${companyAnalytics_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -26186,10 +33963,113 @@ var customQuery = {
     ...businessLeadWhatsappStatus_default.resolver,
     ...companyWhatsappTeam_default.resolver,
     ...companyWhatsappTemplates_default.resolver,
-    ...syncGoogleCalendarNow_default.resolver
+    ...syncGoogleCalendarNow_default.resolver,
+    ...adminCompanies_default.resolver,
+    ...adminOpsSummary_default.resolver,
+    ...adminCompanyInsights_default.resolver,
+    ...adminCompanyTrends_default.resolver,
+    ...adminActivityFeed_default.resolver,
+    ...adminHealth_default.resolver,
+    ...adminActivationFunnel_default.resolver,
+    ...adminCohorts_default.resolver,
+    ...adminEngagement_default.resolver,
+    ...adminDemandGaps_default.resolver,
+    ...adminAcquisition_default.resolver,
+    ...adminSalesVelocity_default.resolver,
+    ...companyAnalytics_default.resolver
   }
 };
 var queries_default = customQuery;
+
+// graphql/customs/mutations/auth/passwordLoginAudit.ts
+var FIELD = "authenticateUserWithPassword";
+function resultUserId(result3) {
+  if (!result3 || typeof result3 !== "object") return null;
+  const item = result3.item;
+  return typeof item?.id === "string" ? item.id : null;
+}
+function isSuccess(result3) {
+  return Boolean(
+    result3 && typeof result3 === "object" && typeof result3.sessionToken === "string"
+  );
+}
+async function findUserIdByEmail(context, email) {
+  if (!email) return null;
+  try {
+    const user = await context.sudo().query.User.findOne({
+      where: { email },
+      query: "id"
+    });
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+async function touchLastLogin(context, userId) {
+  try {
+    await context.sudo().query.User.updateOne({
+      where: { id: userId },
+      data: { lastLoginAt: (/* @__PURE__ */ new Date()).toISOString() },
+      query: "id"
+    });
+  } catch {
+  }
+}
+function passwordLoginAuditResolvers(baseSchema) {
+  const original = baseSchema.getMutationType()?.getFields()[FIELD]?.resolve;
+  if (!original) return {};
+  const wrapped = async (root, args, context, info) => {
+    const startedAt = Date.now();
+    const email = typeof args?.email === "string" ? args.email.trim() : "";
+    let result3;
+    try {
+      result3 = await original(root, args, context, info);
+    } catch (error) {
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+        success: false,
+        message: "Error del servidor al iniciar sesi\xF3n con contrase\xF1a.",
+        email,
+        userId: await findUserIdByEmail(context, email),
+        responseSnapshot: { method: "password", reason: "server_error" }
+      });
+      throw error;
+    }
+    const success = isSuccess(result3);
+    const userId = success ? resultUserId(result3) : await findUserIdByEmail(context, email);
+    const blocked = success && userId ? await loginBlockedReason(context, userId) : null;
+    if (blocked) {
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+        success: false,
+        message: blocked === "suspended" ? "Intento de acceso con la cuenta suspendida." : "Intento de acceso a una cuenta anonimizada.",
+        email,
+        userId,
+        responseSnapshot: { method: "password", reason: blocked }
+      });
+      return { code: "FAILURE", message: SUSPENDED_MESSAGE };
+    }
+    if (success && userId) {
+      await touchLastLogin(context, userId);
+    }
+    await writeUserAuthLog(context, {
+      startedAt,
+      source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+      step: success ? USER_AUTH_LOG_STEP.CUSTOM_AUTH_LOGIN : USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+      success,
+      message: success ? "Inicio de sesi\xF3n con contrase\xF1a correcto." : "Correo o contrase\xF1a incorrectos.",
+      email,
+      userId,
+      responseSnapshot: success ? { method: "password", userId } : { method: "password", reason: "auth_failure" }
+    });
+    return result3;
+  };
+  return { [FIELD]: wrapped };
+}
 
 // graphql/extendedSchema.ts
 function extendGraphqlSchema(baseSchema) {
@@ -26211,7 +34091,9 @@ function extendGraphqlSchema(baseSchema) {
     `,
     resolvers: {
       Mutation: {
-        ...mutations_default.resolvers
+        ...mutations_default.resolvers,
+        // Login con contraseña: registra UserAuthLog + lastLoginAt en el servidor.
+        ...passwordLoginAuditResolvers(baseSchema)
       },
       Query: {
         ...queries_default.resolvers
@@ -26245,12 +34127,12 @@ function extendGraphqlSchema(baseSchema) {
 
 // webhooks/whatsapp.ts
 var import_express = __toESM(require("express"));
-var import_crypto7 = __toESM(require("crypto"));
+var import_crypto6 = __toESM(require("crypto"));
 var WEBHOOK_PATH = "/webhooks/whatsapp";
 function extToFilename(filename, mimeType) {
   if (filename) return filename;
   const ext = mimeType.split("/")[1] || "bin";
-  return `archivo-${import_crypto7.default.randomUUID()}.${ext}`;
+  return `archivo-${import_crypto6.default.randomUUID()}.${ext}`;
 }
 async function persistIncomingMedia({
   media,
@@ -26265,7 +34147,7 @@ async function persistIncomingMedia({
     const { url, mimeType } = await fetchWhatsAppMediaUrl({ mediaId: media.id, accessToken });
     const buffer = await downloadWhatsAppMedia({ url, accessToken });
     const filename = extToFilename(media.filename, mimeType);
-    const mediaKey = `whatsapp-media/${companyId}/${import_crypto7.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${companyId}/${import_crypto6.default.randomUUID()}-${filename}`;
     await uploadBufferToStorage({ buffer, contentType: mimeType, key: mediaKey });
     return { mediaKey, mediaFileName: filename, body: media.caption || "" };
   } catch (err) {
@@ -26363,26 +34245,26 @@ async function persistIncomingMessages(companyId, accessToken, messages, contact
       body = msg.text.body;
     } else if (msg.type === "image" && msg.image) {
       mediaType = "image";
-      const result = await persistIncomingMedia({
+      const result3 = await persistIncomingMedia({
         media: msg.image,
         mediaType: "image",
         accessToken,
         companyId
       });
-      mediaKey = result.mediaKey;
-      mediaFileName = result.mediaFileName;
-      body = result.body;
+      mediaKey = result3.mediaKey;
+      mediaFileName = result3.mediaFileName;
+      body = result3.body;
     } else if (msg.type === "document" && msg.document) {
       mediaType = "document";
-      const result = await persistIncomingMedia({
+      const result3 = await persistIncomingMedia({
         media: msg.document,
         mediaType: "document",
         accessToken,
         companyId
       });
-      mediaKey = result.mediaKey;
-      mediaFileName = result.mediaFileName;
-      body = result.body;
+      mediaKey = result3.mediaKey;
+      mediaFileName = result3.mediaFileName;
+      body = result3.body;
     } else {
       body = msg.type ? `[${msg.type}, no soportado todav\xEDa]` : "";
     }
@@ -26490,7 +34372,7 @@ function registerWhatsAppWebhook(app, context) {
 }
 
 // webhooks/clickup.ts
-var import_crypto8 = __toESM(require("crypto"));
+var import_crypto7 = __toESM(require("crypto"));
 var import_express2 = __toESM(require("express"));
 
 // utils/intregrations/clickup.ts
@@ -26499,8 +34381,8 @@ function apiToken() {
   const value = process.env.CLICKUP_API_TOKEN?.trim();
   return value || void 0;
 }
-function clip(text66, max = 300) {
-  const trimmed = text66.replace(/\s+/g, " ").trim();
+function clip(text73, max = 300) {
+  const trimmed = text73.replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -26563,10 +34445,10 @@ async function getTaskComments(taskId) {
   if (!Array.isArray(comments)) return [];
   return comments.filter(isComment);
 }
-async function commentTask(taskId, text66) {
+async function commentTask(taskId, text73) {
   await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
     method: "POST",
-    body: { comment_text: text66, notify_all: false }
+    body: { comment_text: text73, notify_all: false }
   });
 }
 async function downloadClickUpFile(url, maxBytes) {
@@ -26618,11 +34500,11 @@ function apiKey() {
   const value = process.env.PIXABAY_API_KEY?.trim();
   return value || void 0;
 }
-function redact(text66) {
-  return text66.replace(/key=[^&\s]+/gi, "key=***");
+function redact(text73) {
+  return text73.replace(/key=[^&\s]+/gi, "key=***");
 }
-function clip2(text66, max = 200) {
-  const trimmed = redact(text66).replace(/\s+/g, " ").trim();
+function clip2(text73, max = 200) {
+  const trimmed = redact(text73).replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -26911,8 +34793,8 @@ function readLink(input, start, bold) {
   const label = input.slice(start + 1, labelEnd);
   const href = input.slice(labelEnd + 2, hrefEnd).trim();
   if (!label || !href || label.includes("[") || label.includes("]")) return null;
-  const text66 = bold ? { text: label, bold: true } : { text: label };
-  return { node: { type: "link", href, children: [text66] }, next: hrefEnd + 1 };
+  const text73 = bold ? { text: label, bold: true } : { text: label };
+  return { node: { type: "link", href, children: [text73] }, next: hrefEnd + 1 };
 }
 function parseInlines(input, bold = false) {
   const nodes = [];
@@ -26957,33 +34839,33 @@ function boldOnlyInner(line) {
   if (!inner.trim() || inner.includes("**")) return null;
   return inner.trim();
 }
-function listItem(text66) {
+function listItem(text73) {
   return {
     type: "list-item",
-    children: [{ type: "list-item-content", children: padInlines(parseInlines(text66.trim())) }]
+    children: [{ type: "list-item-content", children: padInlines(parseInlines(text73.trim())) }]
   };
 }
 function markdownToDocument(markdown) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks = [];
   let paragraphLines = [];
-  let list77 = null;
+  let list82 = null;
   const flushParagraph = () => {
-    const text66 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
+    const text73 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
     paragraphLines = [];
-    if (!text66) return;
-    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text66)) });
+    if (!text73) return;
+    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text73)) });
   };
   const flushList = () => {
-    if (!list77 || list77.items.length === 0) {
-      list77 = null;
+    if (!list82 || list82.items.length === 0) {
+      list82 = null;
       return;
     }
     blocks.push({
-      type: list77.ordered ? "ordered-list" : "unordered-list",
-      children: list77.items
+      type: list82.ordered ? "ordered-list" : "unordered-list",
+      children: list82.items
     });
-    list77 = null;
+    list82 = null;
   };
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -26997,11 +34879,11 @@ function markdownToDocument(markdown) {
     if (unordered || ordered) {
       flushParagraph();
       const orderedItem = Boolean(ordered);
-      if (!list77 || list77.ordered !== orderedItem) {
+      if (!list82 || list82.ordered !== orderedItem) {
         flushList();
-        list77 = { ordered: orderedItem, items: [] };
+        list82 = { ordered: orderedItem, items: [] };
       }
-      list77.items.push(listItem((unordered ?? ordered)[1]));
+      list82.items.push(listItem((unordered ?? ordered)[1]));
       continue;
     }
     const heading = boldOnlyInner(line);
@@ -27024,10 +34906,10 @@ function inlineToText(nodes) {
 function excerptFromDocument(nodes, max = EXCERPT_MAX) {
   for (const node of nodes) {
     if (node.type !== "paragraph") continue;
-    const text66 = inlineToText(node.children).replace(/\s+/g, " ").trim();
-    if (!text66) continue;
-    if (text66.length <= max) return text66;
-    const slice = text66.slice(0, max);
+    const text73 = inlineToText(node.children).replace(/\s+/g, " ").trim();
+    if (!text73) continue;
+    if (text73.length <= max) return text73;
+    const slice = text73.slice(0, max);
     const lastSpace = slice.lastIndexOf(" ");
     if (lastSpace <= 0) return slice.trimEnd();
     return slice.slice(0, lastSpace).trimEnd();
@@ -27095,12 +34977,12 @@ function formatInMexicoCity(date) {
   }).format(date);
 }
 async function findPostByClickUpTask(context, taskId) {
-  const rows = await context.sudo().query.Post.findMany({
+  const rows2 = await context.sudo().query.Post.findMany({
     where: { clickupTaskId: { equals: taskId } },
     query: "id url product",
     take: 1
   });
-  return rows[0] ?? null;
+  return rows2[0] ?? null;
 }
 function isClickUpTaskConflict(err) {
   const message = err instanceof Error ? err.message : String(err);
@@ -27192,12 +35074,12 @@ function rawBodyOf(req) {
 }
 function verifyClickUpSignature(rawBody, signatureHeader, secret) {
   if (!signatureHeader) return false;
-  const expected = import_crypto8.default.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expected = import_crypto7.default.createHmac("sha256", secret).update(rawBody).digest("hex");
   const received = signatureHeader.trim().toLowerCase();
   const expectedBuf = Buffer.from(expected, "utf8");
   const receivedBuf = Buffer.from(received, "utf8");
   if (expectedBuf.length !== receivedBuf.length) return false;
-  return import_crypto8.default.timingSafeEqual(expectedBuf, receivedBuf);
+  return import_crypto7.default.timingSafeEqual(expectedBuf, receivedBuf);
 }
 function isApprovedStatusUpdate(payload) {
   if (payload.event !== "taskStatusUpdated") return false;
@@ -27209,10 +35091,10 @@ function isApprovedStatusUpdate(payload) {
 }
 function commentForError(err) {
   const message = err instanceof Error ? err.message : "";
-  const text66 = message.replace(/^\[clickup\]\s*/, "").trim();
-  if (!text66) return "No se pudo programar el post.";
-  if (text66.length <= 500) return text66;
-  return `${text66.slice(0, 500)}\u2026`;
+  const text73 = message.replace(/^\[clickup\]\s*/, "").trim();
+  if (!text73) return "No se pudo programar el post.";
+  if (text73.length <= 500) return text73;
+  return `${text73.slice(0, 500)}\u2026`;
 }
 async function handleClickUpWebhook(req, res, context) {
   try {
@@ -27274,7 +35156,7 @@ function registerClickUpWebhook(app, context) {
 }
 
 // webhooks/metaDataDeletion.ts
-var import_crypto9 = __toESM(require("crypto"));
+var import_crypto8 = __toESM(require("crypto"));
 var import_express3 = __toESM(require("express"));
 var DATA_DELETION_PATH = "/webhooks/meta/data-deletion";
 var STATUS_PATH = "/webhooks/meta/data-deletion/status";
@@ -27289,9 +35171,9 @@ function verifyMetaSignedRequest(signedRequest, secret) {
   const encodedSig = signedRequest.slice(0, dot);
   const encodedPayload = signedRequest.slice(dot + 1);
   const received = base64UrlDecode(encodedSig);
-  const expected = import_crypto9.default.createHmac("sha256", secret).update(encodedPayload).digest();
+  const expected = import_crypto8.default.createHmac("sha256", secret).update(encodedPayload).digest();
   if (received.length !== expected.length) return null;
-  if (!import_crypto9.default.timingSafeEqual(received, expected)) return null;
+  if (!import_crypto8.default.timingSafeEqual(received, expected)) return null;
   let payload;
   try {
     payload = JSON.parse(base64UrlDecode(encodedPayload).toString("utf8"));
@@ -27333,7 +35215,7 @@ async function handleDataDeletion(req, res, context) {
     res.sendStatus(400);
     return;
   }
-  const confirmationCode = import_crypto9.default.randomUUID().replace(/-/g, "");
+  const confirmationCode = import_crypto8.default.randomUUID().replace(/-/g, "");
   const url = statusPageUrl(confirmationCode);
   if (!url) {
     console.warn("[meta data-deletion] falta FRONTEND_URL; no se puede armar la URL de estado");
@@ -27417,6 +35299,288 @@ function registerMetaDataDeletionWebhook(app, context) {
   app.get(STATUS_PATH, (req, res) => {
     run(handleStatus, req, res, context);
   });
+}
+
+// webhooks/stripe.ts
+var import_express4 = __toESM(require("express"));
+var WEBHOOK_PATH3 = "/webhooks/stripe";
+function str(value) {
+  if (typeof value === "string" && value) return value;
+  if (value && typeof value === "object" && typeof value.id === "string") {
+    return value.id;
+  }
+  return null;
+}
+function subscriptionIdFromInvoice(invoice) {
+  return str(invoice.subscription) ?? str(invoice.parent?.subscription_details?.subscription) ?? str(invoice.lines?.data?.find((line) => line?.subscription)?.subscription) ?? str(invoice.lines?.data?.find((line) => line?.parent?.subscription_item_details)?.parent?.subscription_item_details?.subscription);
+}
+function invoicePeriodEnd(invoice) {
+  const ends = (invoice.lines?.data ?? []).map((line) => line?.period?.end).filter((end) => typeof end === "number");
+  return ends.length ? Math.max(...ends) : null;
+}
+function invoicePaymentRef(invoice) {
+  return str(invoice.charge) ?? str(invoice.payment_intent) ?? str(invoice.payments?.data?.[0]?.payment?.payment_intent) ?? str(invoice.payments?.data?.[0]?.payment?.charge) ?? invoice.id;
+}
+function toAmount(cents) {
+  return typeof cents === "number" ? cents / 100 : 0;
+}
+function eventDate(event) {
+  return typeof event.created === "number" ? new Date(event.created * 1e3) : /* @__PURE__ */ new Date();
+}
+async function findLocalSubscription(context, stripeSubscriptionId) {
+  if (!stripeSubscriptionId) return null;
+  const prisma = context.sudo().prisma;
+  const row = await prisma.saasCompanySubscription.findFirst({
+    where: { stripeSubscriptionId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      currentPeriodEnd: true,
+      companyId: true,
+      planName: true,
+      planId: true
+    }
+  });
+  if (!row) return null;
+  return {
+    id: row.id,
+    status: row.status ?? null,
+    currentPeriodEnd: row.currentPeriodEnd ? new Date(row.currentPeriodEnd).toISOString().slice(0, 10) : null,
+    companyId: row.companyId ?? null,
+    planName: row.planName ?? null,
+    planId: row.planId ?? null
+  };
+}
+async function findPayer(context, customerId) {
+  if (!customerId) return null;
+  const prisma = context.sudo().prisma;
+  const user = await prisma.user.findFirst({
+    where: { stripeCustomerId: customerId },
+    select: { id: true }
+  });
+  return user?.id ?? null;
+}
+async function paymentExists(context, ref) {
+  const prisma = context.sudo().prisma;
+  const found = await prisma.saasPayment.findFirst({
+    where: { processorStripeChargeId: ref },
+    select: { id: true }
+  });
+  return Boolean(found);
+}
+async function handleInvoicePaid(context, event) {
+  const invoice = event.data?.object;
+  if (!invoice || invoice.billing_reason === "subscription_create") return;
+  const sub = await findLocalSubscription(context, subscriptionIdFromInvoice(invoice));
+  if (!sub) return;
+  const ref = invoicePaymentRef(invoice);
+  const amount = toAmount(invoice.amount_paid);
+  const periodEnd = unixToDay(invoicePeriodEnd(invoice));
+  const renewal = invoice.billing_reason === "subscription_cycle";
+  const plan = sub.planName ? ` ${sub.planName}` : "";
+  if (!await paymentExists(context, ref)) {
+    const payerId = await findPayer(context, str(invoice.customer));
+    await context.sudo().query.SaasPayment.createOne({
+      data: {
+        ...payerId ? { user: { connect: { id: payerId } } } : {},
+        paymentMethodType: "card",
+        amount: String(amount),
+        status: "succeeded",
+        processorStripeChargeId: ref,
+        ...sub.planId ? { plan: { connect: { id: sub.planId } } } : {},
+        subscription: { connect: { id: sub.id } },
+        notes: `${renewal ? "Renovaci\xF3n" : "Cobro"}${plan} (Stripe ${invoice.id})`
+      },
+      query: "id"
+    });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.BILLING_RENEWED,
+      actorId: payerId,
+      companyId: sub.companyId ?? null,
+      entityType: "SaasCompanySubscription",
+      entityId: sub.id,
+      summary: renewal ? `Se renov\xF3 el plan${plan}` : `Cobro del plan${plan}`,
+      metadata: {
+        amount,
+        currency: invoice.currency ?? null,
+        billingReason: invoice.billing_reason ?? null,
+        periodEnd,
+        stripeInvoiceId: invoice.id
+      },
+      source: ACTIVITY_SOURCE.WEBHOOK,
+      occurredAt: eventDate(event)
+    });
+  }
+  const recovered = sub.status === SUBSCRIPTION_STATUS.PAST_DUE || sub.status === SUBSCRIPTION_STATUS.UNPAID;
+  await applySubscriptionState(
+    context,
+    sub,
+    { status: recovered ? SUBSCRIPTION_STATUS.ACTIVE : sub.status ?? SUBSCRIPTION_STATUS.ACTIVE, currentPeriodEnd: periodEnd },
+    { source: ACTIVITY_SOURCE.WEBHOOK, occurredAt: eventDate(event), reason: "invoice_paid" }
+  );
+}
+async function handleInvoicePaymentFailed(context, event) {
+  const invoice = event.data?.object;
+  if (!invoice) return;
+  const sub = await findLocalSubscription(context, subscriptionIdFromInvoice(invoice));
+  if (!sub) return;
+  const attempt = typeof invoice.attempt_count === "number" ? invoice.attempt_count : 1;
+  const ref = str(invoice.charge) ?? `${invoice.id}#${attempt}`;
+  if (await paymentExists(context, ref)) return;
+  const amount = toAmount(invoice.amount_due);
+  const payerId = await findPayer(context, str(invoice.customer));
+  const nextAttempt = typeof invoice.next_payment_attempt === "number" ? new Date(invoice.next_payment_attempt * 1e3).toISOString() : null;
+  await context.sudo().query.SaasPayment.createOne({
+    data: {
+      ...payerId ? { user: { connect: { id: payerId } } } : {},
+      paymentMethodType: "card",
+      amount: String(amount),
+      status: "failed",
+      processorStripeChargeId: ref,
+      stripeErrorMessage: `Stripe no pudo cobrar la renovaci\xF3n (intento ${attempt})`,
+      ...sub.planId ? { plan: { connect: { id: sub.planId } } } : {},
+      subscription: { connect: { id: sub.id } },
+      notes: `Renovaci\xF3n fallida${sub.planName ? ` ${sub.planName}` : ""} (Stripe ${invoice.id})`
+    },
+    query: "id"
+  });
+  void logActivity(context, {
+    type: ACTIVITY_EVENT.BILLING_PAYMENT_FAILED,
+    actorId: payerId,
+    companyId: sub.companyId ?? null,
+    entityType: "SaasCompanySubscription",
+    entityId: sub.id,
+    summary: `Fall\xF3 el cobro de la renovaci\xF3n (intento ${attempt})`,
+    success: false,
+    errorMessage: "Stripe no pudo cobrar la renovaci\xF3n",
+    metadata: { amount, currency: invoice.currency ?? null, attempt, nextAttempt, stripeInvoiceId: invoice.id },
+    source: ACTIVITY_SOURCE.WEBHOOK,
+    occurredAt: eventDate(event)
+  });
+}
+async function handleSubscriptionChange(context, event) {
+  const subscription = event.data?.object;
+  if (!subscription?.id) return;
+  const sub = await findLocalSubscription(context, subscription.id);
+  if (!sub) return;
+  const deleted = event.type === "customer.subscription.deleted";
+  const status = deleted ? SUBSCRIPTION_STATUS.CANCELLED : stripeStatusToLocal(typeof subscription.status === "string" ? subscription.status : null);
+  await applySubscriptionState(
+    context,
+    sub,
+    { status, currentPeriodEnd: unixToDay(stripePeriodEnd(subscription)) },
+    { source: ACTIVITY_SOURCE.WEBHOOK, occurredAt: eventDate(event), reason: event.type }
+  );
+}
+async function invoiceIdForPaymentIntent(paymentIntentId) {
+  if (!paymentIntentId) return null;
+  try {
+    const list82 = await stripe_default.invoicePayments.list({
+      payment: { type: "payment_intent", payment_intent: paymentIntentId },
+      limit: 1
+    });
+    return str(list82?.data?.[0]?.invoice);
+  } catch {
+    return null;
+  }
+}
+async function findPaymentByRefs(context, refs) {
+  if (!refs.length) return null;
+  const prisma = context.sudo().prisma;
+  return prisma.saasPayment.findFirst({
+    where: { processorStripeChargeId: { in: refs } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      userId: true,
+      subscriptionId: true,
+      subscription: { select: { companyId: true } },
+      user: { select: { companyId: true } }
+    }
+  });
+}
+async function handleChargeRefunded(context, event) {
+  const charge = event.data?.object;
+  if (!charge?.id) return;
+  const refs = [charge.id, str(charge.payment_intent), str(charge.invoice)].filter(
+    (ref) => Boolean(ref)
+  );
+  let payment = await findPaymentByRefs(context, refs);
+  if (!payment) {
+    const invoiceId = await invoiceIdForPaymentIntent(str(charge.payment_intent));
+    if (invoiceId) payment = await findPaymentByRefs(context, [invoiceId]);
+  }
+  if (!payment || payment.status === "refunded") return;
+  await context.sudo().query.SaasPayment.updateOne({
+    where: { id: payment.id },
+    data: { status: "refunded" },
+    query: "id"
+  });
+  const amount = toAmount(charge.amount_refunded);
+  void logActivity(context, {
+    type: ACTIVITY_EVENT.BILLING_REFUNDED,
+    actorId: payment.userId ?? null,
+    companyId: payment.subscription?.companyId ?? payment.user?.companyId ?? null,
+    entityType: "SaasPayment",
+    entityId: payment.id,
+    summary: `Se reembols\xF3 un cobro`,
+    metadata: { amount, currency: charge.currency ?? null, stripeChargeId: charge.id },
+    source: ACTIVITY_SOURCE.WEBHOOK,
+    occurredAt: eventDate(event)
+  });
+}
+var HANDLERS = {
+  "invoice.paid": handleInvoicePaid,
+  "invoice.payment_failed": handleInvoicePaymentFailed,
+  "customer.subscription.updated": handleSubscriptionChange,
+  "customer.subscription.deleted": handleSubscriptionChange,
+  "charge.refunded": handleChargeRefunded
+};
+async function processStripeEvent(context, event) {
+  const handler = HANDLERS[event?.type];
+  if (!handler) return false;
+  await handler(context, event);
+  return true;
+}
+async function handleStripeWebhook(req, res, context) {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    console.warn("[stripe webhook] falta STRIPE_WEBHOOK_SECRET: evento ignorado");
+    res.status(503).send("Webhook de Stripe sin configurar");
+    return;
+  }
+  const signature = req.headers["stripe-signature"];
+  let event;
+  try {
+    event = stripe_default.webhooks.constructEvent(req.body, signature, secret);
+  } catch (err) {
+    console.warn(
+      "[stripe webhook] firma inv\xE1lida:",
+      err instanceof Error ? err.message : err
+    );
+    res.status(400).send("Firma inv\xE1lida");
+    return;
+  }
+  if (!HANDLERS[event.type]) {
+    res.json({ received: true, ignored: event.type });
+    return;
+  }
+  try {
+    await processStripeEvent(context, event);
+    res.json({ received: true });
+  } catch (err) {
+    console.error(`[stripe webhook] error procesando ${event.type} (${event.id}):`, err);
+    res.status(500).send("Error procesando el evento");
+  }
+}
+function registerStripeWebhook(app, context) {
+  app.post(
+    WEBHOOK_PATH3,
+    import_express4.default.raw({ type: "application/json" }),
+    (req, res) => handleStripeWebhook(req, res, context)
+  );
 }
 
 // keystone.ts
@@ -27552,8 +35716,8 @@ var storage = {
     }
   }
 };
-var keystone_default = withAuth(
-  (0, import_core77.config)({
+var keystone_default = withSessionGuards(withAuth(
+  (0, import_core82.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
@@ -27570,6 +35734,7 @@ var keystone_default = withAuth(
         registerWhatsAppWebhook(app, context);
         registerClickUpWebhook(app, context);
         registerMetaDataDeletionWebhook(app, context);
+        registerStripeWebhook(app, context);
       }
     },
     storage,
@@ -27580,6 +35745,12 @@ var keystone_default = withAuth(
       bodyParser: { limit: "15mb" },
       apolloConfig: {
         plugins: [
+          // Con un token de "entrar como" no pasa ninguna mutación (solo lectura).
+          impersonationReadOnlyPlugin,
+          // Token que ya no vale (sesiones cerradas, suspensión, vencido): se avisa al front.
+          sessionEndedNoticePlugin,
+          // Errores que ve alguien con sesión: quedan en Actividad → Errores (sin variables).
+          appErrorsPlugin,
           {
             async requestDidStart() {
               return {
@@ -27601,5 +35772,5 @@ var keystone_default = withAuth(
     lists: schema_default,
     session
   })
-);
+));
 //# sourceMappingURL=config.js.map

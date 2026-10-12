@@ -13,6 +13,8 @@ import {
 } from "../../../../utils/googleCalendar/planFeature";
 import { verifyGoogleCalendarState } from "../../../../utils/googleCalendar/state";
 import { canConnectGoogleCalendar, denyGoogleCalendarAccessMessage } from "./access";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 const typeDefs = `
   type ConnectGoogleCalendarResult {
@@ -132,6 +134,15 @@ const resolver = {
         direction: "pull",
         operation: "list_calendars",
         success: true,
+      });
+
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.CALENDAR_CONNECTED,
+        companyId,
+        entityType: "GoogleCalendarAccount",
+        entityId: account.id,
+        summary: `Conectó Google Calendar (${account.googleAccountEmail})`,
+        metadata: { scopeType, calendarsCount, reconnected: Boolean(existing) },
       });
 
       return {

@@ -1,6 +1,8 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { PIPELINE_STATUS, LEAD_SOURCE } from "../../../models/Saas/Tech/crm/constants";
 import { SUBSCRIPTION_STATUS } from "../../../models/Saas/SaasCompanySubscription/constants";
+import { ACTIVITY_EVENT } from "../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../utils/activity/logActivity";
 
 const ADD_OWN_LEADS_FEATURE_KEY = "add_own_leads";
 
@@ -188,11 +190,19 @@ const resolver = {
         data: {
           businessLead: { connect: { id: newLead.id } },
           saasCompany: { connect: { id: company.id } },
-          salesPerson: { connect: { id: userId } },
           pipelineStatus: PIPELINE_STATUS.DETECTADO,
           opportunityLevel: (["Alta", "Media", "Baja"].includes(input.opportunityLevel ?? "")) ? input.opportunityLevel! : "Media",
           notes: input.notes ?? "",
         },
+      });
+
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.LEAD_ADDED_MANUALLY,
+        companyId: company.id,
+        entityType: "TechBusinessLead",
+        entityId: newLead.id,
+        summary: `Agregó a mano el lead ${input.businessName}`,
+        metadata: { source, category: input.category ?? null, city: input.city ?? null },
       });
 
       return {

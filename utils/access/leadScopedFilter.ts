@@ -11,28 +11,18 @@ function leadInCompany(companyId: string) {
   return { saasCompany: { some: { id: { equals: companyId } } } };
 }
 
+/** Asignación = `TechBusinessLead.salesPerson`. El estatus ya no define a quién pertenece un lead. */
 function leadAssignedToUser(companyId: string, userId: string) {
   return {
     AND: [
       leadInCompany(companyId),
-      {
-        OR: [
-          { salesPerson: { some: { id: { equals: userId } } } },
-          {
-            status: {
-              some: {
-                saasCompany: { id: { equals: companyId } },
-                salesPerson: { id: { equals: userId } },
-              },
-            },
-          },
-        ],
-      },
+      { salesPerson: { some: { id: { equals: userId } } } },
     ],
   };
 }
 
-function canSeeCompanyWideLeads(session: any): boolean {
+/** `clientes.ver_empresa` (o admin_company / user_company legado): ve todos los leads de su empresa. */
+export function canSeeCompanyWideLeads(session: any): boolean {
   return hasPermission(session, PERMISSION_KEYS.CLIENTES_VER_EMPRESA, () =>
     hasRole(session, [Role.ADMIN_COMPANY, Role.USER_COMPANY]),
   );
@@ -58,20 +48,13 @@ export function leadCompanyScopedWhere(session: any): true | false | Record<stri
 }
 
 function statusInCompany(companyId: string) {
-  return {
-    OR: [
-      { saasCompany: { id: { equals: companyId } } },
-      {
-        businessLead: {
-          saasCompany: { some: { id: { equals: companyId } } },
-        },
-      },
-    ],
-  };
+  return { saasCompany: { id: { equals: companyId } } };
 }
 
 /**
- * TechStatusBusinessLead: mismo criterio de tenant / asignación que el lead.
+ * TechStatusBusinessLead: hay una sola fila por (lead, empresa) y todo el equipo la comparte.
+ * Quien ve la empresa completa ve todos los estatus; el resto, el estatus de los leads que tiene
+ * asignados (sea quien sea el que lo movió).
  */
 export function statusLeadCompanyScopedWhere(
   session: any,
@@ -90,7 +73,7 @@ export function statusLeadCompanyScopedWhere(
   return {
     AND: [
       statusInCompany(companyId),
-      { salesPerson: { id: { equals: userId } } },
+      { businessLead: { salesPerson: { some: { id: { equals: userId } } } } },
     ],
   };
 }

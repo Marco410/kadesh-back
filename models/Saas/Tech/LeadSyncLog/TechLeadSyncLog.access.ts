@@ -6,13 +6,14 @@ const getCompanyId = (session: any) => session?.data?.company?.id;
 
 /**
  * Logs de sincronización de leads: solo se ven los de la SaasCompany del usuario.
+ * Append-only para la empresa: solo el admin de plataforma borra (el rastro no se puede limpiar).
  */
 export const techLeadSyncLogAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
     create: () => false,
     update: () => false,
-    delete: () => true,
+    delete: ({ session }: any) => hasRole(session, [Role.ADMIN]),
   },
   filter: {
     query: ({ session }: any) => {
@@ -24,13 +25,6 @@ export const techLeadSyncLogAccess: ListAccessControl<any> = {
       return { company: { id: { equals: companyId } } };
     },
     update: () => false,
-    delete: ({ session }: any) => {
-      if (hasRole(session, [Role.ADMIN])) {
-        return true;
-      }
-      const companyId = getCompanyId(session);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
+    delete: ({ session }: any) => hasRole(session, [Role.ADMIN]),
   },
 };

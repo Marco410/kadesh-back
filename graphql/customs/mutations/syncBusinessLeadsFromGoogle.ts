@@ -1,6 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../../models/Role/constants";
-import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
+import { isPlatformAdmin } from "../../../utils/access/tenant";
 
 /** Obtiene los IDs de usuarios con salesPersonVerified = true, para asignación round-robin de leads. */
 async function getVerifiedSalesPersonIds(
@@ -149,6 +149,17 @@ const resolver = {
     },
     context: KeystoneContext,
   ) => {
+    // Importador del Admin de Keystone: gasta la API de Google Maps, solo admin de plataforma.
+    if (!isPlatformAdmin(context.session)) {
+      return {
+        success: false,
+        message: "Solo un administrador de Kadesh puede importar leads desde Google.",
+        created: 0,
+        alreadyInDb: 0,
+        skippedLowRating: 0,
+      };
+    }
+
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       return {
@@ -268,15 +279,10 @@ const resolver = {
           }
 
           try {
-            const lead = await context.sudo().query.TechBusinessLead.createOne({
+            // Sin empresa no hay pipeline: el estatus es por (lead, empresa) y se crea cuando
+            // una empresa se queda con el lead.
+            await context.sudo().query.TechBusinessLead.createOne({
               data: leadData as any,
-            });
-            await context.sudo().query.TechStatusBusinessLead.createOne({
-              data: {
-                businessLead: { connect: { id: lead.id } },
-                pipelineStatus: PIPELINE_STATUS.DETECTADO,
-                opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja",
-              },
             });
             created++;
           } catch (_) {

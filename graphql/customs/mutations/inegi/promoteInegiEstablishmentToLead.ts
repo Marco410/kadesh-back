@@ -13,6 +13,8 @@ import {
 import { getRemainingCredits } from "../../../../utils/helpers/tech/remaining_credits";
 import { consumeCompanyCredits } from "../../../../utils/saas/companyCredits";
 import { formatEstablishmentAddress } from "../../../../utils/inegi";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 const typeDefs = `
   input PromoteInegiEstablishmentToLeadInput {
@@ -98,11 +100,11 @@ type EstablishmentRow = {
   } | null;
 };
 
+/** Estatus compartido de la empresa: uno por (lead, empresa). El vendedor va en el lead. */
 async function ensureStatusForImport(
   context: KeystoneContext,
   leadId: string,
   companyId: string,
-  sellerId: string | null,
 ) {
   const [existing] = await context
     .sudo()
@@ -119,7 +121,6 @@ async function ensureStatusForImport(
     data: {
       businessLead: { connect: { id: leadId } },
       saasCompany: { connect: { id: companyId } },
-      ...(sellerId ? { salesPerson: { connect: { id: sellerId } } } : {}),
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
       opportunityLevel: "Media",
     },
@@ -238,12 +239,7 @@ const resolver = {
     );
 
     if (existingLead && alreadyOnCompany) {
-      await ensureStatusForImport(
-        context,
-        existingLead.id,
-        companyId,
-        sellerId,
-      );
+      await ensureStatusForImport(context, existingLead.id, companyId);
       return {
         success: true,
         message: "Este establecimiento ya es un lead de tu empresa",
@@ -260,12 +256,7 @@ const resolver = {
           ...(sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}),
         },
       });
-      await ensureStatusForImport(
-        context,
-        existingLead.id,
-        companyId,
-        sellerId,
-      );
+      await ensureStatusForImport(context, existingLead.id, companyId);
       const consumeResult = await consumeCompanyCredits(context, {
         companyId,
         amount: 1,
@@ -276,6 +267,14 @@ const resolver = {
       if (!consumeResult.success) {
         return fail("No se pudieron descontar créditos para asignar el lead");
       }
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.LEAD_PROMOTED_FROM_INEGI,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId: existingLead.id,
+        summary: `Tomó del catálogo INEGI a ${establishment.name} (ya estaba en Kadesh)`,
+        metadata: { establishmentId: establishment.id, creditsCharged: 1, alreadyInDb: true, sellerId },
+      });
       return {
         success: true,
         message: "Lead asignado a tu empresa",
@@ -332,7 +331,7 @@ const resolver = {
         data: data as any,
         query: "id",
       });
-      await ensureStatusForImport(context, lead.id, companyId, sellerId);
+      await ensureStatusForImport(context, lead.id, companyId);
       const consumeResult = await consumeCompanyCredits(context, {
         companyId,
         amount: 1,
@@ -343,6 +342,14 @@ const resolver = {
       if (!consumeResult.success) {
         return fail("No se pudieron descontar créditos para crear el lead");
       }
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.LEAD_PROMOTED_FROM_INEGI,
+        companyId,
+        entityType: "TechBusinessLead",
+        entityId: lead.id,
+        summary: `Tomó del catálogo INEGI a ${establishment.name}`,
+        metadata: { establishmentId: establishment.id, creditsCharged: 1, alreadyInDb: false, sellerId },
+      });
       return {
         success: true,
         message: "Lead importado desde INEGI DENUE",

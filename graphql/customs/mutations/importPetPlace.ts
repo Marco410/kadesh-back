@@ -1,4 +1,5 @@
 import { TYPES_PET_SHELTER } from '../../../utils/constants/constants';
+import { isPlatformAdmin } from '../../../utils/access/tenant';
 
 const typeDefs = `
   input ImportPetPlaceInput {
@@ -23,6 +24,15 @@ const definition = `
 
 const resolver = {
   executeImportPetPlace: async (root: any, { input }: { input: { inputValue: string; type: string } }, context: any) => {
+    // Importador del Admin de Keystone: gasta la API de Google Maps, solo admin de plataforma.
+    if (!isPlatformAdmin(context.session)) {
+      return {
+        success: false,
+        message: 'Solo un administrador de Kadesh puede importar veterinarias.',
+        result: null
+      };
+    }
+
     try {
       console.log('Ejecutando importación de lugares con datos:', input.inputValue, 'tipo:', input.type);
       

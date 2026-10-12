@@ -2,6 +2,8 @@ import { KeystoneContext } from "@keystone-6/core/types";
 import { encrypt, maskApiKey } from "../../../../utils/helpers/encryption";
 import { friendlyWhatsappError } from "../../../../utils/whatsapp/friendlyError";
 import { canManageCompanyWhatsapp, denyCompanyWhatsappAccessMessage } from "./access";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 const typeDefs = `
   input UpdateCompanyWhatsappSettingsInput {
@@ -164,6 +166,28 @@ const resolver = {
       data,
       query: SETTINGS_QUERY,
     })) as CompanyWhatsappSettingsRecord;
+
+    // Solo qué cambió: los ids de Meta sí (no son secretos), el token y el secreto nunca.
+    const secretFields: Record<string, string> = {
+      whatsappAccessTokenEncrypted: "accessToken",
+      whatsappAppSecretEncrypted: "appSecret",
+    };
+    const changes: Record<string, unknown> = {};
+    for (const [field, value] of Object.entries(data)) {
+      if (field in secretFields) {
+        changes[secretFields[field]] = value ? "replaced" : "removed";
+      } else if (field === "whatsappPhoneNumberId" || field === "whatsappBusinessAccountId") {
+        changes[field] = value ?? null;
+      }
+    }
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.WHATSAPP_SETTINGS_UPDATED,
+      companyId: input.companyId,
+      entityType: "SaasCompany",
+      entityId: input.companyId,
+      summary: "Cambió la configuración de WhatsApp",
+      metadata: { changes },
+    });
 
     return toResult(true, "Configuración de WhatsApp guardada", updated);
   },

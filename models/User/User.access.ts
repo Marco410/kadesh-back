@@ -171,4 +171,14 @@ export const userStripeFieldAccess = {
   update: () => false,
 };
 
+/**
+ * Control de cuenta (suspensión, versión de sesión, anonimización ARCO). Solo lo lee el admin de
+ * plataforma y solo lo escriben las mutaciones de Operaciones con sudo: nadie se reactiva solo.
+ */
+export const userAccountControlFieldAccess = {
+  read: ({ session }: any) => isPlatformAdmin(session),
+  create: () => false,
+  update: () => false,
+};
+
 export default userAccess;
