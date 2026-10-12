@@ -9,6 +9,7 @@ import {
 } from "@keystone-6/core/fields";
 import { statusBusinessLeadAccess } from "./TechStatusBusinessLead.access";
 import { statusBusinessLeadHooks } from "./TechStatusBusinessLead.hooks";
+import { recordStageChange } from "./recordStageChange";
 import {
   PIPELINE_STATUS,
   OPPORTUNITY_LEVEL,
@@ -26,7 +27,15 @@ const opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
 
 export default list({
   access: statusBusinessLeadAccess,
-  hooks: { resolveInput: statusBusinessLeadHooks.resolveInput },
+  hooks: {
+    resolveInput: statusBusinessLeadHooks.resolveInput,
+    // Historial de etapas (velocidad comercial): toda escritura, de personas o del servidor.
+    afterOperation: {
+      create: async ({ item, context }: any) => recordStageChange(context, item, null),
+      update: async ({ item, originalItem, context }: any) =>
+        recordStageChange(context, item, originalItem?.pipelineStatus ?? null),
+    },
+  },
   ui: {
     listView: {
       initialColumns: [

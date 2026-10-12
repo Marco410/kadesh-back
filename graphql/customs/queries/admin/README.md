@@ -118,6 +118,12 @@ Extracciones exitosas con `created + alreadyInDb <= threshold` (por defecto 5) p
 
 Empresas registradas por canal, página de entrada y campaña (`User.signupAttribution` de quien creó la cuenta), con cuántas extrajeron y cuántas pagaron. Referido gana sobre UTM; sin dato = "Sin dato".
 
+#### `adminSalesVelocity(input: { days, companyId })` (Fase 5)
+
+Velocidad comercial desde `TechLeadStageChange`, actividades y WhatsApp: cierre, ciclo de venta, por etapa (entraron, avanzaron, perdidos, días, estancados), primer contacto, WhatsApp y una lista por empresa (más estancados primero). `dataSince` = desde cuándo hay historial. Ver `docs/operaciones/decisiones.md`.
+
+`adminCompanyInsights.appErrors` y el motivo `app_errors` de "Requiere atención" salen de `app.error` (plugin `utils/activity/appErrorsPlugin.ts`).
+
 ## Invariantes
 
 - Nunca devolver prompts de IA, cuerpos de WhatsApp, contraseñas ni tokens.

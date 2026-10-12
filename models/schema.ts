@@ -42,6 +42,7 @@ import ContactForm from "./ContactForm/ContactForm";
 import MetaDataDeletionRequest from "./Saas/MetaDataDeletionRequest/MetaDataDeletionRequest";
 import TechBusinessLead from "./Saas/Tech/BusinessLead/TechBusinessLead";
 import TechStatusBusinessLead from "./Saas/Tech/StatusBusinessLead/TechStatusBusinessLead";
+import TechLeadStageChange from "./Saas/Tech/LeadStageChange/TechLeadStageChange";
 import TechFollowUpTask from "./Saas/Tech/FollowUpTask/TechFollowUpTask";
 import TechProposal from "./Saas/Tech/Proposal/TechProposal";
 import TechSalesActivity from "./Saas/Tech/SalesActivity/TechSalesActivity";
@@ -151,6 +152,7 @@ export default withActivityHooks({
   TechSalesActivity,
   TechTask,
   TechStatusBusinessLead,
+  TechLeadStageChange,
   TechWhatsAppMessage,
   GoogleCalendarAccount,
   GoogleCalendarSelection,

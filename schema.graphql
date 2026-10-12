@@ -7269,6 +7269,73 @@ input TechStatusBusinessLeadCreateInput {
   notes: String
 }
 
+type TechLeadStageChange {
+  id: ID!
+  company: SaasCompany
+  businessLead: TechBusinessLead
+  statusId: String
+  fromStatus: String
+  toStatus: String
+  changedBy: User
+  source: String
+  changedAt: DateTime
+}
+
+input TechLeadStageChangeWhereUniqueInput {
+  id: ID
+}
+
+input TechLeadStageChangeWhereInput {
+  AND: [TechLeadStageChangeWhereInput!]
+  OR: [TechLeadStageChangeWhereInput!]
+  NOT: [TechLeadStageChangeWhereInput!]
+  id: IDFilter
+  company: SaasCompanyWhereInput
+  businessLead: TechBusinessLeadWhereInput
+  statusId: StringFilter
+  fromStatus: StringNullableFilter
+  toStatus: StringFilter
+  changedBy: UserWhereInput
+  source: StringNullableFilter
+  changedAt: DateTimeFilter
+}
+
+input TechLeadStageChangeOrderByInput {
+  id: OrderDirection
+  statusId: OrderDirection
+  fromStatus: OrderDirection
+  toStatus: OrderDirection
+  source: OrderDirection
+  changedAt: OrderDirection
+}
+
+input TechLeadStageChangeUpdateInput {
+  company: SaasCompanyRelateToOneForUpdateInput
+  businessLead: TechBusinessLeadRelateToOneForUpdateInput
+  statusId: String
+  fromStatus: String
+  toStatus: String
+  changedBy: UserRelateToOneForUpdateInput
+  source: String
+  changedAt: DateTime
+}
+
+input TechLeadStageChangeUpdateArgs {
+  where: TechLeadStageChangeWhereUniqueInput!
+  data: TechLeadStageChangeUpdateInput!
+}
+
+input TechLeadStageChangeCreateInput {
+  company: SaasCompanyRelateToOneForCreateInput
+  businessLead: TechBusinessLeadRelateToOneForCreateInput
+  statusId: String
+  fromStatus: String
+  toStatus: String
+  changedBy: UserRelateToOneForCreateInput
+  source: String
+  changedAt: DateTime
+}
+
 type TechWhatsAppMessage {
   id: ID!
   company: SaasCompany
@@ -9067,6 +9134,12 @@ type Mutation {
   updateTechStatusBusinessLeads(data: [TechStatusBusinessLeadUpdateArgs!]!): [TechStatusBusinessLead]
   deleteTechStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
   deleteTechStatusBusinessLeads(where: [TechStatusBusinessLeadWhereUniqueInput!]!): [TechStatusBusinessLead]
+  createTechLeadStageChange(data: TechLeadStageChangeCreateInput!): TechLeadStageChange
+  createTechLeadStageChanges(data: [TechLeadStageChangeCreateInput!]!): [TechLeadStageChange]
+  updateTechLeadStageChange(where: TechLeadStageChangeWhereUniqueInput!, data: TechLeadStageChangeUpdateInput!): TechLeadStageChange
+  updateTechLeadStageChanges(data: [TechLeadStageChangeUpdateArgs!]!): [TechLeadStageChange]
+  deleteTechLeadStageChange(where: TechLeadStageChangeWhereUniqueInput!): TechLeadStageChange
+  deleteTechLeadStageChanges(where: [TechLeadStageChangeWhereUniqueInput!]!): [TechLeadStageChange]
   createTechWhatsAppMessage(data: TechWhatsAppMessageCreateInput!): TechWhatsAppMessage
   createTechWhatsAppMessages(data: [TechWhatsAppMessageCreateInput!]!): [TechWhatsAppMessage]
   updateTechWhatsAppMessage(where: TechWhatsAppMessageWhereUniqueInput!, data: TechWhatsAppMessageUpdateInput!): TechWhatsAppMessage
@@ -9427,6 +9500,9 @@ type Query {
   techStatusBusinessLead(where: TechStatusBusinessLeadWhereUniqueInput!): TechStatusBusinessLead
   techStatusBusinessLeads(where: TechStatusBusinessLeadWhereInput! = {}, orderBy: [TechStatusBusinessLeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechStatusBusinessLeadWhereUniqueInput): [TechStatusBusinessLead!]
   techStatusBusinessLeadsCount(where: TechStatusBusinessLeadWhereInput! = {}): Int
+  techLeadStageChange(where: TechLeadStageChangeWhereUniqueInput!): TechLeadStageChange
+  techLeadStageChanges(where: TechLeadStageChangeWhereInput! = {}, orderBy: [TechLeadStageChangeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechLeadStageChangeWhereUniqueInput): [TechLeadStageChange!]
+  techLeadStageChangesCount(where: TechLeadStageChangeWhereInput! = {}): Int
   techWhatsAppMessage(where: TechWhatsAppMessageWhereUniqueInput!): TechWhatsAppMessage
   techWhatsAppMessages(where: TechWhatsAppMessageWhereInput! = {}, orderBy: [TechWhatsAppMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TechWhatsAppMessageWhereUniqueInput): [TechWhatsAppMessage!]
   techWhatsAppMessagesCount(where: TechWhatsAppMessageWhereInput! = {}): Int
@@ -9485,6 +9561,7 @@ type Query {
   adminEngagement(input: AdminEngagementInput): AdminEngagement!
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
+  adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   findAnimalReportDuplicates(phone: String, animalTypeId: ID, name: String, sourceUrl: String): [AnimalReportDuplicate!]!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
@@ -10816,7 +10893,7 @@ type AdminAttentionItem {
   companyName: String!
 
   """
-  trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive | churn_risk | upsell
+  trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive | churn_risk | upsell | app_errors
   """
   reason: String!
   detail: String
@@ -10972,6 +11049,11 @@ type AdminCompanyInsights {
   calendarLastSyncedAt: String
   calendarLastError: String
   checkoutFailures: Int!
+
+  """
+  Errores que vio alguien de la empresa en el panel (app.error) en la ventana.
+  """
+  appErrors: Int!
   usage: AdminUsageStats!
 }
 
@@ -11025,7 +11107,7 @@ input AdminActivityFeedInput {
   userId: ID
 
   """
-  auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide)
+  auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide) | errors (lo que le falló a alguien en el panel)
   """
   types: [String!]
   onlyErrors: Boolean
@@ -11353,4 +11435,91 @@ type AdminAcquisition {
 
   """utm_campaign"""
   campaigns: [AdminAcquisitionRow!]!
+}
+
+input AdminSalesVelocityInput {
+  """Últimos N días (30–365, por defecto 90)."""
+  days: Int
+
+  """Solo esta empresa (ficha 360)."""
+  companyId: ID
+}
+
+type AdminStageVelocity {
+  stage: String!
+
+  """Leads que entraron a la etapa en el periodo."""
+  entered: Int!
+
+  """De esos, cuántos pasaron a una etapa más adelante."""
+  advanced: Int!
+
+  """De esos, cuántos se perdieron (rechazada, perdido o descartado)."""
+  lost: Int!
+
+  """
+  Mediana de días que se quedaron en la etapa (solo los que ya salieron).
+  """
+  medianDays: Float
+
+  """Siguen ahí hace 14 días o más sin moverse."""
+  stalled: Int!
+}
+
+type AdminCompanyVelocity {
+  companyId: ID!
+  companyName: String!
+  entered: Int!
+  won: Int!
+  lost: Int!
+  winRate: Float
+  medianCycleDays: Float
+  medianFirstContactHours: Float
+  stalled: Int!
+}
+
+type AdminSalesVelocity {
+  days: Int!
+
+  """Desde cuándo hay historial de etapas (antes no se guardaba)."""
+  dataSince: String
+  stages: [AdminStageVelocity!]!
+  won: Int!
+  lost: Int!
+
+  """Ganados ÷ (ganados + perdidos) cerrados en el periodo (0–1)."""
+  winRate: Float
+
+  """Suma del valor estimado de los ganados."""
+  wonValue: Float!
+
+  """Mediana de días desde que el lead entró al pipeline hasta ganarse."""
+  medianCycleDays: Float
+  cycleSample: Int!
+
+  """Leads que entraron al pipeline en el periodo."""
+  newLeads: Int!
+
+  """De esos, cuántos ya tuvieron contacto."""
+  contacted: Int!
+  contactedWithin2Days: Int!
+  medianFirstContactHours: Float
+
+  """
+  Tratos abiertos (de Contactado a Negociación) sin moverse en 14 días o más.
+  """
+  stalled: Int!
+  whatsappInbound: Int!
+  whatsappAnswered: Int!
+  whatsappAnsweredWithin1h: Int!
+
+  """Mediana de minutos para contestar un WhatsApp de un lead."""
+  whatsappMedianResponseMinutes: Float
+
+  """Conversaciones donde la empresa escribió primero."""
+  whatsappConversations: Int!
+
+  """De esas, en cuántas contestó el lead (en 7 días)."""
+  whatsappReplied: Int!
+  companies: [AdminCompanyVelocity!]!
 }

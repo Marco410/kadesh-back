@@ -26,6 +26,7 @@ import adminCohorts from "./admin/adminCohorts";
 import adminEngagement from "./admin/adminEngagement";
 import adminDemandGaps from "./admin/adminDemandGaps";
 import adminAcquisition from "./admin/adminAcquisition";
+import adminSalesVelocity from "./admin/adminSalesVelocity";
 
 const customQuery = {
   typeDefs: `
@@ -54,6 +55,7 @@ const customQuery = {
     ${adminEngagement.typeDefs}
     ${adminDemandGaps.typeDefs}
     ${adminAcquisition.typeDefs}
+    ${adminSalesVelocity.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -83,6 +85,7 @@ const customQuery = {
     ${adminEngagement.definition}
     ${adminDemandGaps.definition}
     ${adminAcquisition.definition}
+    ${adminSalesVelocity.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -112,6 +115,7 @@ const customQuery = {
     ...adminEngagement.resolver,
     ...adminDemandGaps.resolver,
     ...adminAcquisition.resolver,
+    ...adminSalesVelocity.resolver,
   },
 };
 

@@ -4,6 +4,7 @@ import { config } from "@keystone-6/core";
 import { withAuth, session } from "./auth/auth";
 import { sessionEndedNoticePlugin, withSessionGuards } from "./auth/sessionGuards";
 import { impersonationReadOnlyPlugin } from "./auth/impersonation";
+import { appErrorsPlugin } from "./utils/activity/appErrorsPlugin";
 import extendGraphqlSchema from "./graphql/extendedSchema";
 import { isPlatformAdmin } from "./utils/access/tenant";
 import registerWhatsAppWebhook from "./webhooks/whatsapp";
@@ -189,6 +190,8 @@ export default withSessionGuards(withAuth(
           impersonationReadOnlyPlugin,
           // Token que ya no vale (sesiones cerradas, suspensión, vencido): se avisa al front.
           sessionEndedNoticePlugin,
+          // Errores que ve alguien con sesión: quedan en Actividad → Errores (sin variables).
+          appErrorsPlugin,
           {
             async requestDidStart() {
               return {

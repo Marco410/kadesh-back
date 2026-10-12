@@ -116,3 +116,23 @@ En el navegador:
 - Una persona suspendida con un token de antes llega al login con el aviso de suspensión.
 - Un admin viendo el panel "como" Jose: al cerrarse las sesiones de Jose vuelve a Operaciones con su propia sesión.
 - Un token viejo en la pantalla de login no provoca vueltas.
+
+## Fase 5 — lo que ya se probó (2026-10-12, copia desechable)
+
+Prueba de humo, 21 de 21, con un historial inventado de 6 leads:
+- Cierre 2 de 3, valor ganado, ciclo de 30 y 150 días (mediana 90), 5 leads nuevos con 4 contactados (3 por etapa, 1 por WhatsApp) en una mediana de 24 h, 1 estancado.
+- Por etapa: Detectado (5 entraron, 3 avanzaron, 1 día) y Contactado (3, 1 avanzó, 1 perdido, 9 días).
+- WhatsApp: 3 mensajes de leads (una racha cuenta una vez), 1 contestado en 30 min, 1 conversación iniciada y contestada.
+- Hook: alta del servidor sin etapa anterior, cambio de una persona con quién y de dónde, cambiar notas no agrega historial.
+- Backfill: reporte, agrega, no duplica (ni los cambios que ya guardó el hook).
+- Solo admin.
+
+Por HTTP: un error de validación y un acceso denegado de una vendedora quedan como `app.error` (sin variables); el repetido no se duplica.
+
+En el navegador: Analítica → Ventas, ayudas ⓘ que abren y se cierran al tocar fuera (también a 390 px, dentro de la pantalla), tarjeta de velocidad y alerta de errores en el 360, Actividad → Errores, "Errores en el panel" en Inicio y modo oscuro.
+
+## Fase 5 — al desplegar
+
+1. `yarn migrate` (revisar que solo cree `TechLeadStageChange` y sus llaves).
+2. `pnpm pipeline:backfill` y luego `--apply`.
+3. Mover un lead de etapa y revisar que aparezca en Analítica → Ventas.

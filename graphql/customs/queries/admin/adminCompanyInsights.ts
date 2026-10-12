@@ -120,6 +120,8 @@ const typeDefs = `
     calendarLastSyncedAt: String
     calendarLastError: String
     checkoutFailures: Int!
+    """Errores que vio alguien de la empresa en el panel (app.error) en la ventana."""
+    appErrors: Int!
     usage: AdminUsageStats!
   }
 
@@ -668,6 +670,15 @@ const resolver = {
       calendarLastSyncedAt: toIso(accounts[0]?.lastSyncedAt ?? null),
       calendarLastError: accountWithError?.lastSyncError ?? null,
       checkoutFailures,
+      appErrors: await optionalRead(
+        async () => {
+          const count = await prisma.activityEvent.count({
+            where: { companyId, type: ACTIVITY_EVENT.APP_ERROR, createdAt: { gte: since } },
+          });
+          return typeof count === "number" ? count : 0;
+        },
+        0,
+      ),
       usage: usage.stats,
     };
   },

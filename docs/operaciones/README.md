@@ -11,6 +11,7 @@ Backend de la pantalla **Operaciones** del front (`/panel/clientes/admin`, solo 
 | **2** | Modelo de eventos propio (`ActivityEvent`), tiempo activo (`UserActivityDay`), IP y navegador en accesos, instrumentación, webhook de Stripe, registro de qué abre el admin | Migrado (`20261011055848_activity_events_migration`) |
 | **3a** | Extender prueba, dueño de cuenta, notas internas, resumen diario de uso (`rollupDailyUsage`) con tendencia y comparación por plan | Migrado (`20261011070506_suspended_migration`) |
 | **3b** | Suspender empresa o persona, cerrar sesiones, "entrar como" (solo lectura), transferir la propiedad, ARCO (exportar y anonimizar), quitar `customAuth` | Migrado junto con 3a (`20261011070506_suspended_migration`) |
+| **5** | Velocidad comercial: historial de etapas (`TechLeadStageChange`), `adminSalesVelocity` (cierre, ciclo, primer contacto, WhatsApp, estancados) y errores por empresa (`app.error`) | Código listo. **Falta `yarn migrate`** y `pnpm pipeline:backfill --apply` |
 | **4** | Analítica: salud de cada cuenta con riesgo de baja y oportunidad de venta, activación, retención por mes de registro, DAU/WAU/MAU y módulos por plan, demanda no cubierta, de dónde llegan los clientes (`User.signupAttribution`) | Código listo. **Falta `yarn migrate`** |
 
 Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`ActivityEvent`, `UserActivityDay`) y dos columnas en `UserAuthLog` (`ip`, `userAgent`). La 3 agrega `SaasCompanyNote`, `SaasCompanyDailyUsage`, `SaasCompany.accountManager` y los campos de control de cuenta (`suspendedAt`, `suspendedReason`, `sessionVersion`, `anonymizedAt`). La 4 solo agrega `User.signupAttribution`.
@@ -54,6 +55,12 @@ Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`Ac
 5. Programar `pnpm activity:prune --apply` una vez al mes.
 6. Fase 3: el workflow `.github/workflows/rollup-daily-usage.yml` llama `rollupDailyUsage` cada noche con los mismos secrets que los posts programados (`KADESH_API_URL`, `CRON_SECRET`). Para llenar semanas pasadas: `pnpm usage:rollup --from=AAAA-MM-DD --to=AAAA-MM-DD`.
 7. Aviso de privacidad y Términos: mencionar el registro de uso (secciones, tiempo activo), IP y navegador en accesos, y la analítica agregada.
+
+### Fase 5
+
+1. `yarn migrate` antes de levantar el back (crea `TechLeadStageChange`).
+2. `pnpm pipeline:backfill` para ver cuántos cambios de etapa se recuperan de `ActivityEvent` y `--apply` para guardarlos.
+3. Back antes que front (el front pide `adminSalesVelocity` y `appErrors`).
 
 ### Fase 4
 

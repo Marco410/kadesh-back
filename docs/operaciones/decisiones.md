@@ -304,3 +304,22 @@ Cada señal trae un motivo (`reason`) para que Inicio no repita avisos que ya ti
 **Qué se cambió:** solo se aceptan `name`, `lastName`, `secondLastName`, `username`, `email`, `password` y `phone` (`REGISTER_ALLOWED_FIELDS`); lo demás se ignora sin error. `product`, roles, empresa y atribución los pone el servidor.
 
 **Qué no hacer:** si el formulario de registro necesita un campo nuevo, agrégalo a la lista; no vuelvas a pasar `data` completo.
+
+## 2026-10-12 — Fase 5: velocidad comercial
+
+**Qué:** historial de etapas (`TechLeadStageChange`, ver su README) y `adminSalesVelocity(days, companyId)`:
+
+- **Cierre:** ganados (Propuesta aceptada o Cerrado ganado) contra perdidos (Rechazada, Cerrado perdido, Descartado) cerrados en el periodo; valor estimado de lo ganado.
+- **Ciclo de venta:** mediana de días desde que el lead entró al pipeline hasta ganarse. Solo cuenta leads que vimos entrar (si el historial empieza a medio camino, no se puede saber).
+- **Por etapa:** cuántos entraron, cuántos avanzaron (etapa más adelante; "Sin respuesta" vale lo mismo que "Contactado"), cuántos se perdieron, mediana de días en la etapa y estancados.
+- **Estancados:** tratos abiertos de Contactado en adelante sin moverse en 14 días.
+- **Primer contacto:** horas desde que el lead entró hasta moverlo a Contactado o más, registrar una actividad o mandarle un WhatsApp.
+- **WhatsApp:** tiempo para contestar a un lead (varios mensajes seguidos del lead cuentan como uno), contestados en 1 h y en cuántas conversaciones que empezó la empresa contestó el lead (7 días).
+
+**Por qué medianas:** un lead olvidado 200 días movería el promedio y no diría nada del resto. La mediana dice "la mitad tarda menos que esto", y así se explica en la ayuda.
+
+## 2026-10-12 — Fase 5: errores por empresa
+
+**Qué:** `appErrorsPlugin` (Apollo) registra `app.error` en `ActivityEvent` cuando una petición de alguien con sesión falla: nombre de la operación, mensaje y código. Nunca las variables (pueden traer datos personales). El mismo error de la misma persona y operación se registra una vez cada 10 minutos. No cuenta el bloqueo de "entrar como" (es a propósito). Se ve en Actividad → Errores, en las alertas del 360 (`adminCompanyInsights.appErrors`) y en "Requiere atención" con 3 o más en 24 h (`app_errors`).
+
+**Por qué:** para enterarse de un error (por ejemplo, el front pidiendo algo que el back aún no tiene) antes de que el cliente se queje.

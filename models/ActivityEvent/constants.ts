@@ -16,6 +16,7 @@ export const ACTIVITY_CATEGORY = {
   CALENDAR: "calendar",
   ADMIN: "admin",
   PRODUCT: "product",
+  ERRORS: "errors",
 } as const;
 
 export type ActivityCategory =
@@ -33,6 +34,7 @@ export const ACTIVITY_CATEGORY_OPTIONS = [
   { label: "Calendario", value: ACTIVITY_CATEGORY.CALENDAR },
   { label: "Kadesh (admin)", value: ACTIVITY_CATEGORY.ADMIN },
   { label: "Navegación", value: ACTIVITY_CATEGORY.PRODUCT },
+  { label: "Errores", value: ACTIVITY_CATEGORY.ERRORS },
 ] as const;
 
 /** Quién originó el evento. */
@@ -157,6 +159,9 @@ export const ACTIVITY_EVENT = {
   UI_UPGRADE_CLICKED: "ui.upgrade_clicked",
   UI_TOUR_COMPLETED: "ui.tour_completed",
   UI_TOUR_SKIPPED: "ui.tour_skipped",
+
+  // Errores que vio alguien en el panel (plugin de Apollo, fase 5)
+  APP_ERROR: "app.error",
 } as const;
 
 export type ActivityEventType = (typeof ACTIVITY_EVENT)[keyof typeof ACTIVITY_EVENT];
@@ -218,6 +223,7 @@ const CATEGORY_BY_PREFIX: Record<string, ActivityCategory> = {
   calendar: ACTIVITY_CATEGORY.CALENDAR,
   admin: ACTIVITY_CATEGORY.ADMIN,
   ui: ACTIVITY_CATEGORY.PRODUCT,
+  app: ACTIVITY_CATEGORY.ERRORS,
 };
 
 export function categoryForType(type: string): ActivityCategory {

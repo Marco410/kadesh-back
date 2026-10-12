@@ -3,6 +3,7 @@ import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscrip
 import { COMPANY_CREDIT_LEDGER_TYPE } from "../../../../models/Saas/SaasCompanyCreditLedger/constants";
 import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../../models/Saas/SaasSubscriptionLog/constants";
 import { loadCompanyHealth } from "./healthData";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
 import {
   DAY_MS,
   activeUserIdsSince,
@@ -16,6 +17,7 @@ import {
   latestDate,
   latestSubscriptionsByCompany,
   monthlyAmount,
+  optionalRead,
   testCompanyIds,
   toIso,
   trialEndDate,
@@ -24,6 +26,7 @@ import {
 const ATTENTION_LIMIT = 25;
 const TRIAL_SOON_DAYS = 3;
 const INACTIVE_DAYS = 14;
+const APP_ERRORS_THRESHOLD = 3;
 
 const typeDefs = `
   type AdminMoney {
@@ -34,7 +37,7 @@ const typeDefs = `
   type AdminAttentionItem {
     companyId: ID!
     companyName: String!
-    """trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive | churn_risk | upsell"""
+    """trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive | churn_risk | upsell | app_errors"""
     reason: String!
     detail: String
     """high | medium | low"""
@@ -350,6 +353,30 @@ const resolver = {
           });
         }
       }
+    }
+
+    // Errores en el panel (fase 5): 3 o más en 24 h es algo que revisar antes de que se quejen.
+    const errorGroups: Array<{ companyId: string | null; _count: { _all: number }; _max: { createdAt: Date | null } }> =
+      await optionalRead(
+        () =>
+          prisma.activityEvent.groupBy({
+            by: ["companyId"],
+            where: { type: ACTIVITY_EVENT.APP_ERROR, createdAt: { gte: since24h }, companyId: { in: realIds } },
+            _count: { _all: true },
+            _max: { createdAt: true },
+          }),
+        [],
+      );
+    for (const row of Array.isArray(errorGroups) ? errorGroups : []) {
+      if (!row.companyId || row._count._all < APP_ERRORS_THRESHOLD) continue;
+      attention.push({
+        companyId: row.companyId,
+        companyName: nameById.get(row.companyId) ?? "Empresa",
+        reason: "app_errors",
+        detail: `${row._count._all} errores en el panel en 24 h`,
+        severity: "medium",
+        at: toIso(row._max.createdAt),
+      });
     }
 
     const seenUserIds = await activeUserIdsSince(prisma, since7d);

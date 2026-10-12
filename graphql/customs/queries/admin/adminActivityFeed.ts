@@ -36,6 +36,7 @@ const FEED_TYPES = [
   "calendar",
   "admin",
   "product",
+  "errors",
 ] as const;
 type FeedType = (typeof FEED_TYPES)[number];
 
@@ -46,7 +47,7 @@ const typeDefs = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
-    """auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide)"""
+    """auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide) | errors (lo que le falló a alguien en el panel)"""
     types: [String!]
     onlyErrors: Boolean
     search: String
