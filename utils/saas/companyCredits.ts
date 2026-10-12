@@ -199,17 +199,18 @@ export async function ensureSaasCompanyCreditPeriod(
 ): Promise<SaasCompanyCreditPeriodRecord> {
   const { year, month } = getCurrentPeriodParts();
   const periodKey = buildPeriodKey(companyId, year, month);
+  const findPeriod = async () => {
+    const [found] = await context.sudo().query.SaasCompanyCreditPeriod.findMany({
+      where: { periodKey: { equals: periodKey } },
+      take: 1,
+      query:
+        "id periodKey year month planAllowance bonusAllowance used subscription { id }",
+    });
+    return (found as SaasCompanyCreditPeriodRecord | undefined) ?? null;
+  };
 
-  const [existing] = await context.sudo().query.SaasCompanyCreditPeriod.findMany({
-    where: { periodKey: { equals: periodKey } },
-    take: 1,
-    query:
-      "id periodKey year month planAllowance bonusAllowance used subscription { id }",
-  });
-
-  if (existing) {
-    return existing as SaasCompanyCreditPeriodRecord;
-  }
+  const existing = await findPeriod();
+  if (existing) return existing;
 
   const subscription = await getActiveSubscription(context, companyId);
   const purchasedBonus = await getCompanyPurchasedBonus(
@@ -220,22 +221,31 @@ export async function ensureSaasCompanyCreditPeriod(
   const planAllowance = subscription?.planLeadLimit ?? 0;
   const legacyUsed = await getLegacyMonthlyUsed(context, companyId, year, month);
 
-  const period = (await context.sudo().query.SaasCompanyCreditPeriod.createOne({
-    data: {
-      company: { connect: { id: companyId } },
-      periodKey,
-      year,
-      month,
-      planAllowance,
-      bonusAllowance: purchasedBonus,
-      used: legacyUsed,
-      ...(subscription?.id && {
-        subscription: { connect: { id: subscription.id } },
-      }),
-    },
-    query:
-      "id periodKey year month planAllowance bonusAllowance used subscription { id }",
-  })) as SaasCompanyCreditPeriodRecord;
+  let period: SaasCompanyCreditPeriodRecord;
+  try {
+    period = (await context.sudo().query.SaasCompanyCreditPeriod.createOne({
+      data: {
+        company: { connect: { id: companyId } },
+        periodKey,
+        year,
+        month,
+        planAllowance,
+        bonusAllowance: purchasedBonus,
+        used: legacyUsed,
+        ...(subscription?.id && {
+          subscription: { connect: { id: subscription.id } },
+        }),
+      },
+      query:
+        "id periodKey year month planAllowance bonusAllowance used subscription { id }",
+    })) as SaasCompanyCreditPeriodRecord;
+  } catch (error) {
+    // Dos peticiones a la vez en la primera visita del mes: la otra ya lo creó (periodKey es
+    // único). Se usa ese y no se repiten los movimientos iniciales del ledger.
+    const created = await findPeriod();
+    if (created) return created;
+    throw error;
+  }
 
   const remaining = getPeriodRemaining(period);
   if (planAllowance > 0) {

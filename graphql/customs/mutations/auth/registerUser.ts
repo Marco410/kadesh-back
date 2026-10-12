@@ -12,6 +12,17 @@ import { PRODUCT } from "../../../../utils/constants/product";
 import { provisionSignupCompany } from "../../../../utils/access/provisionSignupCompany";
 import { cleanAttribution } from "../../../../utils/analytics/attribution";
 
+/** Campos de `data` que acepta el registro. `product` lo pone el servidor. */
+const REGISTER_ALLOWED_FIELDS: ReadonlySet<string> = new Set([
+  "name",
+  "lastName",
+  "secondLastName",
+  "username",
+  "email",
+  "password",
+  "phone",
+]);
+
 const typeDefs = ``;
 
 const definition = `
@@ -36,11 +47,12 @@ const resolver = {
   ) => {
     const startedAt = Date.now();
     const emailStr = String(data?.email ?? "").trim();
-    const {
-      company: _ignoredCompany,
-      roles: _ignoredRoles,
-      ...safeUserData
-    } = data;
+    // Solo datos personales. Lo demás de UserCreateInput (prueba interna, permisos, espacios,
+    // suspensión, roles, empresa…) se ignora: la mutación crea con sudo y no debe dejar que quien
+    // se registra se los ponga.
+    const safeUserData = Object.fromEntries(
+      Object.entries(data ?? {}).filter(([key]) => REGISTER_ALLOWED_FIELDS.has(key)),
+    );
 
     let referredByConnect: { connect: { id: string } } | undefined;
 

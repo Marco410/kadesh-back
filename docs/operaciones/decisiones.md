@@ -290,3 +290,17 @@ Cada señal trae un motivo (`reason`) para que Inicio no repita avisos que ya ti
 - `sessionBlockReason` revisa primero suspensión y anonimización y después la versión: suspender también sube la versión, y si no la persona vería "tu sesión expiró" en lugar del aviso de suspensión.
 
 **Por qué en la respuesta y no con un error:** con un error, cada pantalla tendría que manejarlo; con el aviso en `extensions` los datos siguen igual (vacíos) y un solo lugar del front decide qué hacer.
+
+## 2026-10-12 — Créditos del mes: dos peticiones a la vez ya no fallan
+
+**Qué pasaba:** la primera vez del mes que una empresa abría el panel, `ensureSaasCompanyCreditPeriod` buscaba el periodo, no lo encontraba y lo creaba. Si llegaban dos peticiones juntas (el panel pide créditos en varios lugares al cargar), las dos intentaban crearlo y una fallaba con "Unique constraint failed on periodKey".
+
+**Qué se cambió:** si crear falla, se vuelve a buscar el periodo; si ya existe (lo creó la otra petición), se usa ese. Solo la petición que lo creó escribe los movimientos iniciales del ledger, así que el alta del plan no se duplica.
+
+## 2026-10-12 — Registro: solo datos personales
+
+**Qué pasaba:** `registerUser` crea con `sudo` y pasaba todo `data` (`UserCreateInput`) salvo roles y empresa. Quien se registraba podía mandar `userTest`, `permissions`, `verified`, `referralCode`, espacios de trabajo, etc.
+
+**Qué se cambió:** solo se aceptan `name`, `lastName`, `secondLastName`, `username`, `email`, `password` y `phone` (`REGISTER_ALLOWED_FIELDS`); lo demás se ignora sin error. `product`, roles, empresa y atribución los pone el servidor.
+
+**Qué no hacer:** si el formulario de registro necesita un campo nuevo, agrégalo a la lista; no vuelvas a pasar `data` completo.

@@ -14221,6 +14221,15 @@ var resolver = {
 var authenticateUserWithGoogle_default = { typeDefs, definition, resolver };
 
 // graphql/customs/mutations/auth/registerUser.ts
+var REGISTER_ALLOWED_FIELDS = /* @__PURE__ */ new Set([
+  "name",
+  "lastName",
+  "secondLastName",
+  "username",
+  "email",
+  "password",
+  "phone"
+]);
 var typeDefs2 = ``;
 var definition2 = `
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String, attribution: JSON): User
@@ -14234,11 +14243,9 @@ var resolver2 = {
   }, context) => {
     const startedAt = Date.now();
     const emailStr = String(data?.email ?? "").trim();
-    const {
-      company: _ignoredCompany,
-      roles: _ignoredRoles,
-      ...safeUserData
-    } = data;
+    const safeUserData = Object.fromEntries(
+      Object.entries(data ?? {}).filter(([key]) => REGISTER_ALLOWED_FIELDS.has(key))
+    );
     let referredByConnect;
     if (referrerCode) {
       const referrer = await context.sudo().query.User.findOne({
@@ -14946,14 +14953,16 @@ async function writeLedgerEntry(context, params) {
 async function ensureSaasCompanyCreditPeriod(context, companyId) {
   const { year, month } = getCurrentPeriodParts();
   const periodKey = buildPeriodKey(companyId, year, month);
-  const [existing] = await context.sudo().query.SaasCompanyCreditPeriod.findMany({
-    where: { periodKey: { equals: periodKey } },
-    take: 1,
-    query: "id periodKey year month planAllowance bonusAllowance used subscription { id }"
-  });
-  if (existing) {
-    return existing;
-  }
+  const findPeriod = async () => {
+    const [found] = await context.sudo().query.SaasCompanyCreditPeriod.findMany({
+      where: { periodKey: { equals: periodKey } },
+      take: 1,
+      query: "id periodKey year month planAllowance bonusAllowance used subscription { id }"
+    });
+    return found ?? null;
+  };
+  const existing = await findPeriod();
+  if (existing) return existing;
   const subscription = await getActiveSubscription(context, companyId);
   const purchasedBonus = await getCompanyPurchasedBonus(
     context,
@@ -14962,21 +14971,28 @@ async function ensureSaasCompanyCreditPeriod(context, companyId) {
   );
   const planAllowance = subscription?.planLeadLimit ?? 0;
   const legacyUsed = await getLegacyMonthlyUsed(context, companyId, year, month);
-  const period = await context.sudo().query.SaasCompanyCreditPeriod.createOne({
-    data: {
-      company: { connect: { id: companyId } },
-      periodKey,
-      year,
-      month,
-      planAllowance,
-      bonusAllowance: purchasedBonus,
-      used: legacyUsed,
-      ...subscription?.id && {
-        subscription: { connect: { id: subscription.id } }
-      }
-    },
-    query: "id periodKey year month planAllowance bonusAllowance used subscription { id }"
-  });
+  let period;
+  try {
+    period = await context.sudo().query.SaasCompanyCreditPeriod.createOne({
+      data: {
+        company: { connect: { id: companyId } },
+        periodKey,
+        year,
+        month,
+        planAllowance,
+        bonusAllowance: purchasedBonus,
+        used: legacyUsed,
+        ...subscription?.id && {
+          subscription: { connect: { id: subscription.id } }
+        }
+      },
+      query: "id periodKey year month planAllowance bonusAllowance used subscription { id }"
+    });
+  } catch (error) {
+    const created = await findPeriod();
+    if (created) return created;
+    throw error;
+  }
   const remaining = getPeriodRemaining(period);
   if (planAllowance > 0) {
     await writeLedgerEntry(context, {
