@@ -5641,6 +5641,8 @@ type SystemRelease {
   body: String
   releasedAt: DateTime
   isPublished: Boolean
+  notifyByEmail: Boolean
+  emailedAt: DateTime
   createdAt: DateTime
 }
 
@@ -5659,6 +5661,8 @@ input SystemReleaseWhereInput {
   body: StringFilter
   releasedAt: DateTimeFilter
   isPublished: BooleanFilter
+  notifyByEmail: BooleanFilter
+  emailedAt: DateTimeNullableFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -5670,6 +5674,8 @@ input SystemReleaseOrderByInput {
   body: OrderDirection
   releasedAt: OrderDirection
   isPublished: OrderDirection
+  notifyByEmail: OrderDirection
+  emailedAt: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -5680,6 +5686,8 @@ input SystemReleaseUpdateInput {
   body: String
   releasedAt: DateTime
   isPublished: Boolean
+  notifyByEmail: Boolean
+  emailedAt: DateTime
   createdAt: DateTime
 }
 
@@ -5695,6 +5703,8 @@ input SystemReleaseCreateInput {
   body: String
   releasedAt: DateTime
   isPublished: Boolean
+  notifyByEmail: Boolean
+  emailedAt: DateTime
   createdAt: DateTime
 }
 

@@ -1084,14 +1084,16 @@ model SocialMedia {
 }
 
 model SystemRelease {
-  id          String    @id @default(cuid())
-  version     String    @default("")
-  product     String
-  title       String    @default("")
-  body        String    @default("")
-  releasedAt  DateTime
-  isPublished Boolean   @default(false)
-  createdAt   DateTime? @default(now())
+  id            String    @id @default(cuid())
+  version       String    @default("")
+  product       String
+  title         String    @default("")
+  body          String    @default("")
+  releasedAt    DateTime
+  isPublished   Boolean   @default(false)
+  notifyByEmail Boolean   @default(true)
+  emailedAt     DateTime?
+  createdAt     DateTime? @default(now())
 
   @@index([version])
 }
