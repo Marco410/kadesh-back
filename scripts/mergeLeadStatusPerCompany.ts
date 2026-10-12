@@ -204,6 +204,7 @@ function mergeGroup(group: StatusRow[], users: Map<string, UserInfo>) {
 }
 
 async function main() {
+  console.log(`Base: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}`);
   console.log(apply ? "Modo: APLICAR" : "Modo: solo reporte (usa --apply para escribir)");
 
   await fixOrphans();
