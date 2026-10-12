@@ -149,3 +149,11 @@ Requiere `yarn migrate` (columna + índice único). No lo corre el agente.
 Qué: rol `gerencia` y campo `User.permissions` (JSON array de llaves alineadas al front). Admin de empresa y Gerencia gestionan usuarios; Gerencia no toca admins. Access de leads (`clientes.ver_empresa`), archivos, espacios, IA y WhatsApp config usan `hasPermission` con fallback al rol legado. Detalle en `User/README.md` y `auth/permissionsCatalog.ts`.
 
 Requiere migrate + seed del rol. No lo corre el agente.
+
+### 2026-10-10 — Registro de actividad (`ActivityEvent`) y `withActivityHooks`
+
+Qué: list nueva en la raíz, `ActivityEvent` (la usan Pet y SaaS), y `User/UserActivityDay`. `schema.ts` exporta las lists envueltas en `withActivityHooks` (`utils/activity/listActivityHooks.ts`), que agrega un `afterOperation` a las lists del CRM, equipo y planes para registrar lo que cambian las personas. Se compone con los hooks que ya tenía cada list; no los reemplaza.
+
+Por qué: no había ningún registro genérico de quién cambia qué. Detalle, catálogo y reglas en `ActivityEvent/README.md`.
+
+Requiere `yarn migrate`. No lo corre el agente.

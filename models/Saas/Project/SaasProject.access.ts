@@ -1,10 +1,11 @@
 import { ListAccessControl } from "@keystone-6/core/types";
+import { isPlatformAdmin } from "../../../utils/access/tenant";
 
 const getCompanyId = (session: any) => session?.data?.company?.id;
 
 /**
  * Proyectos: solo se ven/editan/borran los que pertenecen a la SaasCompany del usuario.
- * Crear solo si el usuario tiene company.
+ * Crear solo si el usuario tiene company. Admin de plataforma lee los de cualquier empresa.
  */
 export const projectAccess: ListAccessControl<any> = {
   operation: {
@@ -15,6 +16,7 @@ export const projectAccess: ListAccessControl<any> = {
   },
   filter: {
     query: ({ session }: any) => {
+      if (isPlatformAdmin(session)) return true;
       const companyId = getCompanyId(session);
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };

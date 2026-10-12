@@ -64,6 +64,14 @@ export default list({
       db: { isNullable: true },
       ui: { description: "Duración del intento en ms" },
     }),
+    ip: text({
+      db: { isNullable: true },
+      ui: { description: "IP de la petición (x-forwarded-for del proxy si existe)" },
+    }),
+    userAgent: text({
+      db: { isNullable: true },
+      ui: { description: "Navegador o cliente del intento" },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del evento" },

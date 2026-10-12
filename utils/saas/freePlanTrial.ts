@@ -15,7 +15,16 @@ function parseYmdAsLocalDate(dateStr: string): Date | null {
   return localDate;
 }
 
-export function getFreePlanTrialInfo(activatedAt: string | null): {
+/**
+ * Fin de la prueba del plan gratuito.
+ * Si la suscripción trae `currentPeriodEnd` (la crea así el hook de SaasCompany y lo mueve
+ * "Extender prueba" o "Ajustar plan"), ese manda. Si no, alta + `TRIAL_DAYS_FREE_PLAN`.
+ * Antes solo se usaba la fecha de alta, así que mover el fin del periodo no extendía la prueba.
+ */
+export function getFreePlanTrialInfo(
+  activatedAt: string | null,
+  currentPeriodEnd?: string | null,
+): {
   trialEnd: string | null;
   isExpired: boolean;
 } {
@@ -28,9 +37,15 @@ export function getFreePlanTrialInfo(activatedAt: string | null): {
     return { trialEnd: null, isExpired: false };
   }
 
-  const trialEndDate = new Date(activatedAtDate);
-  trialEndDate.setDate(trialEndDate.getDate() + TRIAL_DAYS_FREE_PLAN);
-  const trialEnd = toLocalYmd(trialEndDate);
+  const storedEnd = currentPeriodEnd ? parseYmdAsLocalDate(currentPeriodEnd) : null;
+  let trialEnd: string;
+  if (storedEnd && storedEnd >= activatedAtDate) {
+    trialEnd = toLocalYmd(storedEnd);
+  } else {
+    const trialEndDate = new Date(activatedAtDate);
+    trialEndDate.setDate(trialEndDate.getDate() + TRIAL_DAYS_FREE_PLAN);
+    trialEnd = toLocalYmd(trialEndDate);
+  }
   const today = toLocalYmd(new Date());
 
   return {

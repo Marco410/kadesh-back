@@ -5,16 +5,15 @@ import { Role } from "../../Role/constants";
 const getCompanyId = (session: any) => session?.data?.company?.id;
 
 /**
- * Uso mensual de sync de leads: solo registros de la SaasCompany del usuario.
- * Rol admin: acceso total.
+ * Uso mensual de sync de leads (legacy): la empresa solo lee sus registros.
+ * Crear/editar/borrar solo admin de plataforma.
  */
 export const saasCompanyMonthlyLeadSyncAccess: ListAccessControl<any> = {
   operation: {
     query: () => true,
-    create: ({ session }: any) =>
-      hasRole(session, [Role.ADMIN]) || !!getCompanyId(session),
-    update: () => true,
-    delete: () => true,
+    create: ({ session }: any) => hasRole(session, [Role.ADMIN]),
+    update: ({ session }: any) => hasRole(session, [Role.ADMIN]),
+    delete: ({ session }: any) => hasRole(session, [Role.ADMIN]),
   },
   filter: {
     query: ({ session }: any) => {
@@ -25,21 +24,7 @@ export const saasCompanyMonthlyLeadSyncAccess: ListAccessControl<any> = {
       if (!companyId) return false;
       return { company: { id: { equals: companyId } } };
     },
-    update: ({ session }: any) => {
-      if (hasRole(session, [Role.ADMIN])) {
-        return true;
-      }
-      const companyId = getCompanyId(session);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
-    delete: ({ session }: any) => {
-      if (hasRole(session, [Role.ADMIN])) {
-        return true;
-      }
-      const companyId = getCompanyId(session);
-      if (!companyId) return false;
-      return { company: { id: { equals: companyId } } };
-    },
+    update: ({ session }: any) => hasRole(session, [Role.ADMIN]),
+    delete: ({ session }: any) => hasRole(session, [Role.ADMIN]),
   },
 };

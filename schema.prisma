@@ -12,6 +12,38 @@ generator client {
   output   = "node_modules/.prisma/client"
 }
 
+model ActivityEvent {
+  id           String         @id @default(cuid())
+  type         String         @default("")
+  category     String
+  actor        User?          @relation("ActivityEvent_actor", fields: [actorId], references: [id])
+  actorId      String?        @map("actor")
+  company      SaasCompany?   @relation("ActivityEvent_company", fields: [companyId], references: [id])
+  companyId    String?        @map("company")
+  workspace    SaasWorkspace? @relation("ActivityEvent_workspace", fields: [workspaceId], references: [id])
+  workspaceId  String?        @map("workspace")
+  entityType   String?
+  entityId     String?
+  summary      String         @default("")
+  metadata     Json?
+  source       String?
+  success      Boolean        @default(true)
+  errorMessage String?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime?      @default(now())
+
+  @@index([type])
+  @@index([category])
+  @@index([actorId])
+  @@index([companyId])
+  @@index([workspaceId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([source])
+  @@index([createdAt])
+}
+
 model Ad {
   id              String    @id @default(cuid())
   title           String    @default("")
@@ -598,12 +630,22 @@ model SaasCompany {
   colorSecondary                      String?                      @default("#E07C3A")
   contactEmail                        String?
   contactPhone                        String?
+  suspendedAt                         DateTime?
+  suspendedReason                     String?
+  accountManager                      User?                        @relation("SaasCompany_accountManager", fields: [accountManagerId], references: [id])
+  accountManagerId                    String?                      @map("accountManager")
   createdAt                           DateTime?                    @default(now())
   updatedAt                           DateTime?                    @updatedAt
+  from_ActivityEvent_company          ActivityEvent[]              @relation("ActivityEvent_company")
+  from_SaasCompanyDailyUsage_company  SaasCompanyDailyUsage[]      @relation("SaasCompanyDailyUsage_company")
+  from_SaasCompanyNote_company        SaasCompanyNote[]            @relation("SaasCompanyNote_company")
   from_SaasReferralCommission_company SaasReferralCommission[]     @relation("SaasReferralCommission_company")
+  from_TechLeadStageChange_company    TechLeadStageChange[]        @relation("TechLeadStageChange_company")
+  from_UserActivityDay_company        UserActivityDay[]            @relation("UserActivityDay_company")
 
   @@index([name])
   @@index([planId])
+  @@index([accountManagerId])
 }
 
 model SaasCompanyMonthlyLeadSync {
@@ -660,6 +702,50 @@ model SaasCompanyCreditLedger {
 
   @@index([companyId])
   @@index([periodId])
+}
+
+model SaasCompanyDailyUsage {
+  id                 String       @id @default(cuid())
+  key                String       @unique @default("")
+  company            SaasCompany? @relation("SaasCompanyDailyUsage_company", fields: [companyId], references: [id])
+  companyId          String?      @map("company")
+  day                DateTime     @postgresql.Date
+  activeUsers        Int          @default(0)
+  activeMinutes      Int          @default(0)
+  logins             Int          @default(0)
+  extractions        Int          @default(0)
+  extractionsFailed  Int          @default(0)
+  leadsCreated       Int          @default(0)
+  leadsReused        Int          @default(0)
+  creditsConsumed    Int          @default(0)
+  aiCalls            Int          @default(0)
+  crmChanges         Int          @default(0)
+  activitiesLogged   Int          @default(0)
+  quotationsCreated  Int          @default(0)
+  quotationsSent     Int          @default(0)
+  quotationsAccepted Int          @default(0)
+  whatsappSent       Int          @default(0)
+  whatsappReceived   Int          @default(0)
+  computedAt         DateTime?
+
+  @@index([companyId])
+  @@index([day])
+}
+
+model SaasCompanyNote {
+  id        String       @id @default(cuid())
+  company   SaasCompany? @relation("SaasCompanyNote_company", fields: [companyId], references: [id])
+  companyId String?      @map("company")
+  author    User?        @relation("SaasCompanyNote_author", fields: [authorId], references: [id])
+  authorId  String?      @map("author")
+  body      String       @default("")
+  pinned    Boolean      @default(false)
+  createdAt DateTime?    @default(now())
+  updatedAt DateTime?    @updatedAt
+
+  @@index([companyId])
+  @@index([authorId])
+  @@index([createdAt])
 }
 
 model SaasCompanySubscription {
@@ -932,21 +1018,22 @@ model SaasSubscriptionLog {
 }
 
 model SaasWorkspace {
-  id                String                   @id @default(cuid())
-  name              String                   @default("")
-  showActivities    Boolean                  @default(true)
-  showProposals     Boolean                  @default(true)
-  showFollowUpTasks Boolean                  @default(true)
-  showTasks         Boolean                  @default(true)
-  company           SaasCompany?             @relation("SaasWorkspace_company", fields: [companyId], references: [id])
-  companyId         String?                  @map("company")
-  members           User[]                   @relation("SaasWorkspace_members")
-  salesActivities   TechSalesActivity[]      @relation("TechSalesActivity_workspace")
-  tasks             TechTask[]               @relation("TechTask_workspace")
-  proposals         TechProposal[]           @relation("TechProposal_workspace")
-  calendarEvents    TechCalendarEvent[]      @relation("TechCalendarEvent_workspace")
-  followUpTasks     TechFollowUpTask[]       @relation("TechFollowUpTask_workspace")
-  crmStatuses       SaasWorkspaceCrmStatus[] @relation("SaasWorkspaceCrmStatus_workspace")
+  id                           String                   @id @default(cuid())
+  name                         String                   @default("")
+  showActivities               Boolean                  @default(true)
+  showProposals                Boolean                  @default(true)
+  showFollowUpTasks            Boolean                  @default(true)
+  showTasks                    Boolean                  @default(true)
+  company                      SaasCompany?             @relation("SaasWorkspace_company", fields: [companyId], references: [id])
+  companyId                    String?                  @map("company")
+  members                      User[]                   @relation("SaasWorkspace_members")
+  salesActivities              TechSalesActivity[]      @relation("TechSalesActivity_workspace")
+  tasks                        TechTask[]               @relation("TechTask_workspace")
+  proposals                    TechProposal[]           @relation("TechProposal_workspace")
+  calendarEvents               TechCalendarEvent[]      @relation("TechCalendarEvent_workspace")
+  followUpTasks                TechFollowUpTask[]       @relation("TechFollowUpTask_workspace")
+  crmStatuses                  SaasWorkspaceCrmStatus[] @relation("SaasWorkspaceCrmStatus_workspace")
+  from_ActivityEvent_workspace ActivityEvent[]          @relation("ActivityEvent_workspace")
 
   @@index([name])
   @@index([companyId])
@@ -1017,48 +1104,49 @@ model Tag {
 }
 
 model TechBusinessLead {
-  id                    String                   @id @default(cuid())
-  businessName          String                   @default("")
-  category              String                   @default("")
-  phone                 String                   @default("")
-  email                 String                   @default("")
-  address               String                   @default("")
-  city                  String                   @default("")
-  state                 String                   @default("")
-  country               String                   @default("")
-  rating                Float?
-  lat                   Float?
-  lng                   Float?
-  reviewCount           Int?
-  hasWebsite            Boolean                  @default(false)
-  websiteUrl            String                   @default("")
-  source                String?                  @default("Google Maps")
-  status                TechStatusBusinessLead[] @relation("TechStatusBusinessLead_businessLead")
-  instagram             String                   @default("")
-  facebook              String                   @default("")
-  xTwitter              String                   @default("")
-  tiktok                String                   @default("")
-  topReview1            String                   @default("")
-  topReview2            String                   @default("")
-  topReview3            String                   @default("")
-  topReview4            String                   @default("")
-  topReview5            String                   @default("")
-  websitePromptContent  String                   @default("")
-  activities            TechSalesActivity[]      @relation("TechSalesActivity_businessLead")
-  tasks                 TechTask[]               @relation("TechTask_businessLead")
-  proposals             TechProposal[]           @relation("TechProposal_businessLead")
-  projects              SaasProject[]            @relation("SaasProject_businessLead")
-  followUpTasks         TechFollowUpTask[]       @relation("TechFollowUpTask_businessLead")
-  googleMapsUrl         String                   @default("")
-  googlePlaceId         String?                  @unique
-  sourceEstablishment   TechInegiEstablishment?  @relation("TechBusinessLead_sourceEstablishment", fields: [sourceEstablishmentId], references: [id])
-  sourceEstablishmentId String?                  @map("sourceEstablishment")
-  salesPerson           User[]                   @relation("TechBusinessLead_salesPerson")
-  saasCompany           SaasCompany[]            @relation("SaasCompany_leads")
-  quotations            SaasQuotation[]          @relation("SaasQuotation_lead")
-  whatsappMessages      TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_businessLead")
-  createdAt             DateTime?                @default(now())
-  updatedAt             DateTime?                @updatedAt
+  id                                    String                   @id @default(cuid())
+  businessName                          String                   @default("")
+  category                              String                   @default("")
+  phone                                 String                   @default("")
+  email                                 String                   @default("")
+  address                               String                   @default("")
+  city                                  String                   @default("")
+  state                                 String                   @default("")
+  country                               String                   @default("")
+  rating                                Float?
+  lat                                   Float?
+  lng                                   Float?
+  reviewCount                           Int?
+  hasWebsite                            Boolean                  @default(false)
+  websiteUrl                            String                   @default("")
+  source                                String?                  @default("Google Maps")
+  status                                TechStatusBusinessLead[] @relation("TechStatusBusinessLead_businessLead")
+  instagram                             String                   @default("")
+  facebook                              String                   @default("")
+  xTwitter                              String                   @default("")
+  tiktok                                String                   @default("")
+  topReview1                            String                   @default("")
+  topReview2                            String                   @default("")
+  topReview3                            String                   @default("")
+  topReview4                            String                   @default("")
+  topReview5                            String                   @default("")
+  websitePromptContent                  String                   @default("")
+  activities                            TechSalesActivity[]      @relation("TechSalesActivity_businessLead")
+  tasks                                 TechTask[]               @relation("TechTask_businessLead")
+  proposals                             TechProposal[]           @relation("TechProposal_businessLead")
+  projects                              SaasProject[]            @relation("SaasProject_businessLead")
+  followUpTasks                         TechFollowUpTask[]       @relation("TechFollowUpTask_businessLead")
+  googleMapsUrl                         String                   @default("")
+  googlePlaceId                         String?                  @unique
+  sourceEstablishment                   TechInegiEstablishment?  @relation("TechBusinessLead_sourceEstablishment", fields: [sourceEstablishmentId], references: [id])
+  sourceEstablishmentId                 String?                  @map("sourceEstablishment")
+  salesPerson                           User[]                   @relation("TechBusinessLead_salesPerson")
+  saasCompany                           SaasCompany[]            @relation("SaasCompany_leads")
+  quotations                            SaasQuotation[]          @relation("SaasQuotation_lead")
+  whatsappMessages                      TechWhatsAppMessage[]    @relation("TechWhatsAppMessage_businessLead")
+  createdAt                             DateTime?                @default(now())
+  updatedAt                             DateTime?                @updatedAt
+  from_TechLeadStageChange_businessLead TechLeadStageChange[]    @relation("TechLeadStageChange_businessLead")
 
   @@index([businessName])
   @@index([category])
@@ -1387,11 +1475,34 @@ model TechStatusBusinessLead {
   salesPersonId    String?           @map("salesPerson")
   notes            String            @default("")
 
+  @@unique([businessLeadId, saasCompanyId])
   @@index([businessLeadId])
   @@index([opportunityLevel])
   @@index([pipelineStatus])
   @@index([saasCompanyId])
   @@index([salesPersonId])
+}
+
+model TechLeadStageChange {
+  id             String            @id @default(cuid())
+  company        SaasCompany?      @relation("TechLeadStageChange_company", fields: [companyId], references: [id])
+  companyId      String?           @map("company")
+  businessLead   TechBusinessLead? @relation("TechLeadStageChange_businessLead", fields: [businessLeadId], references: [id])
+  businessLeadId String?           @map("businessLead")
+  statusId       String            @default("")
+  fromStatus     String?
+  toStatus       String
+  changedBy      User?             @relation("TechLeadStageChange_changedBy", fields: [changedById], references: [id])
+  changedById    String?           @map("changedBy")
+  source         String?
+  changedAt      DateTime          @default(now())
+
+  @@index([companyId])
+  @@index([businessLeadId])
+  @@index([statusId])
+  @@index([toStatus])
+  @@index([changedById])
+  @@index([changedAt])
 }
 
 model TechWhatsAppMessage {
@@ -1625,6 +1736,12 @@ model User {
   createdAt                                DateTime?                @default(now())
   lastLoginAt                              DateTime?
   onboardingState                          Json?                    @default("{}")
+  suspendedAt                              DateTime?
+  suspendedReason                          String?
+  sessionVersion                           Int?                     @default(0)
+  anonymizedAt                             DateTime?
+  signupAttribution                        Json?
+  from_ActivityEvent_actor                 ActivityEvent[]          @relation("ActivityEvent_actor")
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")
   from_AnimalComment_user                  AnimalComment[]          @relation("AnimalComment_user")
@@ -1640,14 +1757,36 @@ model User {
   from_PostLike_user                       PostLike[]               @relation("PostLike_user")
   from_PostView_user                       PostView[]               @relation("PostView_user")
   from_Review_user                         Review[]                 @relation("Review_user")
+  from_SaasCompany_accountManager          SaasCompany[]            @relation("SaasCompany_accountManager")
+  from_SaasCompanyNote_author              SaasCompanyNote[]        @relation("SaasCompanyNote_author")
   from_SaasReferralCommission_referrer     SaasReferralCommission[] @relation("SaasReferralCommission_referrer")
   from_SaasReferralCommission_referredUser SaasReferralCommission[] @relation("SaasReferralCommission_referredUser")
+  from_TechLeadStageChange_changedBy       TechLeadStageChange[]    @relation("TechLeadStageChange_changedBy")
   from_TokenNotification_user              TokenNotification[]      @relation("TokenNotification_user")
+  from_UserActivityDay_user                UserActivityDay[]        @relation("UserActivityDay_user")
   from_WishList_user                       WishList[]               @relation("WishList_user")
 
   @@index([referredById])
   @@index([companyId])
   @@index([product])
+}
+
+model UserActivityDay {
+  id          String       @id @default(cuid())
+  key         String       @unique @default("")
+  user        User?        @relation("UserActivityDay_user", fields: [userId], references: [id])
+  userId      String?      @map("user")
+  company     SaasCompany? @relation("UserActivityDay_company", fields: [companyId], references: [id])
+  companyId   String?      @map("company")
+  day         DateTime     @postgresql.Date
+  minutes     Int?         @default(0)
+  firstSeenAt DateTime?
+  lastSeenAt  DateTime?
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([day])
+  @@index([lastSeenAt])
 }
 
 model UserAuthLog {
@@ -1661,6 +1800,8 @@ model UserAuthLog {
   emailMasked      String    @default("")
   responseSnapshot Json?
   durationMs       Int?
+  ip               String?
+  userAgent        String?
   createdAt        DateTime? @default(now())
 
   @@index([userId])

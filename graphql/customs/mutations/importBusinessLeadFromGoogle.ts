@@ -54,11 +54,11 @@ function parseAddressComponents(
   return { city, state, country };
 }
 
+/** Estatus compartido de la empresa: uno por (lead, empresa). El vendedor va en el lead. */
 async function ensureStatusForImport(
   context: KeystoneContext,
   leadId: string,
   companyId: string,
-  sellerId: string | null,
 ) {
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
     where: {
@@ -73,7 +73,6 @@ async function ensureStatusForImport(
     data: {
       businessLead: { connect: { id: leadId } },
       saasCompany: { connect: { id: companyId } },
-      ...(sellerId ? { salesPerson: { connect: { id: sellerId } } } : {}),
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
       opportunityLevel: "Media",
     },
@@ -153,7 +152,7 @@ const resolver = {
           ...(sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}),
         },
       });
-      await ensureStatusForImport(context, existing.id, companyId, sellerId);
+      await ensureStatusForImport(context, existing.id, companyId);
       return {
         success: true,
         message: "Lead asignado a tu empresa",
@@ -205,7 +204,7 @@ const resolver = {
       const lead = await context.sudo().query.TechBusinessLead.createOne({
         data: data as any,
       });
-      await ensureStatusForImport(context, lead.id, companyId, sellerId);
+      await ensureStatusForImport(context, lead.id, companyId);
       return {
         success: true,
         message: "Lead importado correctamente",

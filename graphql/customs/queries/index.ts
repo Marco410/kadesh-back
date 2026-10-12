@@ -14,6 +14,20 @@ import businessLeadWhatsappStatus from "./whatsapp/businessLeadWhatsappStatus";
 import companyWhatsappTeam from "./whatsapp/companyWhatsappTeam";
 import companyWhatsappTemplates from "./whatsapp/companyWhatsappTemplates";
 import syncGoogleCalendarNow from "./googleCalendar/syncGoogleCalendarNow";
+import { adminSharedTypeDefs } from "./admin/shared";
+import adminCompanies from "./admin/adminCompanies";
+import adminOpsSummary from "./admin/adminOpsSummary";
+import adminCompanyInsights from "./admin/adminCompanyInsights";
+import adminCompanyTrends from "./admin/adminCompanyTrends";
+import adminActivityFeed from "./admin/adminActivityFeed";
+import adminHealth from "./admin/adminHealth";
+import adminActivationFunnel from "./admin/adminActivationFunnel";
+import adminCohorts from "./admin/adminCohorts";
+import adminEngagement from "./admin/adminEngagement";
+import adminDemandGaps from "./admin/adminDemandGaps";
+import adminAcquisition from "./admin/adminAcquisition";
+import adminSalesVelocity from "./admin/adminSalesVelocity";
+import companyAnalytics from "./analytics/companyAnalytics";
 
 const customQuery = {
   typeDefs: `
@@ -30,6 +44,20 @@ const customQuery = {
     ${companyWhatsappTeam.typeDefs}
     ${companyWhatsappTemplates.typeDefs}
     ${syncGoogleCalendarNow.typeDefs}
+    ${adminSharedTypeDefs}
+    ${adminCompanies.typeDefs}
+    ${adminOpsSummary.typeDefs}
+    ${adminCompanyInsights.typeDefs}
+    ${adminCompanyTrends.typeDefs}
+    ${adminActivityFeed.typeDefs}
+    ${adminHealth.typeDefs}
+    ${adminActivationFunnel.typeDefs}
+    ${adminCohorts.typeDefs}
+    ${adminEngagement.typeDefs}
+    ${adminDemandGaps.typeDefs}
+    ${adminAcquisition.typeDefs}
+    ${adminSalesVelocity.typeDefs}
+    ${companyAnalytics.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -48,6 +76,19 @@ const customQuery = {
     ${companyWhatsappTeam.definition}
     ${companyWhatsappTemplates.definition}
     ${syncGoogleCalendarNow.definition}
+    ${adminCompanies.definition}
+    ${adminOpsSummary.definition}
+    ${adminCompanyInsights.definition}
+    ${adminCompanyTrends.definition}
+    ${adminActivityFeed.definition}
+    ${adminHealth.definition}
+    ${adminActivationFunnel.definition}
+    ${adminCohorts.definition}
+    ${adminEngagement.definition}
+    ${adminDemandGaps.definition}
+    ${adminAcquisition.definition}
+    ${adminSalesVelocity.definition}
+    ${companyAnalytics.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -66,6 +107,19 @@ const customQuery = {
     ...companyWhatsappTeam.resolver,
     ...companyWhatsappTemplates.resolver,
     ...syncGoogleCalendarNow.resolver,
+    ...adminCompanies.resolver,
+    ...adminOpsSummary.resolver,
+    ...adminCompanyInsights.resolver,
+    ...adminCompanyTrends.resolver,
+    ...adminActivityFeed.resolver,
+    ...adminHealth.resolver,
+    ...adminActivationFunnel.resolver,
+    ...adminCohorts.resolver,
+    ...adminEngagement.resolver,
+    ...adminDemandGaps.resolver,
+    ...adminAcquisition.resolver,
+    ...adminSalesVelocity.resolver,
+    ...companyAnalytics.resolver,
   },
 };
 

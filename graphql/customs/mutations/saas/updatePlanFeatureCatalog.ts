@@ -1,5 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { isPlatformAdmin } from "../../../../utils/access/tenant";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 const typeDefs = `
   input PlanFeatureCatalogItemInput {
@@ -157,6 +159,16 @@ const resolver = {
         data: { planFeatures: next },
       });
       subscriptionsUpdated += 1;
+    }
+
+    if (plansUpdated || subscriptionsUpdated) {
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_FEATURE_CATALOG_UPDATED,
+        companyId: null,
+        entityType: "SaasPlan",
+        summary: `Actualizó el texto de ${catalogByKey.size} módulo${catalogByKey.size === 1 ? "" : "s"}`,
+        metadata: { keys: [...catalogByKey.keys()], plansUpdated, subscriptionsUpdated },
+      });
     }
 
     return {

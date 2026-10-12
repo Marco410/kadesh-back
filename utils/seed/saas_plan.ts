@@ -111,6 +111,8 @@ const planFeaturesStarter = getPlanFeatures({
   quotations: false,
   workspaces: false,
   kadesh_ai: true,
+  // Las keys que faltan cuentan como incluidas: Analítica es de Pro, Agencia y la prueba gratis.
+  analytics: false,
 });
 
 const planFeaturesPro = getPlanFeatures({
@@ -131,6 +133,7 @@ const planFeaturesPro = getPlanFeatures({
   quotations: false,
   workspaces: false,
   kadesh_ai: true,
+  analytics: true,
 });
 
 const planFeaturesAgency = getPlanFeatures();

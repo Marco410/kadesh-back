@@ -31,12 +31,12 @@ export const saasReferralCommissionAccess: ListAccessControl<any> = {
     query: () => true,
     /** Las comisiones las genera el backend; solo admin crea/edita desde Admin si hace falta */
     create: ({ session }: any) => hasRole(session, [Role.ADMIN]),
-    update: () => true,
+    update: ({ session }: any) => hasRole(session, [Role.ADMIN]),
     delete: ({ session }: any) => hasRole(session, [Role.ADMIN]),
   },
   filter: {
     query: ({ session }: any) => referralCommissionFilter(session),
-    update: ({ session }: any) => referralCommissionFilter(session),
+    update: ({ session }: any) => hasRole(session, [Role.ADMIN]),
     delete: ({ session }: any) => {
       if (hasRole(session, [Role.ADMIN])) {
         return true;

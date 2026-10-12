@@ -14,6 +14,7 @@ import {
   saasCompanyAccess,
   aiApiKeyPreviewFieldAccess,
   whatsappTokenPreviewFieldAccess,
+  saasCompanyAccountControlFieldAccess,
 } from "./SaasCompany.access";
 import { saasCompanySubscriptionHook } from "./SaasCompany.hooks";
 import {
@@ -405,6 +406,35 @@ export default list({
       db: { isNullable: true },
       ui: {
         description: "Teléfono de contacto de la empresa",
+      },
+    }),
+    // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
+    suspendedAt: timestamp({
+      db: { isNullable: true },
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Suspendida por Kadesh: nadie del equipo puede entrar",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
+    suspendedReason: text({
+      db: { isNullable: true },
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Motivo de la suspensión (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
+    accountManager: relationship({
+      ref: "User",
+      many: false,
+      access: saasCompanyAccountControlFieldAccess,
+      ui: {
+        description: "Persona de Kadesh responsable de la cuenta (interno)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
       },
     }),
   

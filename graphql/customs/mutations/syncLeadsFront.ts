@@ -1,105 +1,20 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
 import { haversineDistance } from "../../../utils/helpers/calculate_distances";
 import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_text";
 import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";
 import { getRemainingCredits } from "../../../utils/helpers/tech/remaining_credits";
 import { consumeCompanyCredits } from "../../../utils/saas/companyCredits";
 import { getPlaceDetails } from "../../../utils/helpers/tech/place_details";
+import {
+  assignExistingLeadToCompany,
+  ensureLeadStatus,
+} from "../../../utils/helpers/tech/lead_assignment";
 
 /**
  * syncLeadsFront: asigna TechBusinessLead a la SaasCompany del usuario.
  * Relación N:M: un mismo lead puede estar en varias companies; solo usamos connect (nunca set/disconnect).
  * Mismo punto (lat/lng/radius/category) debe dar el mismo pool de leads para cualquier company.
  */
-/** Asegura que exista TechStatusBusinessLead para este lead + company con salesPerson; crea o actualiza. */
-async function ensureStatusForLeadAssignment(
-  context: KeystoneContext,
-  leadId: string,
-  companyId: string,
-  userId: string,
-  opportunityLevel: "Alta" | "Media" | "Baja" = "Media",
-): Promise<void> {
-  const [existing] = await context
-    .sudo()
-    .query.TechStatusBusinessLead.findMany({
-      where: {
-        businessLead: { id: { equals: leadId } },
-        saasCompany: { id: { equals: companyId } },
-      },
-      take: 1,
-      query: "id",
-    });
-  if (existing) {
-    await context.sudo().query.TechStatusBusinessLead.updateOne({
-      where: { id: (existing as { id: string }).id },
-      data: {
-        salesPerson: { connect: { id: userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel,
-      },
-    });
-  } else {
-    await context.sudo().query.TechStatusBusinessLead.createOne({
-      data: {
-        businessLead: { connect: { id: leadId } },
-        saasCompany: { connect: { id: companyId } },
-        salesPerson: { connect: { id: userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel,
-      },
-    });
-  }
-}
-
-/**
- * Liga un lead existente a la company y crea/actualiza su status.
- * Verifica que el connect quedó aplicado (el hook de tenant puede strippear
- * saasCompany en update si no es la propia empresa).
- */
-async function assignExistingLeadToCompany(
-  context: KeystoneContext,
-  leadId: string,
-  companyId: string,
-  userId: string,
-  opportunityLevel: "Alta" | "Media" | "Baja" = "Media",
-): Promise<boolean> {
-  try {
-    await context.sudo().query.TechBusinessLead.updateOne({
-      where: { id: leadId },
-      data: { saasCompany: { connect: { id: companyId } } },
-    });
-    const linked = await context.sudo().query.TechBusinessLead.findOne({
-      where: { id: leadId },
-      query: "id saasCompany { id }",
-    });
-    const companies =
-      (linked as { saasCompany?: { id: string }[] } | null)?.saasCompany ?? [];
-    if (!companies.some((c) => c.id === companyId)) {
-      console.warn(
-        "[syncLeadsFront] connect saasCompany no persistió; no se cobra este lead",
-        { leadId, companyId },
-      );
-      return false;
-    }
-    await ensureStatusForLeadAssignment(
-      context,
-      leadId,
-      companyId,
-      userId,
-      opportunityLevel,
-    );
-    return true;
-  } catch (err) {
-    console.warn("[syncLeadsFront] assignExistingLeadToCompany failed", {
-      leadId,
-      companyId,
-      err: err instanceof Error ? err.message : err,
-    });
-    return false;
-  }
-}
-
 const MIN_RATING = 0;
 const MIN_REVIEWS = 0;
 const DEFAULT_MAX_RESULTS = 60;
@@ -205,7 +120,6 @@ const resolver = {
 
     const session = context.session as { data?: { id: string } } | undefined;
     const userId = session?.data?.id;
-    // #region agent log
     console.log("[syncLeadsFront] START", {
       userId: userId ?? null,
       lat: input?.lat,
@@ -214,8 +128,6 @@ const resolver = {
       category: input?.category,
       maxResults: input?.maxResults,
     });
-    fetch('http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0a11d1'},body:JSON.stringify({sessionId:'0a11d1',runId:'pre-fix',hypothesisId:'D',location:'syncLeadsFront.ts:entry',message:'syncLeadsFront called',data:{hasUserId:!!userId,lat:input?.lat,lng:input?.lng,radius:input?.radius,category:input?.category,maxResults:input?.maxResults},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (!userId) {
       return {
         success: false,
@@ -370,12 +282,12 @@ const resolver = {
     // Asignar siempre los leads existentes en el área a esta company (solo connect: un mismo lead puede estar en varias companies).
     let assignedFromDb = 0;
     for (const leadId of existingIds) {
-      const ok = await assignExistingLeadToCompany(
-        context,
+      const ok = await assignExistingLeadToCompany(context, {
         leadId,
-        company.id,
+        companyId: company.id,
         userId,
-      );
+        logTag: "syncLeadsFront",
+      });
       if (ok) assignedFromDb++;
     }
     let syncedThisRequest = assignedFromDb;
@@ -461,7 +373,6 @@ const resolver = {
     let alreadyInDb = assignedFromDb;
     let skippedLowRating = 0;
     // currentSyncedCount y syncedThisRequest ya vienen de la asignación de existingIds
-    // #region agent log
     console.log("[syncLeadsFront] GOOGLE Nearby Search prep", {
       lat,
       lng,
@@ -474,8 +385,6 @@ const resolver = {
       syncedThisRequest,
       maxResults,
     });
-    fetch('http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0a11d1'},body:JSON.stringify({sessionId:'0a11d1',runId:'post-fix',hypothesisId:'credits+pages',location:'syncLeadsFront.ts:beforeGoogle',message:'About to collect Google Nearby pages first',data:{lat,lng,radius,radiusMeters,category,keyword,assignedFromDb,syncedThisRequest,maxResults},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     /** Cobra créditos de leads Google ya sincronizados (evita leads gratis si falla después). */
     let googleCreditsCharged = false;
@@ -490,9 +399,6 @@ const resolver = {
         syncedThisRequest,
         assignedFromDb,
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0a11d1'},body:JSON.stringify({sessionId:'0a11d1',runId:'post-fix',hypothesisId:'credits',location:'syncLeadsFront.ts:chargeCredits',message:'Consuming credits for Google-synced leads',data:{googleSynced,created,alreadyInDb,syncedThisRequest,assignedFromDb},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       const consumeResult = await consumeCompanyCredits(context, {
         companyId: company.id,
         amount: googleSynced,
@@ -540,7 +446,6 @@ const resolver = {
           ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${apiKey}`
           : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&keyword=${keyword}&key=${apiKey}&language=es`;
 
-        // #region agent log
         const urlForLog = url.replace(/key=[^&]+/, "key=REDACTED");
         console.log("[syncLeadsFront] GOOGLE page fetch", {
           page: page + 1,
@@ -548,8 +453,6 @@ const resolver = {
           collectedSoFar: nearbyPlaces.length,
           url: urlForLog,
         });
-        fetch('http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0a11d1'},body:JSON.stringify({sessionId:'0a11d1',runId:'post-fix',hypothesisId:'pages-first',location:'syncLeadsFront.ts:pageFetch',message:'Fetching nearby page before details',data:{page:page+1,hasPageToken:!!pageToken,collectedSoFar:nearbyPlaces.length},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
 
         const res = await fetch(url);
         const data = (await res.json()) as {
@@ -559,15 +462,12 @@ const resolver = {
           next_page_token?: string;
         };
 
-        // #region agent log
         console.log("[syncLeadsFront] GOOGLE page response", {
           page: page + 1,
           googleStatus: data?.status,
           resultsCount: Array.isArray(data?.results) ? data.results.length : 0,
           hasNextPageToken: !!data?.next_page_token,
         });
-        fetch('http://127.0.0.1:7352/ingest/c13a22b4-961b-4030-9e07-9a1b167ba855',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0a11d1'},body:JSON.stringify({sessionId:'0a11d1',runId:'post-fix',hypothesisId:'pages-first',location:'syncLeadsFront.ts:pageResponse',message:'Nearby page response',data:{page:page+1,googleStatus:data?.status,resultsCount:Array.isArray(data?.results)?data.results.length:0,hasNextPageToken:!!data?.next_page_token},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
 
         if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
           if (page === 0) {
@@ -642,13 +542,13 @@ const resolver = {
               : placeRating >= 4
                 ? "Media"
                 : "Baja";
-          const ok = await assignExistingLeadToCompany(
-            context,
+          const ok = await assignExistingLeadToCompany(context, {
             leadId,
-            company.id,
+            companyId: company.id,
             userId,
-            level,
-          );
+            opportunityLevel: level,
+            logTag: "syncLeadsFront",
+          });
           if (ok) {
             alreadyInDb++;
             syncedThisRequest++;
@@ -718,19 +618,16 @@ const resolver = {
           const newLead = await context.sudo().query.TechBusinessLead.createOne({
             data: leadData as any,
           });
-          await context.sudo().query.TechStatusBusinessLead.createOne({
-            data: {
-              businessLead: { connect: { id: newLead.id } },
-              saasCompany: { connect: { id: company.id } },
-              salesPerson: { connect: { id: userId } },
-              pipelineStatus: PIPELINE_STATUS.DETECTADO,
-              opportunityLevel:
-                placeRating >= 4.5
-                  ? "Alta"
-                  : placeRating >= 4
-                    ? "Media"
-                    : "Baja",
-            },
+          await ensureLeadStatus(context, {
+            leadId: newLead.id,
+            companyId: company.id,
+            userId,
+            opportunityLevel:
+              placeRating >= 4.5
+                ? "Alta"
+                : placeRating >= 4
+                  ? "Media"
+                  : "Baja",
           });
           created++;
           syncedThisRequest++;

@@ -1,4 +1,3 @@
-import customAuth from "./auth/customAuth";
 import authenticateUserWithGoogle from "./auth/authenticateUserWithGoogle";
 import registerUser from "./auth/registerUser";
 import importBusinessLeadFromGoogle from "./importBusinessLeadFromGoogle";
@@ -41,10 +40,13 @@ import disconnectGoogleCalendarAccount from "./googleCalendar/disconnectGoogleCa
 import refreshGoogleCalendarList from "./googleCalendar/refreshGoogleCalendarList";
 import toggleGoogleCalendarSelection from "./googleCalendar/toggleGoogleCalendarSelection";
 import setGoogleCalendarPushSettings from "./googleCalendar/setGoogleCalendarPushSettings";
+import trackEvents from "./activity/trackEvents";
+import adminCompanyOps from "./admin/companyOps";
+import adminAccountControl from "./admin/accountControl";
+import rollupDailyUsage from "./rollupDailyUsage";
 
 const customMutation = {
   typeDefs: `
-    ${customAuth.typeDefs}
     ${authenticateUserWithGoogle.typeDefs}
     ${registerUser.typeDefs}
     ${importPetPlace.typeDefs}
@@ -87,9 +89,12 @@ const customMutation = {
     ${refreshGoogleCalendarList.typeDefs}
     ${toggleGoogleCalendarSelection.typeDefs}
     ${setGoogleCalendarPushSettings.typeDefs}
+    ${trackEvents.typeDefs}
+    ${adminCompanyOps.typeDefs}
+    ${adminAccountControl.typeDefs}
+    ${rollupDailyUsage.typeDefs}
   `,
   definitions: `
-    ${customAuth.definition}
     ${authenticateUserWithGoogle.definition}
     ${registerUser.definition}
     ${importPetPlace.definition}
@@ -132,9 +137,12 @@ const customMutation = {
     ${refreshGoogleCalendarList.definition}
     ${toggleGoogleCalendarSelection.definition}
     ${setGoogleCalendarPushSettings.definition}
+    ${trackEvents.definition}
+    ${adminCompanyOps.definition}
+    ${adminAccountControl.definition}
+    ${rollupDailyUsage.definition}
   `,
   resolvers: {
-    ...customAuth.resolver,
     ...authenticateUserWithGoogle.resolver,
     ...registerUser.resolver,
     ...importPetPlace.resolver,
@@ -177,6 +185,10 @@ const customMutation = {
     ...refreshGoogleCalendarList.resolver,
     ...toggleGoogleCalendarSelection.resolver,
     ...setGoogleCalendarPushSettings.resolver,
+    ...trackEvents.resolver,
+    ...adminCompanyOps.resolver,
+    ...adminAccountControl.resolver,
+    ...rollupDailyUsage.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {

@@ -1,11 +1,12 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import {
-  LEAD_SOURCE,
-  PIPELINE_STATUS,
-} from "../../../../models/Saas/Tech/crm/constants";
+import { LEAD_SOURCE } from "../../../../models/Saas/Tech/crm/constants";
 import { haversineDistance } from "../../../../utils/helpers/calculate_distances";
 import { getRemainingCredits } from "../../../../utils/helpers/tech/remaining_credits";
 import { consumeCompanyCredits } from "../../../../utils/saas/companyCredits";
+import {
+  assignExistingLeadToCompany,
+  ensureLeadStatus,
+} from "../../../../utils/helpers/tech/lead_assignment";
 import {
   denueContains,
   denueKeywordVariants,
@@ -165,44 +166,6 @@ function boundingBoxFilters(lat: number, lng: number, radiusKm: number) {
   ];
 }
 
-async function ensureStatus(
-  context: KeystoneContext,
-  leadId: string,
-  companyId: string,
-  userId: string,
-) {
-  const [existing] = await context
-    .sudo()
-    .query.TechStatusBusinessLead.findMany({
-      where: {
-        businessLead: { id: { equals: leadId } },
-        saasCompany: { id: { equals: companyId } },
-      },
-      take: 1,
-      query: "id",
-    });
-  if (existing) {
-    await context.sudo().query.TechStatusBusinessLead.updateOne({
-      where: { id: existing.id },
-      data: {
-        salesPerson: { connect: { id: userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel: "Media",
-      },
-    });
-    return;
-  }
-  await context.sudo().query.TechStatusBusinessLead.createOne({
-    data: {
-      businessLead: { connect: { id: leadId } },
-      saasCompany: { connect: { id: companyId } },
-      salesPerson: { connect: { id: userId } },
-      pipelineStatus: PIPELINE_STATUS.DETECTADO,
-      opportunityLevel: "Media",
-    },
-  });
-}
-
 async function logResult(
   context: KeystoneContext,
   userId: string | undefined,
@@ -280,6 +243,34 @@ function leadDataFromEstablishment(
   };
 }
 
+/**
+ * Ids de establecimientos del catálogo que la empresa ya tiene como lead.
+ * No cuentan como "disponibles": si se contaran, la sync creería que el catálogo alcanza,
+ * no buscaría en INEGI y diría "no hay nuevos" aunque sí los haya.
+ */
+export async function establishmentsOwnedByCompany(
+  context: KeystoneContext,
+  companyId: string,
+  establishmentIds: string[],
+): Promise<Set<string>> {
+  if (establishmentIds.length === 0) return new Set();
+  const leads = (await context.sudo().query.TechBusinessLead.findMany({
+    where: {
+      AND: [
+        { sourceEstablishment: { id: { in: establishmentIds } } },
+        { saasCompany: { some: { id: { equals: companyId } } } },
+      ],
+    },
+    take: establishmentIds.length,
+    query: "sourceEstablishment { id }",
+  })) as Array<{ sourceEstablishment?: { id: string } | null }>;
+  return new Set(
+    leads
+      .map((lead) => lead.sourceEstablishment?.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+}
+
 type AssignKind = "skipped" | "assigned" | "created";
 
 async function assignEstablishment(
@@ -300,15 +291,15 @@ async function assignEstablishment(
       (c) => c.id === companyId,
     );
     if (already) return "skipped";
-    await context.sudo().query.TechBusinessLead.updateOne({
-      where: { id: existing.id },
-      data: {
-        saasCompany: { connect: [{ id: companyId }] },
-        salesPerson: { connect: [{ id: userId }] },
-      },
+    // Solo cuenta (y se cobra) si el lead quedó ligado a la empresa.
+    const assigned = await assignExistingLeadToCompany(context, {
+      leadId: existing.id,
+      companyId,
+      userId,
+      connectSeller: true,
+      logTag: "syncLeadsFromInegi",
     });
-    await ensureStatus(context, existing.id, companyId, userId);
-    return "assigned";
+    return assigned ? "assigned" : "skipped";
   }
 
   const lead = await context.sudo().query.TechBusinessLead.createOne({
@@ -320,7 +311,7 @@ async function assignEstablishment(
     ) as any,
     query: "id",
   });
-  await ensureStatus(context, lead.id, companyId, userId);
+  await ensureLeadStatus(context, { leadId: lead.id, companyId, userId });
   return "created";
 }
 
@@ -505,18 +496,16 @@ const resolver = {
     });
 
     let assignedFromDb = 0;
+    // Antes se creaba el status y se cobraba aunque el connect no quedara guardado.
     for (const leadId of toAssignFromCrm) {
-      try {
-        await context.sudo().query.TechBusinessLead.updateOne({
-          where: { id: leadId },
-          data: {
-            saasCompany: { connect: [{ id: company.id }] },
-            salesPerson: { connect: [{ id: userId }] },
-          },
-        });
-        await ensureStatus(context, leadId, company.id, userId);
-        assignedFromDb += 1;
-      } catch (_) {}
+      const ok = await assignExistingLeadToCompany(context, {
+        leadId,
+        companyId: company.id,
+        userId,
+        connectSeller: true,
+        logTag: "syncLeadsFromInegi",
+      });
+      if (ok) assignedFromDb += 1;
     }
 
     let syncedThisRequest = assignedFromDb;
@@ -629,23 +618,34 @@ const resolver = {
       nearbyInRadius: nearbyCatalog.length,
     });
 
+    // Lo que la empresa ya tiene no está disponible: no cuenta para decidir si basta el catálogo.
+    const ownedEstablishments = await establishmentsOwnedByCompany(
+      context,
+      company.id,
+      nearbyCatalog.map((row) => row.id),
+    );
+    const availableInCatalog = nearbyCatalog.filter(
+      (row) => !ownedEstablishments.has(row.id),
+    ).length;
+
     const token = process.env.INEGI_DENUE_TOKEN?.trim();
     const stillNeed = maxResults - syncedThisRequest;
-    const willCallDenue = nearbyCatalog.length < stillNeed && Boolean(token);
+    const willCallDenue = availableInCatalog < stillNeed && Boolean(token);
     console.log("[syncLeadsFromInegi] DENUE live sync decision", {
       stillNeed,
       nearbyCatalog: nearbyCatalog.length,
+      availableInCatalog,
       willCallDenue,
       radiusKm,
       radiusMetersCap: DENUE_MAX_RADIUS_METERS,
       reasonSkipDenue: !token
         ? "no_token"
-        : nearbyCatalog.length >= stillNeed
+        : availableInCatalog >= stillNeed
           ? "catalog_sufficient"
           : null,
     });
 
-    if (nearbyCatalog.length < stillNeed && token) {
+    if (willCallDenue) {
       const radiusMeters = Math.min(
         Math.max(1, Math.round(radiusKm * 1000)),
         DENUE_MAX_RADIUS_METERS,
@@ -748,6 +748,7 @@ const resolver = {
     for (const establishment of nearbyCatalog) {
       if (syncedThisRequest >= maxResults) break;
       if (leadLimit !== null && currentSyncedCount >= leadLimit) break;
+      if (ownedEstablishments.has(establishment.id)) continue;
       try {
         const kind = await assignEstablishment(
           context,

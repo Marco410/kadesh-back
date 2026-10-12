@@ -4,6 +4,8 @@ import {
   canManageCompanyWhatsapp,
   denyCompanyWhatsappAccessMessage,
 } from "./access";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 /**
  * Asignar un chat = asignar el lead a ese vendedor (`TechBusinessLead.salesPerson`). No hay un
@@ -75,12 +77,29 @@ const resolver = {
       });
 
       const name = [person.name, person.lastName].filter(Boolean).join(" ");
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.WHATSAPP_CONVERSATION_ASSIGNED,
+        companyId: effectiveCompanyId,
+        entityType: "TechBusinessLead",
+        entityId: businessLeadId,
+        summary: `Asignó el chat de ${lead.businessName ?? "un lead"} a ${name || "un vendedor"}`,
+        metadata: { toUserId: salesPersonId, to: name || null },
+      });
       return toResult(true, `Chat asignado a ${name || "el vendedor"}`);
     }
 
     await context.sudo().query.TechBusinessLead.updateOne({
       where: { id: businessLeadId },
       data: { salesPerson: { set: [] } },
+    });
+
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.WHATSAPP_CONVERSATION_ASSIGNED,
+      companyId: effectiveCompanyId,
+      entityType: "TechBusinessLead",
+      entityId: businessLeadId,
+      summary: `Dejó sin asignar el chat de ${lead.businessName ?? "un lead"}`,
+      metadata: { toUserId: null, to: null },
     });
 
     return toResult(true, "Chat sin asignar. Solo lo ven los administradores.");

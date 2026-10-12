@@ -34,6 +34,8 @@ export const PERMISSION_KEYS = {
   ESPACIOS_MIEMBROS: "espacios.miembros",
   WHATSAPP_VER: "whatsapp.ver",
   WHATSAPP_CONFIGURAR: "whatsapp.configurar",
+  ANALITICA_VER: "analitica.ver",
+  ANALITICA_VER_EQUIPO: "analitica.ver_equipo",
 } as const;
 
 export type PermissionKey =

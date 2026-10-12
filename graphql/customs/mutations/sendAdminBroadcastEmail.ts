@@ -6,6 +6,8 @@ import {
   type AdminBroadcastAudience,
   type EmailBrand,
 } from "../../../utils/helpers/sendgrid";
+import { ACTIVITY_EVENT } from "../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../utils/activity/logActivity";
 import { isSmtpConfigured } from "../../../utils/intregrations/smtpMail";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -260,6 +262,24 @@ const resolver = {
       }
 
       const ok = result.failedCount === 0;
+      // El cuerpo no se guarda: solo a quién, cuántos y el asunto.
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_EMAIL_BROADCAST,
+        companyId: null,
+        entityType: "Email",
+        summary: `Envió el correo "${subject}" a ${result.sentCount} destinatarios`,
+        success: ok,
+        errorMessage: ok ? null : `Fallaron ${result.failedCount} envíos`,
+        metadata: {
+          audience,
+          brand,
+          subject,
+          recipientCount: result.recipientCount,
+          sentCount: result.sentCount,
+          failedCount: result.failedCount,
+          customRecipients: audience === "custom" ? customEmails?.length ?? 0 : null,
+        },
+      });
       return {
         success: ok,
         message: ok

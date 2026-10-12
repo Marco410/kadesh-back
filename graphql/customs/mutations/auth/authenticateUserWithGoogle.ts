@@ -11,6 +11,8 @@ import {
 } from "../../../../utils/auth/signupRoles";
 import { provisionSignupCompany } from "../../../../utils/access/provisionSignupCompany";
 import { PRODUCT } from "../../../../utils/constants/product";
+import { SUSPENDED_MESSAGE, loginBlockedReason } from "../../../../auth/sessionGuards";
+import { cleanAttribution } from "../../../../utils/analytics/attribution";
 
 const typeDefs = `
   # isNewUser: alta nueva, no el inicio de sesión de una cuenta ya existente.
@@ -35,6 +37,7 @@ const definition = `
     idToken: String!
     referrerCode: String
     product: String
+    attribution: JSON
   ): AuthenticateUserWithGoogleResult!
 `;
 
@@ -89,10 +92,12 @@ const resolver = {
       idToken,
       referrerCode,
       product,
+      attribution,
     }: {
       idToken: string;
       referrerCode?: string | null;
       product?: string | null;
+      attribution?: unknown;
     },
     context: KeystoneContext,
   ) => {
@@ -170,6 +175,7 @@ const resolver = {
             product: isSaas ? PRODUCT.SAAS : PRODUCT.PET,
             referredBy: referredByConnect,
             roles: signupRoles,
+            signupAttribution: cleanAttribution(attribution) ?? undefined,
           },
           query: USER_QUERY,
         });
@@ -186,6 +192,11 @@ const resolver = {
           payload.email,
         );
       }
+    }
+
+    // Cuenta suspendida (o su empresa) o anonimizada: no se inicia sesión.
+    if (await loginBlockedReason(context, user.id)) {
+      return fail(SUSPENDED_MESSAGE, payload.email, user.id);
     }
 
     user = await context.sudo().query.User.updateOne({

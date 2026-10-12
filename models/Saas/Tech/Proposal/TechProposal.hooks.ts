@@ -2,6 +2,7 @@ import { PROPOSAL_STATUS } from "../crm/constants";
 import { PIPELINE_STATUS } from "../crm/constants";
 import { validateTechStatusCrmInput } from "../../../../utils/validation/validateTechStatusCrm";
 import { crmCalendarHooks } from "../../../../utils/googleCalendar/crmEvents";
+import { getSessionCompanyId } from "../../../../utils/access/tenant";
 
 /**
  * Cuando una propuesta pasa a "Aceptada", marcar el BusinessLead como "Cerrado Ganado".
@@ -40,7 +41,7 @@ export const proposalHooks = {
     ) {
       const proposal = await context.query.TechProposal.findOne({
         where: { id: item.id },
-        query: "id status businessLead { id }",
+        query: "id status businessLead { id } workspace { company { id } }",
       });
       if (
         !proposal?.businessLead?.id ||
@@ -48,14 +49,23 @@ export const proposalHooks = {
       )
         return;
 
+      // El estatus es uno por (lead, empresa): se mueve el de la empresa de la propuesta.
+      const companyId =
+        proposal.workspace?.company?.id ?? getSessionCompanyId(context.session);
+      if (!companyId) return;
+
       try {
-        const lead = await context.query.TechBusinessLead.findOne({
-          where: { id: proposal.businessLead.id },
-          query: "id status { id }",
+        const [status] = await context.sudo().query.TechStatusBusinessLead.findMany({
+          where: {
+            businessLead: { id: { equals: proposal.businessLead.id } },
+            saasCompany: { id: { equals: companyId } },
+          },
+          take: 1,
+          query: "id",
         });
-        if (lead?.status?.id) {
+        if (status?.id) {
           await context.db.TechStatusBusinessLead.updateOne({
-            where: { id: lead.status.id },
+            where: { id: status.id },
             data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO },
           });
         }

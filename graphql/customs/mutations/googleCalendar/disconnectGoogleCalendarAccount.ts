@@ -4,10 +4,13 @@ import { deleteSelections } from "../../../../utils/googleCalendar/calendars";
 import { revokeGoogleToken } from "../../../../utils/googleCalendar/oauth";
 import {
   ACCOUNT_SCOPE_QUERY,
+  accountCompanyId,
   canManageGoogleCalendarAccount,
   denyGoogleCalendarAccessMessage,
   type GoogleAccountScope,
 } from "./access";
+import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { logActivity } from "../../../../utils/activity/logActivity";
 
 const typeDefs = `
   type GoogleCalendarActionResult {
@@ -33,8 +36,14 @@ const resolver = {
     const sudo = context.sudo();
     const account = (await sudo.query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
-      query: `id refreshTokenEncrypted ${ACCOUNT_SCOPE_QUERY}`,
-    })) as (GoogleAccountScope & { id: string; refreshTokenEncrypted?: string | null }) | null;
+      query: `id googleAccountEmail refreshTokenEncrypted ${ACCOUNT_SCOPE_QUERY}`,
+    })) as
+      | (GoogleAccountScope & {
+          id: string;
+          googleAccountEmail?: string | null;
+          refreshTokenEncrypted?: string | null;
+        })
+      | null;
 
     if (!account) return { success: false, message: "Cuenta no encontrada" };
     if (!canManageGoogleCalendarAccount(context.session, account)) {
@@ -51,6 +60,14 @@ const resolver = {
       })) as { id: string }[];
       await deleteSelections(context, selections.map((s) => s.id));
       await sudo.query.GoogleCalendarAccount.deleteOne({ where: { id: accountId } });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.CALENDAR_DISCONNECTED,
+        companyId: accountCompanyId(account),
+        entityType: "GoogleCalendarAccount",
+        entityId: accountId,
+        summary: `Desconectó Google Calendar${account.googleAccountEmail ? ` (${account.googleAccountEmail})` : ""}`,
+        metadata: { scopeType: account.scopeType ?? null },
+      });
       return { success: true, message: "Cuenta de Google desconectada" };
     } catch (err) {
       console.error("disconnectGoogleCalendarAccount:", err);

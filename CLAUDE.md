@@ -36,6 +36,7 @@ Per-list conventions:
 
 **Auth** (`auth/`):
 - `auth/auth.ts` sets up `@keystone-6/auth` (`withAuth`), keyed on `User.email`, with a stateless cookie session (`auth/auth.ts` session secret from `SESSION_SECRET`, falls back to a random one outside production). `sessionData` determines what's available on `context.session.data` in access/hooks.
+- `auth/sessionGuards.ts` wraps the session strategy in `keystone.ts` (`withSessionGuards(withAuth(...))`): every request drops sessions whose `sessionVersion` changed, suspended users/companies, anonymized users, and expired "entrar como" tokens. `auth/impersonation.ts` is an Apollo plugin that blocks mutations for impersonation tokens. When a request sent a token that is no longer valid (revoked, suspended, anonymized, expired), `sessionEndedNoticePlugin` adds `extensions.session: { status, message }` to the response so the front sends the person to the login with that message. If you add fields it needs, add them to `sessionData` in `auth/auth.ts`.
 - `auth/permissions.ts` provides `hasRole(session, allowedRoles)` and `validateAccess(session, roles)`. **`Role.ADMIN` always has every permission** — `hasRole` implicitly appends it to any allowed-roles list. List access files (e.g. `User.access.ts`) call `hasRole` inside `operation`/`filter`/`item` access functions.
 
 **Custom GraphQL** (`graphql/`): Keystone's generated schema is extended, not replaced.
@@ -43,12 +44,15 @@ Per-list conventions:
 - `graphql/customs/mutations/index.ts` aggregates every custom mutation module's `{ typeDefs, definition, resolver }` into one object consumed by `extendedSchema.ts`.
 - Each custom mutation is its own file (e.g. `nearbyPetPlaces.ts`, `importPetPlace.ts`, `auth/customAuth.ts`) exporting `{ typeDefs, definition, resolver }`: `typeDefs` declares any new GraphQL types/inputs plus a `type Mutation { ... }` block (for local type-checking/documentation), `definition` is just the mutation signature line reused in the merged `Mutation` type, and `resolver` is the resolver map entry. New custom mutations must follow this shape and be added to `graphql/customs/mutations/index.ts`.
 - Custom resolvers commonly use `context.sudo().query.<List>.findOne/findMany/createOne/updateOne` to bypass access control for privileged operations (e.g. deduping/creating `PetPlace` records from external API data).
+- Keystone's `context.prisma` **returns** Prisma errors as a `GraphQLError` value instead of throwing them. A failed `prisma.x.create()` or raw query does not throw: check `result instanceof Error` when it matters (`unwrapPrisma` / `optionalRead` in `graphql/customs/queries/admin/shared.ts`).
 
 **Seeding** (`utils/seed/`): `seed.ts` (root) boots a Keystone context via `getContext` and runs `utils/seed/index.ts`, which composes per-entity seed files (`user.ts`, `animal_types.ts`, `pet_place_types.ts`, `veterinary.ts`, `veterinary_services.ts`).
 
 **Shared utils** (`utils/`): `utils/constants/constants.ts` holds cross-cutting constant lists (e.g. `TYPES_PET_SHELTER`, used by both seed data and custom mutations); `utils/generalAccess/access.ts` is the default open-access policy for lists with no custom access rules; `utils/helpers/` holds small helpers (e.g. `unike_link.ts` for generating unique usernames/slugs).
 
 **Admin UI customization** (`admin/`): `admin/config.ts` registers custom Admin UI React components (`admin/components/`) like `CustomNavigation` and `CustomLogo`, wired into `keystone.ts`'s `ui` config.
+
+**Activity log** (`models/ActivityEvent/`, `utils/activity/`): `ActivityEvent` records who changed what (CRM, team, plans, Stripe lifecycle, admin views, browser events via `trackEvents`). Lists in `models/schema.ts` are wrapped with `withActivityHooks`, which logs changes made by people (non-sudo context only). Server-side writes done with `context.sudo()` in custom mutations must call `logActivity` explicitly (fire-and-forget, never throws). Never log passwords, tokens, prompts or message bodies. See `models/ActivityEvent/README.md`. Failed GraphQL requests from signed-in people are logged as `app.error` by `utils/activity/appErrorsPlugin.ts` (operation name and message only, never variables). Pipeline stage changes are recorded for every write (also sudo) in `TechLeadStageChange` by the `TechStatusBusinessLead` hook; see its README.
 
 **IA / Cerebro Kadesh** (`docs/ai/`): capa de IA a nivel `SaasCompany`. Cifrado en `utils/helpers/encryption.ts`, adapters en `utils/ai/`, mutaciones en `graphql/customs/mutations/ai/`. La IA managed consume los **mismos** créditos del periodo mensual (tokens → créditos, ver `docs/ai/precio-tokens.md`). Cada llamada queda en `TechAiCallLog`.
 

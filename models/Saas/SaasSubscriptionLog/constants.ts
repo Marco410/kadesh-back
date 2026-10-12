@@ -1,6 +1,8 @@
 /** Codes for SaasSubscriptionLog.step — filterable in Admin */
 export const SAAS_SUBSCRIPTION_LOG_STEP = {
   STRIPE_KEY_MISSING: "STRIPE_KEY_MISSING",
+  /** La sesión no es la del correo que paga (ni admin de plataforma). */
+  SESSION_MISMATCH: "SESSION_MISMATCH",
   USER_NOT_FOUND: "USER_NOT_FOUND",
   NO_COMPANY: "NO_COMPANY",
   NO_PLAN_RESOLVED: "NO_PLAN_RESOLVED",
