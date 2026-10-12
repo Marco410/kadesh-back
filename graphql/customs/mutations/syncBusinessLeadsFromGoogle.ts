@@ -1,6 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../../models/Role/constants";
-import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
 import { isPlatformAdmin } from "../../../utils/access/tenant";
 
 /** Obtiene los IDs de usuarios con salesPersonVerified = true, para asignación round-robin de leads. */
@@ -280,15 +279,10 @@ const resolver = {
           }
 
           try {
-            const lead = await context.sudo().query.TechBusinessLead.createOne({
+            // Sin empresa no hay pipeline: el estatus es por (lead, empresa) y se crea cuando
+            // una empresa se queda con el lead.
+            await context.sudo().query.TechBusinessLead.createOne({
               data: leadData as any,
-            });
-            await context.sudo().query.TechStatusBusinessLead.createOne({
-              data: {
-                businessLead: { connect: { id: lead.id } },
-                pipelineStatus: PIPELINE_STATUS.DETECTADO,
-                opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja",
-              },
             });
             created++;
           } catch (_) {

@@ -1475,6 +1475,7 @@ model TechStatusBusinessLead {
   salesPersonId    String?           @map("salesPerson")
   notes            String            @default("")
 
+  @@unique([businessLeadId, saasCompanyId])
   @@index([businessLeadId])
   @@index([opportunityLevel])
   @@index([pipelineStatus])

@@ -19,6 +19,7 @@
     "clickup:register-webhook": "tsx scripts/registerClickUpWebhook.ts",
     "meta:sign-request": "tsx scripts/signMetaRequest.ts",
     "leads:repair-unlinked": "tsx scripts/repairUnlinkedLeads.ts",
+    "leads:merge-status": "tsx scripts/mergeLeadStatusPerCompany.ts",
     "activity:prune": "tsx scripts/pruneActivityEvents.ts",
     "usage:rollup": "tsx scripts/rollupDailyUsage.ts",
     "pipeline:backfill": "tsx scripts/backfillStageChanges.ts"

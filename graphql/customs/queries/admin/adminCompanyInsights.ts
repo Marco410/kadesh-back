@@ -363,11 +363,20 @@ const resolver = {
         _count: { _all: true },
         _max: { createdAt: true },
       }),
-      prisma.techStatusBusinessLead.groupBy({
-        by: ["salesPersonId"],
-        where: { saasCompanyId: companyId, salesPersonId: { in: userIds } },
-        _count: { _all: true },
-      }),
+      // Leads asignados = `TechBusinessLead.salesPerson` (N:M, no se puede agrupar): uno por persona.
+      Promise.all(
+        userIds.map(async (salesPersonId: string) => ({
+          salesPersonId,
+          _count: {
+            _all: await prisma.techBusinessLead.count({
+              where: {
+                saasCompany: { some: { id: companyId } },
+                salesPerson: { some: { id: salesPersonId } },
+              },
+            }),
+          },
+        })),
+      ),
       prisma.techSalesActivity.groupBy({
         by: ["createdById"],
         where: { AND: [crmScope, { createdAt: { gte: since } }] },
@@ -483,8 +492,8 @@ const resolver = {
       prisma.techBusinessLead.count({
         where: { saasCompany: { some: { id: companyId } } },
       }),
-      prisma.techStatusBusinessLead.count({
-        where: { saasCompanyId: companyId, salesPersonId: null },
+      prisma.techBusinessLead.count({
+        where: { saasCompany: { some: { id: companyId } }, salesPerson: { none: {} } },
       }),
       prisma.techLeadSyncLog.aggregate({
         where: { companyId, createdAt: { gte: since } },

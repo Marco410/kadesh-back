@@ -10,8 +10,16 @@ import { PIPELINE_STATUS } from "../../models/Saas/Tech/crm/constants";
  * - Ganado = Propuesta Aceptada o Cerrado Ganado. Perdido = Rechazada, Cerrado Perdido o Descartado.
  * - El historial existe desde que se empezó a guardar: lo anterior no se puede reconstruir, por eso
  *   se devuelve `dataSince` y el ciclo de venta solo cuenta leads que vimos entrar al pipeline.
- * - El vendedor de un trato es el que tiene asignado hoy (`TechStatusBusinessLead.salesPerson`).
+ * - El vendedor de un trato es el que tiene asignado hoy el lead en esa empresa
+ *   (`TechBusinessLead.salesPerson`; el estatus es de la empresa, no de un vendedor).
  */
+
+type StatusSellers = {
+  id: string;
+  saasCompanyId: string | null;
+  businessLeadId: string | null;
+  businessLead: { salesPerson: Array<{ id: string; companyId: string | null }> } | null;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const P = PIPELINE_STATUS;
@@ -229,23 +237,35 @@ export async function computeSalesVelocity(prisma: any, options: SalesVelocityOp
       [],
     ),
     needStatuses
-      ? rows<Array<{ id: string; salesPersonId: string | null; businessLeadId: string | null }>>(
+      ? rows<StatusSellers[]>(
           () =>
             prisma.techStatusBusinessLead.findMany({
               where: { saasCompanyId: companyWhere },
-              select: { id: true, salesPersonId: true, businessLeadId: true },
+              select: {
+                id: true,
+                saasCompanyId: true,
+                businessLeadId: true,
+                businessLead: { select: { salesPerson: { select: { id: true, companyId: true } } } },
+              },
             }),
           [],
         )
-      : Promise.resolve([] as Array<{ id: string; salesPersonId: string | null; businessLeadId: string | null }>),
+      : Promise.resolve([] as StatusSellers[]),
   ]);
 
-  const sellerOf = new Map(statuses.map((status) => [status.id, status.salesPersonId ?? ""]));
+  // Vendedores del lead que son de la empresa del estatus (un lead puede estar en varias empresas).
+  const sellersOf = (status: StatusSellers) =>
+    (status.businessLead?.salesPerson ?? [])
+      .filter((user) => user.companyId === status.saasCompanyId)
+      .map((user) => user.id);
+  const sellerOf = new Map(statuses.map((status) => [status.id, sellersOf(status)[0] ?? ""]));
   // Vendedor sin permiso de ver al equipo: solo sus tratos y las conversaciones con sus leads.
-  const ownLeadIds = sellerScope
-    ? new Set(statuses.filter((s) => s.salesPersonId === sellerScope && s.businessLeadId).map((s) => s.businessLeadId as string))
+  const ownStatuses = sellerScope ? statuses.filter((s) => sellersOf(s).includes(sellerScope)) : null;
+  const ownStatusIds = ownStatuses ? new Set(ownStatuses.map((s) => s.id)) : null;
+  const ownLeadIds = ownStatuses
+    ? new Set(ownStatuses.filter((s) => s.businessLeadId).map((s) => s.businessLeadId as string))
     : null;
-  const changes = sellerScope ? allChanges.filter((change) => sellerOf.get(change.statusId) === sellerScope) : allChanges;
+  const changes = ownStatusIds ? allChanges.filter((change) => ownStatusIds.has(change.statusId)) : allChanges;
   const messages = ownLeadIds ? allMessages.filter((m) => ownLeadIds.has(m.businessLeadId)) : allMessages;
 
   const byStatus = new Map<string, Change[]>();

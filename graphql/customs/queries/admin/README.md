@@ -52,6 +52,8 @@ Métricas del 360 de una empresa en la ventana: por persona (accesos, último ac
 
 Alcance del CRM (`crmCompanyScope`): el item cuenta para la empresa si su workspace es de la empresa o, sin workspace, si quien lo creó o lo tiene asignado es de la empresa. El lead solo no basta porque los leads se comparten entre empresas.
 
+Leads asignados por persona y `leadsWithoutOwner` salen de `TechBusinessLead.salesPerson` (el estatus es uno por empresa, no por vendedor).
+
 Por persona también: `lastSeenAt` (latido), `activeDays`, `activeMinutes` y `changes` (eventos de `ActivityEvent` en la ventana, sin navegación).
 
 `usage` (Fase 2): minutos activos del equipo (total y por día), personas que entraron, secciones del panel más abiertas, módulos bloqueados que vieron, clics en "mejorar plan" y exportaciones. `ready: false` mientras no exista la migración: el front oculta la tarjeta.

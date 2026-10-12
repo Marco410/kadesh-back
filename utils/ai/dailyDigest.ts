@@ -287,8 +287,9 @@ export async function gatherDailyDigestSnapshot(
   const today = todayKey();
   const coldSince = daysAgoKey(COLD_LEAD_DAYS);
   const sudo = context.sudo();
+  // El estatus es de la empresa; lo del vendedor = estatus de los leads que tiene asignados.
   const sellerStatus = params.salesPersonId
-    ? { salesPerson: { id: { equals: params.salesPersonId } } }
+    ? { businessLead: { salesPerson: { some: { id: { equals: params.salesPersonId } } } } }
     : {};
   const sellerQuote = params.salesPersonId
     ? { assignedSeller: { id: { equals: params.salesPersonId } } }
@@ -347,9 +348,7 @@ export async function gatherDailyDigestSnapshot(
           { saasCompany: { id: { equals: params.companyId } } },
           { firstContactDate: { lte: coldSince } },
           { pipelineStatus: { notIn: CLOSED_PIPELINE } },
-          ...(params.salesPersonId
-            ? [{ salesPerson: { id: { equals: params.salesPersonId } } }]
-            : []),
+          ...(params.salesPersonId ? [sellerStatus] : []),
         ],
       },
       orderBy: [{ firstContactDate: "asc" }],

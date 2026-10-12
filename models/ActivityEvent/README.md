@@ -53,7 +53,7 @@ Tres caminos:
 
 | List | Qué registra |
 | --- | --- |
-| `TechStatusBusinessLead` | Etapa del pipeline (de → a), vendedor, oportunidad, datos de seguimiento, quitar del CRM |
+| `TechStatusBusinessLead` | Etapa del pipeline (de → a), oportunidad, datos de seguimiento, quitar del CRM. La asignación ya no se registra aquí (el estatus es de la empresa), sino desde `TechBusinessLead` |
 | `TechBusinessLead` | Vendedores conectados/desconectados, campos editados (solo nombres), borrado |
 | `SaasQuotation` | Cambio de estatus (`quotation.sent/accepted/rejected/expired/reopened`), borrado |
 | `TechProposal` | Estatus, aprobada, pagada, columna del tablero, borrado |

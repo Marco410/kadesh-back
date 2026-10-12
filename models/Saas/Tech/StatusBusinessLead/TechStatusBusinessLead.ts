@@ -25,8 +25,17 @@ const opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
   value: v,
 }));
 
+/**
+ * Estatus del lead en el pipeline de una empresa: hay UNA fila por (lead, SaasCompany) y todo el
+ * equipo de la empresa la comparte (antes había una por vendedor y nadie veía los cambios de los
+ * demás). El índice único lo garantiza en BD; ver README.md.
+ */
 export default list({
   access: statusBusinessLeadAccess,
+  db: {
+    extendPrismaSchema: (schema) =>
+      schema.replace(/\n\}\s*$/, "\n  @@unique([businessLeadId, saasCompanyId])\n}"),
+  },
   hooks: {
     resolveInput: statusBusinessLeadHooks.resolveInput,
     // Historial de etapas (velocidad comercial): toda escritura, de personas o del servidor.
@@ -111,10 +120,15 @@ export default list({
       many: false,
       ui: { description: "Empresa a la que pertenece el lead" },
     }),
+    /**
+     * @deprecated El estatus es de la empresa, no de un vendedor. Se conserva la columna por los
+     * datos históricos; el hook la ignora en escrituras. El vendedor asignado es
+     * `TechBusinessLead.salesPerson`.
+     */
     salesPerson: relationship({
       ref: "User.techStatusBusinessLeads",
       many: false,
-      ui: { description: "Vendedor asignado" },
+      ui: { description: "Deprecado: el vendedor asignado vive en el lead (TechBusinessLead.salesPerson)" },
     }),
     notes: text({
       ui: { displayMode: "textarea", description: "Notas generales" },

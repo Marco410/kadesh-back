@@ -246,23 +246,8 @@ const statusBusinessLeadTracker: Tracker = {
       });
     }
 
-    if (isChanged(before.salesPersonId, after.salesPersonId)) {
-      const names = await userNames(context, [before.salesPersonId, after.salesPersonId]);
-      const to = after.salesPersonId ? names[after.salesPersonId] : null;
-      await log(context, {
-        type: ACTIVITY_EVENT.LEAD_ASSIGNED,
-        companyId,
-        entityType: "TechBusinessLead",
-        entityId,
-        summary: to ? `Asignó ${name} a ${to}` : `Dejó sin vendedor a ${name}`,
-        metadata: {
-          fromUserId: before.salesPersonId ?? null,
-          toUserId: after.salesPersonId ?? null,
-          from: before.salesPersonId ? names[before.salesPersonId] ?? null : null,
-          to,
-        },
-      });
-    }
+    // La asignación ya no vive en el estatus (es de la empresa): se registra desde el lead
+    // (`businessLeadTracker`, cambio de `TechBusinessLead.salesPerson`).
 
     if (isChanged(before.opportunityLevel, after.opportunityLevel)) {
       await log(context, {

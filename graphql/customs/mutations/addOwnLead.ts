@@ -190,7 +190,6 @@ const resolver = {
         data: {
           businessLead: { connect: { id: newLead.id } },
           saasCompany: { connect: { id: company.id } },
-          salesPerson: { connect: { id: userId } },
           pipelineStatus: PIPELINE_STATUS.DETECTADO,
           opportunityLevel: (["Alta", "Media", "Baja"].includes(input.opportunityLevel ?? "")) ? input.opportunityLevel! : "Media",
           notes: input.notes ?? "",

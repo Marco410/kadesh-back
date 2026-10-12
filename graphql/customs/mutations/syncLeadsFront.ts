@@ -1,12 +1,14 @@
 import { KeystoneContext } from "@keystone-6/core/types";
-import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
 import { haversineDistance } from "../../../utils/helpers/calculate_distances";
 import { buildReviewsAndPrompt } from "../../../utils/helpers/tech/build_prompt_text";
 import { parseAddressComponents } from "../../../utils/helpers/tech/parse_address";
 import { getRemainingCredits } from "../../../utils/helpers/tech/remaining_credits";
 import { consumeCompanyCredits } from "../../../utils/saas/companyCredits";
 import { getPlaceDetails } from "../../../utils/helpers/tech/place_details";
-import { assignExistingLeadToCompany } from "../../../utils/helpers/tech/lead_assignment";
+import {
+  assignExistingLeadToCompany,
+  ensureLeadStatus,
+} from "../../../utils/helpers/tech/lead_assignment";
 
 /**
  * syncLeadsFront: asigna TechBusinessLead a la SaasCompany del usuario.
@@ -616,19 +618,16 @@ const resolver = {
           const newLead = await context.sudo().query.TechBusinessLead.createOne({
             data: leadData as any,
           });
-          await context.sudo().query.TechStatusBusinessLead.createOne({
-            data: {
-              businessLead: { connect: { id: newLead.id } },
-              saasCompany: { connect: { id: company.id } },
-              salesPerson: { connect: { id: userId } },
-              pipelineStatus: PIPELINE_STATUS.DETECTADO,
-              opportunityLevel:
-                placeRating >= 4.5
-                  ? "Alta"
-                  : placeRating >= 4
-                    ? "Media"
-                    : "Baja",
-            },
+          await ensureLeadStatus(context, {
+            leadId: newLead.id,
+            companyId: company.id,
+            userId,
+            opportunityLevel:
+              placeRating >= 4.5
+                ? "Alta"
+                : placeRating >= 4
+                  ? "Media"
+                  : "Baja",
           });
           created++;
           syncedThisRequest++;

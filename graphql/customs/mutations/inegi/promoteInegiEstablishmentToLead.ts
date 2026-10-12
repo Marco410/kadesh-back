@@ -100,11 +100,11 @@ type EstablishmentRow = {
   } | null;
 };
 
+/** Estatus compartido de la empresa: uno por (lead, empresa). El vendedor va en el lead. */
 async function ensureStatusForImport(
   context: KeystoneContext,
   leadId: string,
   companyId: string,
-  sellerId: string | null,
 ) {
   const [existing] = await context
     .sudo()
@@ -121,7 +121,6 @@ async function ensureStatusForImport(
     data: {
       businessLead: { connect: { id: leadId } },
       saasCompany: { connect: { id: companyId } },
-      ...(sellerId ? { salesPerson: { connect: { id: sellerId } } } : {}),
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
       opportunityLevel: "Media",
     },
@@ -240,12 +239,7 @@ const resolver = {
     );
 
     if (existingLead && alreadyOnCompany) {
-      await ensureStatusForImport(
-        context,
-        existingLead.id,
-        companyId,
-        sellerId,
-      );
+      await ensureStatusForImport(context, existingLead.id, companyId);
       return {
         success: true,
         message: "Este establecimiento ya es un lead de tu empresa",
@@ -262,12 +256,7 @@ const resolver = {
           ...(sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}),
         },
       });
-      await ensureStatusForImport(
-        context,
-        existingLead.id,
-        companyId,
-        sellerId,
-      );
+      await ensureStatusForImport(context, existingLead.id, companyId);
       const consumeResult = await consumeCompanyCredits(context, {
         companyId,
         amount: 1,
@@ -342,7 +331,7 @@ const resolver = {
         data: data as any,
         query: "id",
       });
-      await ensureStatusForImport(context, lead.id, companyId, sellerId);
+      await ensureStatusForImport(context, lead.id, companyId);
       const consumeResult = await consumeCompanyCredits(context, {
         companyId,
         amount: 1,

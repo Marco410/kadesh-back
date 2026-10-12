@@ -1,11 +1,16 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { PIPELINE_STATUS } from "../../../models/Saas/Tech/crm/constants";
+import { canSeeCompanyWideLeads } from "../../access/leadScopedFilter";
 
 export type OpportunityLevel = "Alta" | "Media" | "Baja";
 
 /**
- * Asegura el `TechStatusBusinessLead` de un lead en una empresa (con vendedor).
- * Si ya existía lo reactiva como Detectado; si no, lo crea.
+ * Asegura el `TechStatusBusinessLead` de un lead en una empresa. El estatus es uno por
+ * (lead, empresa) y lo comparte todo el equipo: si ya existe NO se toca (otro vendedor puede
+ * haberlo avanzado); si no, se crea en Detectado.
+ *
+ * Si quien trae el lead solo ve los leads que tiene asignados, se le asigna el lead
+ * (`TechBusinessLead.salesPerson`); si no, no lo vería en su CRM.
  */
 export async function ensureLeadStatus(
   context: KeystoneContext,
@@ -16,33 +21,27 @@ export async function ensureLeadStatus(
     opportunityLevel?: OpportunityLevel;
   },
 ): Promise<void> {
-  const opportunityLevel = params.opportunityLevel ?? "Media";
-  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
+  if (!canSeeCompanyWideLeads(context.session)) {
+    await context.sudo().query.TechBusinessLead.updateOne({
+      where: { id: params.leadId },
+      data: { salesPerson: { connect: [{ id: params.userId }] } },
+    });
+  }
+
+  const existing = await context.sudo().db.TechStatusBusinessLead.count({
     where: {
       businessLead: { id: { equals: params.leadId } },
       saasCompany: { id: { equals: params.companyId } },
     },
-    take: 1,
-    query: "id",
   });
-  if (existing) {
-    await context.sudo().query.TechStatusBusinessLead.updateOne({
-      where: { id: (existing as { id: string }).id },
-      data: {
-        salesPerson: { connect: { id: params.userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel,
-      },
-    });
-    return;
-  }
+  if (existing > 0) return;
+
   await context.sudo().query.TechStatusBusinessLead.createOne({
     data: {
       businessLead: { connect: { id: params.leadId } },
       saasCompany: { connect: { id: params.companyId } },
-      salesPerson: { connect: { id: params.userId } },
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
-      opportunityLevel,
+      opportunityLevel: params.opportunityLevel ?? "Media",
     },
   });
 }

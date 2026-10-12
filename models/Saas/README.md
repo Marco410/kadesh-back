@@ -58,6 +58,22 @@ Qué: `getFreePlanTrialInfo(activatedAt, currentPeriodEnd)` usa `currentPeriodEn
 
 Por qué: el fin de la prueba se recalculaba siempre desde la fecha de alta e ignoraba `currentPeriodEnd`, así que cambiar esa fecha en "Ajustar plan" no extendía la prueba: el cliente seguía bloqueado con "plan gratuito vencido".
 
+### 2026-10-12 — Un solo pipeline por empresa (no por vendedor)
+
+Qué: el estatus de un lead (`TechStatusBusinessLead`) es **uno por (lead, SaasCompany)** y lo comparte todo el equipo. Índice único `@@unique([businessLeadId, saasCompanyId])` vía `db.extendPrismaSchema`.
+
+Por qué: antes cada vendedor tenía su propia fila (`salesPerson`) y el acceso filtraba `salesPerson = yo`; si un vendedor movía un lead, los demás (y a veces el admin) seguían viendo otra etapa. Los conteos del pipeline contaban el mismo lead varias veces.
+
+Cómo quedó:
+- **Asignación ≠ estatus.** A quién pertenece un lead es `TechBusinessLead.salesPerson`. `TechStatusBusinessLead.salesPerson` queda deprecado: el hook lo descarta en cada escritura.
+- **Acceso:** con `clientes.ver_empresa` se ven todos los estatus de la empresa; sin él, el estatus de los leads asignados (`businessLead.salesPerson some yo`), lo haya movido quien sea.
+- **Creación:** `ensureLeadStatus` crea la fila solo si no existe y **nunca** resetea la etapa (antes la regresaba a Detectado al reasignar). A quien extrae sin vista de empresa se le asigna el lead para que lo vea.
+- **Métricas:** "leads asignados", "sin dueño", el resumen diario y la velocidad comercial salen de `TechBusinessLead.salesPerson`.
+- **Propuesta comprada → 12 Cerrado Ganado** ahora sí corre (antes leía `lead.status.id` y `status` es una lista).
+- **Datos existentes:** `yarn leads:merge-status` (ver `scripts/mergeLeadStatusPerCompany.ts`). Para duplicados gana la etapa más avanzada.
+
+Orden en producción: `leads:merge-status` (reporte) → `--apply` → deploy back + front juntos → `leads:merge-status --apply` otra vez (filas creadas en medio) → `yarn migrate` (índice único).
+
 ## Qué no va aquí
 
 Directorio de veterinarias, adopción o tienda (`Pet/`). Auth (`User`, `Role`).
