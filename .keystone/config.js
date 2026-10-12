@@ -273,7 +273,9 @@ var PERMISSION_KEYS = {
   ESPACIOS_CREAR: "espacios.crear",
   ESPACIOS_MIEMBROS: "espacios.miembros",
   WHATSAPP_VER: "whatsapp.ver",
-  WHATSAPP_CONFIGURAR: "whatsapp.configurar"
+  WHATSAPP_CONFIGURAR: "whatsapp.configurar",
+  ANALITICA_VER: "analitica.ver",
+  ANALITICA_VER_EQUIPO: "analitica.ver_equipo"
 };
 var ALL_KEYS = new Set(Object.values(PERMISSION_KEYS));
 function isPermissionKey(value) {
@@ -573,12 +575,12 @@ function emailButton(brand, label, href) {
     </tr>
   </table>`;
 }
-function emailInfoTable(rows) {
-  const body = rows.map(
+function emailInfoTable(rows2) {
+  const body = rows2.map(
     ([label, value], i) => `
       <tr>
-        <td style="padding:12px 16px;${i < rows.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:${EMAIL_TEXT.muted};width:36%;vertical-align:top;">${escapeHtml(label)}</td>
-        <td style="padding:12px 16px;${i < rows.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:15px;font-weight:500;color:${EMAIL_TEXT.heading};vertical-align:top;">${value}</td>
+        <td style="padding:12px 16px;${i < rows2.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:${EMAIL_TEXT.muted};width:36%;vertical-align:top;">${escapeHtml(label)}</td>
+        <td style="padding:12px 16px;${i < rows2.length - 1 ? `border-bottom:1px solid ${EMAIL_TEXT.line};` : ""}font-family:${FONT};font-size:15px;font-weight:500;color:${EMAIL_TEXT.heading};vertical-align:top;">${value}</td>
       </tr>`
   ).join("");
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0 0;background:${EMAIL_TEXT.surface};border:1px solid ${EMAIL_TEXT.line};border-radius:12px;border-collapse:separate;">${body}</table>`;
@@ -841,7 +843,7 @@ async function sendAdminNewAnimalEmail({
   }
   const brand = "pet";
   const { name: brandName } = EMAIL_BRANDS[brand];
-  const rows = [
+  const rows2 = [
     ["Nombre", escapeHtml(animalName)],
     ["Tipo", escapeHtml(animalType || "(sin tipo)")],
     ["Slug", escapeHtml(slug || "(pendiente)")],
@@ -858,7 +860,7 @@ async function sendAdminNewAnimalEmail({
       ${emailParagraph(
       `<strong>${escapeHtml(creatorName)}</strong> registr\xF3 un animal nuevo en Kadesh Pet.`
     )}
-      ${emailInfoTable(rows)}
+      ${emailInfoTable(rows2)}
       ${publicUrl ? emailButton(brand, "Ver en la app", publicUrl) : emailCallout(
       brand,
       "Rev\xEDsalo en Keystone \u2192 <strong>Animal</strong>."
@@ -997,7 +999,7 @@ function buildPetPlaceAppointmentEmailHtml(params) {
   const customerName = escapeHtml(params.customerName);
   const petName = params.petName ? escapeHtml(params.petName) : null;
   const bodyText = isOwner ? `<strong>${customerName}</strong> reserv\xF3 una cita${petName ? ` para <strong>${petName}</strong>` : ""} en <strong>${petPlaceName}</strong>.` : `Tu cita en <strong>${petPlaceName}</strong> ahora est\xE1 <strong>${escapeHtml(statusLabel)}</strong>.`;
-  const rows = [
+  const rows2 = [
     ["Negocio", petPlaceName],
     ...isOwner ? [["Cliente", customerName]] : [],
     ...petName ? [["Mascota", petName]] : [],
@@ -1013,7 +1015,7 @@ function buildPetPlaceAppointmentEmailHtml(params) {
     bodyHtml: `
       ${emailGreeting(isOwner ? params.ownerName : params.customerName)}
       ${emailParagraph(bodyText)}
-      ${emailInfoTable(rows)}`,
+      ${emailInfoTable(rows2)}`,
     footerNote: "Mensaje autom\xE1tico de tu agenda. No respondas a este correo."
   });
 }
@@ -1786,12 +1788,12 @@ async function findReportDuplicates(context, input) {
   const found = /* @__PURE__ */ new Map();
   const sourceUrl = input.sourceUrl?.trim();
   if (sourceUrl) {
-    const rows = await context.sudo().query.Animal.findMany({
+    const rows2 = await context.sudo().query.Animal.findMany({
       where: { sourceUrl: { equals: sourceUrl } },
       query: "id name slug",
       take: 5
     });
-    for (const row of rows) {
+    for (const row of rows2) {
       const dup = toDuplicate(row);
       if (dup) found.set(dup.id, dup);
     }
@@ -1801,7 +1803,7 @@ async function findReportDuplicates(context, input) {
   const name = input.name?.trim();
   if (phone && typeId && name) {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3).toISOString();
-    const rows = await context.sudo().query.Animal.findMany({
+    const rows2 = await context.sudo().query.Animal.findMany({
       where: {
         contactNumber: { equals: phone },
         animal_type: { id: { equals: typeId } },
@@ -1810,7 +1812,7 @@ async function findReportDuplicates(context, input) {
       query: "id name slug",
       take: 30
     });
-    for (const row of rows) {
+    for (const row of rows2) {
       if (!namesSimilar(name, row.name || "")) continue;
       const dup = toDuplicate(row);
       if (dup) found.set(dup.id, dup);
@@ -1998,12 +2000,12 @@ function slugifyUsername(value) {
   return slug || "user";
 }
 async function usernameTaken(context, username) {
-  const rows = await context.sudo().query.User.findMany({
+  const rows2 = await context.sudo().query.User.findMany({
     where: { username: { equals: username } },
     take: 1,
     query: "id"
   });
-  return rows.length > 0;
+  return rows2.length > 0;
 }
 var userNameHook = {
   resolveInput: async ({ resolvedData, item, context, operation }) => {
@@ -2036,8 +2038,8 @@ async function checkUserName(name, lastName, context, preferred) {
 }
 function relationIds(value) {
   if (!value) return [];
-  const rows = Array.isArray(value) ? value : [value];
-  return rows.map(
+  const rows2 = Array.isArray(value) ? value : [value];
+  return rows2.map(
     (row) => row && typeof row === "object" && "id" in row ? String(row.id) : ""
   ).filter(Boolean);
 }
@@ -3615,13 +3617,13 @@ async function workspaceCompanyId(context, workspaceId) {
 async function columnNames(context, ids) {
   const unique = [...new Set(ids.filter((id) => Boolean(id)))];
   if (!unique.length) return {};
-  const rows = await prismaOf(
+  const rows2 = await prismaOf(
     context
   ).saasWorkspaceCrmStatus.findMany({
     where: { id: { in: unique } },
     select: { id: true, name: true }
   });
-  return Object.fromEntries(rows.map((r) => [r.id, r.name ?? "sin nombre"]));
+  return Object.fromEntries(rows2.map((r) => [r.id, r.name ?? "sin nombre"]));
 }
 function log(context, input) {
   return logActivity(context, input);
@@ -11170,14 +11172,14 @@ var quotationAccess = {
 async function nextQuotationNumber(context, companyId) {
   const year = (/* @__PURE__ */ new Date()).getFullYear();
   const prefix2 = `Q-${year}-`;
-  const rows = await context.sudo().query.SaasQuotation.findMany({
+  const rows2 = await context.sudo().query.SaasQuotation.findMany({
     where: { company: { id: { equals: companyId } } },
     orderBy: [{ createdAt: "desc" }],
     take: 500,
     query: "quotationNumber"
   });
   let max = 0;
-  for (const r of rows) {
+  for (const r of rows2) {
     const qn = r.quotationNumber;
     if (qn?.startsWith(prefix2)) {
       const part = qn.slice(prefix2.length);
@@ -12973,8 +12975,12 @@ async function deleteEvent(accessToken, calendarId, eventId) {
   );
 }
 
-// utils/googleCalendar/planFeature.ts
-async function companyHasCalendarFeature(context, companyId) {
+// utils/saas/planFeatures.ts
+var PLAN_FEATURE = {
+  CALENDAR_CRM: "calendar_crm",
+  ANALYTICS: "analytics"
+};
+async function companyHasPlanFeature(context, companyId, key) {
   const [subscription] = await context.sudo().query.SaasCompanySubscription.findMany({
     where: {
       company: { id: { equals: companyId } },
@@ -12986,9 +12992,12 @@ async function companyHasCalendarFeature(context, companyId) {
   });
   const features = subscription?.planFeatures;
   if (!Array.isArray(features)) return false;
-  return features.some(
-    (f) => f.key === GOOGLE_CALENDAR_FEATURE_KEY && f.included !== false
-  );
+  return features.some((f) => f.key === key && f.included !== false);
+}
+
+// utils/googleCalendar/planFeature.ts
+async function companyHasCalendarFeature(context, companyId) {
+  return companyHasPlanFeature(context, companyId, GOOGLE_CALENDAR_FEATURE_KEY);
 }
 var CALENDAR_FEATURE_DENIED_MESSAGE = "Tu plan actual no incluye la gesti\xF3n de calendario. Actualiza tu suscripci\xF3n para conectar Google Calendar.";
 
@@ -14248,7 +14257,7 @@ var resolver = {
   }, context) => {
     const startedAt = Date.now();
     const isSaas = product === PRODUCT.SAAS;
-    const fail10 = async (message, email, userId) => {
+    const fail11 = async (message, email, userId) => {
       await writeUserAuthLog(context, {
         startedAt,
         source: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
@@ -14266,7 +14275,7 @@ var resolver = {
     };
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
-      return fail10("Token de Google inv\xE1lido o expirado", "");
+      return fail11("Token de Google inv\xE1lido o expirado", "");
     }
     let user = await context.sudo().query.User.findOne({
       where: { email: payload.email },
@@ -14291,7 +14300,7 @@ var resolver = {
         if (isSaas) {
           const signupRoleIds = await findSignupRoleIds(context);
           if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
-            return fail10(
+            return fail11(
               "No se pudieron asignar los roles de empresa. Contacta a soporte.",
               payload.email
             );
@@ -14316,14 +14325,14 @@ var resolver = {
           await provisionSignupCompany(context, user.id, baseName);
         }
       } catch (err) {
-        return fail10(
+        return fail11(
           err instanceof Error ? err.message : "Error al crear usuario",
           payload.email
         );
       }
     }
     if (await loginBlockedReason(context, user.id)) {
-      return fail10(SUSPENDED_MESSAGE, payload.email, user.id);
+      return fail11(SUSPENDED_MESSAGE, payload.email, user.id);
     }
     user = await context.sudo().query.User.updateOne({
       where: { id: user.id },
@@ -14331,14 +14340,14 @@ var resolver = {
       query: USER_QUERY
     });
     if (!context.sessionStrategy) {
-      return fail10("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail11("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     const sessionToken = await context.sessionStrategy.start({
       data: { listKey: "User", itemId: user.id },
       context
     });
     if (typeof sessionToken !== "string" || sessionToken.length === 0) {
-      return fail10("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail11("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     await writeUserAuthLog(context, {
       startedAt,
@@ -16411,7 +16420,7 @@ var resolver7 = {
     let logUserId;
     let logCompanyId;
     let logPlanId;
-    const finish = async (step, result3, opts) => {
+    const finish2 = async (step, result3, opts) => {
       await writeSaasSubscriptionLog(context, {
         startedAt,
         input: logInput,
@@ -16432,7 +16441,7 @@ var resolver7 = {
     };
     try {
       if (!canActForEmail(context.session, input.email)) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
           success: false,
           message: "Inicia sesi\xF3n con la cuenta que va a contratar el plan.",
           subscriptionId: null,
@@ -16440,7 +16449,7 @@ var resolver7 = {
         });
       }
       if (!process.env.STRIPE_SECRET_KEY) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,
           message: "STRIPE_SECRET_KEY no configurada",
           subscriptionId: null,
@@ -16452,7 +16461,7 @@ var resolver7 = {
         query: "id name email stripeCustomerId referredBy { id } company { id plan { id name cost frequency leadLimit currency planFeatures stripePriceId stripeProductId referralUpfrontCommissionPct referralRecurringCommissionPct } }"
       });
       if (!user) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
           success: false,
           message: "Usuario no encontrado con ese email",
           subscriptionId: null,
@@ -16474,7 +16483,7 @@ var resolver7 = {
       }
       const company = user.company;
       if (!company?.id) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
           success: false,
           message: "Tu usuario no tiene una empresa asignada",
           subscriptionId: null,
@@ -16491,7 +16500,7 @@ var resolver7 = {
         plan = planRecord;
       }
       if (!plan?.id) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_PLAN_RESOLVED, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_PLAN_RESOLVED, {
           success: false,
           message: "Indica un plan (planId) o asigna un plan a la empresa",
           subscriptionId: null,
@@ -16501,7 +16510,7 @@ var resolver7 = {
       logPlanId = plan.id;
       const stripePriceId = plan.stripePriceId ?? null;
       if (!stripePriceId || typeof stripePriceId !== "string") {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
           success: false,
           message: "El plan no tiene un Stripe Price ID configurado. Crea un Price recurrente en Stripe y asigna stripePriceId al plan.",
           subscriptionId: null,
@@ -16513,7 +16522,7 @@ var resolver7 = {
       const roundedTotalFront = parseFloat(Number(input.total).toFixed(2));
       const difference = Math.abs(roundedTotalFront - roundedTotalBack);
       if (difference > 0.01) {
-        return await finish(
+        return await finish2(
           SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH,
           {
             success: false,
@@ -16534,7 +16543,7 @@ var resolver7 = {
         query: "id stripePaymentMethodId"
       });
       if (!paymentMethod?.stripePaymentMethodId) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
           success: false,
           message: "M\xE9todo de pago no encontrado",
           subscriptionId: null,
@@ -16733,7 +16742,7 @@ var resolver7 = {
         where: { id: company.id },
         data: { plan: { connect: { id: plan.id } } }
       });
-      return await finish(
+      return await finish2(
         SAAS_SUBSCRIPTION_LOG_STEP.SUCCESS,
         {
           success: true,
@@ -17092,7 +17101,7 @@ var resolver10 = {
     let logUserId;
     let logCompanyId;
     let logSubscriptionId;
-    const finish = async (step, result3, opts) => {
+    const finish2 = async (step, result3, opts) => {
       const response = {
         creditsAdded: result3.creditsAdded ?? null,
         newCreditsTotal: result3.newCreditsTotal ?? null,
@@ -17123,7 +17132,7 @@ var resolver10 = {
     };
     try {
       if (!canActForEmail(context.session, input.email)) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.SESSION_MISMATCH, {
           success: false,
           message: "Inicia sesi\xF3n con la cuenta que va a comprar los cr\xE9ditos.",
           paymentId: null,
@@ -17133,7 +17142,7 @@ var resolver10 = {
         });
       }
       if (!process.env.STRIPE_SECRET_KEY) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_KEY_MISSING, {
           success: false,
           message: "STRIPE_SECRET_KEY no configurada",
           paymentId: null,
@@ -17147,7 +17156,7 @@ var resolver10 = {
         query: "id name email stripeCustomerId company { id }"
       });
       if (!user) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.USER_NOT_FOUND, {
           success: false,
           message: "Usuario no encontrado con ese email",
           paymentId: null,
@@ -17171,7 +17180,7 @@ var resolver10 = {
       }
       const company = user.company;
       if (!company?.id) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_COMPANY, {
           success: false,
           message: "Tu usuario no tiene una empresa asignada",
           paymentId: null,
@@ -17186,7 +17195,7 @@ var resolver10 = {
         query: "id name cost currency creditsToAdd active stripePriceId"
       });
       if (!creditPackage?.id) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE, {
           success: false,
           message: "Paquete de cr\xE9ditos no encontrado",
           paymentId: null,
@@ -17196,7 +17205,7 @@ var resolver10 = {
         });
       }
       if (!creditPackage.active) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_PACKAGE_INACTIVE, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_PACKAGE_INACTIVE, {
           success: false,
           message: "Este paquete de cr\xE9ditos no est\xE1 disponible para compra",
           paymentId: null,
@@ -17207,7 +17216,7 @@ var resolver10 = {
       }
       const stripePriceId = creditPackage.stripePriceId ?? null;
       if (!stripePriceId || typeof stripePriceId !== "string") {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_STRIPE_PRICE_ID, {
           success: false,
           message: "El paquete no tiene un Stripe Price ID configurado. Configura stripePriceId en el paquete de cr\xE9ditos.",
           paymentId: null,
@@ -17221,7 +17230,7 @@ var resolver10 = {
       const roundedTotalFront = parseFloat(Number(input.total).toFixed(2));
       const difference = Math.abs(roundedTotalFront - roundedTotalBack);
       if (difference > 0.01) {
-        return await finish(
+        return await finish2(
           SAAS_SUBSCRIPTION_LOG_STEP.TOTAL_MISMATCH,
           {
             success: false,
@@ -17242,7 +17251,7 @@ var resolver10 = {
       }
       const creditsToAdd = creditPackage.creditsToAdd ?? 0;
       if (creditsToAdd < 1) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_CREDIT_PACKAGE, {
           success: false,
           message: "El paquete de cr\xE9ditos no tiene cr\xE9ditos configurados",
           paymentId: null,
@@ -17261,7 +17270,7 @@ var resolver10 = {
         query: "id planCost activatedAt currentPeriodEnd newCreditsAdded"
       });
       if (!activeSubscription) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
           success: false,
           message: "No tienes una suscripci\xF3n activa. Contrata un plan antes de comprar cr\xE9ditos extra.",
           paymentId: null,
@@ -17276,7 +17285,7 @@ var resolver10 = {
       if (isFreePlan && sub.activatedAt) {
         const { isExpired } = getFreePlanTrialInfo(sub.activatedAt, sub.currentPeriodEnd);
         if (isExpired) {
-          return await finish(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
+          return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.NO_ACTIVE_SUBSCRIPTION, {
             success: false,
             message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n antes de comprar cr\xE9ditos extra.",
             paymentId: null,
@@ -17291,7 +17300,7 @@ var resolver10 = {
         query: "id stripePaymentMethodId"
       });
       if (!paymentMethod?.stripePaymentMethodId) {
-        return await finish(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
+        return await finish2(SAAS_SUBSCRIPTION_LOG_STEP.PAYMENT_METHOD_NOT_FOUND, {
           success: false,
           message: "M\xE9todo de pago no encontrado",
           paymentId: null,
@@ -17340,7 +17349,7 @@ var resolver10 = {
           },
           query: "id"
         });
-        return await finish(
+        return await finish2(
           SAAS_SUBSCRIPTION_LOG_STEP.STRIPE_OR_SERVER_ERROR,
           {
             success: false,
@@ -17380,7 +17389,7 @@ var resolver10 = {
       const credits = await getRemainingCredits(context, company.id);
       const newCreditsTotal = credits.remainingQuota;
       const extraCreditsStored = credits.extraCredits;
-      return await finish(
+      return await finish2(
         SAAS_SUBSCRIPTION_LOG_STEP.CREDIT_SUCCESS,
         {
           success: true,
@@ -17605,9 +17614,9 @@ function asFeatureArray(value) {
   );
 }
 function applyFeatureCatalog(current, catalogByKey) {
-  const rows = asFeatureArray(current);
+  const rows2 = asFeatureArray(current);
   let changed = false;
-  const next = rows.map((row) => {
+  const next = rows2.map((row) => {
     const meta = catalogByKey.get(row.key);
     if (!meta) return row;
     if (row.name === meta.name && row.description === meta.description) {
@@ -18349,13 +18358,13 @@ function retryAfterFromOldest(oldestCreatedAt, windowMs) {
   return Math.max(1, Math.ceil((windowMs - elapsed) / 1e3));
 }
 async function oldestInWindow(context, where) {
-  const rows = await context.sudo().prisma.techAiCallLog.findMany({
+  const rows2 = await context.sudo().prisma.techAiCallLog.findMany({
     where,
     orderBy: { createdAt: "asc" },
     take: 1,
     select: { createdAt: true }
   });
-  return rows[0]?.createdAt ?? null;
+  return rows2[0]?.createdAt ?? null;
 }
 function quotaError(quota, label, kind, retryAfterSec) {
   const wait = `Espera ${retryAfterSec} s y vuelve a intentar.`;
@@ -19002,7 +19011,7 @@ function formatActionsAsContent(actions) {
 }
 var INSIGHT_QUERY = "id referenceKey content structuredData generatedAt salesPerson { id }";
 async function findDailyDigestInsight(context, params) {
-  const rows = await context.sudo().query.TechAiInsight.findMany({
+  const rows2 = await context.sudo().query.TechAiInsight.findMany({
     where: {
       company: { id: { equals: params.companyId } },
       kind: { equals: AI_INSIGHT_KIND.DAILY_DIGEST },
@@ -19012,7 +19021,7 @@ async function findDailyDigestInsight(context, params) {
     orderBy: [{ generatedAt: "desc" }],
     query: INSIGHT_QUERY
   });
-  const match = rows.find(
+  const match = rows2.find(
     (row) => params.salesPersonId ? row.salesPerson?.id === params.salesPersonId : !row.salesPerson
   );
   return match ?? null;
@@ -19276,13 +19285,13 @@ async function gatherMarketSnapshot(context, params) {
     });
   }
   if (and.length) where.AND = and;
-  const rows = await context.sudo().query.TechInegiEstablishment.findMany({
+  const rows2 = await context.sudo().query.TechInegiEstablishment.findMany({
     where,
     take: ESTABLISHMENT_SAMPLE,
     query: "id economicActivity { name scianCode }"
   });
   const counts = /* @__PURE__ */ new Map();
-  for (const row of rows) {
+  for (const row of rows2) {
     const name = row.economicActivity?.name?.trim() || "Sin giro";
     const scianCode = row.economicActivity?.scianCode ?? null;
     const key = scianCode || name;
@@ -19320,7 +19329,7 @@ async function gatherMarketSnapshot(context, params) {
     municipality: params.municipality?.trim() || "*",
     activity: params.activity?.trim() || "*",
     geographicCode: geographicCode || "*",
-    totalSampled: rows.length,
+    totalSampled: rows2.length,
     activities,
     indicators
   };
@@ -19606,7 +19615,7 @@ function fallbackPlaybookActions(prompt) {
   ];
 }
 async function findProfilePlaybook(context, companyId) {
-  const rows = await context.sudo().query.TechAiInsight.findMany({
+  const rows2 = await context.sudo().query.TechAiInsight.findMany({
     where: {
       company: { id: { equals: companyId } },
       kind: { equals: AI_INSIGHT_KIND.PROFILE_PLAYBOOK },
@@ -19616,7 +19625,7 @@ async function findProfilePlaybook(context, companyId) {
     orderBy: [{ generatedAt: "desc" }],
     query: INSIGHT_QUERY3
   });
-  return rows.find((row) => !row.salesPerson) ?? null;
+  return rows2.find((row) => !row.salesPerson) ?? null;
 }
 async function saveProfilePlaybook(context, params) {
   const data = {
@@ -20037,7 +20046,7 @@ ${pillar.summary}${gaps}`;
   }).join("\n\n");
 }
 async function findCompanyBrief(context, companyId) {
-  const rows = await context.sudo().query.TechAiInsight.findMany({
+  const rows2 = await context.sudo().query.TechAiInsight.findMany({
     where: {
       company: { id: { equals: companyId } },
       kind: { equals: AI_INSIGHT_KIND.COMPANY_BRIEF },
@@ -20047,7 +20056,7 @@ async function findCompanyBrief(context, companyId) {
     orderBy: [{ generatedAt: "desc" }],
     query: INSIGHT_QUERY4
   });
-  return rows.find((row) => !row.salesPerson) ?? null;
+  return rows2.find((row) => !row.salesPerson) ?? null;
 }
 async function saveCompanyBrief(context, params) {
   const data = {
@@ -20346,9 +20355,9 @@ async function searchByLocation(params) {
     status: res.status,
     ok: res.ok
   });
-  const rows = await parseDenueList(res);
-  console.log("[INEGI DENUE] searchByLocation parsed", { rowCount: rows.length });
-  return rows;
+  const rows2 = await parseDenueList(res);
+  console.log("[INEGI DENUE] searchByLocation parsed", { rowCount: rows2.length });
+  return rows2;
 }
 async function searchByAreaActivity(params) {
   const token = denueToken();
@@ -20763,14 +20772,14 @@ var resolver16 = {
       cap
     });
     try {
-      const rows = (await fetchRows(input, cap)).slice(0, cap);
+      const rows2 = (await fetchRows(input, cap)).slice(0, cap);
       console.log("[syncEstablishmentsFromInegi] fetched", {
-        totalFetched: rows.length
+        totalFetched: rows2.length
       });
       let created = 0;
       let updated = 0;
       let skipped = 0;
-      for (const row of rows) {
+      for (const row of rows2) {
         const mapped = mapDenueApiRow(row);
         if (!mapped) {
           skipped += 1;
@@ -20786,7 +20795,7 @@ var resolver16 = {
         created,
         updated,
         alreadyInDb: updated,
-        totalFetched: rows.length
+        totalFetched: rows2.length
       };
       await logSync(context, userId, input, result3);
       return result3;
@@ -22520,12 +22529,12 @@ async function ensurePetPlaceType(context, value) {
 }
 async function ensurePetPlaceTypes(context, values) {
   const unique = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-  const rows = [];
+  const rows2 = [];
   for (const value of unique) {
     const row = await ensurePetPlaceType(context, value);
-    if (row) rows.push(row);
+    if (row) rows2.push(row);
   }
-  return rows;
+  return rows2;
 }
 
 // graphql/customs/mutations/pet/veterinary/updateMyPetPlace.ts
@@ -22815,13 +22824,13 @@ var resolver21 = {
             where: existing.map((item) => ({ id: item.id }))
           });
         }
-        const rows = (socialMedia ?? []).filter((item) => {
+        const rows2 = (socialMedia ?? []).filter((item) => {
           const link = item.link?.trim() ?? "";
           return Boolean(link) && SOCIAL_MEDIA_OPTIONS.includes(
             item.social_media
           );
         });
-        for (const row of rows) {
+        for (const row of rows2) {
           await context.sudo().query.SocialMedia.createOne({
             data: {
               social_media: row.social_media,
@@ -23420,7 +23429,7 @@ function parseLostDate(value) {
 async function resolveType(context, type) {
   const key = type.trim();
   const alias = TYPE_ALIASES[key.toLowerCase()] || key;
-  const rows = await context.sudo().query.AnimalType.findMany({
+  const rows2 = await context.sudo().query.AnimalType.findMany({
     where: {
       OR: [
         { id: { equals: key } },
@@ -23431,13 +23440,13 @@ async function resolveType(context, type) {
     query: "id name",
     take: 1
   });
-  if (!rows[0]) throw new import_graphql2.GraphQLError("Elige un tipo de animal v\xE1lido.");
-  return rows[0];
+  if (!rows2[0]) throw new import_graphql2.GraphQLError("Elige un tipo de animal v\xE1lido.");
+  return rows2[0];
 }
 async function resolveBreed(context, typeId, breed) {
   const key = breed?.trim();
   if (key) {
-    const rows = await context.sudo().query.AnimalBreed.findMany({
+    const rows2 = await context.sudo().query.AnimalBreed.findMany({
       where: {
         animal_type: { id: { equals: typeId } },
         OR: [{ id: { equals: key } }, { breed: { equals: key } }]
@@ -23445,7 +23454,7 @@ async function resolveBreed(context, typeId, breed) {
       query: "id breed",
       take: 1
     });
-    if (rows[0]) return rows[0].id;
+    if (rows2[0]) return rows2[0].id;
   }
   const fallback = await context.sudo().query.AnimalBreed.findMany({
     where: { animal_type: { id: { equals: typeId } } },
@@ -25100,15 +25109,15 @@ var resolver33 = {
       existing.map((m) => `${new Date(m.createdAt).getTime()}|${m.body}`)
     );
     const normalizedLeadSender = leadSenderName?.trim() || null;
-    const rows = parsed.map((msg) => ({
+    const rows2 = parsed.map((msg) => ({
       key: `${msg.timestamp.getTime()}|${msg.body}`,
       msg
     })).filter(({ key }) => !existingKeys.has(key));
-    const skippedDuplicates = parsed.length - rows.length;
-    if (rows.length === 0) {
+    const skippedDuplicates = parsed.length - rows2.length;
+    if (rows2.length === 0) {
       return toResult6(true, "No hay mensajes nuevos que importar (ya se hab\xEDan importado)", 0, skippedDuplicates);
     }
-    const data = rows.map(({ msg }) => {
+    const data = rows2.map(({ msg }) => {
       const direction = !normalizedLeadSender ? "unknown" : msg.sender === normalizedLeadSender ? "inbound" : "outbound";
       return {
         companyId: effectiveCompanyId,
@@ -26826,7 +26835,7 @@ var PERSON_SELECT = {
   email: true
 };
 async function latestSubscriptionsByCompany(prisma, companyIds) {
-  const rows = await prisma.saasCompanySubscription.findMany({
+  const rows2 = await prisma.saasCompanySubscription.findMany({
     where: { companyId: companyIds ? { in: companyIds } : { not: null } },
     orderBy: [
       { companyId: "asc" },
@@ -26849,7 +26858,7 @@ async function latestSubscriptionsByCompany(prisma, companyIds) {
       createdAt: true
     }
   });
-  return new Map(rows.map((row) => [row.companyId, row]));
+  return new Map(rows2.map((row) => [row.companyId, row]));
 }
 function trialEndDate(sub) {
   if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
@@ -26871,21 +26880,21 @@ function monthlyAmount(cost, frequency) {
   }
 }
 async function testCompanyIds(prisma) {
-  const rows = await prisma.saasCompany.findMany({
+  const rows2 = await prisma.saasCompany.findMany({
     where: {
       users: { some: { userTest: true }, none: { userTest: false } }
     },
     select: { id: true }
   });
-  return new Set(rows.map((row) => row.id));
+  return new Set(rows2.map((row) => row.id));
 }
 async function internalCompanyIds(prisma) {
-  const rows = await prisma.user.findMany({
+  const rows2 = await prisma.user.findMany({
     where: { companyId: { not: null }, roles: { some: { name: "admin" /* ADMIN */ } } },
     distinct: ["companyId"],
     select: { companyId: true }
   });
-  return new Set(rows.map((row) => row.companyId).filter((id) => Boolean(id)));
+  return new Set(rows2.map((row) => row.companyId).filter((id) => Boolean(id)));
 }
 async function analyticsExcludedCompanyIds(prisma) {
   const [test, internal] = await Promise.all([testCompanyIds(prisma), internalCompanyIds(prisma)]);
@@ -26918,8 +26927,8 @@ function crmCompanyScope(companyId, assigneeField = "assignedSeller") {
     ]
   };
 }
-function countsToList(rows) {
-  return rows.map((row) => ({ key: row.key ?? "", count: row.count })).sort((a, b) => b.count - a.count);
+function countsToList(rows2) {
+  return rows2.map((row) => ({ key: row.key ?? "", count: row.count })).sort((a, b) => b.count - a.count);
 }
 async function optional(read, fallback) {
   try {
@@ -26936,25 +26945,25 @@ function unwrapPrisma(result3) {
 async function lastSeenByCompany(prisma, companyIds) {
   if (!prisma.userActivityDay || !companyIds.length) return /* @__PURE__ */ new Map();
   return optional(async () => {
-    const rows = await prisma.userActivityDay.groupBy({
+    const rows2 = await prisma.userActivityDay.groupBy({
       by: ["companyId"],
       where: { companyId: { in: companyIds } },
       _max: { lastSeenAt: true }
     });
     return new Map(
-      rows.filter((row) => row.companyId && row._max.lastSeenAt).map((row) => [row.companyId, row._max.lastSeenAt])
+      rows2.filter((row) => row.companyId && row._max.lastSeenAt).map((row) => [row.companyId, row._max.lastSeenAt])
     );
   }, /* @__PURE__ */ new Map());
 }
 async function activeUserIdsSince(prisma, since) {
   if (!prisma.userActivityDay) return [];
   return optional(async () => {
-    const rows = await prisma.userActivityDay.findMany({
+    const rows2 = await prisma.userActivityDay.findMany({
       where: { lastSeenAt: { gte: since } },
       distinct: ["userId"],
       select: { userId: true }
     });
-    return rows.map((row) => row.userId).filter((id) => Boolean(id));
+    return rows2.map((row) => row.userId).filter((id) => Boolean(id));
   }, []);
 }
 function latestDate(...dates) {
@@ -29720,16 +29729,16 @@ var resolver61 = {
     timeMin,
     timeMax
   }, context) => {
-    const fail10 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail10(denyGoogleCalendarAccessMessage(context.session));
+    const fail11 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail11(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail10(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail11(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail10("Rango de fechas inv\xE1lido");
+      return fail11("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -29746,7 +29755,7 @@ var resolver61 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail10(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail11(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -30959,9 +30968,9 @@ var typeDefs68 = `
 var definition65 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
-function groupMap(rows, key) {
+function groupMap(rows2, key) {
   const map = /* @__PURE__ */ new Map();
-  for (const row of rows) {
+  for (const row of rows2) {
     const id = row[key];
     if (typeof id !== "string") continue;
     map.set(id, { count: row._count._all, last: row._max?.createdAt ?? null });
@@ -31502,14 +31511,14 @@ var resolver66 = {
     const firstDay = shiftDay(lastDay, -(weekCount * 7 - 1));
     const benchmarkFrom = shiftDay(lastDay, -27);
     return optional(async () => {
-      const rows = await prisma.saasCompanyDailyUsage.findMany({
+      const rows2 = await prisma.saasCompanyDailyUsage.findMany({
         where: {
           companyId,
           day: { gte: /* @__PURE__ */ new Date(`${firstDay}T00:00:00.000Z`), lte: /* @__PURE__ */ new Date(`${lastDay}T00:00:00.000Z`) }
         },
         select: { companyId: true, day: true, ...Object.fromEntries(WEEK_FIELDS.map((f) => [f, true])) }
       });
-      const anyRow = rows.length ? true : Boolean(await prisma.saasCompanyDailyUsage.findFirst({ select: { id: true } }));
+      const anyRow = rows2.length ? true : Boolean(await prisma.saasCompanyDailyUsage.findFirst({ select: { id: true } }));
       const series = Array.from({ length: weekCount }, (_, index) => {
         const weekStart = shiftDay(firstDay, index * 7);
         return {
@@ -31518,7 +31527,7 @@ var resolver66 = {
           ...Object.fromEntries(WEEK_FIELDS.map((field) => [field, 0]))
         };
       });
-      for (const row of rows) {
+      for (const row of rows2) {
         const day = new Date(row.day).toISOString().slice(0, 10);
         const index = Math.floor(
           ((/* @__PURE__ */ new Date(`${day}T00:00:00.000Z`)).getTime() - (/* @__PURE__ */ new Date(`${firstDay}T00:00:00.000Z`)).getTime()) / (7 * 24 * 60 * 60 * 1e3)
@@ -31720,7 +31729,7 @@ async function authSource(c) {
     });
   }
   if (and.length) where.AND = and;
-  const rows = await c.prisma.userAuthLog.findMany({
+  const rows2 = await c.prisma.userAuthLog.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: c.take,
@@ -31735,7 +31744,7 @@ async function authSource(c) {
       user: PERSON_WITH_COMPANY
     }
   });
-  return rows.map((row) => {
+  return rows2.map((row) => {
     const google = row.step.startsWith("GOOGLE");
     let kind = "auth.login";
     let title = google ? "Inici\xF3 sesi\xF3n con Google" : "Inici\xF3 sesi\xF3n con contrase\xF1a";
@@ -31795,7 +31804,7 @@ async function extractionSource(c) {
       { user: personSearch(c.search) }
     ];
   }
-  const rows = await c.prisma.techLeadSyncLog.findMany({
+  const rows2 = await c.prisma.techLeadSyncLog.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: c.take,
@@ -31818,7 +31827,7 @@ async function extractionSource(c) {
       company: COMPANY_SELECT
     }
   });
-  return rows.map((row) => {
+  return rows2.map((row) => {
     const created = row.created ?? 0;
     const already = row.alreadyInDb ?? 0;
     return {
@@ -31880,7 +31889,7 @@ async function creditsSource(c) {
       { company: { name: insensitive(c.search) } }
     ];
   }
-  const rows = await c.prisma.saasCompanyCreditLedger.findMany({
+  const rows2 = await c.prisma.saasCompanyCreditLedger.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: c.take,
@@ -31898,12 +31907,12 @@ async function creditsSource(c) {
   });
   const adminIds = [
     ...new Set(
-      rows.filter((r) => r.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN && r.referenceId).map((r) => r.referenceId)
+      rows2.filter((r) => r.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN && r.referenceId).map((r) => r.referenceId)
     )
   ];
   const admins = adminIds.length ? await c.prisma.user.findMany({ where: { id: { in: adminIds } }, select: PERSON_SELECT }) : [];
   const adminById = new Map(admins.map((a) => [a.id, a]));
-  return rows.map((row) => {
+  return rows2.map((row) => {
     const isAdmin = row.type === COMPANY_CREDIT_LEDGER_TYPE.GRANT_ADMIN;
     const signed = `${row.amount > 0 ? "+" : ""}${row.amount}`;
     let title = `Ajuste de cr\xE9ditos: ${signed}`;
@@ -31941,7 +31950,7 @@ async function aiSource(c) {
       { user: personSearch(c.search) }
     ];
   }
-  const rows = await c.prisma.techAiCallLog.findMany({
+  const rows2 = await c.prisma.techAiCallLog.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: c.take,
@@ -31963,7 +31972,7 @@ async function aiSource(c) {
       company: COMPANY_SELECT
     }
   });
-  return rows.map((row) => ({
+  return rows2.map((row) => ({
     id: `ai:${row.id}`,
     type: "ai",
     kind: "ai.call",
@@ -32116,7 +32125,7 @@ async function whatsappSource(c) {
       { company: { name: insensitive(c.search) } }
     ];
   }
-  const rows = await c.prisma.techWhatsAppMessage.findMany({
+  const rows2 = await c.prisma.techWhatsAppMessage.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: c.take,
@@ -32135,7 +32144,7 @@ async function whatsappSource(c) {
       teamMember: { select: { name: true, lastName: true } }
     }
   });
-  return rows.map((row) => {
+  return rows2.map((row) => {
     const target = row.businessLead?.businessName || [row.teamMember?.name, row.teamMember?.lastName].filter(Boolean).join(" ") || row.toPhone || "un contacto";
     const failed = row.status === "failed";
     return {
@@ -32344,7 +32353,7 @@ async function calendarSource(c) {
       { account: { googleAccountEmail: insensitive(c.search) } }
     ];
   }
-  const rows = await c.prisma.techGoogleCalendarSyncLog.findMany({
+  const rows2 = await c.prisma.techGoogleCalendarSyncLog.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: c.take,
@@ -32363,7 +32372,7 @@ async function calendarSource(c) {
       }
     }
   });
-  return rows.map((row) => ({
+  return rows2.map((row) => ({
     id: `calendar:${row.id}`,
     type: "calendar",
     kind: "calendar.sync_failed",
@@ -32408,9 +32417,9 @@ async function activityEventSource(c) {
     });
   }
   if (and.length) where.AND = and;
-  let rows;
+  let rows2;
   try {
-    rows = await c.prisma.activityEvent.findMany({
+    rows2 = await c.prisma.activityEvent.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: c.take,
@@ -32433,7 +32442,7 @@ async function activityEventSource(c) {
   } catch {
     return [];
   }
-  return rows.map((row) => ({
+  return rows2.map((row) => ({
     id: `event:${row.id}`,
     type: FEED_TYPES.includes(row.category) ? row.category : "product",
     kind: row.type,
@@ -32510,8 +32519,8 @@ function earliest(map, companyId, at) {
   const current = map.get(companyId);
   if (!current || date < current) map.set(companyId, date);
 }
-function groupMin(rows, field) {
-  return rows.map((row) => ({ companyId: row.companyId, at: row._min[field] ?? null }));
+function groupMin(rows2, field) {
+  return rows2.map((row) => ({ companyId: row.companyId, at: row._min[field] ?? null }));
 }
 async function loadCompanyMilestones(prisma, companyIds) {
   const result3 = /* @__PURE__ */ new Map();
@@ -32830,7 +32839,7 @@ var resolver69 = {
       const month = toMxDay(company.createdAt).slice(0, 7);
       cohorts.set(month, [...cohorts.get(month) ?? [], company.id]);
     }
-    const rows = [];
+    const rows2 = [];
     for (let offset = 0; offset < monthsBack; offset += 1) {
       const month = shiftMonth(firstMonth, offset);
       const members = cohorts.get(month) ?? [];
@@ -32839,9 +32848,9 @@ var resolver69 = {
         const target = shiftMonth(month, index);
         return members.filter((id) => activeMonths.get(id)?.has(target)).length;
       });
-      rows.push({ month, size: members.length, active });
+      rows2.push({ month, size: members.length, active });
     }
-    return { rows };
+    return { rows: rows2 };
   }
 };
 var adminCohorts_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
@@ -33254,8 +33263,8 @@ function bump2(map, key, activated, paid) {
   map.set(key, row);
 }
 var sortRows = (map, limit) => {
-  const rows = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
-  return limit ? rows.slice(0, limit) : rows;
+  const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
+  return limit ? rows2.slice(0, limit) : rows2;
 };
 var resolver72 = {
   adminAcquisition: async (_root, { input }, context) => {
@@ -33306,7 +33315,8 @@ var resolver72 = {
 };
 var adminAcquisition_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
-// graphql/customs/queries/admin/adminSalesVelocity.ts
+// utils/analytics/salesVelocity.ts
+var DAY_MS3 = 24 * 60 * 60 * 1e3;
 var P = PIPELINE_STATUS;
 var RANK = {
   [P.DETECTADO]: 1,
@@ -33326,7 +33336,302 @@ var LOST = /* @__PURE__ */ new Set([P.PROPUESTA_RECHAZADA, P.CERRADO_PERDIDO, P.
 var CONTACT_RANK = 3;
 var STALLED_DAYS = 14;
 var LOOKBACK_DAYS = 180;
-var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS2;
+var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS3;
+var emptyGroup = () => ({
+  entered: 0,
+  contacted: 0,
+  contactedWithin2Days: 0,
+  won: 0,
+  lost: 0,
+  cycles: [],
+  firstContactHours: [],
+  stalled: 0
+});
+function median3(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const value = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return Math.round(value * 10) / 10;
+}
+var rate = (part, total) => total ? Math.round(part / total * 1e3) / 1e3 : null;
+var isOpen = (stage) => !WON.has(stage) && !LOST.has(stage);
+var isProgress = (from, to) => !LOST.has(to) && (RANK[to] ?? 0) > (RANK[from] ?? 0);
+function finish(group) {
+  return {
+    entered: group.entered,
+    contacted: group.contacted,
+    contactedWithin2Days: group.contactedWithin2Days,
+    won: group.won,
+    lost: group.lost,
+    winRate: rate(group.won, group.won + group.lost),
+    medianCycleDays: median3(group.cycles),
+    medianFirstContactHours: median3(group.firstContactHours),
+    stalled: group.stalled
+  };
+}
+async function rows(read, fallback) {
+  try {
+    const result3 = await read();
+    return result3 instanceof Error ? fallback : result3;
+  } catch {
+    return fallback;
+  }
+}
+async function computeSalesVelocity(prisma, options) {
+  const { days, companyWhere } = options;
+  const now = Date.now();
+  const since = new Date(now - days * DAY_MS3);
+  const sinceMs = since.getTime();
+  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS3);
+  const sellerScope = options.salesPersonId ?? null;
+  const needStatuses = Boolean(options.bySeller || sellerScope);
+  const [allChanges, firstChange, activities, allMessages, statuses] = await Promise.all([
+    rows(
+      () => prisma.techLeadStageChange.findMany({
+        where: { changedAt: { gte: lookback }, companyId: companyWhere },
+        orderBy: [{ changedAt: "asc" }, { id: "asc" }],
+        select: { statusId: true, companyId: true, businessLeadId: true, fromStatus: true, toStatus: true, changedAt: true }
+      }),
+      []
+    ),
+    rows(
+      () => prisma.techLeadStageChange.findFirst({
+        where: { companyId: companyWhere },
+        orderBy: { changedAt: "asc" },
+        select: { changedAt: true }
+      }),
+      null
+    ),
+    rows(
+      () => prisma.techSalesActivity.findMany({
+        where: { createdAt: { gte: since }, businessLeadId: { not: null } },
+        select: {
+          businessLeadId: true,
+          createdAt: true,
+          workspace: { select: { companyId: true } },
+          createdBy: { select: { companyId: true } }
+        }
+      }),
+      []
+    ),
+    rows(
+      () => prisma.techWhatsAppMessage.findMany({
+        where: {
+          createdAt: { gte: since },
+          businessLeadId: { not: null },
+          companyId: companyWhere,
+          OR: [{ source: null }, { source: { not: "imported" } }]
+        },
+        orderBy: { createdAt: "asc" },
+        select: { companyId: true, businessLeadId: true, direction: true, createdAt: true }
+      }),
+      []
+    ),
+    needStatuses ? rows(
+      () => prisma.techStatusBusinessLead.findMany({
+        where: { saasCompanyId: companyWhere },
+        select: { id: true, salesPersonId: true, businessLeadId: true }
+      }),
+      []
+    ) : Promise.resolve([])
+  ]);
+  const sellerOf = new Map(statuses.map((status) => [status.id, status.salesPersonId ?? ""]));
+  const ownLeadIds = sellerScope ? new Set(statuses.filter((s) => s.salesPersonId === sellerScope && s.businessLeadId).map((s) => s.businessLeadId)) : null;
+  const changes = sellerScope ? allChanges.filter((change) => sellerOf.get(change.statusId) === sellerScope) : allChanges;
+  const messages = ownLeadIds ? allMessages.filter((m) => ownLeadIds.has(m.businessLeadId)) : allMessages;
+  const byStatus = /* @__PURE__ */ new Map();
+  for (const change of changes) {
+    const list82 = byStatus.get(change.statusId) ?? [];
+    list82.push(change);
+    byStatus.set(change.statusId, list82);
+  }
+  const contactKey = (company, lead) => `${company}|${lead}`;
+  const contactTimes = /* @__PURE__ */ new Map();
+  const addContact = (key, at) => {
+    const list82 = contactTimes.get(key) ?? [];
+    list82.push(new Date(at).getTime());
+    contactTimes.set(key, list82);
+  };
+  for (const activity of activities) {
+    const company = activity.workspace?.companyId ?? activity.createdBy?.companyId ?? null;
+    if (company) addContact(contactKey(company, activity.businessLeadId), activity.createdAt);
+  }
+  for (const message of messages) {
+    if (message.direction !== "inbound") addContact(contactKey(message.companyId, message.businessLeadId), message.createdAt);
+  }
+  const stageStats = /* @__PURE__ */ new Map();
+  const stageOf = (stage) => {
+    const stats = stageStats.get(stage) ?? { entered: 0, advanced: 0, lost: 0, durations: [], stalled: 0 };
+    stageStats.set(stage, stats);
+    return stats;
+  };
+  const total = emptyGroup();
+  const companies = /* @__PURE__ */ new Map();
+  const sellers = /* @__PURE__ */ new Map();
+  const groupsFor = (companyId, statusId) => {
+    const list82 = [total];
+    if (companyId) {
+      const group = companies.get(companyId) ?? emptyGroup();
+      companies.set(companyId, group);
+      list82.push(group);
+    }
+    if (needStatuses) {
+      const seller = sellerOf.get(statusId) ?? "";
+      const group = sellers.get(seller) ?? emptyGroup();
+      sellers.set(seller, group);
+      list82.push(group);
+    }
+    return list82;
+  };
+  const wonStatusIds = [];
+  const stalledDeals = [];
+  const cycles = [];
+  for (const [statusId, history] of byStatus) {
+    const last = history[history.length - 1];
+    const groups = groupsFor(last.companyId, statusId);
+    const entry = history[0].fromStatus == null ? history[0] : null;
+    history.forEach((change, index) => {
+      const at = change.changedAt.getTime();
+      const next = history[index + 1];
+      if (at >= sinceMs) {
+        const stage = stageOf(change.toStatus);
+        stage.entered += 1;
+        if (next) {
+          if (isProgress(change.toStatus, next.toStatus)) stage.advanced += 1;
+          if (LOST.has(next.toStatus)) stage.lost += 1;
+        }
+        if (WON.has(change.toStatus) && !(change.fromStatus && WON.has(change.fromStatus))) {
+          wonStatusIds.push(statusId);
+          for (const group of groups) group.won += 1;
+          if (entry) {
+            const cycle = (at - entry.changedAt.getTime()) / DAY_MS3;
+            cycles.push(cycle);
+            for (const group of groups) group.cycles.push(cycle);
+          }
+        }
+        if (LOST.has(change.toStatus) && !(change.fromStatus && LOST.has(change.fromStatus))) {
+          for (const group of groups) group.lost += 1;
+        }
+      }
+      if (next && next.changedAt.getTime() >= sinceMs) {
+        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS3);
+      }
+    });
+    const idle = now - last.changedAt.getTime();
+    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS3) {
+      stageOf(last.toStatus).stalled += 1;
+      for (const group of groups) group.stalled += 1;
+      stalledDeals.push({
+        statusId,
+        companyId: last.companyId,
+        businessLeadId: last.businessLeadId,
+        salesPersonId: sellerOf.get(statusId) || null,
+        stage: last.toStatus,
+        since: last.changedAt,
+        days: Math.floor(idle / DAY_MS3)
+      });
+    }
+    if (entry && entry.changedAt.getTime() >= sinceMs) {
+      for (const group of groups) group.entered += 1;
+      const enteredAt = entry.changedAt.getTime();
+      const candidates = [];
+      const reached = history.find((change) => (RANK[change.toStatus] ?? 0) >= CONTACT_RANK);
+      if (reached) candidates.push(reached.changedAt.getTime());
+      for (const at of contactTimes.get(contactKey(last.companyId, entry.businessLeadId)) ?? []) {
+        if (at >= enteredAt) candidates.push(at);
+      }
+      if (candidates.length) {
+        const hours = (Math.min(...candidates) - enteredAt) / (60 * 60 * 1e3);
+        for (const group of groups) {
+          group.contacted += 1;
+          if (hours <= 48) group.contactedWithin2Days += 1;
+          group.firstContactHours.push(hours);
+        }
+      }
+    }
+  }
+  const conversations = /* @__PURE__ */ new Map();
+  for (const message of messages) {
+    const key = contactKey(message.companyId, message.businessLeadId);
+    const list82 = conversations.get(key) ?? [];
+    list82.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
+    conversations.set(key, list82);
+  }
+  let whatsappInbound = 0;
+  let whatsappAnswered = 0;
+  let whatsappAnsweredWithin1h = 0;
+  let whatsappConversations = 0;
+  let whatsappReplied = 0;
+  const responseMinutes = [];
+  for (const list82 of conversations.values()) {
+    list82.forEach((message, index) => {
+      if (message.direction !== "in" || list82[index - 1]?.direction === "in") return;
+      whatsappInbound += 1;
+      const reply = list82.slice(index + 1).find((m) => m.direction === "out");
+      if (!reply) return;
+      whatsappAnswered += 1;
+      const minutes = (reply.at - message.at) / 6e4;
+      responseMinutes.push(minutes);
+      if (minutes <= 60) whatsappAnsweredWithin1h += 1;
+    });
+    const firstOut = list82.findIndex((m) => m.direction === "out");
+    if (firstOut >= 0 && (firstOut === 0 || list82[firstOut - 1].direction === "out")) {
+      whatsappConversations += 1;
+      const start = list82[firstOut].at;
+      if (list82.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
+        whatsappReplied += 1;
+      }
+    }
+  }
+  const wonStatuses = wonStatusIds.length ? await rows(
+    () => prisma.techStatusBusinessLead.findMany({
+      where: { id: { in: wonStatusIds } },
+      select: { estimatedValue: true }
+    }),
+    []
+  ) : [];
+  const wonValue = wonStatuses.reduce((sum, row) => sum + (row.estimatedValue ?? 0), 0);
+  const stageOrder = Object.values(PIPELINE_STATUS);
+  const totals = finish(total);
+  return {
+    days,
+    dataSince: firstChange?.changedAt ?? null,
+    stages: stageOrder.filter((stage) => stageStats.has(stage)).map((stage) => {
+      const stats = stageStats.get(stage);
+      return {
+        stage,
+        entered: stats.entered,
+        advanced: stats.advanced,
+        lost: stats.lost,
+        medianDays: median3(stats.durations),
+        stalled: stats.stalled
+      };
+    }),
+    won: totals.won,
+    lost: totals.lost,
+    winRate: totals.winRate,
+    wonValue: Math.round(wonValue * 100) / 100,
+    medianCycleDays: median3(cycles),
+    cycleSample: cycles.length,
+    newLeads: totals.entered,
+    contacted: totals.contacted,
+    contactedWithin2Days: totals.contactedWithin2Days,
+    medianFirstContactHours: totals.medianFirstContactHours,
+    stalled: totals.stalled,
+    whatsappInbound,
+    whatsappAnswered,
+    whatsappAnsweredWithin1h,
+    whatsappMedianResponseMinutes: median3(responseMinutes),
+    whatsappConversations,
+    whatsappReplied,
+    byCompany: new Map([...companies].map(([id, group]) => [id, finish(group)])),
+    bySeller: new Map([...sellers].map(([id, group]) => [id, finish(group)])),
+    stalledDeals: stalledDeals.sort((a, b) => b.days - a.days)
+  };
+}
+
+// graphql/customs/queries/admin/adminSalesVelocity.ts
 var COMPANY_LIMIT = 25;
 var typeDefs76 = `
   input AdminSalesVelocityInput {
@@ -33403,289 +33708,201 @@ var typeDefs76 = `
 var definition73 = `
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
 `;
-function median3(values) {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const value = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-  return Math.round(value * 10) / 10;
-}
-var rate = (part, total) => total ? Math.round(part / total * 1e3) / 1e3 : null;
-var isOpen = (stage) => !WON.has(stage) && !LOST.has(stage);
-var isProgress = (from, to) => !LOST.has(to) && (RANK[to] ?? 0) > (RANK[from] ?? 0);
-var emptyStats = () => ({ entered: 0, won: 0, lost: 0, cycles: [], firstContactHours: [], stalled: 0 });
 var resolver73 = {
   adminSalesVelocity: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const days = clampInt(input?.days, 30, 365, 90);
     const companyId = input?.companyId?.trim() || null;
-    const now = Date.now();
-    const since = daysAgo(days);
-    const lookback = daysAgo(days + LOOKBACK_DAYS);
     const excluded = companyId ? [] : [...await analyticsExcludedCompanyIds(prisma)];
-    const companyWhere = companyId ? companyId : { notIn: excluded };
-    const empty2 = {
+    const velocity = await computeSalesVelocity(prisma, {
       days,
-      dataSince: null,
-      stages: [],
-      won: 0,
-      lost: 0,
-      winRate: null,
-      wonValue: 0,
-      medianCycleDays: null,
-      cycleSample: 0,
-      newLeads: 0,
-      contacted: 0,
-      contactedWithin2Days: 0,
-      medianFirstContactHours: null,
-      stalled: 0,
-      whatsappInbound: 0,
-      whatsappAnswered: 0,
-      whatsappAnsweredWithin1h: 0,
-      whatsappMedianResponseMinutes: null,
-      whatsappConversations: 0,
-      whatsappReplied: 0,
-      companies: []
-    };
-    if (!prisma.techLeadStageChange) return empty2;
-    const [changes, firstChange, activities, messages] = await Promise.all([
-      optional(
-        () => prisma.techLeadStageChange.findMany({
-          where: { changedAt: { gte: lookback }, companyId: companyWhere },
-          orderBy: [{ changedAt: "asc" }, { id: "asc" }],
-          select: {
-            statusId: true,
-            companyId: true,
-            businessLeadId: true,
-            fromStatus: true,
-            toStatus: true,
-            changedAt: true
-          }
-        }),
-        []
-      ),
-      optional(
-        () => prisma.techLeadStageChange.findFirst({ orderBy: { changedAt: "asc" }, select: { changedAt: true } }),
-        null
-      ),
-      prisma.techSalesActivity.findMany({
-        where: { createdAt: { gte: since }, businessLeadId: { not: null } },
-        select: {
-          businessLeadId: true,
-          createdAt: true,
-          workspace: { select: { companyId: true } },
-          createdBy: { select: { companyId: true } }
-        }
-      }),
-      prisma.techWhatsAppMessage.findMany({
-        where: {
-          createdAt: { gte: since },
-          businessLeadId: { not: null },
-          companyId: companyWhere,
-          OR: [{ source: null }, { source: { not: "imported" } }]
-        },
-        orderBy: { createdAt: "asc" },
-        select: { companyId: true, businessLeadId: true, direction: true, createdAt: true }
-      })
-    ]);
-    const byStatus = /* @__PURE__ */ new Map();
-    for (const change of changes) {
-      const list82 = byStatus.get(change.statusId) ?? [];
-      list82.push(change);
-      byStatus.set(change.statusId, list82);
-    }
-    const contactKey = (company, lead) => `${company}|${lead}`;
-    const contactTimes = /* @__PURE__ */ new Map();
-    const addContact = (key, at) => {
-      const list82 = contactTimes.get(key) ?? [];
-      list82.push(new Date(at).getTime());
-      contactTimes.set(key, list82);
-    };
-    for (const activity of activities) {
-      const company = activity.workspace?.companyId ?? activity.createdBy?.companyId ?? null;
-      if (company) addContact(contactKey(company, activity.businessLeadId), activity.createdAt);
-    }
-    for (const message of messages) {
-      if (message.direction !== "inbound") addContact(contactKey(message.companyId, message.businessLeadId), message.createdAt);
-    }
-    const stageStats = /* @__PURE__ */ new Map();
-    const stageOf = (stage) => {
-      const stats = stageStats.get(stage) ?? { entered: 0, advanced: 0, lost: 0, durations: [], stalled: 0 };
-      stageStats.set(stage, stats);
-      return stats;
-    };
-    const perCompany = /* @__PURE__ */ new Map();
-    const companyStats = (id) => {
-      const key = id ?? "";
-      const stats = perCompany.get(key) ?? emptyStats();
-      perCompany.set(key, stats);
-      return stats;
-    };
-    let won = 0;
-    let lost = 0;
-    let newLeads = 0;
-    let contacted = 0;
-    let contactedWithin2Days = 0;
-    let stalled = 0;
-    const cycles = [];
-    const firstContactHours = [];
-    const wonStatusIds = [];
-    const sinceMs = since.getTime();
-    for (const [statusId, history] of byStatus) {
-      const company = history[history.length - 1].companyId;
-      const stats = companyStats(company);
-      const entry = history[0].fromStatus == null ? history[0] : null;
-      history.forEach((change, index) => {
-        const at = change.changedAt.getTime();
-        const next = history[index + 1];
-        if (at >= sinceMs) {
-          const stage = stageOf(change.toStatus);
-          stage.entered += 1;
-          if (next) {
-            if (isProgress(change.toStatus, next.toStatus)) stage.advanced += 1;
-            if (LOST.has(next.toStatus)) stage.lost += 1;
-          }
-          if (WON.has(change.toStatus) && !(change.fromStatus && WON.has(change.fromStatus))) {
-            won += 1;
-            stats.won += 1;
-            wonStatusIds.push(statusId);
-            if (entry) {
-              const cycle = (at - entry.changedAt.getTime()) / DAY_MS2;
-              cycles.push(cycle);
-              stats.cycles.push(cycle);
-            }
-          }
-          if (LOST.has(change.toStatus) && !(change.fromStatus && LOST.has(change.fromStatus))) {
-            lost += 1;
-            stats.lost += 1;
-          }
-        }
-        if (next && next.changedAt.getTime() >= sinceMs) {
-          stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS2);
-        }
-      });
-      const last = history[history.length - 1];
-      const lastRank = RANK[last.toStatus] ?? 0;
-      if (isOpen(last.toStatus) && lastRank >= CONTACT_RANK && now - last.changedAt.getTime() >= STALLED_DAYS * DAY_MS2) {
-        stageOf(last.toStatus).stalled += 1;
-        stalled += 1;
-        stats.stalled += 1;
-      }
-      if (entry && entry.changedAt.getTime() >= sinceMs) {
-        newLeads += 1;
-        stats.entered += 1;
-        const enteredAt = entry.changedAt.getTime();
-        const candidates = [];
-        const reached = history.find((change) => (RANK[change.toStatus] ?? 0) >= CONTACT_RANK);
-        if (reached) candidates.push(reached.changedAt.getTime());
-        for (const at of contactTimes.get(contactKey(company, entry.businessLeadId)) ?? []) {
-          if (at >= enteredAt) candidates.push(at);
-        }
-        if (candidates.length) {
-          const hours = (Math.min(...candidates) - enteredAt) / (60 * 60 * 1e3);
-          contacted += 1;
-          if (hours <= 48) contactedWithin2Days += 1;
-          firstContactHours.push(hours);
-          stats.firstContactHours.push(hours);
-        }
-      }
-    }
-    const conversations = /* @__PURE__ */ new Map();
-    for (const message of messages) {
-      const key = contactKey(message.companyId, message.businessLeadId);
-      const list82 = conversations.get(key) ?? [];
-      list82.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
-      conversations.set(key, list82);
-    }
-    let whatsappInbound = 0;
-    let whatsappAnswered = 0;
-    let whatsappAnsweredWithin1h = 0;
-    let whatsappConversations = 0;
-    let whatsappReplied = 0;
-    const responseMinutes = [];
-    for (const list82 of conversations.values()) {
-      list82.forEach((message, index) => {
-        if (message.direction !== "in" || list82[index - 1]?.direction === "in") return;
-        whatsappInbound += 1;
-        const reply = list82.slice(index + 1).find((m) => m.direction === "out");
-        if (!reply) return;
-        whatsappAnswered += 1;
-        const minutes = (reply.at - message.at) / 6e4;
-        responseMinutes.push(minutes);
-        if (minutes <= 60) whatsappAnsweredWithin1h += 1;
-      });
-      const firstOut = list82.findIndex((m) => m.direction === "out");
-      if (firstOut >= 0 && (firstOut === 0 || list82[firstOut - 1].direction === "out")) {
-        whatsappConversations += 1;
-        const start = list82[firstOut].at;
-        if (list82.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
-          whatsappReplied += 1;
-        }
-      }
-    }
-    const [wonStatuses, companies] = await Promise.all([
-      wonStatusIds.length ? prisma.techStatusBusinessLead.findMany({
-        where: { id: { in: wonStatusIds } },
-        select: { estimatedValue: true }
-      }) : [],
-      prisma.saasCompany.findMany({
-        where: { id: { in: [...perCompany.keys()].filter(Boolean) } },
+      companyWhere: companyId ?? { notIn: excluded }
+    });
+    let companies = [];
+    if (!companyId && velocity.byCompany.size) {
+      const names = await prisma.saasCompany.findMany({
+        where: { id: { in: [...velocity.byCompany.keys()] } },
         select: { id: true, name: true }
-      })
-    ]);
-    const wonValue = wonStatuses.reduce(
-      (sum, row) => sum + (row.estimatedValue ?? 0),
-      0
-    );
-    const companyName = new Map(companies.map((c) => [c.id, c.name]));
-    const stageOrder = Object.values(PIPELINE_STATUS);
-    return {
-      days,
-      dataSince: toIso(firstChange?.changedAt ?? null),
-      stages: stageOrder.filter((stage) => stageStats.has(stage)).map((stage) => {
-        const stats = stageStats.get(stage);
-        return {
-          stage,
-          entered: stats.entered,
-          advanced: stats.advanced,
-          lost: stats.lost,
-          medianDays: median3(stats.durations),
-          stalled: stats.stalled
-        };
-      }),
-      won,
-      lost,
-      winRate: rate(won, won + lost),
-      wonValue: Math.round(wonValue * 100) / 100,
-      medianCycleDays: median3(cycles),
-      cycleSample: cycles.length,
-      newLeads,
-      contacted,
-      contactedWithin2Days,
-      medianFirstContactHours: median3(firstContactHours),
-      stalled,
-      whatsappInbound,
-      whatsappAnswered,
-      whatsappAnsweredWithin1h,
-      whatsappMedianResponseMinutes: median3(responseMinutes),
-      whatsappConversations,
-      whatsappReplied,
-      companies: companyId ? [] : [...perCompany.entries()].filter(([id]) => id && companyName.has(id)).map(([id, stats]) => ({
-        companyId: id,
-        companyName: companyName.get(id) ?? "Empresa",
-        entered: stats.entered,
-        won: stats.won,
-        lost: stats.lost,
-        winRate: rate(stats.won, stats.won + stats.lost),
-        medianCycleDays: median3(stats.cycles),
-        medianFirstContactHours: median3(stats.firstContactHours),
-        stalled: stats.stalled
-      })).sort((a, b) => b.stalled - a.stalled || b.entered - a.entered).slice(0, COMPANY_LIMIT)
-    };
+      });
+      const nameById = new Map(names.map((company) => [company.id, company.name]));
+      companies = [...velocity.byCompany.entries()].filter(([id]) => nameById.has(id)).map(([id, stats]) => ({ companyId: id, companyName: nameById.get(id) ?? "Empresa", ...stats })).sort((a, b) => Number(b.stalled) - Number(a.stalled) || Number(b.entered) - Number(a.entered)).slice(0, COMPANY_LIMIT);
+    }
+    const { byCompany: _byCompany, bySeller: _bySeller, stalledDeals: _stalled, dataSince, ...totals } = velocity;
+    return { ...totals, dataSince: toIso(dataSince), companies };
   }
 };
 var adminSalesVelocity_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+
+// graphql/customs/queries/analytics/companyAnalytics.ts
+var import_graphql3 = require("graphql");
+var STALLED_LIMIT = 50;
+var typeDefs77 = `
+  input CompanyAnalyticsInput {
+    """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
+    days: Int
+  }
+
+  type CompanyStageVelocity {
+    stage: String!
+    entered: Int!
+    advanced: Int!
+    lost: Int!
+    medianDays: Float
+    stalled: Int!
+  }
+
+  type CompanySellerVelocity {
+    """Vac\xEDo = leads sin vendedor asignado."""
+    userId: ID
+    name: String!
+    entered: Int!
+    contacted: Int!
+    contactedWithin2Days: Int!
+    won: Int!
+    lost: Int!
+    winRate: Float
+    medianCycleDays: Float
+    medianFirstContactHours: Float
+    stalled: Int!
+    """Actividades que registr\xF3 en el periodo."""
+    activities: Int!
+    """WhatsApp que mand\xF3 en el periodo."""
+    whatsappSent: Int!
+  }
+
+  type CompanyStalledDeal {
+    businessLeadId: ID
+    leadName: String!
+    stage: String!
+    """Desde cu\xE1ndo est\xE1 en esa etapa."""
+    since: String!
+    days: Int!
+    sellerName: String
+  }
+
+  type CompanyAnalytics {
+    """team (todo el equipo) | own (solo sus leads)"""
+    scope: String!
+    days: Int!
+    dataSince: String
+    stages: [CompanyStageVelocity!]!
+    won: Int!
+    lost: Int!
+    winRate: Float
+    wonValue: Float!
+    medianCycleDays: Float
+    cycleSample: Int!
+    newLeads: Int!
+    contacted: Int!
+    contactedWithin2Days: Int!
+    medianFirstContactHours: Float
+    stalled: Int!
+    whatsappInbound: Int!
+    whatsappAnswered: Int!
+    whatsappAnsweredWithin1h: Int!
+    whatsappMedianResponseMinutes: Float
+    whatsappConversations: Int!
+    whatsappReplied: Int!
+    """Solo con permiso de ver al equipo."""
+    sellers: [CompanySellerVelocity!]!
+    stalledDeals: [CompanyStalledDeal!]!
+  }
+
+  type Query {
+    companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
+  }
+`;
+var definition74 = `
+  companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
+`;
+var fail10 = (message, code) => new import_graphql3.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
+var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
+var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
+var resolver74 = {
+  companyAnalytics: async (_root, { input }, context) => {
+    const session2 = context.session;
+    const userId = getSessionUserId(session2);
+    const companyId = getSessionCompanyId(session2);
+    if (!userId) throw fail10("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
+    if (!companyId) throw fail10("Tu cuenta no tiene empresa.", "NO_COMPANY");
+    if (!hasPermission(session2, PERMISSION_KEYS.ANALITICA_VER, () => true)) {
+      throw fail10("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
+    }
+    if (!isPlatformAdmin(session2) && !await companyHasPlanFeature(context, companyId, PLAN_FEATURE.ANALYTICS)) {
+      throw fail10("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
+    }
+    const seesTeam = hasPermission(
+      session2,
+      PERMISSION_KEYS.ANALITICA_VER_EQUIPO,
+      () => hasRole(session2, ["gerencia" /* GERENCIA */])
+    );
+    const prisma = context.sudo().prisma;
+    const days = clampDays(input?.days);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1e3);
+    const velocity = await computeSalesVelocity(prisma, {
+      days,
+      companyWhere: companyId,
+      salesPersonId: seesTeam ? null : userId,
+      bySeller: seesTeam
+    });
+    const stalled = velocity.stalledDeals.slice(0, STALLED_LIMIT);
+    const [activityGroups, whatsappGroups, people, leads] = await Promise.all([
+      seesTeam ? prisma.techSalesActivity.groupBy({
+        by: ["createdById"],
+        where: { createdAt: { gte: since }, ...crmCompanyScope(companyId) },
+        _count: { _all: true }
+      }) : [],
+      seesTeam ? prisma.techWhatsAppMessage.groupBy({
+        by: ["sentById"],
+        where: { companyId, createdAt: { gte: since }, direction: { not: "inbound" } },
+        _count: { _all: true }
+      }) : [],
+      prisma.user.findMany({
+        where: {
+          id: {
+            in: [...velocity.bySeller.keys(), ...stalled.map((deal) => deal.salesPersonId ?? "")].filter(Boolean)
+          }
+        },
+        select: { id: true, name: true, lastName: true }
+      }),
+      prisma.techBusinessLead.findMany({
+        where: { id: { in: stalled.map((deal) => deal.businessLeadId ?? "").filter(Boolean) } },
+        select: { id: true, businessName: true }
+      })
+    ]);
+    const personById = new Map(people.map((p) => [p.id, p]));
+    const leadName2 = new Map(leads.map((l) => [l.id, l.businessName]));
+    const countBy = (groups, field) => new Map(
+      (Array.isArray(groups) ? groups : []).map((row) => [row[field] ?? "", row._count._all])
+    );
+    const activitiesBy = countBy(activityGroups, "createdById");
+    const whatsappBy = countBy(whatsappGroups, "sentById");
+    const sellers = seesTeam ? [...velocity.bySeller.entries()].map(([id, stats]) => ({
+      userId: id || null,
+      name: id ? fullName4(personById.get(id)) : "Sin vendedor",
+      ...stats,
+      activities: id ? activitiesBy.get(id) ?? 0 : 0,
+      whatsappSent: id ? whatsappBy.get(id) ?? 0 : 0
+    })).sort((a, b) => b.entered + b.won - (a.entered + a.won)) : [];
+    const { byCompany: _company, bySeller: _seller, stalledDeals: _deals, dataSince, ...totals } = velocity;
+    return {
+      ...totals,
+      scope: seesTeam ? "team" : "own",
+      dataSince: dataSince ? dataSince.toISOString() : null,
+      sellers,
+      stalledDeals: stalled.map((deal) => ({
+        businessLeadId: deal.businessLeadId,
+        leadName: deal.businessLeadId && leadName2.get(deal.businessLeadId) || "Lead",
+        stage: deal.stage,
+        since: deal.since.toISOString(),
+        days: deal.days,
+        sellerName: deal.salesPersonId ? fullName4(personById.get(deal.salesPersonId)) : null
+      }))
+    };
+  }
+};
+var companyAnalytics_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -33716,6 +33933,7 @@ var customQuery = {
     ${adminDemandGaps_default.typeDefs}
     ${adminAcquisition_default.typeDefs}
     ${adminSalesVelocity_default.typeDefs}
+    ${companyAnalytics_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -33746,6 +33964,7 @@ var customQuery = {
     ${adminDemandGaps_default.definition}
     ${adminAcquisition_default.definition}
     ${adminSalesVelocity_default.definition}
+    ${companyAnalytics_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -33775,7 +33994,8 @@ var customQuery = {
     ...adminEngagement_default.resolver,
     ...adminDemandGaps_default.resolver,
     ...adminAcquisition_default.resolver,
-    ...adminSalesVelocity_default.resolver
+    ...adminSalesVelocity_default.resolver,
+    ...companyAnalytics_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -34776,12 +34996,12 @@ function formatInMexicoCity(date) {
   }).format(date);
 }
 async function findPostByClickUpTask(context, taskId) {
-  const rows = await context.sudo().query.Post.findMany({
+  const rows2 = await context.sudo().query.Post.findMany({
     where: { clickupTaskId: { equals: taskId } },
     query: "id url product",
     take: 1
   });
-  return rows[0] ?? null;
+  return rows2[0] ?? null;
 }
 function isClickUpTaskConflict(err) {
   const message = err instanceof Error ? err.message : String(err);

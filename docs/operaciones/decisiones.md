@@ -323,3 +323,14 @@ Cada señal trae un motivo (`reason`) para que Inicio no repita avisos que ya ti
 **Qué:** `appErrorsPlugin` (Apollo) registra `app.error` en `ActivityEvent` cuando una petición de alguien con sesión falla: nombre de la operación, mensaje y código. Nunca las variables (pueden traer datos personales). El mismo error de la misma persona y operación se registra una vez cada 10 minutos. No cuenta el bloqueo de "entrar como" (es a propósito). Se ve en Actividad → Errores, en las alertas del 360 (`adminCompanyInsights.appErrors`) y en "Requiere atención" con 3 o más en 24 h (`app_errors`).
 
 **Por qué:** para enterarse de un error (por ejemplo, el front pidiendo algo que el back aún no tiene) antes de que el cliente se queje.
+
+## 2026-10-12 — Analítica como módulo de pago para los clientes
+
+**Qué:** sección **Analítica** en el panel del cliente (módulo `analytics`, se activa por plan en Operaciones → Planes → Módulos) con la consulta `companyAnalytics` (`graphql/customs/queries/analytics/companyAnalytics.ts`): cierre, ciclo de venta, primer contacto, WhatsApp, etapas, desempeño por vendedor y tratos estancados con enlace al lead.
+
+**Reglas:**
+- La empresa sale siempre de la sesión: la consulta no recibe empresa, así nadie puede pedir números de otra.
+- Revisa el plan en el servidor (`companyHasPlanFeature`, `utils/saas/planFeatures.ts`, que ahora también usa Calendario) y los permisos `analitica.ver` y `analitica.ver_equipo`. Sin permiso de equipo (por defecto todos menos admin de la empresa y Gerencia) solo cuenta los leads asignados a esa persona y no ve la tabla del equipo.
+- El cálculo es el mismo de Operaciones: se movió a `utils/analytics/salesVelocity.ts` y `adminSalesVelocity` lo usa también (mismos resultados, misma prueba).
+
+**Por qué:** Kadesh la vende como módulo aparte; un vendedor no debe ver el desempeño de sus compañeros salvo que la empresa lo decida.

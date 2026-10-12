@@ -136,3 +136,9 @@ En el navegador: Analítica → Ventas, ayudas ⓘ que abren y se cierran al toc
 1. `yarn migrate` (revisar que solo cree `TechLeadStageChange` y sus llaves).
 2. `pnpm pipeline:backfill` y luego `--apply`.
 3. Mover un lead de etapa y revisar que aparezca en Analítica → Ventas.
+
+## Analítica del cliente — lo que ya se probó (2026-10-12, copia desechable)
+
+9 de 9: el admin de la empresa ve a todo el equipo con nombres y tratos estancados; un vendedor solo sus leads y sin tabla de equipo; sin permiso no entra; una empresa sin el módulo queda bloqueada; nunca aparecen datos de otra empresa; al activar el módulo, la otra empresa ve solo lo suyo. La velocidad de Operaciones sigue en 21 de 21 tras mover el cálculo.
+
+En el navegador: Analítica en el menú, ayudas ⓘ (también a 390 px), vista de vendedor, aviso de "mejora tu plan" y modo oscuro.

@@ -9562,6 +9562,7 @@ type Query {
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
+  companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   findAnimalReportDuplicates(phone: String, animalTypeId: ID, name: String, sourceUrl: String): [AnimalReportDuplicate!]!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
@@ -11522,4 +11523,79 @@ type AdminSalesVelocity {
   """De esas, en cuántas contestó el lead (en 7 días)."""
   whatsappReplied: Int!
   companies: [AdminCompanyVelocity!]!
+}
+
+input CompanyAnalyticsInput {
+  """Últimos N días (30–365, por defecto 90)."""
+  days: Int
+}
+
+type CompanyStageVelocity {
+  stage: String!
+  entered: Int!
+  advanced: Int!
+  lost: Int!
+  medianDays: Float
+  stalled: Int!
+}
+
+type CompanySellerVelocity {
+  """Vacío = leads sin vendedor asignado."""
+  userId: ID
+  name: String!
+  entered: Int!
+  contacted: Int!
+  contactedWithin2Days: Int!
+  won: Int!
+  lost: Int!
+  winRate: Float
+  medianCycleDays: Float
+  medianFirstContactHours: Float
+  stalled: Int!
+
+  """Actividades que registró en el periodo."""
+  activities: Int!
+
+  """WhatsApp que mandó en el periodo."""
+  whatsappSent: Int!
+}
+
+type CompanyStalledDeal {
+  businessLeadId: ID
+  leadName: String!
+  stage: String!
+
+  """Desde cuándo está en esa etapa."""
+  since: String!
+  days: Int!
+  sellerName: String
+}
+
+type CompanyAnalytics {
+  """team (todo el equipo) | own (solo sus leads)"""
+  scope: String!
+  days: Int!
+  dataSince: String
+  stages: [CompanyStageVelocity!]!
+  won: Int!
+  lost: Int!
+  winRate: Float
+  wonValue: Float!
+  medianCycleDays: Float
+  cycleSample: Int!
+  newLeads: Int!
+  contacted: Int!
+  contactedWithin2Days: Int!
+  medianFirstContactHours: Float
+  stalled: Int!
+  whatsappInbound: Int!
+  whatsappAnswered: Int!
+  whatsappAnsweredWithin1h: Int!
+  whatsappMedianResponseMinutes: Float
+  whatsappConversations: Int!
+  whatsappReplied: Int!
+
+  """Solo con permiso de ver al equipo."""
+  sellers: [CompanySellerVelocity!]!
+  stalledDeals: [CompanyStalledDeal!]!
 }
