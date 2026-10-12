@@ -8,3 +8,4 @@ config/.env.dev
 .keystone/config.js
 .keystone/config.js
 .keystone/config.js.map
+config/.env.prod
