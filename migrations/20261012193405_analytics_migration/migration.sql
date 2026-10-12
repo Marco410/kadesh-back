@@ -1,9 +1,3 @@
-/*
-  Warnings:
-
-  - A unique constraint covering the columns `[businessLead,saasCompany]` on the table `TechStatusBusinessLead` will be added. If there are existing duplicate values, this will fail.
-
-*/
 -- AlterTable
 ALTER TABLE "User" ADD COLUMN     "signupAttribution" JSONB;
 
@@ -39,9 +33,6 @@ CREATE INDEX "TechLeadStageChange_changedBy_idx" ON "TechLeadStageChange"("chang
 
 -- CreateIndex
 CREATE INDEX "TechLeadStageChange_changedAt_idx" ON "TechLeadStageChange"("changedAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "TechStatusBusinessLead_businessLead_saasCompany_key" ON "TechStatusBusinessLead"("businessLead", "saasCompany");
 
 -- AddForeignKey
 ALTER TABLE "TechLeadStageChange" ADD CONSTRAINT "TechLeadStageChange_company_fkey" FOREIGN KEY ("company") REFERENCES "SaasCompany"("id") ON DELETE SET NULL ON UPDATE CASCADE;
