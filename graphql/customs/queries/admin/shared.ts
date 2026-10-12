@@ -1,5 +1,6 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { isPlatformAdmin } from "../../../../utils/access/tenant";
+import { Role } from "../../../../models/Role/constants";
 import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscription/constants";
 import { PLAN_FREQUENCY } from "../../../../models/Saas/SaasPlan/constants";
 import { TRIAL_DAYS_FREE_PLAN } from "../../../../utils/constants/constants";
@@ -87,6 +88,29 @@ export function clampInt(
 
 export function insensitive(value: string) {
   return { contains: value, mode: "insensitive" as const };
+}
+
+/** Búsqueda de empresas: nombre, correo de contacto o nombre/correo de cualquier integrante. */
+export function companySearchWhere(search: string | null | undefined) {
+  const q = search?.trim();
+  if (!q) return {};
+  return {
+    OR: [
+      { name: insensitive(q) },
+      { contactEmail: insensitive(q) },
+      {
+        users: {
+          some: {
+            OR: [
+              { email: insensitive(q) },
+              { name: insensitive(q) },
+              { lastName: insensitive(q) },
+            ],
+          },
+        },
+      },
+    ],
+  };
 }
 
 export function personRef(
@@ -198,6 +222,25 @@ export async function testCompanyIds(prisma: any): Promise<Set<string>> {
   return new Set(rows.map((row) => row.id));
 }
 
+/** Empresas con alguien del equipo de Kadesh (admin de plataforma): no son clientes. */
+export async function internalCompanyIds(prisma: any): Promise<Set<string>> {
+  const rows: Array<{ companyId: string | null }> = await prisma.user.findMany({
+    where: { companyId: { not: null }, roles: { some: { name: Role.ADMIN } } },
+    distinct: ["companyId"],
+    select: { companyId: true },
+  });
+  return new Set(rows.map((row) => row.companyId).filter((id): id is string => Boolean(id)));
+}
+
+/**
+ * Fuera de la analítica (Fase 4): cuentas de prueba interna y empresas del equipo de Kadesh.
+ * Los KPIs de Inicio siguen excluyendo solo las de prueba, como desde la Fase 1.
+ */
+export async function analyticsExcludedCompanyIds(prisma: any): Promise<Set<string>> {
+  const [test, internal] = await Promise.all([testCompanyIds(prisma), internalCompanyIds(prisma)]);
+  return new Set([...test, ...internal]);
+}
+
 export type CompanyCredits = {
   plan: number;
   bonus: number;
@@ -263,10 +306,22 @@ export function countsToList(
  */
 async function optional<T>(read: () => Promise<T>, fallback: T): Promise<T> {
   try {
-    return await read();
+    const result = await read();
+    // El Prisma de Keystone no lanza los errores: los devuelve como resultado.
+    return result instanceof Error ? fallback : result;
   } catch {
     return fallback;
   }
+}
+
+/**
+ * El Prisma de Keystone (`context.prisma`) atrapa los errores y los devuelve como resultado en
+ * vez de lanzarlos. Para consultas crudas, donde un error de SQL pasaría como "sin filas",
+ * esto lo vuelve a lanzar.
+ */
+export function unwrapPrisma<T>(result: T | Error): T {
+  if (result instanceof Error) throw result;
+  return result;
 }
 
 /** Última vez que alguien del equipo tuvo el panel abierto (latido), por empresa. */

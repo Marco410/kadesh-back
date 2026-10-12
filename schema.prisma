@@ -1715,6 +1715,7 @@ model User {
   suspendedReason                          String?
   sessionVersion                           Int?                     @default(0)
   anonymizedAt                             DateTime?
+  signupAttribution                        Json?
   from_ActivityEvent_actor                 ActivityEvent[]          @relation("ActivityEvent_actor")
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")

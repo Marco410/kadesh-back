@@ -475,5 +475,14 @@ export default list({
         itemView: { fieldMode: "read" },
       },
     }),
+    // De dónde llegó al registrarse (UTM, dominio que refirió, página de entrada). Ver utils/analytics/attribution.ts.
+    signupAttribution: json({
+      access: userAccountControlFieldAccess,
+      ui: {
+        description: "Primer contacto antes de registrarse: UTM, sitio que refirió y página de entrada",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
   },
 });

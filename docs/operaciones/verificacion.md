@@ -82,3 +82,26 @@ Por HTTP contra el back de la copia: con el token de "entrar como" las consultas
 
 En el navegador: controles de acceso en la ficha, suspender y reactivar la empresa desde la interfaz, pestaña Control de una persona, "ver como" lleva al panel de la persona con la barra (créditos cargan, sin errores ni tour), salir restaura el token del admin y regresa al 360, el login de una persona suspendida muestra el aviso, y la pestaña Control a 390 px sin scroll horizontal.
 
+
+## Fase 4 — lo que ya se probó (2026-10-11, copia desechable)
+
+Prueba de humo, 64 de 64, sobre una copia sembrada con 7 empresas de ejemplo (sana, uso que cayó, prueba con buen uso, sin créditos el día 5, prueba sin uso, sin plan con intención de compra y una cuenta de prueba interna) y 110 días de resumen diario:
+
+- Salud: lista lista; la cuenta de prueba y las empresas sin plan quedan fuera por defecto; cada empresa sale con el nivel, la tendencia y la señal esperados; orden por riesgo; conteos que cuadran; filtros por señal, por empresa y por búsqueda.
+- Empresas: las filas traen salud y se pueden ordenar por salud.
+- Inicio: aparecen riesgo de baja y oportunidad de venta sin repetir avisos que ya existían; nada de la cuenta de prueba.
+- Activación: tamaño de la cohorte y cada paso con las empresas esperadas; meses que suman la cohorte.
+- Retención: meses del más viejo al actual, actividad en el mes correcto, sin la cuenta de prueba.
+- Uso: serie hasta ayer, personas activas, MAU, DAU ÷ MAU, módulos por plan, secciones sin el admin ni la cuenta de prueba.
+- Demanda: sin cuenta de prueba ni corridas fallidas; huecos de giro + zona correctos; una sola corrida floja no es hueco.
+- Adquisición: canales, referido por encima de UTM, "Sin dato", páginas y campañas.
+- Las seis consultas nuevas se niegan a quien no es admin de Kadesh.
+- Registro: la atribución llega limpia (minúsculas, dominio, ruta sin query, sin llaves extrañas); no se puede colar por `data`; la persona no puede leerla ni editarla.
+
+## Fase 4 — al desplegar
+
+1. `yarn migrate` (por ejemplo, nombre `signup_attribution`). Revisar que la migración solo agregue la columna `signupAttribution` a `User`.
+2. **Back antes que front.** El front nuevo manda `attribution` al registrarse; si el back todavía no la acepta, el front reintenta sin ella (el registro no se rompe), pero el dato se pierde.
+3. Para tener salud y uso con historia: `pnpm usage:rollup --from=AAAA-MM-DD --to=AAAA-MM-DD` (por ejemplo, los últimos 90 días). Sin resumen diario la salud no se muestra.
+4. Registrarse en una ventana privada entrando con `?utm_source=prueba&utm_campaign=prueba`: Operaciones → Analítica → Adquisición muestra el canal "prueba".
+5. Aviso de privacidad: mencionar la atribución de registro (UTM, sitio de origen y página de entrada).

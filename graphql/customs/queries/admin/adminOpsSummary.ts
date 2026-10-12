@@ -2,6 +2,7 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscription/constants";
 import { COMPANY_CREDIT_LEDGER_TYPE } from "../../../../models/Saas/SaasCompanyCreditLedger/constants";
 import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../../models/Saas/SaasSubscriptionLog/constants";
+import { loadCompanyHealth } from "./healthData";
 import {
   DAY_MS,
   activeUserIdsSince,
@@ -10,6 +11,7 @@ import {
   companyCredits,
   currentPeriod,
   daysAgo,
+  internalCompanyIds,
   lastSeenByCompany,
   latestDate,
   latestSubscriptionsByCompany,
@@ -32,7 +34,7 @@ const typeDefs = `
   type AdminAttentionItem {
     companyId: ID!
     companyName: String!
-    """trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive"""
+    """trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive | churn_risk | upsell"""
     reason: String!
     detail: String
     """high | medium | low"""
@@ -294,6 +296,60 @@ const resolver = {
         severity: "low",
         at: toIso(last),
       });
+    }
+
+    // Salud (fase 4): riesgo de baja y oportunidades de venta que los avisos de arriba no cubren.
+    // Pago vencido ya sale como past_due/unpaid, una cuenta activa sin accesos como inactive y
+    // quedarse sin créditos como no_credits: no se repiten.
+    // Las empresas del equipo de Kadesh no son clientes: no se califican.
+    const internalIds = await internalCompanyIds(prisma);
+    const health = await loadCompanyHealth(
+      prisma,
+      realIds.filter((id) => !internalIds.has(id)),
+    );
+    if (health.ready) {
+      const reasonsByCompany = new Map<string, Set<string>>();
+      for (const item of attention) {
+        const reasons = reasonsByCompany.get(item.companyId) ?? new Set<string>();
+        reasons.add(item.reason);
+        reasonsByCompany.set(item.companyId, reasons);
+      }
+      for (const [companyId, companyHealth] of health.byCompany) {
+        const reasons = reasonsByCompany.get(companyId) ?? new Set<string>();
+        const isTrial = latest.get(companyId)?.status === SUBSCRIPTION_STATUS.TRIALING;
+        const churn = companyHealth.flags.find(
+          (flag) =>
+            flag.key === "churn_risk" &&
+            (flag.reason === "usage_drop" ||
+              flag.reason === "low_health" ||
+              (isTrial && (flag.reason === "inactive" || flag.reason === "never_used"))),
+        );
+        if (churn) {
+          attention.push({
+            companyId,
+            companyName: nameById.get(companyId) ?? "Empresa",
+            reason: "churn_risk",
+            detail: `${churn.label} · salud ${companyHealth.score}`,
+            severity: "medium",
+            at: toIso(companyHealth.lastSeenAt),
+          });
+        }
+        const upsell = companyHealth.flags.find(
+          (flag) =>
+            flag.key === "upsell" &&
+            !(flag.reason === "credits_exhausted" && reasons.has("no_credits")),
+        );
+        if (upsell) {
+          attention.push({
+            companyId,
+            companyName: nameById.get(companyId) ?? "Empresa",
+            reason: "upsell",
+            detail: upsell.label,
+            severity: "low",
+            at: toIso(companyHealth.lastSeenAt),
+          });
+        }
+      }
     }
 
     const seenUserIds = await activeUserIdsSince(prisma, since7d);

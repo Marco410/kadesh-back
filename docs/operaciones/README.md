@@ -9,10 +9,11 @@ Backend de la pantalla **Operaciones** del front (`/panel/clientes/admin`, solo 
 | **0** | Cerrar huecos de acceso: los clientes ya no pueden editar créditos, suscripción, pagos ni logs | Código listo |
 | **1** | Queries admin (`adminCompanies`, `adminOpsSummary`, `adminCompanyInsights`, `adminActivityFeed`), admin lee cotizaciones/proyectos, login con contraseña registrado en el servidor | Código listo |
 | **2** | Modelo de eventos propio (`ActivityEvent`), tiempo activo (`UserActivityDay`), IP y navegador en accesos, instrumentación, webhook de Stripe, registro de qué abre el admin | Migrado (`20261011055848_activity_events_migration`) |
-| **3a** | Extender prueba, dueño de cuenta, notas internas, resumen diario de uso (`rollupDailyUsage`) con tendencia y comparación por plan | Código listo. **Falta `yarn migrate`** |
-| **3b** | Suspender empresa o persona, cerrar sesiones, "entrar como" (solo lectura), transferir la propiedad, ARCO (exportar y anonimizar), quitar `customAuth` | Código listo (aprobado el 2026-10-11). **Falta `yarn migrate`** (la misma migración que 3a) |
+| **3a** | Extender prueba, dueño de cuenta, notas internas, resumen diario de uso (`rollupDailyUsage`) con tendencia y comparación por plan | Migrado (`20261011070506_suspended_migration`) |
+| **3b** | Suspender empresa o persona, cerrar sesiones, "entrar como" (solo lectura), transferir la propiedad, ARCO (exportar y anonimizar), quitar `customAuth` | Migrado junto con 3a (`20261011070506_suspended_migration`) |
+| **4** | Analítica: salud de cada cuenta con riesgo de baja y oportunidad de venta, activación, retención por mes de registro, DAU/WAU/MAU y módulos por plan, demanda no cubierta, de dónde llegan los clientes (`User.signupAttribution`) | Código listo. **Falta `yarn migrate`** |
 
-Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`ActivityEvent`, `UserActivityDay`) y dos columnas en `UserAuthLog` (`ip`, `userAgent`). La 3 agrega `SaasCompanyNote`, `SaasCompanyDailyUsage`, `SaasCompany.accountManager` y los campos de control de cuenta (`suspendedAt`, `suspendedReason`, `sessionVersion`, `anonymizedAt`).
+Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`ActivityEvent`, `UserActivityDay`) y dos columnas en `UserAuthLog` (`ip`, `userAgent`). La 3 agrega `SaasCompanyNote`, `SaasCompanyDailyUsage`, `SaasCompany.accountManager` y los campos de control de cuenta (`suspendedAt`, `suspendedReason`, `sessionVersion`, `anonymizedAt`). La 4 solo agrega `User.signupAttribution`.
 
 ## Documentos
 
@@ -33,6 +34,12 @@ Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`Ac
   - Webhook de Stripe: `webhooks/stripe.ts`; sincronización de estado compartida: `utils/saas/stripeSubscriptionSync.ts`
   - Retención: `pnpm activity:prune`
 
+- Fase 4:
+  - Salud: `utils/analytics/health.ts` (regla) y `graphql/customs/queries/admin/healthData.ts` (datos de muchas empresas en pocas consultas)
+  - Pasos de activación compartidos: `graphql/customs/queries/admin/milestones.ts`
+  - Atribución: `utils/analytics/attribution.ts`
+  - Queries: `adminHealth`, `adminActivationFunnel`, `adminCohorts`, `adminEngagement`, `adminDemandGaps`, `adminAcquisition` (ver el README de queries admin)
+
 ## Orden de despliegue
 
 1. **Back primero.** Si sale primero el front, durante ese rato los logins con contraseña no quedan registrados: el front ya no escribe `UserAuthLog`.
@@ -47,3 +54,10 @@ Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`Ac
 5. Programar `pnpm activity:prune --apply` una vez al mes.
 6. Fase 3: el workflow `.github/workflows/rollup-daily-usage.yml` llama `rollupDailyUsage` cada noche con los mismos secrets que los posts programados (`KADESH_API_URL`, `CRON_SECRET`). Para llenar semanas pasadas: `pnpm usage:rollup --from=AAAA-MM-DD --to=AAAA-MM-DD`.
 7. Aviso de privacidad y Términos: mencionar el registro de uso (secciones, tiempo activo), IP y navegador en accesos, y la analítica agregada.
+
+### Fase 4
+
+1. `yarn migrate` antes de levantar el back (agrega `User.signupAttribution`).
+2. Back antes que front. Si el front sale primero, el registro no se rompe (reintenta sin `attribution`), pero esos registros quedan sin origen.
+3. Llenar el resumen diario hacia atrás (`pnpm usage:rollup --from --to`) para que la salud y el uso tengan historia.
+4. Aviso de privacidad: agregar la atribución de registro.

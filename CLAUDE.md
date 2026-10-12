@@ -44,6 +44,7 @@ Per-list conventions:
 - `graphql/customs/mutations/index.ts` aggregates every custom mutation module's `{ typeDefs, definition, resolver }` into one object consumed by `extendedSchema.ts`.
 - Each custom mutation is its own file (e.g. `nearbyPetPlaces.ts`, `importPetPlace.ts`, `auth/customAuth.ts`) exporting `{ typeDefs, definition, resolver }`: `typeDefs` declares any new GraphQL types/inputs plus a `type Mutation { ... }` block (for local type-checking/documentation), `definition` is just the mutation signature line reused in the merged `Mutation` type, and `resolver` is the resolver map entry. New custom mutations must follow this shape and be added to `graphql/customs/mutations/index.ts`.
 - Custom resolvers commonly use `context.sudo().query.<List>.findOne/findMany/createOne/updateOne` to bypass access control for privileged operations (e.g. deduping/creating `PetPlace` records from external API data).
+- Keystone's `context.prisma` **returns** Prisma errors as a `GraphQLError` value instead of throwing them. A failed `prisma.x.create()` or raw query does not throw: check `result instanceof Error` when it matters (`unwrapPrisma` / `optionalRead` in `graphql/customs/queries/admin/shared.ts`).
 
 **Seeding** (`utils/seed/`): `seed.ts` (root) boots a Keystone context via `getContext` and runs `utils/seed/index.ts`, which composes per-entity seed files (`user.ts`, `animal_types.ts`, `pet_place_types.ts`, `veterinary.ts`, `veterinary_services.ts`).
 

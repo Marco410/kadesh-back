@@ -81,3 +81,11 @@ Qué: `suspendedAt`, `suspendedReason`, `sessionVersion` (default 0) y `anonymiz
 
 Los escriben las mutaciones de Operaciones (`graphql/customs/mutations/admin/accountControl.ts`): suspender, cerrar sesiones y anonimizar (ARCO). Tokens emitidos antes de este cambio no traen versión y cuentan como 0, así que siguen valiendo. Ver `docs/operaciones/decisiones.md`.
 
+
+### 2026-10-11 — `signupAttribution`: de dónde llegó al registrarse
+
+Qué: JSON con el primer contacto antes de registrarse (`utm_*`, dominio del sitio que la mandó, página de entrada sin query, `firstSeenAt`). Lo escriben `registerUser(attribution)` y `authenticateUserWithGoogle(attribution)` (solo en altas nuevas) después de limpiarlo con `cleanAttribution` (`utils/analytics/attribution.ts`). Solo lo lee el admin de plataforma y nadie lo escribe por API (`userAccountControlFieldAccess`); si llega dentro de `data` al registrarse, se ignora.
+
+Por qué: Operaciones → Analítica → Adquisición necesita saber qué canal trae empresas que usan y pagan. Del referrer se guarda solo el dominio y de la página solo la ruta: la URL completa puede traer datos de la persona.
+
+Requiere `yarn migrate`. No lo corre el agente.

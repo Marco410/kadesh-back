@@ -8078,6 +8078,7 @@ type User {
   suspendedReason: String
   sessionVersion: Int
   anonymizedAt: DateTime
+  signupAttribution: JSON
 }
 
 type PasswordState {
@@ -8300,6 +8301,7 @@ input UserUpdateInput {
   suspendedReason: String
   sessionVersion: Int
   anonymizedAt: DateTime
+  signupAttribution: JSON
 }
 
 input RoleRelateToManyForUpdateInput {
@@ -8417,6 +8419,7 @@ input UserCreateInput {
   suspendedReason: String
   sessionVersion: Int
   anonymizedAt: DateTime
+  signupAttribution: JSON
 }
 
 input RoleRelateToManyForCreateInput {
@@ -9181,8 +9184,8 @@ type Mutation {
   adminExportPersonData(userId: ID!): JSON!
   adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
-  authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String): AuthenticateUserWithGoogleResult!
-  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
+  authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String, attribution: JSON): AuthenticateUserWithGoogleResult!
+  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String, attribution: JSON): User
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
   generateAiPlaybook(companyId: ID!, force: Boolean): DailyDigestResult!
   generateCompanyAiBrief(companyId: ID!, force: Boolean): CompanyAiBriefResult!
@@ -9476,6 +9479,12 @@ type Query {
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
+  adminHealth(input: AdminHealthInput): AdminHealthResult!
+  adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
+  adminCohorts(input: AdminCohortsInput): AdminCohorts!
+  adminEngagement(input: AdminEngagementInput): AdminEngagement!
+  adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
+  adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   findAnimalReportDuplicates(phone: String, animalTypeId: ID, name: String, sourceUrl: String): [AnimalReportDuplicate!]!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
@@ -10742,7 +10751,9 @@ input AdminCompaniesInput {
   """
   status: String
 
-  """recent (alta) | name | activity (último acceso del equipo)"""
+  """
+  recent (alta) | name | activity (último acceso del equipo) | health (peor salud primero)
+  """
   sort: String
 
   """Solo las cuentas de esta persona de Kadesh (dueño de cuenta)."""
@@ -10782,6 +10793,9 @@ type AdminCompanyRow {
 
   """Si Kadesh suspendió el acceso de la empresa."""
   suspendedAt: String
+
+  """Salud de las últimas 4 semanas; null mientras no haya resumen diario."""
+  health: AdminHealthBrief
 }
 
 type AdminCompaniesResult {
@@ -10802,7 +10816,7 @@ type AdminAttentionItem {
   companyName: String!
 
   """
-  trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive
+  trial_ending | trial_expired | past_due | unpaid | no_credits | sync_failures | checkout_failed | inactive | churn_risk | upsell
   """
   reason: String!
   detail: String
@@ -11041,4 +11055,302 @@ type AdminActivityFeedResult {
   items: [AdminActivityItem!]!
   nextBefore: String
   hasMore: Boolean!
+}
+
+input AdminHealthInput {
+  search: String
+
+  """
+  live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none
+  """
+  status: String
+
+  """healthy | watch | risk"""
+  label: String
+
+  """churn_risk | upsell"""
+  flag: String
+  accountManagerId: ID
+
+  """
+  risk (peor salud primero, por defecto) | best | drop (mayor caída de uso) | name
+  """
+  sort: String
+
+  """Solo esta empresa (ficha 360). Ignora los demás filtros."""
+  companyId: ID
+  take: Int
+  skip: Int
+}
+
+"""Puntos de cada parte de la salud (máximos: 30, 15, 25, 15, 15)."""
+type AdminHealthComponents {
+  activity: Int!
+  adoption: Int!
+  usage: Int!
+  engagement: Int!
+  billing: Int!
+}
+
+type AdminHealthFlag {
+  """churn_risk | upsell"""
+  key: String!
+
+  """
+  payment_overdue | never_used | inactive | usage_drop | low_health | credits_exhausted | purchase_intent | trial_ready
+  """
+  reason: String!
+  label: String!
+}
+
+"""Salud resumida para listas."""
+type AdminHealthBrief {
+  score: Int!
+  label: String!
+  trend: String!
+  changePct: Int
+  flags: [AdminHealthFlag!]!
+}
+
+type AdminCompanyHealth {
+  companyId: ID!
+  companyName: String!
+  planName: String
+  subscriptionStatus: String
+
+  """0–100"""
+  score: Int!
+
+  """healthy (70 o más) | watch (40–69) | risk (menos de 40)"""
+  label: String!
+
+  """up | down | stable | new (menos de 21 días) | inactive"""
+  trend: String!
+
+  """Actividad de las últimas 2 semanas contra las 2 anteriores (%)."""
+  changePct: Int
+  components: AdminHealthComponents!
+  flags: [AdminHealthFlag!]!
+  teamSize: Int!
+
+  """Personas que entraron en las últimas 4 semanas."""
+  activeUsers: Int!
+  lastSeenAt: String
+  accountManager: AdminPersonRef
+}
+
+type AdminHealthResult {
+  """false mientras no haya resumen diario: la salud saldría en ceros."""
+  ready: Boolean!
+
+  """Último día con resumen (YYYY-MM-DD)."""
+  computedThrough: String
+  windowDays: Int!
+  total: Int!
+
+  """
+  Con búsqueda y estado aplicados: healthy, watch, risk, churn_risk, upsell.
+  """
+  counts: [AdminCount!]!
+  items: [AdminCompanyHealth!]!
+}
+
+input AdminActivationInput {
+  """Empresas registradas en los últimos N días (30–365, por defecto 90)."""
+  days: Int
+}
+
+type AdminFunnelStep {
+  """signup | profile | extraction | contact | quotation | paid"""
+  key: String!
+  label: String!
+  companies: Int!
+
+  """Porcentaje de las registradas (0–100)."""
+  pct: Float!
+
+  """
+  Mediana de días desde el registro; null si el paso no guarda fecha o nadie llegó.
+  """
+  medianDays: Float
+}
+
+type AdminFunnelMonth {
+  """Mes de registro (YYYY-MM, hora de CDMX)."""
+  month: String!
+  companies: Int!
+  extraction: Int!
+  contact: Int!
+  quotation: Int!
+  paid: Int!
+}
+
+type AdminActivationFunnel {
+  from: String!
+  to: String!
+  cohortSize: Int!
+  steps: [AdminFunnelStep!]!
+  byMonth: [AdminFunnelMonth!]!
+}
+
+input AdminCohortsInput {
+  """Meses de registro a mostrar, contando el actual (3–12, por defecto 6)."""
+  months: Int
+}
+
+type AdminCohortRow {
+  """Mes de registro (YYYY-MM)."""
+  month: String!
+  size: Int!
+
+  """
+  Empresas que usaron Kadesh en el mes de registro (posición 0), el siguiente (1)… hasta el mes actual.
+  """
+  active: [Int!]!
+}
+
+type AdminCohorts {
+  rows: [AdminCohortRow!]!
+}
+
+input AdminEngagementInput {
+  """Días de la serie diaria (14–90, por defecto 30)."""
+  days: Int
+}
+
+type AdminDailyActive {
+  day: String!
+  users: Int!
+  companies: Int!
+}
+
+type AdminModuleAdoption {
+  """extraction | crm | activities | quotations | whatsapp | ai"""
+  key: String!
+  companies: Int!
+}
+
+type AdminPlanAdoption {
+  planName: String!
+
+  """Empresas activas o en prueba con este plan."""
+  companies: Int!
+
+  """Cuántas usaron cada módulo en los últimos 30 días."""
+  modules: [AdminModuleAdoption!]!
+}
+
+type AdminSectionUsage {
+  """Clave de sección del panel (la etiqueta la pone el front)."""
+  key: String!
+  views: Int!
+  users: Int!
+}
+
+type AdminEngagement {
+  """false mientras no haya latidos ni resumen diario."""
+  ready: Boolean!
+  through: String!
+  series: [AdminDailyActive!]!
+
+  """Promedio de personas activas por día en los últimos 30 días."""
+  dau: Float!
+  wau: Int!
+  mau: Int!
+
+  """DAU ÷ MAU (0–1): qué tan seguido vuelve quien usa Kadesh en el mes."""
+  stickiness: Float!
+  activeCompanies7d: Int!
+  activeCompanies30d: Int!
+  plans: [AdminPlanAdoption!]!
+  sections: [AdminSectionUsage!]!
+}
+
+input AdminDemandGapsInput {
+  """Últimos N días (7–365, por defecto 90)."""
+  days: Int
+
+  """
+  Con estos resultados o menos la corrida cuenta como "pocos" (0–20, por defecto 5).
+  """
+  threshold: Int
+}
+
+type AdminDemandCategory {
+  category: String!
+  runs: Int!
+  lowRuns: Int!
+  avgResults: Float!
+  companies: Int!
+}
+
+type AdminDemandZone {
+  """Centro aproximado del cuadro de unos 11 km."""
+  lat: Float!
+  lng: Float!
+  runs: Int!
+  lowRuns: Int!
+  avgResults: Float!
+  companies: Int!
+
+  """Giros con pocos resultados en la zona (los que más se repiten)."""
+  topCategories: [String!]!
+}
+
+type AdminDemandGap {
+  category: String!
+  lat: Float!
+  lng: Float!
+  runs: Int!
+  lowRuns: Int!
+  avgResults: Float!
+  companies: Int!
+  lastAt: String
+}
+
+type AdminDemandGaps {
+  days: Int!
+  threshold: Int!
+  runs: Int!
+  lowRuns: Int!
+
+  """Giros con más corridas de pocos resultados."""
+  categories: [AdminDemandCategory!]!
+  zones: [AdminDemandZone!]!
+
+  """Giro + zona que se buscaron varias veces sin encontrar."""
+  gaps: [AdminDemandGap!]!
+}
+
+input AdminAcquisitionInput {
+  """Empresas registradas en los últimos N días (7–365, por defecto 90)."""
+  days: Int
+}
+
+type AdminAcquisitionRow {
+  key: String!
+  companies: Int!
+
+  """Hicieron al menos una extracción."""
+  activated: Int!
+  paid: Int!
+}
+
+type AdminAcquisition {
+  days: Int!
+  companies: Int!
+
+  """
+  Empresas con atribución guardada (las anteriores a esta medición salen como "Sin dato").
+  """
+  withData: Int!
+
+  """utm_source, dominio que refirió, Directo, Referido o Sin dato."""
+  channels: [AdminAcquisitionRow!]!
+
+  """Página por la que entraron (sin query)."""
+  landings: [AdminAcquisitionRow!]!
+
+  """utm_campaign"""
+  campaigns: [AdminAcquisitionRow!]!
 }

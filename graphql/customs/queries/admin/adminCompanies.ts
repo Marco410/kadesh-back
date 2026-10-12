@@ -1,12 +1,14 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../../../models/Role/constants";
+import { healthBrief } from "./adminHealth";
+import { loadCompanyHealth } from "./healthData";
 import {
   adminPrisma,
   assertPlatformAdmin,
   clampInt,
   companyCredits,
+  companySearchWhere,
   currentPeriod,
-  insensitive,
   lastSeenByCompany,
   latestDate,
   latestSubscriptionsByCompany,
@@ -18,7 +20,7 @@ import {
 
 /** Filtro por estado vigente; `none` = sin suscripción. */
 const STATUS_NONE = "none";
-const SORTS = ["recent", "name", "activity"] as const;
+const SORTS = ["recent", "name", "activity", "health"] as const;
 type Sort = (typeof SORTS)[number];
 
 const typeDefs = `
@@ -27,7 +29,7 @@ const typeDefs = `
     search: String
     """all | active | trialing | past_due | unpaid | cancelled | none (sin plan)"""
     status: String
-    """recent (alta) | name | activity (último acceso del equipo)"""
+    """recent (alta) | name | activity (último acceso del equipo) | health (peor salud primero)"""
     sort: String
     """Solo las cuentas de esta persona de Kadesh (dueño de cuenta)."""
     accountManagerId: ID
@@ -61,6 +63,8 @@ const typeDefs = `
     accountManager: AdminPersonRef
     """Si Kadesh suspendió el acceso de la empresa."""
     suspendedAt: String
+    """Salud de las últimas 4 semanas; null mientras no haya resumen diario."""
+    health: AdminHealthBrief
   }
 
   type AdminCompaniesResult {
@@ -114,28 +118,6 @@ type CompanyRecord = {
   _count: { users: number; leads: number };
 };
 
-function searchWhere(search: string | null | undefined) {
-  const q = search?.trim();
-  if (!q) return {};
-  return {
-    OR: [
-      { name: insensitive(q) },
-      { contactEmail: insensitive(q) },
-      {
-        users: {
-          some: {
-            OR: [
-              { email: insensitive(q) },
-              { name: insensitive(q) },
-              { lastName: insensitive(q) },
-            ],
-          },
-        },
-      },
-    ],
-  };
-}
-
 function pickOwner(users: CompanyRecord["users"]) {
   const admin = users.find((u) =>
     u.roles.some((r) => r.name === Role.ADMIN_COMPANY),
@@ -159,7 +141,7 @@ const resolver = {
       ? (input?.sort as Sort)
       : "recent";
 
-    const searchFilter = searchWhere(input?.search);
+    const searchFilter = companySearchWhere(input?.search);
     const managerId = input?.accountManagerId?.trim();
     const baseWhere = managerId
       ? { AND: [searchFilter, { accountManagerId: managerId }] }
@@ -190,7 +172,12 @@ const resolver = {
     const total = filteredIds.length;
 
     let pageIds: string[];
-    if (sort === "activity") {
+    let health: Awaited<ReturnType<typeof loadCompanyHealth>> | null = null;
+    if (sort === "health") {
+      health = await loadCompanyHealth(prisma, filteredIds);
+      const scoreOf = (id: string) => health?.byCompany.get(id)?.score ?? 101;
+      pageIds = [...filteredIds].sort((a, b) => scoreOf(a) - scoreOf(b)).slice(skip, skip + take);
+    } else if (sort === "activity") {
       const lastLogins: Array<{ companyId: string | null; _max: { lastLoginAt: Date | null } }> =
         await prisma.user.groupBy({
           by: ["companyId"],
@@ -255,6 +242,9 @@ const resolver = {
     });
     const byId = new Map(records.map((r) => [r.id, r]));
     const lastSeen = await lastSeenByCompany(prisma, pageIds);
+    health ??= await loadCompanyHealth(prisma, pageIds);
+    const healthReady = health.ready;
+    const healthById = health.byCompany;
 
     const items = pageIds
       .map((id) => byId.get(id))
@@ -293,6 +283,7 @@ const resolver = {
           owner: personRef(pickOwner(c.users)),
           accountManager: personRef(c.accountManager),
           suspendedAt: toIso(c.suspendedAt),
+          health: healthReady ? healthBrief(healthById.get(c.id)) : null,
         };
       });
 

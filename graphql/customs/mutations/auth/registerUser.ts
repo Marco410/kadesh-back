@@ -10,11 +10,12 @@ import {
 } from "../../../../utils/auth/signupRoles";
 import { PRODUCT } from "../../../../utils/constants/product";
 import { provisionSignupCompany } from "../../../../utils/access/provisionSignupCompany";
+import { cleanAttribution } from "../../../../utils/analytics/attribution";
 
 const typeDefs = ``;
 
 const definition = `
-  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String): User
+  registerUser(data: UserCreateInput!, referrerCode: String, companyName: String, attribution: JSON): User
 `;
 
 const resolver = {
@@ -24,10 +25,12 @@ const resolver = {
       data,
       referrerCode,
       companyName,
+      attribution,
     }: {
       data: Record<string, unknown>;
       referrerCode?: string | null;
       companyName?: string | null;
+      attribution?: unknown;
     },
     context: KeystoneContext,
   ) => {
@@ -84,6 +87,7 @@ const resolver = {
           product: PRODUCT.SAAS,
           referredBy: referredByConnect,
           roles: { connect: signupRoleIds.map((id) => ({ id })) },
+          signupAttribution: cleanAttribution(attribution) ?? undefined,
         },
         query:
           "id name lastName secondLastName email phone username referralCode referredBy { id }",

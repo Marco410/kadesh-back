@@ -219,3 +219,63 @@ Con Prisma `groupBy` y `aggregate` se resuelve en el servidor.
 
 **Por qué:** creaba o "iniciaba sesión" a una cuenta con solo su correo, sin contraseña, y devolvía sus datos. Ningún front la usaba y estaba rota (pedía un campo `role` que ya no existe), pero "arreglarla" habría abierto la puerta a entrar con solo saber un correo.
 
+
+## 2026-10-11 — Fase 4: salud de cada cuenta (0–100)
+
+**Qué:** `scoreHealth` (`utils/analytics/health.ts`) califica a cada empresa con lo que hizo en las últimas 4 semanas que terminan ayer (resumen diario + latido):
+
+| Parte | Máx. | Meta |
+| --- | --- | --- |
+| Constancia | 30 | 16 días con actividad de 28 |
+| Equipo | 15 | Que entre todo el equipo |
+| Uso | 25 | 60 puntos: extracción ×3, cambio de CRM ×1, actividad ×2, cotización ×4, WhatsApp ×0.5 |
+| Tiempo | 15 | 2 horas con el panel abierto por persona |
+| Pago | 15 | Plan activo (prueba = 10, con pago fallido −5) |
+
+Las metas se ajustan a la antigüedad (una empresa de 5 días no puede tener 16 días activos). Si casi todo su uso fue hace más de 2 semanas, Constancia, Uso y Tiempo valen menos, hasta la mitad: en la prueba, una empresa que dejó de entrar seguía saliendo "sana" (77) por lo que hizo antes, aunque su señal decía que el uso cayó 100%. Si más de 30% de sus extracciones fallan, resta 5. 70 o más = sana, 40–69 = por observar, menos de 40 = en riesgo.
+
+**Por qué una regla y no un modelo:** con pocas empresas un modelo no aprende nada confiable, y una regla se puede explicar al equipo ("le faltan días activos"). Sirve para ordenar a quién atender, no para predecir.
+
+**Señales:**
+- *Riesgo de baja*: pago vencido; nadie del equipo ha entrado (después de sus primeros 3 días: recién registrada todavía no es riesgo); nadie entra hace 14 días o más; el uso de las últimas 2 semanas cayó 40% o más contra las 2 anteriores; o salud baja con 3 semanas o más de antigüedad.
+- *Oportunidad de venta*: se quedó sin créditos antes del día 20; vio módulos de otro plan o pidió mejorar 2 veces o más; o está en prueba con salud de 60 o más.
+
+Cada señal trae un motivo (`reason`) para que Inicio no repita avisos que ya tiene: pago vencido ya sale como `past_due`/`unpaid`, una cuenta activa sin accesos como `inactive` y quedarse sin créditos como `no_credits`. Por eso en "Requiere atención" solo se agregan `churn_risk` (caída de uso, salud baja o prueba sin uso) y `upsell`.
+
+**Dónde se ve:** `adminHealth` (lista con filtros y conteos), columna de salud y orden "peor salud primero" en `adminCompanies`, y la tarjeta Salud del 360. Sin resumen diario la salud no se muestra (`ready: false`): saldría en ceros.
+
+**Quién no cuenta:** toda la analítica deja fuera las cuentas de prueba interna y las empresas del equipo de Kadesh (las que tienen un admin de plataforma): no son clientes y en la prueba la empresa "Kadesh" salía en Inicio como "riesgo de baja". Los KPIs de Inicio de la Fase 1 siguen igual (solo excluyen las de prueba) para no cambiar números que ya se usan.
+
+## 2026-10-11 — Fase 4: activación, retención y uso
+
+**Activación (`adminActivationFunnel`):** de las empresas registradas en el periodo, cuántas llegaron a cada paso y la mediana de días: llenó su perfil de negocio, primera extracción, primer contacto con un lead (actividad, WhatsApp enviado o lead movido de etapa), primera cotización y pagó (cobro exitoso o plan con costo activo). Cada paso se cuenta por separado y no como embudo estricto: hay quien paga sin cotizar, y un embudo estricto lo escondería. El perfil de negocio no guarda fecha, así que no tiene mediana.
+
+**Retención (`adminCohorts`):** por mes de registro, qué parte de las empresas usó Kadesh cada mes después. "Usó" = latido del panel, login, extracción, evento del panel (sin los del admin de Kadesh) o cotización. Todo en hora de CDMX. Es retención por uso, no por pago: el historial de pagos por mes no existe completo.
+
+**Uso (`adminEngagement`):** personas activas por día (latido), DAU promedio, WAU, MAU, DAU ÷ MAU, empresas activas, módulos que usa cada plan (resumen de 30 días) y secciones más abiertas. Sin cuentas de prueba ni el equipo de Kadesh, que usan el panel a diario y lo inflarían. Los días terminan ayer: hoy va a medias y parecería una caída.
+
+## 2026-10-11 — Fase 4: demanda no cubierta
+
+**Qué:** `adminDemandGaps` junta las extracciones exitosas con pocos resultados (nuevos + los que ya estaban en la base; por defecto 5 o menos) por giro, por zona (cuadro de 0.1°, unos 11 km) y por giro + zona.
+
+**Por qué así:** los descartados por calificación no cuentan (los quitó el filtro del cliente, no la falta de negocios) y las corridas con error tampoco (son fallas, no demanda). Un hueco necesita al menos 2 corridas flojas: una sola puede ser un error de dedo.
+
+## 2026-10-11 — Fase 4: de dónde llegan los clientes
+
+**Qué:** `User.signupAttribution` guarda el primer contacto antes de registrarse: `utm_*`, dominio del sitio que la mandó y página de entrada. Lo junta el front en la primera visita y lo manda `registerUser(attribution)` o `authenticateUserWithGoogle(attribution)` (solo en altas nuevas). `adminAcquisition` agrupa las empresas por canal, página de entrada y campaña, con cuántas extrajeron y cuántas pagaron.
+
+**Reglas:**
+- El servidor limpia todo (`cleanAttribution`): solo llaves conocidas y textos cortos; del referrer solo el dominio y de la página la ruta sin query (la URL completa puede traer datos de la persona).
+- El campo solo lo lee el admin de Kadesh y nadie lo escribe por la API: si alguien lo manda dentro de `data` al registrarse, se ignora.
+- Canal = `utm_source`, si no el dominio que la mandó, si no "Directo". Con código de referido el canal es "Referido" aunque traiga UTM. Las cuentas anteriores salen como "Sin dato".
+- La atribución es de quien creó la cuenta: los invitados no la traen.
+
+**Privacidad:** es analítica del sitio, así que si la persona rechazó las cookies el front no guarda nada. Hay que mencionarla en el Aviso de privacidad.
+
+## 2026-10-11 — El Prisma de Keystone devuelve los errores en vez de lanzarlos
+
+**Qué se encontró:** `context.prisma` (Keystone 6) atrapa los errores de Prisma y los regresa como resultado (`GraphQLError`) en lugar de lanzarlos. Un `create` que falla por un campo único no truena: devuelve el error y el código sigue como si nada.
+
+**Qué se cambió:** `optionalRead` ahora trata un error devuelto igual que uno lanzado, y las consultas SQL crudas nuevas pasan por `unwrapPrisma`, que vuelve a lanzar el error para que no se confunda con "sin filas".
+
+**Qué no hacer:** no dar por hecho que un `await prisma.x.create(...)` con el Prisma de Keystone lanza si falla. Si importa, revisar `resultado instanceof Error`.
