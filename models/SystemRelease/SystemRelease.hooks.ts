@@ -171,18 +171,29 @@ async function notifyUsersForRelease(
   );
 }
 
+/**
+ * Correo de novedades: se manda cuando la novedad pasa a publicada (al crearla publicada o al
+ * publicar un borrador), si `notifyByEmail` está activo, y una sola vez: `emailedAt` se marca antes
+ * de enviar con una actualización condicional, así dos guardados seguidos no mandan dos correos.
+ * Antes solo se mandaba al crearla ya publicada; un borrador publicado después nunca avisaba.
+ */
 export const systemReleaseEmailHook = {
-  afterOperation: async ({ operation, item, context }: any) => {
-    if (operation !== "create" || !item?.id) {
-      return;
-    }
-
-    if (item.isPublished !== true) {
-      return;
-    }
+  afterOperation: async ({ operation, item, originalItem, context }: any) => {
+    if ((operation !== "create" && operation !== "update") || !item?.id) return;
+    if (item.isPublished !== true || item.notifyByEmail === false || item.emailedAt) return;
+    // Solo al pasar a publicada: editar una que ya estaba publicada nunca manda correo (las de antes
+    // de este cambio no tienen `emailedAt` y no deben volver a mandarse).
+    if (operation === "update" && originalItem?.isPublished === true) return;
 
     void (async () => {
       try {
+        const prisma = context.sudo().prisma as any;
+        const claim = await prisma.systemRelease.updateMany({
+          where: { id: item.id, emailedAt: null, isPublished: true },
+          data: { emailedAt: new Date() },
+        });
+        if (claim instanceof Error || !claim?.count) return;
+
         const release = (await context.sudo().query.SystemRelease.findOne({
           where: { id: item.id },
           query: "id version product title body isPublished",
