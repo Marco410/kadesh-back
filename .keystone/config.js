@@ -3677,23 +3677,6 @@ var statusBusinessLeadTracker = {
         metadata: { from: before.pipelineStatus ?? null, to: after.pipelineStatus ?? null, statusId: after.id }
       });
     }
-    if (isChanged(before.salesPersonId, after.salesPersonId)) {
-      const names = await userNames(context, [before.salesPersonId, after.salesPersonId]);
-      const to = after.salesPersonId ? names[after.salesPersonId] : null;
-      await log(context, {
-        type: ACTIVITY_EVENT.LEAD_ASSIGNED,
-        companyId,
-        entityType: "TechBusinessLead",
-        entityId,
-        summary: to ? `Asign\xF3 ${name} a ${to}` : `Dej\xF3 sin vendedor a ${name}`,
-        metadata: {
-          fromUserId: before.salesPersonId ?? null,
-          toUserId: after.salesPersonId ?? null,
-          from: before.salesPersonId ? names[before.salesPersonId] ?? null : null,
-          to
-        }
-      });
-    }
     if (isChanged(before.opportunityLevel, after.opportunityLevel)) {
       await log(context, {
         type: ACTIVITY_EVENT.LEAD_OPPORTUNITY_CHANGED,
@@ -7070,19 +7053,7 @@ function leadAssignedToUser(companyId, userId) {
   return {
     AND: [
       leadInCompany(companyId),
-      {
-        OR: [
-          { salesPerson: { some: { id: { equals: userId } } } },
-          {
-            status: {
-              some: {
-                saasCompany: { id: { equals: companyId } },
-                salesPerson: { id: { equals: userId } }
-              }
-            }
-          }
-        ]
-      }
+      { salesPerson: { some: { id: { equals: userId } } } }
     ]
   };
 }
@@ -7105,16 +7076,7 @@ function leadCompanyScopedWhere(session2) {
   return leadAssignedToUser(companyId, userId);
 }
 function statusInCompany(companyId) {
-  return {
-    OR: [
-      { saasCompany: { id: { equals: companyId } } },
-      {
-        businessLead: {
-          saasCompany: { some: { id: { equals: companyId } } }
-        }
-      }
-    ]
-  };
+  return { saasCompany: { id: { equals: companyId } } };
 }
 function statusLeadCompanyScopedWhere(session2) {
   if (isPlatformAdmin(session2)) return true;
@@ -7128,7 +7090,7 @@ function statusLeadCompanyScopedWhere(session2) {
   return {
     AND: [
       statusInCompany(companyId),
-      { salesPerson: { id: { equals: userId } } }
+      { businessLead: { salesPerson: { some: { id: { equals: userId } } } } }
     ]
   };
 }
@@ -7401,24 +7363,43 @@ var statusBusinessLeadAccess = {
 };
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.hooks.ts
+function connectedId(rel) {
+  return rel?.connect?.id ?? null;
+}
 var statusBusinessLeadHooks = {
   resolveInput: async ({
     resolvedData,
     context,
     operation
   }) => {
-    if (hasRole(context.session, ["admin" /* ADMIN */])) {
-      return resolvedData;
-    }
-    const companyId = getSessionCompanyId(context.session);
-    if (operation === "create" && companyId) {
-      return {
-        ...resolvedData,
-        saasCompany: { connect: { id: companyId } }
-      };
-    }
     const next = { ...resolvedData };
-    delete next.saasCompany;
+    delete next.salesPerson;
+    const isAdmin = hasRole(context.session, ["admin" /* ADMIN */]);
+    const companyId = getSessionCompanyId(context.session);
+    if (!isAdmin) {
+      if (operation === "create" && companyId) {
+        next.saasCompany = { connect: { id: companyId } };
+      } else {
+        delete next.saasCompany;
+      }
+    }
+    if (operation === "create") {
+      const leadId = connectedId(next.businessLead);
+      const statusCompanyId = connectedId(next.saasCompany);
+      if (leadId && statusCompanyId) {
+        const existing = await context.sudo().db.TechStatusBusinessLead.count({
+          where: {
+            businessLead: { id: { equals: leadId } },
+            saasCompany: { id: { equals: statusCompanyId } }
+          }
+        });
+        if (existing > 0) {
+          throw new Error(
+            "Este lead ya tiene estatus en el pipeline de tu empresa. Actualiza el existente."
+          );
+        }
+      }
+    }
     return next;
   }
 };
@@ -7456,6 +7437,9 @@ var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
 }));
 var TechStatusBusinessLead_default = (0, import_core43.list)({
   access: statusBusinessLeadAccess,
+  db: {
+    extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@unique([businessLeadId, saasCompanyId])\n}")
+  },
   hooks: {
     resolveInput: statusBusinessLeadHooks.resolveInput,
     // Historial de etapas (velocidad comercial): toda escritura, de personas o del servidor.
@@ -7539,10 +7523,15 @@ var TechStatusBusinessLead_default = (0, import_core43.list)({
       many: false,
       ui: { description: "Empresa a la que pertenece el lead" }
     }),
+    /**
+     * @deprecated El estatus es de la empresa, no de un vendedor. Se conserva la columna por los
+     * datos históricos; el hook la ignora en escrituras. El vendedor asignado es
+     * `TechBusinessLead.salesPerson`.
+     */
     salesPerson: (0, import_fields43.relationship)({
       ref: "User.techStatusBusinessLeads",
       many: false,
-      ui: { description: "Vendedor asignado" }
+      ui: { description: "Deprecado: el vendedor asignado vive en el lead (TechBusinessLead.salesPerson)" }
     }),
     notes: (0, import_fields43.text)({
       ui: { displayMode: "textarea", description: "Notas generales" }
@@ -8099,18 +8088,24 @@ var proposalHooks = {
     if (operation === "update" && resolvedData?.status === PROPOSAL_STATUS.COMPRADA) {
       const proposal = await context.query.TechProposal.findOne({
         where: { id: item.id },
-        query: "id status businessLead { id }"
+        query: "id status businessLead { id } workspace { company { id } }"
       });
       if (!proposal?.businessLead?.id || proposal.status !== PROPOSAL_STATUS.COMPRADA)
         return;
+      const companyId = proposal.workspace?.company?.id ?? getSessionCompanyId(context.session);
+      if (!companyId) return;
       try {
-        const lead = await context.query.TechBusinessLead.findOne({
-          where: { id: proposal.businessLead.id },
-          query: "id status { id }"
+        const [status] = await context.sudo().query.TechStatusBusinessLead.findMany({
+          where: {
+            businessLead: { id: { equals: proposal.businessLead.id } },
+            saasCompany: { id: { equals: companyId } }
+          },
+          take: 1,
+          query: "id"
         });
-        if (lead?.status?.id) {
+        if (status?.id) {
           await context.db.TechStatusBusinessLead.updateOne({
-            where: { id: lead.status.id },
+            where: { id: status.id },
             data: { pipelineStatus: PIPELINE_STATUS.CERRADO_GANADO }
           });
         }
@@ -14524,7 +14519,7 @@ function parseAddressComponents(components) {
   }
   return { city, state, country };
 }
-async function ensureStatusForImport(context, leadId, companyId, sellerId) {
+async function ensureStatusForImport(context, leadId, companyId) {
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
     where: {
       businessLead: { id: { equals: leadId } },
@@ -14538,7 +14533,6 @@ async function ensureStatusForImport(context, leadId, companyId, sellerId) {
     data: {
       businessLead: { connect: { id: leadId } },
       saasCompany: { connect: { id: companyId } },
-      ...sellerId ? { salesPerson: { connect: { id: sellerId } } } : {},
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
       opportunityLevel: "Media"
     }
@@ -14605,7 +14599,7 @@ var resolver3 = {
           ...sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}
         }
       });
-      await ensureStatusForImport(context, existing.id, companyId, sellerId);
+      await ensureStatusForImport(context, existing.id, companyId);
       return {
         success: true,
         message: "Lead asignado a tu empresa",
@@ -14651,7 +14645,7 @@ var resolver3 = {
       const lead = await context.sudo().query.TechBusinessLead.createOne({
         data
       });
-      await ensureStatusForImport(context, lead.id, companyId, sellerId);
+      await ensureStatusForImport(context, lead.id, companyId);
       return {
         success: true,
         message: "Lead importado correctamente",
@@ -15450,33 +15444,25 @@ async function getPlaceDetails2(placeId, apiKey2) {
 
 // utils/helpers/tech/lead_assignment.ts
 async function ensureLeadStatus(context, params) {
-  const opportunityLevel = params.opportunityLevel ?? "Media";
-  const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
+  if (!canSeeCompanyWideLeads(context.session)) {
+    await context.sudo().query.TechBusinessLead.updateOne({
+      where: { id: params.leadId },
+      data: { salesPerson: { connect: [{ id: params.userId }] } }
+    });
+  }
+  const existing = await context.sudo().db.TechStatusBusinessLead.count({
     where: {
       businessLead: { id: { equals: params.leadId } },
       saasCompany: { id: { equals: params.companyId } }
-    },
-    take: 1,
-    query: "id"
+    }
   });
-  if (existing) {
-    await context.sudo().query.TechStatusBusinessLead.updateOne({
-      where: { id: existing.id },
-      data: {
-        salesPerson: { connect: { id: params.userId } },
-        pipelineStatus: PIPELINE_STATUS.DETECTADO,
-        opportunityLevel
-      }
-    });
-    return;
-  }
+  if (existing > 0) return;
   await context.sudo().query.TechStatusBusinessLead.createOne({
     data: {
       businessLead: { connect: { id: params.leadId } },
       saasCompany: { connect: { id: params.companyId } },
-      salesPerson: { connect: { id: params.userId } },
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
-      opportunityLevel
+      opportunityLevel: params.opportunityLevel ?? "Media"
     }
   });
 }
@@ -16000,14 +15986,11 @@ var resolver5 = {
           const newLead = await context.sudo().query.TechBusinessLead.createOne({
             data: leadData
           });
-          await context.sudo().query.TechStatusBusinessLead.createOne({
-            data: {
-              businessLead: { connect: { id: newLead.id } },
-              saasCompany: { connect: { id: company.id } },
-              salesPerson: { connect: { id: userId } },
-              pipelineStatus: PIPELINE_STATUS.DETECTADO,
-              opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja"
-            }
+          await ensureLeadStatus(context, {
+            leadId: newLead.id,
+            companyId: company.id,
+            userId,
+            opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja"
           });
           created++;
           syncedThisRequest++;
@@ -16251,15 +16234,8 @@ var resolver6 = {
             leadData.salesPerson = { connect: { id: sellerId } };
           }
           try {
-            const lead = await context.sudo().query.TechBusinessLead.createOne({
+            await context.sudo().query.TechBusinessLead.createOne({
               data: leadData
-            });
-            await context.sudo().query.TechStatusBusinessLead.createOne({
-              data: {
-                businessLead: { connect: { id: lead.id } },
-                pipelineStatus: PIPELINE_STATUS.DETECTADO,
-                opportunityLevel: placeRating >= 4.5 ? "Alta" : placeRating >= 4 ? "Media" : "Baja"
-              }
             });
             created++;
           } catch (_) {
@@ -16923,7 +16899,6 @@ var resolver8 = {
         data: {
           businessLead: { connect: { id: newLead.id } },
           saasCompany: { connect: { id: company.id } },
-          salesPerson: { connect: { id: userId } },
           pipelineStatus: PIPELINE_STATUS.DETECTADO,
           opportunityLevel: ["Alta", "Media", "Baja"].includes(input.opportunityLevel ?? "") ? input.opportunityLevel : "Media",
           notes: input.notes ?? ""
@@ -19095,7 +19070,7 @@ async function gatherDailyDigestSnapshot(context, params) {
   const today = todayKey();
   const coldSince = daysAgoKey(COLD_LEAD_DAYS);
   const sudo = context.sudo();
-  const sellerStatus = params.salesPersonId ? { salesPerson: { id: { equals: params.salesPersonId } } } : {};
+  const sellerStatus = params.salesPersonId ? { businessLead: { salesPerson: { some: { id: { equals: params.salesPersonId } } } } } : {};
   const sellerQuote = params.salesPersonId ? { assignedSeller: { id: { equals: params.salesPersonId } } } : {};
   const sellerFollowUp = params.salesPersonId ? { assignedSeller: { id: { equals: params.salesPersonId } } } : {};
   const [quotes, uncontacted, overdue, cold] = await Promise.all([
@@ -19145,7 +19120,7 @@ async function gatherDailyDigestSnapshot(context, params) {
           { saasCompany: { id: { equals: params.companyId } } },
           { firstContactDate: { lte: coldSince } },
           { pipelineStatus: { notIn: CLOSED_PIPELINE } },
-          ...params.salesPersonId ? [{ salesPerson: { id: { equals: params.salesPersonId } } }] : []
+          ...params.salesPersonId ? [sellerStatus] : []
         ]
       },
       orderBy: [{ firstContactDate: "asc" }],
@@ -22057,7 +22032,7 @@ var ESTABLISHMENT_QUERY2 = `
   lng
   economicActivity { id name scianCode }
 `;
-async function ensureStatusForImport2(context, leadId, companyId, sellerId) {
+async function ensureStatusForImport2(context, leadId, companyId) {
   const [existing] = await context.sudo().query.TechStatusBusinessLead.findMany({
     where: {
       businessLead: { id: { equals: leadId } },
@@ -22071,7 +22046,6 @@ async function ensureStatusForImport2(context, leadId, companyId, sellerId) {
     data: {
       businessLead: { connect: { id: leadId } },
       saasCompany: { connect: { id: companyId } },
-      ...sellerId ? { salesPerson: { connect: { id: sellerId } } } : {},
       pipelineStatus: PIPELINE_STATUS.DETECTADO,
       opportunityLevel: "Media"
     }
@@ -22162,12 +22136,7 @@ var resolver18 = {
       (company) => company.id === companyId
     );
     if (existingLead && alreadyOnCompany) {
-      await ensureStatusForImport2(
-        context,
-        existingLead.id,
-        companyId,
-        sellerId
-      );
+      await ensureStatusForImport2(context, existingLead.id, companyId);
       return {
         success: true,
         message: "Este establecimiento ya es un lead de tu empresa",
@@ -22183,12 +22152,7 @@ var resolver18 = {
           ...sellerId ? { salesPerson: { connect: [{ id: sellerId }] } } : {}
         }
       });
-      await ensureStatusForImport2(
-        context,
-        existingLead.id,
-        companyId,
-        sellerId
-      );
+      await ensureStatusForImport2(context, existingLead.id, companyId);
       const consumeResult = await consumeCompanyCredits(context, {
         companyId,
         amount: 1,
@@ -22260,7 +22224,7 @@ var resolver18 = {
         data,
         query: "id"
       });
-      await ensureStatusForImport2(context, lead.id, companyId, sellerId);
+      await ensureStatusForImport2(context, lead.id, companyId);
       const consumeResult = await consumeCompanyCredits(context, {
         companyId,
         amount: 1,
@@ -31133,11 +31097,20 @@ var resolver65 = {
         _count: { _all: true },
         _max: { createdAt: true }
       }),
-      prisma.techStatusBusinessLead.groupBy({
-        by: ["salesPersonId"],
-        where: { saasCompanyId: companyId, salesPersonId: { in: userIds } },
-        _count: { _all: true }
-      }),
+      // Leads asignados = `TechBusinessLead.salesPerson` (N:M, no se puede agrupar): uno por persona.
+      Promise.all(
+        userIds.map(async (salesPersonId) => ({
+          salesPersonId,
+          _count: {
+            _all: await prisma.techBusinessLead.count({
+              where: {
+                saasCompany: { some: { id: companyId } },
+                salesPerson: { some: { id: salesPersonId } }
+              }
+            })
+          }
+        }))
+      ),
       prisma.techSalesActivity.groupBy({
         by: ["createdById"],
         where: { AND: [crmScope, { createdAt: { gte: since } }] },
@@ -31248,8 +31221,8 @@ var resolver65 = {
       prisma.techBusinessLead.count({
         where: { saasCompany: { some: { id: companyId } } }
       }),
-      prisma.techStatusBusinessLead.count({
-        where: { saasCompanyId: companyId, salesPersonId: null }
+      prisma.techBusinessLead.count({
+        where: { saasCompany: { some: { id: companyId } }, salesPerson: { none: {} } }
       }),
       prisma.techLeadSyncLog.aggregate({
         where: { companyId, createdAt: { gte: since } },
@@ -33431,14 +33404,22 @@ async function computeSalesVelocity(prisma, options) {
     needStatuses ? rows(
       () => prisma.techStatusBusinessLead.findMany({
         where: { saasCompanyId: companyWhere },
-        select: { id: true, salesPersonId: true, businessLeadId: true }
+        select: {
+          id: true,
+          saasCompanyId: true,
+          businessLeadId: true,
+          businessLead: { select: { salesPerson: { select: { id: true, companyId: true } } } }
+        }
       }),
       []
     ) : Promise.resolve([])
   ]);
-  const sellerOf = new Map(statuses.map((status) => [status.id, status.salesPersonId ?? ""]));
-  const ownLeadIds = sellerScope ? new Set(statuses.filter((s) => s.salesPersonId === sellerScope && s.businessLeadId).map((s) => s.businessLeadId)) : null;
-  const changes = sellerScope ? allChanges.filter((change) => sellerOf.get(change.statusId) === sellerScope) : allChanges;
+  const sellersOf = (status) => (status.businessLead?.salesPerson ?? []).filter((user) => user.companyId === status.saasCompanyId).map((user) => user.id);
+  const sellerOf = new Map(statuses.map((status) => [status.id, sellersOf(status)[0] ?? ""]));
+  const ownStatuses = sellerScope ? statuses.filter((s) => sellersOf(s).includes(sellerScope)) : null;
+  const ownStatusIds = ownStatuses ? new Set(ownStatuses.map((s) => s.id)) : null;
+  const ownLeadIds = ownStatuses ? new Set(ownStatuses.filter((s) => s.businessLeadId).map((s) => s.businessLeadId)) : null;
+  const changes = ownStatusIds ? allChanges.filter((change) => ownStatusIds.has(change.statusId)) : allChanges;
   const messages = ownLeadIds ? allMessages.filter((m) => ownLeadIds.has(m.businessLeadId)) : allMessages;
   const byStatus = /* @__PURE__ */ new Map();
   for (const change of changes) {
