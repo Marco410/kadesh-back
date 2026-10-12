@@ -58,6 +58,18 @@ export default list({
       defaultValue: false,
       ui: { description: "Si está desmarcado, solo admins lo ven en listados" },
     }),
+    notifyByEmail: checkbox({
+      defaultValue: true,
+      ui: { description: "Al publicarse, mandar correo a las personas del producto (una sola vez)" },
+    }),
+    emailedAt: timestamp({
+      db: { isNullable: true },
+      ui: {
+        description: "Cuándo se mandó el correo de esta novedad (lo pone el servidor)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       ui: {

@@ -37,7 +37,8 @@ module.exports = __toCommonJS(keystone_exports);
 // env.ts
 var path = require("path");
 var dotenv = require("dotenv");
-dotenv.config({ path: path.resolve(process.cwd(), "config", ".env.dev") });
+var envName = process.env.KADESH_ENV || "dev";
+dotenv.config({ path: path.resolve(process.cwd(), "config", `.env.${envName}`) });
 
 // models/Pet/Animal/Animal.ts
 var import_core = require("@keystone-6/core");
@@ -5602,15 +5603,18 @@ async function notifyUsersForRelease(context, release) {
   );
 }
 var systemReleaseEmailHook = {
-  afterOperation: async ({ operation, item, context }) => {
-    if (operation !== "create" || !item?.id) {
-      return;
-    }
-    if (item.isPublished !== true) {
-      return;
-    }
+  afterOperation: async ({ operation, item, originalItem, context }) => {
+    if (operation !== "create" && operation !== "update" || !item?.id) return;
+    if (item.isPublished !== true || item.notifyByEmail === false || item.emailedAt) return;
+    if (operation === "update" && originalItem?.isPublished === true) return;
     void (async () => {
       try {
+        const prisma = context.sudo().prisma;
+        const claim = await prisma.systemRelease.updateMany({
+          where: { id: item.id, emailedAt: null, isPublished: true },
+          data: { emailedAt: /* @__PURE__ */ new Date() }
+        });
+        if (claim instanceof Error || !claim?.count) return;
         const release = await context.sudo().query.SystemRelease.findOne({
           where: { id: item.id },
           query: "id version product title body isPublished"
@@ -5678,6 +5682,18 @@ var SystemRelease_default = (0, import_core20.list)({
     isPublished: (0, import_fields20.checkbox)({
       defaultValue: false,
       ui: { description: "Si est\xE1 desmarcado, solo admins lo ven en listados" }
+    }),
+    notifyByEmail: (0, import_fields20.checkbox)({
+      defaultValue: true,
+      ui: { description: "Al publicarse, mandar correo a las personas del producto (una sola vez)" }
+    }),
+    emailedAt: (0, import_fields20.timestamp)({
+      db: { isNullable: true },
+      ui: {
+        description: "Cu\xE1ndo se mand\xF3 el correo de esta novedad (lo pone el servidor)",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     }),
     createdAt: (0, import_fields20.timestamp)({
       defaultValue: { kind: "now" },
