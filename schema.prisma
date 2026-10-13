@@ -95,6 +95,7 @@ model Animal {
   userId                     String?            @map("user")
   multimedia                 AnimalMultimedia[] @relation("AnimalMultimedia_animal")
   logs                       AnimalLog[]        @relation("AnimalLog_animal")
+  animal_views               AnimalView[]       @relation("AnimalView_animal")
   createdAt                  DateTime?          @default(now())
   from_AnimalComment_animal  AnimalComment[]    @relation("AnimalComment_animal")
   from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
@@ -184,6 +185,18 @@ model AnimalType {
   order                   Int?
   from_Animal_animal_type Animal[]      @relation("Animal_animal_type")
   from_Pet_animal_type    Pet[]         @relation("Pet_animal_type")
+}
+
+model AnimalView {
+  id        String    @id @default(cuid())
+  user      User?     @relation("AnimalView_user", fields: [userId], references: [id])
+  userId    String?   @map("user")
+  animal    Animal?   @relation("AnimalView_animal", fields: [animalId], references: [id])
+  animalId  String?   @map("animal")
+  createdAt DateTime? @default(now())
+
+  @@index([userId])
+  @@index([animalId])
 }
 
 model BlogSubscription {
@@ -1748,6 +1761,7 @@ model User {
   from_Animal_user                         Animal[]                 @relation("Animal_user")
   from_AnimalComment_user                  AnimalComment[]          @relation("AnimalComment_user")
   from_AnimalFavorite_user                 AnimalFavorite[]         @relation("AnimalFavorite_user")
+  from_AnimalView_user                     AnimalView[]             @relation("AnimalView_user")
   from_Cart_user                           Cart[]                   @relation("Cart_user")
   from_Order_user                          Order[]                  @relation("Order_user")
   from_PaymentMethod_user                  PaymentMethod[]          @relation("PaymentMethod_user")

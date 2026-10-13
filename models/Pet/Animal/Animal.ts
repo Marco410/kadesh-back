@@ -101,6 +101,10 @@ export default list({
       ref: "AnimalLog.animal",
       many: true,
     }),
+    animal_views: relationship({
+      ref: "AnimalView.animal",
+      many: true,
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

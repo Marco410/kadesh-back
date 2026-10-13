@@ -406,6 +406,8 @@ type Animal {
   multimediaCount(where: AnimalMultimediaWhereInput! = {}): Int
   logs(where: AnimalLogWhereInput! = {}, orderBy: [AnimalLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalLogWhereUniqueInput): [AnimalLog!]
   logsCount(where: AnimalLogWhereInput! = {}): Int
+  animal_views(where: AnimalViewWhereInput! = {}, orderBy: [AnimalViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalViewWhereUniqueInput): [AnimalView!]
+  animal_viewsCount(where: AnimalViewWhereInput! = {}): Int
   createdAt: DateTime
 }
 
@@ -435,6 +437,7 @@ input AnimalWhereInput {
   user: UserWhereInput
   multimedia: AnimalMultimediaManyRelationFilter
   logs: AnimalLogManyRelationFilter
+  animal_views: AnimalViewManyRelationFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -448,6 +451,12 @@ input AnimalLogManyRelationFilter {
   every: AnimalLogWhereInput
   some: AnimalLogWhereInput
   none: AnimalLogWhereInput
+}
+
+input AnimalViewManyRelationFilter {
+  every: AnimalViewWhereInput
+  some: AnimalViewWhereInput
+  none: AnimalViewWhereInput
 }
 
 input AnimalOrderByInput {
@@ -483,6 +492,7 @@ input AnimalUpdateInput {
   user: UserRelateToOneForUpdateInput
   multimedia: AnimalMultimediaRelateToManyForUpdateInput
   logs: AnimalLogRelateToManyForUpdateInput
+  animal_views: AnimalViewRelateToManyForUpdateInput
   createdAt: DateTime
 }
 
@@ -512,6 +522,13 @@ input AnimalLogRelateToManyForUpdateInput {
   connect: [AnimalLogWhereUniqueInput!]
 }
 
+input AnimalViewRelateToManyForUpdateInput {
+  disconnect: [AnimalViewWhereUniqueInput!]
+  set: [AnimalViewWhereUniqueInput!]
+  create: [AnimalViewCreateInput!]
+  connect: [AnimalViewWhereUniqueInput!]
+}
+
 input AnimalUpdateArgs {
   where: AnimalWhereUniqueInput!
   data: AnimalUpdateInput!
@@ -534,6 +551,7 @@ input AnimalCreateInput {
   user: UserRelateToOneForCreateInput
   multimedia: AnimalMultimediaRelateToManyForCreateInput
   logs: AnimalLogRelateToManyForCreateInput
+  animal_views: AnimalViewRelateToManyForCreateInput
   createdAt: DateTime
 }
 
@@ -555,6 +573,11 @@ input AnimalMultimediaRelateToManyForCreateInput {
 input AnimalLogRelateToManyForCreateInput {
   create: [AnimalLogCreateInput!]
   connect: [AnimalLogWhereUniqueInput!]
+}
+
+input AnimalViewRelateToManyForCreateInput {
+  create: [AnimalViewCreateInput!]
+  connect: [AnimalViewWhereUniqueInput!]
 }
 
 type AnimalBreed {
@@ -922,6 +945,49 @@ input AnimalTypeCreateInput {
 input AnimalBreedRelateToManyForCreateInput {
   create: [AnimalBreedCreateInput!]
   connect: [AnimalBreedWhereUniqueInput!]
+}
+
+type AnimalView {
+  id: ID!
+  user: User
+  animal: Animal
+  createdAt: DateTime
+}
+
+input AnimalViewWhereUniqueInput {
+  id: ID
+}
+
+input AnimalViewWhereInput {
+  AND: [AnimalViewWhereInput!]
+  OR: [AnimalViewWhereInput!]
+  NOT: [AnimalViewWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  animal: AnimalWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input AnimalViewOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AnimalViewUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  animal: AnimalRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input AnimalViewUpdateArgs {
+  where: AnimalViewWhereUniqueInput!
+  data: AnimalViewUpdateInput!
+}
+
+input AnimalViewCreateInput {
+  user: UserRelateToOneForCreateInput
+  animal: AnimalRelateToOneForCreateInput
+  createdAt: DateTime
 }
 
 type BlogSubscription {
@@ -8784,6 +8850,12 @@ type Mutation {
   updateAnimalTypes(data: [AnimalTypeUpdateArgs!]!): [AnimalType]
   deleteAnimalType(where: AnimalTypeWhereUniqueInput!): AnimalType
   deleteAnimalTypes(where: [AnimalTypeWhereUniqueInput!]!): [AnimalType]
+  createAnimalView(data: AnimalViewCreateInput!): AnimalView
+  createAnimalViews(data: [AnimalViewCreateInput!]!): [AnimalView]
+  updateAnimalView(where: AnimalViewWhereUniqueInput!, data: AnimalViewUpdateInput!): AnimalView
+  updateAnimalViews(data: [AnimalViewUpdateArgs!]!): [AnimalView]
+  deleteAnimalView(where: AnimalViewWhereUniqueInput!): AnimalView
+  deleteAnimalViews(where: [AnimalViewWhereUniqueInput!]!): [AnimalView]
   createBlogSubscription(data: BlogSubscriptionCreateInput!): BlogSubscription
   createBlogSubscriptions(data: [BlogSubscriptionCreateInput!]!): [BlogSubscription]
   updateBlogSubscription(where: BlogSubscriptionWhereUniqueInput!, data: BlogSubscriptionUpdateInput!): BlogSubscription
@@ -9330,6 +9402,9 @@ type Query {
   animalType(where: AnimalTypeWhereUniqueInput!): AnimalType
   animalTypes(where: AnimalTypeWhereInput! = {}, orderBy: [AnimalTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalTypeWhereUniqueInput): [AnimalType!]
   animalTypesCount(where: AnimalTypeWhereInput! = {}): Int
+  animalView(where: AnimalViewWhereUniqueInput!): AnimalView
+  animalViews(where: AnimalViewWhereInput! = {}, orderBy: [AnimalViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalViewWhereUniqueInput): [AnimalView!]
+  animalViewsCount(where: AnimalViewWhereInput! = {}): Int
   blogSubscription(where: BlogSubscriptionWhereUniqueInput!): BlogSubscription
   blogSubscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
   blogSubscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
@@ -9578,6 +9653,7 @@ type Query {
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
   marketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String): MarketInsightResult!
+  landingStats: LandingStats!
 }
 
 union AuthenticatedItem = User
@@ -11608,4 +11684,13 @@ type CompanyAnalytics {
   """Solo con permiso de ver al equipo."""
   sellers: [CompanySellerVelocity!]!
   stalledDeals: [CompanyStalledDeal!]!
+}
+
+type LandingStats {
+  leadsTotal: Int!
+  leadsWithPhone: Int!
+  categories: Int!
+  cities: Int!
+  companies: Int!
+  updatedAt: String!
 }
