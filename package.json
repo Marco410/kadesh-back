@@ -21,6 +21,7 @@
     "leads:repair-unlinked": "tsx scripts/repairUnlinkedLeads.ts",
     "leads:merge-status": "tsx scripts/mergeLeadStatusPerCompany.ts",
     "leads:merge-status:prod": "cross-env KADESH_ENV=prod tsx scripts/mergeLeadStatusPerCompany.ts",
+    "whatsapp:fix-import-dates": "tsx scripts/fixImportedWhatsAppDates.ts",
     "activity:prune": "tsx scripts/pruneActivityEvents.ts",
     "usage:rollup": "tsx scripts/rollupDailyUsage.ts",
     "pipeline:backfill": "tsx scripts/backfillStageChanges.ts"
