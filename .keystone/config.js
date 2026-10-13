@@ -25001,19 +25001,32 @@ function parseTimeParts(raw) {
   if (isAM && hour === 12) hour = 0;
   return { hour, minute, second };
 }
-function resolveDayMonth(d1, d2) {
-  if (d2 > 12 && d1 <= 12) return { day: d2, month: d1 };
-  return { day: d1, month: d2 };
+var FUTURE_SLACK_MS = 24 * 60 * 60 * 1e3;
+function buildDate(line, order) {
+  const day = order === "dmy" ? line.d1 : line.d2;
+  const month = order === "dmy" ? line.d2 : line.d1;
+  const { hour, minute, second } = parseTimeParts(line.timeRaw);
+  return new Date(line.year, month - 1, day, hour, minute, second);
 }
-function buildDate(d1, d2, yearRaw, timeRaw) {
-  const year = yearRaw.length === 2 ? 2e3 + parseInt(yearRaw, 10) : parseInt(yearRaw, 10);
-  const { day, month } = resolveDayMonth(parseInt(d1, 10), parseInt(d2, 10));
-  const { hour, minute, second } = parseTimeParts(timeRaw);
-  return new Date(year, month - 1, day, hour, minute, second);
+function orderPenalty(lines, order, now) {
+  let penalty = 0;
+  let previous = -Infinity;
+  for (const line of lines) {
+    const time = buildDate(line, order).getTime();
+    if (time > now + FUTURE_SLACK_MS) penalty += 100;
+    if (time < previous) penalty += 1;
+    previous = time;
+  }
+  return penalty;
+}
+function detectDateOrder(lines, now = Date.now()) {
+  if (lines.some((l) => l.d1 > 12)) return "dmy";
+  if (lines.some((l) => l.d2 > 12)) return "mdy";
+  return orderPenalty(lines, "mdy", now) < orderPenalty(lines, "dmy", now) ? "mdy" : "dmy";
 }
 function parseWhatsAppChatExport(text73) {
   const lines = text73.split(/\r?\n/);
-  const messages = [];
+  const raw = [];
   for (const rawLine of lines) {
     const line = rawLine.replace(/^‎/, "");
     if (!line.trim()) continue;
@@ -25021,21 +25034,29 @@ function parseWhatsAppChatExport(text73) {
     const androidMatch = !iosMatch ? line.match(ANDROID_LINE) : null;
     const match = iosMatch || androidMatch;
     if (match) {
-      const [, d1, d2, year, time, senderRaw, bodyRaw] = match;
-      messages.push({
-        timestamp: buildDate(d1, d2, year, time),
+      const [, d1, d2, yearRaw, time, senderRaw, bodyRaw] = match;
+      raw.push({
+        d1: parseInt(d1, 10),
+        d2: parseInt(d2, 10),
+        year: yearRaw.length === 2 ? 2e3 + parseInt(yearRaw, 10) : parseInt(yearRaw, 10),
+        timeRaw: time,
         sender: senderRaw.trim(),
         body: bodyRaw.trim()
       });
       continue;
     }
-    const last = messages[messages.length - 1];
+    const last = raw[raw.length - 1];
     if (last) {
       last.body = `${last.body}
 ${line}`.trim();
     }
   }
-  return messages;
+  const order = detectDateOrder(raw);
+  return raw.map((line) => ({
+    timestamp: buildDate(line, order),
+    sender: line.sender,
+    body: line.body
+  }));
 }
 function distinctSenders(messages) {
   const seen = /* @__PURE__ */ new Set();
@@ -31709,8 +31730,10 @@ var PAYMENT_STATUS_TITLES = {
   pending: "Cobro pendiente",
   processing: "Cobro en proceso"
 };
+var FUTURE_SLACK_MS2 = 5 * 60 * 1e3;
 function timeFilter(before) {
-  return before ? { lt: before } : { not: null };
+  const now = new Date(Date.now() + FUTURE_SLACK_MS2);
+  return { lt: before && before < now ? before : now };
 }
 function money2(amount, currency) {
   if (amount == null) return null;

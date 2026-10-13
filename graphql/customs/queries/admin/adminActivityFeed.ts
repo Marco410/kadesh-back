@@ -180,8 +180,16 @@ const PAYMENT_STATUS_TITLES: Record<string, string> = {
   processing: "Cobro en proceso",
 };
 
+/** Margen para relojes un poco adelantados: lo que pasa "ahora" sí entra. */
+const FUTURE_SLACK_MS = 5 * 60 * 1000;
+
+/**
+ * Cursor del feed. Nunca devuelve fechas futuras: un registro mal fechado (p. ej. un chat
+ * importado con día y mes invertidos) quedaría siempre arriba y taparía lo de hoy en "Todo".
+ */
 function timeFilter(before: Date | null) {
-  return before ? { lt: before } : { not: null };
+  const now = new Date(Date.now() + FUTURE_SLACK_MS);
+  return { lt: before && before < now ? before : now };
 }
 
 function money(amount: number | null | undefined, currency?: string | null) {
