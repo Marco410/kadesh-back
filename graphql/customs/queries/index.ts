@@ -28,6 +28,7 @@ import adminDemandGaps from "./admin/adminDemandGaps";
 import adminAcquisition from "./admin/adminAcquisition";
 import adminSalesVelocity from "./admin/adminSalesVelocity";
 import companyAnalytics from "./analytics/companyAnalytics";
+import landingStats from "./landingStats";
 
 const customQuery = {
   typeDefs: `
@@ -58,6 +59,7 @@ const customQuery = {
     ${adminAcquisition.typeDefs}
     ${adminSalesVelocity.typeDefs}
     ${companyAnalytics.typeDefs}
+    ${landingStats.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -89,6 +91,7 @@ const customQuery = {
     ${adminAcquisition.definition}
     ${adminSalesVelocity.definition}
     ${companyAnalytics.definition}
+    ${landingStats.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -120,6 +123,7 @@ const customQuery = {
     ...adminAcquisition.resolver,
     ...adminSalesVelocity.resolver,
     ...companyAnalytics.resolver,
+    ...landingStats.resolver,
   },
 };
 
