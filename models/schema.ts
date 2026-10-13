@@ -3,6 +3,7 @@ import AnimalType from "./Pet/Animal/AnimalType/AnimalType";
 import AnimalMultimedia from "./Pet/Animal/AnimalMultimedia/AnimalMultimedia";
 import AnimalFavorite from "./Pet/Animal/AnimalFavorite/AnimalFavorite";
 import AnimalLog from "./Pet/Animal/AnimalLog/AnimalLog";
+import AnimalView from "./Pet/Animal/AnimalView/AnimalView";
 import AnimalComment from "./Pet/Animal/AnimalComment/AnimalComment";
 import User from "./User/User";
 import UserAuthLog from "./User/UserAuthLog/UserAuthLog";
@@ -92,6 +93,7 @@ export default withActivityHooks({
   AnimalLog,
   AnimalMultimedia,
   AnimalType,
+  AnimalView,
   BlogSubscription,
   Cart,
   Category,

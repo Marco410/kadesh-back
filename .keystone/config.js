@@ -318,9 +318,9 @@ function sessionPermissions(session2) {
 function hasPermission(session2, key, legacyFallback) {
   if (!session2?.data) return false;
   if (hasRole(session2, ["admin" /* ADMIN */, "admin_company" /* ADMIN_COMPANY */])) return true;
-  const list82 = sessionPermissions(session2);
-  if (list82 == null) return legacyFallback();
-  return list82.includes(key);
+  const list83 = sessionPermissions(session2);
+  if (list83 == null) return legacyFallback();
+  return list83.includes(key);
 }
 
 // utils/access/tenant.ts
@@ -1099,10 +1099,10 @@ function matchesAudience(audience, hasCompany) {
 async function resolveBroadcastRecipients(params) {
   const { context, audience, emails } = params;
   if (audience === "custom") {
-    const list82 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
+    const list83 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
     const seen2 = /* @__PURE__ */ new Set();
     const recipients2 = [];
-    for (const email of list82) {
+    for (const email of list83) {
       const key = email.toLowerCase();
       if (seen2.has(key)) continue;
       seen2.add(key);
@@ -1612,6 +1612,10 @@ var Animal_default = (0, import_core.list)({
       ref: "AnimalLog.animal",
       many: true
     }),
+    animal_views: (0, import_fields.relationship)({
+      ref: "AnimalView.animal",
+      many: true
+    }),
     createdAt: (0, import_fields.timestamp)({
       defaultValue: {
         kind: "now"
@@ -1948,25 +1952,51 @@ var AnimalLog_default = (0, import_core5.list)({
   }
 });
 
-// models/Pet/Animal/AnimalComment/AnimalComment.ts
+// models/Pet/Animal/AnimalView/AnimalView.ts
 var import_core6 = require("@keystone-6/core");
 var import_fields6 = require("@keystone-6/core/fields");
-var AnimalComment_default = (0, import_core6.list)({
+var AnimalView_default = (0, import_core6.list)({
   access: access_default,
   fields: {
-    comment: (0, import_fields6.text)({
-      validation: { isRequired: true },
-      ui: { displayMode: "textarea" }
-    }),
-    animal: (0, import_fields6.relationship)({
-      ref: "Animal",
-      many: false
-    }),
     user: (0, import_fields6.relationship)({
       ref: "User",
       many: false
     }),
+    animal: (0, import_fields6.relationship)({
+      ref: "Animal.animal_views",
+      many: false
+    }),
     createdAt: (0, import_fields6.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalComment/AnimalComment.ts
+var import_core7 = require("@keystone-6/core");
+var import_fields7 = require("@keystone-6/core/fields");
+var AnimalComment_default = (0, import_core7.list)({
+  access: access_default,
+  fields: {
+    comment: (0, import_fields7.text)({
+      validation: { isRequired: true },
+      ui: { displayMode: "textarea" }
+    }),
+    animal: (0, import_fields7.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    user: (0, import_fields7.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields7.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -1975,8 +2005,8 @@ var AnimalComment_default = (0, import_core6.list)({
 });
 
 // models/User/User.ts
-var import_core7 = require("@keystone-6/core");
-var import_fields7 = require("@keystone-6/core/fields");
+var import_core8 = require("@keystone-6/core");
+var import_fields8 = require("@keystone-6/core/fields");
 
 // utils/intregrations/stripe.ts
 var Stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -2494,7 +2524,7 @@ async function resolveInput(args) {
   });
   return afterReferral;
 }
-var User_default = (0, import_core7.list)({
+var User_default = (0, import_core8.list)({
   access: User_access_default,
   hooks: {
     resolveInput,
@@ -2522,40 +2552,40 @@ var User_default = (0, import_core7.list)({
     }
   },
   fields: {
-    name: (0, import_fields7.text)({ validation: { isRequired: true } }),
-    lastName: (0, import_fields7.text)(),
-    secondLastName: (0, import_fields7.text)({
+    name: (0, import_fields8.text)({ validation: { isRequired: true } }),
+    lastName: (0, import_fields8.text)(),
+    secondLastName: (0, import_fields8.text)({
       db: { isNullable: true }
     }),
-    username: (0, import_fields7.text)({
+    username: (0, import_fields8.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       hooks: userNameHook
     }),
-    referralCode: (0, import_fields7.text)({
+    referralCode: (0, import_fields8.text)({
       isIndexed: "unique",
       validation: { isRequired: true, length: { min: 6, max: 6 } },
       ui: {
         description: "C\xF3digo de referido (K + 5 caracteres alfanum\xE9ricos)"
       }
     }),
-    email: (0, import_fields7.text)({
+    email: (0, import_fields8.text)({
       isIndexed: "unique",
       hooks: emailHooks
     }),
-    businessEmail: (0, import_fields7.text)({
+    businessEmail: (0, import_fields8.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de la empresa"
       }
     }),
-    businessPhone: (0, import_fields7.text)({
+    businessPhone: (0, import_fields8.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de la empresa"
       }
     }),
-    password: (0, import_fields7.password)({
+    password: (0, import_fields8.password)({
       validation: { isRequired: false },
       ui: {
         createView: {
@@ -2563,8 +2593,8 @@ var User_default = (0, import_core7.list)({
         }
       }
     }),
-    phone: (0, import_fields7.text)(),
-    roles: (0, import_fields7.relationship)({
+    phone: (0, import_fields8.text)(),
+    roles: (0, import_fields8.relationship)({
       ref: "Role.users",
       many: true,
       access: userRolesFieldAccess
@@ -2573,7 +2603,7 @@ var User_default = (0, import_core7.list)({
      * Permisos por módulo/acción del panel SaaS (`inicio.ver`, `clientes.editar`, …).
      * `null` / ausente = usuario legado (rige el rol). Array (aunque vacío) = lista explícita.
      */
-    permissions: (0, import_fields7.json)({
+    permissions: (0, import_fields8.json)({
       defaultValue: null,
       access: userPermissionsFieldAccess,
       ui: {
@@ -2581,13 +2611,13 @@ var User_default = (0, import_core7.list)({
         createView: { fieldMode: "edit" }
       }
     }),
-    referredBy: (0, import_fields7.relationship)({
+    referredBy: (0, import_fields8.relationship)({
       ref: "User.referrals",
       ui: {
         description: "Usuario que refiri\xF3 a este usuario"
       }
     }),
-    referrals: (0, import_fields7.relationship)({
+    referrals: (0, import_fields8.relationship)({
       ref: "User.referredBy",
       many: true,
       ui: {
@@ -2595,126 +2625,126 @@ var User_default = (0, import_core7.list)({
       }
     }),
     /** Company (SaaS tenant) this user belongs to; 1 company : N users */
-    company: (0, import_fields7.relationship)({
+    company: (0, import_fields8.relationship)({
       ref: "SaasCompany.users",
       many: false,
       access: userCompanyFieldAccess,
       ui: { description: "Company/organization this user belongs to" }
     }),
-    workspaces: (0, import_fields7.relationship)({
+    workspaces: (0, import_fields8.relationship)({
       ref: "SaasWorkspace.members",
       many: true,
       ui: { description: "Workspaces (\xE1reas) a los que pertenece" }
     }),
-    pet_places: (0, import_fields7.relationship)({
+    pet_places: (0, import_fields8.relationship)({
       ref: "PetPlace.user",
       many: true,
       ui: { description: "Cl\xEDnicas que este usuario reclam\xF3" }
     }),
-    clinic_patients_of: (0, import_fields7.relationship)({
+    clinic_patients_of: (0, import_fields8.relationship)({
       ref: "PetPlace.patients",
       many: true,
       ui: { description: "Cl\xEDnicas donde figura como paciente" }
     }),
-    requested_pet_place_services: (0, import_fields7.relationship)({
+    requested_pet_place_services: (0, import_fields8.relationship)({
       ref: "PetPlaceService.requestedBy",
       many: true,
       ui: { description: "Servicios de cat\xE1logo que este usuario pidi\xF3" }
     }),
-    my_appointments: (0, import_fields7.relationship)({
+    my_appointments: (0, import_fields8.relationship)({
       ref: "PetPlaceAppointment.customer",
       many: true,
       ui: { description: "Citas reservadas por este usuario" }
     }),
-    blog_subscriptions: (0, import_fields7.relationship)({
+    blog_subscriptions: (0, import_fields8.relationship)({
       ref: "BlogSubscription.user",
       many: true
     }),
-    businessLeadsAssigned: (0, import_fields7.relationship)({
+    businessLeadsAssigned: (0, import_fields8.relationship)({
       ref: "TechBusinessLead.salesPerson",
       many: true
     }),
-    salesActivities: (0, import_fields7.relationship)({
+    salesActivities: (0, import_fields8.relationship)({
       ref: "TechSalesActivity.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
-    createdBySalesActivities: (0, import_fields7.relationship)({
+    createdBySalesActivities: (0, import_fields8.relationship)({
       ref: "TechSalesActivity.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasksResponsible: (0, import_fields7.relationship)({
+    tasksResponsible: (0, import_fields8.relationship)({
       ref: "TechTask.responsible",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace asignadas" }
     }),
-    createdByTasks: (0, import_fields7.relationship)({
+    createdByTasks: (0, import_fields8.relationship)({
       ref: "TechTask.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
-    followUpTasks: (0, import_fields7.relationship)({
+    followUpTasks: (0, import_fields8.relationship)({
       ref: "TechFollowUpTask.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
-    createdByFollowUpTasks: (0, import_fields7.relationship)({
+    createdByFollowUpTasks: (0, import_fields8.relationship)({
       ref: "TechFollowUpTask.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields7.relationship)({
+    proposals: (0, import_fields8.relationship)({
       ref: "TechProposal.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
-    createdByProposals: (0, import_fields7.relationship)({
+    createdByProposals: (0, import_fields8.relationship)({
       ref: "TechProposal.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
-    projectsResponsible: (0, import_fields7.relationship)({
+    projectsResponsible: (0, import_fields8.relationship)({
       ref: "SaasProject.responsible",
       many: true,
       ui: { description: "Proyectos donde es responsable" }
     }),
-    leadSyncLogs: (0, import_fields7.relationship)({
+    leadSyncLogs: (0, import_fields8.relationship)({
       ref: "TechLeadSyncLog.user",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads (mapa)" }
     }),
-    inegiSyncLogs: (0, import_fields7.relationship)({
+    inegiSyncLogs: (0, import_fields8.relationship)({
       ref: "TechInegiSyncLog.user",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n del cat\xE1logo INEGI" }
     }),
-    aiCallLogs: (0, import_fields7.relationship)({
+    aiCallLogs: (0, import_fields8.relationship)({
       ref: "TechAiCallLog.user",
       many: true,
       ui: { description: "Llamadas a IA disparadas por este usuario" }
     }),
-    googleCalendarAccounts: (0, import_fields7.relationship)({
+    googleCalendarAccounts: (0, import_fields8.relationship)({
       ref: "GoogleCalendarAccount.user",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar personales de este usuario" }
     }),
-    connectedGoogleCalendarAccounts: (0, import_fields7.relationship)({
+    connectedGoogleCalendarAccounts: (0, import_fields8.relationship)({
       ref: "GoogleCalendarAccount.connectedByUser",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar que este usuario autoriz\xF3" }
     }),
-    createdCalendarEvents: (0, import_fields7.relationship)({
+    createdCalendarEvents: (0, import_fields8.relationship)({
       ref: "TechCalendarEvent.createdBy",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario de este usuario" }
     }),
-    whatsappMessagesSent: (0, import_fields7.relationship)({
+    whatsappMessagesSent: (0, import_fields8.relationship)({
       ref: "TechWhatsAppMessage.sentBy",
       many: true,
       ui: { hideCreate: true, description: "Mensajes de WhatsApp enviados por este usuario" }
     }),
-    whatsappMessagesAsTeamMember: (0, import_fields7.relationship)({
+    whatsappMessagesAsTeamMember: (0, import_fields8.relationship)({
       ref: "TechWhatsAppMessage.teamMember",
       many: true,
       ui: {
@@ -2722,7 +2752,7 @@ var User_default = (0, import_core7.list)({
         description: "Chat interno de WhatsApp de la empresa con este usuario"
       }
     }),
-    whatsappInternalChatsStarted: (0, import_fields7.relationship)({
+    whatsappInternalChatsStarted: (0, import_fields8.relationship)({
       ref: "TechWhatsAppMessage.internalInitiator",
       many: true,
       ui: {
@@ -2730,22 +2760,22 @@ var User_default = (0, import_core7.list)({
         description: "Chats internos de WhatsApp que este usuario abri\xF3"
       }
     }),
-    aiInsights: (0, import_fields7.relationship)({
+    aiInsights: (0, import_fields8.relationship)({
       ref: "TechAiInsight.salesPerson",
       many: true,
       ui: { description: "Insights de IA de este vendedor (digest diario)" }
     }),
-    saasSubscriptionLogs: (0, import_fields7.relationship)({
+    saasSubscriptionLogs: (0, import_fields8.relationship)({
       ref: "SaasSubscriptionLog.user",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n SaaS" }
     }),
-    authLogs: (0, import_fields7.relationship)({
+    authLogs: (0, import_fields8.relationship)({
       ref: "UserAuthLog.user",
       many: true,
       ui: { description: "Registro de login / registro (contrase\xF1a, Google, registerUser)" }
     }),
-    quotationsCreated: (0, import_fields7.relationship)({
+    quotationsCreated: (0, import_fields8.relationship)({
       ref: "SaasQuotation.createdBy",
       many: true,
       ui: {
@@ -2753,7 +2783,7 @@ var User_default = (0, import_core7.list)({
         description: "Cotizaciones creadas por este usuario"
       }
     }),
-    quotationsAssignedSeller: (0, import_fields7.relationship)({
+    quotationsAssignedSeller: (0, import_fields8.relationship)({
       ref: "SaasQuotation.assignedSeller",
       many: true,
       ui: {
@@ -2761,11 +2791,11 @@ var User_default = (0, import_core7.list)({
         description: "Cotizaciones donde act\xFAa como vendedor asignado"
       }
     }),
-    profileImage: (0, import_fields7.image)({ storage: "s3_profile" }),
-    birthday: (0, import_fields7.calendarDay)(),
-    age: (0, import_fields7.virtual)({
-      field: import_core7.graphql.field({
-        type: import_core7.graphql.String,
+    profileImage: (0, import_fields8.image)({ storage: "s3_profile" }),
+    birthday: (0, import_fields8.calendarDay)(),
+    age: (0, import_fields8.virtual)({
+      field: import_core8.graphql.field({
+        type: import_core8.graphql.String,
         async resolve(item) {
           if (item?.birthday) {
             const today = /* @__PURE__ */ new Date();
@@ -2781,9 +2811,9 @@ var User_default = (0, import_core7.list)({
         }
       })
     }),
-    smsRegistrationId: (0, import_fields7.text)(),
-    verified: (0, import_fields7.checkbox)(),
-    product: (0, import_fields7.select)({
+    smsRegistrationId: (0, import_fields8.text)(),
+    verified: (0, import_fields8.checkbox)(),
+    product: (0, import_fields8.select)({
       options: SINGLE_PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -2793,31 +2823,31 @@ var User_default = (0, import_core7.list)({
         description: "Producto en el que se registr\xF3 (Pet o SaaS). Define la marca de sus correos y su suscripci\xF3n al blog."
       }
     }),
-    userTest: (0, import_fields7.checkbox)(),
-    salesPersonVerified: (0, import_fields7.checkbox)(),
-    salesComission: (0, import_fields7.integer)({
+    userTest: (0, import_fields8.checkbox)(),
+    salesPersonVerified: (0, import_fields8.checkbox)(),
+    salesComission: (0, import_fields8.integer)({
       ui: { description: "Comisi\xF3n de ventas (en porcentaje)" },
       defaultValue: 10
     }),
-    bank: (0, import_fields7.text)({
+    bank: (0, import_fields8.text)({
       access: userSecretFieldAccess,
       ui: { description: "Nombre del banco" }
     }),
-    clabe: (0, import_fields7.text)({
+    clabe: (0, import_fields8.text)({
       db: { isNullable: true },
       access: userSecretFieldAccess,
       ui: {
         listView: { fieldMode: "hidden" }
       }
     }),
-    cardNumber: (0, import_fields7.text)({
+    cardNumber: (0, import_fields8.text)({
       db: { isNullable: true },
       access: userSecretFieldAccess,
       ui: {
         listView: { fieldMode: "hidden" }
       }
     }),
-    stripeCustomerId: (0, import_fields7.text)({
+    stripeCustomerId: (0, import_fields8.text)({
       db: { isNullable: true },
       access: userStripeFieldAccess,
       ui: {
@@ -2828,22 +2858,22 @@ var User_default = (0, import_core7.list)({
       }
     }),
     /** SaaS payment methods (Stripe cards) saved by this user */
-    saasPaymentMethods: (0, import_fields7.relationship)({
+    saasPaymentMethods: (0, import_fields8.relationship)({
       ref: "SaasPaymentMethod.user",
       many: true,
       ui: { description: "Saved payment methods (Stripe)" }
     }),
     /** SaaS payments (subscriptions, one-time) made by this user */
-    saasPayments: (0, import_fields7.relationship)({
+    saasPayments: (0, import_fields8.relationship)({
       ref: "SaasPayment.user",
       many: true,
       ui: { description: "Payments made by this user (SaaS)" }
     }),
-    techStatusBusinessLeads: (0, import_fields7.relationship)({
+    techStatusBusinessLeads: (0, import_fields8.relationship)({
       ref: "TechStatusBusinessLead.salesPerson",
       many: true
     }),
-    createdAt: (0, import_fields7.timestamp)({
+    createdAt: (0, import_fields8.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -2852,14 +2882,14 @@ var User_default = (0, import_core7.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    lastLoginAt: (0, import_fields7.timestamp)({
+    lastLoginAt: (0, import_fields8.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    onboardingState: (0, import_fields7.json)({
+    onboardingState: (0, import_fields8.json)({
       defaultValue: {},
       access: userOnboardingFieldAccess,
       ui: {
@@ -2868,7 +2898,7 @@ var User_default = (0, import_core7.list)({
       }
     }),
     // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
-    suspendedAt: (0, import_fields7.timestamp)({
+    suspendedAt: (0, import_fields8.timestamp)({
       db: { isNullable: true },
       access: userAccountControlFieldAccess,
       ui: {
@@ -2877,7 +2907,7 @@ var User_default = (0, import_core7.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    suspendedReason: (0, import_fields7.text)({
+    suspendedReason: (0, import_fields8.text)({
       db: { isNullable: true },
       access: userAccountControlFieldAccess,
       ui: {
@@ -2886,7 +2916,7 @@ var User_default = (0, import_core7.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    sessionVersion: (0, import_fields7.integer)({
+    sessionVersion: (0, import_fields8.integer)({
       defaultValue: 0,
       access: userAccountControlFieldAccess,
       ui: {
@@ -2895,7 +2925,7 @@ var User_default = (0, import_core7.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    anonymizedAt: (0, import_fields7.timestamp)({
+    anonymizedAt: (0, import_fields8.timestamp)({
       db: { isNullable: true },
       access: userAccountControlFieldAccess,
       ui: {
@@ -2905,7 +2935,7 @@ var User_default = (0, import_core7.list)({
       }
     }),
     // De dónde llegó al registrarse (UTM, dominio que refirió, página de entrada). Ver utils/analytics/attribution.ts.
-    signupAttribution: (0, import_fields7.json)({
+    signupAttribution: (0, import_fields8.json)({
       access: userAccountControlFieldAccess,
       ui: {
         description: "Primer contacto antes de registrarse: UTM, sitio que refiri\xF3 y p\xE1gina de entrada",
@@ -2917,8 +2947,8 @@ var User_default = (0, import_core7.list)({
 });
 
 // models/User/UserAuthLog/UserAuthLog.ts
-var import_core8 = require("@keystone-6/core");
-var import_fields8 = require("@keystone-6/core/fields");
+var import_core9 = require("@keystone-6/core");
+var import_fields9 = require("@keystone-6/core/fields");
 
 // models/User/UserAuthLog/UserAuthLog.access.ts
 var userAuthLogAccess = {
@@ -2966,7 +2996,7 @@ var USER_AUTH_LOG_STEP = {
 };
 
 // models/User/UserAuthLog/UserAuthLog.ts
-var UserAuthLog_default = (0, import_core8.list)({
+var UserAuthLog_default = (0, import_core9.list)({
   access: userAuthLogAccess,
   ui: {
     listView: {
@@ -2982,12 +3012,12 @@ var UserAuthLog_default = (0, import_core8.list)({
     }
   },
   fields: {
-    user: (0, import_fields8.relationship)({
+    user: (0, import_fields9.relationship)({
       ref: "User.authLogs",
       many: false,
       ui: { description: "Usuario afectado (vac\xEDo si fall\xF3 antes de crear cuenta)" }
     }),
-    source: (0, import_fields8.select)({
+    source: (0, import_fields9.select)({
       type: "string",
       options: [
         { label: "registerUser", value: USER_AUTH_LOG_SOURCE.REGISTER_USER },
@@ -2999,35 +3029,35 @@ var UserAuthLog_default = (0, import_core8.list)({
       ],
       ui: { description: "Mutaci\xF3n / flujo" }
     }),
-    step: (0, import_fields8.text)({
+    step: (0, import_fields9.text)({
       isIndexed: true,
       ui: { description: "C\xF3digo de resultado (USER_AUTH_LOG_STEP)" }
     }),
-    success: (0, import_fields8.checkbox)({
+    success: (0, import_fields9.checkbox)({
       defaultValue: false
     }),
-    message: (0, import_fields8.text)({
+    message: (0, import_fields9.text)({
       ui: { displayMode: "textarea", description: "Mensaje o error (sin datos sensibles)" }
     }),
-    emailMasked: (0, import_fields8.text)({
+    emailMasked: (0, import_fields9.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    responseSnapshot: (0, import_fields8.json)({
+    responseSnapshot: (0, import_fields9.json)({
       ui: { description: "Payload devuelto o metadatos (sin tokens)" }
     }),
-    durationMs: (0, import_fields8.integer)({
+    durationMs: (0, import_fields9.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    ip: (0, import_fields8.text)({
+    ip: (0, import_fields9.text)({
       db: { isNullable: true },
       ui: { description: "IP de la petici\xF3n (x-forwarded-for del proxy si existe)" }
     }),
-    userAgent: (0, import_fields8.text)({
+    userAgent: (0, import_fields9.text)({
       db: { isNullable: true },
       ui: { description: "Navegador o cliente del intento" }
     }),
-    createdAt: (0, import_fields8.timestamp)({
+    createdAt: (0, import_fields9.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del evento" }
     })
@@ -3035,8 +3065,8 @@ var UserAuthLog_default = (0, import_core8.list)({
 });
 
 // models/User/UserActivityDay/UserActivityDay.ts
-var import_core9 = require("@keystone-6/core");
-var import_fields9 = require("@keystone-6/core/fields");
+var import_core10 = require("@keystone-6/core");
+var import_fields10 = require("@keystone-6/core/fields");
 
 // models/User/UserActivityDay/UserActivityDay.access.ts
 var userActivityDayAccess = {
@@ -3054,7 +3084,7 @@ var userActivityDayAccess = {
 };
 
 // models/User/UserActivityDay/UserActivityDay.ts
-var UserActivityDay_default = (0, import_core9.list)({
+var UserActivityDay_default = (0, import_core10.list)({
   access: userActivityDayAccess,
   ui: {
     hideCreate: true,
@@ -3064,34 +3094,34 @@ var UserActivityDay_default = (0, import_core9.list)({
     }
   },
   fields: {
-    key: (0, import_fields9.text)({
+    key: (0, import_fields10.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "userId:YYYY-MM-DD (permite sumar sin duplicar el d\xEDa)" }
     }),
-    user: (0, import_fields9.relationship)({ ref: "User", many: false }),
-    company: (0, import_fields9.relationship)({
+    user: (0, import_fields10.relationship)({ ref: "User", many: false }),
+    company: (0, import_fields10.relationship)({
       ref: "SaasCompany",
       many: false,
       ui: { description: "Empresa de la persona ese d\xEDa" }
     }),
-    day: (0, import_fields9.calendarDay)({
+    day: (0, import_fields10.calendarDay)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "D\xEDa en hora de CDMX" }
     }),
-    minutes: (0, import_fields9.integer)({
+    minutes: (0, import_fields10.integer)({
       defaultValue: 0,
       ui: { description: "Minutos con el panel abierto y la pesta\xF1a visible" }
     }),
-    firstSeenAt: (0, import_fields9.timestamp)({ db: { isNullable: true } }),
-    lastSeenAt: (0, import_fields9.timestamp)({ db: { isNullable: true }, isIndexed: true })
+    firstSeenAt: (0, import_fields10.timestamp)({ db: { isNullable: true } }),
+    lastSeenAt: (0, import_fields10.timestamp)({ db: { isNullable: true }, isIndexed: true })
   }
 });
 
 // models/ActivityEvent/ActivityEvent.ts
-var import_core10 = require("@keystone-6/core");
-var import_fields10 = require("@keystone-6/core/fields");
+var import_core11 = require("@keystone-6/core");
+var import_fields11 = require("@keystone-6/core/fields");
 
 // models/ActivityEvent/ActivityEvent.access.ts
 var activityEventAccess = {
@@ -3300,7 +3330,7 @@ function categoryForType(type) {
 }
 
 // models/ActivityEvent/ActivityEvent.ts
-var ActivityEvent_default = (0, import_core10.list)({
+var ActivityEvent_default = (0, import_core11.list)({
   access: activityEventAccess,
   ui: {
     hideCreate: true,
@@ -3310,71 +3340,71 @@ var ActivityEvent_default = (0, import_core10.list)({
     }
   },
   fields: {
-    type: (0, import_fields10.text)({
+    type: (0, import_fields11.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "Tipo de evento (ver models/ActivityEvent/constants.ts), p. ej. lead.status_changed" }
     }),
-    category: (0, import_fields10.select)({
+    category: (0, import_fields11.select)({
       type: "string",
       options: [...ACTIVITY_CATEGORY_OPTIONS],
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "Sale del prefijo del tipo; coincide con los filtros del feed de Operaciones" }
     }),
-    actor: (0, import_fields10.relationship)({
+    actor: (0, import_fields11.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Qui\xE9n lo hizo (vac\xEDo si fue el sistema o un webhook)" }
     }),
-    company: (0, import_fields10.relationship)({
+    company: (0, import_fields11.relationship)({
       ref: "SaasCompany",
       many: false,
       ui: { description: "Empresa a la que pertenece el dato afectado" }
     }),
-    workspace: (0, import_fields10.relationship)({
+    workspace: (0, import_fields11.relationship)({
       ref: "SaasWorkspace",
       many: false,
       ui: { description: "Espacio de trabajo, si aplica" }
     }),
-    entityType: (0, import_fields10.text)({
+    entityType: (0, import_fields11.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "List afectada (TechBusinessLead, SaasQuotation\u2026)" }
     }),
-    entityId: (0, import_fields10.text)({
+    entityId: (0, import_fields11.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Id del item afectado" }
     }),
-    summary: (0, import_fields10.text)({
+    summary: (0, import_fields11.text)({
       ui: { displayMode: "textarea", description: "Texto legible en espa\xF1ol" }
     }),
-    metadata: (0, import_fields10.json)({
+    metadata: (0, import_fields11.json)({
       ui: {
         description: "Cambios {campo: [antes, despu\xE9s]}, conteos, montos. Nunca contrase\xF1as, tokens, prompts ni cuerpos de mensajes"
       }
     }),
-    source: (0, import_fields10.select)({
+    source: (0, import_fields11.select)({
       type: "string",
       options: [...ACTIVITY_SOURCE_OPTIONS],
       isIndexed: true,
       ui: { description: "panel, admin de Kadesh, webhook o sistema" }
     }),
-    success: (0, import_fields10.checkbox)({ defaultValue: true }),
-    errorMessage: (0, import_fields10.text)({
+    success: (0, import_fields11.checkbox)({ defaultValue: true }),
+    errorMessage: (0, import_fields11.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     }),
-    ip: (0, import_fields10.text)({
+    ip: (0, import_fields11.text)({
       db: { isNullable: true },
       ui: { description: "IP de la petici\xF3n (x-forwarded-for del proxy si existe)" }
     }),
-    userAgent: (0, import_fields10.text)({
+    userAgent: (0, import_fields11.text)({
       db: { isNullable: true },
       ui: { description: "Navegador o cliente que hizo la petici\xF3n" }
     }),
-    createdAt: (0, import_fields10.timestamp)({
+    createdAt: (0, import_fields11.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       ui: { description: "Cu\xE1ndo ocurri\xF3" }
@@ -3571,8 +3601,8 @@ function changedFieldNames(before, after, ignore = /* @__PURE__ */ new Set()) {
   return [...names];
 }
 function idsOf(value) {
-  const list82 = Array.isArray(value) ? value : value ? [value] : [];
-  return list82.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
+  const list83 = Array.isArray(value) ? value : value ? [value] : [];
+  return list83.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
 }
 function relationInput(value) {
   if (!value || typeof value !== "object") return null;
@@ -4461,13 +4491,13 @@ function withActivityHooks(lists) {
 }
 
 // models/Pet/Animal/AnimalBreed/AnimalBreed.ts
-var import_core11 = require("@keystone-6/core");
-var import_fields11 = require("@keystone-6/core/fields");
-var AnimalBreed_default = (0, import_core11.list)({
+var import_core12 = require("@keystone-6/core");
+var import_fields12 = require("@keystone-6/core/fields");
+var AnimalBreed_default = (0, import_core12.list)({
   access: access_default,
   fields: {
-    breed: (0, import_fields11.text)(),
-    animal_type: (0, import_fields11.relationship)({
+    breed: (0, import_fields12.text)(),
+    animal_type: (0, import_fields12.relationship)({
       ref: "AnimalType.animal_breed"
     })
   },
@@ -4477,16 +4507,16 @@ var AnimalBreed_default = (0, import_core11.list)({
 });
 
 // models/Pet/Pet.ts
-var import_core12 = require("@keystone-6/core");
-var import_fields12 = require("@keystone-6/core/fields");
-var Pet_default = (0, import_core12.list)({
+var import_core13 = require("@keystone-6/core");
+var import_fields13 = require("@keystone-6/core/fields");
+var Pet_default = (0, import_core13.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields12.text)({ validation: { isRequired: true } }),
-    birthday: (0, import_fields12.calendarDay)({ validation: { isRequired: true } }),
-    age: (0, import_fields12.virtual)({
-      field: import_core12.graphql.field({
-        type: import_core12.graphql.String,
+    name: (0, import_fields13.text)({ validation: { isRequired: true } }),
+    birthday: (0, import_fields13.calendarDay)({ validation: { isRequired: true } }),
+    age: (0, import_fields13.virtual)({
+      field: import_core13.graphql.field({
+        type: import_core13.graphql.String,
         async resolve(item) {
           if (item?.birthday) {
             const today = /* @__PURE__ */ new Date();
@@ -4502,23 +4532,23 @@ var Pet_default = (0, import_core12.list)({
         }
       })
     }),
-    animal_type: (0, import_fields12.relationship)({
+    animal_type: (0, import_fields13.relationship)({
       ref: "AnimalType",
       many: false
     }),
-    animal_breed: (0, import_fields12.relationship)({
+    animal_breed: (0, import_fields13.relationship)({
       ref: "AnimalBreed",
       many: false
     }),
-    user: (0, import_fields12.relationship)({
+    user: (0, import_fields13.relationship)({
       ref: "User",
       many: false
     }),
-    multimedia: (0, import_fields12.relationship)({
+    multimedia: (0, import_fields13.relationship)({
       ref: "PetMultimedia.pet",
       many: true
     }),
-    createdAt: (0, import_fields12.timestamp)({
+    createdAt: (0, import_fields13.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4531,18 +4561,18 @@ var Pet_default = (0, import_core12.list)({
 });
 
 // models/Pet/PetMultimedia/PetMultimedia.ts
-var import_core13 = require("@keystone-6/core");
-var import_fields13 = require("@keystone-6/core/fields");
-var PetMultimedia_default = (0, import_core13.list)({
+var import_core14 = require("@keystone-6/core");
+var import_fields14 = require("@keystone-6/core/fields");
+var PetMultimedia_default = (0, import_core14.list)({
   access: access_default,
   fields: {
-    image: (0, import_fields13.image)({
+    image: (0, import_fields14.image)({
       storage: "s3_pets"
     }),
-    pet: (0, import_fields13.relationship)({
+    pet: (0, import_fields14.relationship)({
       ref: "Pet.multimedia"
     }),
-    createdAt: (0, import_fields13.timestamp)({
+    createdAt: (0, import_fields14.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -4551,16 +4581,16 @@ var PetMultimedia_default = (0, import_core13.list)({
 });
 
 // models/Pet/PetPlace/PetPlace.ts
-var import_core15 = require("@keystone-6/core");
-var import_fields15 = require("@keystone-6/core/fields");
+var import_core16 = require("@keystone-6/core");
+var import_fields16 = require("@keystone-6/core/fields");
 
 // models/Pet/Schedule/Schedule.ts
-var import_core14 = require("@keystone-6/core");
-var import_fields14 = require("@keystone-6/core/fields");
-var Schedule_default = (0, import_core14.list)({
+var import_core15 = require("@keystone-6/core");
+var import_fields15 = require("@keystone-6/core/fields");
+var Schedule_default = (0, import_core15.list)({
   access: access_default,
   fields: {
-    day: (0, import_fields14.select)({
+    day: (0, import_fields15.select)({
       options: [
         "Domingo" /* DOM */,
         "Lunes" /* LUN */,
@@ -4572,12 +4602,12 @@ var Schedule_default = (0, import_core14.list)({
       ],
       validation: { isRequired: true }
     }),
-    timeIni: (0, import_fields14.integer)({ validation: { isRequired: true } }),
-    timeEnd: (0, import_fields14.integer)({ validation: { isRequired: true } }),
-    pet_place: (0, import_fields14.relationship)({
+    timeIni: (0, import_fields15.integer)({ validation: { isRequired: true } }),
+    timeEnd: (0, import_fields15.integer)({ validation: { isRequired: true } }),
+    pet_place: (0, import_fields15.relationship)({
       ref: "PetPlace.pet_place_schedules"
     }),
-    createdAt: (0, import_fields14.timestamp)({
+    createdAt: (0, import_fields15.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -4777,7 +4807,7 @@ var pipelineOptions = Object.values(PIPELINE_STATUS).map((value) => ({
   label: value,
   value
 }));
-var PetPlace_default = (0, import_core15.list)({
+var PetPlace_default = (0, import_core16.list)({
   access: access_default,
   ui: {
     listView: {
@@ -4814,8 +4844,8 @@ var PetPlace_default = (0, import_core15.list)({
     }
   },
   fields: {
-    name: (0, import_fields15.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields15.text)({
+    name: (0, import_fields16.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields16.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -4824,81 +4854,81 @@ var PetPlace_default = (0, import_core15.list)({
         description: "URL amigable. Se genera sola (nombre + municipio) y no cambia si editas el nombre."
       }
     }),
-    description: (0, import_fields15.text)({ validation: { isRequired: true } }),
-    phone: (0, import_fields15.text)(),
-    whatsapp: (0, import_fields15.text)({
+    description: (0, import_fields16.text)({ validation: { isRequired: true } }),
+    phone: (0, import_fields16.text)(),
+    whatsapp: (0, import_fields16.text)({
       ui: { description: "WhatsApp de la cl\xEDnica (solo d\xEDgitos, con lada)" }
     }),
-    website: (0, import_fields15.text)(),
-    email: (0, import_fields15.text)({
+    website: (0, import_fields16.text)(),
+    email: (0, import_fields16.text)({
       ui: { description: "Correo p\xFAblico de la cl\xEDnica" }
     }),
-    emergencies: (0, import_fields15.checkbox)({
+    emergencies: (0, import_fields16.checkbox)({
       defaultValue: false,
       ui: { description: "Atiende urgencias 24/7" }
     }),
-    parking: (0, import_fields15.checkbox)({
+    parking: (0, import_fields16.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene estacionamiento" }
     }),
-    appointmentRequired: (0, import_fields15.checkbox)({
+    appointmentRequired: (0, import_fields16.checkbox)({
       defaultValue: false,
       ui: { description: "Atiende solo con cita" }
     }),
-    street: (0, import_fields15.text)(),
-    municipality: (0, import_fields15.text)(),
-    state: (0, import_fields15.text)(),
-    country: (0, import_fields15.text)(),
-    cp: (0, import_fields15.text)(),
-    lat: (0, import_fields15.text)(),
-    lng: (0, import_fields15.text)(),
-    views: (0, import_fields15.integer)(),
-    types: (0, import_fields15.relationship)({
+    street: (0, import_fields16.text)(),
+    municipality: (0, import_fields16.text)(),
+    state: (0, import_fields16.text)(),
+    country: (0, import_fields16.text)(),
+    cp: (0, import_fields16.text)(),
+    lat: (0, import_fields16.text)(),
+    lng: (0, import_fields16.text)(),
+    views: (0, import_fields16.integer)(),
+    types: (0, import_fields16.relationship)({
       ref: "PetPlaceType",
       many: true
     }),
-    services: (0, import_fields15.relationship)({
+    services: (0, import_fields16.relationship)({
       ref: "PetPlaceService",
       many: true
     }),
-    requested_services: (0, import_fields15.relationship)({
+    requested_services: (0, import_fields16.relationship)({
       ref: "PetPlaceService.requestedFor",
       many: true,
       ui: { description: "Servicios que esta cl\xEDnica pidi\xF3 al cat\xE1logo" }
     }),
-    patients: (0, import_fields15.relationship)({
+    patients: (0, import_fields16.relationship)({
       ref: "User.clinic_patients_of",
       many: true,
       ui: { description: "Pacientes dados de alta por esta cl\xEDnica" }
     }),
-    user: (0, import_fields15.relationship)({
+    user: (0, import_fields16.relationship)({
       ref: "User.pet_places",
       many: false,
       ui: { description: "Due\xF1o o solicitante de la ficha" }
     }),
-    verified: (0, import_fields15.checkbox)({
+    verified: (0, import_fields16.checkbox)({
       defaultValue: false,
       ui: {
         description: "Marca cuando un admin ya valid\xF3 que la cl\xEDnica es de este usuario"
       }
     }),
-    verifiedAt: (0, import_fields15.timestamp)({
+    verifiedAt: (0, import_fields16.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    claimStatus: (0, import_fields15.select)({
+    claimStatus: (0, import_fields16.select)({
       options: PET_PLACE_CLAIM_STATUS_OPTIONS,
       defaultValue: PET_PLACE_CLAIM_STATUS.UNCLAIMED,
       ui: { displayMode: "segmented-control" }
     }),
-    claimRole: (0, import_fields15.select)({
+    claimRole: (0, import_fields16.select)({
       options: PET_PLACE_CLAIM_ROLE_OPTIONS,
       ui: { description: "Rol declarado al reclamar" }
     }),
-    pipelineStatus: (0, import_fields15.select)({
+    pipelineStatus: (0, import_fields16.select)({
       type: "string",
       options: pipelineOptions,
       defaultValue: PIPELINE_STATUS.DETECTADO,
@@ -4907,25 +4937,25 @@ var PetPlace_default = (0, import_core15.list)({
         description: "Estatus comercial interno (solo admin). No lo ve el due\xF1o de la ficha."
       }
     }),
-    claimPhone: (0, import_fields15.text)({
+    claimPhone: (0, import_fields16.text)({
       ui: { description: "Tel\xE9fono que dej\xF3 en la solicitud" }
     }),
-    claimNotes: (0, import_fields15.text)({
+    claimNotes: (0, import_fields16.text)({
       ui: {
         displayMode: "textarea",
         description: "C\xF3mo comprueba que es suya (c\xE9dula, RFC, etc.)"
       }
     }),
-    claimedAt: (0, import_fields15.timestamp)({
+    claimedAt: (0, import_fields16.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    isOpen: (0, import_fields15.virtual)({
-      field: import_core15.graphql.field({
-        type: import_core15.graphql.Boolean,
+    isOpen: (0, import_fields16.virtual)({
+      field: import_core16.graphql.field({
+        type: import_core16.graphql.Boolean,
         async resolve(item, args, context) {
           const today = /* @__PURE__ */ new Date();
           const schedules = await context.query.Schedule.findMany({
@@ -4953,29 +4983,29 @@ var PetPlace_default = (0, import_core15.list)({
         }
       })
     }),
-    pet_place_social_media: (0, import_fields15.relationship)({
+    pet_place_social_media: (0, import_fields16.relationship)({
       ref: "SocialMedia.pet_place",
       many: true
     }),
-    pet_place_likes: (0, import_fields15.relationship)({
+    pet_place_likes: (0, import_fields16.relationship)({
       ref: "PetPlaceLike.pet_place",
       many: true
     }),
-    pet_place_schedules: (0, import_fields15.relationship)({
+    pet_place_schedules: (0, import_fields16.relationship)({
       ref: "Schedule.pet_place",
       many: true
     }),
-    pet_place_appointments: (0, import_fields15.relationship)({
+    pet_place_appointments: (0, import_fields16.relationship)({
       ref: "PetPlaceAppointment.pet_place",
       many: true
     }),
-    pet_place_reviews: (0, import_fields15.relationship)({
+    pet_place_reviews: (0, import_fields16.relationship)({
       ref: "Review.pet_place",
       many: true
     }),
-    reviewsCount: (0, import_fields15.virtual)({
-      field: import_core15.graphql.field({
-        type: import_core15.graphql.Int,
+    reviewsCount: (0, import_fields16.virtual)({
+      field: import_core16.graphql.field({
+        type: import_core16.graphql.Int,
         async resolve(item, args, context) {
           const reviews = await context.query.Review.findMany({
             where: {
@@ -4991,9 +5021,9 @@ var PetPlace_default = (0, import_core15.list)({
         }
       })
     }),
-    averageRating: (0, import_fields15.virtual)({
-      field: import_core15.graphql.field({
-        type: import_core15.graphql.Float,
+    averageRating: (0, import_fields16.virtual)({
+      field: import_core16.graphql.field({
+        type: import_core16.graphql.Float,
         async resolve(item, args, context) {
           const reviews = await context.query.Review.findMany({
             where: {
@@ -5016,18 +5046,18 @@ var PetPlace_default = (0, import_core15.list)({
         }
       })
     }),
-    pet_place_ads: (0, import_fields15.relationship)({
+    pet_place_ads: (0, import_fields16.relationship)({
       ref: "Ad.pet_place",
       many: true
     }),
-    address: (0, import_fields15.text)(),
-    google_place_id: (0, import_fields15.text)({
+    address: (0, import_fields16.text)(),
+    google_place_id: (0, import_fields16.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       validation: { isRequired: false }
     }),
-    google_opening_hours: (0, import_fields15.text)(),
-    createdAt: (0, import_fields15.timestamp)({
+    google_opening_hours: (0, import_fields16.text)(),
+    createdAt: (0, import_fields16.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -5040,8 +5070,8 @@ var PetPlace_default = (0, import_core15.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
-var import_core16 = require("@keystone-6/core");
-var import_fields16 = require("@keystone-6/core/fields");
+var import_core17 = require("@keystone-6/core");
+var import_fields17 = require("@keystone-6/core/fields");
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.access.ts
 function visibleWhere(session2) {
@@ -5224,7 +5254,7 @@ var petPlaceAppointmentEmailHook = {
 };
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
-var PetPlaceAppointment_default = (0, import_core16.list)({
+var PetPlaceAppointment_default = (0, import_core17.list)({
   access: petPlaceAppointmentAccess,
   ui: {
     listView: {
@@ -5243,59 +5273,59 @@ var PetPlaceAppointment_default = (0, import_core16.list)({
     afterOperation: petPlaceAppointmentEmailHook.afterOperation
   },
   fields: {
-    pet_place: (0, import_fields16.relationship)({
+    pet_place: (0, import_fields17.relationship)({
       ref: "PetPlace.pet_place_appointments",
       many: false,
       ui: { description: "Negocio (veterinaria, refugio, hotel, etc.)" }
     }),
-    customer: (0, import_fields16.relationship)({
+    customer: (0, import_fields17.relationship)({
       ref: "User.my_appointments",
       many: false,
       ui: { description: "Usuario que reserv\xF3 la cita" }
     }),
-    service: (0, import_fields16.relationship)({
+    service: (0, import_fields17.relationship)({
       ref: "PetPlaceService",
       many: false,
       ui: { description: "Servicio del cat\xE1logo (opcional)" }
     }),
-    startsAt: (0, import_fields16.timestamp)({
+    startsAt: (0, import_fields17.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Inicio de la cita / check-in" }
     }),
-    endsAt: (0, import_fields16.timestamp)({
+    endsAt: (0, import_fields17.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Fin de la cita / check-out" }
     }),
-    status: (0, import_fields16.select)({
+    status: (0, import_fields17.select)({
       type: "string",
       options: PET_PLACE_APPOINTMENT_STATUS_OPTIONS,
       defaultValue: PET_PLACE_APPOINTMENT_STATUS.PENDING,
       validation: { isRequired: true },
       ui: { displayMode: "segmented-control" }
     }),
-    petName: (0, import_fields16.text)({
+    petName: (0, import_fields17.text)({
       ui: { description: "Nombre de la mascota" }
     }),
-    petSpecies: (0, import_fields16.text)({
+    petSpecies: (0, import_fields17.text)({
       ui: { description: "Especie/raza (texto libre, ej. Perro - Labrador)" }
     }),
-    notes: (0, import_fields16.text)({
+    notes: (0, import_fields17.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas del cliente (motivo de la visita, indicaciones)"
       }
     }),
-    ownerNotes: (0, import_fields16.text)({
+    ownerNotes: (0, import_fields17.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas internas del negocio (no visibles para el cliente)"
       }
     }),
-    cancelReason: (0, import_fields16.text)({
+    cancelReason: (0, import_fields17.text)({
       db: { isNullable: true },
       ui: { description: "Motivo de cancelaci\xF3n" }
     }),
-    createdAt: (0, import_fields16.timestamp)({
+    createdAt: (0, import_fields17.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5306,19 +5336,19 @@ var PetPlaceAppointment_default = (0, import_core16.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts
-var import_core17 = require("@keystone-6/core");
-var import_fields17 = require("@keystone-6/core/fields");
-var PetPlaceLike_default = (0, import_core17.list)({
+var import_core18 = require("@keystone-6/core");
+var import_fields18 = require("@keystone-6/core/fields");
+var PetPlaceLike_default = (0, import_core18.list)({
   access: access_default,
   fields: {
-    user: (0, import_fields17.relationship)({
+    user: (0, import_fields18.relationship)({
       ref: "User",
       many: false
     }),
-    pet_place: (0, import_fields17.relationship)({
+    pet_place: (0, import_fields18.relationship)({
       ref: "PetPlace.pet_place_likes"
     }),
-    createdAt: (0, import_fields17.timestamp)({
+    createdAt: (0, import_fields18.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -5327,8 +5357,8 @@ var PetPlaceLike_default = (0, import_core17.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
-var import_core18 = require("@keystone-6/core");
-var import_fields18 = require("@keystone-6/core/fields");
+var import_core19 = require("@keystone-6/core");
+var import_fields19 = require("@keystone-6/core/fields");
 
 // models/Pet/PetPlace/PetPlaceService/status.ts
 var PET_PLACE_SERVICE_STATUS = {
@@ -5397,7 +5427,7 @@ var petPlaceServiceHooks = {
 };
 
 // models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
-var PetPlaceService_default = (0, import_core18.list)({
+var PetPlaceService_default = (0, import_core19.list)({
   access: access_default,
   ui: {
     listView: {
@@ -5409,16 +5439,16 @@ var PetPlaceService_default = (0, import_core18.list)({
     afterOperation: petPlaceServiceHooks.afterOperation
   },
   fields: {
-    name: (0, import_fields18.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields18.text)({ isIndexed: "unique" }),
-    description: (0, import_fields18.text)({ ui: { displayMode: "textarea" } }),
-    active: (0, import_fields18.checkbox)({
+    name: (0, import_fields19.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields19.text)({ isIndexed: "unique" }),
+    description: (0, import_fields19.text)({ ui: { displayMode: "textarea" } }),
+    active: (0, import_fields19.checkbox)({
       defaultValue: true,
       ui: {
         description: "Visible en el cat\xE1logo y en fichas. Solo si est\xE1 aprobado."
       }
     }),
-    status: (0, import_fields18.select)({
+    status: (0, import_fields19.select)({
       type: "string",
       options: PET_PLACE_SERVICE_STATUS_OPTIONS,
       defaultValue: PET_PLACE_SERVICE_STATUS.APPROVED,
@@ -5428,17 +5458,17 @@ var PetPlaceService_default = (0, import_core18.list)({
         description: "Pendiente = lo pidi\xF3 un due\xF1o. Aprobado = sale en el cat\xE1logo. Rechazado = no sale."
       }
     }),
-    requestedBy: (0, import_fields18.relationship)({
+    requestedBy: (0, import_fields19.relationship)({
       ref: "User.requested_pet_place_services",
       many: false,
       ui: { description: "Due\xF1o que pidi\xF3 este servicio" }
     }),
-    requestedFor: (0, import_fields18.relationship)({
+    requestedFor: (0, import_fields19.relationship)({
       ref: "PetPlace.requested_services",
       many: false,
       ui: { description: "Cl\xEDnica que lo pidi\xF3; al aprobar se conecta a sus servicios" }
     }),
-    createdAt: (0, import_fields18.timestamp)({
+    createdAt: (0, import_fields19.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -5447,22 +5477,22 @@ var PetPlaceService_default = (0, import_core18.list)({
 });
 
 // models/Pet/SocialMedia/SocialMedia.ts
-var import_core19 = require("@keystone-6/core");
-var import_fields19 = require("@keystone-6/core/fields");
-var SocialMedia_default = (0, import_core19.list)({
+var import_core20 = require("@keystone-6/core");
+var import_fields20 = require("@keystone-6/core/fields");
+var SocialMedia_default = (0, import_core20.list)({
   access: access_default,
   fields: {
-    social_media: (0, import_fields19.select)({
+    social_media: (0, import_fields20.select)({
       options: ["Facebook", "Instagram", "X", "LinkedIn", "TikTok"],
       validation: { isRequired: true }
     }),
-    link: (0, import_fields19.text)({
+    link: (0, import_fields20.text)({
       validation: { isRequired: true }
     }),
-    pet_place: (0, import_fields19.relationship)({
+    pet_place: (0, import_fields20.relationship)({
       ref: "PetPlace.pet_place_social_media"
     }),
-    createdAt: (0, import_fields19.timestamp)({
+    createdAt: (0, import_fields20.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -5475,8 +5505,8 @@ var SocialMedia_default = (0, import_core19.list)({
 });
 
 // models/SystemRelease/SystemRelease.ts
-var import_core20 = require("@keystone-6/core");
-var import_fields20 = require("@keystone-6/core/fields");
+var import_core21 = require("@keystone-6/core");
+var import_fields21 = require("@keystone-6/core/fields");
 
 // models/SystemRelease/systemRelease.access.ts
 var systemReleaseAccess = {
@@ -5634,7 +5664,7 @@ var systemReleaseEmailHook = {
 };
 
 // models/SystemRelease/SystemRelease.ts
-var SystemRelease_default = (0, import_core20.list)({
+var SystemRelease_default = (0, import_core21.list)({
   access: systemReleaseAccess,
   hooks: {
     afterOperation: systemReleaseEmailHook.afterOperation
@@ -5653,12 +5683,12 @@ var SystemRelease_default = (0, import_core20.list)({
     }
   },
   fields: {
-    version: (0, import_fields20.text)({
+    version: (0, import_fields21.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Versi\xF3n semver o etiqueta (ej. 1.4.0)" }
     }),
-    product: (0, import_fields20.select)({
+    product: (0, import_fields21.select)({
       options: SYSTEM_RELEASE_PRODUCT_OPTIONS,
       validation: { isRequired: true },
       ui: {
@@ -5666,28 +5696,28 @@ var SystemRelease_default = (0, import_core20.list)({
         description: "Pet, SaaS o ambas apps"
       }
     }),
-    title: (0, import_fields20.text)({
+    title: (0, import_fields21.text)({
       ui: { description: "T\xEDtulo corto del release (opcional)" }
     }),
-    body: (0, import_fields20.text)({
+    body: (0, import_fields21.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas de cambio (texto o markdown seg\xFAn el front)"
       }
     }),
-    releasedAt: (0, import_fields20.timestamp)({
+    releasedAt: (0, import_fields21.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Fecha en que aplica / se publica el release" }
     }),
-    isPublished: (0, import_fields20.checkbox)({
+    isPublished: (0, import_fields21.checkbox)({
       defaultValue: false,
       ui: { description: "Si est\xE1 desmarcado, solo admins lo ven en listados" }
     }),
-    notifyByEmail: (0, import_fields20.checkbox)({
+    notifyByEmail: (0, import_fields21.checkbox)({
       defaultValue: true,
       ui: { description: "Al publicarse, mandar correo a las personas del producto (una sola vez)" }
     }),
-    emailedAt: (0, import_fields20.timestamp)({
+    emailedAt: (0, import_fields21.timestamp)({
       db: { isNullable: true },
       ui: {
         description: "Cu\xE1ndo se mand\xF3 el correo de esta novedad (lo pone el servidor)",
@@ -5695,7 +5725,7 @@ var SystemRelease_default = (0, import_core20.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    createdAt: (0, import_fields20.timestamp)({
+    createdAt: (0, import_fields21.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -5706,66 +5736,25 @@ var SystemRelease_default = (0, import_core20.list)({
 });
 
 // models/Pet/Review/Review.ts
-var import_core21 = require("@keystone-6/core");
-var import_fields21 = require("@keystone-6/core/fields");
-var Review_default = (0, import_core21.list)({
+var import_core22 = require("@keystone-6/core");
+var import_fields22 = require("@keystone-6/core/fields");
+var Review_default = (0, import_core22.list)({
   access: access_default,
   fields: {
-    rating: (0, import_fields21.integer)(),
-    review: (0, import_fields21.text)(),
-    pet_place: (0, import_fields21.relationship)({
+    rating: (0, import_fields22.integer)(),
+    review: (0, import_fields22.text)(),
+    pet_place: (0, import_fields22.relationship)({
       ref: "PetPlace.pet_place_reviews"
     }),
-    product: (0, import_fields21.relationship)({
+    product: (0, import_fields22.relationship)({
       ref: "Product.product_reviews"
     }),
-    user: (0, import_fields21.relationship)({
+    user: (0, import_fields22.relationship)({
       ref: "User",
       many: false
     }),
-    google_user: (0, import_fields21.text)(),
-    google_user_photo: (0, import_fields21.text)(),
-    createdAt: (0, import_fields21.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Pet/Store/Product/Product.ts
-var import_core22 = require("@keystone-6/core");
-var import_fields22 = require("@keystone-6/core/fields");
-var Product_default = (0, import_core22.list)({
-  access: access_default,
-  fields: {
-    name: (0, import_fields22.text)({ validation: { isRequired: true } }),
-    price: (0, import_fields22.integer)({ validation: { isRequired: true } }),
-    description: (0, import_fields22.text)({ validation: { isRequired: true } }),
-    category: (0, import_fields22.select)({
-      validation: { isRequired: true },
-      options: PRODUCT_CATEGORIES
-    }),
-    brand: (0, import_fields22.select)({
-      validation: { isRequired: true },
-      options: BRANDS
-    }),
-    type: (0, import_fields22.select)({
-      validation: { isRequired: true },
-      options: ANIMAL_TYPE_OPTIONS
-    }),
-    product_reviews: (0, import_fields22.relationship)({
-      ref: "Review.product",
-      many: true
-    }),
-    product_ads: (0, import_fields22.relationship)({
-      ref: "Ad.product",
-      many: true
-    }),
+    google_user: (0, import_fields22.text)(),
+    google_user_photo: (0, import_fields22.text)(),
     createdAt: (0, import_fields22.timestamp)({
       defaultValue: {
         kind: "now"
@@ -5778,19 +5767,33 @@ var Product_default = (0, import_core22.list)({
   }
 });
 
-// models/Pet/Store/WishList/WishList.ts
+// models/Pet/Store/Product/Product.ts
 var import_core23 = require("@keystone-6/core");
 var import_fields23 = require("@keystone-6/core/fields");
-var WishList_default = (0, import_core23.list)({
+var Product_default = (0, import_core23.list)({
   access: access_default,
   fields: {
     name: (0, import_fields23.text)({ validation: { isRequired: true } }),
-    user: (0, import_fields23.relationship)({
-      ref: "User",
-      many: false
+    price: (0, import_fields23.integer)({ validation: { isRequired: true } }),
+    description: (0, import_fields23.text)({ validation: { isRequired: true } }),
+    category: (0, import_fields23.select)({
+      validation: { isRequired: true },
+      options: PRODUCT_CATEGORIES
     }),
-    product: (0, import_fields23.relationship)({
-      ref: "Product",
+    brand: (0, import_fields23.select)({
+      validation: { isRequired: true },
+      options: BRANDS
+    }),
+    type: (0, import_fields23.select)({
+      validation: { isRequired: true },
+      options: ANIMAL_TYPE_OPTIONS
+    }),
+    product_reviews: (0, import_fields23.relationship)({
+      ref: "Review.product",
+      many: true
+    }),
+    product_ads: (0, import_fields23.relationship)({
+      ref: "Ad.product",
       many: true
     }),
     createdAt: (0, import_fields23.timestamp)({
@@ -5805,10 +5808,10 @@ var WishList_default = (0, import_core23.list)({
   }
 });
 
-// models/Pet/Store/Cart/Cart.ts
+// models/Pet/Store/WishList/WishList.ts
 var import_core24 = require("@keystone-6/core");
 var import_fields24 = require("@keystone-6/core/fields");
-var Cart_default = (0, import_core24.list)({
+var WishList_default = (0, import_core24.list)({
   access: access_default,
   fields: {
     name: (0, import_fields24.text)({ validation: { isRequired: true } }),
@@ -5832,25 +5835,20 @@ var Cart_default = (0, import_core24.list)({
   }
 });
 
-// models/Pet/Store/Order/Order.ts
+// models/Pet/Store/Cart/Cart.ts
 var import_core25 = require("@keystone-6/core");
 var import_fields25 = require("@keystone-6/core/fields");
-var Order_default = (0, import_core25.list)({
+var Cart_default = (0, import_core25.list)({
   access: access_default,
   fields: {
-    total: (0, import_fields25.integer)(),
-    status: (0, import_fields25.select)({ validation: { isRequired: true }, options: ORDER_STATUS }),
-    cart: (0, import_fields25.relationship)({
-      ref: "Cart",
-      many: false
-    }),
+    name: (0, import_fields25.text)({ validation: { isRequired: true } }),
     user: (0, import_fields25.relationship)({
       ref: "User",
       many: false
     }),
-    payment: (0, import_fields25.relationship)({
-      ref: "Payment.order_payment",
-      many: false
+    product: (0, import_fields25.relationship)({
+      ref: "Product",
+      many: true
     }),
     createdAt: (0, import_fields25.timestamp)({
       defaultValue: {
@@ -5864,23 +5862,55 @@ var Order_default = (0, import_core25.list)({
   }
 });
 
-// models/Pet/Store/Payment/Payment.ts
-var import_fields26 = require("@keystone-6/core/fields");
+// models/Pet/Store/Order/Order.ts
 var import_core26 = require("@keystone-6/core");
-var Payment_default = (0, import_core26.list)({
+var import_fields26 = require("@keystone-6/core/fields");
+var Order_default = (0, import_core26.list)({
   access: access_default,
   fields: {
-    order_payment: (0, import_fields26.relationship)({
+    total: (0, import_fields26.integer)(),
+    status: (0, import_fields26.select)({ validation: { isRequired: true }, options: ORDER_STATUS }),
+    cart: (0, import_fields26.relationship)({
+      ref: "Cart",
+      many: false
+    }),
+    user: (0, import_fields26.relationship)({
+      ref: "User",
+      many: false
+    }),
+    payment: (0, import_fields26.relationship)({
+      ref: "Payment.order_payment",
+      many: false
+    }),
+    createdAt: (0, import_fields26.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Pet/Store/Payment/Payment.ts
+var import_fields27 = require("@keystone-6/core/fields");
+var import_core27 = require("@keystone-6/core");
+var Payment_default = (0, import_core27.list)({
+  access: access_default,
+  fields: {
+    order_payment: (0, import_fields27.relationship)({
       ref: "Order.payment"
     }),
-    paymentMethod: (0, import_fields26.relationship)({
+    paymentMethod: (0, import_fields27.relationship)({
       ref: "PaymentMethod.payment"
     }),
-    amount: (0, import_fields26.decimal)({
+    amount: (0, import_fields27.decimal)({
       scale: 6,
       defaultValue: "0.000000"
     }),
-    status: (0, import_fields26.select)({
+    status: (0, import_fields27.select)({
       type: "enum",
       validation: {
         isRequired: true
@@ -5895,54 +5925,13 @@ var Payment_default = (0, import_core26.list)({
         { label: "Devuelto", value: "refunded" }
       ]
     }),
-    processorStripeChargeId: (0, import_fields26.text)(),
-    stripeErrorMessage: (0, import_fields26.text)({
+    processorStripeChargeId: (0, import_fields27.text)(),
+    stripeErrorMessage: (0, import_fields27.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    processorRefundId: (0, import_fields26.text)(),
-    createdAt: (0, import_fields26.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    }),
-    updatedAt: (0, import_fields26.timestamp)({
-      defaultValue: { kind: "now" },
-      db: { updatedAt: true }
-    })
-  }
-});
-
-// models/Pet/Store/PaymentMethod/PaymentMethod.ts
-var import_fields27 = require("@keystone-6/core/fields");
-var import_core27 = require("@keystone-6/core");
-var PaymentMethod_default = (0, import_core27.list)({
-  access: access_default,
-  fields: {
-    user: (0, import_fields27.relationship)({
-      ref: "User"
-    }),
-    cardType: (0, import_fields27.text)(),
-    isDefault: (0, import_fields27.checkbox)(),
-    lastFourDigits: (0, import_fields27.text)(),
-    expMonth: (0, import_fields27.text)(),
-    expYear: (0, import_fields27.text)(),
-    stripeProcessorId: (0, import_fields27.text)(),
-    address: (0, import_fields27.text)(),
-    postalCode: (0, import_fields27.text)(),
-    ownerName: (0, import_fields27.text)(),
-    country: (0, import_fields27.text)(),
-    // Two-letter country code (ISO 3166-1 alpha-2).
-    payment: (0, import_fields27.relationship)({
-      ref: "Payment.paymentMethod",
-      many: true
-    }),
-    type: (0, import_fields27.select)({ options: PAYMENT_TYPES }),
+    processorRefundId: (0, import_fields27.text)(),
     createdAt: (0, import_fields27.timestamp)({
       defaultValue: {
         kind: "now"
@@ -5959,9 +5948,50 @@ var PaymentMethod_default = (0, import_core27.list)({
   }
 });
 
-// models/TokenNotification/TokenNotification.ts
+// models/Pet/Store/PaymentMethod/PaymentMethod.ts
 var import_fields28 = require("@keystone-6/core/fields");
 var import_core28 = require("@keystone-6/core");
+var PaymentMethod_default = (0, import_core28.list)({
+  access: access_default,
+  fields: {
+    user: (0, import_fields28.relationship)({
+      ref: "User"
+    }),
+    cardType: (0, import_fields28.text)(),
+    isDefault: (0, import_fields28.checkbox)(),
+    lastFourDigits: (0, import_fields28.text)(),
+    expMonth: (0, import_fields28.text)(),
+    expYear: (0, import_fields28.text)(),
+    stripeProcessorId: (0, import_fields28.text)(),
+    address: (0, import_fields28.text)(),
+    postalCode: (0, import_fields28.text)(),
+    ownerName: (0, import_fields28.text)(),
+    country: (0, import_fields28.text)(),
+    // Two-letter country code (ISO 3166-1 alpha-2).
+    payment: (0, import_fields28.relationship)({
+      ref: "Payment.paymentMethod",
+      many: true
+    }),
+    type: (0, import_fields28.select)({ options: PAYMENT_TYPES }),
+    createdAt: (0, import_fields28.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields28.timestamp)({
+      defaultValue: { kind: "now" },
+      db: { updatedAt: true }
+    })
+  }
+});
+
+// models/TokenNotification/TokenNotification.ts
+var import_fields29 = require("@keystone-6/core/fields");
+var import_core29 = require("@keystone-6/core");
 
 // models/TokenNotification/TokenNotification.hooks.ts
 var hooks = {
@@ -6001,16 +6031,16 @@ var hooks = {
 var TokenNotification_hooks_default = { hooks };
 
 // models/TokenNotification/TokenNotification.ts
-var TokenNotification_default = (0, import_core28.list)({
+var TokenNotification_default = (0, import_core29.list)({
   access: access_default,
   hooks: TokenNotification_hooks_default.hooks,
   fields: {
-    token: (0, import_fields28.text)({
+    token: (0, import_fields29.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    user: (0, import_fields28.relationship)({
+    user: (0, import_fields29.relationship)({
       ref: "User",
       many: false
     })
@@ -6018,43 +6048,43 @@ var TokenNotification_default = (0, import_core28.list)({
 });
 
 // models/Pet/Ad/Ad.ts
-var import_core29 = require("@keystone-6/core");
-var import_fields29 = require("@keystone-6/core/fields");
-var Ad_default = (0, import_core29.list)({
+var import_core30 = require("@keystone-6/core");
+var import_fields30 = require("@keystone-6/core/fields");
+var Ad_default = (0, import_core30.list)({
   access: access_default,
   fields: {
-    title: (0, import_fields29.text)(),
-    description: (0, import_fields29.text)({
+    title: (0, import_fields30.text)(),
+    description: (0, import_fields30.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    active: (0, import_fields29.checkbox)(),
-    start_date: (0, import_fields29.calendarDay)(),
-    end_date: (0, import_fields29.calendarDay)(),
-    price: (0, import_fields29.integer)(),
-    status: (0, import_fields29.select)({
+    active: (0, import_fields30.checkbox)(),
+    start_date: (0, import_fields30.calendarDay)(),
+    end_date: (0, import_fields30.calendarDay)(),
+    price: (0, import_fields30.integer)(),
+    status: (0, import_fields30.select)({
       options: STATUS_AD
     }),
-    type: (0, import_fields29.select)({
+    type: (0, import_fields30.select)({
       options: TYPES_AD
     }),
-    lat: (0, import_fields29.text)(),
-    lng: (0, import_fields29.text)(),
-    image: (0, import_fields29.image)({
+    lat: (0, import_fields30.text)(),
+    lng: (0, import_fields30.text)(),
+    image: (0, import_fields30.image)({
       storage: "s3_ads"
     }),
-    pet_place: (0, import_fields29.relationship)({
+    pet_place: (0, import_fields30.relationship)({
       ref: "PetPlace.pet_place_ads"
     }),
-    product: (0, import_fields29.relationship)({
+    product: (0, import_fields30.relationship)({
       ref: "Product.product_ads"
     }),
-    user: (0, import_fields29.relationship)({
+    user: (0, import_fields30.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields29.timestamp)({
+    createdAt: (0, import_fields30.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -6067,8 +6097,8 @@ var Ad_default = (0, import_core29.list)({
 });
 
 // models/Blog/Post/Post.ts
-var import_core30 = require("@keystone-6/core");
-var import_fields30 = require("@keystone-6/core/fields");
+var import_core31 = require("@keystone-6/core");
+var import_fields31 = require("@keystone-6/core/fields");
 
 // models/Blog/Post/Post.hooks.ts
 function subscriberProductsFor(product) {
@@ -6309,7 +6339,7 @@ var postPublishSideEffectsHook = {
 
 // models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
-var Post_default = (0, import_core30.list)({
+var Post_default = (0, import_core31.list)({
   access: access_default,
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
@@ -6322,7 +6352,7 @@ var Post_default = (0, import_core30.list)({
     }
   },
   fields: {
-    product: (0, import_fields30.select)({
+    product: (0, import_fields31.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -6332,8 +6362,8 @@ var Post_default = (0, import_core30.list)({
         description: "Pet, SaaS o ambas apps. Su categor\xEDa debe ser del mismo producto."
       }
     }),
-    title: (0, import_fields30.text)({ validation: { isRequired: true } }),
-    url: (0, import_fields30.text)({
+    title: (0, import_fields31.text)({ validation: { isRequired: true } }),
+    url: (0, import_fields31.text)({
       isIndexed: "unique",
       hooks: postUrlHook,
       ui: {
@@ -6346,21 +6376,21 @@ var Post_default = (0, import_core30.list)({
       dividers: true,
       links: true
     }),
-    excerpt: (0, import_fields30.text)({
+    excerpt: (0, import_fields31.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    image: (0, import_fields30.image)({
+    image: (0, import_fields31.image)({
       storage: "s3_posts"
     }),
-    published: (0, import_fields30.checkbox)({
+    published: (0, import_fields31.checkbox)({
       defaultValue: false,
       ui: {
         description: 'Marca esto y deja "Published at" vac\xEDo para publicar de inmediato, o ponle una fecha futura para programarlo.'
       }
     }),
-    publishedAt: (0, import_fields30.timestamp)({
+    publishedAt: (0, import_fields31.timestamp)({
       ui: {
         createView: { fieldMode: "edit" },
         itemView: { fieldMode: "edit" },
@@ -6368,14 +6398,14 @@ var Post_default = (0, import_core30.list)({
       }
     }),
     /** Cuándo se mandó el correo de "nuevo post". No editable: evita reenvíos en guardados posteriores. */
-    publishedNotifiedAt: (0, import_fields30.timestamp)({
+    publishedNotifiedAt: (0, import_fields31.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
     /** Cuándo se publicó en la Página de Facebook. Editable: vaciarlo fuerza un reintento. */
-    publishedToFacebookAt: (0, import_fields30.timestamp)({
+    publishedToFacebookAt: (0, import_fields31.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "edit" },
@@ -6386,7 +6416,7 @@ var Post_default = (0, import_core30.list)({
      * Tarea de ClickUp que originó el post. Único para no duplicar si el webhook reintenta.
      * Vacío cuando el post se creó en el Admin.
      */
-    clickupTaskId: (0, import_fields30.text)({
+    clickupTaskId: (0, import_fields31.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
@@ -6395,75 +6425,33 @@ var Post_default = (0, import_core30.list)({
         description: "Id de la tarea de ClickUp. Lo llena el webhook al aprobar una publicaci\xF3n."
       }
     }),
-    category: (0, import_fields30.relationship)({
+    category: (0, import_fields31.relationship)({
       ref: "Category.posts",
       many: false
     }),
-    tags: (0, import_fields30.relationship)({
+    tags: (0, import_fields31.relationship)({
       ref: "Tag.posts",
       many: true
     }),
-    author: (0, import_fields30.relationship)({
+    author: (0, import_fields31.relationship)({
       ref: "User",
       many: false
     }),
-    comments: (0, import_fields30.relationship)({
+    comments: (0, import_fields31.relationship)({
       ref: "PostComment.post",
       many: true
     }),
-    post_likes: (0, import_fields30.relationship)({
+    post_likes: (0, import_fields31.relationship)({
       ref: "PostLike.post",
       many: true
     }),
-    post_favorites: (0, import_fields30.relationship)({
+    post_favorites: (0, import_fields31.relationship)({
       ref: "PostFavorite.post",
       many: true
     }),
-    post_views: (0, import_fields30.relationship)({
+    post_views: (0, import_fields31.relationship)({
       ref: "PostView.post",
       many: true
-    }),
-    createdAt: (0, import_fields30.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    }),
-    updatedAt: (0, import_fields30.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      db: {
-        updatedAt: true
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Blog/Post/PostComment/PostComment.ts
-var import_core31 = require("@keystone-6/core");
-var import_fields31 = require("@keystone-6/core/fields");
-var PostComment_default = (0, import_core31.list)({
-  access: access_default,
-  fields: {
-    comment: (0, import_fields31.text)({
-      validation: { isRequired: true },
-      ui: { displayMode: "textarea" }
-    }),
-    post: (0, import_fields31.relationship)({
-      ref: "Post.comments",
-      many: false
-    }),
-    user: (0, import_fields31.relationship)({
-      ref: "User",
-      many: false
     }),
     createdAt: (0, import_fields31.timestamp)({
       defaultValue: {
@@ -6489,18 +6477,22 @@ var PostComment_default = (0, import_core31.list)({
   }
 });
 
-// models/Blog/Post/PostLike/PostLike.ts
+// models/Blog/Post/PostComment/PostComment.ts
 var import_core32 = require("@keystone-6/core");
 var import_fields32 = require("@keystone-6/core/fields");
-var PostLike_default = (0, import_core32.list)({
+var PostComment_default = (0, import_core32.list)({
   access: access_default,
   fields: {
-    user: (0, import_fields32.relationship)({
-      ref: "User",
-      many: false
+    comment: (0, import_fields32.text)({
+      validation: { isRequired: true },
+      ui: { displayMode: "textarea" }
     }),
     post: (0, import_fields32.relationship)({
-      ref: "Post.post_likes",
+      ref: "Post.comments",
+      many: false
+    }),
+    user: (0, import_fields32.relationship)({
+      ref: "User",
       many: false
     }),
     createdAt: (0, import_fields32.timestamp)({
@@ -6511,14 +6503,26 @@ var PostLike_default = (0, import_core32.list)({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
+    }),
+    updatedAt: (0, import_fields32.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      db: {
+        updatedAt: true
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
     })
   }
 });
 
-// models/Blog/Post/PostFavorite/PostFavorite.ts
+// models/Blog/Post/PostLike/PostLike.ts
 var import_core33 = require("@keystone-6/core");
 var import_fields33 = require("@keystone-6/core/fields");
-var PostFavorite_default = (0, import_core33.list)({
+var PostLike_default = (0, import_core33.list)({
   access: access_default,
   fields: {
     user: (0, import_fields33.relationship)({
@@ -6526,7 +6530,7 @@ var PostFavorite_default = (0, import_core33.list)({
       many: false
     }),
     post: (0, import_fields33.relationship)({
-      ref: "Post.post_favorites",
+      ref: "Post.post_likes",
       many: false
     }),
     createdAt: (0, import_fields33.timestamp)({
@@ -6541,10 +6545,10 @@ var PostFavorite_default = (0, import_core33.list)({
   }
 });
 
-// models/Blog/Post/PostView/PostView.ts
+// models/Blog/Post/PostFavorite/PostFavorite.ts
 var import_core34 = require("@keystone-6/core");
 var import_fields34 = require("@keystone-6/core/fields");
-var PostView_default = (0, import_core34.list)({
+var PostFavorite_default = (0, import_core34.list)({
   access: access_default,
   fields: {
     user: (0, import_fields34.relationship)({
@@ -6552,7 +6556,7 @@ var PostView_default = (0, import_core34.list)({
       many: false
     }),
     post: (0, import_fields34.relationship)({
-      ref: "Post.post_views",
+      ref: "Post.post_favorites",
       many: false
     }),
     createdAt: (0, import_fields34.timestamp)({
@@ -6567,19 +6571,19 @@ var PostView_default = (0, import_core34.list)({
   }
 });
 
-// models/Blog/Tag/Tag.ts
+// models/Blog/Post/PostView/PostView.ts
 var import_core35 = require("@keystone-6/core");
 var import_fields35 = require("@keystone-6/core/fields");
-var Tag_default = (0, import_core35.list)({
+var PostView_default = (0, import_core35.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields35.text)({
-      validation: { isRequired: true },
-      isIndexed: "unique"
+    user: (0, import_fields35.relationship)({
+      ref: "User",
+      many: false
     }),
-    posts: (0, import_fields35.relationship)({
-      ref: "Post.tags",
-      many: true
+    post: (0, import_fields35.relationship)({
+      ref: "Post.post_views",
+      many: false
     }),
     createdAt: (0, import_fields35.timestamp)({
       defaultValue: {
@@ -6593,9 +6597,35 @@ var Tag_default = (0, import_core35.list)({
   }
 });
 
-// models/Blog/Category/Category.ts
+// models/Blog/Tag/Tag.ts
 var import_core36 = require("@keystone-6/core");
 var import_fields36 = require("@keystone-6/core/fields");
+var Tag_default = (0, import_core36.list)({
+  access: access_default,
+  fields: {
+    name: (0, import_fields36.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique"
+    }),
+    posts: (0, import_fields36.relationship)({
+      ref: "Post.tags",
+      many: true
+    }),
+    createdAt: (0, import_fields36.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Category/Category.ts
+var import_core37 = require("@keystone-6/core");
+var import_fields37 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
 function sanitizeUrl2(text73) {
@@ -6637,13 +6667,13 @@ async function checkCategoryUrl(name, currentCategoryId, context) {
 }
 
 // models/Blog/Category/Category.ts
-var Category_default = (0, import_core36.list)({
+var Category_default = (0, import_core37.list)({
   access: access_default,
   ui: {
     listView: { initialColumns: ["name", "product", "url"] }
   },
   fields: {
-    product: (0, import_fields36.select)({
+    product: (0, import_fields37.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -6653,13 +6683,13 @@ var Category_default = (0, import_core36.list)({
         description: "Pet, SaaS o ambas apps. Define d\xF3nde aparece la categor\xEDa."
       }
     }),
-    name: (0, import_fields36.text)({
+    name: (0, import_fields37.text)({
       isIndexed: "unique",
       ui: {
         description: "Nombre visible. La direcci\xF3n se arma sola y no conviene cambiarla si ya hay art\xEDculos."
       }
     }),
-    url: (0, import_fields36.text)({
+    url: (0, import_fields37.text)({
       isIndexed: "unique",
       hooks: categoryUrlHook,
       ui: {
@@ -6667,14 +6697,14 @@ var Category_default = (0, import_core36.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    image: (0, import_fields36.image)({
+    image: (0, import_fields37.image)({
       storage: "s3_categories"
     }),
-    posts: (0, import_fields36.relationship)({
+    posts: (0, import_fields37.relationship)({
       ref: "Post.category",
       many: true
     }),
-    createdAt: (0, import_fields36.timestamp)({
+    createdAt: (0, import_fields37.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -6687,8 +6717,8 @@ var Category_default = (0, import_core36.list)({
 });
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var import_core37 = require("@keystone-6/core");
-var import_fields37 = require("@keystone-6/core/fields");
+var import_core38 = require("@keystone-6/core");
+var import_fields38 = require("@keystone-6/core/fields");
 
 // models/Blog/BlogSubscription/BlogSubscription.hooks.ts
 function normalizeEmail(email) {
@@ -6756,7 +6786,7 @@ var blogSubscriptionHooks = {
 };
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var BlogSubscription_default = (0, import_core37.list)({
+var BlogSubscription_default = (0, import_core38.list)({
   access: access_default,
   hooks: {
     resolveInput: blogSubscriptionHooks.resolveInput,
@@ -6764,14 +6794,14 @@ var BlogSubscription_default = (0, import_core37.list)({
     afterOperation: blogSubscriptionHooks.afterOperation
   },
   fields: {
-    email: (0, import_fields37.text)({
+    email: (0, import_fields38.text)({
       // No es único: la unicidad es (email, product), ver BlogSubscription.hooks.ts
       isIndexed: true,
       ui: {
         displayMode: "input"
       }
     }),
-    product: (0, import_fields37.select)({
+    product: (0, import_fields38.select)({
       options: SINGLE_PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -6781,20 +6811,20 @@ var BlogSubscription_default = (0, import_core37.list)({
         description: "Blog al que est\xE1 suscrito: Pet o SaaS"
       }
     }),
-    user: (0, import_fields37.relationship)({
+    user: (0, import_fields38.relationship)({
       ref: "User.blog_subscriptions",
       many: false,
       ui: {
         displayMode: "select"
       }
     }),
-    active: (0, import_fields37.checkbox)({
+    active: (0, import_fields38.checkbox)({
       defaultValue: true,
       ui: {
         description: "Si est\xE1 activo, recibir\xE1 notificaciones de nuevos posts"
       }
     }),
-    createdAt: (0, import_fields37.timestamp)({
+    createdAt: (0, import_fields38.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -6813,8 +6843,8 @@ var BlogSubscription_default = (0, import_core37.list)({
 });
 
 // models/Role/Role.ts
-var import_core38 = require("@keystone-6/core");
-var import_fields38 = require("@keystone-6/core/fields");
+var import_core39 = require("@keystone-6/core");
+var import_fields39 = require("@keystone-6/core/fields");
 
 // models/Role/Role.access.ts
 var roleAccess = {
@@ -6837,19 +6867,19 @@ var roleUsersFieldAccess = {
 };
 
 // models/Role/Role.ts
-var Role_default = (0, import_core38.list)({
+var Role_default = (0, import_core39.list)({
   access: roleAccess,
   fields: {
-    name: (0, import_fields38.select)({
+    name: (0, import_fields39.select)({
       options: ROLES,
       isIndexed: "unique"
     }),
-    users: (0, import_fields38.relationship)({
+    users: (0, import_fields39.relationship)({
       ref: "User.roles",
       many: true,
       access: roleUsersFieldAccess
     }),
-    createdAt: (0, import_fields38.timestamp)({
+    createdAt: (0, import_fields39.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -6862,8 +6892,8 @@ var Role_default = (0, import_core38.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceType/PetPlaceType.ts
-var import_core39 = require("@keystone-6/core");
-var import_fields39 = require("@keystone-6/core/fields");
+var import_core40 = require("@keystone-6/core");
+var import_fields40 = require("@keystone-6/core/fields");
 var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
   label: type.label,
   value: type.value
@@ -6886,22 +6916,22 @@ var pluralHook = {
     return resolvedData.plural || item?.plural;
   }
 };
-var PetPlaceType_default = (0, import_core39.list)({
+var PetPlaceType_default = (0, import_core40.list)({
   access: access_default,
   fields: {
-    value: (0, import_fields39.select)({
+    value: (0, import_fields40.select)({
       validation: { isRequired: true },
       isIndexed: "unique",
       options: PET_PLACE_TYPE_OPTIONS
     }),
-    label: (0, import_fields39.text)({
+    label: (0, import_fields40.text)({
       isIndexed: "unique",
       hooks: labelHook,
       ui: {
         itemView: { fieldMode: "read" }
       }
     }),
-    plural: (0, import_fields39.text)({
+    plural: (0, import_fields40.text)({
       hooks: pluralHook,
       ui: {
         itemView: { fieldMode: "read" }
@@ -6914,55 +6944,55 @@ var PetPlaceType_default = (0, import_core39.list)({
 });
 
 // models/ContactForm/ContactForm.ts
-var import_core40 = require("@keystone-6/core");
-var import_fields40 = require("@keystone-6/core/fields");
+var import_core41 = require("@keystone-6/core");
+var import_fields41 = require("@keystone-6/core/fields");
 var CONTACT_FORM_STATUS_OPTIONS = [
   { label: "Nuevo", value: "new" },
   { label: "Le\xEDdo", value: "read" },
   { label: "En proceso", value: "in_progress" },
   { label: "Resuelto", value: "resolved" }
 ];
-var ContactForm_default = (0, import_core40.list)({
+var ContactForm_default = (0, import_core41.list)({
   access: access_default,
   fields: {
-    name: (0, import_fields40.text)({
+    name: (0, import_fields41.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    email: (0, import_fields40.text)({
+    email: (0, import_fields41.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    phone: (0, import_fields40.text)({
+    phone: (0, import_fields41.text)({
       validation: { isRequired: false },
       ui: {
         displayMode: "input"
       }
     }),
-    subject: (0, import_fields40.text)({
+    subject: (0, import_fields41.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    message: (0, import_fields40.text)({
+    message: (0, import_fields41.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea"
       }
     }),
-    status: (0, import_fields40.select)({
+    status: (0, import_fields41.select)({
       options: CONTACT_FORM_STATUS_OPTIONS,
       defaultValue: "new",
       ui: {
         displayMode: "select"
       }
     }),
-    createdAt: (0, import_fields40.timestamp)({
+    createdAt: (0, import_fields41.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -6981,8 +7011,8 @@ var ContactForm_default = (0, import_core40.list)({
 });
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var import_core41 = require("@keystone-6/core");
-var import_fields41 = require("@keystone-6/core/fields");
+var import_core42 = require("@keystone-6/core");
+var import_fields42 = require("@keystone-6/core/fields");
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.access.ts
 var metaDataDeletionRequestAccess = {
@@ -7007,7 +7037,7 @@ var META_DATA_DELETION_STATUS_OPTIONS = [
 ];
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var MetaDataDeletionRequest_default = (0, import_core41.list)({
+var MetaDataDeletionRequest_default = (0, import_core42.list)({
   access: metaDataDeletionRequestAccess,
   ui: {
     label: "Eliminaci\xF3n de datos (Meta)",
@@ -7016,21 +7046,21 @@ var MetaDataDeletionRequest_default = (0, import_core41.list)({
     }
   },
   fields: {
-    metaUserId: (0, import_fields41.text)({
+    metaUserId: (0, import_fields42.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "App-scoped user id que Meta manda en el signed_request (user_id)."
       }
     }),
-    confirmationCode: (0, import_fields41.text)({
+    confirmationCode: (0, import_fields42.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "C\xF3digo p\xFAblico para consultar el estado. No es un dato de Meta."
       }
     }),
-    status: (0, import_fields41.select)({
+    status: (0, import_fields42.select)({
       type: "string",
       options: META_DATA_DELETION_STATUS_OPTIONS,
       defaultValue: "pending" /* PENDING */,
@@ -7038,16 +7068,16 @@ var MetaDataDeletionRequest_default = (0, import_core41.list)({
       isIndexed: true,
       ui: { displayMode: "select" }
     }),
-    requestedAt: (0, import_fields41.timestamp)({
+    requestedAt: (0, import_fields42.timestamp)({
       validation: { isRequired: true },
       defaultValue: { kind: "now" },
       ui: { description: "Cu\xE1ndo lleg\xF3 el callback de Meta." }
     }),
-    completedAt: (0, import_fields41.timestamp)({
+    completedAt: (0, import_fields42.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo se marc\xF3 completed. Vac\xEDo si sigue pending o failed." }
     }),
-    notes: (0, import_fields41.text)({
+    notes: (0, import_fields42.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
@@ -7058,8 +7088,8 @@ var MetaDataDeletionRequest_default = (0, import_core41.list)({
 });
 
 // models/Saas/Tech/BusinessLead/TechBusinessLead.ts
-var import_core42 = require("@keystone-6/core");
-var import_fields42 = require("@keystone-6/core/fields");
+var import_core43 = require("@keystone-6/core");
+var import_fields43 = require("@keystone-6/core/fields");
 
 // utils/access/leadScopedFilter.ts
 function leadInCompany(companyId) {
@@ -7154,8 +7184,8 @@ function stripTenantFromClient(resolvedData, key) {
 }
 function connectIds(connect) {
   if (!connect) return [];
-  const list82 = Array.isArray(connect) ? connect : [connect];
-  return list82.map((item) => {
+  const list83 = Array.isArray(connect) ? connect : [connect];
+  return list83.map((item) => {
     if (typeof item === "string") return item;
     if (item && typeof item === "object" && "id" in item) {
       return String(item.id);
@@ -7204,7 +7234,7 @@ var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechBusinessLead_default = (0, import_core42.list)({
+var TechBusinessLead_default = (0, import_core43.list)({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
@@ -7219,95 +7249,95 @@ var TechBusinessLead_default = (0, import_core42.list)({
     }
   },
   fields: {
-    businessName: (0, import_fields42.text)({
+    businessName: (0, import_fields43.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    category: (0, import_fields42.text)({ isIndexed: true }),
-    phone: (0, import_fields42.text)(),
-    email: (0, import_fields42.text)(),
-    address: (0, import_fields42.text)(),
-    city: (0, import_fields42.text)({ isIndexed: true }),
-    state: (0, import_fields42.text)({ isIndexed: true }),
-    country: (0, import_fields42.text)({ isIndexed: true }),
-    rating: (0, import_fields42.float)(),
-    lat: (0, import_fields42.float)(),
-    lng: (0, import_fields42.float)(),
-    reviewCount: (0, import_fields42.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
-    hasWebsite: (0, import_fields42.checkbox)({
+    category: (0, import_fields43.text)({ isIndexed: true }),
+    phone: (0, import_fields43.text)(),
+    email: (0, import_fields43.text)(),
+    address: (0, import_fields43.text)(),
+    city: (0, import_fields43.text)({ isIndexed: true }),
+    state: (0, import_fields43.text)({ isIndexed: true }),
+    country: (0, import_fields43.text)({ isIndexed: true }),
+    rating: (0, import_fields43.float)(),
+    lat: (0, import_fields43.float)(),
+    lng: (0, import_fields43.float)(),
+    reviewCount: (0, import_fields43.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
+    hasWebsite: (0, import_fields43.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene sitio web" }
     }),
-    websiteUrl: (0, import_fields42.text)(),
-    source: (0, import_fields42.select)({
+    websiteUrl: (0, import_fields43.text)(),
+    source: (0, import_fields43.select)({
       type: "string",
       options: sourceOptions,
       defaultValue: "Google Maps",
       ui: { description: "Fuente del lead" }
     }),
-    status: (0, import_fields42.relationship)({
+    status: (0, import_fields43.relationship)({
       ref: "TechStatusBusinessLead.businessLead",
       many: true,
       ui: { description: "Estado y datos variables del lead" }
     }),
-    instagram: (0, import_fields42.text)({ ui: { description: "Usuario o URL de Instagram" } }),
-    facebook: (0, import_fields42.text)({ ui: { description: "URL de Facebook" } }),
-    xTwitter: (0, import_fields42.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
-    tiktok: (0, import_fields42.text)({ ui: { description: "Usuario o URL de TikTok" } }),
+    instagram: (0, import_fields43.text)({ ui: { description: "Usuario o URL de Instagram" } }),
+    facebook: (0, import_fields43.text)({ ui: { description: "URL de Facebook" } }),
+    xTwitter: (0, import_fields43.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
+    tiktok: (0, import_fields43.text)({ ui: { description: "Usuario o URL de TikTok" } }),
     // Reseñas de Google (máx. 5 positivas) para uso en prompt de IA
-    topReview1: (0, import_fields42.text)({
+    topReview1: (0, import_fields43.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 1 (Google)" }
     }),
-    topReview2: (0, import_fields42.text)({
+    topReview2: (0, import_fields43.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 2 (Google)" }
     }),
-    topReview3: (0, import_fields42.text)({
+    topReview3: (0, import_fields43.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 3 (Google)" }
     }),
-    topReview4: (0, import_fields42.text)({
+    topReview4: (0, import_fields43.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 4 (Google)" }
     }),
-    topReview5: (0, import_fields42.text)({
+    topReview5: (0, import_fields43.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 5 (Google)" }
     }),
     // Prompt listo para copiar y usar en vibe coding / IA (info del negocio + reseñas)
-    websitePromptContent: (0, import_fields42.text)({
+    websitePromptContent: (0, import_fields43.text)({
       ui: {
         displayMode: "textarea",
         description: "Prompt listo para IA: crear sitio web con la info del negocio y las 5 rese\xF1as positivas de Google. Copiar y pegar en tu herramienta de vibe coding."
       }
     }),
     // Relaciones inversas
-    activities: (0, import_fields42.relationship)({
+    activities: (0, import_fields43.relationship)({
       ref: "TechSalesActivity.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields42.relationship)({
+    tasks: (0, import_fields43.relationship)({
       ref: "TechTask.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace ligadas al lead" }
     }),
-    proposals: (0, import_fields42.relationship)({
+    proposals: (0, import_fields43.relationship)({
       ref: "TechProposal.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    projects: (0, import_fields42.relationship)({
+    projects: (0, import_fields43.relationship)({
       ref: "SaasProject.businessLead",
       many: true,
       ui: { description: "Proyectos creados tras venta cerrada (cliente)" }
     }),
-    followUpTasks: (0, import_fields42.relationship)({
+    followUpTasks: (0, import_fields43.relationship)({
       ref: "TechFollowUpTask.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    googleMapsUrl: (0, import_fields42.text)({
+    googleMapsUrl: (0, import_fields43.text)({
       ui: { description: "URL de Google Maps del negocio" }
     }),
     // Para importación desde Google (opcional)
-    googlePlaceId: (0, import_fields42.text)({
+    googlePlaceId: (0, import_fields43.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -7315,41 +7345,41 @@ var TechBusinessLead_default = (0, import_core42.list)({
         listView: { fieldMode: "hidden" }
       }
     }),
-    sourceEstablishment: (0, import_fields42.relationship)({
+    sourceEstablishment: (0, import_fields43.relationship)({
       ref: "TechInegiEstablishment.promotedLeads",
       many: false,
       ui: {
         description: "Establecimiento DENUE del que se promovi\xF3 este lead"
       }
     }),
-    salesPerson: (0, import_fields42.relationship)({
+    salesPerson: (0, import_fields43.relationship)({
       ref: "User.businessLeadsAssigned",
       many: true,
       ui: { description: "Vendedor asignado" }
     }),
-    saasCompany: (0, import_fields42.relationship)({
+    saasCompany: (0, import_fields43.relationship)({
       ref: "SaasCompany.leads",
       many: true,
       ui: { description: "Empresa a la que pertenece el lead" }
     }),
-    quotations: (0, import_fields42.relationship)({
+    quotations: (0, import_fields43.relationship)({
       ref: "SaasQuotation.lead",
       many: true,
       ui: { description: "Cotizaciones ligadas a este lead" }
     }),
-    whatsappMessages: (0, import_fields42.relationship)({
+    whatsappMessages: (0, import_fields43.relationship)({
       ref: "TechWhatsAppMessage.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Historial de WhatsApp con este lead" }
     }),
-    createdAt: (0, import_fields42.timestamp)({
+    createdAt: (0, import_fields43.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields42.timestamp)({
+    updatedAt: (0, import_fields43.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -7360,8 +7390,8 @@ var TechBusinessLead_default = (0, import_core42.list)({
 });
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
-var import_core43 = require("@keystone-6/core");
-var import_fields43 = require("@keystone-6/core/fields");
+var import_core44 = require("@keystone-6/core");
+var import_fields44 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
 var statusBusinessLeadAccess = {
@@ -7451,7 +7481,7 @@ var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechStatusBusinessLead_default = (0, import_core43.list)({
+var TechStatusBusinessLead_default = (0, import_core44.list)({
   access: statusBusinessLeadAccess,
   db: {
     extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@unique([businessLeadId, saasCompanyId])\n}")
@@ -7475,38 +7505,38 @@ var TechStatusBusinessLead_default = (0, import_core43.list)({
     }
   },
   fields: {
-    businessLead: (0, import_fields43.relationship)({
+    businessLead: (0, import_fields44.relationship)({
       ref: "TechBusinessLead.status",
       many: false,
       ui: { description: "Lead de negocio asociado" }
     }),
-    opportunityLevel: (0, import_fields43.select)({
+    opportunityLevel: (0, import_fields44.select)({
       type: "string",
       options: opportunityOptions,
       defaultValue: "Media",
       isIndexed: true,
       ui: { description: "Nivel de oportunidad" }
     }),
-    pipelineStatus: (0, import_fields43.select)({
+    pipelineStatus: (0, import_fields44.select)({
       type: "string",
       options: pipelineOptions2,
       defaultValue: PIPELINE_STATUS.DETECTADO,
       isIndexed: true,
       ui: { description: "Estado en el pipeline" }
     }),
-    estimatedValue: (0, import_fields43.float)({
+    estimatedValue: (0, import_fields44.float)({
       ui: { description: "Valor estimado del proyecto" }
     }),
-    productOffered: (0, import_fields43.text)({
+    productOffered: (0, import_fields44.text)({
       ui: { description: "Producto ofrecido (web, e-commerce, etc.)" }
     }),
-    firstContactDate: (0, import_fields43.calendarDay)({
+    firstContactDate: (0, import_fields44.calendarDay)({
       ui: { description: "Fecha primer contacto" }
     }),
     /** Virtual: next follow-up date from the latest FollowUpTask with status Pendiente or Pospuesto */
-    nextFollowUpDate: (0, import_fields43.virtual)({
-      field: import_core43.graphql.field({
-        type: import_core43.graphql.String,
+    nextFollowUpDate: (0, import_fields44.virtual)({
+      field: import_core44.graphql.field({
+        type: import_core44.graphql.String,
         async resolve(item, _args, context) {
           let businessLeadId = item.businessLeadId;
           if (businessLeadId == null) {
@@ -7534,7 +7564,7 @@ var TechStatusBusinessLead_default = (0, import_core43.list)({
       }),
       ui: { description: "Pr\xF3xima fecha de seguimiento (del \xFAltimo FollowUpTask Pendiente o Pospuesto)" }
     }),
-    saasCompany: (0, import_fields43.relationship)({
+    saasCompany: (0, import_fields44.relationship)({
       ref: "SaasCompany.techStatusBusinessLeads",
       many: false,
       ui: { description: "Empresa a la que pertenece el lead" }
@@ -7544,20 +7574,20 @@ var TechStatusBusinessLead_default = (0, import_core43.list)({
      * datos históricos; el hook la ignora en escrituras. El vendedor asignado es
      * `TechBusinessLead.salesPerson`.
      */
-    salesPerson: (0, import_fields43.relationship)({
+    salesPerson: (0, import_fields44.relationship)({
       ref: "User.techStatusBusinessLeads",
       many: false,
       ui: { description: "Deprecado: el vendedor asignado vive en el lead (TechBusinessLead.salesPerson)" }
     }),
-    notes: (0, import_fields43.text)({
+    notes: (0, import_fields44.text)({
       ui: { displayMode: "textarea", description: "Notas generales" }
     })
   }
 });
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
-var import_core44 = require("@keystone-6/core");
-var import_fields44 = require("@keystone-6/core/fields");
+var import_core45 = require("@keystone-6/core");
+var import_fields45 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.access.ts
 var techLeadStageChangeAccess = {
@@ -7576,7 +7606,7 @@ var techLeadStageChangeAccess = {
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
 var pipelineOptions3 = Object.values(PIPELINE_STATUS).map((value) => ({ label: value, value }));
-var TechLeadStageChange_default = (0, import_core44.list)({
+var TechLeadStageChange_default = (0, import_core45.list)({
   access: techLeadStageChangeAccess,
   ui: {
     hideCreate: true,
@@ -7586,32 +7616,32 @@ var TechLeadStageChange_default = (0, import_core44.list)({
     }
   },
   fields: {
-    company: (0, import_fields44.relationship)({ ref: "SaasCompany", many: false }),
-    businessLead: (0, import_fields44.relationship)({ ref: "TechBusinessLead", many: false }),
-    statusId: (0, import_fields44.text)({
+    company: (0, import_fields45.relationship)({ ref: "SaasCompany", many: false }),
+    businessLead: (0, import_fields45.relationship)({ ref: "TechBusinessLead", many: false }),
+    statusId: (0, import_fields45.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "TechStatusBusinessLead (estatus del lead en esa empresa)" }
     }),
-    fromStatus: (0, import_fields44.select)({
+    fromStatus: (0, import_fields45.select)({
       type: "string",
       options: pipelineOptions3,
       db: { isNullable: true },
       ui: { description: "Etapa anterior (vac\xEDa si es la primera)" }
     }),
-    toStatus: (0, import_fields44.select)({
+    toStatus: (0, import_fields45.select)({
       type: "string",
       options: pipelineOptions3,
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "Etapa nueva" }
     }),
-    changedBy: (0, import_fields44.relationship)({ ref: "User", many: false }),
-    source: (0, import_fields44.text)({
+    changedBy: (0, import_fields45.relationship)({ ref: "User", many: false }),
+    source: (0, import_fields45.text)({
       db: { isNullable: true },
       ui: { description: "web (una persona), system (servidor) o backfill (recuperado de ActivityEvent)" }
     }),
-    changedAt: (0, import_fields44.timestamp)({
+    changedAt: (0, import_fields45.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       validation: { isRequired: true }
@@ -7620,8 +7650,8 @@ var TechLeadStageChange_default = (0, import_core44.list)({
 });
 
 // models/Saas/Tech/FollowUpTask/TechFollowUpTask.ts
-var import_core45 = require("@keystone-6/core");
-var import_fields45 = require("@keystone-6/core/fields");
+var import_core46 = require("@keystone-6/core");
+var import_fields46 = require("@keystone-6/core/fields");
 
 // utils/access/crmWorkspaceScopedFilter.ts
 var getCompanyId = (session2) => session2?.data?.company?.id;
@@ -7975,7 +8005,7 @@ var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechFollowUpTask_default = (0, import_core45.list)({
+var TechFollowUpTask_default = (0, import_core46.list)({
   access: followUpTaskAccess,
   hooks: followUpTaskHooks,
   ui: {
@@ -7990,62 +8020,62 @@ var TechFollowUpTask_default = (0, import_core45.list)({
     }
   },
   fields: {
-    scheduledDate: (0, import_fields45.calendarDay)({
+    scheduledDate: (0, import_fields46.calendarDay)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Fecha programada" }
     }),
-    status: (0, import_fields45.select)({
+    status: (0, import_fields46.select)({
       type: "string",
       options: statusOptions,
       defaultValue: FOLLOW_UP_TASK_STATUS.PENDIENTE,
       isIndexed: true
     }),
-    priority: (0, import_fields45.select)({
+    priority: (0, import_fields46.select)({
       type: "string",
       options: priorityOptions,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    businessLead: (0, import_fields45.relationship)({
+    businessLead: (0, import_fields46.relationship)({
       ref: "TechBusinessLead.followUpTasks",
       many: false
     }),
-    assignedSeller: (0, import_fields45.relationship)({
+    assignedSeller: (0, import_fields46.relationship)({
       ref: "User.followUpTasks",
       many: false
     }),
-    createdBy: (0, import_fields45.relationship)({
+    createdBy: (0, import_fields46.relationship)({
       ref: "User.createdByFollowUpTasks",
       many: false
     }),
-    workspace: (0, import_fields45.relationship)({
+    workspace: (0, import_fields46.relationship)({
       ref: "SaasWorkspace.followUpTasks",
       many: false,
       ui: { description: "Workspace a la que pertenece la tarea" }
     }),
-    statusCrm: (0, import_fields45.relationship)({
+    statusCrm: (0, import_fields46.relationship)({
       ref: "SaasWorkspaceCrmStatus.followUpTasks",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo tarea)" }
     }),
-    calendarEvent: (0, import_fields45.relationship)({
+    calendarEvent: (0, import_fields46.relationship)({
       ref: "TechCalendarEvent.followUpTask",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    notes: (0, import_fields45.text)({ ui: { displayMode: "textarea" } }),
-    hiddenInWorkspace: (0, import_fields45.checkbox)({
+    notes: (0, import_fields46.text)({ ui: { displayMode: "textarea" } }),
+    hiddenInWorkspace: (0, import_fields46.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields45.timestamp)({
+    createdAt: (0, import_fields46.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields45.timestamp)({
+    updatedAt: (0, import_fields46.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8056,8 +8086,8 @@ var TechFollowUpTask_default = (0, import_core45.list)({
 });
 
 // models/Saas/Tech/Proposal/TechProposal.ts
-var import_core46 = require("@keystone-6/core");
-var import_fields46 = require("@keystone-6/core/fields");
+var import_core47 = require("@keystone-6/core");
+var import_fields47 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Proposal/TechProposal.access.ts
 var getCompanyId3 = (session2) => session2?.data?.company?.id;
@@ -8137,7 +8167,7 @@ var statusOptions2 = Object.entries(PROPOSAL_STATUS).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechProposal_default = (0, import_core46.list)({
+var TechProposal_default = (0, import_core47.list)({
   access: proposalAccess,
   hooks: proposalHooks,
   ui: {
@@ -8146,81 +8176,81 @@ var TechProposal_default = (0, import_core46.list)({
     }
   },
   fields: {
-    sentDate: (0, import_fields46.calendarDay)({
+    sentDate: (0, import_fields47.calendarDay)({
       validation: { isRequired: true },
       ui: { description: "Fecha env\xEDo" }
     }),
-    amount: (0, import_fields46.float)({ ui: { description: "Monto" } }),
-    status: (0, import_fields46.select)({
+    amount: (0, import_fields47.float)({ ui: { description: "Monto" } }),
+    status: (0, import_fields47.select)({
       type: "string",
       options: statusOptions2,
       defaultValue: PROPOSAL_STATUS.ENVIADA,
       isIndexed: true
     }),
-    fileOrUrl: (0, import_fields46.text)({
+    fileOrUrl: (0, import_fields47.text)({
       ui: { description: "URL o referencia al archivo de la propuesta" }
     }),
-    approved: (0, import_fields46.checkbox)({
+    approved: (0, import_fields47.checkbox)({
       defaultValue: false,
       ui: { description: "Aprobado por administrador" }
     }),
-    paid: (0, import_fields46.checkbox)({
+    paid: (0, import_fields47.checkbox)({
       defaultValue: false,
       ui: { description: "Pagado" }
     }),
-    product: (0, import_fields46.text)({
+    product: (0, import_fields47.text)({
       ui: { description: "Producto o servicio principal cotizado" }
     }),
-    notes: (0, import_fields46.text)({
+    notes: (0, import_fields47.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas adicionales o condiciones de la propuesta"
       }
     }),
-    businessLead: (0, import_fields46.relationship)({
+    businessLead: (0, import_fields47.relationship)({
       ref: "TechBusinessLead.proposals",
       many: false
     }),
-    assignedSeller: (0, import_fields46.relationship)({
+    assignedSeller: (0, import_fields47.relationship)({
       ref: "User.proposals",
       many: false
     }),
-    createdBy: (0, import_fields46.relationship)({
+    createdBy: (0, import_fields47.relationship)({
       ref: "User.createdByProposals",
       many: false
     }),
-    workspace: (0, import_fields46.relationship)({
+    workspace: (0, import_fields47.relationship)({
       ref: "SaasWorkspace.proposals",
       many: false,
       ui: { description: "Workspace a la que pertenece la propuesta" }
     }),
-    statusCrm: (0, import_fields46.relationship)({
+    statusCrm: (0, import_fields47.relationship)({
       ref: "SaasWorkspaceCrmStatus.proposals",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo propuesta)" }
     }),
-    calendarEvent: (0, import_fields46.relationship)({
+    calendarEvent: (0, import_fields47.relationship)({
       ref: "TechCalendarEvent.proposal",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo propuestas nuevas)" }
     }),
-    project: (0, import_fields46.relationship)({
+    project: (0, import_fields47.relationship)({
       ref: "SaasProject.proposal",
       many: false,
       ui: { description: "Proyecto creado a partir de esta propuesta" }
     }),
-    hiddenInWorkspace: (0, import_fields46.checkbox)({
+    hiddenInWorkspace: (0, import_fields47.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields46.timestamp)({
+    createdAt: (0, import_fields47.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields46.timestamp)({
+    updatedAt: (0, import_fields47.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8231,8 +8261,8 @@ var TechProposal_default = (0, import_core46.list)({
 });
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.ts
-var import_core47 = require("@keystone-6/core");
-var import_fields47 = require("@keystone-6/core/fields");
+var import_core48 = require("@keystone-6/core");
+var import_fields48 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.access.ts
 var getCompanyId4 = (session2) => session2?.data?.company?.id;
@@ -8280,7 +8310,7 @@ var priorityOptions2 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechSalesActivity_default = (0, import_core47.list)({
+var TechSalesActivity_default = (0, import_core48.list)({
   access: salesActivityAccess,
   hooks: salesActivityHooks,
   ui: {
@@ -8297,63 +8327,63 @@ var TechSalesActivity_default = (0, import_core47.list)({
     }
   },
   fields: {
-    title: (0, import_fields47.text)({
+    title: (0, import_fields48.text)({
       ui: { description: "T\xEDtulo de la actividad" }
     }),
-    type: (0, import_fields47.select)({
+    type: (0, import_fields48.select)({
       type: "string",
       options: activityTypeOptions,
       validation: { isRequired: true },
       isIndexed: true
     }),
-    activityDate: (0, import_fields47.timestamp)({
+    activityDate: (0, import_fields48.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    dueDate: (0, import_fields47.calendarDay)({
+    dueDate: (0, import_fields48.calendarDay)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Deadline for this activity" }
     }),
-    priority: (0, import_fields47.select)({
+    priority: (0, import_fields48.select)({
       type: "string",
       options: priorityOptions2,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields47.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
-    comments: (0, import_fields47.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields47.relationship)({
+    result: (0, import_fields48.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
+    comments: (0, import_fields48.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields48.relationship)({
       ref: "TechBusinessLead.activities",
       many: false
     }),
-    assignedSeller: (0, import_fields47.relationship)({
+    assignedSeller: (0, import_fields48.relationship)({
       ref: "User.salesActivities",
       many: false
     }),
-    createdBy: (0, import_fields47.relationship)({
+    createdBy: (0, import_fields48.relationship)({
       ref: "User.createdBySalesActivities",
       many: false
     }),
-    workspace: (0, import_fields47.relationship)({
+    workspace: (0, import_fields48.relationship)({
       ref: "SaasWorkspace.salesActivities",
       many: false,
       ui: { description: "Workspace a la que pertenece la actividad" }
     }),
-    statusCrm: (0, import_fields47.relationship)({
+    statusCrm: (0, import_fields48.relationship)({
       ref: "SaasWorkspaceCrmStatus.salesActivities",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo actividad)" }
     }),
-    calendarEvent: (0, import_fields47.relationship)({
+    calendarEvent: (0, import_fields48.relationship)({
       ref: "TechCalendarEvent.salesActivity",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo actividades nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields47.checkbox)({
+    hiddenInWorkspace: (0, import_fields48.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields47.timestamp)({
+    createdAt: (0, import_fields48.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8364,8 +8394,8 @@ var TechSalesActivity_default = (0, import_core47.list)({
 });
 
 // models/Saas/Tech/Task/TechTask.ts
-var import_core48 = require("@keystone-6/core");
-var import_fields48 = require("@keystone-6/core/fields");
+var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Task/TechTask.access.ts
 var getCompanyId5 = (session2) => session2?.data?.company?.id;
@@ -8407,7 +8437,7 @@ var priorityOptions3 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechTask_default = (0, import_core48.list)({
+var TechTask_default = (0, import_core49.list)({
   access: techTaskAccess,
   hooks: techTaskHooks,
   ui: {
@@ -8424,62 +8454,62 @@ var TechTask_default = (0, import_core48.list)({
     }
   },
   fields: {
-    title: (0, import_fields48.text)({
+    title: (0, import_fields49.text)({
       ui: { description: "T\xEDtulo de la tarea" }
     }),
-    startDate: (0, import_fields48.timestamp)({
+    startDate: (0, import_fields49.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true },
       ui: { description: "Fecha de la tarea (programada o realizada)" }
     }),
-    dueDate: (0, import_fields48.timestamp)({
+    dueDate: (0, import_fields49.timestamp)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Fecha l\xEDmite de la tarea" }
     }),
-    priority: (0, import_fields48.select)({
+    priority: (0, import_fields49.select)({
       type: "string",
       options: priorityOptions3,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields48.text)({
+    result: (0, import_fields49.text)({
       ui: { description: "Resultado o cierre de la tarea" }
     }),
-    comments: (0, import_fields48.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields48.relationship)({
+    comments: (0, import_fields49.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields49.relationship)({
       ref: "TechBusinessLead.tasks",
       many: false
     }),
-    responsible: (0, import_fields48.relationship)({
+    responsible: (0, import_fields49.relationship)({
       ref: "User.tasksResponsible",
       many: false
     }),
-    workspace: (0, import_fields48.relationship)({
+    workspace: (0, import_fields49.relationship)({
       ref: "SaasWorkspace.tasks",
       many: false,
       ui: { description: "Workspace al que pertenece esta tarea" }
     }),
-    statusCrm: (0, import_fields48.relationship)({
+    statusCrm: (0, import_fields49.relationship)({
       ref: "SaasWorkspaceCrmStatus.tasks",
       many: false,
       ui: {
         description: "Estado CRM din\xE1mico (workspace + tipo de tarea)"
       }
     }),
-    createdBy: (0, import_fields48.relationship)({
+    createdBy: (0, import_fields49.relationship)({
       ref: "User.createdByTasks",
       many: false
     }),
-    calendarEvent: (0, import_fields48.relationship)({
+    calendarEvent: (0, import_fields49.relationship)({
       ref: "TechCalendarEvent.task",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields48.checkbox)({
+    hiddenInWorkspace: (0, import_fields49.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields48.timestamp)({
+    createdAt: (0, import_fields49.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8490,8 +8520,8 @@ var TechTask_default = (0, import_core48.list)({
 });
 
 // models/Saas/Tech/TechFiles/TechFiles.ts
-var import_core49 = require("@keystone-6/core");
-var import_fields49 = require("@keystone-6/core/fields");
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/TechFiles/TechFiles.access.ts
 function canUploadFiles(session2) {
@@ -8547,7 +8577,7 @@ var CATEGORY_OPTIONS = [
   { label: "Speech / Guion", value: "speech_script" },
   { label: "Otro", value: "other" }
 ];
-var TechFiles_default = (0, import_core49.list)({
+var TechFiles_default = (0, import_core50.list)({
   access: techFilesAccess,
   hooks: {
     resolveInput: async ({ resolvedData, context, operation }) => {
@@ -8570,18 +8600,18 @@ var TechFiles_default = (0, import_core49.list)({
     }
   },
   fields: {
-    title: (0, import_fields49.text)({
+    title: (0, import_fields50.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del archivo o recurso" }
     }),
-    description: (0, import_fields49.text)({
+    description: (0, import_fields50.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n opcional del contenido"
       }
     }),
-    category: (0, import_fields49.select)({
+    category: (0, import_fields50.select)({
       type: "string",
       options: [...CATEGORY_OPTIONS],
       defaultValue: "otro",
@@ -8590,27 +8620,27 @@ var TechFiles_default = (0, import_core49.list)({
         description: "Tipo de material (proceso, t\xE9cnica, cierre, speech, etc.)"
       }
     }),
-    file: (0, import_fields49.file)({
+    file: (0, import_fields50.file)({
       storage: "s3_tech_files",
       ui: { description: "Archivo (PDF, DOC, etc.)" }
     }),
-    company: (0, import_fields49.relationship)({
+    company: (0, import_fields50.relationship)({
       ref: "SaasCompany.techFiles",
       many: false
     }),
-    aiInsights: (0, import_fields49.relationship)({
+    aiInsights: (0, import_fields50.relationship)({
       ref: "TechAiInsight.relatedFile",
       many: true,
       ui: { description: "An\xE1lisis de IA ligados a este archivo" }
     }),
-    createdAt: (0, import_fields49.timestamp)({
+    createdAt: (0, import_fields50.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields49.timestamp)({
+    updatedAt: (0, import_fields50.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -8621,8 +8651,8 @@ var TechFiles_default = (0, import_core49.list)({
 });
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var import_core50 = require("@keystone-6/core");
-var import_fields50 = require("@keystone-6/core/fields");
+var import_core51 = require("@keystone-6/core");
+var import_fields51 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
 var getCompanyId6 = (session2) => session2?.data?.company?.id;
@@ -8648,7 +8678,7 @@ var techLeadSyncLogAccess = {
 };
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var TechLeadSyncLog_default = (0, import_core50.list)({
+var TechLeadSyncLog_default = (0, import_core51.list)({
   access: techLeadSyncLogAccess,
   ui: {
     listView: {
@@ -8665,63 +8695,63 @@ var TechLeadSyncLog_default = (0, import_core50.list)({
     }
   },
   fields: {
-    user: (0, import_fields50.relationship)({
+    user: (0, import_fields51.relationship)({
       ref: "User.leadSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 la sincronizaci\xF3n" }
     }),
-    company: (0, import_fields50.relationship)({
+    company: (0, import_fields51.relationship)({
       ref: "SaasCompany.leadSyncLogs",
       many: false,
       ui: { description: "Empresa" }
     }),
-    success: (0, import_fields50.checkbox)({
+    success: (0, import_fields51.checkbox)({
       defaultValue: false,
       ui: { description: "Si la operaci\xF3n fue exitosa" }
     }),
-    message: (0, import_fields50.text)({
+    message: (0, import_fields51.text)({
       ui: { description: "Mensaje de resultado" }
     }),
-    created: (0, import_fields50.integer)({
+    created: (0, import_fields51.integer)({
       defaultValue: 0,
       ui: { description: "Leads creados desde Google" }
     }),
-    alreadyInDb: (0, import_fields50.integer)({
+    alreadyInDb: (0, import_fields51.integer)({
       defaultValue: 0,
       ui: { description: "Leads ya en BD asignados a la company" }
     }),
-    skippedLowRating: (0, import_fields50.integer)({
+    skippedLowRating: (0, import_fields51.integer)({
       defaultValue: 0,
       ui: { description: "Leads omitidos por rating/rese\xF1as bajas" }
     }),
-    syncedLeadsCount: (0, import_fields50.integer)({
+    syncedLeadsCount: (0, import_fields51.integer)({
       defaultValue: 0,
       ui: { description: "Total de leads asignados en esta ejecuci\xF3n" }
     }),
-    syncedCount: (0, import_fields50.integer)({
+    syncedCount: (0, import_fields51.integer)({
       db: { isNullable: true },
       ui: { description: "Cuota usada este mes (total)" }
     }),
-    leadLimit: (0, import_fields50.integer)({
+    leadLimit: (0, import_fields51.integer)({
       db: { isNullable: true },
       ui: { description: "L\xEDmite de leads del plan" }
     }),
-    lat: (0, import_fields50.float)({
+    lat: (0, import_fields51.float)({
       db: { isNullable: true },
       ui: { description: "Latitud del centro de b\xFAsqueda" }
     }),
-    lng: (0, import_fields50.float)({
+    lng: (0, import_fields51.float)({
       db: { isNullable: true },
       ui: { description: "Longitud del centro de b\xFAsqueda" }
     }),
-    radius: (0, import_fields50.float)({
+    radius: (0, import_fields51.float)({
       db: { isNullable: true },
       ui: { description: "Radio de b\xFAsqueda (km)" }
     }),
-    category: (0, import_fields50.text)({
+    category: (0, import_fields51.text)({
       ui: { description: "Categor\xEDa buscada" }
     }),
-    createdAt: (0, import_fields50.timestamp)({
+    createdAt: (0, import_fields51.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Fecha y hora de la ejecuci\xF3n" }
     })
@@ -8729,8 +8759,8 @@ var TechLeadSyncLog_default = (0, import_core50.list)({
 });
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var import_core51 = require("@keystone-6/core");
-var import_fields51 = require("@keystone-6/core/fields");
+var import_core52 = require("@keystone-6/core");
+var import_fields52 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.access.ts
 var techAiCallLogAccess = {
@@ -8810,7 +8840,7 @@ var MANAGED_GEMINI_FALLBACK = [
 var AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var TechAiCallLog_default = (0, import_core51.list)({
+var TechAiCallLog_default = (0, import_core52.list)({
   access: techAiCallLogAccess,
   ui: {
     listView: {
@@ -8829,40 +8859,40 @@ var TechAiCallLog_default = (0, import_core51.list)({
     }
   },
   fields: {
-    user: (0, import_fields51.relationship)({
+    user: (0, import_fields52.relationship)({
       ref: "User.aiCallLogs",
       many: false,
       ui: { description: "Usuario que dispar\xF3 la llamada" }
     }),
-    company: (0, import_fields51.relationship)({
+    company: (0, import_fields52.relationship)({
       ref: "SaasCompany.aiCallLogs",
       many: false,
       ui: { description: "Empresa due\xF1a de Kadesh Urim AI" }
     }),
-    feature: (0, import_fields51.text)({
+    feature: (0, import_fields52.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: {
         description: "Origen de la llamada (connection_test, daily_digest, monthly_narrative, file_analysis)"
       }
     }),
-    billingMode: (0, import_fields51.select)({
+    billingMode: (0, import_fields52.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       db: { isNullable: true },
       ui: { description: "byok o managed al momento de la llamada" }
     }),
-    provider: (0, import_fields51.select)({
+    provider: (0, import_fields52.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
       ui: { description: "Proveedor usado" }
     }),
-    model: (0, import_fields51.text)({
+    model: (0, import_fields52.text)({
       db: { isNullable: true },
       ui: { description: "Modelo usado" }
     }),
-    featurePrompt: (0, import_fields51.text)({
+    featurePrompt: (0, import_fields52.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -8870,7 +8900,7 @@ var TechAiCallLog_default = (0, import_core51.list)({
         description: "Instrucci\xF3n de la feature (parte del system prompt)"
       }
     }),
-    systemPrompt: (0, import_fields51.text)({
+    systemPrompt: (0, import_fields52.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -8878,7 +8908,7 @@ var TechAiCallLog_default = (0, import_core51.list)({
         description: "System prompt completo enviado al proveedor (Cerebro + feature)"
       }
     }),
-    userPrompt: (0, import_fields51.text)({
+    userPrompt: (0, import_fields52.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -8886,7 +8916,7 @@ var TechAiCallLog_default = (0, import_core51.list)({
         description: "Prompt de usuario enviado al proveedor"
       }
     }),
-    response: (0, import_fields51.text)({
+    response: (0, import_fields52.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -8894,44 +8924,44 @@ var TechAiCallLog_default = (0, import_core51.list)({
         description: "Texto que devolvi\xF3 la IA"
       }
     }),
-    inputTokens: (0, import_fields51.integer)({
+    inputTokens: (0, import_fields52.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de entrada reportados por el proveedor" }
     }),
-    outputTokens: (0, import_fields51.integer)({
+    outputTokens: (0, import_fields52.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de salida reportados por el proveedor" }
     }),
-    billableTokens: (0, import_fields51.integer)({
+    billableTokens: (0, import_fields52.integer)({
       defaultValue: 0,
       ui: {
         description: "Tokens equivalentes: input + output \xD7 5"
       }
     }),
-    creditsCharged: (0, import_fields51.integer)({
+    creditsCharged: (0, import_fields52.integer)({
       defaultValue: 0,
       ui: { description: "Cr\xE9ditos debitados de la bolsa de la empresa" }
     }),
-    billed: (0, import_fields51.checkbox)({
+    billed: (0, import_fields52.checkbox)({
       defaultValue: false,
       ui: { description: "Si esta llamada deb\xEDa cobrar cr\xE9ditos (managed y no ping)" }
     }),
-    success: (0, import_fields51.checkbox)({
+    success: (0, import_fields52.checkbox)({
       defaultValue: false,
       ui: { description: "Si el proveedor respondi\xF3 y se devolvi\xF3 texto" }
     }),
-    errorMessage: (0, import_fields51.text)({
+    errorMessage: (0, import_fields52.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Error si la llamada fall\xF3 (sin API keys)"
       }
     }),
-    durationMs: (0, import_fields51.integer)({
+    durationMs: (0, import_fields52.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n total de callCompanyAi en ms" }
     }),
-    createdAt: (0, import_fields51.timestamp)({
+    createdAt: (0, import_fields52.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento de la llamada" }
     })
@@ -8939,8 +8969,8 @@ var TechAiCallLog_default = (0, import_core51.list)({
 });
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var import_core52 = require("@keystone-6/core");
-var import_fields52 = require("@keystone-6/core/fields");
+var import_core53 = require("@keystone-6/core");
+var import_fields53 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiInsight/TechAiInsight.access.ts
 var getCompanyId7 = (session2) => session2?.data?.company?.id;
@@ -8991,7 +9021,7 @@ var AI_INSIGHT_KIND_OPTIONS = [
 ];
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var TechAiInsight_default = (0, import_core52.list)({
+var TechAiInsight_default = (0, import_core53.list)({
   access: techAiInsightAccess,
   ui: {
     listView: {
@@ -9005,47 +9035,47 @@ var TechAiInsight_default = (0, import_core52.list)({
     }
   },
   fields: {
-    company: (0, import_fields52.relationship)({
+    company: (0, import_fields53.relationship)({
       ref: "SaasCompany.aiInsights",
       many: false,
       ui: { description: "Empresa due\xF1a del insight" }
     }),
-    salesPerson: (0, import_fields52.relationship)({
+    salesPerson: (0, import_fields53.relationship)({
       ref: "User.aiInsights",
       many: false,
       ui: {
         description: "Vendedor due\xF1o del insight. Vac\xEDo = insight de empresa (admin / alcance global)"
       }
     }),
-    kind: (0, import_fields52.select)({
+    kind: (0, import_fields53.select)({
       type: "string",
       options: [...AI_INSIGHT_KIND_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Tipo de insight (digest, narrativa, archivo)" }
     }),
-    referenceKey: (0, import_fields52.text)({
+    referenceKey: (0, import_fields53.text)({
       isIndexed: true,
       ui: {
         description: 'Clave de cach\xE9: "YYYY-MM-DD", "YYYY-MM" o id de archivo'
       }
     }),
-    content: (0, import_fields52.text)({
+    content: (0, import_fields53.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Texto legible del insight"
       }
     }),
-    structuredData: (0, import_fields52.json)({
+    structuredData: (0, import_fields53.json)({
       ui: { description: "JSON de acciones / estructura (p. ej. 3 pasos)" }
     }),
-    relatedFile: (0, import_fields52.relationship)({
+    relatedFile: (0, import_fields53.relationship)({
       ref: "TechFile.aiInsights",
       many: false,
       ui: { description: "Archivo analizado (Fase 4)" }
     }),
-    generatedAt: (0, import_fields52.timestamp)({
+    generatedAt: (0, import_fields53.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento en que se gener\xF3 o regener\xF3" }
     })
@@ -9053,8 +9083,8 @@ var TechAiInsight_default = (0, import_core52.list)({
 });
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var import_core53 = require("@keystone-6/core");
-var import_fields53 = require("@keystone-6/core/fields");
+var import_core54 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/access.ts
 var inegiCatalogAccess = {
@@ -9075,7 +9105,7 @@ var inegiSyncLogAccess = {
 };
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var TechInegiEconomicActivity_default = (0, import_core53.list)({
+var TechInegiEconomicActivity_default = (0, import_core54.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -9084,17 +9114,17 @@ var TechInegiEconomicActivity_default = (0, import_core53.list)({
     }
   },
   fields: {
-    scianCode: (0, import_fields53.text)({
+    scianCode: (0, import_fields54.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "C\xF3digo SCIAN (o clave sint\xE9tica si la API no lo trae)" }
     }),
-    name: (0, import_fields53.text)({
+    name: (0, import_fields54.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre de la clase de actividad econ\xF3mica" }
     }),
-    establishments: (0, import_fields53.relationship)({
+    establishments: (0, import_fields54.relationship)({
       ref: "TechInegiEstablishment.economicActivity",
       many: true,
       ui: { hideCreate: true }
@@ -9103,9 +9133,9 @@ var TechInegiEconomicActivity_default = (0, import_core53.list)({
 });
 
 // models/Saas/Tech/Inegi/Establishment/TechInegiEstablishment.ts
-var import_core54 = require("@keystone-6/core");
-var import_fields54 = require("@keystone-6/core/fields");
-var TechInegiEstablishment_default = (0, import_core54.list)({
+var import_core55 = require("@keystone-6/core");
+var import_fields55 = require("@keystone-6/core/fields");
+var TechInegiEstablishment_default = (0, import_core55.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -9114,47 +9144,47 @@ var TechInegiEstablishment_default = (0, import_core54.list)({
     }
   },
   fields: {
-    clee: (0, import_fields54.text)({
+    clee: (0, import_fields55.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Clave \xFAnica INEGI (CLEE)" }
     }),
-    name: (0, import_fields54.text)({
+    name: (0, import_fields55.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    legalName: (0, import_fields54.text)({
+    legalName: (0, import_fields55.text)({
       ui: { description: "Raz\xF3n social" }
     }),
-    employeeStratum: (0, import_fields54.text)({
+    employeeStratum: (0, import_fields55.text)({
       ui: { description: "Estrato de personal ocupado (tal cual DENUE)" }
     }),
-    economicActivity: (0, import_fields54.relationship)({
+    economicActivity: (0, import_fields55.relationship)({
       ref: "TechInegiEconomicActivity.establishments",
       many: false,
       ui: { description: "Giro SCIAN" }
     }),
-    street: (0, import_fields54.text)(),
-    exteriorNumber: (0, import_fields54.text)(),
-    interiorNumber: (0, import_fields54.text)(),
-    neighborhood: (0, import_fields54.text)(),
-    postalCode: (0, import_fields54.text)(),
-    locality: (0, import_fields54.text)(),
-    municipality: (0, import_fields54.text)({ isIndexed: true }),
-    state: (0, import_fields54.text)({ isIndexed: true }),
-    phone: (0, import_fields54.text)(),
-    email: (0, import_fields54.text)(),
-    website: (0, import_fields54.text)(),
-    lat: (0, import_fields54.float)({ db: { isNullable: true } }),
-    lng: (0, import_fields54.float)({ db: { isNullable: true } }),
-    rawPayload: (0, import_fields54.json)({
+    street: (0, import_fields55.text)(),
+    exteriorNumber: (0, import_fields55.text)(),
+    interiorNumber: (0, import_fields55.text)(),
+    neighborhood: (0, import_fields55.text)(),
+    postalCode: (0, import_fields55.text)(),
+    locality: (0, import_fields55.text)(),
+    municipality: (0, import_fields55.text)({ isIndexed: true }),
+    state: (0, import_fields55.text)({ isIndexed: true }),
+    phone: (0, import_fields55.text)(),
+    email: (0, import_fields55.text)(),
+    website: (0, import_fields55.text)(),
+    lat: (0, import_fields55.float)({ db: { isNullable: true } }),
+    lng: (0, import_fields55.float)({ db: { isNullable: true } }),
+    rawPayload: (0, import_fields55.json)({
       ui: { description: "Respuesta cruda de INEGI (API o fila CSV)" }
     }),
-    lastSyncedAt: (0, import_fields54.timestamp)({
+    lastSyncedAt: (0, import_fields55.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima vez que se actualiz\xF3 desde INEGI" }
     }),
-    promotedLeads: (0, import_fields54.relationship)({
+    promotedLeads: (0, import_fields55.relationship)({
       ref: "TechBusinessLead.sourceEstablishment",
       many: true,
       ui: { hideCreate: true, description: "Leads CRM promovidos desde este establecimiento" }
@@ -9163,8 +9193,8 @@ var TechInegiEstablishment_default = (0, import_core54.list)({
 });
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var import_core55 = require("@keystone-6/core");
-var import_fields55 = require("@keystone-6/core/fields");
+var import_core56 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/constants.ts
 var INEGI_SYNC_SOURCE = {
@@ -9198,7 +9228,7 @@ var INEGI_GEO_BOUNDARY_LEVEL_OPTIONS = [
 var INEGI_LIVE_SYNC_CAP = 250;
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var TechInegiGeoBoundary_default = (0, import_core55.list)({
+var TechInegiGeoBoundary_default = (0, import_core56.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -9207,38 +9237,38 @@ var TechInegiGeoBoundary_default = (0, import_core55.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields55.text)({
+    cacheKey: (0, import_fields56.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "level:geoCode" }
     }),
-    level: (0, import_fields55.select)({
+    level: (0, import_fields56.select)({
       type: "string",
       options: [...INEGI_GEO_BOUNDARY_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geoCode: (0, import_fields55.text)({
+    geoCode: (0, import_fields56.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    name: (0, import_fields55.text)({
+    name: (0, import_fields56.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    parentCode: (0, import_fields55.text)({
+    parentCode: (0, import_fields56.text)({
       db: { isNullable: true },
       ui: { description: "CVE_ENT para municipio; CVEGEO municipal para localidad" }
     }),
-    geometry: (0, import_fields55.json)({
+    geometry: (0, import_fields56.json)({
       ui: { description: "GeoJSON geometry (sin PostGIS)" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/Indicator/TechInegiIndicator.ts
-var import_core56 = require("@keystone-6/core");
-var import_fields56 = require("@keystone-6/core/fields");
-var TechInegiIndicator_default = (0, import_core56.list)({
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
+var TechInegiIndicator_default = (0, import_core57.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "indicatorName",
@@ -9253,46 +9283,46 @@ var TechInegiIndicator_default = (0, import_core56.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields56.text)({
+    cacheKey: (0, import_fields57.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "indicatorId:geographicCode:period"
       }
     }),
-    indicatorId: (0, import_fields56.text)({
+    indicatorId: (0, import_fields57.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    indicatorName: (0, import_fields56.text)({
+    indicatorName: (0, import_fields57.text)({
       validation: { isRequired: true }
     }),
-    geographicLevel: (0, import_fields56.select)({
+    geographicLevel: (0, import_fields57.select)({
       type: "string",
       options: [...INEGI_GEOGRAPHIC_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geographicCode: (0, import_fields56.text)({
+    geographicCode: (0, import_fields57.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "00 nacional, 2 d\xEDgitos estado, 5 d\xEDgitos municipio" }
     }),
-    period: (0, import_fields56.text)({
+    period: (0, import_fields57.text)({
       validation: { isRequired: true },
       ui: { description: "TIME_PERIOD de BIE (p. ej. 2020)" }
     }),
-    value: (0, import_fields56.float)({ db: { isNullable: true } }),
-    unit: (0, import_fields56.text)(),
-    fetchedAt: (0, import_fields56.timestamp)({
+    value: (0, import_fields57.float)({ db: { isNullable: true } }),
+    unit: (0, import_fields57.text)(),
+    fetchedAt: (0, import_fields57.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/SyncLog/TechInegiSyncLog.ts
-var import_core57 = require("@keystone-6/core");
-var import_fields57 = require("@keystone-6/core/fields");
-var TechInegiSyncLog_default = (0, import_core57.list)({
+var import_core58 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
+var TechInegiSyncLog_default = (0, import_core58.list)({
   access: inegiSyncLogAccess,
   ui: {
     listView: {
@@ -9309,49 +9339,49 @@ var TechInegiSyncLog_default = (0, import_core57.list)({
     }
   },
   fields: {
-    user: (0, import_fields57.relationship)({
+    user: (0, import_fields58.relationship)({
       ref: "User.inegiSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 el sync (vac\xEDo en scripts)" }
     }),
-    success: (0, import_fields57.checkbox)({
+    success: (0, import_fields58.checkbox)({
       defaultValue: false
     }),
-    message: (0, import_fields57.text)(),
-    created: (0, import_fields57.integer)({
+    message: (0, import_fields58.text)(),
+    created: (0, import_fields58.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos nuevos" }
     }),
-    updated: (0, import_fields57.integer)({
+    updated: (0, import_fields58.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos actualizados" }
     }),
-    alreadyInDb: (0, import_fields57.integer)({
+    alreadyInDb: (0, import_fields58.integer)({
       defaultValue: 0,
       ui: { description: "Ya exist\xEDan y no cambiaron (o se reencontraron)" }
     }),
-    totalFetched: (0, import_fields57.integer)({
+    totalFetched: (0, import_fields58.integer)({
       defaultValue: 0,
       ui: { description: "Filas recibidas de INEGI en esta corrida" }
     }),
-    sourceMethod: (0, import_fields57.select)({
+    sourceMethod: (0, import_fields58.select)({
       type: "string",
       options: [...INEGI_SYNC_SOURCE_OPTIONS],
       validation: { isRequired: true },
       defaultValue: "api"
     }),
-    searchParams: (0, import_fields57.json)({
+    searchParams: (0, import_fields58.json)({
       ui: { description: "Par\xE1metros de b\xFAsqueda o ruta del archivo" }
     }),
-    createdAt: (0, import_fields57.timestamp)({
+    createdAt: (0, import_fields58.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var import_core58 = require("@keystone-6/core");
-var import_fields58 = require("@keystone-6/core/fields");
+var import_core59 = require("@keystone-6/core");
+var import_fields59 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
 var saasCompanyAccess = {
@@ -9525,7 +9555,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core58.list)({
+var SaasCompany_default = (0, import_core59.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -9544,147 +9574,147 @@ var SaasCompany_default = (0, import_core58.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields58.text)({
+    name: (0, import_fields59.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields58.relationship)({
+    users: (0, import_fields59.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    workspaces: (0, import_fields58.relationship)({
+    workspaces: (0, import_fields59.relationship)({
       ref: "SaasWorkspace.company",
       many: true,
       ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields58.json)({
+    allowedGooglePlaceCategories: (0, import_fields59.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields58.relationship)({
+    leads: (0, import_fields59.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields58.relationship)({
+    plan: (0, import_fields59.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields58.calendarDay)({
+    subscriptionStartedAt: (0, import_fields59.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields58.relationship)({
+    subscriptions: (0, import_fields59.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields58.relationship)({
+    techStatusBusinessLeads: (0, import_fields59.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields58.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields59.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (legacy quota tracking)" }
     }),
     /** Cumulative purchased bonus credits (permanent monthly top-up) */
-    purchasedBonusCredits: (0, import_fields58.integer)({
+    purchasedBonusCredits: (0, import_fields59.integer)({
       defaultValue: 0,
       ui: {
         description: "Total extra credits purchased; added to the monthly allowance each period"
       }
     }),
-    creditPeriods: (0, import_fields58.relationship)({
+    creditPeriods: (0, import_fields59.relationship)({
       ref: "SaasCompanyCreditPeriod.company",
       many: true,
       ui: { description: "Monthly credit periods for this company" }
     }),
-    creditLedgerEntries: (0, import_fields58.relationship)({
+    creditLedgerEntries: (0, import_fields59.relationship)({
       ref: "SaasCompanyCreditLedger.company",
       many: true,
       ui: { description: "Credit grant/consume ledger for this company" }
     }),
-    techFiles: (0, import_fields58.relationship)({
+    techFiles: (0, import_fields59.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields58.relationship)({
+    projects: (0, import_fields59.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    leadSyncLogs: (0, import_fields58.relationship)({
+    leadSyncLogs: (0, import_fields59.relationship)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
-    aiCallLogs: (0, import_fields58.relationship)({
+    aiCallLogs: (0, import_fields59.relationship)({
       ref: "TechAiCallLog.company",
       many: true,
       ui: { description: "Historial de llamadas a IA (prompts, tokens, cr\xE9ditos)" }
     }),
-    aiInsights: (0, import_fields58.relationship)({
+    aiInsights: (0, import_fields59.relationship)({
       ref: "TechAiInsight.company",
       many: true,
       ui: { description: "Insights de IA (digest diario, narrativa, archivos)" }
     }),
-    saasSubscriptionLogs: (0, import_fields58.relationship)({
+    saasSubscriptionLogs: (0, import_fields59.relationship)({
       ref: "SaasSubscriptionLog.company",
       many: true,
       ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
-    quotations: (0, import_fields58.relationship)({
+    quotations: (0, import_fields59.relationship)({
       ref: "SaasQuotation.company",
       many: true,
       ui: { description: "Cotizaciones de la empresa" }
     }),
-    logo: (0, import_fields58.file)({
+    logo: (0, import_fields59.file)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    onboardingMainOffer: (0, import_fields58.text)({
+    onboardingMainOffer: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    onboardingIdealCustomer: (0, import_fields58.text)({
+    onboardingIdealCustomer: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    onboardingAvgTicketValue: (0, import_fields58.text)({
+    onboardingAvgTicketValue: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    onboardingSalesPain: (0, import_fields58.text)({
+    onboardingSalesPain: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
       }
     }),
-    aiBillingMode: (0, import_fields58.select)({
+    aiBillingMode: (0, import_fields59.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       defaultValue: AI_BILLING_MODE.BYOK,
@@ -9692,7 +9722,7 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "C\xF3mo paga la empresa la IA: API key propia (BYOK) o cr\xE9ditos administrados por Kadesh"
       }
     }),
-    aiProvider: (0, import_fields58.select)({
+    aiProvider: (0, import_fields59.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
@@ -9700,13 +9730,13 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "Proveedor de IA en modalidad BYOK (Claude, OpenAI o Gemini)"
       }
     }),
-    aiModel: (0, import_fields58.text)({
+    aiModel: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         description: "Override opcional del modelo. Vac\xEDo = default del proveedor."
       }
     }),
-    aiApiKeyEncrypted: (0, import_fields58.text)({
+    aiApiKeyEncrypted: (0, import_fields59.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -9720,42 +9750,42 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "API key cifrada (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    aiApiKeyPreview: (0, import_fields58.text)({
+    aiApiKeyPreview: (0, import_fields59.text)({
       db: { isNullable: true },
       access: aiApiKeyPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)"
       }
     }),
-    aiKeyUpdatedAt: (0, import_fields58.timestamp)({
+    aiKeyUpdatedAt: (0, import_fields59.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se guard\xF3 o borr\xF3 la API key de IA"
       }
     }),
-    whatsappPhoneNumberId: (0, import_fields58.text)({
+    whatsappPhoneNumberId: (0, import_fields59.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "Phone Number ID de WhatsApp Cloud API (Meta). \xDAnico por empresa: se usa para enrutar el webhook entrante."
       }
     }),
-    whatsappBusinessAccountId: (0, import_fields58.text)({
+    whatsappBusinessAccountId: (0, import_fields59.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "WhatsApp Business Account ID (WABA). \xDAnico por empresa: se usa para enrutar el webhook de estado de plantillas."
       }
     }),
-    whatsappDisplayPhoneNumber: (0, import_fields58.text)({
+    whatsappDisplayPhoneNumber: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "N\xFAmero mostrado por Meta (se llena al probar la conexi\xF3n)"
       }
     }),
-    whatsappAccessTokenEncrypted: (0, import_fields58.text)({
+    whatsappAccessTokenEncrypted: (0, import_fields59.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -9769,7 +9799,7 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "Access token cifrado (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    whatsappAppSecretEncrypted: (0, import_fields58.text)({
+    whatsappAppSecretEncrypted: (0, import_fields59.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -9783,28 +9813,28 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "App Secret de la App de Meta de esta empresa, cifrado. Verifica la firma del webhook entrante."
       }
     }),
-    whatsappTokenPreview: (0, import_fields58.text)({
+    whatsappTokenPreview: (0, import_fields59.text)({
       db: { isNullable: true },
       access: whatsappTokenPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada del access token (ej. EAAxyz...wXyz)"
       }
     }),
-    whatsappConnectedAt: (0, import_fields58.timestamp)({
+    whatsappConnectedAt: (0, import_fields59.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se conect\xF3 o desconect\xF3 WhatsApp"
       }
     }),
-    whatsappAppId: (0, import_fields58.text)({
+    whatsappAppId: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "App ID de la App de Meta de esta empresa (para configurar su webhook por API)"
       }
     }),
-    whatsappWebhookConfiguredAt: (0, import_fields58.timestamp)({
+    whatsappWebhookConfiguredAt: (0, import_fields59.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9812,7 +9842,7 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "Cu\xE1ndo Kadesh dej\xF3 configurado el webhook de su App por API (no implica que ya lleguen mensajes)"
       }
     }),
-    whatsappLastWebhookAt: (0, import_fields58.timestamp)({
+    whatsappLastWebhookAt: (0, import_fields59.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9820,22 +9850,22 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "\xDAltimo evento real de mensajes recibido con firma v\xE1lida. Vac\xEDo = nunca ha llegado uno (\xBFApp sin publicar en modo Live?)"
       }
     }),
-    googleCalendarAccounts: (0, import_fields58.relationship)({
+    googleCalendarAccounts: (0, import_fields59.relationship)({
       ref: "GoogleCalendarAccount.company",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar compartidas por la empresa" }
     }),
-    calendarEvents: (0, import_fields58.relationship)({
+    calendarEvents: (0, import_fields59.relationship)({
       ref: "TechCalendarEvent.company",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario de la empresa" }
     }),
-    whatsappMessages: (0, import_fields58.relationship)({
+    whatsappMessages: (0, import_fields59.relationship)({
       ref: "TechWhatsAppMessage.company",
       many: true,
       ui: { description: "Historial de mensajes de WhatsApp de esta empresa" }
     }),
-    whatsappTemplateName: (0, import_fields58.text)({
+    whatsappTemplateName: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9843,14 +9873,14 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "Nombre de la plantilla creada autom\xE1ticamente para iniciar conversaciones"
       }
     }),
-    whatsappTemplateLanguage: (0, import_fields58.text)({
+    whatsappTemplateLanguage: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    whatsappTemplateStatus: (0, import_fields58.select)({
+    whatsappTemplateStatus: (0, import_fields59.select)({
       type: "string",
       options: [
         { label: "Ninguna", value: "none" },
@@ -9863,41 +9893,41 @@ var SaasCompany_default = (0, import_core58.list)({
         description: "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexi\xF3n, y se actualiza v\xEDa webhook cuando Meta la revisa o reley\xE9ndolo de Meta en cada prueba de conexi\xF3n (por si el webhook no est\xE1 configurado)."
       }
     }),
-    termsQuotation: (0, import_fields58.text)({
+    termsQuotation: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
       }
     }),
-    colorPrimary: (0, import_fields58.text)({
+    colorPrimary: (0, import_fields59.text)({
       db: { isNullable: true },
       defaultValue: "#F7945E",
       ui: {
         description: "Color primario de la empresa"
       }
     }),
-    colorSecondary: (0, import_fields58.text)({
+    colorSecondary: (0, import_fields59.text)({
       db: { isNullable: true },
       defaultValue: "#E07C3A",
       ui: {
         description: "Color secundario de la empresa"
       }
     }),
-    contactEmail: (0, import_fields58.text)({
+    contactEmail: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de contacto de la empresa"
       }
     }),
-    contactPhone: (0, import_fields58.text)({
+    contactPhone: (0, import_fields59.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
     // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
-    suspendedAt: (0, import_fields58.timestamp)({
+    suspendedAt: (0, import_fields59.timestamp)({
       db: { isNullable: true },
       access: saasCompanyAccountControlFieldAccess,
       ui: {
@@ -9906,7 +9936,7 @@ var SaasCompany_default = (0, import_core58.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    suspendedReason: (0, import_fields58.text)({
+    suspendedReason: (0, import_fields59.text)({
       db: { isNullable: true },
       access: saasCompanyAccountControlFieldAccess,
       ui: {
@@ -9915,7 +9945,7 @@ var SaasCompany_default = (0, import_core58.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    accountManager: (0, import_fields58.relationship)({
+    accountManager: (0, import_fields59.relationship)({
       ref: "User",
       many: false,
       access: saasCompanyAccountControlFieldAccess,
@@ -9925,14 +9955,14 @@ var SaasCompany_default = (0, import_core58.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    createdAt: (0, import_fields58.timestamp)({
+    createdAt: (0, import_fields59.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields58.timestamp)({
+    updatedAt: (0, import_fields59.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9943,8 +9973,8 @@ var SaasCompany_default = (0, import_core58.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core59 = require("@keystone-6/core");
-var import_fields59 = require("@keystone-6/core/fields");
+var import_core60 = require("@keystone-6/core");
+var import_fields60 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -9974,7 +10004,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core59.list)({
+var SaasPlan_default = (0, import_core60.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -9992,42 +10022,42 @@ var SaasPlan_default = (0, import_core59.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields59.text)({
+    name: (0, import_fields60.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields59.float)({
+    cost: (0, import_fields60.float)({
       ui: { description: "Plan cost per billing period" }
     }),
-    costOld: (0, import_fields59.float)({
+    costOld: (0, import_fields60.float)({
       ui: { description: "Plan cost original" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
-    referralUpfrontCommissionPct: (0, import_fields59.float)({
+    referralUpfrontCommissionPct: (0, import_fields60.float)({
       ui: {
         description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
       }
     }),
     /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
-    referralRecurringCommissionPct: (0, import_fields59.float)({
+    referralRecurringCommissionPct: (0, import_fields60.float)({
       ui: {
         description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
       }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields59.select)({
+    frequency: (0, import_fields60.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields59.text)({
+    currency: (0, import_fields60.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields59.integer)({
+    leadLimit: (0, import_fields60.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -10038,161 +10068,32 @@ var SaasPlan_default = (0, import_core59.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields59.json)({
+    planFeatures: (0, import_fields60.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields59.relationship)({
+    saasPayments: (0, import_fields60.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields59.checkbox)({
+    active: (0, import_fields60.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields59.checkbox)({
+    bestSeller: (0, import_fields60.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields59.text)({
-      isIndexed: "unique",
-      db: { isNullable: true },
-      ui: {
-        description: "Stripe Price ID (from Stripe Dashboard or API when creating Price)"
-      }
-    }),
-    /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields59.text)({
-      db: { isNullable: true },
-      ui: {
-        description: "Stripe Product ID (optional, from Stripe when creating Product)"
-      }
-    }),
-    /** Companies currently on this plan */
-    companies: (0, import_fields59.relationship)({
-      ref: "SaasCompany.plan",
-      many: true,
-      ui: { description: "Companies on this plan" }
-    }),
-    subscriptions: (0, import_fields59.relationship)({
-      ref: "SaasCompanySubscription.plan",
-      many: true,
-      ui: { description: "Subscriptions for this plan" }
-    }),
-    saasSubscriptionLogs: (0, import_fields59.relationship)({
-      ref: "SaasSubscriptionLog.plan",
-      many: true,
-      ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
-    }),
-    createdAt: (0, import_fields59.timestamp)({
-      defaultValue: { kind: "now" },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
-    }),
-    updatedAt: (0, import_fields59.timestamp)({
-      db: { updatedAt: true },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        listView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Saas/SaasCredit/SaasCredit.ts
-var import_core60 = require("@keystone-6/core");
-var import_fields60 = require("@keystone-6/core/fields");
-
-// models/Saas/SaasCredit/SaasCredit.access.ts
-var saasCreditAccess = {
-  operation: {
-    query: () => true,
-    create: ({ session: session2 }) => isPlatformAdmin(session2),
-    update: ({ session: session2 }) => isPlatformAdmin(session2),
-    delete: ({ session: session2 }) => isPlatformAdmin(session2)
-  },
-  filter: {
-    query: () => true,
-    update: ({ session: session2 }) => isPlatformAdmin(session2),
-    delete: ({ session: session2 }) => isPlatformAdmin(session2)
-  }
-};
-
-// models/Saas/SaasCredit/SaasCredit.ts
-var SaasCredit_default = (0, import_core60.list)({
-  access: saasCreditAccess,
-  ui: {
-    listView: {
-      initialColumns: [
-        "slug",
-        "name",
-        "cost",
-        "creditsToAdd",
-        "frequency",
-        "active",
-        "bestSeller",
-        "stripePriceId"
-      ]
-    }
-  },
-  fields: {
-    /** Internal key for upsert/seed (e.g. "Recarga Básica") */
-    slug: (0, import_fields60.text)({
-      validation: { isRequired: true },
-      isIndexed: "unique",
-      ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
-    }),
-    /** Package display name shown in the app */
-    name: (0, import_fields60.text)({
-      validation: { isRequired: true },
-      ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
-    }),
-    /** One-time price amount (in package currency) */
-    cost: (0, import_fields60.float)({
-      ui: { description: "One-time package cost" }
-    }),
-    costOld: (0, import_fields60.float)({
-      ui: { description: "Original price for strikethrough discount display" }
-    }),
-    /** Payment frequency (one-time for credit top-ups) */
-    frequency: (0, import_fields60.select)({
-      type: "string",
-      options: [...PLAN_FREQUENCY_OPTIONS],
-      defaultValue: "once",
-      ui: { description: "Payment frequency (once for credit packages)" }
-    }),
-    /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields60.text)({
-      defaultValue: "mxn",
-      ui: { description: "Stripe currency code (e.g. mxn, usd)" }
-    }),
-    /** Number of extra credits added on purchase (leads sync or managed AI) */
-    creditsToAdd: (0, import_fields60.integer)({
-      validation: { isRequired: true },
-      ui: { description: "Credits added to the company on successful purchase" }
-    }),
-    /** Shown in app and available for purchase */
-    active: (0, import_fields60.checkbox)({
-      defaultValue: true,
-      ui: { description: "Package enabled in app (visible for purchase)" }
-    }),
-    bestSeller: (0, import_fields60.checkbox)({
-      defaultValue: false,
-      ui: { description: "Highlight this package as best seller" }
-    }),
-    /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
     stripePriceId: (0, import_fields60.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
-        description: "Stripe Price ID (one-time price from Stripe Dashboard or API)"
+        description: "Stripe Price ID (from Stripe Dashboard or API when creating Price)"
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
@@ -10201,6 +10102,22 @@ var SaasCredit_default = (0, import_core60.list)({
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
+    }),
+    /** Companies currently on this plan */
+    companies: (0, import_fields60.relationship)({
+      ref: "SaasCompany.plan",
+      many: true,
+      ui: { description: "Companies on this plan" }
+    }),
+    subscriptions: (0, import_fields60.relationship)({
+      ref: "SaasCompanySubscription.plan",
+      many: true,
+      ui: { description: "Subscriptions for this plan" }
+    }),
+    saasSubscriptionLogs: (0, import_fields60.relationship)({
+      ref: "SaasSubscriptionLog.plan",
+      many: true,
+      ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
     }),
     createdAt: (0, import_fields60.timestamp)({
       defaultValue: { kind: "now" },
@@ -10219,9 +10136,122 @@ var SaasCredit_default = (0, import_core60.list)({
   }
 });
 
-// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
+// models/Saas/SaasCredit/SaasCredit.ts
 var import_core61 = require("@keystone-6/core");
 var import_fields61 = require("@keystone-6/core/fields");
+
+// models/Saas/SaasCredit/SaasCredit.access.ts
+var saasCreditAccess = {
+  operation: {
+    query: () => true,
+    create: ({ session: session2 }) => isPlatformAdmin(session2),
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  },
+  filter: {
+    query: () => true,
+    update: ({ session: session2 }) => isPlatformAdmin(session2),
+    delete: ({ session: session2 }) => isPlatformAdmin(session2)
+  }
+};
+
+// models/Saas/SaasCredit/SaasCredit.ts
+var SaasCredit_default = (0, import_core61.list)({
+  access: saasCreditAccess,
+  ui: {
+    listView: {
+      initialColumns: [
+        "slug",
+        "name",
+        "cost",
+        "creditsToAdd",
+        "frequency",
+        "active",
+        "bestSeller",
+        "stripePriceId"
+      ]
+    }
+  },
+  fields: {
+    /** Internal key for upsert/seed (e.g. "Recarga Básica") */
+    slug: (0, import_fields61.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique",
+      ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
+    }),
+    /** Package display name shown in the app */
+    name: (0, import_fields61.text)({
+      validation: { isRequired: true },
+      ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
+    }),
+    /** One-time price amount (in package currency) */
+    cost: (0, import_fields61.float)({
+      ui: { description: "One-time package cost" }
+    }),
+    costOld: (0, import_fields61.float)({
+      ui: { description: "Original price for strikethrough discount display" }
+    }),
+    /** Payment frequency (one-time for credit top-ups) */
+    frequency: (0, import_fields61.select)({
+      type: "string",
+      options: [...PLAN_FREQUENCY_OPTIONS],
+      defaultValue: "once",
+      ui: { description: "Payment frequency (once for credit packages)" }
+    }),
+    /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
+    currency: (0, import_fields61.text)({
+      defaultValue: "mxn",
+      ui: { description: "Stripe currency code (e.g. mxn, usd)" }
+    }),
+    /** Number of extra credits added on purchase (leads sync or managed AI) */
+    creditsToAdd: (0, import_fields61.integer)({
+      validation: { isRequired: true },
+      ui: { description: "Credits added to the company on successful purchase" }
+    }),
+    /** Shown in app and available for purchase */
+    active: (0, import_fields61.checkbox)({
+      defaultValue: true,
+      ui: { description: "Package enabled in app (visible for purchase)" }
+    }),
+    bestSeller: (0, import_fields61.checkbox)({
+      defaultValue: false,
+      ui: { description: "Highlight this package as best seller" }
+    }),
+    /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
+    stripePriceId: (0, import_fields61.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: {
+        description: "Stripe Price ID (one-time price from Stripe Dashboard or API)"
+      }
+    }),
+    /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
+    stripeProductId: (0, import_fields61.text)({
+      db: { isNullable: true },
+      ui: {
+        description: "Stripe Product ID (optional, from Stripe when creating Product)"
+      }
+    }),
+    createdAt: (0, import_fields61.timestamp)({
+      defaultValue: { kind: "now" },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    }),
+    updatedAt: (0, import_fields61.timestamp)({
+      db: { updatedAt: true },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        listView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
+var import_core62 = require("@keystone-6/core");
+var import_fields62 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
 var getCompanyId8 = (session2) => session2?.data?.company?.id;
@@ -10247,7 +10277,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
 };
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core61.list)({
+var SaasCompanyMonthlyLeadSync_default = (0, import_core62.list)({
   access: saasCompanyMonthlyLeadSyncAccess,
   ui: {
     listView: {
@@ -10255,30 +10285,30 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core61.list)({
     }
   },
   fields: {
-    company: (0, import_fields61.relationship)({
+    company: (0, import_fields62.relationship)({
       ref: "SaasCompany.monthlyLeadSyncRecords",
       many: false
     }),
-    year: (0, import_fields61.integer)({
+    year: (0, import_fields62.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the sync period" }
     }),
-    month: (0, import_fields61.integer)({
+    month: (0, import_fields62.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the sync period (1-12)" }
     }),
     /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields61.integer)({
+    syncedCount: (0, import_fields62.integer)({
       defaultValue: 0,
       ui: { description: "Number of leads synced this month (for quota tracking)" }
     }),
-    createdAt: (0, import_fields61.timestamp)({
+    createdAt: (0, import_fields62.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields61.timestamp)({
+    updatedAt: (0, import_fields62.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -10286,8 +10316,8 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core61.list)({
 });
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var import_core62 = require("@keystone-6/core");
-var import_fields62 = require("@keystone-6/core/fields");
+var import_core63 = require("@keystone-6/core");
+var import_fields63 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
 var getCompanyId9 = (session2) => session2?.data?.company?.id;
@@ -10311,7 +10341,7 @@ var companyCreditPeriodAccess = {
 };
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var SaasCompanyCreditPeriod_default = (0, import_core62.list)({
+var SaasCompanyCreditPeriod_default = (0, import_core63.list)({
   access: companyCreditPeriodAccess,
   ui: {
     listView: {
@@ -10327,60 +10357,60 @@ var SaasCompanyCreditPeriod_default = (0, import_core62.list)({
     }
   },
   fields: {
-    company: (0, import_fields62.relationship)({
+    company: (0, import_fields63.relationship)({
       ref: "SaasCompany.creditPeriods",
       many: false,
       ui: { description: "Company that owns this credit period" }
     }),
-    subscription: (0, import_fields62.relationship)({
+    subscription: (0, import_fields63.relationship)({
       ref: "SaasCompanySubscription.creditPeriods",
       many: false,
       ui: { description: "Active subscription when this period was created" }
     }),
-    periodKey: (0, import_fields62.text)({
+    periodKey: (0, import_fields63.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: {
         description: "Unique key: companyId:year:month"
       }
     }),
-    year: (0, import_fields62.integer)({
+    year: (0, import_fields63.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the credit period" }
     }),
-    month: (0, import_fields62.integer)({
+    month: (0, import_fields63.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the credit period (1-12)" }
     }),
-    planAllowance: (0, import_fields62.integer)({
+    planAllowance: (0, import_fields63.integer)({
       defaultValue: 0,
       ui: { description: "Monthly lead allowance from the active plan" }
     }),
-    bonusAllowance: (0, import_fields62.integer)({
+    bonusAllowance: (0, import_fields63.integer)({
       defaultValue: 0,
       ui: {
         description: "Extra purchased credits added to the monthly allowance for this period"
       }
     }),
-    used: (0, import_fields62.integer)({
+    used: (0, import_fields63.integer)({
       defaultValue: 0,
       ui: { description: "Credits consumed in this period" }
     }),
-    ledgerEntries: (0, import_fields62.relationship)({
+    ledgerEntries: (0, import_fields63.relationship)({
       ref: "SaasCompanyCreditLedger.period",
       many: true,
       ui: { description: "Ledger movements for this period" }
     }),
-    createdAt: (0, import_fields62.timestamp)({
+    createdAt: (0, import_fields63.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields62.timestamp)({
+    updatedAt: (0, import_fields63.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -10391,8 +10421,8 @@ var SaasCompanyCreditPeriod_default = (0, import_core62.list)({
 });
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var import_core63 = require("@keystone-6/core");
-var import_fields63 = require("@keystone-6/core/fields");
+var import_core64 = require("@keystone-6/core");
+var import_fields64 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
 var getCompanyId10 = (session2) => session2?.data?.company?.id;
@@ -10442,7 +10472,7 @@ var COMPANY_CREDIT_LEDGER_TYPE_OPTIONS = [
 ];
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var SaasCompanyCreditLedger_default = (0, import_core63.list)({
+var SaasCompanyCreditLedger_default = (0, import_core64.list)({
   access: companyCreditLedgerAccess,
   ui: {
     listView: {
@@ -10458,49 +10488,49 @@ var SaasCompanyCreditLedger_default = (0, import_core63.list)({
     }
   },
   fields: {
-    company: (0, import_fields63.relationship)({
+    company: (0, import_fields64.relationship)({
       ref: "SaasCompany.creditLedgerEntries",
       many: false,
       ui: { description: "Company this ledger entry belongs to" }
     }),
-    period: (0, import_fields63.relationship)({
+    period: (0, import_fields64.relationship)({
       ref: "SaasCompanyCreditPeriod.ledgerEntries",
       many: false,
       ui: { description: "Credit period this entry affects" }
     }),
-    type: (0, import_fields63.select)({
+    type: (0, import_fields64.select)({
       type: "string",
       options: [...COMPANY_CREDIT_LEDGER_TYPE_OPTIONS],
       validation: { isRequired: true },
       ui: { description: "Type of credit movement" }
     }),
-    amount: (0, import_fields63.integer)({
+    amount: (0, import_fields64.integer)({
       validation: { isRequired: true },
       ui: {
         description: "Signed amount: positive = grant, negative = consume"
       }
     }),
-    balanceAfter: (0, import_fields63.integer)({
+    balanceAfter: (0, import_fields64.integer)({
       ui: { description: "Remaining credits after this movement" }
     }),
-    referenceType: (0, import_fields63.text)({
+    referenceType: (0, import_fields64.text)({
       db: { isNullable: true },
       ui: {
         description: "Reference entity type (subscription, payment, admin, company, sync, ai)"
       }
     }),
-    referenceId: (0, import_fields63.text)({
+    referenceId: (0, import_fields64.text)({
       db: { isNullable: true },
       ui: { description: "Reference entity ID" }
     }),
-    notes: (0, import_fields63.text)({
+    notes: (0, import_fields64.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
-    metadata: (0, import_fields63.json)({
+    metadata: (0, import_fields64.json)({
       ui: { description: "Optional extra context for this movement" }
     }),
-    createdAt: (0, import_fields63.timestamp)({
+    createdAt: (0, import_fields64.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -10511,8 +10541,8 @@ var SaasCompanyCreditLedger_default = (0, import_core63.list)({
 });
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.ts
-var import_core64 = require("@keystone-6/core");
-var import_fields64 = require("@keystone-6/core/fields");
+var import_core65 = require("@keystone-6/core");
+var import_fields65 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.access.ts
 var saasCompanyNoteAccess = {
@@ -10530,7 +10560,7 @@ var saasCompanyNoteAccess = {
 };
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.ts
-var SaasCompanyNote_default = (0, import_core64.list)({
+var SaasCompanyNote_default = (0, import_core65.list)({
   access: saasCompanyNoteAccess,
   hooks: {
     resolveInput: {
@@ -10547,32 +10577,32 @@ var SaasCompanyNote_default = (0, import_core64.list)({
     }
   },
   fields: {
-    company: (0, import_fields64.relationship)({
+    company: (0, import_fields65.relationship)({
       ref: "SaasCompany",
       many: false,
       ui: { description: "Empresa de la nota" }
     }),
-    author: (0, import_fields64.relationship)({
+    author: (0, import_fields65.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Qui\xE9n la escribi\xF3 (lo pone el servidor)", createView: { fieldMode: "hidden" } }
     }),
-    body: (0, import_fields64.text)({
+    body: (0, import_fields65.text)({
       validation: { isRequired: true, length: { max: 4e3 } },
       ui: { displayMode: "textarea" }
     }),
-    pinned: (0, import_fields64.checkbox)({
+    pinned: (0, import_fields65.checkbox)({
       defaultValue: false,
       ui: { description: "Fijada arriba en el 360" }
     }),
-    createdAt: (0, import_fields64.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
-    updatedAt: (0, import_fields64.timestamp)({ db: { updatedAt: true } })
+    createdAt: (0, import_fields65.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
+    updatedAt: (0, import_fields65.timestamp)({ db: { updatedAt: true } })
   }
 });
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
-var import_core65 = require("@keystone-6/core");
-var import_fields65 = require("@keystone-6/core/fields");
+var import_core66 = require("@keystone-6/core");
+var import_fields66 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.access.ts
 var saasCompanyDailyUsageAccess = {
@@ -10590,8 +10620,8 @@ var saasCompanyDailyUsageAccess = {
 };
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
-var count = (description) => (0, import_fields65.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
-var SaasCompanyDailyUsage_default = (0, import_core65.list)({
+var count = (description) => (0, import_fields66.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
+var SaasCompanyDailyUsage_default = (0, import_core66.list)({
   access: saasCompanyDailyUsageAccess,
   ui: {
     hideCreate: true,
@@ -10601,13 +10631,13 @@ var SaasCompanyDailyUsage_default = (0, import_core65.list)({
     }
   },
   fields: {
-    key: (0, import_fields65.text)({
+    key: (0, import_fields66.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "companyId:YYYY-MM-DD" }
     }),
-    company: (0, import_fields65.relationship)({ ref: "SaasCompany", many: false }),
-    day: (0, import_fields65.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
+    company: (0, import_fields66.relationship)({ ref: "SaasCompany", many: false }),
+    day: (0, import_fields66.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
     activeUsers: count("Personas con el panel abierto"),
     activeMinutes: count("Minutos con el panel abierto (todo el equipo)"),
     logins: count("Inicios de sesi\xF3n correctos"),
@@ -10624,13 +10654,13 @@ var SaasCompanyDailyUsage_default = (0, import_core65.list)({
     quotationsAccepted: count("Cotizaciones aceptadas"),
     whatsappSent: count("WhatsApp enviados"),
     whatsappReceived: count("WhatsApp recibidos"),
-    computedAt: (0, import_fields65.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
+    computedAt: (0, import_fields66.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
   }
 });
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var import_core66 = require("@keystone-6/core");
-var import_fields66 = require("@keystone-6/core/fields");
+var import_core67 = require("@keystone-6/core");
+var import_fields67 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
 var getCompanyId11 = (session2) => session2?.data?.company?.id;
@@ -10656,7 +10686,7 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core66.list)({
+var SaasCompanySubscription_default = (0, import_core67.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -10674,102 +10704,102 @@ var SaasCompanySubscription_default = (0, import_core66.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields66.relationship)({
+    company: (0, import_fields67.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields66.text)({
+    planName: (0, import_fields67.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields66.float)({
+    planCost: (0, import_fields67.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields66.text)({
+    planFrequency: (0, import_fields67.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields66.integer)({
+    planLeadLimit: (0, import_fields67.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
-    newCreditsAdded: (0, import_fields66.integer)({
+    newCreditsAdded: (0, import_fields67.integer)({
       defaultValue: 0,
       ui: { description: "Extra credits purchased and added to this subscription" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields66.text)({
+    planStripePriceId: (0, import_fields67.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields66.text)({
+    planCurrency: (0, import_fields67.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields66.json)({
+    planFeatures: (0, import_fields67.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields66.select)({
+    status: (0, import_fields67.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields66.calendarDay)({
+    activatedAt: (0, import_fields67.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields66.calendarDay)({
+    currentPeriodEnd: (0, import_fields67.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields66.text)({
+    stripeSubscriptionId: (0, import_fields67.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields66.text)({
+    stripeCustomerId: (0, import_fields67.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields66.relationship)({
+    saasPayments: (0, import_fields67.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
-    creditPeriods: (0, import_fields66.relationship)({
+    creditPeriods: (0, import_fields67.relationship)({
       ref: "SaasCompanyCreditPeriod.subscription",
       many: true,
       ui: { description: "Credit periods linked to this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields66.relationship)({
+    plan: (0, import_fields67.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    saasSubscriptionLogs: (0, import_fields66.relationship)({
+    saasSubscriptionLogs: (0, import_fields67.relationship)({
       ref: "SaasSubscriptionLog.createdSubscription",
       many: true,
       ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
     }),
-    createdAt: (0, import_fields66.timestamp)({
+    createdAt: (0, import_fields67.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields66.timestamp)({
+    updatedAt: (0, import_fields67.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -10780,8 +10810,8 @@ var SaasCompanySubscription_default = (0, import_core66.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core67 = require("@keystone-6/core");
-var import_fields67 = require("@keystone-6/core/fields");
+var import_core68 = require("@keystone-6/core");
+var import_fields68 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
 function paymentMethodFilter(session2) {
@@ -10807,7 +10837,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core67.list)({
+var SaasPaymentMethod_default = (0, import_core68.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -10822,61 +10852,61 @@ var SaasPaymentMethod_default = (0, import_core67.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields67.relationship)({
+    user: (0, import_fields68.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields67.text)({
+    cardType: (0, import_fields68.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields67.text)({
+    lastFourDigits: (0, import_fields68.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields67.text)({
+    expMonth: (0, import_fields68.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields67.text)({
+    expYear: (0, import_fields68.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields67.text)({
+    stripeProcessorId: (0, import_fields68.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields67.text)({
+    stripePaymentMethodId: (0, import_fields68.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields67.text)({
+    address: (0, import_fields68.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields67.text)({
+    postalCode: (0, import_fields68.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields67.text)({
+    ownerName: (0, import_fields68.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields67.text)({
+    country: (0, import_fields68.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields67.relationship)({
+    saasPayments: (0, import_fields68.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields67.timestamp)({
+    createdAt: (0, import_fields68.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields67.timestamp)({
+    updatedAt: (0, import_fields68.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -10884,8 +10914,8 @@ var SaasPaymentMethod_default = (0, import_core67.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core68 = require("@keystone-6/core");
-var import_fields68 = require("@keystone-6/core/fields");
+var import_core69 = require("@keystone-6/core");
+var import_fields69 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
 function paymentFilter(session2) {
@@ -10911,7 +10941,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core68.list)({
+var SaasPayment_default = (0, import_core69.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -10929,30 +10959,30 @@ var SaasPayment_default = (0, import_core68.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields68.relationship)({
+    user: (0, import_fields69.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields68.text)({
+    paymentMethodType: (0, import_fields69.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields68.relationship)({
+    paymentMethod: (0, import_fields69.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields68.decimal)({
+    amount: (0, import_fields69.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields68.select)({
+    status: (0, import_fields69.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -10965,38 +10995,38 @@ var SaasPayment_default = (0, import_core68.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields68.text)({
+    processorStripeChargeId: (0, import_fields69.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields68.text)({
+    stripeErrorMessage: (0, import_fields69.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields68.text)({
+    notes: (0, import_fields69.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields68.relationship)({
+    plan: (0, import_fields69.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields68.relationship)({
+    subscription: (0, import_fields69.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields68.timestamp)({
+    createdAt: (0, import_fields69.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields68.timestamp)({
+    updatedAt: (0, import_fields69.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -11004,8 +11034,8 @@ var SaasPayment_default = (0, import_core68.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core69 = require("@keystone-6/core");
-var import_fields69 = require("@keystone-6/core/fields");
+var import_core70 = require("@keystone-6/core");
+var import_fields70 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
 var getCompanyId12 = (session2) => session2?.data?.company?.id;
@@ -11049,7 +11079,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core69.list)({
+var SaasProject_default = (0, import_core70.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -11064,78 +11094,78 @@ var SaasProject_default = (0, import_core69.list)({
     }
   },
   fields: {
-    name: (0, import_fields69.text)({
+    name: (0, import_fields70.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields69.text)({
+    serviceType: (0, import_fields70.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields69.relationship)({
+    responsible: (0, import_fields70.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields69.calendarDay)({
+    startDate: (0, import_fields70.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields69.calendarDay)({
+    estimatedEndDate: (0, import_fields70.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields69.text)({
+    description: (0, import_fields70.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields69.select)({
+    status: (0, import_fields70.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields69.text)({
+    urlData: (0, import_fields70.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields69.relationship)({
+    company: (0, import_fields70.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields69.relationship)({
+    businessLead: (0, import_fields70.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields69.relationship)({
+    proposal: (0, import_fields70.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields69.relationship)({
+    quotations: (0, import_fields70.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields69.timestamp)({
+    createdAt: (0, import_fields70.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields69.timestamp)({
+    updatedAt: (0, import_fields70.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11146,8 +11176,8 @@ var SaasProject_default = (0, import_core69.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core70 = require("@keystone-6/core");
-var import_fields70 = require("@keystone-6/core/fields");
+var import_core71 = require("@keystone-6/core");
+var import_fields71 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
 var getCompanyId13 = (session2) => session2?.data?.company?.id;
@@ -11250,7 +11280,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core70.list)({
+var SaasQuotation_default = (0, import_core71.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -11268,117 +11298,117 @@ var SaasQuotation_default = (0, import_core70.list)({
     }
   },
   fields: {
-    company: (0, import_fields70.relationship)({
+    company: (0, import_fields71.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields70.relationship)({
+    lead: (0, import_fields71.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields70.relationship)({
+    project: (0, import_fields71.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields70.text)({
+    quotationNumber: (0, import_fields71.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields70.select)({
+    status: (0, import_fields71.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields70.text)({
+    currency: (0, import_fields71.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields70.float)({
+    exchangeRate: (0, import_fields71.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields70.float)({
+    subtotal: (0, import_fields71.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields70.float)({
+    discountTotal: (0, import_fields71.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields70.float)({
+    taxTotal: (0, import_fields71.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields70.float)({
+    total: (0, import_fields71.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields70.calendarDay)({
+    validUntil: (0, import_fields71.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields70.timestamp)({
+    sentAt: (0, import_fields71.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields70.timestamp)({
+    acceptedAt: (0, import_fields71.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields70.text)({
+    notes: (0, import_fields71.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields70.text)({
+    terms: (0, import_fields71.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields70.relationship)({
+    createdBy: (0, import_fields71.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields70.relationship)({
+    assignedSeller: (0, import_fields71.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields70.text)({
+    pdfFileOrUrl: (0, import_fields71.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields70.relationship)({
+    quotationProducts: (0, import_fields71.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields70.checkbox)({
+    showDiscount: (0, import_fields71.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields70.checkbox)({
+    showNotes: (0, import_fields71.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields70.timestamp)({
+    createdAt: (0, import_fields71.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields70.timestamp)({
+    updatedAt: (0, import_fields71.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11389,8 +11419,8 @@ var SaasQuotation_default = (0, import_core70.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core71 = require("@keystone-6/core");
-var import_fields71 = require("@keystone-6/core/fields");
+var import_core72 = require("@keystone-6/core");
+var import_fields72 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
 var getCompanyId14 = (session2) => session2?.data?.company?.id;
@@ -11580,7 +11610,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core71.list)({
+var SaasQuotationProduct_default = (0, import_core72.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -11589,60 +11619,60 @@ var SaasQuotationProduct_default = (0, import_core71.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields71.relationship)({
+    quotation: (0, import_fields72.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields71.text)({
+    description: (0, import_fields72.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields71.float)({
+    quantity: (0, import_fields72.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields71.float)({
+    unitPrice: (0, import_fields72.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields71.select)({
+    discountType: (0, import_fields72.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields71.float)({
+    discountValue: (0, import_fields72.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields71.float)({
+    taxRate: (0, import_fields72.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields71.float)({
+    lineSubtotal: (0, import_fields72.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields71.float)({
+    lineTotal: (0, import_fields72.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields71.timestamp)({
+    createdAt: (0, import_fields72.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields71.timestamp)({
+    updatedAt: (0, import_fields72.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11653,8 +11683,8 @@ var SaasQuotationProduct_default = (0, import_core71.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core72 = require("@keystone-6/core");
-var import_fields72 = require("@keystone-6/core/fields");
+var import_core73 = require("@keystone-6/core");
+var import_fields73 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
 var getCompanyId15 = (session2) => session2?.data?.company?.id;
@@ -11696,7 +11726,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core72.list)({
+var SaasReferralCommission_default = (0, import_core73.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -11715,27 +11745,27 @@ var SaasReferralCommission_default = (0, import_core72.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields72.relationship)({
+    referrer: (0, import_fields73.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields72.relationship)({
+    referredUser: (0, import_fields73.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields72.relationship)({
+    company: (0, import_fields73.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields72.relationship)({
+    subscription: (0, import_fields73.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields72.relationship)({
+    plan: (0, import_fields73.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields72.select)({
+    type: (0, import_fields73.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -11743,30 +11773,30 @@ var SaasReferralCommission_default = (0, import_core72.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields72.float)({
+    percentage: (0, import_fields73.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields72.float)({
+    amount: (0, import_fields73.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields72.text)({
+    currency: (0, import_fields73.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields72.float)({
+    periodIndex: (0, import_fields73.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields72.calendarDay)({
+    periodStart: (0, import_fields73.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields72.calendarDay)({
+    periodEnd: (0, import_fields73.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields72.select)({
+    status: (0, import_fields73.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -11777,18 +11807,18 @@ var SaasReferralCommission_default = (0, import_core72.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields72.text)({
+    notes: (0, import_fields73.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields72.timestamp)({
+    createdAt: (0, import_fields73.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields72.timestamp)({
+    updatedAt: (0, import_fields73.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -11799,8 +11829,8 @@ var SaasReferralCommission_default = (0, import_core72.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core73 = require("@keystone-6/core");
-var import_fields73 = require("@keystone-6/core/fields");
+var import_core74 = require("@keystone-6/core");
+var import_fields74 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
 var getCompanyId16 = (session2) => session2?.data?.company?.id;
@@ -11826,7 +11856,7 @@ var saasSubscriptionLogAccess = {
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core73.list)({
+var SaasSubscriptionLog_default = (0, import_core74.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -11841,71 +11871,71 @@ var SaasSubscriptionLog_default = (0, import_core73.list)({
     }
   },
   fields: {
-    user: (0, import_fields73.relationship)({
+    user: (0, import_fields74.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields73.relationship)({
+    company: (0, import_fields74.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields73.relationship)({
+    plan: (0, import_fields74.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields73.relationship)({
+    createdSubscription: (0, import_fields74.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields73.checkbox)({
+    success: (0, import_fields74.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields73.text)({
+    step: (0, import_fields74.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields73.text)({
+    message: (0, import_fields74.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields73.json)({
+    responseSnapshot: (0, import_fields74.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields73.text)({
+    emailMasked: (0, import_fields74.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields73.text)({
+    planIdRequested: (0, import_fields74.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields73.text)({
+    totalSubmitted: (0, import_fields74.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields73.text)({
+    paymentMethodIdSubmitted: (0, import_fields74.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields73.text)({
+    paymentTypeSubmitted: (0, import_fields74.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields73.integer)({
+    durationMs: (0, import_fields74.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields73.text)({
+    stripeCustomerId: (0, import_fields74.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields73.text)({
+    stripeSubscriptionId: (0, import_fields74.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields73.timestamp)({
+    createdAt: (0, import_fields74.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
     })
@@ -11913,8 +11943,8 @@ var SaasSubscriptionLog_default = (0, import_core73.list)({
 });
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var import_core74 = require("@keystone-6/core");
-var import_fields74 = require("@keystone-6/core/fields");
+var import_core75 = require("@keystone-6/core");
+var import_fields75 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId17 = (session2) => session2?.data?.company?.id;
@@ -12022,7 +12052,7 @@ var saasWorkspaceSeedCrmStatusesHook = {
 };
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var SaasWorkspace_default = (0, import_core74.list)({
+var SaasWorkspace_default = (0, import_core75.list)({
   access: saasWorkspaceAccess,
   hooks: {
     afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
@@ -12033,63 +12063,63 @@ var SaasWorkspace_default = (0, import_core74.list)({
     }
   },
   fields: {
-    name: (0, import_fields74.text)({
+    name: (0, import_fields75.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
     }),
-    showActivities: (0, import_fields74.checkbox)({
+    showActivities: (0, import_fields75.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar actividades de CRM en este workspace" }
     }),
-    showProposals: (0, import_fields74.checkbox)({
+    showProposals: (0, import_fields75.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar propuestas de CRM en este workspace" }
     }),
-    showFollowUpTasks: (0, import_fields74.checkbox)({
+    showFollowUpTasks: (0, import_fields75.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
     }),
-    showTasks: (0, import_fields74.checkbox)({
+    showTasks: (0, import_fields75.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de workspace en este workspace" }
     }),
-    company: (0, import_fields74.relationship)({
+    company: (0, import_fields75.relationship)({
       ref: "SaasCompany.workspaces",
       many: false,
       ui: { description: "Empresa (tenant) a la que pertenece" }
     }),
-    members: (0, import_fields74.relationship)({
+    members: (0, import_fields75.relationship)({
       ref: "User.workspaces",
       many: true,
       ui: { description: "Usuarios con acceso a este workspace" }
     }),
-    salesActivities: (0, import_fields74.relationship)({
+    salesActivities: (0, import_fields75.relationship)({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" }
     }),
-    tasks: (0, import_fields74.relationship)({
+    tasks: (0, import_fields75.relationship)({
       ref: "TechTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
     }),
-    proposals: (0, import_fields74.relationship)({
+    proposals: (0, import_fields75.relationship)({
       ref: "TechProposal.workspace",
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
-    calendarEvents: (0, import_fields74.relationship)({
+    calendarEvents: (0, import_fields75.relationship)({
       ref: "TechCalendarEvent.workspace",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario del workspace" }
     }),
-    followUpTasks: (0, import_fields74.relationship)({
+    followUpTasks: (0, import_fields75.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
     }),
-    crmStatuses: (0, import_fields74.relationship)({
+    crmStatuses: (0, import_fields75.relationship)({
       ref: "SaasWorkspaceCrmStatus.workspace",
       many: true,
       ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
@@ -12098,8 +12128,8 @@ var SaasWorkspace_default = (0, import_core74.list)({
 });
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var import_core75 = require("@keystone-6/core");
-var import_fields75 = require("@keystone-6/core/fields");
+var import_core76 = require("@keystone-6/core");
+var import_fields76 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
 var getCompanyId18 = (session2) => session2?.data?.company?.id;
@@ -12344,7 +12374,7 @@ var saasWorkspaceCrmStatusHooks = {
 };
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var SaasWorkspaceCrmStatus_default = (0, import_core75.list)({
+var SaasWorkspaceCrmStatus_default = (0, import_core76.list)({
   access: saasWorkspaceCrmStatusAccess,
   hooks: saasWorkspaceCrmStatusHooks,
   ui: {
@@ -12353,58 +12383,58 @@ var SaasWorkspaceCrmStatus_default = (0, import_core75.list)({
     }
   },
   fields: {
-    workspace: (0, import_fields75.relationship)({
+    workspace: (0, import_fields76.relationship)({
       ref: "SaasWorkspace.crmStatuses",
       many: false,
       ui: { description: "Workspace al que pertenece este estado" }
     }),
-    name: (0, import_fields75.text)({
+    name: (0, import_fields76.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre visible (p. ej. Kanban)" }
     }),
-    color: (0, import_fields75.text)({
+    color: (0, import_fields76.text)({
       validation: { isRequired: true },
       ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
     }),
-    key: (0, import_fields75.text)({
+    key: (0, import_fields76.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
       }
     }),
-    order: (0, import_fields75.integer)({
+    order: (0, import_fields76.integer)({
       defaultValue: 0,
       isIndexed: true,
       ui: { description: "Orden en la UI (menor primero)" }
     }),
-    isDefault: (0, import_fields75.checkbox)({
+    isDefault: (0, import_fields76.checkbox)({
       defaultValue: false,
       ui: {
         description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
       }
     }),
-    isArchived: (0, import_fields75.checkbox)({
+    isArchived: (0, import_fields76.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en selectores sin borrar historial" }
     }),
-    followUpTasks: (0, import_fields75.relationship)({
+    followUpTasks: (0, import_fields76.relationship)({
       ref: "TechFollowUpTask.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields75.relationship)({
+    proposals: (0, import_fields76.relationship)({
       ref: "TechProposal.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    salesActivities: (0, import_fields75.relationship)({
+    salesActivities: (0, import_fields76.relationship)({
       ref: "TechSalesActivity.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields75.relationship)({
+    tasks: (0, import_fields76.relationship)({
       ref: "TechTask.statusCrm",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
@@ -12413,8 +12443,8 @@ var SaasWorkspaceCrmStatus_default = (0, import_core75.list)({
 });
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var import_core76 = require("@keystone-6/core");
-var import_fields76 = require("@keystone-6/core/fields");
+var import_core77 = require("@keystone-6/core");
+var import_fields77 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.access.ts
 var techWhatsAppMessageAccess = {
@@ -12431,7 +12461,7 @@ var techWhatsAppMessageAccess = {
 };
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var TechWhatsAppMessage_default = (0, import_core76.list)({
+var TechWhatsAppMessage_default = (0, import_core77.list)({
   access: techWhatsAppMessageAccess,
   ui: {
     listView: {
@@ -12446,12 +12476,12 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
     }
   },
   fields: {
-    company: (0, import_fields76.relationship)({
+    company: (0, import_fields77.relationship)({
       ref: "SaasCompany.whatsappMessages",
       many: false,
       ui: { description: "Empresa due\xF1a del n\xFAmero de WhatsApp" }
     }),
-    businessLead: (0, import_fields76.relationship)({
+    businessLead: (0, import_fields77.relationship)({
       ref: "TechBusinessLead.whatsappMessages",
       many: false,
       ui: { description: "Lead asociado (vac\xEDo si no matche\xF3 ning\xFAn tel\xE9fono conocido)" }
@@ -12459,7 +12489,7 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
     /** Conversación interna con alguien del equipo (vendedor) en vez de con un lead. Un
      * mensaje tiene `businessLead` O `teamMember`; si no tiene ninguno, no se pudo matchear
      * el teléfono y solo lo ven los admins de la empresa. */
-    teamMember: (0, import_fields76.relationship)({
+    teamMember: (0, import_fields77.relationship)({
       ref: "User.whatsappMessagesAsTeamMember",
       many: false,
       ui: {
@@ -12468,14 +12498,14 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
     }),
     /** Quién abrió el chat interno. Junto con `teamMember` define quién puede verlo
      * (ver whatsappMessageScopedWhere): solo esas dos personas, además de los admins. */
-    internalInitiator: (0, import_fields76.relationship)({
+    internalInitiator: (0, import_fields77.relationship)({
       ref: "User.whatsappInternalChatsStarted",
       many: false,
       ui: {
         description: "Qui\xE9n abri\xF3 la conversaci\xF3n interna. Con teamMember define qui\xE9n la puede ver."
       }
     }),
-    direction: (0, import_fields76.select)({
+    direction: (0, import_fields77.select)({
       type: "string",
       options: [
         { label: "Entrante", value: "inbound" },
@@ -12485,7 +12515,7 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    source: (0, import_fields76.select)({
+    source: (0, import_fields77.select)({
       type: "string",
       options: [
         { label: "Cloud API", value: "api" },
@@ -12495,21 +12525,21 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
       isIndexed: true,
       ui: { description: "Si lleg\xF3 en vivo por la Cloud API o se import\xF3 de un .txt exportado" }
     }),
-    senderLabel: (0, import_fields76.text)({
+    senderLabel: (0, import_fields77.text)({
       db: { isNullable: true },
       ui: {
         description: "Nombre del remitente: en un .txt importado, tal cual ven\xEDa (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribi\xF3."
       }
     }),
-    waMessageId: (0, import_fields76.text)({
+    waMessageId: (0, import_fields77.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: { description: "ID de Meta. Usado para no duplicar reintentos del webhook." }
     }),
-    fromPhone: (0, import_fields76.text)({ db: { isNullable: true } }),
-    toPhone: (0, import_fields76.text)({ db: { isNullable: true } }),
-    body: (0, import_fields76.text)({ ui: { displayMode: "textarea" } }),
-    messageKind: (0, import_fields76.select)({
+    fromPhone: (0, import_fields77.text)({ db: { isNullable: true } }),
+    toPhone: (0, import_fields77.text)({ db: { isNullable: true } }),
+    body: (0, import_fields77.text)({ ui: { displayMode: "textarea" } }),
+    messageKind: (0, import_fields77.select)({
       type: "string",
       options: [
         { label: "Texto", value: "text" },
@@ -12517,7 +12547,7 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
       ],
       defaultValue: "text"
     }),
-    mediaKey: (0, import_fields76.text)({
+    mediaKey: (0, import_fields77.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -12525,7 +12555,7 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
         description: "Key del archivo en R2 (no la URL \u2014 se firma al vuelo, ver mediaUrl)"
       }
     }),
-    mediaType: (0, import_fields76.select)({
+    mediaType: (0, import_fields77.select)({
       type: "string",
       options: [
         { label: "Imagen", value: "image" },
@@ -12533,8 +12563,8 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
       ],
       db: { isNullable: true }
     }),
-    mediaFileName: (0, import_fields76.text)({ db: { isNullable: true } }),
-    status: (0, import_fields76.select)({
+    mediaFileName: (0, import_fields77.text)({ db: { isNullable: true } }),
+    status: (0, import_fields77.select)({
       type: "string",
       options: [
         { label: "Enviado", value: "sent" },
@@ -12543,16 +12573,16 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
       ],
       defaultValue: "sent"
     }),
-    sentBy: (0, import_fields76.relationship)({
+    sentBy: (0, import_fields77.relationship)({
       ref: "User.whatsappMessagesSent",
       many: false,
       ui: { description: "Usuario que mand\xF3 el mensaje (solo salientes)" }
     }),
-    errorMessage: (0, import_fields76.text)({
+    errorMessage: (0, import_fields77.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si el env\xEDo fall\xF3" }
     }),
-    createdAt: (0, import_fields76.timestamp)({
+    createdAt: (0, import_fields77.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del mensaje" }
     })
@@ -12560,8 +12590,8 @@ var TechWhatsAppMessage_default = (0, import_core76.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.ts
-var import_core77 = require("@keystone-6/core");
-var import_fields77 = require("@keystone-6/core/fields");
+var import_core78 = require("@keystone-6/core");
+var import_fields78 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.access.ts
 function googleCalendarAccountVisibleWhere(session2) {
@@ -12614,7 +12644,7 @@ var hiddenTokenAccess = {
   create: () => false,
   update: () => false
 };
-var GoogleCalendarAccount_default = (0, import_core77.list)({
+var GoogleCalendarAccount_default = (0, import_core78.list)({
   access: googleCalendarAccountAccess,
   hooks: googleCalendarAccountHooks,
   ui: {
@@ -12631,7 +12661,7 @@ var GoogleCalendarAccount_default = (0, import_core77.list)({
     }
   },
   fields: {
-    scopeType: (0, import_fields77.select)({
+    scopeType: (0, import_fields78.select)({
       type: "string",
       options: [...GOOGLE_CALENDAR_SCOPE_TYPE_OPTIONS],
       defaultValue: "personal" /* PERSONAL */,
@@ -12639,27 +12669,27 @@ var GoogleCalendarAccount_default = (0, import_core77.list)({
       isIndexed: true,
       ui: { description: "Personal (de un usuario) o compartida por toda la empresa" }
     }),
-    user: (0, import_fields77.relationship)({
+    user: (0, import_fields78.relationship)({
       ref: "User.googleCalendarAccounts",
       many: false,
       ui: { description: "Due\xF1o de la cuenta (solo si es personal)" }
     }),
-    company: (0, import_fields77.relationship)({
+    company: (0, import_fields78.relationship)({
       ref: "SaasCompany.googleCalendarAccounts",
       many: false,
       ui: { description: "Empresa due\xF1a de la cuenta (solo si es compartida)" }
     }),
-    connectedByUser: (0, import_fields77.relationship)({
+    connectedByUser: (0, import_fields78.relationship)({
       ref: "User.connectedGoogleCalendarAccounts",
       many: false,
       ui: { description: "Qui\xE9n autoriz\xF3 la conexi\xF3n en Google (auditor\xEDa)" }
     }),
-    googleAccountEmail: (0, import_fields77.text)({
+    googleAccountEmail: (0, import_fields78.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Correo de la cuenta de Google conectada" }
     }),
-    accessTokenEncrypted: (0, import_fields77.text)({
+    accessTokenEncrypted: (0, import_fields78.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -12669,7 +12699,7 @@ var GoogleCalendarAccount_default = (0, import_core77.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    refreshTokenEncrypted: (0, import_fields77.text)({
+    refreshTokenEncrypted: (0, import_fields78.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -12679,39 +12709,39 @@ var GoogleCalendarAccount_default = (0, import_core77.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    tokenExpiresAt: (0, import_fields77.timestamp)({
+    tokenExpiresAt: (0, import_fields78.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo expira el access token actual" }
     }),
-    scope: (0, import_fields77.text)({
+    scope: (0, import_fields78.text)({
       db: { isNullable: true },
       ui: { description: "Scopes de Google otorgados" }
     }),
-    isActive: (0, import_fields77.checkbox)({
+    isActive: (0, import_fields78.checkbox)({
       defaultValue: true,
       ui: {
         description: "false si Google revoc\xF3 el acceso: el usuario debe reconectar la cuenta"
       }
     }),
-    lastSyncedAt: (0, import_fields77.timestamp)({
+    lastSyncedAt: (0, import_fields78.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima lectura exitosa desde Google" }
     }),
-    lastSyncError: (0, import_fields77.text)({
+    lastSyncError: (0, import_fields78.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "\xDAltimo error al hablar con Google" }
     }),
-    calendars: (0, import_fields77.relationship)({
+    calendars: (0, import_fields78.relationship)({
       ref: "GoogleCalendarSelection.account",
       many: true,
       ui: { hideCreate: true, description: "Calendarios de esta cuenta" }
     }),
-    syncLogs: (0, import_fields77.relationship)({
+    syncLogs: (0, import_fields78.relationship)({
       ref: "TechGoogleCalendarSyncLog.account",
       many: true,
       ui: { hideCreate: true, description: "Historial de llamadas a Google" }
     }),
-    createdAt: (0, import_fields77.timestamp)({
+    createdAt: (0, import_fields78.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -12722,8 +12752,8 @@ var GoogleCalendarAccount_default = (0, import_core77.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var import_core78 = require("@keystone-6/core");
-var import_fields78 = require("@keystone-6/core/fields");
+var import_core79 = require("@keystone-6/core");
+var import_fields79 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.access.ts
 var googleCalendarSelectionAccess = {
@@ -12743,7 +12773,7 @@ var googleCalendarSelectionAccess = {
 };
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var GoogleCalendarSelection_default = (0, import_core78.list)({
+var GoogleCalendarSelection_default = (0, import_core79.list)({
   access: googleCalendarSelectionAccess,
   ui: {
     labelField: "calendarName",
@@ -12752,52 +12782,52 @@ var GoogleCalendarSelection_default = (0, import_core78.list)({
     }
   },
   fields: {
-    account: (0, import_fields78.relationship)({
+    account: (0, import_fields79.relationship)({
       ref: "GoogleCalendarAccount.calendars",
       many: false,
       ui: { description: "Cuenta de Google a la que pertenece este calendario" }
     }),
-    googleCalendarId: (0, import_fields78.text)({
+    googleCalendarId: (0, import_fields79.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "calendarId en Google (el principal suele ser el correo)" }
     }),
-    calendarName: (0, import_fields78.text)({
+    calendarName: (0, import_fields79.text)({
       validation: { isRequired: true },
       ui: { description: "Nombre visible del calendario" }
     }),
-    isPrimary: (0, import_fields78.checkbox)({ defaultValue: false }),
-    isSelected: (0, import_fields78.checkbox)({
+    isPrimary: (0, import_fields79.checkbox)({ defaultValue: false }),
+    isSelected: (0, import_fields79.checkbox)({
       defaultValue: false,
       ui: {
         description: "Si est\xE1 marcado, se ve en el calendario unificado y recibe los eventos creados en Kadesh"
       }
     }),
-    colorHex: (0, import_fields78.text)({ db: { isNullable: true } }),
+    colorHex: (0, import_fields79.text)({ db: { isNullable: true } }),
     // Qué registros del CRM se envían a este calendario (los eventos creados a mano eligen
     // sus calendarios destino uno a uno en `TechCalendarEvent.googleTargets`).
-    pushActivities: (0, import_fields78.checkbox)({
+    pushActivities: (0, import_fields79.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar actividades de venta nuevas a este calendario" }
     }),
-    pushProposals: (0, import_fields78.checkbox)({
+    pushProposals: (0, import_fields79.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar propuestas nuevas a este calendario" }
     }),
-    pushFollowUps: (0, import_fields78.checkbox)({
+    pushFollowUps: (0, import_fields79.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas de seguimiento nuevas a este calendario" }
     }),
-    pushTasks: (0, import_fields78.checkbox)({
+    pushTasks: (0, import_fields79.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas nuevas a este calendario" }
     }),
-    targetedEvents: (0, import_fields78.relationship)({
+    targetedEvents: (0, import_fields79.relationship)({
       ref: "TechCalendarEvent.googleTargets",
       many: true,
       ui: { hideCreate: true, description: "Eventos creados a mano que eligieron este calendario" }
     }),
-    eventLinks: (0, import_fields78.relationship)({
+    eventLinks: (0, import_fields79.relationship)({
       ref: "TechCalendarEventGoogleLink.calendarSelection",
       many: true,
       ui: { hideCreate: true, description: "Eventos de Kadesh enviados a este calendario" }
@@ -12806,8 +12836,8 @@ var GoogleCalendarSelection_default = (0, import_core78.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var import_core79 = require("@keystone-6/core");
-var import_fields79 = require("@keystone-6/core/fields");
+var import_core80 = require("@keystone-6/core");
+var import_fields80 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.access.ts
 function calendarEventScopedWhere(session2) {
@@ -13549,7 +13579,7 @@ var techCalendarEventHooks = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var TechCalendarEvent_default = (0, import_core79.list)({
+var TechCalendarEvent_default = (0, import_core80.list)({
   access: techCalendarEventAccess,
   hooks: techCalendarEventHooks,
   ui: {
@@ -13559,27 +13589,27 @@ var TechCalendarEvent_default = (0, import_core79.list)({
     }
   },
   fields: {
-    title: (0, import_fields79.text)({ validation: { isRequired: true } }),
-    description: (0, import_fields79.text)({
+    title: (0, import_fields80.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields80.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     }),
-    startAt: (0, import_fields79.timestamp)({
+    startAt: (0, import_fields80.timestamp)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Inicio. En eventos de d\xEDa completo se usa la fecha en UTC (00:00Z)"
       }
     }),
-    endAt: (0, import_fields79.timestamp)({
+    endAt: (0, import_fields80.timestamp)({
       db: { isNullable: true },
       ui: {
         description: "Fin (opcional). Sin fin, el evento dura 60 min; en d\xEDa completo, es el \xFAltimo d\xEDa incluido"
       }
     }),
-    allDay: (0, import_fields79.checkbox)({ defaultValue: false }),
-    location: (0, import_fields79.text)({ db: { isNullable: true } }),
-    sourceType: (0, import_fields79.select)({
+    allDay: (0, import_fields80.checkbox)({ defaultValue: false }),
+    location: (0, import_fields80.text)({ db: { isNullable: true } }),
+    sourceType: (0, import_fields80.select)({
       type: "string",
       options: [...CALENDAR_EVENT_SOURCE_OPTIONS],
       defaultValue: "native" /* NATIVE */,
@@ -13587,46 +13617,46 @@ var TechCalendarEvent_default = (0, import_core79.list)({
       isIndexed: true,
       ui: { description: "Creado a mano o generado desde un registro del CRM" }
     }),
-    salesActivity: (0, import_fields79.relationship)({
+    salesActivity: (0, import_fields80.relationship)({
       ref: "TechSalesActivity.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    followUpTask: (0, import_fields79.relationship)({
+    followUpTask: (0, import_fields80.relationship)({
       ref: "TechFollowUpTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    task: (0, import_fields79.relationship)({
+    task: (0, import_fields80.relationship)({
       ref: "TechTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    proposal: (0, import_fields79.relationship)({
+    proposal: (0, import_fields80.relationship)({
       ref: "TechProposal.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    createdBy: (0, import_fields79.relationship)({
+    createdBy: (0, import_fields80.relationship)({
       ref: "User.createdCalendarEvents",
       many: false,
       ui: { description: "Usuario due\xF1o del evento (su cuenta personal recibe el push)" }
     }),
-    company: (0, import_fields79.relationship)({
+    company: (0, import_fields80.relationship)({
       ref: "SaasCompany.calendarEvents",
       many: false,
       ui: { description: "Empresa (su cuenta compartida recibe el push)" }
     }),
-    workspace: (0, import_fields79.relationship)({
+    workspace: (0, import_fields80.relationship)({
       ref: "SaasWorkspace.calendarEvents",
       many: false,
       ui: { description: "Workspace del CRM, si aplica" }
     }),
-    googleTargets: (0, import_fields79.relationship)({
+    googleTargets: (0, import_fields80.relationship)({
       ref: "GoogleCalendarSelection.targetedEvents",
       many: true,
       ui: {
@@ -13634,19 +13664,19 @@ var TechCalendarEvent_default = (0, import_core79.list)({
         description: "Calendarios de Google elegidos al crear el evento (solo eventos nativos; los del CRM siguen la configuraci\xF3n de cada calendario)"
       }
     }),
-    googleLinks: (0, import_fields79.relationship)({
+    googleLinks: (0, import_fields80.relationship)({
       ref: "TechCalendarEventGoogleLink.event",
       many: true,
       ui: { hideCreate: true, description: "Copias de este evento en Google Calendar" }
     }),
-    createdAt: (0, import_fields79.timestamp)({
+    createdAt: (0, import_fields80.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields79.timestamp)({
+    updatedAt: (0, import_fields80.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -13657,8 +13687,8 @@ var TechCalendarEvent_default = (0, import_core79.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var import_core80 = require("@keystone-6/core");
-var import_fields80 = require("@keystone-6/core/fields");
+var import_core81 = require("@keystone-6/core");
+var import_fields81 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.access.ts
 var techCalendarEventGoogleLinkAccess = {
@@ -13678,7 +13708,7 @@ var techCalendarEventGoogleLinkAccess = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var TechCalendarEventGoogleLink_default = (0, import_core80.list)({
+var TechCalendarEventGoogleLink_default = (0, import_core81.list)({
   access: techCalendarEventGoogleLinkAccess,
   ui: {
     listView: {
@@ -13691,26 +13721,26 @@ var TechCalendarEventGoogleLink_default = (0, import_core80.list)({
     }
   },
   fields: {
-    event: (0, import_fields80.relationship)({
+    event: (0, import_fields81.relationship)({
       ref: "TechCalendarEvent.googleLinks",
       many: false
     }),
-    calendarSelection: (0, import_fields80.relationship)({
+    calendarSelection: (0, import_fields81.relationship)({
       ref: "GoogleCalendarSelection.eventLinks",
       many: false
     }),
-    googleEventId: (0, import_fields80.text)({
+    googleEventId: (0, import_fields81.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "id del evento en Google (se llena tras el push exitoso)" }
     }),
-    lastPushedAt: (0, import_fields80.timestamp)({ db: { isNullable: true } }),
-    lastPushStatus: (0, import_fields80.select)({
+    lastPushedAt: (0, import_fields81.timestamp)({ db: { isNullable: true } }),
+    lastPushStatus: (0, import_fields81.select)({
       type: "string",
       options: [...GOOGLE_LINK_STATUS_OPTIONS],
       defaultValue: "pending" /* PENDING */
     }),
-    lastPushError: (0, import_fields80.text)({
+    lastPushError: (0, import_fields81.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     })
@@ -13718,8 +13748,8 @@ var TechCalendarEventGoogleLink_default = (0, import_core80.list)({
 });
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var import_core81 = require("@keystone-6/core");
-var import_fields81 = require("@keystone-6/core/fields");
+var import_core82 = require("@keystone-6/core");
+var import_fields82 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.access.ts
 var techGoogleCalendarSyncLogAccess = {
@@ -13741,7 +13771,7 @@ var techGoogleCalendarSyncLogAccess = {
 };
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var TechGoogleCalendarSyncLog_default = (0, import_core81.list)({
+var TechGoogleCalendarSyncLog_default = (0, import_core82.list)({
   access: techGoogleCalendarSyncLogAccess,
   ui: {
     listView: {
@@ -13756,29 +13786,29 @@ var TechGoogleCalendarSyncLog_default = (0, import_core81.list)({
     }
   },
   fields: {
-    account: (0, import_fields81.relationship)({
+    account: (0, import_fields82.relationship)({
       ref: "GoogleCalendarAccount.syncLogs",
       many: false
     }),
-    direction: (0, import_fields81.select)({
+    direction: (0, import_fields82.select)({
       type: "string",
       options: [...GOOGLE_SYNC_DIRECTION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    operation: (0, import_fields81.select)({
+    operation: (0, import_fields82.select)({
       type: "string",
       options: [...GOOGLE_SYNC_OPERATION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    success: (0, import_fields81.checkbox)({ defaultValue: false }),
-    errorMessage: (0, import_fields81.text)({
+    success: (0, import_fields82.checkbox)({ defaultValue: false }),
+    errorMessage: (0, import_fields82.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si la llamada fall\xF3 (sin tokens)" }
     }),
-    durationMs: (0, import_fields81.integer)({ db: { isNullable: true } }),
-    createdAt: (0, import_fields81.timestamp)({ defaultValue: { kind: "now" } })
+    durationMs: (0, import_fields82.integer)({ db: { isNullable: true } }),
+    createdAt: (0, import_fields82.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
@@ -13793,6 +13823,7 @@ var schema_default = withActivityHooks({
   AnimalLog: AnimalLog_default,
   AnimalMultimedia: AnimalMultimedia_default,
   AnimalType: AnimalType_default,
+  AnimalView: AnimalView_default,
   BlogSubscription: BlogSubscription_default,
   Cart: Cart_default,
   Category: Category_default,
@@ -13868,7 +13899,7 @@ var schema_default = withActivityHooks({
 });
 
 // keystone.ts
-var import_core82 = require("@keystone-6/core");
+var import_core83 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto2 = require("crypto");
@@ -17881,14 +17912,14 @@ function trimOrEmpty(value, max) {
   return (value ?? "").trim().slice(0, max);
 }
 function parseCustomEmails(raw) {
-  const list82 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
-  if (list82.length === 0) {
+  const list83 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
+  if (list83.length === 0) {
     return {
       emails: [],
       error: "Agrega al menos un correo para el env\xEDo a usuarios espec\xEDficos."
     };
   }
-  if (list82.length > MAX_CUSTOM_RECIPIENTS) {
+  if (list83.length > MAX_CUSTOM_RECIPIENTS) {
     return {
       emails: [],
       error: `M\xE1ximo ${MAX_CUSTOM_RECIPIENTS} correos por env\xEDo a usuarios espec\xEDficos.`
@@ -17896,7 +17927,7 @@ function parseCustomEmails(raw) {
   }
   const seen = /* @__PURE__ */ new Set();
   const emails = [];
-  for (const email of list82) {
+  for (const email of list83) {
     if (!EMAIL_REGEX2.test(email)) {
       return { emails: [], error: `Correo inv\xE1lido: ${email}` };
     }
@@ -26492,12 +26523,12 @@ var resolver45 = {
   trackEvents: async (_root, { events }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    const list82 = Array.isArray(events) ? events : [];
-    if (!userId) return { accepted: 0, rejected: list82.length };
-    if (getImpersonation(context.session)) return { accepted: 0, rejected: list82.length };
+    const list83 = Array.isArray(events) ? events : [];
+    if (!userId) return { accepted: 0, rejected: list83.length };
+    if (getImpersonation(context.session)) return { accepted: 0, rejected: list83.length };
     const companyId = getSessionCompanyId(session2);
     const admin = isPlatformAdmin(session2);
-    const batch = list82.slice(0, MAX_EVENTS);
+    const batch = list83.slice(0, MAX_EVENTS);
     let accepted = 0;
     let heartbeatDone = false;
     for (const input of batch) {
@@ -26552,7 +26583,7 @@ var resolver45 = {
         );
       }
     }
-    return { accepted, rejected: list82.length - accepted };
+    return { accepted, rejected: list83.length - accepted };
   }
 };
 var trackEvents_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
@@ -33439,16 +33470,16 @@ async function computeSalesVelocity(prisma, options) {
   const messages = ownLeadIds ? allMessages.filter((m) => ownLeadIds.has(m.businessLeadId)) : allMessages;
   const byStatus = /* @__PURE__ */ new Map();
   for (const change of changes) {
-    const list82 = byStatus.get(change.statusId) ?? [];
-    list82.push(change);
-    byStatus.set(change.statusId, list82);
+    const list83 = byStatus.get(change.statusId) ?? [];
+    list83.push(change);
+    byStatus.set(change.statusId, list83);
   }
   const contactKey = (company, lead) => `${company}|${lead}`;
   const contactTimes = /* @__PURE__ */ new Map();
   const addContact = (key, at) => {
-    const list82 = contactTimes.get(key) ?? [];
-    list82.push(new Date(at).getTime());
-    contactTimes.set(key, list82);
+    const list83 = contactTimes.get(key) ?? [];
+    list83.push(new Date(at).getTime());
+    contactTimes.set(key, list83);
   };
   for (const activity of activities) {
     const company = activity.workspace?.companyId ?? activity.createdBy?.companyId ?? null;
@@ -33467,19 +33498,19 @@ async function computeSalesVelocity(prisma, options) {
   const companies = /* @__PURE__ */ new Map();
   const sellers = /* @__PURE__ */ new Map();
   const groupsFor = (companyId, statusId) => {
-    const list82 = [total];
+    const list83 = [total];
     if (companyId) {
       const group = companies.get(companyId) ?? emptyGroup();
       companies.set(companyId, group);
-      list82.push(group);
+      list83.push(group);
     }
     if (needStatuses) {
       const seller = sellerOf.get(statusId) ?? "";
       const group = sellers.get(seller) ?? emptyGroup();
       sellers.set(seller, group);
-      list82.push(group);
+      list83.push(group);
     }
-    return list82;
+    return list83;
   };
   const wonStatusIds = [];
   const stalledDeals = [];
@@ -33551,9 +33582,9 @@ async function computeSalesVelocity(prisma, options) {
   const conversations = /* @__PURE__ */ new Map();
   for (const message of messages) {
     const key = contactKey(message.companyId, message.businessLeadId);
-    const list82 = conversations.get(key) ?? [];
-    list82.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
-    conversations.set(key, list82);
+    const list83 = conversations.get(key) ?? [];
+    list83.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
+    conversations.set(key, list83);
   }
   let whatsappInbound = 0;
   let whatsappAnswered = 0;
@@ -33561,22 +33592,22 @@ async function computeSalesVelocity(prisma, options) {
   let whatsappConversations = 0;
   let whatsappReplied = 0;
   const responseMinutes = [];
-  for (const list82 of conversations.values()) {
-    list82.forEach((message, index) => {
-      if (message.direction !== "in" || list82[index - 1]?.direction === "in") return;
+  for (const list83 of conversations.values()) {
+    list83.forEach((message, index) => {
+      if (message.direction !== "in" || list83[index - 1]?.direction === "in") return;
       whatsappInbound += 1;
-      const reply = list82.slice(index + 1).find((m) => m.direction === "out");
+      const reply = list83.slice(index + 1).find((m) => m.direction === "out");
       if (!reply) return;
       whatsappAnswered += 1;
       const minutes = (reply.at - message.at) / 6e4;
       responseMinutes.push(minutes);
       if (minutes <= 60) whatsappAnsweredWithin1h += 1;
     });
-    const firstOut = list82.findIndex((m) => m.direction === "out");
-    if (firstOut >= 0 && (firstOut === 0 || list82[firstOut - 1].direction === "out")) {
+    const firstOut = list83.findIndex((m) => m.direction === "out");
+    if (firstOut >= 0 && (firstOut === 0 || list83[firstOut - 1].direction === "out")) {
       whatsappConversations += 1;
-      const start = list82[firstOut].at;
-      if (list82.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
+      const start = list83[firstOut].at;
+      if (list83.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
         whatsappReplied += 1;
       }
     }
@@ -33901,6 +33932,55 @@ var resolver74 = {
 };
 var companyAnalytics_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
+// graphql/customs/queries/landingStats.ts
+var CACHE_MS = 6 * 60 * 60 * 1e3;
+var cache = null;
+var typeDefs78 = `
+  type LandingStats {
+    leadsTotal: Int!
+    leadsWithPhone: Int!
+    categories: Int!
+    cities: Int!
+    companies: Int!
+    updatedAt: String!
+  }
+`;
+var definition75 = `landingStats: LandingStats!`;
+function unwrap(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+async function computeLandingStats(context) {
+  const prisma = context.sudo().prisma;
+  const nonEmpty = { not: "" };
+  const [leadsTotal, leadsWithPhone, categoryGroups, cityGroups, companiesTotal, excluded] = await Promise.all([
+    prisma.techBusinessLead.count(),
+    prisma.techBusinessLead.count({ where: { phone: nonEmpty } }),
+    prisma.techBusinessLead.groupBy({ by: ["category"], where: { category: nonEmpty } }),
+    prisma.techBusinessLead.groupBy({ by: ["city"], where: { city: nonEmpty } }),
+    prisma.saasCompany.count(),
+    analyticsExcludedCompanyIds(prisma)
+  ]);
+  return {
+    leadsTotal: unwrap(leadsTotal),
+    leadsWithPhone: unwrap(leadsWithPhone),
+    categories: unwrap(categoryGroups).length,
+    cities: unwrap(cityGroups).length,
+    // Sin cuentas de prueba ni empresas del equipo de Kadesh (misma regla que la Analítica).
+    companies: Math.max(0, unwrap(companiesTotal) - excluded.size),
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+var resolver75 = {
+  landingStats: async (_root, _args, context) => {
+    if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
+    const value = await computeLandingStats(context);
+    cache = { value, at: Date.now() };
+    return value;
+  }
+};
+var landingStats_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
+
 // graphql/customs/queries/index.ts
 var customQuery = {
   typeDefs: `
@@ -33931,6 +34011,7 @@ var customQuery = {
     ${adminAcquisition_default.typeDefs}
     ${adminSalesVelocity_default.typeDefs}
     ${companyAnalytics_default.typeDefs}
+    ${landingStats_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -33962,6 +34043,7 @@ var customQuery = {
     ${adminAcquisition_default.definition}
     ${adminSalesVelocity_default.definition}
     ${companyAnalytics_default.definition}
+    ${landingStats_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -33992,7 +34074,8 @@ var customQuery = {
     ...adminDemandGaps_default.resolver,
     ...adminAcquisition_default.resolver,
     ...adminSalesVelocity_default.resolver,
-    ...companyAnalytics_default.resolver
+    ...companyAnalytics_default.resolver,
+    ...landingStats_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -34865,7 +34948,7 @@ function markdownToDocument(markdown) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks = [];
   let paragraphLines = [];
-  let list82 = null;
+  let list83 = null;
   const flushParagraph = () => {
     const text73 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
     paragraphLines = [];
@@ -34873,15 +34956,15 @@ function markdownToDocument(markdown) {
     blocks.push({ type: "paragraph", children: padInlines(parseInlines(text73)) });
   };
   const flushList = () => {
-    if (!list82 || list82.items.length === 0) {
-      list82 = null;
+    if (!list83 || list83.items.length === 0) {
+      list83 = null;
       return;
     }
     blocks.push({
-      type: list82.ordered ? "ordered-list" : "unordered-list",
-      children: list82.items
+      type: list83.ordered ? "ordered-list" : "unordered-list",
+      children: list83.items
     });
-    list82 = null;
+    list83 = null;
   };
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -34895,11 +34978,11 @@ function markdownToDocument(markdown) {
     if (unordered || ordered) {
       flushParagraph();
       const orderedItem = Boolean(ordered);
-      if (!list82 || list82.ordered !== orderedItem) {
+      if (!list83 || list83.ordered !== orderedItem) {
         flushList();
-        list82 = { ordered: orderedItem, items: [] };
+        list83 = { ordered: orderedItem, items: [] };
       }
-      list82.items.push(listItem((unordered ?? ordered)[1]));
+      list83.items.push(listItem((unordered ?? ordered)[1]));
       continue;
     }
     const heading = boldOnlyInner(line);
@@ -35492,11 +35575,11 @@ async function handleSubscriptionChange(context, event) {
 async function invoiceIdForPaymentIntent(paymentIntentId) {
   if (!paymentIntentId) return null;
   try {
-    const list82 = await stripe_default.invoicePayments.list({
+    const list83 = await stripe_default.invoicePayments.list({
       payment: { type: "payment_intent", payment_intent: paymentIntentId },
       limit: 1
     });
-    return str(list82?.data?.[0]?.invoice);
+    return str(list83?.data?.[0]?.invoice);
   } catch {
     return null;
   }
@@ -35733,7 +35816,7 @@ var storage = {
   }
 };
 var keystone_default = withSessionGuards(withAuth(
-  (0, import_core82.config)({
+  (0, import_core83.config)({
     db: {
       provider: "postgresql",
       url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
