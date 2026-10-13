@@ -198,7 +198,7 @@ export async function createSaasPlan(
     name: "Free",
     cost: 0,
     frequency: PLAN_FREQUENCY.MONTHLY,
-    leadLimit: 50,
+    leadLimit: 70,
     planFeatures: planFeaturesFree,
     referralUpfrontCommissionPct: 0,
     referralRecurringCommissionPct: 0,
