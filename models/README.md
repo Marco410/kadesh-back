@@ -157,3 +157,9 @@ Qué: list nueva en la raíz, `ActivityEvent` (la usan Pet y SaaS), y `User/User
 Por qué: no había ningún registro genérico de quién cambia qué. Detalle, catálogo y reglas en `ActivityEvent/README.md`.
 
 Requiere `yarn migrate`. No lo corre el agente.
+
+### 2026-10-13 — Fechas de chats importados: DD/MM o MM/DD por archivo
+
+Qué: `parseWhatsAppChatExport` decide el formato de fecha con todo el archivo (`detectDateOrder`): si algún primer número pasa de 12 es DD/MM, si algún segundo pasa de 12 es MM/DD, y si es ambiguo gana el orden sin fechas futuras y cronológico; empate → DD/MM.
+
+Por qué: se asumía DD/MM por línea. Un chat exportado desde un teléfono en inglés de EE. UU. ("9/12/26" = 12 de septiembre) quedó como 9 de diciembre: fechas futuras que, al ordenar la Actividad de Operaciones por fecha, tapaban todo lo de hoy en "Todo". Además, `adminActivityFeed` ya no devuelve nada con fecha futura. Los ya importados se corrigen con `yarn whatsapp:fix-import-dates` (en la consola del back: usa la zona horaria con la que se importaron).

@@ -26,25 +26,53 @@ function parseTimeParts(raw: string): { hour: number; minute: number; second: nu
   return { hour, minute, second };
 }
 
-/**
- * `d1/d2/yyyy` es ambiguo (DD/MM vs MM/DD) sin metadata del export. Se asume DD/MM (locale
- * es-MX) salvo que d1 no pueda ser día (>31) o d2 no pueda ser mes (>12), donde se voltea.
- */
-function resolveDayMonth(d1: number, d2: number): { day: number; month: number } {
-  if (d2 > 12 && d1 <= 12) return { day: d2, month: d1 };
-  return { day: d1, month: d2 };
+type DateOrder = "dmy" | "mdy";
+
+type RawLine = {
+  d1: number;
+  d2: number;
+  year: number;
+  timeRaw: string;
+  sender: string;
+  body: string;
+};
+
+/** Un día de margen: un export con la hora del teléfono un poco adelantada no cuenta como futuro. */
+const FUTURE_SLACK_MS = 24 * 60 * 60 * 1000;
+
+function buildDate(line: RawLine, order: DateOrder): Date {
+  const day = order === "dmy" ? line.d1 : line.d2;
+  const month = order === "dmy" ? line.d2 : line.d1;
+  const { hour, minute, second } = parseTimeParts(line.timeRaw);
+  return new Date(line.year, month - 1, day, hour, minute, second);
 }
 
-function buildDate(
-  d1: string,
-  d2: string,
-  yearRaw: string,
-  timeRaw: string,
-): Date {
-  const year = yearRaw.length === 2 ? 2000 + parseInt(yearRaw, 10) : parseInt(yearRaw, 10);
-  const { day, month } = resolveDayMonth(parseInt(d1, 10), parseInt(d2, 10));
-  const { hour, minute, second } = parseTimeParts(timeRaw);
-  return new Date(year, month - 1, day, hour, minute, second);
+/** Qué tan mal se ve un orden: fechas futuras pesan mucho más que saltos hacia atrás. */
+function orderPenalty(lines: RawLine[], order: DateOrder, now: number): number {
+  let penalty = 0;
+  let previous = -Infinity;
+  for (const line of lines) {
+    const time = buildDate(line, order).getTime();
+    if (time > now + FUTURE_SLACK_MS) penalty += 100;
+    if (time < previous) penalty += 1;
+    previous = time;
+  }
+  return penalty;
+}
+
+/**
+ * `d1/d2/yyyy` es DD/MM (teléfono en español) o MM/DD (en inglés de EE. UU.), y el export no
+ * lo dice. Se decide con todo el archivo, no línea por línea:
+ * - si algún d1 > 12 es DD/MM; si algún d2 > 12 es MM/DD;
+ * - si ninguno lo delata, gana el orden sin fechas futuras y que va en orden cronológico
+ *   (WhatsApp exporta en orden); empate → DD/MM (es-MX).
+ * Antes se asumía DD/MM por línea y un chat en MM/DD quedaba con fechas futuras ("9 de
+ * diciembre" en vez de 12 de septiembre) que tapaban todo en la Actividad de Operaciones.
+ */
+export function detectDateOrder(lines: RawLine[], now = Date.now()): DateOrder {
+  if (lines.some((l) => l.d1 > 12)) return "dmy";
+  if (lines.some((l) => l.d2 > 12)) return "mdy";
+  return orderPenalty(lines, "mdy", now) < orderPenalty(lines, "dmy", now) ? "mdy" : "dmy";
 }
 
 /**
@@ -55,7 +83,7 @@ function buildDate(
  */
 export function parseWhatsAppChatExport(text: string): ParsedChatMessage[] {
   const lines = text.split(/\r?\n/);
-  const messages: ParsedChatMessage[] = [];
+  const raw: RawLine[] = [];
 
   for (const rawLine of lines) {
     // Algunos exports usan ‎ (LRM) al inicio de línea.
@@ -67,9 +95,12 @@ export function parseWhatsAppChatExport(text: string): ParsedChatMessage[] {
     const match = iosMatch || androidMatch;
 
     if (match) {
-      const [, d1, d2, year, time, senderRaw, bodyRaw] = match;
-      messages.push({
-        timestamp: buildDate(d1, d2, year, time),
+      const [, d1, d2, yearRaw, time, senderRaw, bodyRaw] = match;
+      raw.push({
+        d1: parseInt(d1, 10),
+        d2: parseInt(d2, 10),
+        year: yearRaw.length === 2 ? 2000 + parseInt(yearRaw, 10) : parseInt(yearRaw, 10),
+        timeRaw: time,
         sender: senderRaw.trim(),
         body: bodyRaw.trim(),
       });
@@ -77,13 +108,18 @@ export function parseWhatsAppChatExport(text: string): ParsedChatMessage[] {
     }
 
     // No matchea: continuación del mensaje anterior (o se ignora si no hay ninguno todavía).
-    const last = messages[messages.length - 1];
+    const last = raw[raw.length - 1];
     if (last) {
       last.body = `${last.body}\n${line}`.trim();
     }
   }
 
-  return messages;
+  const order = detectDateOrder(raw);
+  return raw.map((line) => ({
+    timestamp: buildDate(line, order),
+    sender: line.sender,
+    body: line.body,
+  }));
 }
 
 /** Nombres de remitente distintos, en orden de aparición. */
