@@ -79,3 +79,48 @@ export async function validateAnimalChildOwner({
     addValidationError("Solo el dueño del animal puede agregar o mover sus fotos y actualizaciones.");
   }
 }
+
+const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
+
+function ownRowWhere({ session }: { session?: unknown }) {
+  if (isPlatformAdmin(session as any)) return true;
+  const userId = getSessionUserId(session as any);
+  if (!userId) return false;
+  return { user: { id: { equals: userId } } };
+}
+
+/**
+ * `AnimalComment` y `AnimalFavorite`: públicos para leer (la ficha muestra comentarios y
+ * conteos); crear con sesión y a nombre propio; editar solo un admin; borrar el autor o un admin.
+ */
+export const animalUserRowAccess: ListAccessControl<any> = {
+  operation: { query: anyone, create: signedIn, update: adminOnly, delete: signedIn },
+  filter: { query: anyone, update: () => true, delete: ownRowWhere },
+};
+
+/**
+ * `AnimalView`: se registra también sin sesión (cuenta visitas); nadie la edita y solo un admin
+ * la borra. Lectura pública porque `animal_viewsCount` pasa por este acceso.
+ */
+export const animalViewAccess: ListAccessControl<any> = {
+  operation: { query: anyone, create: anyone, update: () => false, delete: adminOnly },
+};
+
+/**
+ * Comentario, favorito o vista quedan a nombre de quien tiene la sesión (o de nadie, en una
+ * vista anónima): el cliente ya no puede firmar por otra persona. Un admin y `sudo()` no cambian.
+ */
+export function forceSessionUser(
+  resolvedData: Record<string, any>,
+  operation: string,
+  context: KeystoneContext,
+): Record<string, any> {
+  if (operation !== "create" || isSudoContext(context) || isPlatformAdmin(context.session)) {
+    return resolvedData;
+  }
+  const userId = getSessionUserId(context.session);
+  const next = { ...resolvedData };
+  if (userId) next.user = { connect: { id: userId } };
+  else delete next.user;
+  return next;
+}

@@ -4,7 +4,7 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
 
 ## Invariantes
 
-- **Acceso** (`Animal.access.ts`): la ficha, sus bitácoras y fotos son públicas para leer. Crear exige sesión; editar y borrar, ser el dueño (`Animal.user`) o admin de plataforma. Un usuario normal siempre queda como dueño de lo que crea. Crear una bitácora o foto exige ser dueño del animal destino (`validateInput`). Lo que hace el servidor con `sudo()` no pasa por estas reglas.
+- **Acceso** (`Animal.access.ts`): la ficha, sus bitácoras y fotos son públicas para leer. Crear exige sesión; editar y borrar, ser el dueño (`Animal.user`) o admin de plataforma. Un usuario normal siempre queda como dueño de lo que crea. Crear una bitácora o foto exige ser dueño del animal destino (`validateInput`). Lo que hace el servidor con `sudo()` no pasa por estas reglas. Comentarios y favoritos: lectura pública, crear con sesión y siempre a nombre propio, borrar el autor o un admin, editar solo un admin. Vistas: se registran también sin sesión (nunca a nombre de otra persona), nadie las edita y solo un admin las borra; la lectura sigue pública porque `animal_viewsCount` pasa por ese acceso.
 - El `slug` se genera en el create y no se regenera al editar el nombre.
 - El primer `AnimalLog` puede enriquecer el slug con status/ciudad; logs posteriores no lo tocan.
 - Al **crear** un Animal con session:
@@ -34,7 +34,7 @@ Qué no hacer: no publicar en el `create` del formulario público; no volver a p
 
 ### 2026-10-13 — Solo el dueño o un admin cambian un animal
 
-Qué: `Animal`, `AnimalLog` y `AnimalMultimedia` dejan el acceso abierto genérico (`utils/generalAccess/access.ts`) por `Animal.access.ts`: lectura pública; crear con sesión; editar y borrar el dueño o un admin de plataforma; bitácoras y fotos nuevas solo sobre animales propios.
+Qué: `Animal`, `AnimalLog`, `AnimalMultimedia`, `AnimalComment`, `AnimalFavorite` y `AnimalView` dejan el acceso abierto genérico (`utils/generalAccess/access.ts`) por `Animal.access.ts`: lectura pública; crear con sesión; editar y borrar el dueño o un admin de plataforma; bitácoras y fotos nuevas solo sobre animales propios; comentarios, favoritos y vistas quedan a nombre de la sesión (el cliente ya no firma por otra persona) y solo el autor o un admin los borra.
 
 Por qué: con el acceso abierto, cualquiera —incluso sin sesión— podía editar o borrar cualquier animal por API; solo lo frenaba la pantalla de kadesh-landing. Es el primer paso de la fase 1 de Kadesh Pet en Operaciones (el admin edita desde el mismo formulario de kadesh-landing).
 
