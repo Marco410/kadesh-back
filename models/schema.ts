@@ -17,6 +17,7 @@ import PetPlace from "./Pet/PetPlace/PetPlace";
 import PetPlaceAppointment from "./Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment";
 import PetPlaceLike from "./Pet/PetPlace/PetPlaceLike/PetPlaceLike";
 import PetPlaceService from "./Pet/PetPlace/PetPlaceService/PetPlaceService";
+import PetPlaceSearchArea from "./Pet/PetPlace/PetPlaceSearchArea/PetPlaceSearchArea";
 import Schedule from "./Pet/Schedule/Schedule";
 import SocialMedia from "./Pet/SocialMedia/SocialMedia";
 import SystemRelease from "./SystemRelease/SystemRelease";
@@ -109,6 +110,7 @@ export default withActivityHooks({
   PetPlace,
   PetPlaceAppointment,
   PetPlaceLike,
+  PetPlaceSearchArea,
   PetPlaceService,
   PetPlaceType,
   Post,

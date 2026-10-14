@@ -461,6 +461,17 @@ model PetPlaceLike {
   @@index([pet_placeId])
 }
 
+model PetPlaceSearchArea {
+  id            String    @id @default(cuid())
+  key           String    @unique @default("")
+  type          String    @default("")
+  lat           Float?
+  lng           Float?
+  radiusKm      Float?
+  googleResults Int?      @default(0)
+  searchedAt    DateTime? @default(now())
+}
+
 model PetPlaceService {
   id                               String                @id @default(cuid())
   name                             String                @default("")

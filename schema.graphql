@@ -2436,6 +2436,83 @@ input PetPlaceLikeCreateInput {
   createdAt: DateTime
 }
 
+type PetPlaceSearchArea {
+  id: ID!
+  key: String
+  type: String
+  lat: Float
+  lng: Float
+  radiusKm: Float
+  googleResults: Int
+  searchedAt: DateTime
+}
+
+input PetPlaceSearchAreaWhereUniqueInput {
+  id: ID
+  key: String
+}
+
+input PetPlaceSearchAreaWhereInput {
+  AND: [PetPlaceSearchAreaWhereInput!]
+  OR: [PetPlaceSearchAreaWhereInput!]
+  NOT: [PetPlaceSearchAreaWhereInput!]
+  id: IDFilter
+  key: StringFilter
+  type: StringFilter
+  lat: FloatNullableFilter
+  lng: FloatNullableFilter
+  radiusKm: FloatNullableFilter
+  googleResults: IntNullableFilter
+  searchedAt: DateTimeNullableFilter
+}
+
+input FloatNullableFilter {
+  equals: Float
+  in: [Float!]
+  notIn: [Float!]
+  lt: Float
+  lte: Float
+  gt: Float
+  gte: Float
+  not: FloatNullableFilter
+}
+
+input PetPlaceSearchAreaOrderByInput {
+  id: OrderDirection
+  key: OrderDirection
+  type: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  radiusKm: OrderDirection
+  googleResults: OrderDirection
+  searchedAt: OrderDirection
+}
+
+input PetPlaceSearchAreaUpdateInput {
+  key: String
+  type: String
+  lat: Float
+  lng: Float
+  radiusKm: Float
+  googleResults: Int
+  searchedAt: DateTime
+}
+
+input PetPlaceSearchAreaUpdateArgs {
+  where: PetPlaceSearchAreaWhereUniqueInput!
+  data: PetPlaceSearchAreaUpdateInput!
+}
+
+input PetPlaceSearchAreaCreateInput {
+  key: String
+  type: String
+  lat: Float
+  lng: Float
+  radiusKm: Float
+  googleResults: Int
+  searchedAt: DateTime
+}
+
 type PetPlaceService {
   id: ID!
   name: String
@@ -4286,17 +4363,6 @@ input SaasCompanySubscriptionWhereInput {
   saasSubscriptionLogs: SaasSubscriptionLogManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
-}
-
-input FloatNullableFilter {
-  equals: Float
-  in: [Float!]
-  notIn: [Float!]
-  lt: Float
-  lte: Float
-  gt: Float
-  gte: Float
-  not: FloatNullableFilter
 }
 
 input SaasPaymentManyRelationFilter {
@@ -9036,6 +9102,12 @@ type Mutation {
   updatePetPlaceLikes(data: [PetPlaceLikeUpdateArgs!]!): [PetPlaceLike]
   deletePetPlaceLike(where: PetPlaceLikeWhereUniqueInput!): PetPlaceLike
   deletePetPlaceLikes(where: [PetPlaceLikeWhereUniqueInput!]!): [PetPlaceLike]
+  createPetPlaceSearchArea(data: PetPlaceSearchAreaCreateInput!): PetPlaceSearchArea
+  createPetPlaceSearchAreas(data: [PetPlaceSearchAreaCreateInput!]!): [PetPlaceSearchArea]
+  updatePetPlaceSearchArea(where: PetPlaceSearchAreaWhereUniqueInput!, data: PetPlaceSearchAreaUpdateInput!): PetPlaceSearchArea
+  updatePetPlaceSearchAreas(data: [PetPlaceSearchAreaUpdateArgs!]!): [PetPlaceSearchArea]
+  deletePetPlaceSearchArea(where: PetPlaceSearchAreaWhereUniqueInput!): PetPlaceSearchArea
+  deletePetPlaceSearchAreas(where: [PetPlaceSearchAreaWhereUniqueInput!]!): [PetPlaceSearchArea]
   createPetPlaceService(data: PetPlaceServiceCreateInput!): PetPlaceService
   createPetPlaceServices(data: [PetPlaceServiceCreateInput!]!): [PetPlaceService]
   updatePetPlaceService(where: PetPlaceServiceWhereUniqueInput!, data: PetPlaceServiceUpdateInput!): PetPlaceService
@@ -9552,6 +9624,9 @@ type Query {
   petPlaceLike(where: PetPlaceLikeWhereUniqueInput!): PetPlaceLike
   petPlaceLikes(where: PetPlaceLikeWhereInput! = {}, orderBy: [PetPlaceLikeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceLikeWhereUniqueInput): [PetPlaceLike!]
   petPlaceLikesCount(where: PetPlaceLikeWhereInput! = {}): Int
+  petPlaceSearchArea(where: PetPlaceSearchAreaWhereUniqueInput!): PetPlaceSearchArea
+  petPlaceSearchAreas(where: PetPlaceSearchAreaWhereInput! = {}, orderBy: [PetPlaceSearchAreaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceSearchAreaWhereUniqueInput): [PetPlaceSearchArea!]
+  petPlaceSearchAreasCount(where: PetPlaceSearchAreaWhereInput! = {}): Int
   petPlaceService(where: PetPlaceServiceWhereUniqueInput!): PetPlaceService
   petPlaceServices(where: PetPlaceServiceWhereInput! = {}, orderBy: [PetPlaceServiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceServiceWhereUniqueInput): [PetPlaceService!]
   petPlaceServicesCount(where: PetPlaceServiceWhereInput! = {}): Int
