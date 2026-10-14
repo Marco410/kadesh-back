@@ -9,7 +9,7 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
 - El primer `AnimalLog` puede enriquecer el slug con status/ciudad; logs posteriores no lo tocan.
 - Al **crear** un Animal con session:
   - **Admin de plataforma** (`Role.ADMIN`) → publica en la Página de Facebook Pet (`FACEBOOK_PET_*`) cuando el slug ya es el del primer log y la portada, si hay fotos, ya está guardada. Si log y fotos vienen en el mismo `create`, publica al terminar ese `create`. Si no hay fotos, publica a los 90 s del primer log. Link: `{PET_FRONTEND_URL}/animales/{slug}`.
-  - **Cualquier otro usuario** → correo a `SMTP_ADMIN_NOTIFICATION_EMAILS`.
+  - **Cualquier otro usuario** → notificación a los admins en la campana de Operaciones (`animal.created`). El correo a `SMTP_ADMIN_NOTIFICATION_EMAILS` solo sale con `ADMIN_NOTIFICATION_EMAILS=on`.
   - **Sin session** (seed/scripts) → ni Facebook ni correo.
 - Fallos de Facebook o correo se loguean; no abortan el create.
 - La espera de Facebook vive en el proceso que creó el animal. Si ese proceso se reinicia antes de publicar, ese animal no sale en la Página.
@@ -22,7 +22,7 @@ Qué: `animalCreateSideEffectsHook` en create genera el slug y luego ramifica po
 
 Por qué: los registros del admin se publican de inmediato en la Página Pet; los del resto avisan para revisión sin auto-postear.
 
-Qué no hacer: no añadir `publishedToFacebookAt` (create dispara una sola vez); no publicar en Facebook SaaS; no re-disparar el side effect en el update del slug.
+Qué no hacer: no publicar en Facebook SaaS; no re-disparar el side effect en el update del slug. (La prohibición de guardar la fecha de publicación se revirtió el 2026-10-14, ver abajo.)
 
 ### 2026-10-01 — Facebook después del slug y de la portada
 
@@ -39,3 +39,9 @@ Qué: `Animal`, `AnimalLog`, `AnimalMultimedia`, `AnimalComment`, `AnimalFavorit
 Por qué: con el acceso abierto, cualquiera —incluso sin sesión— podía editar o borrar cualquier animal por API; solo lo frenaba la pantalla de kadesh-landing. Es el primer paso de la fase 1 de Kadesh Pet en Operaciones (el admin edita desde el mismo formulario de kadesh-landing).
 
 Qué no hacer: no volver a `generalAccess` en estas lists; no validar dueño en escrituras `sudo()` (reportes del servidor, semillas).
+
+### 2026-10-14 — Registro de Facebook y administración desde Operaciones
+
+Qué: `Animal` guarda `facebookPostId`, `facebookPublishedAt` y `facebookPublishedBy` cada vez que se publica, sea la publicación automática del admin o el botón de Operaciones (`adminPublishAnimalToFacebook`, que no repite salvo `force`). Operaciones lista y detalla animales con `adminAnimals` / `adminAnimalDetail` (estadísticas de vistas, favoritos y comentarios) y borra vistas con `adminPurgeAnimalViews`.
+
+Por qué: los animales de usuarios no se publican solos y el admin necesita publicarlos a mano sin duplicar posts; sin registro no había forma de saber cuáles ya salieron. Revierte la decisión del 2026-09-29 de no guardar la fecha de publicación.

@@ -203,14 +203,23 @@ function sessionCreator(session: KeystoneContext["session"]): {
   };
 }
 
-async function publishAnimalToFacebook(animal: {
-  name?: string | null;
-  physical_description?: string | null;
-  slug?: string | null;
-}): Promise<void> {
+/**
+ * Publica el animal en la Página de Facebook de Pet y deja registro (`facebookPostId`,
+ * `facebookPublishedAt`, `facebookPublishedBy`): así Operaciones sabe si ya salió y no lo repite.
+ * Devuelve el id del post, o null si no se publicó (Página sin configurar, sin slug o error).
+ */
+async function publishAnimalToFacebook(
+  animal: {
+    id: string;
+    name?: string | null;
+    physical_description?: string | null;
+    slug?: string | null;
+  },
+  context: KeystoneContext,
+): Promise<string | null> {
   if (!animal.slug) {
     console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
-    return;
+    return null;
   }
 
   const message = animal.physical_description
@@ -222,32 +231,43 @@ async function publishAnimalToFacebook(animal: {
     message,
     link: animalPublicUrl(animal.slug),
   });
+  if (!result?.id) return null;
 
-  if (result?.id) {
-    console.log(
-      `[facebook] Animal publicado en la Página de Pet: ${result.id}`,
-    );
-  }
+  console.log(`[facebook] Animal publicado en la Página de Pet: ${result.id}`);
+  const publishedById = context.session?.data?.id ?? null;
+  await context.sudo().db.Animal.updateOne({
+    where: { id: animal.id },
+    data: {
+      facebookPostId: result.id,
+      facebookPublishedAt: new Date().toISOString(),
+      ...(publishedById ? { facebookPublishedBy: { connect: { id: publishedById } } } : {}),
+    },
+  });
+  return result.id;
 }
 
 /** Relee el slug ya definitivo (después del primer log) y publica ese link. */
 export async function publishAnimalToFacebookById(
   animalId: string,
   context: KeystoneContext,
-): Promise<void> {
+): Promise<string | null> {
   const animal = await context.sudo().query.Animal.findOne({
     where: { id: animalId },
     query: "id name physical_description slug",
   });
   if (!animal?.slug) {
     console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
-    return;
+    return null;
   }
-  await publishAnimalToFacebook({
-    name: animal.name ?? null,
-    physical_description: animal.physical_description ?? null,
-    slug: animal.slug,
-  });
+  return publishAnimalToFacebook(
+    {
+      id: String(animal.id),
+      name: animal.name ?? null,
+      physical_description: animal.physical_description ?? null,
+      slug: animal.slug,
+    },
+    context,
+  );
 }
 
 setAnimalFacebookPublisher(publishAnimalToFacebookById);
@@ -366,7 +386,7 @@ export const animalCreateSideEffectsHook = {
         // Alta anidada (Admin): slug y portada ya están. El formulario público
         // manda el log y las fotos después; publicar aquí cachea el link viejo.
         if (hasCover && hasLog && resolved.slug) {
-          await publishAnimalToFacebook(resolved);
+          await publishAnimalToFacebook(resolved, context);
         } else {
           watchAnimalForFacebook(animalId, context);
         }

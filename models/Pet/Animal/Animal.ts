@@ -105,6 +105,19 @@ export default list({
       ref: "AnimalView.animal",
       many: true,
     }),
+    /** Registro de la publicación en la Página de Facebook de Pet (automática o desde Operaciones). */
+    facebookPostId: text({
+      ui: { itemView: { fieldMode: "read" }, description: "Id del post en la Página de Facebook de Pet" },
+    }),
+    facebookPublishedAt: timestamp({
+      db: { isNullable: true },
+      ui: { itemView: { fieldMode: "read" } },
+    }),
+    facebookPublishedBy: relationship({
+      ref: "User",
+      many: false,
+      ui: { itemView: { fieldMode: "read" }, description: "Quién lo publicó en Facebook" },
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
