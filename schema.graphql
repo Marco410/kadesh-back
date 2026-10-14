@@ -490,6 +490,9 @@ type Animal {
   logsCount(where: AnimalLogWhereInput! = {}): Int
   animal_views(where: AnimalViewWhereInput! = {}, orderBy: [AnimalViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalViewWhereUniqueInput): [AnimalView!]
   animal_viewsCount(where: AnimalViewWhereInput! = {}): Int
+  facebookPostId: String
+  facebookPublishedAt: DateTime
+  facebookPublishedBy: User
   createdAt: DateTime
 }
 
@@ -520,6 +523,9 @@ input AnimalWhereInput {
   multimedia: AnimalMultimediaManyRelationFilter
   logs: AnimalLogManyRelationFilter
   animal_views: AnimalViewManyRelationFilter
+  facebookPostId: StringFilter
+  facebookPublishedAt: DateTimeNullableFilter
+  facebookPublishedBy: UserWhereInput
   createdAt: DateTimeNullableFilter
 }
 
@@ -554,6 +560,8 @@ input AnimalOrderByInput {
   contactNumber2: OrderDirection
   sourceUrl: OrderDirection
   reportedBy: OrderDirection
+  facebookPostId: OrderDirection
+  facebookPublishedAt: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -575,6 +583,9 @@ input AnimalUpdateInput {
   multimedia: AnimalMultimediaRelateToManyForUpdateInput
   logs: AnimalLogRelateToManyForUpdateInput
   animal_views: AnimalViewRelateToManyForUpdateInput
+  facebookPostId: String
+  facebookPublishedAt: DateTime
+  facebookPublishedBy: UserRelateToOneForUpdateInput
   createdAt: DateTime
 }
 
@@ -634,6 +645,9 @@ input AnimalCreateInput {
   multimedia: AnimalMultimediaRelateToManyForCreateInput
   logs: AnimalLogRelateToManyForCreateInput
   animal_views: AnimalViewRelateToManyForCreateInput
+  facebookPostId: String
+  facebookPublishedAt: DateTime
+  facebookPublishedBy: UserRelateToOneForCreateInput
   createdAt: DateTime
 }
 
@@ -9426,6 +9440,8 @@ type Mutation {
   endImpersonation: AdminControlResult!
   adminExportPersonData(userId: ID!): JSON!
   adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
+  adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
+  adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   markAllNotificationsRead(product: String): Int!
   authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String, attribution: JSON): AuthenticateUserWithGoogleResult!
@@ -9745,6 +9761,8 @@ type Query {
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
   marketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String): MarketInsightResult!
+  adminAnimals(search: String, animalTypeId: ID, reportedBy: String, creator: String, facebook: String, take: Int, skip: Int): AdminAnimalsResult!
+  adminAnimalDetail(id: ID!): AdminAnimalDetail
   landingStats: LandingStats!
 }
 
@@ -11701,6 +11719,88 @@ type AdminSalesVelocity {
   """De esas, en cuántas contestó el lead (en 7 días)."""
   whatsappReplied: Int!
   companies: [AdminCompanyVelocity!]!
+}
+
+type AdminAnimalRow {
+  id: ID!
+  name: String!
+  slug: String
+  createdAt: String
+  reportedBy: String
+  sex: String
+  animalType: String
+  breed: String
+  coverUrl: String
+  status: String
+  city: String
+  state: String
+  creator: AdminPersonRef
+  creatorIsAdmin: Boolean!
+  views: Int!
+  views7d: Int!
+  favorites: Int!
+  comments: Int!
+  facebookPostId: String
+  facebookPublishedAt: String
+}
+
+type AdminAnimalsResult {
+  total: Int!
+  items: [AdminAnimalRow!]!
+}
+
+type AdminAnimalLog {
+  id: ID!
+  status: String
+  notes: String
+  city: String
+  state: String
+  address: String
+  createdAt: String
+}
+
+type AdminAnimalComment {
+  id: ID!
+  comment: String!
+  createdAt: String
+  user: AdminPersonRef
+}
+
+type AdminAnimalFavorite {
+  id: ID!
+  createdAt: String
+  user: AdminPersonRef
+}
+
+type AdminAnimalViewDay {
+  day: String!
+  count: Int!
+}
+
+type AdminAnimalViews {
+  total: Int!
+  anonymous: Int!
+  signedIn: Int!
+  last7d: Int!
+  daily: [AdminAnimalViewDay!]!
+  recentViewers: [AdminPersonRef!]!
+}
+
+type AdminAnimalDetail {
+  animal: AdminAnimalRow!
+  physicalDescription: String
+  age: String
+  color: String
+  size: String
+  contactNumber: String
+  contactNumber2: String
+  sourceUrl: String
+  photos: [String!]!
+  logs: [AdminAnimalLog!]!
+  comments: [AdminAnimalComment!]!
+  favoritesList: [AdminAnimalFavorite!]!
+  viewStats: AdminAnimalViews!
+  facebookPublishedBy: AdminPersonRef
 }
 
 input CompanyAnalyticsInput {

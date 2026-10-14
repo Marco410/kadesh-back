@@ -117,6 +117,10 @@ model Animal {
   multimedia                 AnimalMultimedia[] @relation("AnimalMultimedia_animal")
   logs                       AnimalLog[]        @relation("AnimalLog_animal")
   animal_views               AnimalView[]       @relation("AnimalView_animal")
+  facebookPostId             String             @default("")
+  facebookPublishedAt        DateTime?
+  facebookPublishedBy        User?              @relation("Animal_facebookPublishedBy", fields: [facebookPublishedById], references: [id])
+  facebookPublishedById      String?            @map("facebookPublishedBy")
   createdAt                  DateTime?          @default(now())
   from_AnimalComment_animal  AnimalComment[]    @relation("AnimalComment_animal")
   from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
@@ -124,6 +128,7 @@ model Animal {
   @@index([animal_typeId])
   @@index([animal_breedId])
   @@index([userId])
+  @@index([facebookPublishedById])
 }
 
 model AnimalBreed {
@@ -1781,6 +1786,7 @@ model User {
   from_Notification_recipient              Notification[]           @relation("Notification_recipient")
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")
+  from_Animal_facebookPublishedBy          Animal[]                 @relation("Animal_facebookPublishedBy")
   from_AnimalComment_user                  AnimalComment[]          @relation("AnimalComment_user")
   from_AnimalFavorite_user                 AnimalFavorite[]         @relation("AnimalFavorite_user")
   from_AnimalView_user                     AnimalView[]             @relation("AnimalView_user")
