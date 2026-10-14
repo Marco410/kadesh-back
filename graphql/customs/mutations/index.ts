@@ -44,6 +44,7 @@ import trackEvents from "./activity/trackEvents";
 import adminCompanyOps from "./admin/companyOps";
 import adminAccountControl from "./admin/accountControl";
 import rollupDailyUsage from "./rollupDailyUsage";
+import markAllNotificationsRead from "./notifications/markAllNotificationsRead";
 
 const customMutation = {
   typeDefs: `
@@ -93,6 +94,7 @@ const customMutation = {
     ${adminCompanyOps.typeDefs}
     ${adminAccountControl.typeDefs}
     ${rollupDailyUsage.typeDefs}
+    ${markAllNotificationsRead.typeDefs}
   `,
   definitions: `
     ${authenticateUserWithGoogle.definition}
@@ -141,6 +143,7 @@ const customMutation = {
     ${adminCompanyOps.definition}
     ${adminAccountControl.definition}
     ${rollupDailyUsage.definition}
+    ${markAllNotificationsRead.definition}
   `,
   resolvers: {
     ...authenticateUserWithGoogle.resolver,
@@ -189,6 +192,7 @@ const customMutation = {
     ...adminCompanyOps.resolver,
     ...adminAccountControl.resolver,
     ...rollupDailyUsage.resolver,
+    ...markAllNotificationsRead.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {

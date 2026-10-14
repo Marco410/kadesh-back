@@ -3,6 +3,8 @@ import { isPlatformAdmin } from "../../../utils/access/tenant";
 import { PRODUCT } from "../../../utils/constants/product";
 import { postToFacebookPage } from "../../../utils/intregrations/facebook";
 import { sendAdminNewAnimalEmail } from "../../../utils/helpers/sendgrid";
+import { adminNotificationEmailsEnabled, notify } from "../../../utils/notifications/notify";
+import { NOTIFICATION_TYPE } from "../../Notification/constants";
 import {
   noteAnimalCoverSaved,
   noteAnimalSlugSettled,
@@ -250,7 +252,9 @@ export async function publishAnimalToFacebookById(
 
 setAnimalFacebookPublisher(publishAnimalToFacebookById);
 
+/** Aviso a los admins de un animal nuevo de un usuario: campana de Operaciones (y correo si se pide). */
 async function notifyAdminsNewAnimal(
+  context: KeystoneContext,
   animal: {
     id: string;
     name?: string | null;
@@ -260,12 +264,29 @@ async function notifyAdminsNewAnimal(
   creator: { name: string; email: string },
 ): Promise<void> {
   const slug = animal.slug || undefined;
+  const animalName = animal.name || "(sin nombre)";
+  const animalType = animal.animal_type?.name || undefined;
+  const publicUrl = slug ? animalPublicUrl(slug) : undefined;
+
+  await notify(context, {
+    audience: "platform_admins",
+    product: "pet",
+    type: NOTIFICATION_TYPE.ANIMAL_CREATED,
+    title: `Nuevo animal: ${animalName}`,
+    body: [animalType, `publicado por ${creator.name}`].filter(Boolean).join(" · "),
+    entityType: "Animal",
+    entityId: animal.id,
+    url: publicUrl ?? null,
+    metadata: { slug: slug ?? null, animalType: animalType ?? null },
+  });
+
+  if (!adminNotificationEmailsEnabled()) return;
   await sendAdminNewAnimalEmail({
     animalId: animal.id,
-    animalName: animal.name || "(sin nombre)",
-    animalType: animal.animal_type?.name || undefined,
+    animalName,
+    animalType,
     slug,
-    publicUrl: slug ? animalPublicUrl(slug) : undefined,
+    publicUrl,
     creatorName: creator.name,
     creatorEmail: creator.email,
   });
@@ -358,11 +379,11 @@ export const animalCreateSideEffectsHook = {
               : resolved.user?.name?.trim() || "Usuario",
           email: fromSession.email || resolved.user?.email?.trim() || "",
         };
-        await notifyAdminsNewAnimal(resolved, creator);
+        await notifyAdminsNewAnimal(context, resolved, creator);
       }
     } catch (error) {
       console.error(
-        "[animal] Error en side effect de create (Facebook/correo):",
+        "[animal] Error en side effect de create (Facebook/aviso):",
         error,
       );
     }
