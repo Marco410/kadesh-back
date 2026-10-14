@@ -42,7 +42,7 @@ type Tracker = {
 const sudoCache = new WeakMap<object, boolean>();
 
 /** `context.sudo()` usa otro schema: así se distingue una escritura del servidor de una persona. */
-function isSudoContext(context: KeystoneContext): boolean {
+export function isSudoContext(context: KeystoneContext): boolean {
   const cached = sudoCache.get(context);
   if (cached !== undefined) return cached;
   let sudo = false;

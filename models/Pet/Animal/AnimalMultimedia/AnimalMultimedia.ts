@@ -1,11 +1,11 @@
 import { list } from "@keystone-6/core";
 import { image, integer, relationship, timestamp } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { animalChildAccess, validateAnimalChildOwner } from "../Animal.access";
 import { animalMultimediaFacebookHook } from "../Animal.hooks";
 
 export default list({
-  access,
-  hooks: animalMultimediaFacebookHook,
+  access: animalChildAccess,
+  hooks: { ...animalMultimediaFacebookHook, validateInput: validateAnimalChildOwner },
   fields: {
     image: image({
       storage: "s3_animals",

@@ -4,6 +4,7 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
 
 ## Invariantes
 
+- **Acceso** (`Animal.access.ts`): la ficha, sus bitácoras y fotos son públicas para leer. Crear exige sesión; editar y borrar, ser el dueño (`Animal.user`) o admin de plataforma. Un usuario normal siempre queda como dueño de lo que crea. Crear una bitácora o foto exige ser dueño del animal destino (`validateInput`). Lo que hace el servidor con `sudo()` no pasa por estas reglas.
 - El `slug` se genera en el create y no se regenera al editar el nombre.
 - El primer `AnimalLog` puede enriquecer el slug con status/ciudad; logs posteriores no lo tocan.
 - Al **crear** un Animal con session:
@@ -30,3 +31,11 @@ Qué: el formulario crea el animal, después el log (el slug puede ganar status 
 El admin deja el animal en espera. El primer log reinicia esa espera. Cada `AnimalMultimedia` nuevo, si el animal sigue en espera, publica 2.5 s después de la última foto. Si en el mismo `create` ya vienen log y portada (Admin de Keystone), se publica ahí mismo. Un slug que el log ya escribió no se regenera.
 
 Qué no hacer: no publicar en el `create` del formulario público; no volver a publicar si llegan fotos cuando la espera ya terminó.
+
+### 2026-10-13 — Solo el dueño o un admin cambian un animal
+
+Qué: `Animal`, `AnimalLog` y `AnimalMultimedia` dejan el acceso abierto genérico (`utils/generalAccess/access.ts`) por `Animal.access.ts`: lectura pública; crear con sesión; editar y borrar el dueño o un admin de plataforma; bitácoras y fotos nuevas solo sobre animales propios.
+
+Por qué: con el acceso abierto, cualquiera —incluso sin sesión— podía editar o borrar cualquier animal por API; solo lo frenaba la pantalla de kadesh-landing. Es el primer paso de la fase 1 de Kadesh Pet en Operaciones (el admin edita desde el mismo formulario de kadesh-landing).
+
+Qué no hacer: no volver a `generalAccess` en estas lists; no validar dueño en escrituras `sudo()` (reportes del servidor, semillas).

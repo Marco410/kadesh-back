@@ -1,15 +1,15 @@
 import { list } from "@keystone-6/core";
 import { relationship, select, text, timestamp } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import { animalAccess, forceAnimalOwner } from "./Animal.access";
 import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
 import { animalCreateSideEffectsHook } from "./Animal.hooks";
 import { normalizeMxPhone } from "../../../utils/pet/phone";
 
 export default list({
-  access,
+  access: animalAccess,
   hooks: {
-    resolveInput: ({ resolvedData }) => {
-      const data = { ...resolvedData };
+    resolveInput: ({ resolvedData, operation, context }) => {
+      const data = forceAnimalOwner({ ...resolvedData }, operation, context);
       for (const key of ["contactNumber", "contactNumber2"] as const) {
         if (!(key in data) || data[key] == null) continue;
         const raw = String(data[key]);
