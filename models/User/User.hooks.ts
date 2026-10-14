@@ -4,6 +4,8 @@ import {
   sendUserWelcomeEmail,
   emailBrandForUser,
 } from "../../utils/helpers/sendgrid";
+import { adminNotificationEmailsEnabled, notify } from "../../utils/notifications/notify";
+import { NOTIFICATION_TYPE } from "../Notification/constants";
 import {
   ASSIGNABLE_COMPANY_ROLE_NAMES,
   PROTECTED_COMPANY_ROLE_NAMES,
@@ -443,7 +445,7 @@ export const userWelcomeEmailHook = {
 
 export const userBankDetailsNotificationHook = {
   afterOperation: async (args: any) => {
-    const { listKey, operation, inputData, item } = args;
+    const { listKey, operation, inputData, item, context } = args;
     if (listKey !== "User" || operation !== "update" || !item?.id) return;
     if (!inputData) return;
 
@@ -458,6 +460,19 @@ export const userBankDetailsNotificationHook = {
       "(sin nombre)";
     const userEmail = item.email ?? "";
 
+    // Aviso en la campana de Operaciones. Solo los nombres de los campos, nunca los valores.
+    await notify(context, {
+      audience: "platform_admins",
+      product: item.companyId ? "saas" : "pet",
+      type: NOTIFICATION_TYPE.USER_BANK_DETAILS_UPDATED,
+      title: `${userName} actualizó sus datos bancarios`,
+      body: fieldsUpdated.join(", "),
+      entityType: "User",
+      entityId: userId,
+      metadata: { fields: [...fieldsUpdated] },
+    });
+
+    if (!adminNotificationEmailsEnabled()) return;
     try {
       await sendAdminUserBankDetailsUpdatedEmail({
         userId,

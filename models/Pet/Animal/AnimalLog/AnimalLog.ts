@@ -7,14 +7,15 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { animalChildAccess, validateAnimalChildOwner } from "../Animal.access";
 import { ANIMAL_LOGS_OPTIONS } from "../../../../utils/constants/constants";
 import { animalLogSlugAfterOperation } from "../Animal.hooks";
 import { fillCityFromCoordinates } from "../../../../utils/pet/animalReport";
 
 export default list({
-  access,
+  access: animalChildAccess,
   hooks: {
+    validateInput: validateAnimalChildOwner,
     resolveInput: async ({ resolvedData, operation }) => {
       const data = { ...resolvedData };
       const shouldFill =

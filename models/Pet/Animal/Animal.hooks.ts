@@ -3,6 +3,8 @@ import { isPlatformAdmin } from "../../../utils/access/tenant";
 import { PRODUCT } from "../../../utils/constants/product";
 import { postToFacebookPage } from "../../../utils/intregrations/facebook";
 import { sendAdminNewAnimalEmail } from "../../../utils/helpers/sendgrid";
+import { adminNotificationEmailsEnabled, notify } from "../../../utils/notifications/notify";
+import { NOTIFICATION_TYPE } from "../../Notification/constants";
 import {
   noteAnimalCoverSaved,
   noteAnimalSlugSettled,
@@ -201,14 +203,23 @@ function sessionCreator(session: KeystoneContext["session"]): {
   };
 }
 
-async function publishAnimalToFacebook(animal: {
-  name?: string | null;
-  physical_description?: string | null;
-  slug?: string | null;
-}): Promise<void> {
+/**
+ * Publica el animal en la Página de Facebook de Pet y deja registro (`facebookPostId`,
+ * `facebookPublishedAt`, `facebookPublishedBy`): así Operaciones sabe si ya salió y no lo repite.
+ * Devuelve el id del post, o null si no se publicó (Página sin configurar, sin slug o error).
+ */
+async function publishAnimalToFacebook(
+  animal: {
+    id: string;
+    name?: string | null;
+    physical_description?: string | null;
+    slug?: string | null;
+  },
+  context: KeystoneContext,
+): Promise<string | null> {
   if (!animal.slug) {
     console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
-    return;
+    return null;
   }
 
   const message = animal.physical_description
@@ -220,37 +231,50 @@ async function publishAnimalToFacebook(animal: {
     message,
     link: animalPublicUrl(animal.slug),
   });
+  if (!result?.id) return null;
 
-  if (result?.id) {
-    console.log(
-      `[facebook] Animal publicado en la Página de Pet: ${result.id}`,
-    );
-  }
+  console.log(`[facebook] Animal publicado en la Página de Pet: ${result.id}`);
+  const publishedById = context.session?.data?.id ?? null;
+  await context.sudo().db.Animal.updateOne({
+    where: { id: animal.id },
+    data: {
+      facebookPostId: result.id,
+      facebookPublishedAt: new Date().toISOString(),
+      ...(publishedById ? { facebookPublishedBy: { connect: { id: publishedById } } } : {}),
+    },
+  });
+  return result.id;
 }
 
 /** Relee el slug ya definitivo (después del primer log) y publica ese link. */
 export async function publishAnimalToFacebookById(
   animalId: string,
   context: KeystoneContext,
-): Promise<void> {
+): Promise<string | null> {
   const animal = await context.sudo().query.Animal.findOne({
     where: { id: animalId },
     query: "id name physical_description slug",
   });
   if (!animal?.slug) {
     console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
-    return;
+    return null;
   }
-  await publishAnimalToFacebook({
-    name: animal.name ?? null,
-    physical_description: animal.physical_description ?? null,
-    slug: animal.slug,
-  });
+  return publishAnimalToFacebook(
+    {
+      id: String(animal.id),
+      name: animal.name ?? null,
+      physical_description: animal.physical_description ?? null,
+      slug: animal.slug,
+    },
+    context,
+  );
 }
 
 setAnimalFacebookPublisher(publishAnimalToFacebookById);
 
+/** Aviso a los admins de un animal nuevo de un usuario: campana de Operaciones (y correo si se pide). */
 async function notifyAdminsNewAnimal(
+  context: KeystoneContext,
   animal: {
     id: string;
     name?: string | null;
@@ -260,12 +284,29 @@ async function notifyAdminsNewAnimal(
   creator: { name: string; email: string },
 ): Promise<void> {
   const slug = animal.slug || undefined;
+  const animalName = animal.name || "(sin nombre)";
+  const animalType = animal.animal_type?.name || undefined;
+  const publicUrl = slug ? animalPublicUrl(slug) : undefined;
+
+  await notify(context, {
+    audience: "platform_admins",
+    product: "pet",
+    type: NOTIFICATION_TYPE.ANIMAL_CREATED,
+    title: `Nuevo animal: ${animalName}`,
+    body: [animalType, `publicado por ${creator.name}`].filter(Boolean).join(" · "),
+    entityType: "Animal",
+    entityId: animal.id,
+    url: publicUrl ?? null,
+    metadata: { slug: slug ?? null, animalType: animalType ?? null },
+  });
+
+  if (!adminNotificationEmailsEnabled()) return;
   await sendAdminNewAnimalEmail({
     animalId: animal.id,
-    animalName: animal.name || "(sin nombre)",
-    animalType: animal.animal_type?.name || undefined,
+    animalName,
+    animalType,
     slug,
-    publicUrl: slug ? animalPublicUrl(slug) : undefined,
+    publicUrl,
     creatorName: creator.name,
     creatorEmail: creator.email,
   });
@@ -345,7 +386,7 @@ export const animalCreateSideEffectsHook = {
         // Alta anidada (Admin): slug y portada ya están. El formulario público
         // manda el log y las fotos después; publicar aquí cachea el link viejo.
         if (hasCover && hasLog && resolved.slug) {
-          await publishAnimalToFacebook(resolved);
+          await publishAnimalToFacebook(resolved, context);
         } else {
           watchAnimalForFacebook(animalId, context);
         }
@@ -358,11 +399,11 @@ export const animalCreateSideEffectsHook = {
               : resolved.user?.name?.trim() || "Usuario",
           email: fromSession.email || resolved.user?.email?.trim() || "",
         };
-        await notifyAdminsNewAnimal(resolved, creator);
+        await notifyAdminsNewAnimal(context, resolved, creator);
       }
     } catch (error) {
       console.error(
-        "[animal] Error en side effect de create (Facebook/correo):",
+        "[animal] Error en side effect de create (Facebook/aviso):",
         error,
       );
     }

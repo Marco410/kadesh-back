@@ -1,9 +1,13 @@
 import { list } from "@keystone-6/core";
 import { relationship, timestamp } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { animalUserRowAccess, forceSessionUser } from "../Animal.access";
 
 export default list({
-  access,
+  access: animalUserRowAccess,
+  hooks: {
+    resolveInput: ({ resolvedData, operation, context }) =>
+      forceSessionUser(resolvedData, operation, context),
+  },
   fields: {
     animal: relationship({
       ref: "Animal",

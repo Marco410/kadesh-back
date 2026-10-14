@@ -1,7 +1,11 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { PET_PLACES_SEED_LOCATION } from "../../../utils/constants/constants";
-import { haversineDistance } from "../../../utils/helpers/calculate_distances";
-import { getPetPlacesHelper, searchPlacesByLocation } from "../../../utils/helpers/nearby_petplaces";
+import {
+  ensureAreaSearchedOnGoogle,
+  findPetPlacesNear,
+  getPetPlacesHelper,
+  MIN_DB_RESULTS,
+} from "../../../utils/helpers/nearby_petplaces";
 
 const typeDefs = `
   type PetPlaceType {
@@ -77,35 +81,33 @@ const resolver = {
   ) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
 
-    // Caso A: sin lat/lng — priorizar Google para alimentar BD, luego devolver por rating
+    // Caso A: sin lat/lng — devolver por rating; solo se consulta Google si la BD está casi vacía.
     if (lat === undefined || lat === null || lng === undefined || lng === null) {
       const searchType = type || "veterinary";
       const seedRadius = 15;
-      const feedLimit = 20;
-      try {
-        await searchPlacesByLocation(
-          PET_PLACES_SEED_LOCATION.lat,
-          PET_PLACES_SEED_LOCATION.lng,
-          searchType,
-          seedRadius,
-          feedLimit,
-          context
-        );
-      } catch (err) {
-        console.error("Error alimentando BD desde Google (Caso A):", err);
+
+      const seeded = await findPetPlacesNear(context, {
+        lat: PET_PLACES_SEED_LOCATION.lat,
+        lng: PET_PLACES_SEED_LOCATION.lng,
+        radiusKm: seedRadius,
+        type: searchType,
+      });
+      if (seeded.length < MIN_DB_RESULTS) {
+        try {
+          await ensureAreaSearchedOnGoogle(context, {
+            lat: PET_PLACES_SEED_LOCATION.lat,
+            lng: PET_PLACES_SEED_LOCATION.lng,
+            type: searchType,
+            radiusKm: seedRadius,
+          });
+        } catch (err) {
+          console.error("Error alimentando BD desde Google (Caso A):", err);
+        }
       }
 
       const whereClause: any = {};
       if (type) {
-        const petPlaceType = await context.sudo().query.PetPlaceType.findOne({
-          where: { value: type },
-          query: "id",
-        });
-        if (petPlaceType) {
-          whereClause.types = {
-            some: { id: { equals: petPlaceType.id } },
-          };
-        }
+        whereClause.types = { some: { value: { equals: type } } };
       }
 
       const petPlaces = await getPetPlacesHelper(context, whereClause);
@@ -138,27 +140,26 @@ const resolver = {
       };
     }
 
-    // Caso C: priorizar Google para alimentar BD (sin duplicados por google_place_id), luego responder desde BD
+    // Caso C: primero la BD; Google solo si hay pocos resultados y la zona no se ha buscado antes.
     const searchType = type || "veterinary";
-    try {
-      await searchPlacesByLocation(lat, lng, searchType, radius, limit, context);
-    } catch (err) {
-      console.error("Error alimentando BD desde Google (Caso C):", err);
+    const query = { lat, lng, radiusKm: radius, type: searchType };
+
+    let places = await findPetPlacesNear(context, query);
+    if (places.length < MIN_DB_RESULTS) {
+      try {
+        const searched = await ensureAreaSearchedOnGoogle(context, {
+          lat,
+          lng,
+          type: searchType,
+          radiusKm: radius,
+        });
+        if (searched) places = await findPetPlacesNear(context, query);
+      } catch (err) {
+        console.error("Error alimentando BD desde Google (Caso C):", err);
+      }
     }
 
-    const petPlaces = await getPetPlacesHelper(context, {});
-    const withDistance = petPlaces
-      .map((place: any) => {
-        const placeLat = parseFloat(place.lat);
-        const placeLng = parseFloat(place.lng);
-        if (isNaN(placeLat) || isNaN(placeLng)) return null;
-        const distance = haversineDistance(lat, lng, placeLat, placeLng);
-        return { ...place, distance };
-      })
-      .filter((place: any) => place && place.distance <= radius);
-
-    withDistance.sort((a: any, b: any) => a.distance - b.distance);
-    const result = withDistance.slice(0, limit).map((place: any) => ({
+    const result = places.slice(0, limit).map((place: any) => ({
       ...place,
       pet_place_reviews: place.pet_place_reviews ?? [],
     }));

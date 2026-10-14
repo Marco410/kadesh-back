@@ -43,7 +43,9 @@ import setGoogleCalendarPushSettings from "./googleCalendar/setGoogleCalendarPus
 import trackEvents from "./activity/trackEvents";
 import adminCompanyOps from "./admin/companyOps";
 import adminAccountControl from "./admin/accountControl";
+import adminAnimals from "./admin/animals";
 import rollupDailyUsage from "./rollupDailyUsage";
+import markAllNotificationsRead from "./notifications/markAllNotificationsRead";
 
 const customMutation = {
   typeDefs: `
@@ -92,7 +94,9 @@ const customMutation = {
     ${trackEvents.typeDefs}
     ${adminCompanyOps.typeDefs}
     ${adminAccountControl.typeDefs}
+    ${adminAnimals.typeDefs}
     ${rollupDailyUsage.typeDefs}
+    ${markAllNotificationsRead.typeDefs}
   `,
   definitions: `
     ${authenticateUserWithGoogle.definition}
@@ -140,7 +144,9 @@ const customMutation = {
     ${trackEvents.definition}
     ${adminCompanyOps.definition}
     ${adminAccountControl.definition}
+    ${adminAnimals.definition}
     ${rollupDailyUsage.definition}
+    ${markAllNotificationsRead.definition}
   `,
   resolvers: {
     ...authenticateUserWithGoogle.resolver,
@@ -188,7 +194,9 @@ const customMutation = {
     ...trackEvents.resolver,
     ...adminCompanyOps.resolver,
     ...adminAccountControl.resolver,
+    ...adminAnimals.resolver,
     ...rollupDailyUsage.resolver,
+    ...markAllNotificationsRead.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {

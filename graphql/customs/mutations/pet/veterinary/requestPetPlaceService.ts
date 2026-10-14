@@ -4,6 +4,8 @@ import { PET_PLACE_SERVICE_STATUS } from "../../../../../models/Pet/PetPlace/Pet
 import { sendAdminPetPlaceServiceRequestEmail } from "../../../../../utils/helpers/sendgrid";
 import { isSmtpConfigured } from "../../../../../utils/intregrations/smtpMail";
 import { requireOwnedVerifiedPlace } from "./ownedPlace";
+import { adminNotificationEmailsEnabled, notify } from "../../../../../utils/notifications/notify";
+import { NOTIFICATION_TYPE } from "../../../../../models/Notification/constants";
 
 const typeDefs = `
   input RequestPetPlaceServiceInput {
@@ -100,15 +102,26 @@ const resolver = {
       query: "id status name",
     })) as { id: string; status: string | null; name: string | null };
 
-    if (isSmtpConfigured()) {
-      const requester = (await context.sudo().query.User.findOne({
-        where: { id: userId },
-        query: "name lastName email",
-      })) as { name?: string | null; lastName?: string | null; email?: string | null } | null;
+    const requester = (await context.sudo().query.User.findOne({
+      where: { id: userId },
+      query: "name lastName email",
+    })) as { name?: string | null; lastName?: string | null; email?: string | null } | null;
+    const requesterName =
+      [requester?.name, requester?.lastName].filter(Boolean).join(" ") || "Un dueño";
 
-      const requesterName =
-        [requester?.name, requester?.lastName].filter(Boolean).join(" ") || "Un dueño";
+    // Aviso a los admins en la campana de Operaciones; el correo solo si se encendió.
+    await notify(context, {
+      audience: "platform_admins",
+      product: "pet",
+      type: NOTIFICATION_TYPE.PET_PLACE_SERVICE_REQUESTED,
+      title: `Servicio solicitado: ${created.name || name}`,
+      body: `${place.name || "Clínica"} · ${requesterName}`,
+      entityType: "PetPlaceService",
+      entityId: created.id,
+      metadata: { petPlaceId: place.id },
+    });
 
+    if (adminNotificationEmailsEnabled() && isSmtpConfigured()) {
       try {
         await sendAdminPetPlaceServiceRequestEmail({
           serviceName: created.name || name,

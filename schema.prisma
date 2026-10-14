@@ -44,6 +44,27 @@ model ActivityEvent {
   @@index([createdAt])
 }
 
+model Notification {
+  id          String    @id @default(cuid())
+  recipient   User?     @relation("Notification_recipient", fields: [recipientId], references: [id])
+  recipientId String?   @map("recipient")
+  product     String?   @default("saas")
+  type        String    @default("")
+  title       String    @default("")
+  body        String    @default("")
+  entityType  String    @default("")
+  entityId    String    @default("")
+  url         String    @default("")
+  metadata    Json?
+  readAt      DateTime?
+  createdAt   DateTime? @default(now())
+
+  @@index([recipientId])
+  @@index([product])
+  @@index([type])
+  @@index([createdAt])
+}
+
 model Ad {
   id              String    @id @default(cuid())
   title           String    @default("")
@@ -96,6 +117,10 @@ model Animal {
   multimedia                 AnimalMultimedia[] @relation("AnimalMultimedia_animal")
   logs                       AnimalLog[]        @relation("AnimalLog_animal")
   animal_views               AnimalView[]       @relation("AnimalView_animal")
+  facebookPostId             String             @default("")
+  facebookPublishedAt        DateTime?
+  facebookPublishedBy        User?              @relation("Animal_facebookPublishedBy", fields: [facebookPublishedById], references: [id])
+  facebookPublishedById      String?            @map("facebookPublishedBy")
   createdAt                  DateTime?          @default(now())
   from_AnimalComment_animal  AnimalComment[]    @relation("AnimalComment_animal")
   from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
@@ -103,6 +128,7 @@ model Animal {
   @@index([animal_typeId])
   @@index([animal_breedId])
   @@index([userId])
+  @@index([facebookPublishedById])
 }
 
 model AnimalBreed {
@@ -433,6 +459,17 @@ model PetPlaceLike {
 
   @@index([userId])
   @@index([pet_placeId])
+}
+
+model PetPlaceSearchArea {
+  id            String    @id @default(cuid())
+  key           String    @unique @default("")
+  type          String    @default("")
+  lat           Float?
+  lng           Float?
+  radiusKm      Float?
+  googleResults Int?      @default(0)
+  searchedAt    DateTime? @default(now())
 }
 
 model PetPlaceService {
@@ -1757,8 +1794,10 @@ model User {
   anonymizedAt                             DateTime?
   signupAttribution                        Json?
   from_ActivityEvent_actor                 ActivityEvent[]          @relation("ActivityEvent_actor")
+  from_Notification_recipient              Notification[]           @relation("Notification_recipient")
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")
+  from_Animal_facebookPublishedBy          Animal[]                 @relation("Animal_facebookPublishedBy")
   from_AnimalComment_user                  AnimalComment[]          @relation("AnimalComment_user")
   from_AnimalFavorite_user                 AnimalFavorite[]         @relation("AnimalFavorite_user")
   from_AnimalView_user                     AnimalView[]             @relation("AnimalView_user")

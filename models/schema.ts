@@ -17,6 +17,7 @@ import PetPlace from "./Pet/PetPlace/PetPlace";
 import PetPlaceAppointment from "./Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment";
 import PetPlaceLike from "./Pet/PetPlace/PetPlaceLike/PetPlaceLike";
 import PetPlaceService from "./Pet/PetPlace/PetPlaceService/PetPlaceService";
+import PetPlaceSearchArea from "./Pet/PetPlace/PetPlaceSearchArea/PetPlaceSearchArea";
 import Schedule from "./Pet/Schedule/Schedule";
 import SocialMedia from "./Pet/SocialMedia/SocialMedia";
 import SystemRelease from "./SystemRelease/SystemRelease";
@@ -28,6 +29,7 @@ import Order from "./Pet/Store/Order/Order";
 import Payment from "./Pet/Store/Payment/Payment";
 import PaymentMethod from "./Pet/Store/PaymentMethod/PaymentMethod";
 import TokenNotification from "./TokenNotification/TokenNotification";
+import Notification from "./Notification/Notification";
 import Ad from "./Pet/Ad/Ad";
 import Post from "./Blog/Post/Post";
 import PostComment from "./Blog/Post/PostComment/PostComment";
@@ -85,6 +87,7 @@ import TechGoogleCalendarSyncLog from "./Saas/Tech/GoogleCalendarSyncLog/TechGoo
 // withActivityHooks agrega el registro de cambios (ActivityEvent) a las lists del CRM, equipo y planes.
 export default withActivityHooks({
   ActivityEvent,
+  Notification,
   Ad,
   Animal,
   AnimalBreed,
@@ -107,6 +110,7 @@ export default withActivityHooks({
   PetPlace,
   PetPlaceAppointment,
   PetPlaceLike,
+  PetPlaceSearchArea,
   PetPlaceService,
   PetPlaceType,
   Post,
