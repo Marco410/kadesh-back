@@ -217,6 +217,88 @@ input SaasWorkspaceRelateToOneForCreateInput {
   connect: SaasWorkspaceWhereUniqueInput
 }
 
+type Notification {
+  id: ID!
+  recipient: User
+  product: String
+  type: String
+  title: String
+  body: String
+  entityType: String
+  entityId: String
+  url: String
+  metadata: JSON
+  readAt: DateTime
+  createdAt: DateTime
+}
+
+input NotificationWhereUniqueInput {
+  id: ID
+}
+
+input NotificationWhereInput {
+  AND: [NotificationWhereInput!]
+  OR: [NotificationWhereInput!]
+  NOT: [NotificationWhereInput!]
+  id: IDFilter
+  recipient: UserWhereInput
+  product: StringNullableFilter
+  type: StringFilter
+  title: StringFilter
+  body: StringFilter
+  entityType: StringFilter
+  entityId: StringFilter
+  url: StringFilter
+  readAt: DateTimeNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input NotificationOrderByInput {
+  id: OrderDirection
+  product: OrderDirection
+  type: OrderDirection
+  title: OrderDirection
+  body: OrderDirection
+  entityType: OrderDirection
+  entityId: OrderDirection
+  url: OrderDirection
+  readAt: OrderDirection
+  createdAt: OrderDirection
+}
+
+input NotificationUpdateInput {
+  recipient: UserRelateToOneForUpdateInput
+  product: String
+  type: String
+  title: String
+  body: String
+  entityType: String
+  entityId: String
+  url: String
+  metadata: JSON
+  readAt: DateTime
+  createdAt: DateTime
+}
+
+input NotificationUpdateArgs {
+  where: NotificationWhereUniqueInput!
+  data: NotificationUpdateInput!
+}
+
+input NotificationCreateInput {
+  recipient: UserRelateToOneForCreateInput
+  product: String
+  type: String
+  title: String
+  body: String
+  entityType: String
+  entityId: String
+  url: String
+  metadata: JSON
+  readAt: DateTime
+  createdAt: DateTime
+}
+
 type Ad {
   id: ID!
   title: String
@@ -408,6 +490,9 @@ type Animal {
   logsCount(where: AnimalLogWhereInput! = {}): Int
   animal_views(where: AnimalViewWhereInput! = {}, orderBy: [AnimalViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalViewWhereUniqueInput): [AnimalView!]
   animal_viewsCount(where: AnimalViewWhereInput! = {}): Int
+  facebookPostId: String
+  facebookPublishedAt: DateTime
+  facebookPublishedBy: User
   createdAt: DateTime
 }
 
@@ -438,6 +523,9 @@ input AnimalWhereInput {
   multimedia: AnimalMultimediaManyRelationFilter
   logs: AnimalLogManyRelationFilter
   animal_views: AnimalViewManyRelationFilter
+  facebookPostId: StringFilter
+  facebookPublishedAt: DateTimeNullableFilter
+  facebookPublishedBy: UserWhereInput
   createdAt: DateTimeNullableFilter
 }
 
@@ -472,6 +560,8 @@ input AnimalOrderByInput {
   contactNumber2: OrderDirection
   sourceUrl: OrderDirection
   reportedBy: OrderDirection
+  facebookPostId: OrderDirection
+  facebookPublishedAt: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -493,6 +583,9 @@ input AnimalUpdateInput {
   multimedia: AnimalMultimediaRelateToManyForUpdateInput
   logs: AnimalLogRelateToManyForUpdateInput
   animal_views: AnimalViewRelateToManyForUpdateInput
+  facebookPostId: String
+  facebookPublishedAt: DateTime
+  facebookPublishedBy: UserRelateToOneForUpdateInput
   createdAt: DateTime
 }
 
@@ -552,6 +645,9 @@ input AnimalCreateInput {
   multimedia: AnimalMultimediaRelateToManyForCreateInput
   logs: AnimalLogRelateToManyForCreateInput
   animal_views: AnimalViewRelateToManyForCreateInput
+  facebookPostId: String
+  facebookPublishedAt: DateTime
+  facebookPublishedBy: UserRelateToOneForCreateInput
   createdAt: DateTime
 }
 
@@ -8802,6 +8898,12 @@ type Mutation {
   updateActivityEvents(data: [ActivityEventUpdateArgs!]!): [ActivityEvent]
   deleteActivityEvent(where: ActivityEventWhereUniqueInput!): ActivityEvent
   deleteActivityEvents(where: [ActivityEventWhereUniqueInput!]!): [ActivityEvent]
+  createNotification(data: NotificationCreateInput!): Notification
+  createNotifications(data: [NotificationCreateInput!]!): [Notification]
+  updateNotification(where: NotificationWhereUniqueInput!, data: NotificationUpdateInput!): Notification
+  updateNotifications(data: [NotificationUpdateArgs!]!): [Notification]
+  deleteNotification(where: NotificationWhereUniqueInput!): Notification
+  deleteNotifications(where: [NotificationWhereUniqueInput!]!): [Notification]
   createAd(data: AdCreateInput!): Ad
   createAds(data: [AdCreateInput!]!): [Ad]
   updateAd(where: AdWhereUniqueInput!, data: AdUpdateInput!): Ad
@@ -9338,7 +9440,10 @@ type Mutation {
   endImpersonation: AdminControlResult!
   adminExportPersonData(userId: ID!): JSON!
   adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
+  adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
+  adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
+  markAllNotificationsRead(product: String): Int!
   authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String, attribution: JSON): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String, attribution: JSON): User
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
@@ -9378,6 +9483,9 @@ type Query {
   activityEvent(where: ActivityEventWhereUniqueInput!): ActivityEvent
   activityEvents(where: ActivityEventWhereInput! = {}, orderBy: [ActivityEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ActivityEventWhereUniqueInput): [ActivityEvent!]
   activityEventsCount(where: ActivityEventWhereInput! = {}): Int
+  notification(where: NotificationWhereUniqueInput!): Notification
+  notifications(where: NotificationWhereInput! = {}, orderBy: [NotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: NotificationWhereUniqueInput): [Notification!]
+  notificationsCount(where: NotificationWhereInput! = {}): Int
   ad(where: AdWhereUniqueInput!): Ad
   ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
   adsCount(where: AdWhereInput! = {}): Int
@@ -9653,6 +9761,8 @@ type Query {
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
   marketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String): MarketInsightResult!
+  adminAnimals(search: String, animalTypeId: ID, reportedBy: String, creator: String, facebook: String, take: Int, skip: Int): AdminAnimalsResult!
+  adminAnimalDetail(id: ID!): AdminAnimalDetail
   landingStats: LandingStats!
 }
 
@@ -11609,6 +11719,88 @@ type AdminSalesVelocity {
   """De esas, en cuántas contestó el lead (en 7 días)."""
   whatsappReplied: Int!
   companies: [AdminCompanyVelocity!]!
+}
+
+type AdminAnimalRow {
+  id: ID!
+  name: String!
+  slug: String
+  createdAt: String
+  reportedBy: String
+  sex: String
+  animalType: String
+  breed: String
+  coverUrl: String
+  status: String
+  city: String
+  state: String
+  creator: AdminPersonRef
+  creatorIsAdmin: Boolean!
+  views: Int!
+  views7d: Int!
+  favorites: Int!
+  comments: Int!
+  facebookPostId: String
+  facebookPublishedAt: String
+}
+
+type AdminAnimalsResult {
+  total: Int!
+  items: [AdminAnimalRow!]!
+}
+
+type AdminAnimalLog {
+  id: ID!
+  status: String
+  notes: String
+  city: String
+  state: String
+  address: String
+  createdAt: String
+}
+
+type AdminAnimalComment {
+  id: ID!
+  comment: String!
+  createdAt: String
+  user: AdminPersonRef
+}
+
+type AdminAnimalFavorite {
+  id: ID!
+  createdAt: String
+  user: AdminPersonRef
+}
+
+type AdminAnimalViewDay {
+  day: String!
+  count: Int!
+}
+
+type AdminAnimalViews {
+  total: Int!
+  anonymous: Int!
+  signedIn: Int!
+  last7d: Int!
+  daily: [AdminAnimalViewDay!]!
+  recentViewers: [AdminPersonRef!]!
+}
+
+type AdminAnimalDetail {
+  animal: AdminAnimalRow!
+  physicalDescription: String
+  age: String
+  color: String
+  size: String
+  contactNumber: String
+  contactNumber2: String
+  sourceUrl: String
+  photos: [String!]!
+  logs: [AdminAnimalLog!]!
+  comments: [AdminAnimalComment!]!
+  favoritesList: [AdminAnimalFavorite!]!
+  viewStats: AdminAnimalViews!
+  facebookPublishedBy: AdminPersonRef
 }
 
 input CompanyAnalyticsInput {

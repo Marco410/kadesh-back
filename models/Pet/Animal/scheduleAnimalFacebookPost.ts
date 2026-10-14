@@ -17,7 +17,7 @@ const AFTER_COVER_MS = 2_500;
 type PublishAnimal = (
   animalId: string,
   context: KeystoneContext,
-) => Promise<void>;
+) => Promise<unknown>;
 
 type Pending = {
   timer: ReturnType<typeof setTimeout>;
