@@ -1,5 +1,6 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../../../models/Role/constants";
+import { ANIMAL_TYPE_OPTIONS } from "../../../../utils/constants/constants";
 import {
   adminPrisma,
   assertPlatformAdmin,
@@ -119,7 +120,7 @@ const ROW_QUERY = `
   id name slug createdAt reportedBy sex
   facebookPostId facebookPublishedAt
   animal_type { name }
-  animal_breed { name }
+  animal_breed { breed }
   user { id name lastName email roles { name } }
   multimedia(orderBy: [{ order: asc }], take: 1) { image { url } }
   logs(orderBy: [{ createdAt: desc }], take: 1) { status city state }
@@ -136,7 +137,7 @@ type AnimalRowRaw = {
   facebookPostId: string | null;
   facebookPublishedAt: string | null;
   animal_type: { name: string | null } | null;
-  animal_breed: { name: string | null } | null;
+  animal_breed: { breed: string | null } | null;
   user: {
     id: string;
     name: string | null;
@@ -148,6 +149,12 @@ type AnimalRowRaw = {
   logs: Array<{ status: string | null; city: string | null; state: string | null }> | null;
   animal_viewsCount: number;
 };
+
+/** `AnimalType.name` guarda el valor del select ("dog"); Operaciones muestra la etiqueta ("Perro"). */
+function animalTypeLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return ANIMAL_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
 
 type Counts = { favorites: Map<string, number>; comments: Map<string, number>; views7d: Map<string, number> };
 
@@ -205,8 +212,8 @@ function toRow(raw: AnimalRowRaw, counts: Counts) {
     createdAt: toIso(raw.createdAt),
     reportedBy: raw.reportedBy,
     sex: raw.sex,
-    animalType: raw.animal_type?.name ?? null,
-    breed: raw.animal_breed?.name ?? null,
+    animalType: animalTypeLabel(raw.animal_type?.name),
+    breed: raw.animal_breed?.breed || null,
     coverUrl: raw.multimedia?.[0]?.image?.url ?? null,
     status: lastLog?.status ?? null,
     city: lastLog?.city ?? null,
