@@ -30,6 +30,7 @@ import adminSalesVelocity from "./admin/adminSalesVelocity";
 import adminAnimals from "./admin/adminAnimals";
 import companyAnalytics from "./analytics/companyAnalytics";
 import landingStats from "./landingStats";
+import petLandingStats from "./petLandingStats";
 
 const customQuery = {
   typeDefs: `
@@ -62,6 +63,7 @@ const customQuery = {
     ${adminAnimals.typeDefs}
     ${companyAnalytics.typeDefs}
     ${landingStats.typeDefs}
+    ${petLandingStats.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -95,6 +97,7 @@ const customQuery = {
     ${adminAnimals.definition}
     ${companyAnalytics.definition}
     ${landingStats.definition}
+    ${petLandingStats.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -128,6 +131,7 @@ const customQuery = {
     ...adminAnimals.resolver,
     ...companyAnalytics.resolver,
     ...landingStats.resolver,
+    ...petLandingStats.resolver,
   },
 };
 

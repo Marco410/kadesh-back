@@ -9844,6 +9844,7 @@ type Query {
   adminAnimals(search: String, animalTypeId: ID, reportedBy: String, creator: String, facebook: String, take: Int, skip: Int): AdminAnimalsResult!
   adminAnimalDetail(id: ID!): AdminAnimalDetail
   landingStats: LandingStats!
+  petLandingStats: PetLandingStats!
 }
 
 union AuthenticatedItem = User
@@ -11964,5 +11965,16 @@ type LandingStats {
   categories: Int!
   cities: Int!
   companies: Int!
+  updatedAt: String!
+}
+
+type PetLandingStats {
+  animals: Int!
+  animalsLost: Int!
+  animalsHome: Int!
+  animalsInAdoption: Int!
+  veterinaries: Int!
+  veterinariesVerified: Int!
+  cities: Int!
   updatedAt: String!
 }

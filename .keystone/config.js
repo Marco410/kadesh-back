@@ -34832,6 +34832,84 @@ var resolver78 = {
 };
 var landingStats_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
 
+// graphql/customs/queries/petLandingStats.ts
+var CACHE_MS2 = 60 * 60 * 1e3;
+var HOME_STATUSES = ["in_family", "adopted"];
+var cache2 = null;
+var typeDefs82 = `
+  type PetLandingStats {
+    animals: Int!
+    animalsLost: Int!
+    animalsHome: Int!
+    animalsInAdoption: Int!
+    veterinaries: Int!
+    veterinariesVerified: Int!
+    cities: Int!
+    updatedAt: String!
+  }
+`;
+var definition79 = `petLandingStats: PetLandingStats!`;
+function unwrap2(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+async function computePetLandingStats(context) {
+  const prisma = context.sudo().prisma;
+  const veterinary = { types: { some: { value: "veterinary" } } };
+  const [animals, statusRows, veterinaries, veterinariesVerified, cityRows] = await Promise.all([
+    prisma.animal.count(),
+    // Estado actual de cada animal = su registro más reciente en la bitácora.
+    prisma.$queryRaw`
+      SELECT status, COUNT(*)::int AS n
+      FROM (
+        SELECT DISTINCT ON ("animal") "animal", status
+        FROM "AnimalLog"
+        WHERE "animal" IS NOT NULL
+        ORDER BY "animal", "date_status" DESC NULLS LAST, "createdAt" DESC NULLS LAST
+      ) latest
+      GROUP BY status
+    `,
+    prisma.petPlace.count({ where: veterinary }),
+    prisma.petPlace.count({ where: { ...veterinary, verified: true } }),
+    // Ciudades con al menos un reporte o una veterinaria.
+    prisma.$queryRaw`
+      SELECT COUNT(DISTINCT lower(trim(c)))::int AS n
+      FROM (
+        SELECT city AS c FROM "AnimalLog"
+        UNION ALL
+        SELECT municipality AS c FROM "PetPlace"
+      ) places
+      WHERE trim(c) <> ''
+    `
+  ]);
+  const byStatus = new Map(
+    unwrap2(statusRows).map((row) => [
+      row.status ?? "",
+      row.n
+    ])
+  );
+  const count2 = (statuses) => statuses.reduce((total, status) => total + (byStatus.get(status) ?? 0), 0);
+  return {
+    animals: unwrap2(animals),
+    animalsLost: count2(["lost"]),
+    animalsHome: count2(HOME_STATUSES),
+    animalsInAdoption: count2(["in_adoption"]),
+    veterinaries: unwrap2(veterinaries),
+    veterinariesVerified: unwrap2(veterinariesVerified),
+    cities: unwrap2(cityRows)[0]?.n ?? 0,
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+var resolver79 = {
+  petLandingStats: async (_root, _args, context) => {
+    if (cache2 && Date.now() - cache2.at < CACHE_MS2) return cache2.value;
+    const value = await computePetLandingStats(context);
+    cache2 = { value, at: Date.now() };
+    return value;
+  }
+};
+var petLandingStats_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
+
 // graphql/customs/queries/index.ts
 var customQuery = {
   typeDefs: `
@@ -34864,6 +34942,7 @@ var customQuery = {
     ${adminAnimals_default.typeDefs}
     ${companyAnalytics_default.typeDefs}
     ${landingStats_default.typeDefs}
+    ${petLandingStats_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -34897,6 +34976,7 @@ var customQuery = {
     ${adminAnimals_default.definition}
     ${companyAnalytics_default.definition}
     ${landingStats_default.definition}
+    ${petLandingStats_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -34929,7 +35009,8 @@ var customQuery = {
     ...adminSalesVelocity_default.resolver,
     ...adminAnimals_default.resolver,
     ...companyAnalytics_default.resolver,
-    ...landingStats_default.resolver
+    ...landingStats_default.resolver,
+    ...petLandingStats_default.resolver
   }
 };
 var queries_default = customQuery;
