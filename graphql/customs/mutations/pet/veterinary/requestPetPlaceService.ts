@@ -119,6 +119,11 @@ const resolver = {
       entityType: "PetPlaceService",
       entityId: created.id,
       metadata: { petPlaceId: place.id },
+      templateValues: {
+        serviceName: created.name || name,
+        petPlaceName: place.name || "Clínica",
+        requesterName,
+      },
     });
 
     if (adminNotificationEmailsEnabled() && isSmtpConfigured()) {

@@ -1,6 +1,12 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../models/Role/constants";
 import type { NotificationType } from "../../models/Notification/constants";
+import {
+  hasWhatsappTemplate,
+  platformWhatsappConfig,
+  sendNotificationWhatsapp,
+  type NotificationTemplateValues,
+} from "./whatsapp";
 
 export type NotifyInput = {
   /** "platform_admins" = una fila por cada admin de plataforma; si no, ids de usuario. */
@@ -13,6 +19,11 @@ export type NotifyInput = {
   entityId?: string | null;
   url?: string | null;
   metadata?: Record<string, unknown> | null;
+  /**
+   * Valores crudos para la plantilla de WhatsApp del tipo (`utils/notifications/whatsapp.ts`).
+   * No se guardan en `Notification`. Solo les llega a quienes activaron `whatsappNotifications`.
+   */
+  templateValues?: NotificationTemplateValues;
 };
 
 /**
@@ -52,6 +63,18 @@ export async function notify(context: KeystoneContext, input: NotifyInput): Prom
     });
     // Prisma de Keystone devuelve el error en vez de lanzarlo.
     if (result instanceof Error) throw result;
+
+    if (hasWhatsappTemplate(input.type) && platformWhatsappConfig()) {
+      const optedIn = await prisma.user.findMany({
+        where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: null } },
+        select: { id: true, phone: true },
+      });
+      // Sin await: el envío no frena la operación que dispara la notificación.
+      if (Array.isArray(optedIn) && optedIn.length > 0) {
+        void sendNotificationWhatsapp(optedIn, input.type, input.templateValues ?? {});
+      }
+    }
+
     return result?.count ?? recipientIds.length;
   } catch (error) {
     console.error("[notify] No se pudo crear la notificación:", input.type, error);

@@ -470,6 +470,7 @@ export const userBankDetailsNotificationHook = {
       entityType: "User",
       entityId: userId,
       metadata: { fields: [...fieldsUpdated] },
+      templateValues: { userName },
     });
 
     if (!adminNotificationEmailsEnabled()) return;

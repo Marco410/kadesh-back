@@ -10,6 +10,20 @@ Solo el servidor crea notificaciones, con `notify(context, { audience, product, 
 - Los tipos viven en `constants.ts` (`NOTIFICATION_TYPE`). Un tipo nuevo se agrega ahí y en el front, para su ícono y su enlace.
 - En `body` y `metadata` nunca van valores sensibles (contraseñas, tokens, datos bancarios). Solo nombres de campos y referencias.
 
+## WhatsApp
+
+Además de la campana, `notify` manda el aviso por WhatsApp desde el número de Kadesh:
+- Solo a quien tiene `User.whatsappNotifications` activo y un `phone` válido (10 dígitos de México, o con lada de otro país).
+- Solo si el tipo tiene plantilla en `utils/notifications/whatsapp.ts` (`WHATSAPP_TEMPLATES`). Sin plantilla, solo campana.
+- Los valores de la plantilla llegan en `templateValues` (no se guardan). Un valor vacío se manda como "sin especificar", porque Meta rechaza parámetros vacíos.
+- Sin `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` no se manda nada. Un error de Meta solo queda en el log.
+
+| Tipo | Plantilla (UTILITY, es_MX) | Variables |
+| --- | --- | --- |
+| `animal.created` | `kadesh_admin_animal_creado` | animal, tipo, quién lo registró |
+| `petplace.service_requested` | `kadesh_admin_servicio_solicitado` | servicio, clínica, quién lo pidió |
+| `user.bank_details_updated` | `kadesh_admin_datos_bancarios` | nombre del usuario |
+
 ## Acceso
 
 - Cada quien solo ve, marca y borra las suyas (filtro por `recipient`). Nadie las crea por API.
@@ -31,3 +45,11 @@ El correo solo sale con `ADMIN_NOTIFICATION_EMAILS=on`.
 Por qué: cada aviso gastaba el cupo gratuito del proveedor de correo, y en Operaciones ya hay una campana donde verlos.
 
 Qué no hacer: no mandar por aquí los correos a usuarios (bienvenida, citas, novedades); esos siguen igual.
+
+### 2026-10-14: Avisos también por WhatsApp, una plantilla por tipo
+
+Qué: `notify` manda cada aviso también por WhatsApp desde el número de Kadesh, a quien activó `whatsappNotifications`. Cada tipo tiene su propia plantilla UTILITY.
+
+Por qué: los admins quieren ver los avisos sin abrir el panel. La plantilla genérica (`kadesh_notificacion`) no se mandó a Meta porque la iba a clasificar como Marketing.
+
+Qué no hacer: no usar el WhatsApp BYOK de la empresa para esto. No mandar sin opt-in. No poner en las variables datos sensibles (datos bancarios, ni siquiera los nombres de los campos). Un tipo nuevo necesita su plantilla aprobada en Meta y su entrada en `WHATSAPP_TEMPLATES`; si no, se queda solo en la campana.
