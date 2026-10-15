@@ -132,6 +132,11 @@ export default list({
       },
     }),
     phone: text(),
+    /** Opt-in para recibir las notificaciones de la campana también por WhatsApp (al `phone`). */
+    whatsappNotifications: checkbox({
+      defaultValue: false,
+      ui: { description: "Recibir avisos de Kadesh por WhatsApp" },
+    }),
     roles: relationship({
       ref: "Role.users",
       many: true,
