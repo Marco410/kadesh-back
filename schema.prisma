@@ -1709,11 +1709,15 @@ model TechGoogleCalendarSyncLog {
 }
 
 model TokenNotification {
-  id     String  @id @default(cuid())
-  token  String  @default("")
-  user   User?   @relation("TokenNotification_user", fields: [userId], references: [id])
-  userId String? @map("user")
+  id         String    @id @default(cuid())
+  token      String    @default("")
+  user       User?     @relation("TokenNotification_user", fields: [userId], references: [id])
+  userId     String?   @map("user")
+  platform   String?
+  deviceId   String?
+  lastSeenAt DateTime?
 
+  @@index([token])
   @@index([userId])
 }
 
@@ -1789,6 +1793,10 @@ model User {
   createdAt                                DateTime?                @default(now())
   lastLoginAt                              DateTime?
   onboardingState                          Json?                    @default("{}")
+  petAlertsEnabled                         Boolean                  @default(false)
+  alertLat                                 Float?
+  alertLng                                 Float?
+  alertRadiusKm                            Int?                     @default(5)
   suspendedAt                              DateTime?
   suspendedReason                          String?
   sessionVersion                           Int?                     @default(0)

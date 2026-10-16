@@ -8243,6 +8243,9 @@ type TokenNotification {
   id: ID!
   token: String
   user: User
+  platform: String
+  deviceId: String
+  lastSeenAt: DateTime
 }
 
 input TokenNotificationWhereUniqueInput {
@@ -8256,16 +8259,25 @@ input TokenNotificationWhereInput {
   id: IDFilter
   token: StringFilter
   user: UserWhereInput
+  platform: StringNullableFilter
+  deviceId: StringNullableFilter
+  lastSeenAt: DateTimeNullableFilter
 }
 
 input TokenNotificationOrderByInput {
   id: OrderDirection
   token: OrderDirection
+  platform: OrderDirection
+  deviceId: OrderDirection
+  lastSeenAt: OrderDirection
 }
 
 input TokenNotificationUpdateInput {
   token: String
   user: UserRelateToOneForUpdateInput
+  platform: String
+  deviceId: String
+  lastSeenAt: DateTime
 }
 
 input TokenNotificationUpdateArgs {
@@ -8276,6 +8288,9 @@ input TokenNotificationUpdateArgs {
 input TokenNotificationCreateInput {
   token: String
   user: UserRelateToOneForCreateInput
+  platform: String
+  deviceId: String
+  lastSeenAt: DateTime
 }
 
 type User {
@@ -8380,6 +8395,10 @@ type User {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  petAlertsEnabled: Boolean
+  alertLat: Float
+  alertLng: Float
+  alertRadiusKm: Int
   suspendedAt: DateTime
   suspendedReason: String
   sessionVersion: Int
@@ -8464,6 +8483,10 @@ input UserWhereInput {
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   createdAt: DateTimeNullableFilter
   lastLoginAt: DateTimeNullableFilter
+  petAlertsEnabled: BooleanFilter
+  alertLat: FloatNullableFilter
+  alertLng: FloatNullableFilter
+  alertRadiusKm: IntNullableFilter
   suspendedAt: DateTimeNullableFilter
   suspendedReason: StringNullableFilter
   sessionVersion: IntNullableFilter
@@ -8535,6 +8558,10 @@ input UserOrderByInput {
   stripeCustomerId: OrderDirection
   createdAt: OrderDirection
   lastLoginAt: OrderDirection
+  petAlertsEnabled: OrderDirection
+  alertLat: OrderDirection
+  alertLng: OrderDirection
+  alertRadiusKm: OrderDirection
   suspendedAt: OrderDirection
   suspendedReason: OrderDirection
   sessionVersion: OrderDirection
@@ -8606,6 +8633,10 @@ input UserUpdateInput {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  petAlertsEnabled: Boolean
+  alertLat: Float
+  alertLng: Float
+  alertRadiusKm: Int
   suspendedAt: DateTime
   suspendedReason: String
   sessionVersion: Int
@@ -8725,6 +8756,10 @@ input UserCreateInput {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  petAlertsEnabled: Boolean
+  alertLat: Float
+  alertLng: Float
+  alertRadiusKm: Int
   suspendedAt: DateTime
   suspendedReason: String
   sessionVersion: Int
@@ -9521,6 +9556,8 @@ type Mutation {
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   markAllNotificationsRead(product: String): Int!
+  registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
+  unregisterPushToken(token: String!): Boolean!
   authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String, attribution: JSON): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String, attribution: JSON): User
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
