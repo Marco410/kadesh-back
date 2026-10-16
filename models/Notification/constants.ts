@@ -16,6 +16,8 @@ export const NOTIFICATION_PRODUCT_OPTIONS = [
 export const NOTIFICATION_TYPE = {
   /** Un usuario (no admin) publicó un animal en Kadesh Pet. */
   ANIMAL_CREATED: "animal.created",
+  /** Se reportó una mascota perdida o encontrada dentro del radio de alertas de la persona. */
+  ANIMAL_NEARBY: "animal.nearby",
   /** El dueño de una veterinaria pidió agregar un servicio al catálogo. */
   PET_PLACE_SERVICE_REQUESTED: "petplace.service_requested",
   /** Alguien cambió sus datos bancarios (comisiones de referidos). */

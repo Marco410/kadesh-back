@@ -1,6 +1,7 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../models/Role/constants";
 import type { NotificationType } from "../../models/Notification/constants";
+import { sendPushToUsers } from "./push";
 
 export type NotifyInput = {
   /** "platform_admins" = una fila por cada admin de plataforma; si no, ids de usuario. */
@@ -16,8 +17,9 @@ export type NotifyInput = {
 };
 
 /**
- * Crea notificaciones en la campana. Igual que `logActivity`: usa sudo, nunca lanza y no debe
- * frenar la operación que la dispara (llamar con `void notify(...)` o dentro de try).
+ * Crea notificaciones en la campana y, si son de Kadesh Pet, manda el push a la app (sin esperar
+ * la respuesta de Expo). Igual que `logActivity`: usa sudo, nunca lanza y no debe frenar la
+ * operación que la dispara (llamar con `void notify(...)` o dentro de try).
  * No guardar datos sensibles en `body`/`metadata` (contraseñas, tokens, datos bancarios).
  */
 export async function notify(context: KeystoneContext, input: NotifyInput): Promise<number> {
@@ -52,6 +54,15 @@ export async function notify(context: KeystoneContext, input: NotifyInput): Prom
     });
     // Prisma de Keystone devuelve el error en vez de lanzarlo.
     if (result instanceof Error) throw result;
+
+    if (input.product === "pet") {
+      void sendPushToUsers(context, recipientIds, {
+        title: input.title,
+        body: input.body,
+        url: input.url,
+        type: input.type,
+      });
+    }
     return result?.count ?? recipientIds.length;
   } catch (error) {
     console.error("[notify] No se pudo crear la notificación:", input.type, error);

@@ -3,6 +3,7 @@ import { isPlatformAdmin } from "../../../utils/access/tenant";
 import { PRODUCT } from "../../../utils/constants/product";
 import { postToFacebookPage } from "../../../utils/intregrations/facebook";
 import { sendAdminNewAnimalEmail } from "../../../utils/helpers/sendgrid";
+import { notifyNearbyAnimal } from "../../../utils/notifications/nearbyAnimalAlerts";
 import { adminNotificationEmailsEnabled, notify } from "../../../utils/notifications/notify";
 import { NOTIFICATION_TYPE } from "../../Notification/constants";
 import {
@@ -415,7 +416,8 @@ export const animalSlugAfterOperation = animalCreateSideEffectsHook;
 
 /**
  * On the first log, enrich the slug with status and city. Later logs leave
- * it alone so WhatsApp/cartel links stay valid.
+ * it alone so WhatsApp/cartel links stay valid. If that first log is "lost"
+ * or "found" with coordinates, alert the people whose alert zone includes it.
  */
 export const animalLogSlugAfterOperation = {
   afterOperation: async ({
@@ -460,6 +462,35 @@ export const animalLogSlugAfterOperation = {
       noteAnimalSlugSettled(animalId, context);
     } catch (error) {
       console.error("Error enriching animal slug from log:", error);
+    }
+
+    // Sin sesión (seed o scripts) no se avisa a nadie.
+    if (!context.session?.data) return;
+    try {
+      const animal = await context.sudo().query.Animal.findOne({
+        where: { id: animalId },
+        query: "id name slug user { id } animal_type { name }",
+      });
+      if (!animal) return;
+      // `placeLabel` ya trae colonia y ciudad; si no hay, se arma con las dos.
+      const place =
+        (item.placeLabel || "").trim() ||
+        [(item.neighborhood || "").trim(), (item.city || "").trim()].filter(Boolean).join(", ");
+      await notifyNearbyAnimal(context, {
+        animalId,
+        ownerId: animal.user?.id ?? null,
+        name: animal.name ?? null,
+        type: animal.animal_type?.name ?? null,
+        status: item.status,
+        lat: Number.parseFloat(item.lat),
+        lng: Number.parseFloat(item.lng),
+        place,
+        seenAt: item.date_status ?? null,
+        slug: animal.slug ?? null,
+        url: animal.slug ? animalPublicUrl(animal.slug) : null,
+      });
+    } catch (error) {
+      console.error("[alerts] Error al avisar a la zona:", error);
     }
   },
 };
