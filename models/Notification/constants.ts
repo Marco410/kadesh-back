@@ -11,7 +11,8 @@ export const NOTIFICATION_PRODUCT_OPTIONS = [
 
 /**
  * Tipos de notificación. Se agregan aquí y en el front (`kadesh/components/notifications`)
- * para el ícono y el texto del tipo.
+ * para el ícono y el texto del tipo. La plantilla de WhatsApp es opcional: sin una entrada en
+ * `utils/notifications/whatsapp.ts` el tipo solo llega a la campana.
  */
 export const NOTIFICATION_TYPE = {
   /** Un usuario (no admin) publicó un animal en Kadesh Pet. */

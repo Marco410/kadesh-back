@@ -299,6 +299,7 @@ async function notifyAdminsNewAnimal(
     entityId: animal.id,
     url: publicUrl ?? null,
     metadata: { slug: slug ?? null, animalType: animalType ?? null },
+    templateValues: { animalName, animalType, creatorName: creator.name },
   });
 
   if (!adminNotificationEmailsEnabled()) return;

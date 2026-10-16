@@ -8305,6 +8305,7 @@ type User {
   businessPhone: String
   password: PasswordState
   phone: String
+  whatsappNotifications: Boolean
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
   permissions: JSON
@@ -8431,6 +8432,7 @@ input UserWhereInput {
   businessPhone: StringNullableFilter
   password: PasswordFilter
   phone: StringFilter
+  whatsappNotifications: BooleanFilter
   roles: RoleManyRelationFilter
   referredBy: UserWhereInput
   referrals: UserManyRelationFilter
@@ -8542,6 +8544,7 @@ input UserOrderByInput {
   businessEmail: OrderDirection
   businessPhone: OrderDirection
   phone: OrderDirection
+  whatsappNotifications: OrderDirection
   birthday: OrderDirection
   smsRegistrationId: OrderDirection
   verified: OrderDirection
@@ -8576,6 +8579,7 @@ input UserUpdateInput {
   businessPhone: String
   password: String
   phone: String
+  whatsappNotifications: Boolean
   roles: RoleRelateToManyForUpdateInput
   permissions: JSON
   referredBy: UserRelateToOneForUpdateInput
@@ -8698,6 +8702,7 @@ input UserCreateInput {
   businessPhone: String
   password: String
   phone: String
+  whatsappNotifications: Boolean
   roles: RoleRelateToManyForCreateInput
   permissions: JSON
   referredBy: UserRelateToOneForCreateInput

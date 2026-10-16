@@ -2525,14 +2525,18 @@ var NOTIFICATION_PRODUCT_OPTIONS = [
 var NOTIFICATION_TYPE = {
   /** Un usuario (no admin) publicó un animal en Kadesh Pet. */
   ANIMAL_CREATED: "animal.created",
+<<<<<<< HEAD
   /** Se reportó una mascota perdida o encontrada dentro del radio de alertas de la persona. */
   ANIMAL_NEARBY: "animal.nearby",
+=======
+>>>>>>> 54e55d4eed51f5ad9e2d2bbb3cdc0fb6ebcd99ee
   /** El dueño de una veterinaria pidió agregar un servicio al catálogo. */
   PET_PLACE_SERVICE_REQUESTED: "petplace.service_requested",
   /** Alguien cambió sus datos bancarios (comisiones de referidos). */
   USER_BANK_DETAILS_UPDATED: "user.bank_details_updated"
 };
 
+<<<<<<< HEAD
 // utils/notifications/push.ts
 var SEND_URL = "https://exp.host/--/api/v2/push/send";
 var RECEIPTS_URL = "https://exp.host/--/api/v2/push/getReceipts";
@@ -2636,6 +2640,600 @@ async function sendPushToUsers(context, userIds, message) {
   } catch (error) {
     console.error("[push] No se pudo enviar:", message.type, error);
     return 0;
+=======
+// utils/intregrations/whatsapp.ts
+var import_crypto = __toESM(require("crypto"));
+var GRAPH_API_VERSION2 = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
+function parseGraphError(bodyText) {
+  try {
+    const parsed = JSON.parse(bodyText);
+    const err = parsed?.error;
+    if (err?.message) {
+      const detail = [err.error_user_title, err.error_user_msg].filter(Boolean).join(": ");
+      const subcode = err.error_subcode ? ` (subc\xF3digo ${err.error_subcode})` : "";
+      return {
+        message: `${err.message}${detail ? ` \u2014 ${detail}` : ""}${subcode}`,
+        code: err.code,
+        subcode: err.error_subcode
+      };
+    }
+  } catch {
+  }
+  return { message: bodyText || "Error desconocido de la Graph API" };
+}
+function graphError(prefix2, bodyText) {
+  const { message, code, subcode } = parseGraphError(bodyText);
+  const err = new Error(`${prefix2} ${message}`);
+  err.graphCode = code;
+  err.graphSubcode = subcode;
+  return err;
+}
+async function sendWhatsAppTextMessage({
+  phoneNumberId,
+  accessToken,
+  to,
+  body
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body }
+      })
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const id = parsed?.messages?.[0]?.id;
+  if (!id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
+  }
+  return { id };
+}
+async function fetchWhatsAppPhoneNumberInfo({
+  phoneNumberId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}?fields=display_phone_number,verified_name`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return {
+    displayPhoneNumber: parsed?.display_phone_number || "",
+    verifiedName: parsed?.verified_name || ""
+  };
+}
+async function fetchWhatsAppBusinessAccountInfo({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}?fields=id,name,phone_numbers.limit(100){id}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return {
+    id: parsed?.id || wabaId,
+    name: parsed?.name || "",
+    phoneNumberIds: (parsed?.phone_numbers?.data ?? []).map((n) => n.id).filter((id) => Boolean(id))
+  };
+}
+async function createWhatsAppTemplate({
+  wabaId,
+  accessToken,
+  name,
+  language,
+  bodyText,
+  bodyExamples
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/message_templates`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name,
+        language,
+        category: "MARKETING",
+        components: [
+          {
+            type: "BODY",
+            text: bodyText,
+            ...bodyExamples.length > 0 ? { example: { body_text: [bodyExamples] } } : {}
+          }
+        ]
+      })
+    }
+  );
+  const bodyTextRes = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error creando plantilla:", bodyTextRes);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyTextRes);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed?.id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de plantilla");
+  }
+  return { id: parsed.id, status: parsed.status || "PENDING" };
+}
+function countTemplateVariables(bodyText) {
+  let max = 0;
+  for (const m of bodyText.matchAll(/\{\{\s*(\d+)\s*\}\}/g)) {
+    max = Math.max(max, Number(m[1]) || 0);
+  }
+  return max;
+}
+function toTemplateSummary(raw) {
+  if (!raw.name) return null;
+  const components = raw.components ?? [];
+  const body = components.find((c) => c.type?.toUpperCase() === "BODY");
+  const header = components.find((c) => c.type?.toUpperCase() === "HEADER");
+  const footer = components.find((c) => c.type?.toUpperCase() === "FOOTER");
+  const bodyText = body?.text || "";
+  return {
+    name: raw.name,
+    language: raw.language || "",
+    status: (raw.status || "PENDING").toUpperCase(),
+    category: (raw.category || "").toUpperCase(),
+    headerText: header?.format?.toUpperCase() === "TEXT" ? header.text || null : null,
+    bodyText,
+    footerText: footer?.text || null,
+    variableCount: countTemplateVariables(bodyText)
+  };
+}
+async function listWhatsAppTemplates({
+  wabaId,
+  accessToken,
+  name
+}) {
+  const params = new URLSearchParams({
+    fields: "name,language,status,category,components",
+    limit: "200"
+  });
+  if (name) params.set("name", name);
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/message_templates?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error consultando plantillas:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return (parsed?.data ?? []).map(toTemplateSummary).filter((t) => t !== null);
+}
+async function fetchWhatsAppTemplateStatus({
+  wabaId,
+  accessToken,
+  name,
+  language
+}) {
+  const templates = await listWhatsAppTemplates({ wabaId, accessToken, name });
+  const matches = templates.filter((t) => t.name === name);
+  if (matches.length === 0) return null;
+  const match = language && matches.find((t) => t.language === language) || matches[0];
+  return { status: match.status, language: match.language || language || "" };
+}
+async function sendWhatsAppTemplateMessage({
+  phoneNumberId,
+  accessToken,
+  to,
+  templateName,
+  language,
+  bodyParams
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: language },
+          // Una plantilla sin variables tiene que ir SIN `components`: Meta rechaza un
+          // `parameters: []` con "number of parameters does not match".
+          ...bodyParams.length > 0 ? {
+            components: [
+              {
+                type: "body",
+                parameters: bodyParams.map((text75) => ({ type: "text", text: text75 }))
+              }
+            ]
+          } : {}
+        }
+      })
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const id = parsed?.messages?.[0]?.id;
+  if (!id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
+  }
+  return { id };
+}
+async function uploadMediaToWhatsApp({
+  phoneNumberId,
+  accessToken,
+  buffer,
+  mimetype,
+  filename
+}) {
+  const form = new FormData();
+  form.append("messaging_product", "whatsapp");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(buffer)], { type: mimetype }),
+    filename
+  );
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/media`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error subiendo media:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed?.id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de media");
+  }
+  return { id: parsed.id };
+}
+async function sendWhatsAppMediaMessage({
+  phoneNumberId,
+  accessToken,
+  to,
+  mediaId,
+  type,
+  filename,
+  caption
+}) {
+  const mediaPayload = { id: mediaId };
+  if (caption) mediaPayload.caption = caption;
+  if (type === "document" && filename) mediaPayload.filename = filename;
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type,
+        [type]: mediaPayload
+      })
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const id = parsed?.messages?.[0]?.id;
+  if (!id) {
+    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
+  }
+  return { id };
+}
+async function fetchWhatsAppMediaUrl({
+  mediaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${mediaId}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error consultando media:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed?.url) {
+    throw new Error("[whatsapp] La API no regres\xF3 una URL de media");
+  }
+  return {
+    url: parsed.url,
+    mimeType: parsed.mime_type || "application/octet-stream"
+  };
+}
+async function downloadWhatsAppMedia({
+  url,
+  accessToken
+}) {
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) {
+    throw new Error(
+      `[whatsapp] No se pudo descargar el media (HTTP ${response.status})`
+    );
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+async function debugWhatsAppToken({
+  appId,
+  appSecret,
+  accessToken
+}) {
+  const params = new URLSearchParams({
+    input_token: accessToken,
+    access_token: `${appId}|${appSecret}`
+  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/debug_token?${params.toString()}`
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const data = parsed?.data;
+  const wabaIds = /* @__PURE__ */ new Set();
+  for (const g of data?.granular_scopes ?? []) {
+    if (g.scope === "whatsapp_business_management") {
+      for (const id of g.target_ids ?? []) wabaIds.add(id);
+    }
+  }
+  return {
+    isValid: data?.is_valid === true,
+    appId: data?.app_id ?? null,
+    expiresAt: data?.expires_at ?? 0,
+    scopes: data?.scopes ?? [],
+    wabaIds: Array.from(wabaIds),
+    invalidReason: data?.error?.message ?? null
+  };
+}
+async function listWhatsAppPhoneNumbers({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&limit=100`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", bodyText);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  return (parsed?.data ?? []).filter(
+    (n) => Boolean(n.id)
+  ).map((n) => ({
+    id: n.id,
+    displayPhoneNumber: n.display_phone_number || "",
+    verifiedName: n.verified_name || ""
+  }));
+}
+async function subscribeAppToWaba({
+  wabaId,
+  accessToken
+}) {
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/subscribed_apps`,
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", await response.text());
+  }
+}
+async function configureAppWebhook({
+  appId,
+  appSecret,
+  callbackUrl,
+  verifyToken
+}) {
+  const body = new URLSearchParams({
+    object: "whatsapp_business_account",
+    callback_url: callbackUrl,
+    verify_token: verifyToken,
+    fields: "messages,message_template_status_update",
+    access_token: `${appId}|${appSecret}`
+  });
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${appId}/subscriptions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    }
+  );
+  if (!response.ok) {
+    throw graphError("[whatsapp] Graph API error:", await response.text());
+  }
+}
+function verifyWhatsAppSignature({
+  appSecret,
+  rawBody,
+  signatureHeader
+}) {
+  if (!signatureHeader) return false;
+  const expected = import_crypto.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const received = signatureHeader.replace(/^sha256=/, "");
+  const expectedBuf = Buffer.from(expected, "hex");
+  const receivedBuf = Buffer.from(received, "hex");
+  if (expectedBuf.length !== receivedBuf.length) return false;
+  return import_crypto.default.timingSafeEqual(expectedBuf, receivedBuf);
+}
+
+// utils/pet/phone.ts
+function normalizeMxPhone(raw) {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("521") && digits.length === 13) digits = digits.slice(3);
+  else if (digits.startsWith("52") && digits.length === 12) digits = digits.slice(2);
+  if (digits.length !== 10) {
+    return { ok: false, reason: "El tel\xE9fono debe tener 10 d\xEDgitos." };
+  }
+  return { ok: true, digits };
+}
+
+// utils/notifications/whatsapp.ts
+var TEMPLATE_LANGUAGE = "es_MX";
+var PARAM_FALLBACK = "sin especificar";
+var PARAM_MAX_LENGTH = 200;
+var WHATSAPP_TEMPLATES = {
+  [NOTIFICATION_TYPE.ANIMAL_CREATED]: {
+    name: "kadesh_admin_animal_creado",
+    params: (v) => [v.animalName, v.animalType, v.creatorName]
+  },
+  [NOTIFICATION_TYPE.PET_PLACE_SERVICE_REQUESTED]: {
+    name: "kadesh_admin_servicio_solicitado",
+    params: (v) => [v.serviceName, v.petPlaceName, v.requesterName]
+  },
+  [NOTIFICATION_TYPE.USER_BANK_DETAILS_UPDATED]: {
+    name: "kadesh_admin_datos_bancarios",
+    params: (v) => [v.userName]
+  }
+};
+function hasWhatsappTemplate(type) {
+  return Boolean(WHATSAPP_TEMPLATES[type]);
+}
+function platformWhatsappConfig() {
+  const phoneNumberId = process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID?.trim();
+  const accessToken = process.env.WHATSAPP_PLATFORM_ACCESS_TOKEN?.trim();
+  if (!phoneNumberId || !accessToken) return null;
+  return { phoneNumberId, accessToken };
+}
+function templateParam(value) {
+  const clean = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (!clean) return PARAM_FALLBACK;
+  return clean.length > PARAM_MAX_LENGTH ? `${clean.slice(0, PARAM_MAX_LENGTH - 1)}\u2026` : clean;
+}
+function toWhatsappNumber(raw) {
+  if (!raw) return null;
+  const mx = normalizeMxPhone(raw);
+  if (mx.ok) return `52${mx.digits}`;
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 11 ? digits : null;
+}
+async function sendNotificationWhatsapp(recipients, type, values) {
+  try {
+    const template = WHATSAPP_TEMPLATES[type];
+    const config2 = platformWhatsappConfig();
+    if (!template || !config2) return;
+    const bodyParams = template.params(values).map(templateParam);
+    await Promise.allSettled(
+      recipients.map(async (recipient) => {
+        const to = toWhatsappNumber(recipient.phone);
+        if (!to) return;
+        try {
+          await sendWhatsAppTemplateMessage({
+            ...config2,
+            to,
+            templateName: template.name,
+            language: TEMPLATE_LANGUAGE,
+            bodyParams
+          });
+        } catch (error) {
+          console.error(
+            `[notify:whatsapp] ${type} a usuario ${recipient.id} (\u2026${to.slice(-4)}):`,
+            error instanceof Error ? error.message : error
+          );
+        }
+      })
+    );
+  } catch (error) {
+    console.error("[notify:whatsapp] No se pudo mandar:", type, error);
+>>>>>>> 54e55d4eed51f5ad9e2d2bbb3cdc0fb6ebcd99ee
   }
 }
 
@@ -2669,6 +3267,7 @@ async function notify(context, input) {
       }))
     });
     if (result3 instanceof Error) throw result3;
+<<<<<<< HEAD
     if (input.product === "pet") {
       void sendPushToUsers(context, recipientIds, {
         title: input.title,
@@ -2676,6 +3275,16 @@ async function notify(context, input) {
         url: input.url,
         type: input.type
       });
+=======
+    if (hasWhatsappTemplate(input.type) && platformWhatsappConfig()) {
+      const optedIn = await prisma.user.findMany({
+        where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: null } },
+        select: { id: true, phone: true }
+      });
+      if (Array.isArray(optedIn) && optedIn.length > 0) {
+        void sendNotificationWhatsapp(optedIn, input.type, input.templateValues ?? {});
+      }
+>>>>>>> 54e55d4eed51f5ad9e2d2bbb3cdc0fb6ebcd99ee
     }
     return result3?.count ?? recipientIds.length;
   } catch (error) {
@@ -2687,6 +3296,7 @@ function adminNotificationEmailsEnabled() {
   return (process.env.ADMIN_NOTIFICATION_EMAILS ?? "off").trim().toLowerCase() === "on";
 }
 
+<<<<<<< HEAD
 // utils/notifications/nearbyAnimalAlerts.ts
 var ALERT_STATUSES = /* @__PURE__ */ new Set(["lost", "found"]);
 var MAX_NEARBY_ALERTS_PER_DAY = 5;
@@ -2759,6 +3369,8 @@ async function notifyNearbyAnimal(context, input) {
   }
 }
 
+=======
+>>>>>>> 54e55d4eed51f5ad9e2d2bbb3cdc0fb6ebcd99ee
 // models/Pet/Animal/scheduleAnimalFacebookPost.ts
 var FALLBACK_MS = 9e4;
 var AFTER_COVER_MS = 2500;
@@ -2970,7 +3582,8 @@ async function notifyAdminsNewAnimal(context, animal, creator) {
     entityType: "Animal",
     entityId: animal.id,
     url: publicUrl ?? null,
-    metadata: { slug: slug ?? null, animalType: animalType ?? null }
+    metadata: { slug: slug ?? null, animalType: animalType ?? null },
+    templateValues: { animalName, animalType, creatorName: creator.name }
   });
   if (!adminNotificationEmailsEnabled()) return;
   await sendAdminNewAnimalEmail({
@@ -3123,17 +3736,6 @@ var animalMultimediaFacebookHook = {
     noteAnimalCoverSaved(animalId, context);
   }
 };
-
-// utils/pet/phone.ts
-function normalizeMxPhone(raw) {
-  let digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("521") && digits.length === 13) digits = digits.slice(3);
-  else if (digits.startsWith("52") && digits.length === 12) digits = digits.slice(2);
-  if (digits.length !== 10) {
-    return { ok: false, reason: "El tel\xE9fono debe tener 10 d\xEDgitos." };
-  }
-  return { ok: true, digits };
-}
 
 // models/Pet/Animal/Animal.ts
 var Animal_default = (0, import_core.list)({
@@ -3980,7 +4582,8 @@ var userBankDetailsNotificationHook = {
       body: fieldsUpdated.join(", "),
       entityType: "User",
       entityId: userId,
-      metadata: { fields: [...fieldsUpdated] }
+      metadata: { fields: [...fieldsUpdated] },
+      templateValues: { userName }
     });
     if (!adminNotificationEmailsEnabled()) return;
     try {
@@ -4271,6 +4874,11 @@ var User_default = (0, import_core8.list)({
       }
     }),
     phone: (0, import_fields8.text)(),
+    /** Opt-in para recibir las notificaciones de la campana también por WhatsApp (al `phone`). */
+    whatsappNotifications: (0, import_fields8.checkbox)({
+      defaultValue: false,
+      ui: { description: "Recibir avisos de Kadesh por WhatsApp" }
+    }),
     roles: (0, import_fields8.relationship)({
       ref: "Role.users",
       many: true,
@@ -13575,7 +14183,7 @@ async function companyHasCalendarFeature(context, companyId) {
 var CALENDAR_FEATURE_DENIED_MESSAGE = "Tu plan actual no incluye la gesti\xF3n de calendario. Actualiza tu suscripci\xF3n para conectar Google Calendar.";
 
 // utils/helpers/encryption.ts
-var import_crypto = require("crypto");
+var import_crypto2 = require("crypto");
 var ALGORITHM = "aes-256-gcm";
 var IV_LENGTH = 12;
 var AUTH_TAG_LENGTH = 16;
@@ -13591,8 +14199,8 @@ function getEncryptionKey() {
 }
 function encrypt(plainText) {
   const key = getEncryptionKey();
-  const iv = (0, import_crypto.randomBytes)(IV_LENGTH);
-  const cipher = (0, import_crypto.createCipheriv)(ALGORITHM, key, iv);
+  const iv = (0, import_crypto2.randomBytes)(IV_LENGTH);
+  const cipher = (0, import_crypto2.createCipheriv)(ALGORITHM, key, iv);
   const encrypted = Buffer.concat([
     cipher.update(plainText, "utf8"),
     cipher.final()
@@ -13613,7 +14221,7 @@ function decrypt(payload) {
   if (iv.length !== IV_LENGTH || authTag.length !== AUTH_TAG_LENGTH) {
     throw new Error("Invalid encrypted payload");
   }
-  const decipher = (0, import_crypto.createDecipheriv)(ALGORITHM, key, iv);
+  const decipher = (0, import_crypto2.createDecipheriv)(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
   const decrypted = Buffer.concat([
     decipher.update(encrypted),
@@ -14436,12 +15044,12 @@ var schema_default = withActivityHooks({
 var import_core85 = require("@keystone-6/core");
 
 // auth/auth.ts
-var import_crypto2 = require("crypto");
+var import_crypto3 = require("crypto");
 var import_auth = require("@keystone-6/auth");
 var import_session = require("@keystone-6/core/session");
 var sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret && process.env.NODE_ENV !== "production") {
-  sessionSecret = (0, import_crypto2.randomBytes)(32).toString("hex");
+  sessionSecret = (0, import_crypto3.randomBytes)(32).toString("hex");
 }
 var { withAuth } = (0, import_auth.createAuth)({
   listKey: "User",
@@ -23622,7 +24230,12 @@ var resolver23 = {
       body: `${place.name || "Cl\xEDnica"} \xB7 ${requesterName}`,
       entityType: "PetPlaceService",
       entityId: created.id,
-      metadata: { petPlaceId: place.id }
+      metadata: { petPlaceId: place.id },
+      templateValues: {
+        serviceName: created.name || name,
+        petPlaceName: place.name || "Cl\xEDnica",
+        requesterName
+      }
     });
     if (adminNotificationEmailsEnabled() && isSmtpConfigured()) {
       try {
@@ -24605,520 +25218,6 @@ var resolver30 = {
   }
 };
 var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
-
-// utils/intregrations/whatsapp.ts
-var import_crypto3 = __toESM(require("crypto"));
-var GRAPH_API_VERSION2 = process.env.FACEBOOK_GRAPH_API_VERSION?.trim() || "v21.0";
-function parseGraphError(bodyText) {
-  try {
-    const parsed = JSON.parse(bodyText);
-    const err = parsed?.error;
-    if (err?.message) {
-      const detail = [err.error_user_title, err.error_user_msg].filter(Boolean).join(": ");
-      const subcode = err.error_subcode ? ` (subc\xF3digo ${err.error_subcode})` : "";
-      return {
-        message: `${err.message}${detail ? ` \u2014 ${detail}` : ""}${subcode}`,
-        code: err.code,
-        subcode: err.error_subcode
-      };
-    }
-  } catch {
-  }
-  return { message: bodyText || "Error desconocido de la Graph API" };
-}
-function graphError(prefix2, bodyText) {
-  const { message, code, subcode } = parseGraphError(bodyText);
-  const err = new Error(`${prefix2} ${message}`);
-  err.graphCode = code;
-  err.graphSubcode = subcode;
-  return err;
-}
-async function sendWhatsAppTextMessage({
-  phoneNumberId,
-  accessToken,
-  to,
-  body
-}) {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: { body }
-      })
-    }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  const id = parsed?.messages?.[0]?.id;
-  if (!id) {
-    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
-  }
-  return { id };
-}
-async function fetchWhatsAppPhoneNumberInfo({
-  phoneNumberId,
-  accessToken
-}) {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}?fields=display_phone_number,verified_name`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  return {
-    displayPhoneNumber: parsed?.display_phone_number || "",
-    verifiedName: parsed?.verified_name || ""
-  };
-}
-async function fetchWhatsAppBusinessAccountInfo({
-  wabaId,
-  accessToken
-}) {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}?fields=id,name,phone_numbers.limit(100){id}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  return {
-    id: parsed?.id || wabaId,
-    name: parsed?.name || "",
-    phoneNumberIds: (parsed?.phone_numbers?.data ?? []).map((n) => n.id).filter((id) => Boolean(id))
-  };
-}
-async function createWhatsAppTemplate({
-  wabaId,
-  accessToken,
-  name,
-  language,
-  bodyText,
-  bodyExamples
-}) {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/message_templates`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name,
-        language,
-        category: "MARKETING",
-        components: [
-          {
-            type: "BODY",
-            text: bodyText,
-            ...bodyExamples.length > 0 ? { example: { body_text: [bodyExamples] } } : {}
-          }
-        ]
-      })
-    }
-  );
-  const bodyTextRes = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error creando plantilla:", bodyTextRes);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyTextRes);
-  } catch {
-    parsed = null;
-  }
-  if (!parsed?.id) {
-    throw new Error("[whatsapp] La API no regres\xF3 un id de plantilla");
-  }
-  return { id: parsed.id, status: parsed.status || "PENDING" };
-}
-function countTemplateVariables(bodyText) {
-  let max = 0;
-  for (const m of bodyText.matchAll(/\{\{\s*(\d+)\s*\}\}/g)) {
-    max = Math.max(max, Number(m[1]) || 0);
-  }
-  return max;
-}
-function toTemplateSummary(raw) {
-  if (!raw.name) return null;
-  const components = raw.components ?? [];
-  const body = components.find((c) => c.type?.toUpperCase() === "BODY");
-  const header = components.find((c) => c.type?.toUpperCase() === "HEADER");
-  const footer = components.find((c) => c.type?.toUpperCase() === "FOOTER");
-  const bodyText = body?.text || "";
-  return {
-    name: raw.name,
-    language: raw.language || "",
-    status: (raw.status || "PENDING").toUpperCase(),
-    category: (raw.category || "").toUpperCase(),
-    headerText: header?.format?.toUpperCase() === "TEXT" ? header.text || null : null,
-    bodyText,
-    footerText: footer?.text || null,
-    variableCount: countTemplateVariables(bodyText)
-  };
-}
-async function listWhatsAppTemplates({
-  wabaId,
-  accessToken,
-  name
-}) {
-  const params = new URLSearchParams({
-    fields: "name,language,status,category,components",
-    limit: "200"
-  });
-  if (name) params.set("name", name);
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/message_templates?${params}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error consultando plantillas:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  return (parsed?.data ?? []).map(toTemplateSummary).filter((t) => t !== null);
-}
-async function fetchWhatsAppTemplateStatus({
-  wabaId,
-  accessToken,
-  name,
-  language
-}) {
-  const templates = await listWhatsAppTemplates({ wabaId, accessToken, name });
-  const matches = templates.filter((t) => t.name === name);
-  if (matches.length === 0) return null;
-  const match = language && matches.find((t) => t.language === language) || matches[0];
-  return { status: match.status, language: match.language || language || "" };
-}
-async function sendWhatsAppTemplateMessage({
-  phoneNumberId,
-  accessToken,
-  to,
-  templateName,
-  language,
-  bodyParams
-}) {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "template",
-        template: {
-          name: templateName,
-          language: { code: language },
-          // Una plantilla sin variables tiene que ir SIN `components`: Meta rechaza un
-          // `parameters: []` con "number of parameters does not match".
-          ...bodyParams.length > 0 ? {
-            components: [
-              {
-                type: "body",
-                parameters: bodyParams.map((text75) => ({ type: "text", text: text75 }))
-              }
-            ]
-          } : {}
-        }
-      })
-    }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  const id = parsed?.messages?.[0]?.id;
-  if (!id) {
-    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
-  }
-  return { id };
-}
-async function uploadMediaToWhatsApp({
-  phoneNumberId,
-  accessToken,
-  buffer,
-  mimetype,
-  filename
-}) {
-  const form = new FormData();
-  form.append("messaging_product", "whatsapp");
-  form.append(
-    "file",
-    new Blob([new Uint8Array(buffer)], { type: mimetype }),
-    filename
-  );
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/media`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: form
-    }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error subiendo media:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  if (!parsed?.id) {
-    throw new Error("[whatsapp] La API no regres\xF3 un id de media");
-  }
-  return { id: parsed.id };
-}
-async function sendWhatsAppMediaMessage({
-  phoneNumberId,
-  accessToken,
-  to,
-  mediaId,
-  type,
-  filename,
-  caption
-}) {
-  const mediaPayload = { id: mediaId };
-  if (caption) mediaPayload.caption = caption;
-  if (type === "document" && filename) mediaPayload.filename = filename;
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type,
-        [type]: mediaPayload
-      })
-    }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  const id = parsed?.messages?.[0]?.id;
-  if (!id) {
-    throw new Error("[whatsapp] La API no regres\xF3 un id de mensaje");
-  }
-  return { id };
-}
-async function fetchWhatsAppMediaUrl({
-  mediaId,
-  accessToken
-}) {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${mediaId}`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error consultando media:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  if (!parsed?.url) {
-    throw new Error("[whatsapp] La API no regres\xF3 una URL de media");
-  }
-  return {
-    url: parsed.url,
-    mimeType: parsed.mime_type || "application/octet-stream"
-  };
-}
-async function downloadWhatsAppMedia({
-  url,
-  accessToken
-}) {
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
-  if (!response.ok) {
-    throw new Error(
-      `[whatsapp] No se pudo descargar el media (HTTP ${response.status})`
-    );
-  }
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
-}
-async function debugWhatsAppToken({
-  appId,
-  appSecret,
-  accessToken
-}) {
-  const params = new URLSearchParams({
-    input_token: accessToken,
-    access_token: `${appId}|${appSecret}`
-  });
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/debug_token?${params.toString()}`
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  const data = parsed?.data;
-  const wabaIds = /* @__PURE__ */ new Set();
-  for (const g of data?.granular_scopes ?? []) {
-    if (g.scope === "whatsapp_business_management") {
-      for (const id of g.target_ids ?? []) wabaIds.add(id);
-    }
-  }
-  return {
-    isValid: data?.is_valid === true,
-    appId: data?.app_id ?? null,
-    expiresAt: data?.expires_at ?? 0,
-    scopes: data?.scopes ?? [],
-    wabaIds: Array.from(wabaIds),
-    invalidReason: data?.error?.message ?? null
-  };
-}
-async function listWhatsAppPhoneNumbers({
-  wabaId,
-  accessToken
-}) {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&limit=100`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", bodyText);
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    parsed = null;
-  }
-  return (parsed?.data ?? []).filter(
-    (n) => Boolean(n.id)
-  ).map((n) => ({
-    id: n.id,
-    displayPhoneNumber: n.display_phone_number || "",
-    verifiedName: n.verified_name || ""
-  }));
-}
-async function subscribeAppToWaba({
-  wabaId,
-  accessToken
-}) {
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${wabaId}/subscribed_apps`,
-    { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", await response.text());
-  }
-}
-async function configureAppWebhook({
-  appId,
-  appSecret,
-  callbackUrl,
-  verifyToken
-}) {
-  const body = new URLSearchParams({
-    object: "whatsapp_business_account",
-    callback_url: callbackUrl,
-    verify_token: verifyToken,
-    fields: "messages,message_template_status_update",
-    access_token: `${appId}|${appSecret}`
-  });
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${appId}/subscriptions`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
-    }
-  );
-  if (!response.ok) {
-    throw graphError("[whatsapp] Graph API error:", await response.text());
-  }
-}
-function verifyWhatsAppSignature({
-  appSecret,
-  rawBody,
-  signatureHeader
-}) {
-  if (!signatureHeader) return false;
-  const expected = import_crypto3.default.createHmac("sha256", appSecret).update(rawBody).digest("hex");
-  const received = signatureHeader.replace(/^sha256=/, "");
-  const expectedBuf = Buffer.from(expected, "hex");
-  const receivedBuf = Buffer.from(received, "hex");
-  if (expectedBuf.length !== receivedBuf.length) return false;
-  return import_crypto3.default.timingSafeEqual(expectedBuf, receivedBuf);
-}
 
 // utils/whatsapp/templateStatus.ts
 var TEMPLATE_STATUS_MAP = {
