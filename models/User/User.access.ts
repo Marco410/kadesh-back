@@ -157,6 +157,15 @@ export const userCompanyFieldAccess = {
   },
 };
 
+/** Zona y estado de las alertas de Pet: solo la propia persona (o un admin) las ve y las cambia. */
+export const userPetAlertsFieldAccess = {
+  read: ({ session, item }: any) =>
+    isPlatformAdmin(session) || isSelf(session, item),
+  create: () => true,
+  update: ({ session, item }: any) =>
+    isPlatformAdmin(session) || isSelf(session, item),
+};
+
 export const userSecretFieldAccess = {
   read: ({ session, item }: any) =>
     isPlatformAdmin(session) || isSelf(session, item),

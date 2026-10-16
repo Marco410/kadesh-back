@@ -11,6 +11,7 @@ import {
   integer,
   json,
   select,
+  float,
 } from "@keystone-6/core/fields";
 import {
   PRODUCT,
@@ -30,6 +31,7 @@ import {
 import access, {
   userCompanyFieldAccess,
   userOnboardingFieldAccess,
+  userPetAlertsFieldAccess,
   userPermissionsFieldAccess,
   userRolesFieldAccess,
   userSecretFieldAccess,
@@ -442,6 +444,31 @@ export default list({
           "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
         createView: { fieldMode: "hidden" },
       },
+    }),
+    // Alertas de Kadesh Pet: avisos (campana + push) de mascotas perdidas o encontradas cerca.
+    // Las edita la propia persona desde la app. Ver utils/notifications/nearbyAnimalAlerts.ts.
+    petAlertsEnabled: checkbox({
+      defaultValue: false,
+      access: userPetAlertsFieldAccess,
+      ui: { description: "Recibe alertas de mascotas perdidas o encontradas cerca de su zona" },
+    }),
+    alertLat: float({
+      db: { isNullable: true },
+      validation: { min: -90, max: 90 },
+      access: userPetAlertsFieldAccess,
+      ui: { description: "Centro de la zona de alertas (latitud)" },
+    }),
+    alertLng: float({
+      db: { isNullable: true },
+      validation: { min: -180, max: 180 },
+      access: userPetAlertsFieldAccess,
+      ui: { description: "Centro de la zona de alertas (longitud)" },
+    }),
+    alertRadiusKm: integer({
+      defaultValue: 5,
+      validation: { min: 1, max: 50 },
+      access: userPetAlertsFieldAccess,
+      ui: { description: "Radio de la zona de alertas, en km (1–50)" },
     }),
     // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
     suspendedAt: timestamp({
