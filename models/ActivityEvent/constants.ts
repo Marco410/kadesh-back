@@ -61,6 +61,8 @@ export const ACTIVITY_SOURCE_OPTIONS = [
 export const ACTIVITY_EVENT = {
   // Accesos
   AUTH_LOGOUT: "auth.logout",
+  /** La persona borró su cuenta (app de Pet). */
+  AUTH_ACCOUNT_DELETED: "auth.account_deleted",
 
   // CRM: leads
   LEAD_ADDED_MANUALLY: "lead.added_manually",

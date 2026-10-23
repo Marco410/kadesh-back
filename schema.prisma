@@ -1721,6 +1721,40 @@ model TokenNotification {
   @@index([userId])
 }
 
+model ContentReport {
+  id             String    @id @default(cuid())
+  reporter       User?     @relation("ContentReport_reporter", fields: [reporterId], references: [id])
+  reporterId     String?   @map("reporter")
+  reportedUser   User?     @relation("ContentReport_reportedUser", fields: [reportedUserId], references: [id])
+  reportedUserId String?   @map("reportedUser")
+  entityType     String
+  entityId       String    @default("")
+  excerpt        String    @default("")
+  reason         String
+  details        String    @default("")
+  status         String?   @default("open")
+  resolutionNote String    @default("")
+  createdAt      DateTime? @default(now())
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([entityId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UserBlock {
+  id        String    @id @default(cuid())
+  blocker   User?     @relation("UserBlock_blocker", fields: [blockerId], references: [id])
+  blockerId String?   @map("blocker")
+  blocked   User?     @relation("UserBlock_blocked", fields: [blockedId], references: [id])
+  blockedId String?   @map("blocked")
+  createdAt DateTime? @default(now())
+
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
 model User {
   id                                       String                   @id @default(cuid())
   name                                     String                   @default("")
@@ -1827,6 +1861,10 @@ model User {
   from_SaasReferralCommission_referredUser SaasReferralCommission[] @relation("SaasReferralCommission_referredUser")
   from_TechLeadStageChange_changedBy       TechLeadStageChange[]    @relation("TechLeadStageChange_changedBy")
   from_TokenNotification_user              TokenNotification[]      @relation("TokenNotification_user")
+  from_ContentReport_reporter              ContentReport[]          @relation("ContentReport_reporter")
+  from_ContentReport_reportedUser          ContentReport[]          @relation("ContentReport_reportedUser")
+  from_UserBlock_blocker                   UserBlock[]              @relation("UserBlock_blocker")
+  from_UserBlock_blocked                   UserBlock[]              @relation("UserBlock_blocked")
   from_UserActivityDay_user                UserActivityDay[]        @relation("UserActivityDay_user")
   from_WishList_user                       WishList[]               @relation("WishList_user")
 

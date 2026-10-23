@@ -19,6 +19,8 @@ export const NOTIFICATION_TYPE = {
   ANIMAL_CREATED: "animal.created",
   /** Se reportó una mascota perdida o encontrada dentro del radio de alertas de la persona. */
   ANIMAL_NEARBY: "animal.nearby",
+  /** Alguien reportó contenido (comentario, animal o persona) desde la app. Va a Operaciones. */
+  CONTENT_REPORTED: "content.reported",
   /** El dueño de una veterinaria pidió agregar un servicio al catálogo. */
   PET_PLACE_SERVICE_REQUESTED: "petplace.service_requested",
   /** Alguien cambió sus datos bancarios (comisiones de referidos). */

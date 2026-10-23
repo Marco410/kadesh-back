@@ -5,6 +5,7 @@ import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tena
 import { logActivity } from "../../../../utils/activity/logActivity";
 import { IMPERSONATION_TTL_MS, getImpersonation } from "../../../../auth/impersonation";
 import { assertPlatformAdmin } from "../../queries/admin/shared";
+import { anonymizeUserData } from "../../../../utils/account/anonymizeUser";
 
 /**
  * Control de cuentas desde Operaciones (fase 3): suspender, cerrar sesiones, transferir la
@@ -64,7 +65,6 @@ const COMPANY_ROLE_NAMES: readonly string[] = [
   Role.VENDEDOR,
   Role.USER_COMPANY,
 ];
-const ANONYMIZED_LABEL = "persona anonimizada";
 
 type RoleRef = { id?: string; name: string };
 type PersonRow = {
@@ -622,80 +622,7 @@ const resolver = {
       return result(false, "El correo no coincide con el de la cuenta.");
     }
 
-    const short = userId.slice(-8);
-    const name = [user.name, user.lastName, user.secondLastName].filter(Boolean).join(" ").trim();
-    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email]
-      .filter((text): text is string => Boolean(text && text.length >= 4));
-
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: userId },
-        data: {
-          name: "Usuario",
-          lastName: "eliminado",
-          secondLastName: null,
-          username: `eliminado-${short}`,
-          referralCode: `eliminado-${short}`,
-          email: `eliminado+${userId}@kadesh.invalid`,
-          businessEmail: null,
-          businessPhone: null,
-          phone: "",
-          birthday: null,
-          bank: "",
-          clabe: null,
-          cardNumber: null,
-          smsRegistrationId: "",
-          profileImage_id: null,
-          profileImage_extension: null,
-          profileImage_filesize: null,
-          profileImage_width: null,
-          profileImage_height: null,
-          password: null,
-          verified: false,
-          onboardingState: {},
-          anonymizedAt: new Date(),
-          sessionVersion: { increment: 1 },
-          company: { disconnect: true },
-          roles: { set: [] },
-          workspaces: { set: [] },
-        },
-      }),
-      prisma.userAuthLog.updateMany({
-        where: { userId },
-        data: { ip: null, userAgent: null, emailMasked: "***" },
-      }),
-      prisma.activityEvent.updateMany({
-        where: { actorId: userId },
-        data: { ip: null, userAgent: null },
-      }),
-      prisma.blogSubscription.deleteMany({
-        where: { OR: [{ userId }, ...(user.email ? [{ email: user.email }] : [])] },
-      }),
-      prisma.tokenNotification.deleteMany({ where: { userId } }),
-      prisma.techWhatsAppMessage.updateMany({
-        where: { sentById: userId },
-        data: { senderLabel: ANONYMIZED_LABEL },
-      }),
-      // Menciones en el texto de otros eventos ("Asignó el lead a …", "Cambió los roles de …"),
-      // solo en eventos de su empresa o sobre ella. strpos y no LIKE: un "_" del correo es comodín.
-      ...mentions.map(
-        (mention) => prisma.$executeRaw`
-          UPDATE "ActivityEvent"
-          SET "summary" = replace("summary", ${mention}, ${ANONYMIZED_LABEL})
-          WHERE strpos("summary", ${mention}) > 0
-            AND ("company" = ${user.companyId} OR "actor" = ${userId} OR "entityId" = ${userId})
-        `,
-      ),
-      // En la metadata no se reemplaza a medias (podría romper el JSON): se limpia completa.
-      ...mentions.map(
-        (mention) => prisma.$executeRaw`
-          UPDATE "ActivityEvent"
-          SET "metadata" = '{"anonymized": true}'::jsonb
-          WHERE strpos("metadata"::text, ${mention}) > 0
-            AND ("company" = ${user.companyId} OR "actor" = ${userId} OR "entityId" = ${userId})
-        `,
-      ),
-    ]);
+    await anonymizeUserData(context, { ...user, id: userId });
 
     void logActivity(context, {
       type: ACTIVITY_EVENT.ADMIN_USER_ANONYMIZED,

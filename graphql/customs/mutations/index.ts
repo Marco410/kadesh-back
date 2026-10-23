@@ -47,6 +47,8 @@ import adminAnimals from "./admin/animals";
 import rollupDailyUsage from "./rollupDailyUsage";
 import markAllNotificationsRead from "./notifications/markAllNotificationsRead";
 import pushTokens from "./notifications/pushTokens";
+import deleteMyAccount from "./account/deleteMyAccount";
+import moderation from "./moderation/moderation";
 
 const customMutation = {
   typeDefs: `
@@ -99,6 +101,8 @@ const customMutation = {
     ${rollupDailyUsage.typeDefs}
     ${markAllNotificationsRead.typeDefs}
     ${pushTokens.typeDefs}
+    ${deleteMyAccount.typeDefs}
+    ${moderation.typeDefs}
   `,
   definitions: `
     ${authenticateUserWithGoogle.definition}
@@ -150,6 +154,8 @@ const customMutation = {
     ${rollupDailyUsage.definition}
     ${markAllNotificationsRead.definition}
     ${pushTokens.definition}
+    ${deleteMyAccount.definition}
+    ${moderation.definition}
   `,
   resolvers: {
     ...authenticateUserWithGoogle.resolver,
@@ -201,6 +207,8 @@ const customMutation = {
     ...rollupDailyUsage.resolver,
     ...markAllNotificationsRead.resolver,
     ...pushTokens.resolver,
+    ...deleteMyAccount.resolver,
+    ...moderation.resolver,
   },
   extraResolvers: {
     AuthenticateUserWithGoogleResult: {

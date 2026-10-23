@@ -30,6 +30,8 @@ import Payment from "./Pet/Store/Payment/Payment";
 import PaymentMethod from "./Pet/Store/PaymentMethod/PaymentMethod";
 import TokenNotification from "./TokenNotification/TokenNotification";
 import Notification from "./Notification/Notification";
+import ContentReport from "./Moderation/ContentReport/ContentReport";
+import UserBlock from "./Moderation/UserBlock/UserBlock";
 import Ad from "./Pet/Ad/Ad";
 import Post from "./Blog/Post/Post";
 import PostComment from "./Blog/Post/PostComment/PostComment";
@@ -166,6 +168,8 @@ export default withActivityHooks({
   TechCalendarEventGoogleLink,
   TechGoogleCalendarSyncLog,
   TokenNotification,
+  ContentReport,
+  UserBlock,
   User,
   UserActivityDay,
   UserAuthLog,

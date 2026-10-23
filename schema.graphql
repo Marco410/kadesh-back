@@ -8293,6 +8293,127 @@ input TokenNotificationCreateInput {
   lastSeenAt: DateTime
 }
 
+type ContentReport {
+  id: ID!
+  reporter: User
+  reportedUser: User
+  entityType: String
+  entityId: String
+  excerpt: String
+  reason: String
+  details: String
+  status: String
+  resolutionNote: String
+  createdAt: DateTime
+}
+
+input ContentReportWhereUniqueInput {
+  id: ID
+}
+
+input ContentReportWhereInput {
+  AND: [ContentReportWhereInput!]
+  OR: [ContentReportWhereInput!]
+  NOT: [ContentReportWhereInput!]
+  id: IDFilter
+  reporter: UserWhereInput
+  reportedUser: UserWhereInput
+  entityType: StringFilter
+  entityId: StringFilter
+  excerpt: StringFilter
+  reason: StringFilter
+  details: StringFilter
+  status: StringNullableFilter
+  resolutionNote: StringFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input ContentReportOrderByInput {
+  id: OrderDirection
+  entityType: OrderDirection
+  entityId: OrderDirection
+  excerpt: OrderDirection
+  reason: OrderDirection
+  details: OrderDirection
+  status: OrderDirection
+  resolutionNote: OrderDirection
+  createdAt: OrderDirection
+}
+
+input ContentReportUpdateInput {
+  reporter: UserRelateToOneForUpdateInput
+  reportedUser: UserRelateToOneForUpdateInput
+  entityType: String
+  entityId: String
+  excerpt: String
+  reason: String
+  details: String
+  status: String
+  resolutionNote: String
+  createdAt: DateTime
+}
+
+input ContentReportUpdateArgs {
+  where: ContentReportWhereUniqueInput!
+  data: ContentReportUpdateInput!
+}
+
+input ContentReportCreateInput {
+  reporter: UserRelateToOneForCreateInput
+  reportedUser: UserRelateToOneForCreateInput
+  entityType: String
+  entityId: String
+  excerpt: String
+  reason: String
+  details: String
+  status: String
+  resolutionNote: String
+  createdAt: DateTime
+}
+
+type UserBlock {
+  id: ID!
+  blocker: User
+  blocked: User
+  createdAt: DateTime
+}
+
+input UserBlockWhereUniqueInput {
+  id: ID
+}
+
+input UserBlockWhereInput {
+  AND: [UserBlockWhereInput!]
+  OR: [UserBlockWhereInput!]
+  NOT: [UserBlockWhereInput!]
+  id: IDFilter
+  blocker: UserWhereInput
+  blocked: UserWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input UserBlockOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input UserBlockUpdateInput {
+  blocker: UserRelateToOneForUpdateInput
+  blocked: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input UserBlockUpdateArgs {
+  where: UserBlockWhereUniqueInput!
+  data: UserBlockUpdateInput!
+}
+
+input UserBlockCreateInput {
+  blocker: UserRelateToOneForCreateInput
+  blocked: UserRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
 type User {
   id: ID!
   name: String
@@ -9478,6 +9599,18 @@ type Mutation {
   updateTokenNotifications(data: [TokenNotificationUpdateArgs!]!): [TokenNotification]
   deleteTokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
   deleteTokenNotifications(where: [TokenNotificationWhereUniqueInput!]!): [TokenNotification]
+  createContentReport(data: ContentReportCreateInput!): ContentReport
+  createContentReports(data: [ContentReportCreateInput!]!): [ContentReport]
+  updateContentReport(where: ContentReportWhereUniqueInput!, data: ContentReportUpdateInput!): ContentReport
+  updateContentReports(data: [ContentReportUpdateArgs!]!): [ContentReport]
+  deleteContentReport(where: ContentReportWhereUniqueInput!): ContentReport
+  deleteContentReports(where: [ContentReportWhereUniqueInput!]!): [ContentReport]
+  createUserBlock(data: UserBlockCreateInput!): UserBlock
+  createUserBlocks(data: [UserBlockCreateInput!]!): [UserBlock]
+  updateUserBlock(where: UserBlockWhereUniqueInput!, data: UserBlockUpdateInput!): UserBlock
+  updateUserBlocks(data: [UserBlockUpdateArgs!]!): [UserBlock]
+  deleteUserBlock(where: UserBlockWhereUniqueInput!): UserBlock
+  deleteUserBlocks(where: [UserBlockWhereUniqueInput!]!): [UserBlock]
   createUser(data: UserCreateInput!): User
   createUsers(data: [UserCreateInput!]!): [User]
   updateUser(where: UserWhereUniqueInput!, data: UserUpdateInput!): User
@@ -9558,6 +9691,10 @@ type Mutation {
   markAllNotificationsRead(product: String): Int!
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
   unregisterPushToken(token: String!): Boolean!
+  deleteMyAccount(confirm: String!): DeleteMyAccountResult!
+  reportContent(entityType: String!, entityId: ID!, reason: String!, details: String): Boolean!
+  blockUser(userId: ID!): Boolean!
+  unblockUser(userId: ID!): Boolean!
   authenticateUserWithGoogle(idToken: String!, referrerCode: String, product: String, attribution: JSON): AuthenticateUserWithGoogleResult!
   registerUser(data: UserCreateInput!, referrerCode: String, companyName: String, attribution: JSON): User
   generateDailyDigest(companyId: ID!, force: Boolean): DailyDigestResult!
@@ -9834,6 +9971,12 @@ type Query {
   tokenNotification(where: TokenNotificationWhereUniqueInput!): TokenNotification
   tokenNotifications(where: TokenNotificationWhereInput! = {}, orderBy: [TokenNotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TokenNotificationWhereUniqueInput): [TokenNotification!]
   tokenNotificationsCount(where: TokenNotificationWhereInput! = {}): Int
+  contentReport(where: ContentReportWhereUniqueInput!): ContentReport
+  contentReports(where: ContentReportWhereInput! = {}, orderBy: [ContentReportOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ContentReportWhereUniqueInput): [ContentReport!]
+  contentReportsCount(where: ContentReportWhereInput! = {}): Int
+  userBlock(where: UserBlockWhereUniqueInput!): UserBlock
+  userBlocks(where: UserBlockWhereInput! = {}, orderBy: [UserBlockOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserBlockWhereUniqueInput): [UserBlock!]
+  userBlocksCount(where: UserBlockWhereInput! = {}): Int
   user(where: UserWhereUniqueInput!): User
   users(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   usersCount(where: UserWhereInput! = {}): Int
@@ -10793,6 +10936,11 @@ type RollupDailyUsageResult {
   success: Boolean!
   message: String!
   days: [RollupDailyUsageDay!]!
+}
+
+type DeleteMyAccountResult {
+  success: Boolean!
+  message: String!
 }
 
 type AnimalMultimediaImage {
