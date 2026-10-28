@@ -26,6 +26,10 @@ Toda notificación con `product: "pet"` también sale como push a los dispositiv
 - Un reporte con más de 3 días de antigüedad (fecha del avistamiento) no avisa.
 - Sin sesión (seed o scripts) no se avisa.
 - Los campos de la zona los edita la propia persona con `updateUser` (acceso `userPetAlertsFieldAccess`).
+## Recordatorios de la cartilla (`pet.reminder_due`)
+
+Los manda el cron diario `sendDuePetReminders` a los dueños de la mascota cuando el recordatorio tiene el canal `push` (campana + push). No tiene plantilla de WhatsApp todavía, así que `notify` no lo manda por WhatsApp. Detalle en `docs/cartilla/README.md`.
+
 ## WhatsApp
 
 Además de la campana, `notify` manda el aviso por WhatsApp desde el número de Kadesh:

@@ -4,6 +4,7 @@ import { animalAccess, forceAnimalOwner } from "./Animal.access";
 import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
 import { animalCreateSideEffectsHook } from "./Animal.hooks";
 import { normalizeMxPhone } from "../../../utils/pet/phone";
+import { isPlatformAdmin } from "../../../utils/access/tenant";
 
 export default list({
   access: animalAccess,
@@ -117,6 +118,19 @@ export default list({
       ref: "User",
       many: false,
       ui: { itemView: { fieldMode: "read" }, description: "Quién lo publicó en Facebook" },
+    }),
+    /**
+     * Mascota de la cartilla que originó el reporte (`markPetAsLost`). Solo la escriben un admin y
+     * las mutaciones de la cartilla; leerla pasa por el acceso de `Pet` (null si no eres dueño).
+     */
+    pet: relationship({
+      ref: "Pet",
+      many: false,
+      access: {
+        create: ({ session }) => isPlatformAdmin(session as any),
+        update: ({ session }) => isPlatformAdmin(session as any),
+      },
+      ui: { description: "Mascota de la cartilla (si el reporte salió de ahí)" },
     }),
     createdAt: timestamp({
       defaultValue: {

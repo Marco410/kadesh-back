@@ -10,7 +10,7 @@ No confundir con `models/Pet/Schedule/Schedule.ts` (`PetPlace.pet_place_schedule
 - `hooks.ts` `validateInput`: `endsAt` debe ser posterior a `startsAt`; en `create`, `startsAt` no puede ser pasado (el dueño sí puede agendar hoy aunque la hora ya haya pasado, no un día anterior); el `customer` se auto-asigna al usuario en sesión. Reservar a nombre de otro solo: admin, o dueño verificado eligiendo a alguien de `pet_place.patients`.
 - No hay control de capacidad/disponibilidad ni prevención de doble-booking (v1 es solo CRUD + status). Queda como mejora futura.
 - Mutations: el cliente usa `createPetPlaceAppointment` de Keystone; el dueño usa `createClinicAppointment` (paciente obligatorio, nace **confirmada**). `access.ts` + `validateInput` + el hook de correo cubren el resto.
-- `petName`/`petSpecies` son texto libre, no relación: no existe un modelo de "mascota propia del cliente" en este codebase (`models/Pet/Animal/` es para mascotas en adopción de refugios, no mascotas de clientes).
+- `petName`/`petSpecies` siguen siendo texto libre (las citas anteriores no tienen otra cosa). Además existe `pet`, relación opcional a la cartilla (`Pet`): debe ser una mascota del `customer` de la cita, y si `petName`/`petSpecies` vienen vacíos se llenan desde ella, porque la veterinaria no puede leer la cartilla. Al borrar la mascota, la cita se queda con `pet` en null.
 
 ## Correo
 
