@@ -4,6 +4,8 @@ import { petPlaceAppointmentAccess } from "./PetPlaceAppointment.access";
 import {
   petPlaceAppointmentValidateInput,
   petPlaceAppointmentEmailHook,
+  petPlaceAppointmentPetResolveInput,
+  petPlaceAppointmentPetValidateInput,
 } from "./PetPlaceAppointment.hooks";
 import {
   PET_PLACE_APPOINTMENT_STATUS,
@@ -25,7 +27,11 @@ export default list({
     },
   },
   hooks: {
-    validateInput: petPlaceAppointmentValidateInput,
+    resolveInput: petPlaceAppointmentPetResolveInput,
+    validateInput: async (args: any) => {
+      await petPlaceAppointmentValidateInput(args);
+      await petPlaceAppointmentPetValidateInput(args);
+    },
     afterOperation: petPlaceAppointmentEmailHook.afterOperation,
   },
   fields: {
@@ -58,6 +64,13 @@ export default list({
       defaultValue: PET_PLACE_APPOINTMENT_STATUS.PENDING,
       validation: { isRequired: true },
       ui: { displayMode: "segmented-control" },
+    }),
+    pet: relationship({
+      ref: "Pet",
+      many: false,
+      ui: {
+        description: "Mascota de la cartilla (opcional). Si viene, llena petName/petSpecies vacíos.",
+      },
     }),
     petName: text({
       ui: { description: "Nombre de la mascota" },

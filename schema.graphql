@@ -493,6 +493,7 @@ type Animal {
   facebookPostId: String
   facebookPublishedAt: DateTime
   facebookPublishedBy: User
+  pet: Pet
   createdAt: DateTime
 }
 
@@ -526,6 +527,7 @@ input AnimalWhereInput {
   facebookPostId: StringFilter
   facebookPublishedAt: DateTimeNullableFilter
   facebookPublishedBy: UserWhereInput
+  pet: PetWhereInput
   createdAt: DateTimeNullableFilter
 }
 
@@ -586,6 +588,7 @@ input AnimalUpdateInput {
   facebookPostId: String
   facebookPublishedAt: DateTime
   facebookPublishedBy: UserRelateToOneForUpdateInput
+  pet: PetRelateToOneForUpdateInput
   createdAt: DateTime
 }
 
@@ -622,6 +625,12 @@ input AnimalViewRelateToManyForUpdateInput {
   connect: [AnimalViewWhereUniqueInput!]
 }
 
+input PetRelateToOneForUpdateInput {
+  create: PetCreateInput
+  connect: PetWhereUniqueInput
+  disconnect: Boolean
+}
+
 input AnimalUpdateArgs {
   where: AnimalWhereUniqueInput!
   data: AnimalUpdateInput!
@@ -648,6 +657,7 @@ input AnimalCreateInput {
   facebookPostId: String
   facebookPublishedAt: DateTime
   facebookPublishedBy: UserRelateToOneForCreateInput
+  pet: PetRelateToOneForCreateInput
   createdAt: DateTime
 }
 
@@ -674,6 +684,11 @@ input AnimalLogRelateToManyForCreateInput {
 input AnimalViewRelateToManyForCreateInput {
   create: [AnimalViewCreateInput!]
   connect: [AnimalViewWhereUniqueInput!]
+}
+
+input PetRelateToOneForCreateInput {
+  create: PetCreateInput
+  connect: PetWhereUniqueInput
 }
 
 type AnimalBreed {
@@ -1753,13 +1768,28 @@ type Pet {
   id: ID!
   name: String
   birthday: CalendarDay
+  approximateAge: String
   age: String
   animal_type: AnimalType
   animal_breed: AnimalBreed
-  user: User
+  sex: String
+  color: String
+  distinctiveMarks: String
+  weightKg: Decimal
+  sterilized: String
+  microchipNumber: String
   multimedia(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
   multimediaCount(where: PetMultimediaWhereInput! = {}): Int
+  owners(where: PetOwnerWhereInput! = {}, orderBy: [PetOwnerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetOwnerWhereUniqueInput): [PetOwner!]
+  ownersCount(where: PetOwnerWhereInput! = {}): Int
+  healthRecords(where: PetHealthRecordWhereInput! = {}, orderBy: [PetHealthRecordOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetHealthRecordWhereUniqueInput): [PetHealthRecord!]
+  healthRecordsCount(where: PetHealthRecordWhereInput! = {}): Int
+  reminders(where: PetReminderWhereInput! = {}, orderBy: [PetReminderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetReminderWhereUniqueInput): [PetReminder!]
+  remindersCount(where: PetReminderWhereInput! = {}): Int
+  status: String
+  lostReport: Animal
   createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input PetWhereUniqueInput {
@@ -1772,23 +1802,24 @@ input PetWhereInput {
   NOT: [PetWhereInput!]
   id: IDFilter
   name: StringFilter
-  birthday: CalendarDayFilter
+  birthday: CalendarDayNullableFilter
+  approximateAge: StringFilter
   animal_type: AnimalTypeWhereInput
   animal_breed: AnimalBreedWhereInput
-  user: UserWhereInput
+  sex: StringNullableFilter
+  color: StringFilter
+  distinctiveMarks: StringFilter
+  weightKg: DecimalNullableFilter
+  sterilized: StringNullableFilter
+  microchipNumber: StringFilter
   multimedia: PetMultimediaManyRelationFilter
+  owners: PetOwnerManyRelationFilter
+  healthRecords: PetHealthRecordManyRelationFilter
+  reminders: PetReminderManyRelationFilter
+  status: StringFilter
+  lostReport: AnimalWhereInput
   createdAt: DateTimeNullableFilter
-}
-
-input CalendarDayFilter {
-  equals: CalendarDay
-  in: [CalendarDay!]
-  notIn: [CalendarDay!]
-  lt: CalendarDay
-  lte: CalendarDay
-  gt: CalendarDay
-  gte: CalendarDay
-  not: CalendarDayFilter
+  updatedAt: DateTimeNullableFilter
 }
 
 input PetMultimediaManyRelationFilter {
@@ -1797,21 +1828,60 @@ input PetMultimediaManyRelationFilter {
   none: PetMultimediaWhereInput
 }
 
+input PetOwnerManyRelationFilter {
+  every: PetOwnerWhereInput
+  some: PetOwnerWhereInput
+  none: PetOwnerWhereInput
+}
+
+input PetHealthRecordManyRelationFilter {
+  every: PetHealthRecordWhereInput
+  some: PetHealthRecordWhereInput
+  none: PetHealthRecordWhereInput
+}
+
+input PetReminderManyRelationFilter {
+  every: PetReminderWhereInput
+  some: PetReminderWhereInput
+  none: PetReminderWhereInput
+}
+
 input PetOrderByInput {
   id: OrderDirection
   name: OrderDirection
   birthday: OrderDirection
+  approximateAge: OrderDirection
+  sex: OrderDirection
+  color: OrderDirection
+  distinctiveMarks: OrderDirection
+  weightKg: OrderDirection
+  sterilized: OrderDirection
+  microchipNumber: OrderDirection
+  status: OrderDirection
   createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input PetUpdateInput {
   name: String
   birthday: CalendarDay
+  approximateAge: String
   animal_type: AnimalTypeRelateToOneForUpdateInput
   animal_breed: AnimalBreedRelateToOneForUpdateInput
-  user: UserRelateToOneForUpdateInput
+  sex: String
+  color: String
+  distinctiveMarks: String
+  weightKg: Decimal
+  sterilized: String
+  microchipNumber: String
   multimedia: PetMultimediaRelateToManyForUpdateInput
+  owners: PetOwnerRelateToManyForUpdateInput
+  healthRecords: PetHealthRecordRelateToManyForUpdateInput
+  reminders: PetReminderRelateToManyForUpdateInput
+  status: String
+  lostReport: AnimalRelateToOneForUpdateInput
   createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input PetMultimediaRelateToManyForUpdateInput {
@@ -1819,6 +1889,27 @@ input PetMultimediaRelateToManyForUpdateInput {
   set: [PetMultimediaWhereUniqueInput!]
   create: [PetMultimediaCreateInput!]
   connect: [PetMultimediaWhereUniqueInput!]
+}
+
+input PetOwnerRelateToManyForUpdateInput {
+  disconnect: [PetOwnerWhereUniqueInput!]
+  set: [PetOwnerWhereUniqueInput!]
+  create: [PetOwnerCreateInput!]
+  connect: [PetOwnerWhereUniqueInput!]
+}
+
+input PetHealthRecordRelateToManyForUpdateInput {
+  disconnect: [PetHealthRecordWhereUniqueInput!]
+  set: [PetHealthRecordWhereUniqueInput!]
+  create: [PetHealthRecordCreateInput!]
+  connect: [PetHealthRecordWhereUniqueInput!]
+}
+
+input PetReminderRelateToManyForUpdateInput {
+  disconnect: [PetReminderWhereUniqueInput!]
+  set: [PetReminderWhereUniqueInput!]
+  create: [PetReminderCreateInput!]
+  connect: [PetReminderWhereUniqueInput!]
 }
 
 input PetUpdateArgs {
@@ -1829,11 +1920,23 @@ input PetUpdateArgs {
 input PetCreateInput {
   name: String
   birthday: CalendarDay
+  approximateAge: String
   animal_type: AnimalTypeRelateToOneForCreateInput
   animal_breed: AnimalBreedRelateToOneForCreateInput
-  user: UserRelateToOneForCreateInput
+  sex: String
+  color: String
+  distinctiveMarks: String
+  weightKg: Decimal
+  sterilized: String
+  microchipNumber: String
   multimedia: PetMultimediaRelateToManyForCreateInput
+  owners: PetOwnerRelateToManyForCreateInput
+  healthRecords: PetHealthRecordRelateToManyForCreateInput
+  reminders: PetReminderRelateToManyForCreateInput
+  status: String
+  lostReport: AnimalRelateToOneForCreateInput
   createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input PetMultimediaRelateToManyForCreateInput {
@@ -1841,10 +1944,26 @@ input PetMultimediaRelateToManyForCreateInput {
   connect: [PetMultimediaWhereUniqueInput!]
 }
 
+input PetOwnerRelateToManyForCreateInput {
+  create: [PetOwnerCreateInput!]
+  connect: [PetOwnerWhereUniqueInput!]
+}
+
+input PetHealthRecordRelateToManyForCreateInput {
+  create: [PetHealthRecordCreateInput!]
+  connect: [PetHealthRecordWhereUniqueInput!]
+}
+
+input PetReminderRelateToManyForCreateInput {
+  create: [PetReminderCreateInput!]
+  connect: [PetReminderWhereUniqueInput!]
+}
+
 type PetMultimedia {
   id: ID!
   image: ImageFieldOutput
   pet: Pet
+  order: Int
   createdAt: DateTime
 }
 
@@ -1858,24 +1977,21 @@ input PetMultimediaWhereInput {
   NOT: [PetMultimediaWhereInput!]
   id: IDFilter
   pet: PetWhereInput
+  order: IntFilter
   createdAt: DateTimeNullableFilter
 }
 
 input PetMultimediaOrderByInput {
   id: OrderDirection
+  order: OrderDirection
   createdAt: OrderDirection
 }
 
 input PetMultimediaUpdateInput {
   image: ImageFieldInput
   pet: PetRelateToOneForUpdateInput
+  order: Int
   createdAt: DateTime
-}
-
-input PetRelateToOneForUpdateInput {
-  create: PetCreateInput
-  connect: PetWhereUniqueInput
-  disconnect: Boolean
 }
 
 input PetMultimediaUpdateArgs {
@@ -1886,12 +2002,319 @@ input PetMultimediaUpdateArgs {
 input PetMultimediaCreateInput {
   image: ImageFieldInput
   pet: PetRelateToOneForCreateInput
+  order: Int
   createdAt: DateTime
 }
 
-input PetRelateToOneForCreateInput {
-  create: PetCreateInput
-  connect: PetWhereUniqueInput
+type PetOwner {
+  id: ID!
+  pet: Pet
+  user: User
+  role: String
+  userName: String
+  createdAt: DateTime
+}
+
+input PetOwnerWhereUniqueInput {
+  id: ID
+}
+
+input PetOwnerWhereInput {
+  AND: [PetOwnerWhereInput!]
+  OR: [PetOwnerWhereInput!]
+  NOT: [PetOwnerWhereInput!]
+  id: IDFilter
+  pet: PetWhereInput
+  user: UserWhereInput
+  role: StringFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PetOwnerOrderByInput {
+  id: OrderDirection
+  role: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetOwnerUpdateInput {
+  pet: PetRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  role: String
+  createdAt: DateTime
+}
+
+input PetOwnerUpdateArgs {
+  where: PetOwnerWhereUniqueInput!
+  data: PetOwnerUpdateInput!
+}
+
+input PetOwnerCreateInput {
+  pet: PetRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  role: String
+  createdAt: DateTime
+}
+
+type PetHealthRecord {
+  id: ID!
+  pet: Pet
+  type: String
+  name: String
+  appliedDate: CalendarDay
+  nextDueDate: CalendarDay
+  veterinary: PetPlace
+  notes: String
+  attachments(where: PetHealthRecordAttachmentWhereInput! = {}, orderBy: [PetHealthRecordAttachmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetHealthRecordAttachmentWhereUniqueInput): [PetHealthRecordAttachment!]
+  attachmentsCount(where: PetHealthRecordAttachmentWhereInput! = {}): Int
+  verifiedByVet: Boolean
+  createdBy: User
+  reminder: PetReminder
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PetHealthRecordWhereUniqueInput {
+  id: ID
+  reminder: PetReminderWhereUniqueInput
+}
+
+input PetHealthRecordWhereInput {
+  AND: [PetHealthRecordWhereInput!]
+  OR: [PetHealthRecordWhereInput!]
+  NOT: [PetHealthRecordWhereInput!]
+  id: IDFilter
+  pet: PetWhereInput
+  type: StringFilter
+  name: StringFilter
+  appliedDate: CalendarDayFilter
+  nextDueDate: CalendarDayNullableFilter
+  veterinary: PetPlaceWhereInput
+  notes: StringFilter
+  attachments: PetHealthRecordAttachmentManyRelationFilter
+  verifiedByVet: BooleanFilter
+  createdBy: UserWhereInput
+  reminder: PetReminderWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input CalendarDayFilter {
+  equals: CalendarDay
+  in: [CalendarDay!]
+  notIn: [CalendarDay!]
+  lt: CalendarDay
+  lte: CalendarDay
+  gt: CalendarDay
+  gte: CalendarDay
+  not: CalendarDayFilter
+}
+
+input PetHealthRecordAttachmentManyRelationFilter {
+  every: PetHealthRecordAttachmentWhereInput
+  some: PetHealthRecordAttachmentWhereInput
+  none: PetHealthRecordAttachmentWhereInput
+}
+
+input PetHealthRecordOrderByInput {
+  id: OrderDirection
+  type: OrderDirection
+  name: OrderDirection
+  appliedDate: OrderDirection
+  nextDueDate: OrderDirection
+  notes: OrderDirection
+  verifiedByVet: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PetHealthRecordUpdateInput {
+  pet: PetRelateToOneForUpdateInput
+  type: String
+  name: String
+  appliedDate: CalendarDay
+  nextDueDate: CalendarDay
+  veterinary: PetPlaceRelateToOneForUpdateInput
+  notes: String
+  attachments: PetHealthRecordAttachmentRelateToManyForUpdateInput
+  verifiedByVet: Boolean
+  createdBy: UserRelateToOneForUpdateInput
+  reminder: PetReminderRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PetHealthRecordAttachmentRelateToManyForUpdateInput {
+  disconnect: [PetHealthRecordAttachmentWhereUniqueInput!]
+  set: [PetHealthRecordAttachmentWhereUniqueInput!]
+  create: [PetHealthRecordAttachmentCreateInput!]
+  connect: [PetHealthRecordAttachmentWhereUniqueInput!]
+}
+
+input PetReminderRelateToOneForUpdateInput {
+  create: PetReminderCreateInput
+  connect: PetReminderWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PetHealthRecordUpdateArgs {
+  where: PetHealthRecordWhereUniqueInput!
+  data: PetHealthRecordUpdateInput!
+}
+
+input PetHealthRecordCreateInput {
+  pet: PetRelateToOneForCreateInput
+  type: String
+  name: String
+  appliedDate: CalendarDay
+  nextDueDate: CalendarDay
+  veterinary: PetPlaceRelateToOneForCreateInput
+  notes: String
+  attachments: PetHealthRecordAttachmentRelateToManyForCreateInput
+  verifiedByVet: Boolean
+  createdBy: UserRelateToOneForCreateInput
+  reminder: PetReminderRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PetHealthRecordAttachmentRelateToManyForCreateInput {
+  create: [PetHealthRecordAttachmentCreateInput!]
+  connect: [PetHealthRecordAttachmentWhereUniqueInput!]
+}
+
+input PetReminderRelateToOneForCreateInput {
+  create: PetReminderCreateInput
+  connect: PetReminderWhereUniqueInput
+}
+
+type PetHealthRecordAttachment {
+  id: ID!
+  image: ImageFieldOutput
+  healthRecord: PetHealthRecord
+  createdAt: DateTime
+}
+
+input PetHealthRecordAttachmentWhereUniqueInput {
+  id: ID
+}
+
+input PetHealthRecordAttachmentWhereInput {
+  AND: [PetHealthRecordAttachmentWhereInput!]
+  OR: [PetHealthRecordAttachmentWhereInput!]
+  NOT: [PetHealthRecordAttachmentWhereInput!]
+  id: IDFilter
+  healthRecord: PetHealthRecordWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input PetHealthRecordAttachmentOrderByInput {
+  id: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetHealthRecordAttachmentUpdateInput {
+  image: ImageFieldInput
+  healthRecord: PetHealthRecordRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input PetHealthRecordRelateToOneForUpdateInput {
+  create: PetHealthRecordCreateInput
+  connect: PetHealthRecordWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PetHealthRecordAttachmentUpdateArgs {
+  where: PetHealthRecordAttachmentWhereUniqueInput!
+  data: PetHealthRecordAttachmentUpdateInput!
+}
+
+input PetHealthRecordAttachmentCreateInput {
+  image: ImageFieldInput
+  healthRecord: PetHealthRecordRelateToOneForCreateInput
+  createdAt: DateTime
+}
+
+input PetHealthRecordRelateToOneForCreateInput {
+  create: PetHealthRecordCreateInput
+  connect: PetHealthRecordWhereUniqueInput
+}
+
+type PetReminder {
+  id: ID!
+  pet: Pet
+  healthRecord: PetHealthRecord
+  title: String
+  dueDate: CalendarDay
+  notifyDaysBefore: Int
+  channels: [String!]
+  status: String
+  sentAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PetReminderWhereUniqueInput {
+  id: ID
+  healthRecord: PetHealthRecordWhereUniqueInput
+}
+
+input PetReminderWhereInput {
+  AND: [PetReminderWhereInput!]
+  OR: [PetReminderWhereInput!]
+  NOT: [PetReminderWhereInput!]
+  id: IDFilter
+  pet: PetWhereInput
+  healthRecord: PetHealthRecordWhereInput
+  title: StringFilter
+  dueDate: CalendarDayFilter
+  notifyDaysBefore: IntFilter
+  status: StringFilter
+  sentAt: DateTimeNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input PetReminderOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  dueDate: OrderDirection
+  notifyDaysBefore: OrderDirection
+  status: OrderDirection
+  sentAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PetReminderUpdateInput {
+  pet: PetRelateToOneForUpdateInput
+  healthRecord: PetHealthRecordRelateToOneForUpdateInput
+  title: String
+  dueDate: CalendarDay
+  notifyDaysBefore: Int
+  channels: [String!]
+  status: String
+  sentAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PetReminderUpdateArgs {
+  where: PetReminderWhereUniqueInput!
+  data: PetReminderUpdateInput!
+}
+
+input PetReminderCreateInput {
+  pet: PetRelateToOneForCreateInput
+  healthRecord: PetHealthRecordRelateToOneForCreateInput
+  title: String
+  dueDate: CalendarDay
+  notifyDaysBefore: Int
+  channels: [String!]
+  status: String
+  sentAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type PetPlace {
@@ -2303,6 +2726,7 @@ type PetPlaceAppointment {
   startsAt: DateTime
   endsAt: DateTime
   status: String
+  pet: Pet
   petName: String
   petSpecies: String
   notes: String
@@ -2326,6 +2750,7 @@ input PetPlaceAppointmentWhereInput {
   startsAt: DateTimeFilter
   endsAt: DateTimeFilter
   status: StringFilter
+  pet: PetWhereInput
   petName: StringFilter
   petSpecies: StringFilter
   notes: StringFilter
@@ -2354,6 +2779,7 @@ input PetPlaceAppointmentUpdateInput {
   startsAt: DateTime
   endsAt: DateTime
   status: String
+  pet: PetRelateToOneForUpdateInput
   petName: String
   petSpecies: String
   notes: String
@@ -2380,6 +2806,7 @@ input PetPlaceAppointmentCreateInput {
   startsAt: DateTime
   endsAt: DateTime
   status: String
+  pet: PetRelateToOneForCreateInput
   petName: String
   petSpecies: String
   notes: String
@@ -9124,6 +9551,30 @@ type Mutation {
   updatePetMultimedias(data: [PetMultimediaUpdateArgs!]!): [PetMultimedia]
   deletePetMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
   deletePetMultimedias(where: [PetMultimediaWhereUniqueInput!]!): [PetMultimedia]
+  createPetOwner(data: PetOwnerCreateInput!): PetOwner
+  createPetOwners(data: [PetOwnerCreateInput!]!): [PetOwner]
+  updatePetOwner(where: PetOwnerWhereUniqueInput!, data: PetOwnerUpdateInput!): PetOwner
+  updatePetOwners(data: [PetOwnerUpdateArgs!]!): [PetOwner]
+  deletePetOwner(where: PetOwnerWhereUniqueInput!): PetOwner
+  deletePetOwners(where: [PetOwnerWhereUniqueInput!]!): [PetOwner]
+  createPetHealthRecord(data: PetHealthRecordCreateInput!): PetHealthRecord
+  createPetHealthRecords(data: [PetHealthRecordCreateInput!]!): [PetHealthRecord]
+  updatePetHealthRecord(where: PetHealthRecordWhereUniqueInput!, data: PetHealthRecordUpdateInput!): PetHealthRecord
+  updatePetHealthRecords(data: [PetHealthRecordUpdateArgs!]!): [PetHealthRecord]
+  deletePetHealthRecord(where: PetHealthRecordWhereUniqueInput!): PetHealthRecord
+  deletePetHealthRecords(where: [PetHealthRecordWhereUniqueInput!]!): [PetHealthRecord]
+  createPetHealthRecordAttachment(data: PetHealthRecordAttachmentCreateInput!): PetHealthRecordAttachment
+  createPetHealthRecordAttachments(data: [PetHealthRecordAttachmentCreateInput!]!): [PetHealthRecordAttachment]
+  updatePetHealthRecordAttachment(where: PetHealthRecordAttachmentWhereUniqueInput!, data: PetHealthRecordAttachmentUpdateInput!): PetHealthRecordAttachment
+  updatePetHealthRecordAttachments(data: [PetHealthRecordAttachmentUpdateArgs!]!): [PetHealthRecordAttachment]
+  deletePetHealthRecordAttachment(where: PetHealthRecordAttachmentWhereUniqueInput!): PetHealthRecordAttachment
+  deletePetHealthRecordAttachments(where: [PetHealthRecordAttachmentWhereUniqueInput!]!): [PetHealthRecordAttachment]
+  createPetReminder(data: PetReminderCreateInput!): PetReminder
+  createPetReminders(data: [PetReminderCreateInput!]!): [PetReminder]
+  updatePetReminder(where: PetReminderWhereUniqueInput!, data: PetReminderUpdateInput!): PetReminder
+  updatePetReminders(data: [PetReminderUpdateArgs!]!): [PetReminder]
+  deletePetReminder(where: PetReminderWhereUniqueInput!): PetReminder
+  deletePetReminders(where: [PetReminderWhereUniqueInput!]!): [PetReminder]
   createPetPlace(data: PetPlaceCreateInput!): PetPlace
   createPetPlaces(data: [PetPlaceCreateInput!]!): [PetPlace]
   updatePetPlace(where: PetPlaceWhereUniqueInput!, data: PetPlaceUpdateInput!): PetPlace
@@ -9571,6 +10022,11 @@ type Mutation {
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
+  markPetAsLost(petId: ID!, lastSeenLocation: PetLastSeenLocationInput!, lastSeenDate: String!, notes: String, contactPhone: String): MarkPetAsLostResult!
+  markPetAsFound(petId: ID!): MarkPetAsFoundResult!
+  addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
+  registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
+  sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -9657,6 +10113,18 @@ type Query {
   petMultimedia(where: PetMultimediaWhereUniqueInput!): PetMultimedia
   petMultimedias(where: PetMultimediaWhereInput! = {}, orderBy: [PetMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetMultimediaWhereUniqueInput): [PetMultimedia!]
   petMultimediasCount(where: PetMultimediaWhereInput! = {}): Int
+  petOwner(where: PetOwnerWhereUniqueInput!): PetOwner
+  petOwners(where: PetOwnerWhereInput! = {}, orderBy: [PetOwnerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetOwnerWhereUniqueInput): [PetOwner!]
+  petOwnersCount(where: PetOwnerWhereInput! = {}): Int
+  petHealthRecord(where: PetHealthRecordWhereUniqueInput!): PetHealthRecord
+  petHealthRecords(where: PetHealthRecordWhereInput! = {}, orderBy: [PetHealthRecordOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetHealthRecordWhereUniqueInput): [PetHealthRecord!]
+  petHealthRecordsCount(where: PetHealthRecordWhereInput! = {}): Int
+  petHealthRecordAttachment(where: PetHealthRecordAttachmentWhereUniqueInput!): PetHealthRecordAttachment
+  petHealthRecordAttachments(where: PetHealthRecordAttachmentWhereInput! = {}, orderBy: [PetHealthRecordAttachmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetHealthRecordAttachmentWhereUniqueInput): [PetHealthRecordAttachment!]
+  petHealthRecordAttachmentsCount(where: PetHealthRecordAttachmentWhereInput! = {}): Int
+  petReminder(where: PetReminderWhereUniqueInput!): PetReminder
+  petReminders(where: PetReminderWhereInput! = {}, orderBy: [PetReminderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetReminderWhereUniqueInput): [PetReminder!]
+  petRemindersCount(where: PetReminderWhereInput! = {}): Int
   petPlace(where: PetPlaceWhereUniqueInput!): PetPlace
   petPlaces(where: PetPlaceWhereInput! = {}, orderBy: [PetPlaceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceWhereUniqueInput): [PetPlace!]
   petPlacesCount(where: PetPlaceWhereInput! = {}): Int
@@ -10564,6 +11032,53 @@ type CreateAnimalReportResult {
   id: ID!
   slug: String!
   url: String!
+}
+
+input PetLastSeenLocationInput {
+  lat: String!
+  lng: String!
+  address: String
+}
+
+type MarkPetAsLostResult {
+  petId: ID!
+  reportId: ID!
+  slug: String!
+  url: String!
+}
+
+type MarkPetAsFoundResult {
+  petId: ID!
+  reportId: ID
+}
+
+type PetFamilyMemberResult {
+  id: ID!
+  role: String!
+  userName: String!
+}
+
+input RegisterPetFamilyMemberInput {
+  name: String!
+  lastName: String
+  email: String!
+  phone: String
+  password: String!
+}
+
+type RegisterPetFamilyMemberResult {
+  id: ID!
+  role: String!
+  userName: String!
+  createdAccount: Boolean!
+}
+
+type SendDuePetRemindersResult {
+  success: Boolean!
+  message: String!
+  processed: Int!
+  sent: Int!
+  failed: Int!
 }
 
 type UnsubscribeBlogResult {

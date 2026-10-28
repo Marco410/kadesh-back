@@ -45,3 +45,11 @@ Qué no hacer: no volver a `generalAccess` en estas lists; no validar dueño en 
 Qué: `Animal` guarda `facebookPostId`, `facebookPublishedAt` y `facebookPublishedBy` cada vez que se publica, sea la publicación automática del admin o el botón de Operaciones (`adminPublishAnimalToFacebook`, que no repite salvo `force`). Operaciones lista y detalla animales con `adminAnimals` / `adminAnimalDetail` (estadísticas de vistas, favoritos y comentarios) y borra vistas con `adminPurgeAnimalViews`.
 
 Por qué: los animales de usuarios no se publican solos y el admin necesita publicarlos a mano sin duplicar posts; sin registro no había forma de saber cuáles ya salieron. Revierte la decisión del 2026-09-29 de no guardar la fecha de publicación.
+
+### 2026-10-23 — `Animal.pet` (cartilla)
+
+Qué: relación opcional de un solo lado a `Pet`. La llena `markPetAsLost` cuando el reporte sale de la cartilla, y se queda como historial después de `markPetAsFound`. Solo la escriben un admin y el servidor (sudo). Leerla pasa por el acceso de `Pet`, así que para quien no es dueño es `null`.
+
+Por qué: ligar el reporte con la mascota registrada sin exponer la cartilla en la ficha pública.
+
+Qué no hacer: no exponer datos de la cartilla en la ficha pública; al borrar la mascota el reporte no se borra (la base pone `pet` en null).

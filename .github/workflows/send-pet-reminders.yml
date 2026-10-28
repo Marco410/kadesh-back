@@ -1,0 +1,50 @@
+name: Send pet reminders
+
+# Dispara `sendDuePetReminders` una vez al día (09:00 en CDMX): manda los recordatorios de la
+# cartilla (vacunas, desparasitaciones…) cuya fecha de aviso ya llegó, por push, correo y
+# (cuando exista la plantilla) WhatsApp. Ver docs/cartilla/README.md.
+#
+# Usa los mismos secrets que publish-scheduled-posts.yml:
+#   KADESH_API_URL — endpoint GraphQL del backend en Railway
+#   CRON_SECRET     — mismo valor que CRON_SECRET en las env vars de Railway
+
+on:
+  schedule:
+    - cron: "0 15 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  send-pet-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a sendDuePetReminders
+        env:
+          KADESH_API_URL: ${{ secrets.KADESH_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${KADESH_API_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::Faltan los secrets KADESH_API_URL y/o CRON_SECRET en este repo."
+            exit 1
+          fi
+
+          payload=$(jq -n --arg secret "$CRON_SECRET" '{
+            query: "mutation SendDuePetReminders($secret: String!) { sendDuePetReminders(secret: $secret) { success message processed sent failed } }",
+            variables: { secret: $secret }
+          }')
+
+          http_status=$(curl -sS -o response.json -w "%{http_code}" -X POST "$KADESH_API_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+
+          echo "HTTP status: $http_status"
+          echo "Respuesta:"
+          cat response.json | jq . 2>/dev/null || cat response.json
+
+          if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+            echo "::error::KADESH_API_URL respondió HTTP $http_status."
+            exit 1
+          fi
+
+          jq -e '.data.sendDuePetReminders.success == true' response.json > /dev/null
