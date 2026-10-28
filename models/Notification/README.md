@@ -26,6 +26,19 @@ Toda notificación con `product: "pet"` también sale como push a los dispositiv
 - Un reporte con más de 3 días de antigüedad (fecha del avistamiento) no avisa.
 - Sin sesión (seed o scripts) no se avisa.
 - Los campos de la zona los edita la propia persona con `updateUser` (acceso `userPetAlertsFieldAccess`).
+## Avisos de un reporte (comentarios, coincidencias, solicitudes y reportes unidos)
+
+`utils/notifications/animalReportAlerts.ts` y `utils/notifications/possibleMatchAlerts.ts`. Van a quien atiende el reporte (`Animal.user`). Si lo subió la cuenta de automatización (`PET_AUTOMATION_USER_ID`) o no tiene autor, van a los admins. El link abre la ficha (`#comentarios` en comentarios, `?reclamo=<id>` en solicitudes). Ningún tipo tiene plantilla de WhatsApp: solo campana y push.
+
+| Tipo | Cuándo | A quién |
+| --- | --- | --- |
+| `animal.commented` | comentario normal (`AnimalComment.kind: comment`) | quien atiende el reporte, salvo que sea el autor del comentario; no va a admins |
+| `animal.duplicate_reported` | quien iba a publicar el mismo animal comentó en vez de duplicar (`duplicate_report`) | quien atiende el reporte |
+| `animal.possible_match` | comentario `possible_match`, o un reporte nuevo del otro lado (perdido ↔ encontrado) con parecido `likely`; una vez por reporte y destinatario | quien atiende el reporte parecido |
+| `animal.claim_requested` | alguien pide quedarse con el reporte (`AnimalClaim`) | quien atiende el reporte |
+| `animal.claim_approved` / `animal.claim_rejected` | se respondió la solicitud, o se rechazó por aprobar otra o por unir el reporte | quien la pidió |
+| `animal.merged` | un admin unió un reporte repetido con el principal (`Animal.duplicateOf`) | quien hizo el repetido |
+
 ## Recordatorios de la cartilla (`pet.reminder_due`)
 
 Los manda el cron diario `sendDuePetReminders` a los dueños de la mascota cuando el recordatorio tiene el canal `push` (campana + push). No tiene plantilla de WhatsApp todavía, así que `notify` no lo manda por WhatsApp. Detalle en `docs/cartilla/README.md`.

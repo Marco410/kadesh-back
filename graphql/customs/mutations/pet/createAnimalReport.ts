@@ -5,7 +5,8 @@ import { imageSize } from "image-size";
 import { getSessionUserId, isSignedIn } from "../../../../utils/access/tenant";
 import {
   fillCityFromCoordinates,
-  findReportDuplicates,
+  findSimilarReports,
+  isStrongDuplicate,
   optionalPhone,
   petPublicUrl,
   placeLabelFromAddress,
@@ -217,16 +218,28 @@ const resolver = {
       });
       const placeLabel = addressText ? placeLabelFromAddress(addressText) : "";
 
-      const duplicates = await findReportDuplicates(context, {
-        sourceUrl: input.sourceUrl,
-        phone,
-        animalTypeId: animalType.id,
-        name: input.name,
-      });
-      if (duplicates.length && !input.confirmDuplicate) {
-        throw new GraphQLError(
-          `Parece que este reporte ya existe: ${duplicates[0].url}`,
-        );
+      const lostDate = parseLostDate(input.lostDate);
+      if (!input.confirmDuplicate) {
+        const similar = await findSimilarReports(context, {
+          sourceUrl: input.sourceUrl,
+          phone,
+          phone2,
+          animalTypeId: animalType.id,
+          name: input.name,
+          lat: Number.parseFloat(input.lat),
+          lng: Number.parseFloat(input.lng),
+          status: input.status.trim(),
+          sex: input.sex?.trim() || null,
+          color: input.color,
+          breedId,
+          description: input.marks,
+          lostDate,
+          kinds: ["duplicate"],
+        });
+        const duplicate = similar.find(isStrongDuplicate);
+        if (duplicate) {
+          throw new GraphQLError(`Parece que este reporte ya existe: ${duplicate.url}`);
+        }
       }
 
       const sessionUser = getSessionUserId(context.session);
@@ -270,7 +283,7 @@ const resolver = {
           postalCode: place.postalCode,
           placeLabel,
           last_seen: input.status !== "in_adoption",
-          date_status: parseLostDate(input.lostDate),
+          date_status: lostDate,
         },
         query: "id",
       });

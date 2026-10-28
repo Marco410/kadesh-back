@@ -29,6 +29,10 @@ Access: `canUseCompanyAi` (miembro de la empresa o admin de plataforma). Configu
 
 El plan decía “el vendedor abre Inicio”. El dashboard de `admin_company` es el pipeline de toda la empresa, así que su digest no se guarda atado a un vendedor. Misma mutación, distinta clave de caché.
 
+### 2026-10-28 — Respaldo del digest con clientes reales
+
+Si el modelo devuelve menos de 3 pasos válidos, antes se rellenaba con un texto fijo que decía “No pude estructurar 3 pasos automáticos…”. Al usuario le sonaba a error y no le decía qué hacer. Ahora `fallbackDigestActions` (`utils/ai/dailyDigest.ts`) arma los pasos que faltan con los clientes del snapshot, en el orden de prioridad del prompt (seguimientos vencidos → cotizaciones sin respuesta → sin primer contacto → leads fríos; primero uno de cada tipo). No inventa nombres, salta a quien el modelo ya mencionó y, si el pipeline no alcanza, cierra con pasos de prospección. Nunca menciona que la IA falló. Los títulos usan verbos que el front reconoce para ponerles tipo y enlace (`classifyAiAction` en kadesh-business).
+
 ### 2026-09-14 — Análisis de mercado
 
 Misma forma query/mutation + `force` que el digest. Caché `company + kind + referenceKey` mensual. No mezclar con el digest del vendedor (`salesPerson` vacío = insight de empresa).

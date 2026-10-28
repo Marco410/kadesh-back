@@ -163,8 +163,8 @@ const resolver = {
       location,
     } = input;
 
-    // Build where clause for Animal query
-    const animalWhere: any = {};
+    // Build where clause for Animal query. Los repetidos unidos a otro no salen.
+    const animalWhere: any = { duplicateOf: null };
 
     if (animalType) {
       animalWhere.animal_type = { id: { equals: animalType } };

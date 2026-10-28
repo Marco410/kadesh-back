@@ -13,6 +13,21 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
   - **Sin session** (seed/scripts) → ni Facebook ni correo.
 - Fallos de Facebook o correo se loguean; no abortan el create.
 - La espera de Facebook vive en el proceso que creó el animal. Si ese proceso se reinicia antes de publicar, ese animal no sale en la Página.
+- **Reportes parecidos** (`findSimilarReports` en `utils/pet/animalReport.ts`, puntaje en `utils/pet/reportSimilarity.ts`): junta candidatos del mismo tipo por enlace, teléfono y registros a 5 km o menos (90 días si está perdido, 30 si no). Los descarta si están cerrados (`in_family`, `adopted`) o unidos a otro (`duplicateOf`). Califica nombre, distancia, sexo, color, raza, señas y fecha. Desde 45 puntos es `possible` y desde 70 `likely`. `kind: duplicate` es el mismo animal con el mismo estatus. `kind: match` es el otro lado (perdido ↔ encontrado, rescatado o abandonado). `findAnimalReportDuplicates` lo expone sin teléfonos. `createAnimalReport` solo bloquea un `duplicate` fuerte (`isStrongDuplicate`).
+- **Comentarios** (`AnimalComment.kind`: `comment`, `duplicate_report` o `possible_match`): cada comentario avisa a quien atiende el reporte, salvo que lo escriba esa misma persona. En reportes de la automatización (`PET_AUTOMATION_USER_ID`) o sin autor, solo los `duplicate_report` y `possible_match` avisan a los admins.
+- **Solicitudes para quedarse con el reporte** (`AnimalClaim`):
+  - Las crea con sesión quien dice que es su mascota, con mensaje, teléfono y foto opcional. Siempre quedan a su nombre y `pending`.
+  - Las ven quien las hizo, quien atiende o atendía el reporte, y un admin.
+  - Las responde quien atiende el reporte con `resolveAnimalClaim`; si es la automatización, solo un admin. `cancelAnimalClaim` lo usa quien la hizo.
+  - Al aprobar, `Animal.user` pasa a quien reclamó, `reportedBy: owner`, y su teléfono queda como principal (el anterior, de segundo si estaba libre). Las demás pendientes se rechazan.
+  - Máximo 3 por persona en 24 h, una pendiente por reporte, y no se puede reclamar un reporte propio ni uno unido a otro.
+- **Unir repetidos** (`duplicateOf`, solo admin, en `Animal.merge.ts`):
+  - Al ponerlo, los comentarios y favoritos pasan al principal y los repetidos de este repetido también apuntan al principal.
+  - Se rechazan sus solicitudes pendientes.
+  - Queda un comentario `duplicate_report` en el principal y se avisa `animal.merged` a quien hizo el repetido.
+  - `getNearbyAnimals` ya no lo lista y la web redirige su ficha al principal (308).
+- `duplicateCheck` (JSON, solo admin lo lee): los parecidos que la persona descartó al publicar, para decidir si unirlos.
+- Con el primer registro de un perdido o encontrado, además de la alerta de zona, `notifyPossibleMatches` avisa a quien atiende hasta 3 reportes `match` `likely` (`animal.possible_match`, una vez por reporte y destinatario).
 
 ## Decisiones
 
@@ -53,3 +68,19 @@ Qué: relación opcional de un solo lado a `Pet`. La llena `markPetAsLost` cuand
 Por qué: ligar el reporte con la mascota registrada sin exponer la cartilla en la ficha pública.
 
 Qué no hacer: no exponer datos de la cartilla en la ficha pública; al borrar la mascota el reporte no se borra (la base pone `pet` en null).
+
+### 2026-10-28 — Reportes repetidos, comentar en vez de duplicar y reclamar el reporte
+
+Qué:
+- La revisión de repetidos dejó de ser «mismo enlace o mismo teléfono + nombre». Ahora es un puntaje con cercanía, sexo, color, raza, señas y fecha, y también cruza perdidos con encontrados.
+- Se agregaron `AnimalComment.kind`, la lista `AnimalClaim` (con `resolveAnimalClaim` / `cancelAnimalClaim`), `Animal.duplicateOf` y `Animal.duplicateCheck`.
+- Hay siete tipos de notificación nuevos (`animal.commented`, `animal.duplicate_reported`, `animal.possible_match`, `animal.claim_requested`, `animal.claim_approved`, `animal.claim_rejected` y `animal.merged`).
+
+Por qué: tres personas publicaron al mismo perro (Chaneque, Morelia) con teléfonos distintos y una ciudad distinta en cada slug, y la regla anterior no lo detectó. Quien reporta debe poder sumar información al reporte que ya existe en vez de duplicarlo. El dueño debe poder quedarse con un reporte que subió un voluntario. Quien atiende el reporte debe enterarse.
+
+Qué no hacer:
+- No comparar por ciudad: Nominatim regresa colonias distintas para puntos a 500 m.
+- No exponer teléfonos en `findAnimalReportDuplicates`.
+- No transferir un reporte sin aprobación de quien lo atiende (o de un admin).
+- No borrar el repetido al unirlo: se queda como historial con `duplicateOf`.
+

@@ -5,6 +5,7 @@ import AnimalFavorite from "./Pet/Animal/AnimalFavorite/AnimalFavorite";
 import AnimalLog from "./Pet/Animal/AnimalLog/AnimalLog";
 import AnimalView from "./Pet/Animal/AnimalView/AnimalView";
 import AnimalComment from "./Pet/Animal/AnimalComment/AnimalComment";
+import AnimalClaim from "./Pet/Animal/AnimalClaim/AnimalClaim";
 import User from "./User/User";
 import UserAuthLog from "./User/UserAuthLog/UserAuthLog";
 import UserActivityDay from "./User/UserActivityDay/UserActivityDay";
@@ -95,6 +96,7 @@ export default withActivityHooks({
   Ad,
   Animal,
   AnimalBreed,
+  AnimalClaim,
   AnimalComment,
   AnimalFavorite,
   AnimalLog,
