@@ -587,6 +587,110 @@ export async function sendPetPlaceAppointmentEmail({
 }
 
 
+/** Recordatorio de la cartilla (vacuna, desparasitación…) a un dueño de la mascota. */
+export async function sendPetReminderEmail({
+  to,
+  displayName,
+  petName,
+  title,
+  dateLabel,
+  dueLabel,
+  url,
+}: {
+  to: string;
+  displayName: string;
+  petName: string;
+  title: string;
+  /** "12 de noviembre" */
+  dateLabel: string;
+  /** "vence hoy", "vence el 12 de noviembre", "venció el …" */
+  dueLabel: string;
+  /** Cartilla de la mascota en la web. */
+  url: string;
+}): Promise<void> {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendPetReminderEmail: sin email destino.");
+    return;
+  }
+
+  const html = renderEmailLayout({
+    brand: "pet",
+    preheader: `${title} de ${petName}: ${dueLabel}.`,
+    eyebrow: "Cartilla",
+    title: `Recordatorio de ${petName}`,
+    bodyHtml: `
+      ${emailGreeting(displayName)}
+      ${emailParagraph(
+        `Te recordamos que <strong>${escapeHtml(title)}</strong> de <strong>${escapeHtml(petName)}</strong> ${escapeHtml(dueLabel)}.`,
+      )}
+      ${emailInfoTable([
+        ["Mascota", escapeHtml(petName)],
+        ["Recordatorio", escapeHtml(title)],
+        ["Fecha", escapeHtml(dateLabel)],
+      ])}
+      ${emailButton("pet", "Ver cartilla", url)}`,
+    footerNote: `Recibiste este correo porque la cartilla de ${petName} tiene recordatorios por correo.`,
+  });
+
+  await sendEmail({
+    to: trimmedTo,
+    subject: `Recordatorio: ${title} de ${petName}`,
+    html,
+    fromName: EMAIL_BRANDS.pet.name,
+  });
+}
+
+/**
+ * A quien el dueño principal registró como familiar de una mascota: ya tiene cuenta y la
+ * contraseña la eligió ese familiar. Nunca lleva la contraseña.
+ */
+export async function sendPetFamilyAccountEmail({
+  to,
+  displayName,
+  inviterName,
+  petName,
+  url,
+}: {
+  to: string;
+  displayName: string;
+  inviterName: string;
+  petName: string;
+  /** Cartilla de la mascota en la web (pide iniciar sesión). */
+  url: string;
+}): Promise<void> {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendPetFamilyAccountEmail: sin email destino.");
+    return;
+  }
+
+  const html = renderEmailLayout({
+    brand: "pet",
+    preheader: `${inviterName} te agregó a la cartilla de ${petName}.`,
+    eyebrow: "Cartilla",
+    title: `Te agregaron a la cartilla de ${petName}`,
+    bodyHtml: `
+      ${emailGreeting(displayName)}
+      ${emailParagraph(
+        `<strong>${escapeHtml(inviterName)}</strong> te creó una cuenta en Kadesh Pet y te agregó a la cartilla de <strong>${escapeHtml(petName)}</strong>. Podrás ver sus vacunas y registros, y te llegarán sus recordatorios.`,
+      )}
+      ${emailCallout(
+        "pet",
+        `Para entrar usa este correo (<strong>${escapeHtml(trimmedTo)}</strong>). Tu contraseña la eligió ${escapeHtml(inviterName)}: pídesela.`,
+      )}
+      ${emailButton("pet", "Ver cartilla", url)}`,
+    footerNote: `Recibiste este correo porque ${inviterName} te registró en Kadesh Pet.`,
+  });
+
+  await sendEmail({
+    to: trimmedTo,
+    subject: `${inviterName} te agregó a la cartilla de ${petName}`,
+    html,
+    fromName: EMAIL_BRANDS.pet.name,
+  });
+}
+
 export type AdminBroadcastAudience = "saas" | "pet" | "all" | "custom";
 
 type BroadcastRecipient = {

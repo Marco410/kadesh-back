@@ -2,6 +2,9 @@ import { sendPetPlaceAppointmentEmail } from "../../../../utils/helpers/sendgrid
 import { isSmtpConfigured } from "../../../../utils/intregrations/smtpMail";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { PET_PLACE_APPOINTMENT_STATUS } from "./status";
+import { isSudoContext } from "../../../../utils/activity/listActivityHooks";
+import { ANIMAL_TYPE_OPTIONS } from "../../../../utils/constants/constants";
+import { findPetOwnerRole } from "../../Pet.access";
 
 async function loadPlaceForCreate(context: any, petPlaceId: string | undefined) {
   if (!petPlaceId) return null;
@@ -170,4 +173,54 @@ export const petPlaceAppointmentEmailHook = {
       console.error("[PetPlaceAppointment] Error en hook de correo:", error);
     }
   },
+};
+
+/**
+ * Cita ligada a una mascota de la cartilla: si `petName`/`petSpecies` vienen vacíos se llenan
+ * desde `Pet`, porque la veterinaria no puede leer la cartilla y sigue viendo esos textos.
+ */
+export const petPlaceAppointmentPetResolveInput = async ({ resolvedData, item, context }: any) => {
+  const petId = resolvedData.pet?.connect?.id as string | undefined;
+  if (!petId) return resolvedData;
+  const nameEmpty = !String(resolvedData.petName ?? item?.petName ?? "").trim();
+  const speciesEmpty = !String(resolvedData.petSpecies ?? item?.petSpecies ?? "").trim();
+  if (!nameEmpty && !speciesEmpty) return resolvedData;
+
+  const pet = (await context.sudo().query.Pet.findOne({
+    where: { id: petId },
+    query: "name animal_type { name } animal_breed { breed }",
+  })) as {
+    name?: string | null;
+    animal_type?: { name?: string | null } | null;
+    animal_breed?: { breed?: string | null } | null;
+  } | null;
+  if (!pet) return resolvedData;
+
+  const data = { ...resolvedData };
+  if (nameEmpty && pet.name) data.petName = pet.name;
+  if (speciesEmpty) {
+    const typeLabel = ANIMAL_TYPE_OPTIONS.find((option) => option.value === pet.animal_type?.name)?.label;
+    const species = [typeLabel, pet.animal_breed?.breed].filter(Boolean).join(" - ");
+    if (species) data.petSpecies = species;
+  }
+  return data;
+};
+
+/** La mascota de la cita debe ser del cliente de la cita (la reserve él o su veterinaria). */
+export const petPlaceAppointmentPetValidateInput = async ({
+  resolvedData,
+  item,
+  context,
+  addValidationError,
+}: any) => {
+  const petId = resolvedData.pet?.connect?.id as string | undefined;
+  if (!petId || isSudoContext(context) || isPlatformAdmin(context.session)) return;
+  const customerId =
+    (resolvedData.customer?.connect?.id as string | undefined) ??
+    (item?.customerId as string | undefined) ??
+    getSessionUserId(context.session) ??
+    undefined;
+  if (!customerId || !(await findPetOwnerRole(context, petId, customerId))) {
+    addValidationError("La mascota no es del cliente de esta cita.");
+  }
 };

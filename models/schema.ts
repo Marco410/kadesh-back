@@ -13,6 +13,10 @@ import { withActivityHooks } from "../utils/activity/listActivityHooks";
 import AnimalBreed from "./Pet/Animal/AnimalBreed/AnimalBreed";
 import Pet from "./Pet/Pet";
 import PetMultimedia from "./Pet/PetMultimedia/PetMultimedia";
+import PetOwner from "./Pet/PetOwner/PetOwner";
+import PetHealthRecord from "./Pet/HealthRecord/PetHealthRecord";
+import PetHealthRecordAttachment from "./Pet/HealthRecord/PetHealthRecordAttachment/PetHealthRecordAttachment";
+import PetReminder from "./Pet/Reminder/PetReminder";
 import PetPlace from "./Pet/PetPlace/PetPlace";
 import PetPlaceAppointment from "./Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment";
 import PetPlaceLike from "./Pet/PetPlace/PetPlaceLike/PetPlaceLike";
@@ -107,6 +111,10 @@ export default withActivityHooks({
   PaymentMethod,
   Pet,
   PetMultimedia,
+  PetOwner,
+  PetHealthRecord,
+  PetHealthRecordAttachment,
+  PetReminder,
   PetPlace,
   PetPlaceAppointment,
   PetPlaceLike,

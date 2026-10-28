@@ -23,6 +23,8 @@ export const NOTIFICATION_TYPE = {
   PET_PLACE_SERVICE_REQUESTED: "petplace.service_requested",
   /** Alguien cambió sus datos bancarios (comisiones de referidos). */
   USER_BANK_DETAILS_UPDATED: "user.bank_details_updated",
+  /** Se acerca la fecha de un recordatorio de la cartilla (vacuna, desparasitación…). Va a sus dueños. */
+  PET_REMINDER_DUE: "pet.reminder_due",
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];

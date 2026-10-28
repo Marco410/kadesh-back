@@ -60,6 +60,34 @@ function toWhatsappNumber(raw: string | null | undefined): string | null {
 }
 
 /**
+ * Busca, entre los destinatarios de la notificación, a quien activó `whatsappNotifications` y tiene
+ * teléfono, y les manda la plantilla. Nunca lanza: lo llama `notify` sin esperar.
+ * `User.phone` no es nullable en la base (vacío es `""`): filtrar con `not: null` hace fallar a Prisma.
+ */
+export async function sendNotificationWhatsappToOptedIn(
+  prisma: any,
+  recipientIds: string[],
+  type: NotificationType,
+  values: NotificationTemplateValues,
+): Promise<void> {
+  try {
+    if (!hasWhatsappTemplate(type) || !platformWhatsappConfig()) return;
+
+    const optedIn = await prisma.user.findMany({
+      where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: "" } },
+      select: { id: true, phone: true },
+    });
+    // Prisma de Keystone puede devolver el error en vez de lanzarlo.
+    if (optedIn instanceof Error) throw optedIn;
+    if (!Array.isArray(optedIn) || optedIn.length === 0) return;
+
+    await sendNotificationWhatsapp(optedIn, type, values);
+  } catch (error) {
+    console.error("[notify:whatsapp] No se pudo buscar a quién mandarle:", type, error);
+  }
+}
+
+/**
  * Manda la plantilla del tipo a cada destinatario. Nunca lanza: un fallo de Meta no debe tocar la
  * notificación de la campana ni la operación que la disparó. En logs solo los últimos 4 dígitos.
  */

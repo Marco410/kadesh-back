@@ -2,12 +2,7 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../models/Role/constants";
 import type { NotificationType } from "../../models/Notification/constants";
 import { sendPushToUsers } from "./push";
-import {
-  hasWhatsappTemplate,
-  platformWhatsappConfig,
-  sendNotificationWhatsapp,
-  type NotificationTemplateValues,
-} from "./whatsapp";
+import { sendNotificationWhatsappToOptedIn, type NotificationTemplateValues } from "./whatsapp";
 
 export type NotifyInput = {
   /** "platform_admins" = una fila por cada admin de plataforma; si no, ids de usuario. */
@@ -74,16 +69,8 @@ export async function notify(context: KeystoneContext, input: NotifyInput): Prom
         type: input.type,
       });
     }
-    if (hasWhatsappTemplate(input.type) && platformWhatsappConfig()) {
-      const optedIn = await prisma.user.findMany({
-        where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: null } },
-        select: { id: true, phone: true },
-      });
-      // Sin await: el envío no frena la operación que dispara la notificación.
-      if (Array.isArray(optedIn) && optedIn.length > 0) {
-        void sendNotificationWhatsapp(optedIn, input.type, input.templateValues ?? {});
-      }
-    }
+    // Sin await: el envío no frena la operación que dispara la notificación.
+    void sendNotificationWhatsappToOptedIn(prisma, recipientIds, input.type, input.templateValues ?? {});
 
     return result?.count ?? recipientIds.length;
   } catch (error) {
