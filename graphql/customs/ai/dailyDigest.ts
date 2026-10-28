@@ -12,6 +12,7 @@ import {
 } from "../../../utils/ai";
 import {
   DAILY_DIGEST_FEATURE_PROMPT,
+  fallbackDigestActions,
   findDailyDigestInsight,
   formatActionsAsContent,
   formatSnapshotPrompt,
@@ -20,7 +21,6 @@ import {
   saveDailyDigestInsight,
   toDigestInsightPayload,
   todayKey,
-  type DigestAction,
   type DigestInsightPayload,
 } from "../../../utils/ai/dailyDigest";
 import {
@@ -114,27 +114,6 @@ function resolveDigestSalesPersonId(
     return null;
   }
   return session?.data?.id ?? null;
-}
-
-function fallbackActions(snapshotPrompt: string): DigestAction[] {
-  return [
-    {
-      title: "Revisa el pipeline de hoy",
-      detail:
-        "No pude estructurar 3 pasos automáticos. Abre clientes y cotizaciones y elige el contacto de mayor valor.",
-    },
-    {
-      title: "Cierra seguimientos vencidos",
-      detail:
-        "Prioriza a quien ya esperaba respuesta. Un WhatsApp corto desbloquea más que un mensaje largo.",
-    },
-    {
-      title: "Prospecta con tu oferta actual",
-      detail: snapshotPrompt.includes("(ninguno)")
-        ? "Si el tablero está vacío, extrae o asigna clientes alineados a tu cliente ideal."
-        : "Elige un lead sin contacto o una cotización enviada y da el siguiente paso hoy.",
-    },
-  ];
 }
 
 const queryResolver = {
@@ -238,8 +217,10 @@ const mutationResolver = {
 
       let actions = parseDigestActions(result.text);
       if (actions.length < 3) {
-        const fallback = fallbackActions(userPrompt);
-        actions = [...actions, ...fallback].slice(0, 3);
+        actions = [
+          ...actions,
+          ...fallbackDigestActions(snapshot, actions),
+        ].slice(0, 3);
       }
 
       const saved = await saveDailyDigestInsight(context, {

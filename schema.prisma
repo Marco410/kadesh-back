@@ -123,7 +123,12 @@ model Animal {
   facebookPublishedById      String?            @map("facebookPublishedBy")
   pet                        Pet?               @relation("Animal_pet", fields: [petId], references: [id])
   petId                      String?            @map("pet")
+  duplicateOf                Animal?            @relation("Animal_duplicateOf", fields: [duplicateOfId], references: [id])
+  duplicateOfId              String?            @map("duplicateOf")
+  duplicateCheck             Json?
   createdAt                  DateTime?          @default(now())
+  from_Animal_duplicateOf    Animal[]           @relation("Animal_duplicateOf")
+  from_AnimalClaim_animal    AnimalClaim[]      @relation("AnimalClaim_animal")
   from_AnimalComment_animal  AnimalComment[]    @relation("AnimalComment_animal")
   from_AnimalFavorite_animal AnimalFavorite[]   @relation("AnimalFavorite_animal")
   from_Pet_lostReport        Pet[]              @relation("Pet_lostReport")
@@ -133,6 +138,7 @@ model Animal {
   @@index([userId])
   @@index([facebookPublishedById])
   @@index([petId])
+  @@index([duplicateOfId])
 }
 
 model AnimalBreed {
@@ -146,9 +152,39 @@ model AnimalBreed {
   @@index([animal_typeId])
 }
 
+model AnimalClaim {
+  id                 String    @id @default(cuid())
+  animal             Animal?   @relation("AnimalClaim_animal", fields: [animalId], references: [id])
+  animalId           String?   @map("animal")
+  claimant           User?     @relation("AnimalClaim_claimant", fields: [claimantId], references: [id])
+  claimantId         String?   @map("claimant")
+  claimantName       String    @default("")
+  previousUser       User?     @relation("AnimalClaim_previousUser", fields: [previousUserId], references: [id])
+  previousUserId     String?   @map("previousUser")
+  message            String    @default("")
+  phone              String    @default("")
+  evidence_id        String?
+  evidence_filesize  Int?
+  evidence_width     Int?
+  evidence_height    Int?
+  evidence_extension String?
+  status             String    @default("pending")
+  rejectReason       String    @default("")
+  resolvedBy         User?     @relation("AnimalClaim_resolvedBy", fields: [resolvedById], references: [id])
+  resolvedById       String?   @map("resolvedBy")
+  resolvedAt         DateTime?
+  createdAt          DateTime? @default(now())
+
+  @@index([animalId])
+  @@index([claimantId])
+  @@index([previousUserId])
+  @@index([resolvedById])
+}
+
 model AnimalComment {
   id        String    @id @default(cuid())
   comment   String    @default("")
+  kind      String    @default("comment")
   animal    Animal?   @relation("AnimalComment_animal", fields: [animalId], references: [id])
   animalId  String?   @map("animal")
   user      User?     @relation("AnimalComment_user", fields: [userId], references: [id])
@@ -1899,6 +1935,9 @@ model User {
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")
   from_Animal_facebookPublishedBy          Animal[]                 @relation("Animal_facebookPublishedBy")
+  from_AnimalClaim_claimant                AnimalClaim[]            @relation("AnimalClaim_claimant")
+  from_AnimalClaim_previousUser            AnimalClaim[]            @relation("AnimalClaim_previousUser")
+  from_AnimalClaim_resolvedBy              AnimalClaim[]            @relation("AnimalClaim_resolvedBy")
   from_AnimalComment_user                  AnimalComment[]          @relation("AnimalComment_user")
   from_AnimalFavorite_user                 AnimalFavorite[]         @relation("AnimalFavorite_user")
   from_AnimalView_user                     AnimalView[]             @relation("AnimalView_user")

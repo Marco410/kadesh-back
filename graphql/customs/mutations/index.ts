@@ -22,6 +22,7 @@ import promoteInegiEstablishmentToLead from "./inegi/promoteInegiEstablishmentTo
 import fetchInegiIndicator from "./inegi/fetchInegiIndicator";
 import veterinaryMutations from "./pet/veterinary";
 import createAnimalReport from "./pet/createAnimalReport";
+import animalClaims from "./pet/animalClaims";
 import petCardMutations from "./pet/card";
 import unsubscribeBlog from "./unsubscribeBlog";
 import publishScheduledPosts from "./publishScheduledPosts";
@@ -75,6 +76,7 @@ const customMutation = {
     ${fetchInegiIndicator.typeDefs}
     ${veterinaryMutations.typeDefs}
     ${createAnimalReport.typeDefs}
+    ${animalClaims.typeDefs}
     ${petCardMutations.typeDefs}
     ${unsubscribeBlog.typeDefs}
     ${publishScheduledPosts.typeDefs}
@@ -127,6 +129,7 @@ const customMutation = {
     ${fetchInegiIndicator.definition}
     ${veterinaryMutations.definition}
     ${createAnimalReport.definition}
+    ${animalClaims.definition}
     ${petCardMutations.definition}
     ${unsubscribeBlog.definition}
     ${publishScheduledPosts.definition}
@@ -179,6 +182,7 @@ const customMutation = {
     ...fetchInegiIndicator.resolver,
     ...veterinaryMutations.resolver,
     ...createAnimalReport.resolver,
+    ...animalClaims.resolver,
     ...petCardMutations.resolver,
     ...unsubscribeBlog.resolver,
     ...publishScheduledPosts.resolver,
