@@ -34,6 +34,8 @@ export type DigestInsightPayload = {
 type SnapshotLine = {
   name: string;
   extra: string;
+  /** `name` es el nombre real del negocio (no un número de cotización ni un genérico). */
+  named: boolean;
 };
 
 export type DailyDigestSnapshot = {
@@ -255,6 +257,127 @@ Si el pipeline está vacío o es muy corto, sugiere prospección alineada al neg
 No inventes nombres de clientes que no aparezcan en el contexto.
 Usa el tono de un jefe de ventas claro y accionable.`;
 
+type FallbackCandidate = DigestAction & {
+  /** Negocio al que se refiere, para no repetir a quien el modelo ya mencionó. */
+  name: string | null;
+};
+
+function shortName(name: string): string {
+  return name.length > 50 ? `${name.slice(0, 49).trim()}…` : name;
+}
+
+function overdueAction(line: SnapshotLine): FallbackCandidate {
+  return {
+    name: line.named ? line.name : null,
+    title: line.named
+      ? `Retoma el seguimiento con ${shortName(line.name)}`
+      : "Retoma un seguimiento vencido",
+    detail:
+      "Ya esperaba noticias tuyas. Un WhatsApp corto confirmando el siguiente paso desbloquea más que un mensaje largo.",
+  };
+}
+
+function quoteAction(line: SnapshotLine): FallbackCandidate {
+  // Sin negocio, `name` es el folio de la cotización (o el genérico "Cotización").
+  const title = line.named
+    ? `Empuja la cotización de ${shortName(line.name)}`
+    : line.name !== "Cotización"
+      ? `Empuja la cotización ${line.name}`
+      : "Empuja una cotización sin respuesta";
+  return {
+    name: line.named ? line.name : null,
+    title,
+    detail:
+      "Está enviada y sin respuesta. Pregunta si tienen dudas o si quieren ajustar el alcance antes de que venza.",
+  };
+}
+
+function firstContactAction(line: SnapshotLine): FallbackCandidate {
+  return {
+    name: line.named ? line.name : null,
+    title: line.named
+      ? `Haz el primer contacto con ${shortName(line.name)}`
+      : "Haz un primer contacto pendiente",
+    detail:
+      "Está en tu pipeline y nadie le ha escrito. Ábrele con lo que vendes y un resultado concreto en la primera línea.",
+  };
+}
+
+function coldLeadAction(line: SnapshotLine): FallbackCandidate {
+  return {
+    name: line.named ? line.name : null,
+    title: line.named
+      ? `Reactiva a ${shortName(line.name)}`
+      : "Reactiva un lead frío",
+    detail:
+      "Lleva tiempo sin respuesta o sin movimiento. Escríbele con una razón nueva para hablar, no con un “¿pudiste revisarlo?”.",
+  };
+}
+
+const PROSPECTING_ACTIONS: DigestAction[] = [
+  {
+    title: "Prospecta con tu oferta actual",
+    detail:
+      "Extrae o asigna clientes alineados a tu cliente ideal y contacta hoy a los primeros de la lista.",
+  },
+  {
+    title: "Enfoca la extracción en tus mejores nichos",
+    detail:
+      "Elige una o dos categorías donde ya hayas cerrado y extrae ahí antes de ampliar el radio.",
+  },
+  {
+    title: "Deja listo tu mensaje de primer contacto",
+    detail:
+      "Dos líneas: qué vendes y un resultado concreto. Así el equipo contacta rápido y sin improvisar.",
+  },
+];
+
+/**
+ * Completa el digest cuando el modelo devuelve menos de 3 pasos. Usa clientes
+ * reales del snapshot (nunca inventa nombres) en el orden de prioridad del
+ * prompt: primero uno de cada tipo y luego el resto. Salta a quien el modelo
+ * ya mencionó. Si el pipeline no alcanza, termina con pasos de prospección.
+ * Nunca habla de que la IA falló: para el usuario es un paso más.
+ */
+export function fallbackDigestActions(
+  snapshot: DailyDigestSnapshot,
+  existing: DigestAction[] = [],
+): DigestAction[] {
+  const mentioned = existing
+    .map((action) => `${action.title} ${action.detail}`)
+    .join("\n")
+    .toLowerCase();
+  const groups: FallbackCandidate[][] = [
+    snapshot.overdueFollowUps.map(overdueAction),
+    snapshot.quotesWithoutReply.map(quoteAction),
+    snapshot.uncontactedLeads.map(firstContactAction),
+    snapshot.coldLeads.map(coldLeadAction),
+  ];
+  const candidates: FallbackCandidate[] = [
+    ...groups.flatMap((group) => group.slice(0, 1)),
+    ...groups.flatMap((group) => group.slice(1)),
+    ...PROSPECTING_ACTIONS.map((action) => ({ ...action, name: null })),
+  ];
+
+  const usedNames = new Set<string>();
+  const usedTitles = new Set(
+    existing.map((action) => action.title.toLowerCase()),
+  );
+  const picked: DigestAction[] = [];
+  for (const candidate of candidates) {
+    const nameKey = candidate.name?.toLowerCase() ?? null;
+    const titleKey = candidate.title.toLowerCase();
+    if (nameKey && (usedNames.has(nameKey) || mentioned.includes(nameKey))) {
+      continue;
+    }
+    if (usedTitles.has(titleKey)) continue;
+    if (nameKey) usedNames.add(nameKey);
+    usedTitles.add(titleKey);
+    picked.push({ title: candidate.title, detail: candidate.detail });
+  }
+  return picked;
+}
+
 type StatusRow = {
   pipelineStatus?: string | null;
   estimatedValue?: number | null;
@@ -267,9 +390,10 @@ type StatusRow = {
 };
 
 function statusLine(row: StatusRow): SnapshotLine {
-  const name = row.businessLead?.businessName?.trim() || "Lead";
+  const businessName = row.businessLead?.businessName?.trim();
   return {
-    name,
+    name: businessName || "Lead",
+    named: Boolean(businessName),
     extra: joinExtra([
       row.pipelineStatus,
       money(row.estimatedValue),
@@ -411,6 +535,7 @@ export async function gatherDailyDigestSnapshot(
         row.lead?.businessName?.trim() ||
         row.quotationNumber ||
         "Cotización",
+      named: Boolean(row.lead?.businessName?.trim()),
       extra: joinExtra([
         row.quotationNumber,
         money(row.total),
@@ -421,6 +546,7 @@ export async function gatherDailyDigestSnapshot(
     uncontactedLeads: uncontactedRows.map(statusLine),
     overdueFollowUps: overdueRows.map((row) => ({
       name: row.businessLead?.businessName?.trim() || "Seguimiento",
+      named: Boolean(row.businessLead?.businessName?.trim()),
       extra: joinExtra([
         row.scheduledDate ? `venció ${row.scheduledDate}` : null,
         row.priority,

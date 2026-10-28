@@ -4,6 +4,7 @@ import { PRODUCT } from "../../../utils/constants/product";
 import { postToFacebookPage } from "../../../utils/intregrations/facebook";
 import { sendAdminNewAnimalEmail } from "../../../utils/helpers/sendgrid";
 import { notifyNearbyAnimal } from "../../../utils/notifications/nearbyAnimalAlerts";
+import { notifyPossibleMatches } from "../../../utils/notifications/possibleMatchAlerts";
 import { adminNotificationEmailsEnabled, notify } from "../../../utils/notifications/notify";
 import { NOTIFICATION_TYPE } from "../../Notification/constants";
 import {
@@ -489,6 +490,16 @@ export const animalLogSlugAfterOperation = {
         seenAt: item.date_status ?? null,
         slug: animal.slug ?? null,
         url: animal.slug ? animalPublicUrl(animal.slug) : null,
+      });
+      await notifyPossibleMatches(context, {
+        animalId,
+        ownerId: animal.user?.id ?? null,
+        slug: animal.slug ?? null,
+        url: animal.slug ? animalPublicUrl(animal.slug) : null,
+        status: item.status,
+        lat: Number.parseFloat(item.lat),
+        lng: Number.parseFloat(item.lng),
+        date: item.date_status ?? null,
       });
     } catch (error) {
       console.error("[alerts] Error al avisar a la zona:", error);

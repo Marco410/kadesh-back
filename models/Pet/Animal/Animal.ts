@@ -1,16 +1,35 @@
 import { list } from "@keystone-6/core";
-import { relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
 import { animalAccess, forceAnimalOwner } from "./Animal.access";
 import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
 import { animalCreateSideEffectsHook } from "./Animal.hooks";
+import { animalMergeAfterOperation, validateDuplicateOf } from "./Animal.merge";
 import { normalizeMxPhone } from "../../../utils/pet/phone";
 import { isPlatformAdmin } from "../../../utils/access/tenant";
+
+const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
+
+/** Lo que manda la web al publicar «de todos modos»: ids y puntaje de los parecidos, nada más. */
+function cleanDuplicateCheck(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as { candidates?: unknown; dismissedAt?: unknown };
+  const candidates = (Array.isArray(raw.candidates) ? raw.candidates : [])
+    .map((candidate: any) => ({
+      id: typeof candidate?.id === "string" ? candidate.id : "",
+      score: Number(candidate?.score) || 0,
+    }))
+    .filter((candidate) => candidate.id)
+    .slice(0, 6);
+  if (!candidates.length) return null;
+  return { candidates, dismissedAt: new Date().toISOString() };
+}
 
 export default list({
   access: animalAccess,
   hooks: {
     resolveInput: ({ resolvedData, operation, context }) => {
       const data = forceAnimalOwner({ ...resolvedData }, operation, context);
+      if ("duplicateCheck" in data) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
       for (const key of ["contactNumber", "contactNumber2"] as const) {
         if (!(key in data) || data[key] == null) continue;
         const raw = String(data[key]);
@@ -23,7 +42,8 @@ export default list({
       }
       return data;
     },
-    validateInput: ({ resolvedData, addValidationError }) => {
+    validateInput: async ({ resolvedData, operation, item, context, addValidationError }) => {
+      await validateDuplicateOf({ operation, resolvedData, item, context, addValidationError });
       for (const key of ["contactNumber", "contactNumber2"] as const) {
         if (!(key in resolvedData) || resolvedData[key] == null) continue;
         const raw = String(resolvedData[key]).trim();
@@ -39,7 +59,10 @@ export default list({
         }
       }
     },
-    ...animalCreateSideEffectsHook,
+    afterOperation: async (args) => {
+      await animalCreateSideEffectsHook.afterOperation(args);
+      await animalMergeAfterOperation(args);
+    },
   },
   ui: {
     listView: {
@@ -131,6 +154,25 @@ export default list({
         update: ({ session }) => isPlatformAdmin(session as any),
       },
       ui: { description: "Mascota de la cartilla (si el reporte salió de ahí)" },
+    }),
+    /**
+     * Reporte repetido de otro (el principal). Solo un admin lo pone: al guardarlo, los comentarios
+     * y favoritos pasan al principal, la ficha redirige ahí y deja de salir en listados.
+     */
+    duplicateOf: relationship({
+      ref: "Animal",
+      many: false,
+      access: { create: adminOnly, update: adminOnly },
+      ui: { description: "Si es un reporte repetido, el reporte principal del mismo animal." },
+    }),
+    /** Parecidos que la persona vio y descartó al publicar. Pista para que un admin decida si unirlos. */
+    duplicateCheck: json({
+      access: { read: adminOnly, update: adminOnly },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Reportes parecidos que se ignoraron al publicar.",
+      },
     }),
     createdAt: timestamp({
       defaultValue: {

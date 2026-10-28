@@ -494,6 +494,8 @@ type Animal {
   facebookPublishedAt: DateTime
   facebookPublishedBy: User
   pet: Pet
+  duplicateOf: Animal
+  duplicateCheck: JSON
   createdAt: DateTime
 }
 
@@ -528,6 +530,7 @@ input AnimalWhereInput {
   facebookPublishedAt: DateTimeNullableFilter
   facebookPublishedBy: UserWhereInput
   pet: PetWhereInput
+  duplicateOf: AnimalWhereInput
   createdAt: DateTimeNullableFilter
 }
 
@@ -589,6 +592,8 @@ input AnimalUpdateInput {
   facebookPublishedAt: DateTime
   facebookPublishedBy: UserRelateToOneForUpdateInput
   pet: PetRelateToOneForUpdateInput
+  duplicateOf: AnimalRelateToOneForUpdateInput
+  duplicateCheck: JSON
   createdAt: DateTime
 }
 
@@ -631,6 +636,12 @@ input PetRelateToOneForUpdateInput {
   disconnect: Boolean
 }
 
+input AnimalRelateToOneForUpdateInput {
+  create: AnimalCreateInput
+  connect: AnimalWhereUniqueInput
+  disconnect: Boolean
+}
+
 input AnimalUpdateArgs {
   where: AnimalWhereUniqueInput!
   data: AnimalUpdateInput!
@@ -658,6 +669,8 @@ input AnimalCreateInput {
   facebookPublishedAt: DateTime
   facebookPublishedBy: UserRelateToOneForCreateInput
   pet: PetRelateToOneForCreateInput
+  duplicateOf: AnimalRelateToOneForCreateInput
+  duplicateCheck: JSON
   createdAt: DateTime
 }
 
@@ -689,6 +702,11 @@ input AnimalViewRelateToManyForCreateInput {
 input PetRelateToOneForCreateInput {
   create: PetCreateInput
   connect: PetWhereUniqueInput
+}
+
+input AnimalRelateToOneForCreateInput {
+  create: AnimalCreateInput
+  connect: AnimalWhereUniqueInput
 }
 
 type AnimalBreed {
@@ -730,9 +748,94 @@ input AnimalBreedCreateInput {
   animal_type: AnimalTypeRelateToOneForCreateInput
 }
 
+type AnimalClaim {
+  id: ID!
+  animal: Animal
+  claimant: User
+  claimantName: String
+  previousUser: User
+  message: String
+  phone: String
+  evidence: ImageFieldOutput
+  status: String
+  rejectReason: String
+  resolvedBy: User
+  resolvedAt: DateTime
+  createdAt: DateTime
+}
+
+input AnimalClaimWhereUniqueInput {
+  id: ID
+}
+
+input AnimalClaimWhereInput {
+  AND: [AnimalClaimWhereInput!]
+  OR: [AnimalClaimWhereInput!]
+  NOT: [AnimalClaimWhereInput!]
+  id: IDFilter
+  animal: AnimalWhereInput
+  claimant: UserWhereInput
+  claimantName: StringFilter
+  previousUser: UserWhereInput
+  message: StringFilter
+  phone: StringFilter
+  status: StringFilter
+  rejectReason: StringFilter
+  resolvedBy: UserWhereInput
+  resolvedAt: DateTimeNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input AnimalClaimOrderByInput {
+  id: OrderDirection
+  claimantName: OrderDirection
+  message: OrderDirection
+  phone: OrderDirection
+  status: OrderDirection
+  rejectReason: OrderDirection
+  resolvedAt: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AnimalClaimUpdateInput {
+  animal: AnimalRelateToOneForUpdateInput
+  claimant: UserRelateToOneForUpdateInput
+  claimantName: String
+  previousUser: UserRelateToOneForUpdateInput
+  message: String
+  phone: String
+  evidence: ImageFieldInput
+  status: String
+  rejectReason: String
+  resolvedBy: UserRelateToOneForUpdateInput
+  resolvedAt: DateTime
+  createdAt: DateTime
+}
+
+input AnimalClaimUpdateArgs {
+  where: AnimalClaimWhereUniqueInput!
+  data: AnimalClaimUpdateInput!
+}
+
+input AnimalClaimCreateInput {
+  animal: AnimalRelateToOneForCreateInput
+  claimant: UserRelateToOneForCreateInput
+  claimantName: String
+  previousUser: UserRelateToOneForCreateInput
+  message: String
+  phone: String
+  evidence: ImageFieldInput
+  status: String
+  rejectReason: String
+  resolvedBy: UserRelateToOneForCreateInput
+  resolvedAt: DateTime
+  createdAt: DateTime
+}
+
 type AnimalComment {
   id: ID!
   comment: String
+  kind: String
   animal: Animal
   user: User
   createdAt: DateTime
@@ -748,6 +851,7 @@ input AnimalCommentWhereInput {
   NOT: [AnimalCommentWhereInput!]
   id: IDFilter
   comment: StringFilter
+  kind: StringFilter
   animal: AnimalWhereInput
   user: UserWhereInput
   createdAt: DateTimeNullableFilter
@@ -756,20 +860,16 @@ input AnimalCommentWhereInput {
 input AnimalCommentOrderByInput {
   id: OrderDirection
   comment: OrderDirection
+  kind: OrderDirection
   createdAt: OrderDirection
 }
 
 input AnimalCommentUpdateInput {
   comment: String
+  kind: String
   animal: AnimalRelateToOneForUpdateInput
   user: UserRelateToOneForUpdateInput
   createdAt: DateTime
-}
-
-input AnimalRelateToOneForUpdateInput {
-  create: AnimalCreateInput
-  connect: AnimalWhereUniqueInput
-  disconnect: Boolean
 }
 
 input AnimalCommentUpdateArgs {
@@ -779,14 +879,10 @@ input AnimalCommentUpdateArgs {
 
 input AnimalCommentCreateInput {
   comment: String
+  kind: String
   animal: AnimalRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
   createdAt: DateTime
-}
-
-input AnimalRelateToOneForCreateInput {
-  create: AnimalCreateInput
-  connect: AnimalWhereUniqueInput
 }
 
 type AnimalFavorite {
@@ -9455,6 +9551,12 @@ type Mutation {
   updateAnimalBreeds(data: [AnimalBreedUpdateArgs!]!): [AnimalBreed]
   deleteAnimalBreed(where: AnimalBreedWhereUniqueInput!): AnimalBreed
   deleteAnimalBreeds(where: [AnimalBreedWhereUniqueInput!]!): [AnimalBreed]
+  createAnimalClaim(data: AnimalClaimCreateInput!): AnimalClaim
+  createAnimalClaims(data: [AnimalClaimCreateInput!]!): [AnimalClaim]
+  updateAnimalClaim(where: AnimalClaimWhereUniqueInput!, data: AnimalClaimUpdateInput!): AnimalClaim
+  updateAnimalClaims(data: [AnimalClaimUpdateArgs!]!): [AnimalClaim]
+  deleteAnimalClaim(where: AnimalClaimWhereUniqueInput!): AnimalClaim
+  deleteAnimalClaims(where: [AnimalClaimWhereUniqueInput!]!): [AnimalClaim]
   createAnimalComment(data: AnimalCommentCreateInput!): AnimalComment
   createAnimalComments(data: [AnimalCommentCreateInput!]!): [AnimalComment]
   updateAnimalComment(where: AnimalCommentWhereUniqueInput!, data: AnimalCommentUpdateInput!): AnimalComment
@@ -9974,6 +10076,8 @@ type Mutation {
   syncLeadsFromInegi(input: SyncLeadsFromInegiInput!): SyncLeadsFromInegiResult!
   promoteInegiEstablishmentToLead(input: PromoteInegiEstablishmentToLeadInput!): PromoteInegiEstablishmentToLeadResult!
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
+  resolveAnimalClaim(claimId: ID!, approve: Boolean!, reason: String): AnimalClaimResult!
+  cancelAnimalClaim(claimId: ID!): AnimalClaimResult!
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
@@ -10065,6 +10169,9 @@ type Query {
   animalBreed(where: AnimalBreedWhereUniqueInput!): AnimalBreed
   animalBreeds(where: AnimalBreedWhereInput! = {}, orderBy: [AnimalBreedOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalBreedWhereUniqueInput): [AnimalBreed!]
   animalBreedsCount(where: AnimalBreedWhereInput! = {}): Int
+  animalClaim(where: AnimalClaimWhereUniqueInput!): AnimalClaim
+  animalClaims(where: AnimalClaimWhereInput! = {}, orderBy: [AnimalClaimOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalClaimWhereUniqueInput): [AnimalClaim!]
+  animalClaimsCount(where: AnimalClaimWhereInput! = {}): Int
   animalComment(where: AnimalCommentWhereUniqueInput!): AnimalComment
   animalComments(where: AnimalCommentWhereInput! = {}, orderBy: [AnimalCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalCommentWhereUniqueInput): [AnimalComment!]
   animalCommentsCount(where: AnimalCommentWhereInput! = {}): Int
@@ -10341,7 +10448,7 @@ type Query {
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
-  findAnimalReportDuplicates(phone: String, animalTypeId: ID, name: String, sourceUrl: String): [AnimalReportDuplicate!]!
+  findAnimalReportDuplicates(phone: String, phone2: String, animalTypeId: ID, name: String, sourceUrl: String, lat: Float, lng: Float, status: String, sex: String, color: String, breedId: ID, description: String, lostDate: DateTime, excludeAnimalId: ID): [AnimalReportDuplicate!]!
   dailyDigest(companyId: ID!): DailyDigestResult!
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
@@ -11034,6 +11141,12 @@ type CreateAnimalReportResult {
   url: String!
 }
 
+type AnimalClaimResult {
+  success: Boolean!
+  message: String!
+  animalSlug: String
+}
+
 input PetLastSeenLocationInput {
   lat: String!
   lng: String!
@@ -11369,6 +11482,20 @@ type AnimalReportDuplicate {
   name: String!
   slug: String
   url: String!
+  score: Int!
+  level: String!
+  kind: String!
+  reasons: [String!]!
+  distanceKm: Float
+  status: String
+  placeLabel: String
+  city: String
+  reportedAt: DateTime
+  coverUrl: String
+  reportedBy: String
+
+  """El reporte parecido es de quien pregunta."""
+  isMine: Boolean!
 }
 
 type NearbyPetPlace {
