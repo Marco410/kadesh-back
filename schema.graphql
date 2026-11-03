@@ -10453,8 +10453,10 @@ type Query {
   aiPlaybook(companyId: ID!): DailyDigestResult!
   companyAiBrief(companyId: ID!): CompanyAiBriefResult!
   marketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String): MarketInsightResult!
-  adminAnimals(search: String, animalTypeId: ID, reportedBy: String, creator: String, facebook: String, take: Int, skip: Int): AdminAnimalsResult!
+  adminAnimals(search: String, animalTypeId: ID, reportedBy: String, creator: String, facebook: String, status: String, take: Int, skip: Int): AdminAnimalsResult!
   adminAnimalDetail(id: ID!): AdminAnimalDetail
+  adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
+  adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
   landingStats: LandingStats!
   petLandingStats: PetLandingStats!
 }
@@ -12561,6 +12563,103 @@ type AdminAnimalDetail {
   favoritesList: [AdminAnimalFavorite!]!
   viewStats: AdminAnimalViews!
   facebookPublishedBy: AdminPersonRef
+}
+
+type AdminPetTopAnimal {
+  id: ID!
+  name: String!
+  slug: String
+  status: String
+  coverUrl: String
+  views: Int!
+}
+
+type AdminPetAnimalsSummary {
+  total: Int!
+  newInPeriod: Int!
+  newPrevPeriod: Int!
+  facebookPublished: Int!
+  facebookPending: Int!
+  duplicatesMerged: Int!
+  byStatus: [AdminCount!]!
+  byType: [AdminCount!]!
+  byOrigin: [AdminCount!]!
+  byReportedBy: [AdminCount!]!
+  topStates: [AdminCount!]!
+  topCities: [AdminCount!]!
+}
+
+type AdminPetPlacesSummary {
+  total: Int!
+  veterinaries: Int!
+  verified: Int!
+  fromGoogle: Int!
+  reviews: Int!
+  likes: Int!
+  newInPeriod: Int!
+  newPrevPeriod: Int!
+  byClaimStatus: [AdminCount!]!
+  byType: [AdminCount!]!
+  topStates: [AdminCount!]!
+}
+
+type AdminPetUsersSummary {
+  total: Int!
+  newInPeriod: Int!
+  newPrevPeriod: Int!
+}
+
+type AdminPetEngagement {
+  views: Int!
+  viewsSignedIn: Int!
+  favorites: Int!
+  comments: Int!
+  topViewed: [AdminPetTopAnimal!]!
+}
+
+type AdminPetPending {
+  animalClaims: Int!
+  placeClaims: Int!
+  services: Int!
+  facebookPending: Int!
+}
+
+type AdminPetSummary {
+  days: Int
+  animals: AdminPetAnimalsSummary!
+  places: AdminPetPlacesSummary!
+  users: AdminPetUsersSummary!
+  engagement: AdminPetEngagement!
+  pending: AdminPetPending!
+  generatedAt: String!
+}
+
+input AdminPetSummaryInput {
+  days: Int
+}
+
+input AdminPetSeriesInput {
+  metric: String!
+  granularity: String
+  range: String
+  breakdown: String
+  placeType: String
+}
+
+type AdminPetSeriesPoint {
+  bucket: String!
+  total: Int!
+  segments: [AdminCount!]!
+}
+
+type AdminPetSeries {
+  metric: String!
+  granularity: String!
+  breakdown: String!
+  from: String!
+  to: String!
+  total: Int!
+  points: [AdminPetSeriesPoint!]!
 }
 
 input CompanyAnalyticsInput {

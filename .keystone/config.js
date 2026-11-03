@@ -37539,6 +37539,7 @@ var definition83 = `
     reportedBy: String
     creator: String
     facebook: String
+    status: String
     take: Int
     skip: Int
   ): AdminAnimalsResult!
@@ -37551,12 +37552,30 @@ var ROW_QUERY = `
   animal_breed { breed }
   user { id name lastName email roles { name } }
   multimedia(orderBy: [{ order: asc }], take: 1) { image { url } }
-  logs(orderBy: [{ createdAt: desc }], take: 1) { status city state }
+  logs(orderBy: [{ date_status: desc }, { createdAt: desc }], take: 1) { status city state }
   animal_viewsCount
 `;
 function animalTypeLabel(value) {
   if (!value) return null;
   return ANIMAL_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+var LOG_STATUS_VALUES = new Set(ANIMAL_LOGS_OPTIONS.map((option) => option.value));
+function storedStatuses(status) {
+  return status === "register" ? ["register", "Registrado"] : [status];
+}
+async function animalIdsWithCurrentStatus(prisma, status) {
+  const rows2 = await prisma.$queryRaw`
+    SELECT "animal" AS id
+    FROM (
+      SELECT DISTINCT ON ("animal") "animal", status
+      FROM "AnimalLog"
+      WHERE "animal" IS NOT NULL
+      ORDER BY "animal", "date_status" DESC NULLS LAST, "createdAt" DESC NULLS LAST
+    ) latest
+    WHERE status = ANY(${storedStatuses(status)}::text[])
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  return rows2.map((row) => row.id);
 }
 function animalsWhere(args) {
   const and = [];
@@ -37578,6 +37597,7 @@ function animalsWhere(args) {
   if (args.creator === "user") and.push({ NOT: [{ user: adminRole }] });
   if (args.facebook === "published") and.push({ facebookPublishedAt: { not: null } });
   if (args.facebook === "pending") and.push({ facebookPublishedAt: { equals: null } });
+  if (args.statusAnimalIds) and.push({ id: { in: args.statusAnimalIds } });
   return and.length ? { AND: and } : {};
 }
 async function countsFor(prisma, ids) {
@@ -37623,7 +37643,12 @@ var resolver83 = {
   adminAnimals: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
-    const where = animalsWhere(args);
+    const status = args.status?.trim() || null;
+    if (status && !LOG_STATUS_VALUES.has(status)) {
+      throw new Error("Ese estatus no existe en la bit\xE1cora de animales.");
+    }
+    const statusAnimalIds = status ? await animalIdsWithCurrentStatus(adminPrisma(context), status) : null;
+    const where = animalsWhere({ ...args, statusAnimalIds });
     const take = clampInt(args.take, 1, 100, 25);
     const skip = clampInt(args.skip, 0, 1e6, 0);
     const [total, rows2] = await Promise.all([
@@ -37718,10 +37743,591 @@ var resolver83 = {
 };
 var adminAnimals_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
 
+// graphql/customs/queries/admin/adminPet.ts
+var typeDefs87 = `
+  type AdminPetTopAnimal {
+    id: ID!
+    name: String!
+    slug: String
+    status: String
+    coverUrl: String
+    views: Int!
+  }
+
+  type AdminPetAnimalsSummary {
+    total: Int!
+    newInPeriod: Int!
+    newPrevPeriod: Int!
+    facebookPublished: Int!
+    facebookPending: Int!
+    duplicatesMerged: Int!
+    byStatus: [AdminCount!]!
+    byType: [AdminCount!]!
+    byOrigin: [AdminCount!]!
+    byReportedBy: [AdminCount!]!
+    topStates: [AdminCount!]!
+    topCities: [AdminCount!]!
+  }
+
+  type AdminPetPlacesSummary {
+    total: Int!
+    veterinaries: Int!
+    verified: Int!
+    fromGoogle: Int!
+    reviews: Int!
+    likes: Int!
+    newInPeriod: Int!
+    newPrevPeriod: Int!
+    byClaimStatus: [AdminCount!]!
+    byType: [AdminCount!]!
+    topStates: [AdminCount!]!
+  }
+
+  type AdminPetUsersSummary {
+    total: Int!
+    newInPeriod: Int!
+    newPrevPeriod: Int!
+  }
+
+  type AdminPetEngagement {
+    views: Int!
+    viewsSignedIn: Int!
+    favorites: Int!
+    comments: Int!
+    topViewed: [AdminPetTopAnimal!]!
+  }
+
+  type AdminPetPending {
+    animalClaims: Int!
+    placeClaims: Int!
+    services: Int!
+    facebookPending: Int!
+  }
+
+  type AdminPetSummary {
+    days: Int
+    animals: AdminPetAnimalsSummary!
+    places: AdminPetPlacesSummary!
+    users: AdminPetUsersSummary!
+    engagement: AdminPetEngagement!
+    pending: AdminPetPending!
+    generatedAt: String!
+  }
+
+  input AdminPetSummaryInput {
+    days: Int
+  }
+
+  input AdminPetSeriesInput {
+    metric: String!
+    granularity: String
+    range: String
+    breakdown: String
+    placeType: String
+  }
+
+  type AdminPetSeriesPoint {
+    bucket: String!
+    total: Int!
+    segments: [AdminCount!]!
+  }
+
+  type AdminPetSeries {
+    metric: String!
+    granularity: String!
+    breakdown: String!
+    from: String!
+    to: String!
+    total: Int!
+    points: [AdminPetSeriesPoint!]!
+  }
+`;
+var definition84 = `
+  adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
+  adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
+`;
+var METRICS = ["animals", "places_created", "places_claimed", "places_verified", "pet_users"];
+var GRANULARITIES = ["day", "week", "month"];
+var BREAKDOWNS = ["none", "status", "origin"];
+var RANGE_DAYS = {
+  "30d": 30,
+  "90d": 90,
+  "180d": 180,
+  "365d": 365,
+  all: null
+};
+var MAX_DAY_BUCKETS = 90;
+var MAX_BUCKETS = 400;
+var TOP_PLACES = 8;
+var TOP_VIEWED = 5;
+var STATUS_KEYS = [...ANIMAL_LOGS_OPTIONS.map((option) => option.value), "none"];
+var STATUS_BY_STORED = new Map(
+  ANIMAL_LOGS_OPTIONS.flatMap((option) => [
+    [option.value, option.value],
+    // El default viejo del campo era la etiqueta ("Registrado"), no el valor.
+    [option.label, option.value]
+  ])
+);
+function normalizeStatus(stored) {
+  const value = stored?.trim();
+  if (!value) return "none";
+  return STATUS_BY_STORED.get(value) ?? "none";
+}
+var PET_USER_WHERE = { product: PRODUCT.PET, companyId: null, userTest: false };
+function parseYmd(ymd) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+function formatYmd(date) {
+  return date.toISOString().slice(0, 10);
+}
+function addDays2(ymd, days) {
+  const date = parseYmd(ymd);
+  date.setUTCDate(date.getUTCDate() + days);
+  return formatYmd(date);
+}
+function bucketStart(ymd, granularity) {
+  if (granularity === "day") return ymd;
+  if (granularity === "month") return `${ymd.slice(0, 7)}-01`;
+  const weekday = (parseYmd(ymd).getUTCDay() + 6) % 7;
+  return addDays2(ymd, -weekday);
+}
+function nextBucket(ymd, granularity) {
+  if (granularity === "day") return addDays2(ymd, 1);
+  if (granularity === "week") return addDays2(ymd, 7);
+  const date = parseYmd(ymd);
+  date.setUTCMonth(date.getUTCMonth() + 1);
+  return formatYmd(date);
+}
+function mxDayStartUtc(ymd) {
+  return (/* @__PURE__ */ new Date(`${ymd}T00:00:00.000-06:00`)).toISOString().slice(0, 23).replace("T", " ");
+}
+function oneOf(value, allowed, fallback, label) {
+  const clean = value?.trim();
+  if (!clean) return fallback;
+  if (!allowed.includes(clean)) {
+    throw new Error(`Valor no v\xE1lido para ${label}: ${clean}.`);
+  }
+  return clean;
+}
+async function adminUserIds(prisma) {
+  const rows2 = await prisma.user.findMany({
+    where: { roles: { some: { name: "admin" /* ADMIN */ } } },
+    select: { id: true }
+  });
+  return rows2.map((row) => row.id);
+}
+async function firstDayOf(prisma, metric, placeType) {
+  const placeWhere = placeType ? { types: { some: { value: placeType } } } : {};
+  let value = null;
+  if (metric === "animals") {
+    value = (await prisma.animal.aggregate({ where: { duplicateOfId: null }, _min: { createdAt: true } }))._min.createdAt;
+  } else if (metric === "places_created") {
+    value = (await prisma.petPlace.aggregate({ where: placeWhere, _min: { createdAt: true } }))._min.createdAt;
+  } else if (metric === "places_claimed") {
+    value = (await prisma.petPlace.aggregate({ where: placeWhere, _min: { claimedAt: true } }))._min.claimedAt;
+  } else if (metric === "places_verified") {
+    value = (await prisma.petPlace.aggregate({ where: placeWhere, _min: { verifiedAt: true } }))._min.verifiedAt;
+  } else {
+    value = (await prisma.user.aggregate({ where: PET_USER_WHERE, _min: { createdAt: true } }))._min.createdAt;
+  }
+  return value ? toMxDay(value) : null;
+}
+async function seriesRows(prisma, args) {
+  const { metric, granularity: unit, breakdown, placeType, startUtc } = args;
+  if (metric === "animals") {
+    const adminIds = breakdown === "origin" ? await adminUserIds(prisma) : [];
+    return unwrapPrisma(await prisma.$queryRaw`
+      WITH latest AS (
+        SELECT DISTINCT ON ("animal") "animal", status
+        FROM "AnimalLog"
+        WHERE "animal" IS NOT NULL
+        ORDER BY "animal", "date_status" DESC NULLS LAST, "createdAt" DESC NULLS LAST
+      )
+      SELECT
+        to_char(date_trunc(${unit}::text, ((a."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')), 'YYYY-MM-DD') AS bucket,
+        CASE
+          WHEN ${breakdown}::text = 'status' THEN COALESCE(l.status, '')
+          WHEN ${breakdown}::text = 'origin' THEN CASE WHEN a."user" = ANY(${adminIds}::text[]) THEN 'admin' ELSE 'user' END
+          ELSE 'total'
+        END AS segment,
+        COUNT(*)::int AS n
+      FROM "Animal" a
+      LEFT JOIN latest l ON l."animal" = a."id"
+      WHERE a."duplicateOf" IS NULL AND a."createdAt" >= ${startUtc}::timestamp
+      GROUP BY 1, 2
+    `);
+  }
+  if (metric === "pet_users") {
+    return unwrapPrisma(await prisma.$queryRaw`
+      SELECT
+        to_char(date_trunc(${unit}::text, ((u."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')), 'YYYY-MM-DD') AS bucket,
+        'total' AS segment,
+        COUNT(*)::int AS n
+      FROM "User" u
+      WHERE u."product" = ${PRODUCT.PET} AND u."company" IS NULL AND NOT u."userTest"
+        AND u."createdAt" >= ${startUtc}::timestamp
+      GROUP BY 1, 2
+    `);
+  }
+  if (metric === "places_claimed") {
+    return unwrapPrisma(await prisma.$queryRaw`
+      SELECT
+        to_char(date_trunc(${unit}::text, ((p."claimedAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')), 'YYYY-MM-DD') AS bucket,
+        'total' AS segment,
+        COUNT(*)::int AS n
+      FROM "PetPlace" p
+      WHERE p."claimedAt" >= ${startUtc}::timestamp
+        AND (${placeType}::text IS NULL OR EXISTS (
+          SELECT 1 FROM "_PetPlace_types" pt JOIN "PetPlaceType" t ON t."id" = pt."B"
+          WHERE pt."A" = p."id" AND t."value" = ${placeType}::text
+        ))
+      GROUP BY 1, 2
+    `);
+  }
+  if (metric === "places_verified") {
+    return unwrapPrisma(await prisma.$queryRaw`
+      SELECT
+        to_char(date_trunc(${unit}::text, ((p."verifiedAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')), 'YYYY-MM-DD') AS bucket,
+        'total' AS segment,
+        COUNT(*)::int AS n
+      FROM "PetPlace" p
+      WHERE p."verifiedAt" >= ${startUtc}::timestamp
+        AND (${placeType}::text IS NULL OR EXISTS (
+          SELECT 1 FROM "_PetPlace_types" pt JOIN "PetPlaceType" t ON t."id" = pt."B"
+          WHERE pt."A" = p."id" AND t."value" = ${placeType}::text
+        ))
+      GROUP BY 1, 2
+    `);
+  }
+  return unwrapPrisma(await prisma.$queryRaw`
+    SELECT
+      to_char(date_trunc(${unit}::text, ((p."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')), 'YYYY-MM-DD') AS bucket,
+      'total' AS segment,
+      COUNT(*)::int AS n
+    FROM "PetPlace" p
+    WHERE p."createdAt" >= ${startUtc}::timestamp
+      AND (${placeType}::text IS NULL OR EXISTS (
+        SELECT 1 FROM "_PetPlace_types" pt JOIN "PetPlaceType" t ON t."id" = pt."B"
+        WHERE pt."A" = p."id" AND t."value" = ${placeType}::text
+      ))
+    GROUP BY 1, 2
+  `);
+}
+function sortedCounts(map) {
+  return Array.from(map, ([key, count2]) => ({ key, count: count2 })).filter((row) => row.count > 0).sort((a, b) => b.count - a.count);
+}
+async function animalsByStatus(prisma) {
+  const rows2 = unwrapPrisma(await prisma.$queryRaw`
+    WITH latest AS (
+      SELECT DISTINCT ON ("animal") "animal", status
+      FROM "AnimalLog"
+      WHERE "animal" IS NOT NULL
+      ORDER BY "animal", "date_status" DESC NULLS LAST, "createdAt" DESC NULLS LAST
+    )
+    SELECT l.status, COUNT(*)::int AS n
+    FROM "Animal" a
+    LEFT JOIN latest l ON l."animal" = a."id"
+    WHERE a."duplicateOf" IS NULL
+    GROUP BY l.status
+  `);
+  const counts = new Map(STATUS_KEYS.map((key) => [key, 0]));
+  for (const row of rows2) {
+    const key = normalizeStatus(row.status);
+    counts.set(key, (counts.get(key) ?? 0) + row.n);
+  }
+  return STATUS_KEYS.map((key) => ({ key, count: counts.get(key) ?? 0 }));
+}
+async function animalsTopPlaces(prisma, column) {
+  const rows2 = column === "state" ? unwrapPrisma(await prisma.$queryRaw`
+          WITH latest AS (
+            SELECT DISTINCT ON ("animal") "animal", state
+            FROM "AnimalLog"
+            WHERE "animal" IS NOT NULL
+            ORDER BY "animal", "date_status" DESC NULLS LAST, "createdAt" DESC NULLS LAST
+          )
+          SELECT mode() WITHIN GROUP (ORDER BY trim(l.state)) AS key, COUNT(*)::int AS n
+          FROM latest l
+          JOIN "Animal" a ON a."id" = l."animal"
+          WHERE a."duplicateOf" IS NULL AND trim(l.state) <> ''
+          GROUP BY lower(trim(l.state))
+          ORDER BY n DESC
+          LIMIT ${TOP_PLACES}
+        `) : unwrapPrisma(await prisma.$queryRaw`
+          WITH latest AS (
+            SELECT DISTINCT ON ("animal") "animal", city
+            FROM "AnimalLog"
+            WHERE "animal" IS NOT NULL
+            ORDER BY "animal", "date_status" DESC NULLS LAST, "createdAt" DESC NULLS LAST
+          )
+          SELECT mode() WITHIN GROUP (ORDER BY trim(l.city)) AS key, COUNT(*)::int AS n
+          FROM latest l
+          JOIN "Animal" a ON a."id" = l."animal"
+          WHERE a."duplicateOf" IS NULL AND trim(l.city) <> ''
+          GROUP BY lower(trim(l.city))
+          ORDER BY n DESC
+          LIMIT ${TOP_PLACES}
+        `);
+  return rows2.map((row) => ({ key: row.key, count: row.n }));
+}
+async function placesTopStates(prisma) {
+  const rows2 = unwrapPrisma(await prisma.$queryRaw`
+    SELECT mode() WITHIN GROUP (ORDER BY trim(state)) AS key, COUNT(*)::int AS n
+    FROM "PetPlace"
+    WHERE trim(state) <> ''
+    GROUP BY lower(trim(state))
+    ORDER BY n DESC
+    LIMIT ${TOP_PLACES}
+  `);
+  return rows2.map((row) => ({ key: row.key, count: row.n }));
+}
+async function animalsByType(prisma) {
+  const [groups, types] = await Promise.all([
+    prisma.animal.groupBy({ by: ["animal_typeId"], where: { duplicateOfId: null }, _count: { _all: true } }),
+    prisma.animalType.findMany({ select: { id: true, name: true } })
+  ]);
+  const typeName = new Map(types.map((type) => [type.id, type.name]));
+  const counts = /* @__PURE__ */ new Map();
+  for (const group of groups) {
+    const key = group.animal_typeId && typeName.get(group.animal_typeId) || "none";
+    counts.set(key, (counts.get(key) ?? 0) + group._count._all);
+  }
+  return sortedCounts(counts);
+}
+async function groupCounts(prisma, model, field, where) {
+  const groups = await prisma[model].groupBy({
+    by: [field],
+    where,
+    _count: { _all: true }
+  });
+  const counts = /* @__PURE__ */ new Map();
+  for (const group of groups) {
+    const key = group[field] || "none";
+    counts.set(key, (counts.get(key) ?? 0) + group._count._all);
+  }
+  return sortedCounts(counts);
+}
+async function placesByType(prisma) {
+  const types = await prisma.petPlaceType.findMany({
+    select: { value: true, _count: { select: { from_PetPlace_types: true } } }
+  });
+  return types.map((type) => ({ key: type.value, count: type._count.from_PetPlace_types })).filter((row) => row.count > 0).sort((a, b) => b.count - a.count);
+}
+async function topViewedAnimals(context, prisma, since) {
+  const groups = await prisma.animalView.groupBy({
+    by: ["animalId"],
+    where: {
+      animalId: { not: null },
+      animal: { is: { duplicateOfId: null } },
+      ...since ? { createdAt: { gte: since } } : {}
+    },
+    _count: { animalId: true },
+    orderBy: { _count: { animalId: "desc" } },
+    take: TOP_VIEWED
+  });
+  const ids = groups.map((group) => group.animalId).filter((id) => Boolean(id));
+  if (!ids.length) return [];
+  const animals = await context.sudo().query.Animal.findMany({
+    where: { id: { in: ids } },
+    query: `
+      id name slug
+      multimedia(orderBy: [{ order: asc }], take: 1) { image { url } }
+      logs(orderBy: [{ date_status: desc }, { createdAt: desc }], take: 1) { status }
+    `
+  });
+  const byId = new Map(animals.map((animal) => [animal.id, animal]));
+  return groups.flatMap((group) => {
+    const animal = group.animalId ? byId.get(group.animalId) : null;
+    if (!animal) return [];
+    return [
+      {
+        id: animal.id,
+        name: animal.name,
+        slug: animal.slug,
+        status: normalizeStatus(animal.logs?.[0]?.status),
+        coverUrl: animal.multimedia?.[0]?.image?.url ?? null,
+        views: group._count.animalId
+      }
+    ];
+  });
+}
+var resolver84 = {
+  adminPetSummary: async (_root, { input }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = input?.days == null ? null : clampInt(input.days, 7, 3650, 90);
+    const since = days ? daysAgo(days) : null;
+    const prevSince = days ? daysAgo(days * 2) : null;
+    const inPeriod = since ? { createdAt: { gte: since } } : {};
+    const inPrevPeriod = since && prevSince ? { createdAt: { gte: prevSince, lt: since } } : null;
+    const animalBase = { duplicateOfId: null };
+    const adminRole = { roles: { some: { name: "admin" /* ADMIN */ } } };
+    const [
+      animalsTotal,
+      animalsNew,
+      animalsPrev,
+      facebookPublished,
+      duplicatesMerged,
+      animalsFromAdmin,
+      byStatus,
+      byType,
+      byReportedBy,
+      topStates,
+      topCities
+    ] = await Promise.all([
+      prisma.animal.count({ where: animalBase }),
+      prisma.animal.count({ where: { ...animalBase, ...inPeriod } }),
+      inPrevPeriod ? prisma.animal.count({ where: { ...animalBase, ...inPrevPeriod } }) : 0,
+      prisma.animal.count({ where: { ...animalBase, facebookPublishedAt: { not: null } } }),
+      prisma.animal.count({ where: { duplicateOfId: { not: null } } }),
+      prisma.animal.count({ where: { ...animalBase, user: { is: adminRole } } }),
+      animalsByStatus(prisma),
+      animalsByType(prisma),
+      groupCounts(prisma, "animal", "reportedBy", animalBase),
+      animalsTopPlaces(prisma, "state"),
+      animalsTopPlaces(prisma, "city")
+    ]);
+    const [
+      placesTotal,
+      veterinaries,
+      verified,
+      fromGoogle,
+      reviews,
+      likes,
+      placesNew,
+      placesPrev,
+      byClaimStatus,
+      placeTypes,
+      placeStates
+    ] = await Promise.all([
+      prisma.petPlace.count(),
+      prisma.petPlace.count({ where: { types: { some: { value: "veterinary" } } } }),
+      prisma.petPlace.count({ where: { verified: true } }),
+      prisma.petPlace.count({ where: { google_place_id: { not: null } } }),
+      prisma.review.count({ where: { pet_placeId: { not: null } } }),
+      prisma.petPlaceLike.count({ where: { pet_placeId: { not: null } } }),
+      prisma.petPlace.count({ where: inPeriod }),
+      inPrevPeriod ? prisma.petPlace.count({ where: inPrevPeriod }) : 0,
+      groupCounts(prisma, "petPlace", "claimStatus", {}),
+      placesByType(prisma),
+      placesTopStates(prisma)
+    ]);
+    const [usersTotal, usersNew, usersPrev, views, viewsSignedIn, favorites, comments, topViewed, animalClaims2, placeClaims, services] = await Promise.all([
+      prisma.user.count({ where: PET_USER_WHERE }),
+      prisma.user.count({ where: { ...PET_USER_WHERE, ...inPeriod } }),
+      inPrevPeriod ? prisma.user.count({ where: { ...PET_USER_WHERE, ...inPrevPeriod } }) : 0,
+      prisma.animalView.count({ where: inPeriod }),
+      prisma.animalView.count({ where: { ...inPeriod, userId: { not: null } } }),
+      prisma.animalFavorite.count({ where: inPeriod }),
+      prisma.animalComment.count({ where: { ...inPeriod, kind: "comment" } }),
+      topViewedAnimals(context, prisma, since),
+      prisma.animalClaim.count({ where: { status: "pending" } }),
+      prisma.petPlace.count({ where: { claimStatus: "pending" } }),
+      prisma.petPlaceService.count({ where: { status: "pending" } })
+    ]);
+    const facebookPending = Math.max(0, animalsTotal - facebookPublished);
+    return {
+      days,
+      animals: {
+        total: animalsTotal,
+        newInPeriod: animalsNew,
+        newPrevPeriod: animalsPrev,
+        facebookPublished,
+        facebookPending,
+        duplicatesMerged,
+        byStatus,
+        byType,
+        byOrigin: [
+          { key: "user", count: Math.max(0, animalsTotal - animalsFromAdmin) },
+          { key: "admin", count: animalsFromAdmin }
+        ],
+        byReportedBy,
+        topStates,
+        topCities
+      },
+      places: {
+        total: placesTotal,
+        veterinaries,
+        verified,
+        fromGoogle,
+        reviews,
+        likes,
+        newInPeriod: placesNew,
+        newPrevPeriod: placesPrev,
+        byClaimStatus,
+        byType: placeTypes,
+        topStates: placeStates
+      },
+      users: { total: usersTotal, newInPeriod: usersNew, newPrevPeriod: usersPrev },
+      engagement: { views, viewsSignedIn, favorites, comments, topViewed },
+      pending: { animalClaims: animalClaims2, placeClaims, services, facebookPending },
+      generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  },
+  adminPetSeries: async (_root, {
+    input
+  }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const metric = oneOf(input.metric, METRICS, "animals", "m\xE9trica");
+    const granularity = oneOf(input.granularity, GRANULARITIES, "week", "agrupaci\xF3n");
+    const range = input.range?.trim() || "90d";
+    if (!(range in RANGE_DAYS)) throw new Error(`Rango no v\xE1lido: ${range}.`);
+    const breakdown = metric === "animals" ? oneOf(input.breakdown, BREAKDOWNS, "none", "desglose") : "none";
+    let placeType = null;
+    if (metric.startsWith("places_") && input.placeType?.trim()) {
+      placeType = input.placeType.trim();
+      const exists = await prisma.petPlaceType.count({ where: { value: placeType } });
+      if (!exists) throw new Error(`Tipo de lugar no v\xE1lido: ${placeType}.`);
+    }
+    const today = toMxDay(/* @__PURE__ */ new Date());
+    const rangeDays = RANGE_DAYS[range];
+    let startDay = rangeDays ? addDays2(today, -(rangeDays - 1)) : await firstDayOf(prisma, metric, placeType) ?? today;
+    if (granularity === "day") {
+      const earliest2 = addDays2(today, -(MAX_DAY_BUCKETS - 1));
+      if (startDay < earliest2) startDay = earliest2;
+    }
+    const lastBucket = bucketStart(today, granularity);
+    let buckets = [];
+    for (let bucket = bucketStart(startDay, granularity); bucket <= lastBucket; bucket = nextBucket(bucket, granularity)) {
+      buckets.push(bucket);
+    }
+    if (buckets.length > MAX_BUCKETS) buckets = buckets.slice(-MAX_BUCKETS);
+    const from = buckets[0];
+    const rows2 = await seriesRows(prisma, {
+      metric,
+      granularity,
+      breakdown,
+      placeType,
+      startUtc: mxDayStartUtc(from)
+    });
+    const byBucket = /* @__PURE__ */ new Map();
+    for (const row of rows2) {
+      const segment = breakdown === "status" ? normalizeStatus(row.segment) : row.segment;
+      const segments = byBucket.get(row.bucket) ?? /* @__PURE__ */ new Map();
+      segments.set(segment, (segments.get(segment) ?? 0) + row.n);
+      byBucket.set(row.bucket, segments);
+    }
+    let total = 0;
+    const points = buckets.map((bucket) => {
+      const segments = byBucket.get(bucket) ?? /* @__PURE__ */ new Map();
+      const pointTotal = Array.from(segments.values()).reduce((sum, n) => sum + n, 0);
+      total += pointTotal;
+      return {
+        bucket,
+        total: pointTotal,
+        segments: breakdown === "none" ? [] : sortedCounts(segments)
+      };
+    });
+    return { metric, granularity, breakdown, from, to: lastBucket, total, points };
+  }
+};
+var adminPet_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql8 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs87 = `
+var typeDefs88 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -37797,13 +38403,13 @@ var typeDefs87 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition84 = `
+var definition85 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
 var fail11 = (message, code) => new import_graphql8.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver84 = {
+var resolver85 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -37886,12 +38492,12 @@ var resolver84 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+var companyAnalytics_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache = null;
-var typeDefs88 = `
+var typeDefs89 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -37901,7 +38507,7 @@ var typeDefs88 = `
     updatedAt: String!
   }
 `;
-var definition85 = `landingStats: LandingStats!`;
+var definition86 = `landingStats: LandingStats!`;
 function unwrap2(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -37927,7 +38533,7 @@ async function computeLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver85 = {
+var resolver86 = {
   landingStats: async (_root, _args, context) => {
     if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
     const value = await computeLandingStats(context);
@@ -37935,13 +38541,13 @@ var resolver85 = {
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+var landingStats_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES = ["in_family", "adopted"];
 var cache2 = null;
-var typeDefs89 = `
+var typeDefs90 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
@@ -37953,7 +38559,7 @@ var typeDefs89 = `
     updatedAt: String!
   }
 `;
-var definition86 = `petLandingStats: PetLandingStats!`;
+var definition87 = `petLandingStats: PetLandingStats!`;
 function unwrap3(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -38005,7 +38611,7 @@ async function computePetLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver86 = {
+var resolver87 = {
   petLandingStats: async (_root, _args, context) => {
     if (cache2 && Date.now() - cache2.at < CACHE_MS2) return cache2.value;
     const value = await computePetLandingStats(context);
@@ -38013,7 +38619,7 @@ var resolver86 = {
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var petLandingStats_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -38045,6 +38651,7 @@ var customQuery = {
     ${adminAcquisition_default.typeDefs}
     ${adminSalesVelocity_default.typeDefs}
     ${adminAnimals_default.typeDefs}
+    ${adminPet_default.typeDefs}
     ${companyAnalytics_default.typeDefs}
     ${landingStats_default.typeDefs}
     ${petLandingStats_default.typeDefs}
@@ -38079,6 +38686,7 @@ var customQuery = {
     ${adminAcquisition_default.definition}
     ${adminSalesVelocity_default.definition}
     ${adminAnimals_default.definition}
+    ${adminPet_default.definition}
     ${companyAnalytics_default.definition}
     ${landingStats_default.definition}
     ${petLandingStats_default.definition}
@@ -38113,6 +38721,7 @@ var customQuery = {
     ...adminAcquisition_default.resolver,
     ...adminSalesVelocity_default.resolver,
     ...adminAnimals_default.resolver,
+    ...adminPet_default.resolver,
     ...companyAnalytics_default.resolver,
     ...landingStats_default.resolver,
     ...petLandingStats_default.resolver

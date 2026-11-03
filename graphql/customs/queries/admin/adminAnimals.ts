@@ -1,6 +1,6 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../../../models/Role/constants";
-import { ANIMAL_TYPE_OPTIONS } from "../../../../utils/constants/constants";
+import { ANIMAL_LOGS_OPTIONS, ANIMAL_TYPE_OPTIONS } from "../../../../utils/constants/constants";
 import {
   adminPrisma,
   assertPlatformAdmin,
@@ -17,6 +17,10 @@ import {
  * estadísticas, y el detalle con fotos, etapas, comentarios, favoritos y vistas. Solo admin de
  * plataforma. Las acciones (publicar en Facebook, borrar vistas) están en
  * `mutations/admin/animals.ts`; borrar un comentario o favorito usa la API generada.
+ *
+ * Estatus de un animal = su registro más reciente en la bitácora (`AnimalLog`), por fecha del
+ * estatus y luego fecha de alta: el mismo orden que la ficha pública y `petLandingStats`. La fila
+ * y el filtro `status` usan ese orden para que el badge coincida con lo filtrado.
  */
 
 const typeDefs = `
@@ -110,6 +114,7 @@ const definition = `
     reportedBy: String
     creator: String
     facebook: String
+    status: String
     take: Int
     skip: Int
   ): AdminAnimalsResult!
@@ -123,7 +128,7 @@ const ROW_QUERY = `
   animal_breed { breed }
   user { id name lastName email roles { name } }
   multimedia(orderBy: [{ order: asc }], take: 1) { image { url } }
-  logs(orderBy: [{ createdAt: desc }], take: 1) { status city state }
+  logs(orderBy: [{ date_status: desc }, { createdAt: desc }], take: 1) { status city state }
   animal_viewsCount
 `;
 
@@ -156,6 +161,34 @@ function animalTypeLabel(value: string | null | undefined): string | null {
   return ANIMAL_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
+/** Valores que acepta el filtro `status` (`ANIMAL_LOGS_OPTIONS`). */
+const LOG_STATUS_VALUES = new Set(ANIMAL_LOGS_OPTIONS.map((option) => option.value));
+
+/**
+ * El campo tenía `defaultValue: "Registrado"` (la etiqueta, no el valor), así que bitácoras viejas
+ * pueden guardar "Registrado": el filtro las cuenta como `register`.
+ */
+function storedStatuses(status: string): string[] {
+  return status === "register" ? ["register", "Registrado"] : [status];
+}
+
+/** Ids de los animales cuyo registro más reciente en la bitácora tiene `status`. */
+async function animalIdsWithCurrentStatus(prisma: any, status: string): Promise<string[]> {
+  const rows = await prisma.$queryRaw`
+    SELECT "animal" AS id
+    FROM (
+      SELECT DISTINCT ON ("animal") "animal", status
+      FROM "AnimalLog"
+      WHERE "animal" IS NOT NULL
+      ORDER BY "animal", "date_status" DESC NULLS LAST, "createdAt" DESC NULLS LAST
+    ) latest
+    WHERE status = ANY(${storedStatuses(status)}::text[])
+  `;
+  // Prisma de Keystone puede devolver el error en vez de lanzarlo.
+  if (rows instanceof Error) throw rows;
+  return (rows as Array<{ id: string }>).map((row) => row.id);
+}
+
 type Counts = { favorites: Map<string, number>; comments: Map<string, number>; views7d: Map<string, number> };
 
 function animalsWhere(args: {
@@ -164,6 +197,8 @@ function animalsWhere(args: {
   reportedBy?: string | null;
   creator?: string | null;
   facebook?: string | null;
+  /** Resultado de `animalIdsWithCurrentStatus`; `null` = sin filtro de estatus. */
+  statusAnimalIds?: string[] | null;
 }) {
   const and: Record<string, unknown>[] = [];
   const q = args.search?.trim();
@@ -184,6 +219,7 @@ function animalsWhere(args: {
   if (args.creator === "user") and.push({ NOT: [{ user: adminRole }] });
   if (args.facebook === "published") and.push({ facebookPublishedAt: { not: null } });
   if (args.facebook === "pending") and.push({ facebookPublishedAt: { equals: null } });
+  if (args.statusAnimalIds) and.push({ id: { in: args.statusAnimalIds } });
   return and.length ? { AND: and } : {};
 }
 
@@ -238,6 +274,7 @@ const resolver = {
       reportedBy?: string | null;
       creator?: string | null;
       facebook?: string | null;
+      status?: string | null;
       take?: number | null;
       skip?: number | null;
     },
@@ -245,7 +282,14 @@ const resolver = {
   ) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
-    const where = animalsWhere(args);
+    const status = args.status?.trim() || null;
+    if (status && !LOG_STATUS_VALUES.has(status)) {
+      throw new Error("Ese estatus no existe en la bitácora de animales.");
+    }
+    const statusAnimalIds = status
+      ? await animalIdsWithCurrentStatus(adminPrisma(context), status)
+      : null;
+    const where = animalsWhere({ ...args, statusAnimalIds });
     const take = clampInt(args.take, 1, 100, 25);
     const skip = clampInt(args.skip, 0, 1_000_000, 0);
 

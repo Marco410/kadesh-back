@@ -126,6 +126,48 @@ Velocidad comercial desde `TechLeadStageChange`, actividades y WhatsApp: cierre,
 
 `adminCompanyInsights.appErrors` y el motivo `app_errors` de "Requiere atención" salen de `app.error` (plugin `utils/activity/appErrorsPlugin.ts`).
 
+### Kadesh Pet
+
+#### `adminAnimals(...)` / `adminAnimalDetail(id)`
+
+Lista y detalle de animales de la pestaña Kadesh Pet → Animales (ver `models/Pet/Animal/README.md`).
+
+#### `adminPetSummary(input: { days })`
+
+Cifras de Kadesh Pet → Resumen. `days` (7–3650) es la ventana de "nuevos en el periodo" y de la interacción; `null` = todo el historial (`newPrevPeriod` queda en 0).
+
+- `animals`: total, nuevos (y los del periodo anterior, para el % de cambio), publicados y sin publicar en Facebook, duplicados fusionados, y desgloses por estatus actual (siempre los 8 de `ANIMAL_LOGS_OPTIONS` + `none`, en ese orden), tipo (`AnimalType.name`), origen (`user` / `admin`), `reportedBy`, y top 8 de estados y ciudades del último registro de la bitácora.
+- `places`: fichas, veterinarias (tipo `veterinary`), verificadas, importadas de Google (`google_place_id`), reseñas, likes, nuevas, y desgloses por `claimStatus`, tipo y top 8 de estados.
+- `users`: cuentas de Kadesh Pet (total y nuevas).
+- `engagement`: vistas, vistas con sesión, favoritos y comentarios (`kind = comment`) en la ventana, y los 5 animales más vistos.
+- `pending`: reclamos de animales, fichas en revisión, servicios por aprobar y animales sin publicar en Facebook.
+
+#### `adminPetSeries(input: { metric, granularity, range, breakdown, placeType })`
+
+Serie para las gráficas del Resumen.
+
+| `metric` | Fecha que cuenta |
+|---|---|
+| `animals` | `Animal.createdAt` (sin duplicados fusionados) |
+| `places_created` | `PetPlace.createdAt` (casi todas se importan solas de Google) |
+| `places_claimed` | `PetPlace.claimedAt` (último reclamo de cada ficha) |
+| `places_verified` | `PetPlace.verifiedAt` |
+| `pet_users` | `User.createdAt` de cuentas de Pet |
+
+- `granularity`: `day | week | month` (default `week`). Semanas de lunes, como `date_trunc('week')`.
+- `range`: `30d | 90d | 180d | 365d | all` (default `90d`). El primer periodo se completa (si el rango empieza un miércoles, la semana arranca el lunes). `all` empieza en el primer registro de la métrica. Con `day` nunca más de 90 barras: el rango se recorta y `from` dice desde cuándo. Tope general: 400 puntos.
+- `breakdown` (solo `animals`): `none | status | origin`. `segments` suma el `total` de cada punto.
+- `placeType` (solo `places_*`): un `PetPlaceType.value`.
+- El periodo de hoy va incluido aunque esté a medias (`to` es su inicio).
+
+Reglas de las dos queries:
+
+- Estatus de un animal = su registro más reciente en la bitácora (`date_status` y luego `createdAt`), igual que `adminAnimals` y `petLandingStats`. "Registrado" (la etiqueta guardada como valor) cuenta como `register`; sin bitácora o un valor desconocido = `none`.
+- Los duplicados fusionados (`duplicateOf`) no cuentan en nada: por eso `animals.total + duplicatesMerged` = `petLandingStats.animals`.
+- Origen `admin` = quien lo publicó tiene el rol admin, igual que el filtro "Publicado por" de la lista.
+- Usuarios de Pet = `product = pet`, sin empresa y sin `userTest`. Las cuentas de Negocios anteriores a `User.product` quedaron como `pet`; se distinguen porque tienen empresa.
+- Días en hora de CDMX; los periodos vacíos se rellenan en 0.
+
 ## Invariantes
 
 - Nunca devolver prompts de IA, cuerpos de WhatsApp, contraseñas ni tokens.
@@ -160,3 +202,11 @@ Por qué: la sesión dura 30 días. Con solo `lastLoginAt`, un equipo que usa el
 Qué: seis queries nuevas (salud, activación, retención, uso, demanda y adquisición), salud en `adminCompanies` y dos motivos nuevos en "Requiere atención".
 
 Por qué: el equipo necesitaba saber a quién llamar (riesgo de baja), a quién venderle más y qué canales traen clientes que sí usan y pagan. Todo sale de tablas que ya existían (resumen diario, latido, logs) más un campo nuevo, `User.signupAttribution`. La salud es una regla explicable y no un modelo: con pocas empresas un modelo no sería confiable. Detalle en `docs/operaciones/decisiones.md`.
+
+### 2026-11-03 — Resumen de Kadesh Pet con dos queries
+
+Qué: `adminPetSummary` (cifras del momento y de la ventana) y `adminPetSeries` (una serie por gráfica), en `adminPet.ts`.
+
+Por qué: el estatus vive en la bitácora y hay que tomar el último registro de cada animal; contarlo en el front obligaría a bajar todas las bitácoras. La serie va aparte para que cambiar de agrupación o desglose no recalcule todo el resumen. La agrupación se hace en SQL sobre la hora de CDMX (`AT TIME ZONE`), con una consulta por métrica porque la columna de fecha no se puede parametrizar.
+
+Qué no hacer: no contar estatus con `logs: { some: { status } }` (trae animales que alguna vez lo tuvieron); no sumar duplicados fusionados; no pedir barras por día de más de 90 días.
