@@ -84,3 +84,17 @@ Qué no hacer:
 - No transferir un reporte sin aprobación de quien lo atiende (o de un admin).
 - No borrar el repetido al unirlo: se queda como historial con `duplicateOf`.
 
+### 2026-11-03 — Filtro por estatus actual en Operaciones
+
+Qué: `adminAnimals` recibe `status` (un valor de `ANIMAL_LOGS_OPTIONS`) y devuelve solo los animales cuyo registro más reciente en la bitácora tiene ese estatus. «Más reciente» = `date_status` y luego `createdAt`, descendente: el mismo orden que la ficha pública, `markPetAsFound` y `petLandingStats`. El estatus de la fila (`AdminAnimalRow.status`) pasó de ordenar solo por `createdAt` a ese mismo orden. `register` también cuenta bitácoras que guardaron la etiqueta «Registrado» (era el `defaultValue` del campo).
+
+Por qué: la lista se pagina en el servidor, así que el filtro no puede hacerse en el front. El badge y el filtro deben usar el mismo orden o un animal filtrado como «Perdido» podría mostrar «Encontrado».
+
+Qué no hacer: no filtrar con `logs: { some: { status } }`, que trae animales que alguna vez tuvieron ese estatus aunque ya no lo tengan.
+
+### 2026-11-03 — Resumen de Kadesh Pet en Operaciones
+
+Qué: `adminPetSummary` y `adminPetSeries` (`graphql/customs/queries/admin/adminPet.ts`) cuentan animales por estatus actual, tipo, origen y ubicación, y registros por día, semana o mes. Usan el mismo «último registro de la bitácora» que `adminAnimals` y no cuentan duplicados fusionados.
+
+Por qué: Operaciones necesitaba ver cuántos animales hay perdidos, encontrados o en adopción y cómo crecen los registros. Detalle y reglas en `graphql/customs/queries/admin/README.md`.
+
