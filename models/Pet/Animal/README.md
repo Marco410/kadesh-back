@@ -108,3 +108,12 @@ Qué: `createAnimal` revisa en el servidor si la persona ya tiene ese reporte (v
 Por qué: la web y la app publican en tres pasos (`createAnimal` → `createAnimalLog` → `createAnimalMultimedias`). Si fallaba la bitácora o las fotos y la persona reintentaba, quedaba otro animal: «Nano» salió tres veces, dos sin foto ni ubicación. El aviso de parecidos del front se puede cerrar y no ve los reportes sin bitácora, y `createAnimalReport` era el único que revisaba en el servidor.
 
 Qué no hacer: no frenar aquí reportes de otras personas (dueño y voluntario pueden reportar al mismo animal; para eso están el aviso de parecidos, los comentarios y `duplicateOf`). No borrar un reporte con bitácora, fotos o algo encima.
+
+### 2026-11-03 — Texto del post de Facebook con emojis y todos los datos
+
+Qué: el post de la Página de Pet ya no es solo «nombre + señas». `buildAnimalFacebookMessage` (`Animal.facebookPost.ts`) arma un encabezado por estatus (🆘 ¡SE BUSCA!, 📢 ¡ENCONTRADO!, 🏡 ¡EN ADOPCIÓN!…), el emoji del tipo y la raza (🐶, 🐈‍⬛, 🐩…), sexo, edad, color, tamaño, dónde y cuándo (del registro más reciente), señas, notas, qué hacer y hashtags (estatus, ciudad, #KadeshPet). Concuerda con el sexo (encontrado/encontrada). Aplica a la publicación automática y al botón de Operaciones; los posts que ya salieron no cambian.
+
+Por qué: el post salía muy seco y mucha gente no llena todo; la ubicación y el estatus ya estaban en la bitácora pero no salían.
+
+Qué no hacer: no poner el teléfono en el post. El contacto está en la ficha (el enlace del post) y la Página tiene mucho alcance.
+
