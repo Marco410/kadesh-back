@@ -45,23 +45,30 @@ model ActivityEvent {
 }
 
 model Notification {
-  id          String    @id @default(cuid())
-  recipient   User?     @relation("Notification_recipient", fields: [recipientId], references: [id])
-  recipientId String?   @map("recipient")
-  product     String?   @default("saas")
-  type        String    @default("")
-  title       String    @default("")
-  body        String    @default("")
-  entityType  String    @default("")
-  entityId    String    @default("")
-  url         String    @default("")
-  metadata    Json?
-  readAt      DateTime?
-  createdAt   DateTime? @default(now())
+  id                String    @id @default(cuid())
+  recipient         User?     @relation("Notification_recipient", fields: [recipientId], references: [id])
+  recipientId       String?   @map("recipient")
+  product           String?   @default("saas")
+  type              String    @default("")
+  title             String    @default("")
+  body              String    @default("")
+  entityType        String    @default("")
+  entityId          String    @default("")
+  url               String    @default("")
+  metadata          Json?
+  readAt            DateTime?
+  pushStatus        String?
+  pushDevices       Int?
+  whatsappStatus    String?
+  whatsappDetail    String    @default("")
+  whatsappMessageId String    @default("")
+  whatsappUpdatedAt DateTime?
+  createdAt         DateTime? @default(now())
 
   @@index([recipientId])
   @@index([product])
   @@index([type])
+  @@index([whatsappMessageId])
   @@index([createdAt])
 }
 

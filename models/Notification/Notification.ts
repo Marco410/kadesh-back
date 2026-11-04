@@ -1,7 +1,12 @@
 import { list } from "@keystone-6/core";
-import { json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
-import { notificationAccess, readOnlyField } from "./Notification.access";
-import { NOTIFICATION_PRODUCT, NOTIFICATION_PRODUCT_OPTIONS } from "./constants";
+import { integer, json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { deliveryField, notificationAccess, readOnlyField } from "./Notification.access";
+import {
+  NOTIFICATION_PRODUCT,
+  NOTIFICATION_PRODUCT_OPTIONS,
+  PUSH_DELIVERY_OPTIONS,
+  WHATSAPP_DELIVERY_OPTIONS,
+} from "./constants";
 
 /**
  * Notificaciones dentro de Kadesh (la campana), para Kadesh Pet y Kadesh Negocios. Una fila por
@@ -44,6 +49,36 @@ export default list({
     url: text({ access: readOnlyField }),
     metadata: json({ access: readOnlyField }),
     readAt: timestamp({ db: { isNullable: true } }),
+    // ── A dónde se fue (solo admin la lee; la escribe el servidor). Ver README.md "Entrega".
+    pushStatus: select({
+      type: "string",
+      options: PUSH_DELIVERY_OPTIONS,
+      db: { isNullable: true },
+      access: deliveryField,
+      ui: { description: "Push a la app. Vacío = no aplica (solo Kadesh Pet)." },
+    }),
+    pushDevices: integer({
+      db: { isNullable: true },
+      access: deliveryField,
+      ui: { description: "Dispositivos a los que se intentó mandar el push" },
+    }),
+    whatsappStatus: select({
+      type: "string",
+      options: WHATSAPP_DELIVERY_OPTIONS,
+      db: { isNullable: true },
+      access: deliveryField,
+      ui: { description: "WhatsApp. Vacío = el tipo no tiene plantilla." },
+    }),
+    whatsappDetail: text({
+      access: deliveryField,
+      ui: { description: "Por qué no se mandó (sin_optin, sin_telefono…) o el error de Meta" },
+    }),
+    whatsappMessageId: text({
+      isIndexed: true,
+      access: deliveryField,
+      ui: { description: "wamid de Meta: con él el webhook actualiza entregado / leído / falló" },
+    }),
+    whatsappUpdatedAt: timestamp({ db: { isNullable: true }, access: deliveryField }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },
       isIndexed: true,

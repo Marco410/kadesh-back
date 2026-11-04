@@ -11,6 +11,7 @@ import {
 import { uploadBufferToStorage } from "../utils/intregrations/s3Storage";
 import { findByPhone } from "../utils/whatsapp/matchPhone";
 import { mapTemplateStatus } from "../utils/whatsapp/templateStatus";
+import { recordWhatsappStatuses } from "../utils/notifications/delivery";
 
 const WEBHOOK_PATH = "/webhooks/whatsapp";
 
@@ -29,6 +30,8 @@ type WhatsAppWebhookStatus = {
   /** `wamid` del mensaje que mandamos. */
   id?: string;
   status?: string;
+  /** Segundos Unix de cuando pasó. */
+  timestamp?: string;
   recipient_id?: string;
   errors?: Array<{
     code?: number;
@@ -367,6 +370,8 @@ async function handleIncoming(
     }
 
     logFailedStatuses(change.value?.statuses);
+    // Entregado / leído / falló de los avisos de Kadesh (Operaciones → Kadesh Pet → Avisos).
+    await recordWhatsappStatuses(context.sudo().prisma, change.value?.statuses);
 
     const messages = change.value?.messages ?? [];
     if (messages.length === 0) {

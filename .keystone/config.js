@@ -324,6 +324,8 @@ var ACTIVITY_EVENT = {
   ADMIN_ACCOUNT_MANAGER_ASSIGNED: "admin.account_manager_assigned",
   ADMIN_NOTE_ADDED: "admin.note_added",
   ADMIN_NOTE_DELETED: "admin.note_deleted",
+  // Kadesh Pet: alertas de zona de una persona (Operaciones → Kadesh Pet → Alertas de zona).
+  ADMIN_ZONE_ALERTS_UPDATED: "admin.zone_alerts_updated",
   ADMIN_PERSON_DATA_EXPORTED: "admin.person_data_exported",
   ADMIN_USER_ANONYMIZED: "admin.user_anonymized",
   // Navegación (lo manda el front con trackEvents)
@@ -581,13 +583,13 @@ function idsOf(value) {
 function relationInput(value) {
   if (!value || typeof value !== "object") return null;
   const input = value;
-  const result3 = {
+  const result4 = {
     connect: idsOf(input.connect),
     disconnect: idsOf(input.disconnect),
     set: input.set === void 0 ? null : idsOf(input.set)
   };
-  if (!result3.connect.length && !result3.disconnect.length && result3.set === null) return null;
-  return result3;
+  if (!result4.connect.length && !result4.disconnect.length && result4.set === null) return null;
+  return result4;
 }
 function fullName(person) {
   if (!person) return null;
@@ -3157,6 +3159,103 @@ var NOTIFICATION_TYPE = {
   /** Se acerca la fecha de un recordatorio de la cartilla (vacuna, desparasitación…). Va a sus dueños. */
   PET_REMINDER_DUE: "pet.reminder_due"
 };
+var PUSH_DELIVERY = {
+  /** Expo aceptó el mensaje para todos sus dispositivos. */
+  SENT: "sent",
+  /** Para algunos dispositivos sí y para otros no. */
+  PARTIAL: "partial",
+  FAILED: "failed",
+  /** No tiene la app con notificaciones activas. */
+  NO_DEVICES: "no_devices"
+};
+var PUSH_DELIVERY_OPTIONS = [
+  { label: "Enviado", value: PUSH_DELIVERY.SENT },
+  { label: "Enviado a algunos dispositivos", value: PUSH_DELIVERY.PARTIAL },
+  { label: "Fall\xF3", value: PUSH_DELIVERY.FAILED },
+  { label: "Sin app", value: PUSH_DELIVERY.NO_DEVICES }
+];
+var WHATSAPP_DELIVERY = {
+  /** No se mandó: ver `whatsappDetail` (WHATSAPP_SKIP_REASON). */
+  SKIPPED: "skipped",
+  /** Meta lo aceptó (tenemos `whatsappMessageId`). */
+  ACCEPTED: "accepted",
+  SENT: "sent",
+  DELIVERED: "delivered",
+  READ: "read",
+  /** Meta lo rechazó al mandarlo o avisó después que no lo entregó: ver `whatsappDetail`. */
+  FAILED: "failed"
+};
+var WHATSAPP_DELIVERY_OPTIONS = [
+  { label: "No se mand\xF3", value: WHATSAPP_DELIVERY.SKIPPED },
+  { label: "Aceptado por Meta", value: WHATSAPP_DELIVERY.ACCEPTED },
+  { label: "Enviado", value: WHATSAPP_DELIVERY.SENT },
+  { label: "Entregado", value: WHATSAPP_DELIVERY.DELIVERED },
+  { label: "Le\xEDdo", value: WHATSAPP_DELIVERY.READ },
+  { label: "Fall\xF3", value: WHATSAPP_DELIVERY.FAILED }
+];
+var WHATSAPP_SKIP_REASON = {
+  NO_CONFIG: "sin_configuracion",
+  NO_OPT_IN: "sin_optin",
+  NO_PHONE: "sin_telefono",
+  INVALID_PHONE: "telefono_invalido",
+  MUTED: "silenciado"
+};
+
+// utils/notifications/delivery.ts
+var DETAIL_MAX = 300;
+async function run(label, work) {
+  try {
+    const result4 = await work();
+    if (result4 instanceof Error) throw result4;
+  } catch (error) {
+    console.error(`[notify:delivery] No se pudo registrar ${label}:`, error instanceof Error ? error.message : error);
+  }
+}
+function deliveryDetail(value) {
+  const text78 = (value instanceof Error ? value.message : String(value ?? "")).replace(/\s+/g, " ").trim();
+  return text78.length > DETAIL_MAX ? `${text78.slice(0, DETAIL_MAX - 1)}\u2026` : text78;
+}
+async function recordDelivery(prisma, ids, data) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length || !prisma?.notification) return;
+  await run("la entrega", () => prisma.notification.updateMany({ where: { id: { in: unique } }, data }));
+}
+async function recordDeliveryGroups(prisma, groups) {
+  await Promise.all([...groups.values()].map((group) => recordDelivery(prisma, group.ids, group.data)));
+}
+var PREVIOUS = {
+  [WHATSAPP_DELIVERY.SENT]: [WHATSAPP_DELIVERY.ACCEPTED],
+  [WHATSAPP_DELIVERY.DELIVERED]: [WHATSAPP_DELIVERY.ACCEPTED, WHATSAPP_DELIVERY.SENT],
+  [WHATSAPP_DELIVERY.READ]: [WHATSAPP_DELIVERY.ACCEPTED, WHATSAPP_DELIVERY.SENT, WHATSAPP_DELIVERY.DELIVERED],
+  [WHATSAPP_DELIVERY.FAILED]: [WHATSAPP_DELIVERY.ACCEPTED, WHATSAPP_DELIVERY.SENT, WHATSAPP_DELIVERY.DELIVERED]
+};
+async function recordWhatsappStatuses(prisma, statuses) {
+  if (!statuses?.length || !prisma?.notification) return;
+  await Promise.all(
+    statuses.map(async (status) => {
+      const next = status.status;
+      const from = next ? PREVIOUS[next] : void 0;
+      if (!status.id || !next || !from) return;
+      const seconds = Number(status.timestamp);
+      const error = status.errors?.[0];
+      await run(
+        `el acuse ${next}`,
+        () => prisma.notification.updateMany({
+          where: { whatsappMessageId: status.id, whatsappStatus: { in: from } },
+          data: {
+            whatsappStatus: next,
+            whatsappUpdatedAt: Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1e3) : /* @__PURE__ */ new Date(),
+            ...next === WHATSAPP_DELIVERY.FAILED ? {
+              whatsappDetail: deliveryDetail(
+                [error?.code, error?.title, error?.error_data?.details].filter(Boolean).join(" \xB7 ") || "Meta no lo entreg\xF3"
+              )
+            } : {}
+          }
+        })
+      );
+    })
+  );
+}
 
 // utils/notifications/push.ts
 var SEND_URL = "https://exp.host/--/api/v2/push/send";
@@ -3179,8 +3278,8 @@ function prismaOf2(context) {
 }
 async function forgetTokens(context, tokens) {
   if (tokens.length === 0) return;
-  const result3 = await prismaOf2(context).tokenNotification.deleteMany({ where: { token: { in: tokens } } });
-  if (result3 instanceof Error) throw result3;
+  const result4 = await prismaOf2(context).tokenNotification.deleteMany({ where: { token: { in: tokens } } });
+  if (result4 instanceof Error) throw result4;
 }
 async function checkReceipts(context, ticketTokens) {
   try {
@@ -3206,16 +3305,45 @@ async function checkReceipts(context, ticketTokens) {
     console.error("[push] No se pudieron revisar los recibos:", error);
   }
 }
-async function sendPushToUsers(context, userIds, message) {
+async function recordPushDelivery(context, userIds, byUser, notificationIds) {
+  if (!notificationIds?.size) return;
+  const groups = /* @__PURE__ */ new Map();
+  for (const userId of userIds) {
+    const notificationId = notificationIds.get(userId);
+    if (!notificationId) continue;
+    const push = byUser.get(userId) ?? { devices: 0, ok: 0 };
+    const status = push.devices === 0 ? PUSH_DELIVERY.NO_DEVICES : push.ok === push.devices ? PUSH_DELIVERY.SENT : push.ok > 0 ? PUSH_DELIVERY.PARTIAL : PUSH_DELIVERY.FAILED;
+    const key = `${status}|${push.devices}`;
+    const group = groups.get(key) ?? { ids: [], data: { pushStatus: status, pushDevices: push.devices } };
+    group.ids.push(notificationId);
+    groups.set(key, group);
+  }
+  await recordDeliveryGroups(prismaOf2(context), groups);
+}
+async function sendPushToUsers(context, userIds, message, notificationIds) {
+  const byUser = /* @__PURE__ */ new Map();
+  let tokensLoaded = false;
   try {
     if (userIds.length === 0) return 0;
     const rows2 = await prismaOf2(context).tokenNotification.findMany({
       where: { userId: { in: userIds } },
-      select: { token: true }
+      select: { token: true, userId: true }
     });
     if (rows2 instanceof Error) throw rows2;
-    const tokens = [...new Set(rows2.map((row) => row.token).filter(isExpoToken))];
-    if (tokens.length === 0) return 0;
+    tokensLoaded = true;
+    const ownerOf = /* @__PURE__ */ new Map();
+    for (const row of rows2) {
+      if (!row.userId || !isExpoToken(row.token) || ownerOf.has(row.token)) continue;
+      ownerOf.set(row.token, row.userId);
+      const push = byUser.get(row.userId) ?? { devices: 0, ok: 0 };
+      push.devices += 1;
+      byUser.set(row.userId, push);
+    }
+    const tokens = [...ownerOf.keys()];
+    if (tokens.length === 0) {
+      await recordPushDelivery(context, userIds, byUser, notificationIds);
+      return 0;
+    }
     let accepted = 0;
     const dead = [];
     const ticketTokens = /* @__PURE__ */ new Map();
@@ -3244,14 +3372,17 @@ async function sendPushToUsers(context, userIds, message) {
       (json15.data ?? []).forEach((ticket, index) => {
         const token = batch[index];
         if (!token) return;
+        const push = byUser.get(ownerOf.get(token) ?? "");
         if (ticket.status === "ok") {
           accepted += 1;
+          if (push) push.ok += 1;
           ticketTokens.set(ticket.id, token);
         } else if (ticket.details?.error === "DeviceNotRegistered") {
           dead.push(token);
         }
       });
     }
+    await recordPushDelivery(context, userIds, byUser, notificationIds);
     await forgetTokens(context, dead);
     if (ticketTokens.size > 0) {
       const timer = setTimeout(() => void checkReceipts(context, ticketTokens), RECEIPTS_DELAY_MS);
@@ -3260,6 +3391,11 @@ async function sendPushToUsers(context, userIds, message) {
     return accepted;
   } catch (error) {
     console.error("[push] No se pudo enviar:", message.type, error);
+    if (tokensLoaded) {
+      await recordPushDelivery(context, userIds, byUser, notificationIds);
+    } else if (notificationIds?.size) {
+      await recordDelivery(prismaOf2(context), [...notificationIds.values()], { pushStatus: PUSH_DELIVERY.FAILED });
+    }
     return 0;
   }
 }
@@ -3908,51 +4044,108 @@ function toWhatsappNumber(raw) {
   const digits = raw.replace(/\D/g, "");
   return digits.length >= 11 ? digits : null;
 }
-async function sendNotificationWhatsappToOptedIn(prisma, recipientIds, type, values) {
+function skipReason(user, type) {
+  if (!user.whatsappNotifications) return WHATSAPP_SKIP_REASON.NO_OPT_IN;
+  if (!user.phone?.trim()) return WHATSAPP_SKIP_REASON.NO_PHONE;
+  if (!wantsWhatsappType(user.whatsappMutedTypes, type)) return WHATSAPP_SKIP_REASON.MUTED;
+  return null;
+}
+async function recordWhatsappOutcomes(prisma, outcomes, notificationIds) {
+  if (!notificationIds?.size || !outcomes.length) return;
+  const now = /* @__PURE__ */ new Date();
+  const groups = /* @__PURE__ */ new Map();
+  const accepted = [];
+  for (const outcome of outcomes) {
+    const id = notificationIds.get(outcome.userId);
+    if (!id) continue;
+    if (outcome.status === WHATSAPP_DELIVERY.ACCEPTED && outcome.messageId) {
+      accepted.push({ id, messageId: outcome.messageId });
+      continue;
+    }
+    const key = `${outcome.status}|${outcome.detail ?? ""}`;
+    const group = groups.get(key) ?? {
+      ids: [],
+      data: { whatsappStatus: outcome.status, whatsappDetail: outcome.detail ?? "", whatsappUpdatedAt: now }
+    };
+    group.ids.push(id);
+    groups.set(key, group);
+  }
+  await Promise.all([
+    recordDeliveryGroups(prisma, groups),
+    // Cada aceptado lleva su propio `wamid`: con él el webhook marca entregado / leído / falló.
+    ...accepted.map(
+      ({ id, messageId }) => recordDelivery(prisma, [id], {
+        whatsappStatus: WHATSAPP_DELIVERY.ACCEPTED,
+        whatsappMessageId: messageId,
+        whatsappDetail: "",
+        whatsappUpdatedAt: now
+      })
+    )
+  ]);
+}
+async function sendNotificationWhatsappToOptedIn(prisma, recipientIds, type, values, notificationIds) {
   try {
     if (!hasWhatsappTemplate(type)) return;
     if (!platformWhatsappConfig()) {
       console.warn(
         `[notify:whatsapp] ${type} no sali\xF3 por WhatsApp: falta ${missingPlatformVars().join(" y ")} en el entorno.`
       );
+      await recordWhatsappOutcomes(
+        prisma,
+        recipientIds.map((userId) => ({
+          userId,
+          status: WHATSAPP_DELIVERY.SKIPPED,
+          detail: WHATSAPP_SKIP_REASON.NO_CONFIG
+        })),
+        notificationIds
+      );
       return;
     }
-    const candidates = await prisma.user.findMany({
-      where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: "" } },
-      select: { id: true, phone: true, whatsappMutedTypes: true }
+    const users = await prisma.user.findMany({
+      where: { id: { in: recipientIds } },
+      select: { id: true, phone: true, whatsappNotifications: true, whatsappMutedTypes: true }
     });
-    if (candidates instanceof Error) throw candidates;
-    const optedIn = Array.isArray(candidates) ? candidates.filter((user) => wantsWhatsappType(user.whatsappMutedTypes, type)) : [];
-    if (Array.isArray(candidates) && candidates.length > 0 && optedIn.length === 0) {
-      return;
+    if (users instanceof Error) throw users;
+    const skipped = [];
+    const optedIn = [];
+    for (const user of users) {
+      const reason = skipReason(user, type);
+      if (reason) skipped.push({ userId: user.id, status: WHATSAPP_DELIVERY.SKIPPED, detail: reason });
+      else optedIn.push(user);
     }
-    if (optedIn.length === 0) {
-      if (WHATSAPP_TEMPLATES[type]?.audience === "pet") return;
-      const withOptIn = await prisma.user.count({
-        where: { id: { in: recipientIds }, whatsappNotifications: true }
-      });
+    if (optedIn.length === 0 && WHATSAPP_TEMPLATES[type]?.audience !== "pet") {
+      const count2 = (reason) => skipped.filter((outcome) => outcome.detail === reason).length;
+      const noPhone = count2(WHATSAPP_SKIP_REASON.NO_PHONE);
+      const noOptIn = count2(WHATSAPP_SKIP_REASON.NO_OPT_IN);
       const total = recipientIds.length;
-      const reason = typeof withOptIn !== "number" ? `ninguno de los ${total} destinatario(s) tiene avisos de WhatsApp activos con tel\xE9fono` : withOptIn === 0 ? `ninguno de los ${total} destinatario(s) tiene activos los avisos de WhatsApp (User.whatsappNotifications)` : `${withOptIn} de ${total} destinatario(s) tienen activos los avisos, pero sin tel\xE9fono (User.phone)`;
-      console.warn(`[notify:whatsapp] ${type} no sali\xF3 por WhatsApp: ${reason}.`);
-      return;
+      if (noPhone > 0 || noOptIn === skipped.length) {
+        const reason = noPhone === 0 ? `ninguno de los ${total} destinatario(s) tiene activos los avisos de WhatsApp (User.whatsappNotifications)` : `${noPhone} de ${total} destinatario(s) tienen activos los avisos, pero sin tel\xE9fono (User.phone)`;
+        console.warn(`[notify:whatsapp] ${type} no sali\xF3 por WhatsApp: ${reason}.`);
+      }
     }
-    await sendNotificationWhatsapp(optedIn, type, values);
+    const { outcomes } = optedIn.length ? await sendNotificationWhatsapp(optedIn, type, values) : { outcomes: [] };
+    await recordWhatsappOutcomes(prisma, [...skipped, ...outcomes], notificationIds);
   } catch (error) {
     console.error("[notify:whatsapp] No se pudo buscar a qui\xE9n mandarle:", type, error);
   }
 }
 async function sendNotificationWhatsapp(recipients, type, values) {
-  const result3 = { sent: 0, failed: 0 };
+  const result4 = { sent: 0, failed: 0, outcomes: [] };
   try {
     const template = WHATSAPP_TEMPLATES[type];
     const config2 = platformWhatsappConfig();
-    if (!template || !config2) return result3;
+    if (!template || !config2) return result4;
     const bodyParams = template.params(values).map(templateParam);
     await Promise.allSettled(
       recipients.map(async (recipient) => {
         const to = toWhatsappNumber(recipient.phone);
         if (!to) {
           console.warn(`[notify:whatsapp] ${type}: el usuario ${recipient.id} no tiene un tel\xE9fono v\xE1lido.`);
+          result4.outcomes.push({
+            userId: recipient.id,
+            status: WHATSAPP_DELIVERY.SKIPPED,
+            detail: WHATSAPP_SKIP_REASON.INVALID_PHONE
+          });
           return;
         }
         try {
@@ -3963,12 +4156,14 @@ async function sendNotificationWhatsapp(recipients, type, values) {
             language: TEMPLATE_LANGUAGE,
             bodyParams
           });
-          result3.sent += 1;
+          result4.sent += 1;
+          result4.outcomes.push({ userId: recipient.id, status: WHATSAPP_DELIVERY.ACCEPTED, messageId: sent.id });
           console.log(
             `[notify:whatsapp] ${type} (${template.name}) aceptado por Meta para usuario ${recipient.id} (\u2026${to.slice(-4)}): ${sent.id}`
           );
         } catch (error) {
-          result3.failed += 1;
+          result4.failed += 1;
+          result4.outcomes.push({ userId: recipient.id, status: WHATSAPP_DELIVERY.FAILED, detail: deliveryDetail(error) });
           console.error(
             `[notify:whatsapp] ${type} a usuario ${recipient.id} (\u2026${to.slice(-4)}):`,
             error instanceof Error ? error.message : error
@@ -3979,7 +4174,7 @@ async function sendNotificationWhatsapp(recipients, type, values) {
   } catch (error) {
     console.error("[notify:whatsapp] No se pudo mandar:", type, error);
   }
-  return result3;
+  return result4;
 }
 
 // utils/notifications/notify.ts
@@ -3998,7 +4193,7 @@ async function notify(context, input) {
       recipientIds = [...new Set(input.audience.filter(Boolean))];
     }
     if (recipientIds.length === 0) return 0;
-    const result3 = await prisma.notification.createMany({
+    const created = await prisma.notification.createManyAndReturn({
       data: recipientIds.map((recipientId) => ({
         recipientId,
         product: input.product,
@@ -4009,19 +4204,34 @@ async function notify(context, input) {
         entityId: input.entityId ?? "",
         url: input.url ?? "",
         metadata: input.metadata ?? void 0
-      }))
+      })),
+      select: { id: true, recipientId: true }
     });
-    if (result3 instanceof Error) throw result3;
+    if (created instanceof Error) throw created;
+    const notificationIds = new Map(
+      created.filter((row) => row.recipientId).map((row) => [row.recipientId, row.id])
+    );
     if (input.product === "pet") {
-      void sendPushToUsers(context, recipientIds, {
-        title: input.title,
-        body: input.body,
-        url: input.url,
-        type: input.type
-      });
+      void sendPushToUsers(
+        context,
+        recipientIds,
+        {
+          title: input.title,
+          body: input.body,
+          url: input.url,
+          type: input.type
+        },
+        notificationIds
+      );
     }
-    void sendNotificationWhatsappToOptedIn(prisma, recipientIds, input.type, input.templateValues ?? {});
-    return result3?.count ?? recipientIds.length;
+    void sendNotificationWhatsappToOptedIn(
+      prisma,
+      recipientIds,
+      input.type,
+      input.templateValues ?? {},
+      notificationIds
+    );
+    return created.length;
   } catch (error) {
     console.error("[notify] No se pudo crear la notificaci\xF3n:", input.type, error);
     return 0;
@@ -4043,6 +4253,40 @@ var TYPE_LABEL = {
   reptil: "reptil",
   mammal: "mam\xEDfero"
 };
+async function findZoneAlertCandidates(prisma, { lat, lng, excludeUserId = "", animalId = "" }) {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1e3);
+  const rows2 = await prisma.$queryRaw`
+    SELECT u.id,
+      d.km AS "distanceKm",
+      (SELECT COUNT(*)::int FROM "Notification" n
+        WHERE n.recipient = u.id AND n.type = ${NOTIFICATION_TYPE.ANIMAL_NEARBY} AND n."createdAt" >= ${since}) AS "alertsToday",
+      EXISTS (SELECT 1 FROM "Notification" n
+        WHERE n.recipient = u.id AND n.type = ${NOTIFICATION_TYPE.ANIMAL_NEARBY} AND n."entityId" = ${animalId}
+          AND ${animalId} <> '') AS "alreadyAlerted"
+    FROM "User" u
+    CROSS JOIN LATERAL (
+      SELECT 6371 * acos(LEAST(1, GREATEST(-1,
+        cos(radians(${lat})) * cos(radians(u."alertLat")) * cos(radians(u."alertLng") - radians(${lng}))
+        + sin(radians(${lat})) * sin(radians(u."alertLat"))
+      ))) AS km
+    ) d
+    WHERE u."petAlertsEnabled" = true
+      AND u."alertLat" IS NOT NULL
+      AND u."alertLng" IS NOT NULL
+      AND u."suspendedAt" IS NULL
+      AND u."anonymizedAt" IS NULL
+      AND u.id <> ${excludeUserId}
+      AND d.km <= u."alertRadiusKm"
+    ORDER BY d.km ASC
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  return rows2.map((row) => ({
+    id: row.id,
+    distanceKm: Number(row.distanceKm),
+    alertsToday: Number(row.alertsToday),
+    alreadyAlerted: Boolean(row.alreadyAlerted)
+  }));
+}
 async function notifyNearbyAnimal(context, input) {
   try {
     const status = (input.status ?? "").toLowerCase();
@@ -4054,32 +4298,13 @@ async function notifyNearbyAnimal(context, input) {
       if (Number.isFinite(seen) && Date.now() - seen > MAX_REPORT_AGE_MS) return 0;
     }
     const prisma = context.sudo().prisma;
-    const ownerId = input.ownerId ?? "";
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1e3);
-    const rows2 = await prisma.$queryRaw`
-      SELECT u.id
-      FROM "User" u
-      WHERE u."petAlertsEnabled" = true
-        AND u."alertLat" IS NOT NULL
-        AND u."alertLng" IS NOT NULL
-        AND u."suspendedAt" IS NULL
-        AND u."anonymizedAt" IS NULL
-        AND u.id <> ${ownerId}
-        AND 6371 * acos(LEAST(1, GREATEST(-1,
-              cos(radians(${input.lat})) * cos(radians(u."alertLat")) * cos(radians(u."alertLng") - radians(${input.lng}))
-              + sin(radians(${input.lat})) * sin(radians(u."alertLat"))
-            ))) <= u."alertRadiusKm"
-        AND NOT EXISTS (
-          SELECT 1 FROM "Notification" n
-          WHERE n.recipient = u.id AND n.type = ${NOTIFICATION_TYPE.ANIMAL_NEARBY} AND n."entityId" = ${input.animalId}
-        )
-        AND (
-          SELECT COUNT(*) FROM "Notification" n
-          WHERE n.recipient = u.id AND n.type = ${NOTIFICATION_TYPE.ANIMAL_NEARBY} AND n."createdAt" >= ${since}
-        ) < ${MAX_NEARBY_ALERTS_PER_DAY}
-    `;
-    if (rows2 instanceof Error) throw rows2;
-    const recipientIds = rows2.map((row) => row.id);
+    const candidates = await findZoneAlertCandidates(prisma, {
+      lat: input.lat,
+      lng: input.lng,
+      excludeUserId: input.ownerId ?? "",
+      animalId: input.animalId
+    });
+    const recipientIds = candidates.filter((row) => !row.alreadyAlerted && row.alertsToday < MAX_NEARBY_ALERTS_PER_DAY).map((row) => row.id);
     if (recipientIds.length === 0) return 0;
     const name = input.name?.trim() || "";
     const typeLabel = TYPE_LABEL[(input.type ?? "").toLowerCase()] ?? "";
@@ -4771,23 +4996,23 @@ async function publishAnimalToFacebook(animal, context) {
     console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
     return null;
   }
-  const result3 = await postToFacebookPage({
+  const result4 = await postToFacebookPage({
     product: PRODUCT.PET,
     message: post.message,
     link: animalPublicUrl(post.slug)
   });
-  if (!result3?.id) return null;
-  console.log(`[facebook] Animal publicado en la P\xE1gina de Pet: ${result3.id}`);
+  if (!result4?.id) return null;
+  console.log(`[facebook] Animal publicado en la P\xE1gina de Pet: ${result4.id}`);
   const publishedById = context.session?.data?.id ?? null;
   await context.sudo().db.Animal.updateOne({
     where: { id: animal.id },
     data: {
-      facebookPostId: result3.id,
+      facebookPostId: result4.id,
       facebookPublishedAt: (/* @__PURE__ */ new Date()).toISOString(),
       ...publishedById ? { facebookPublishedBy: { connect: { id: publishedById } } } : {}
     }
   });
-  return result3.id;
+  return result4.id;
 }
 async function publishAnimalToFacebookById(animalId, context) {
   return publishAnimalToFacebook({ id: animalId }, context);
@@ -6092,12 +6317,12 @@ async function userCompanyManagedValidateInput({
 }
 var REFERRAL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 function generateReferralSuffix(length = 5) {
-  let result3 = "";
+  let result4 = "";
   for (let i = 0; i < length; i++) {
     const index = Math.floor(Math.random() * REFERRAL_CHARS.length);
-    result3 += REFERRAL_CHARS[index];
+    result4 += REFERRAL_CHARS[index];
   }
-  return result3;
+  return result4;
 }
 async function generateUniqueReferralCode(context) {
   while (true) {
@@ -9521,6 +9746,11 @@ var readOnlyField = {
   create: () => false,
   update: () => false
 };
+var deliveryField = {
+  read: ({ session: session2 }) => isPlatformAdmin(session2),
+  create: () => false,
+  update: () => false
+};
 
 // models/Notification/Notification.ts
 var Notification_default = (0, import_core36.list)({
@@ -9558,6 +9788,36 @@ var Notification_default = (0, import_core36.list)({
     url: (0, import_fields36.text)({ access: readOnlyField }),
     metadata: (0, import_fields36.json)({ access: readOnlyField }),
     readAt: (0, import_fields36.timestamp)({ db: { isNullable: true } }),
+    // ── A dónde se fue (solo admin la lee; la escribe el servidor). Ver README.md "Entrega".
+    pushStatus: (0, import_fields36.select)({
+      type: "string",
+      options: PUSH_DELIVERY_OPTIONS,
+      db: { isNullable: true },
+      access: deliveryField,
+      ui: { description: "Push a la app. Vac\xEDo = no aplica (solo Kadesh Pet)." }
+    }),
+    pushDevices: (0, import_fields36.integer)({
+      db: { isNullable: true },
+      access: deliveryField,
+      ui: { description: "Dispositivos a los que se intent\xF3 mandar el push" }
+    }),
+    whatsappStatus: (0, import_fields36.select)({
+      type: "string",
+      options: WHATSAPP_DELIVERY_OPTIONS,
+      db: { isNullable: true },
+      access: deliveryField,
+      ui: { description: "WhatsApp. Vac\xEDo = el tipo no tiene plantilla." }
+    }),
+    whatsappDetail: (0, import_fields36.text)({
+      access: deliveryField,
+      ui: { description: "Por qu\xE9 no se mand\xF3 (sin_optin, sin_telefono\u2026) o el error de Meta" }
+    }),
+    whatsappMessageId: (0, import_fields36.text)({
+      isIndexed: true,
+      access: deliveryField,
+      ui: { description: "wamid de Meta: con \xE9l el webhook actualiza entregado / le\xEDdo / fall\xF3" }
+    }),
+    whatsappUpdatedAt: (0, import_fields36.timestamp)({ db: { isNullable: true }, access: deliveryField }),
     createdAt: (0, import_fields36.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
@@ -9831,9 +10091,9 @@ ${fullPost.excerpt}` : fullPost.title;
     for (const product of facebookProductsFor(postProduct)) {
       const link = `${frontendUrlFor(product)}/blog/${fullPost.url || fullPost.id}`;
       try {
-        const result3 = await postToFacebookPage({ product, message, link });
-        if (result3) {
-          console.log(`[facebook] Post publicado en la P\xE1gina de "${product}": ${result3.id}`);
+        const result4 = await postToFacebookPage({ product, message, link });
+        if (result4) {
+          console.log(`[facebook] Post publicado en la P\xE1gina de "${product}": ${result4.id}`);
         }
       } catch (error) {
         console.error(`[facebook] Error publicando en la P\xE1gina de "${product}":`, error);
@@ -18277,12 +18537,12 @@ var resolver4 = {
     }
     try {
       console.log("Ejecutando importaci\xF3n de lugares con datos:", input.inputValue, "tipo:", input.type);
-      const result3 = await importVeterinaries(input.inputValue, input.type, context);
-      console.log("Resultados de la importaci\xF3n:", result3);
+      const result4 = await importVeterinaries(input.inputValue, input.type, context);
+      console.log("Resultados de la importaci\xF3n:", result4);
       return {
         success: true,
         message: "Veterinarias importadas exitosamente",
-        result: result3
+        result: result4
       };
     } catch (error) {
       console.error("Error importando veterinarias:", error);
@@ -18376,7 +18636,7 @@ async function importVeterinaries(city, type, context) {
                   continue;
                 }
               }
-              const result3 = await context.sudo().query.PetPlace.createOne({
+              const result4 = await context.sudo().query.PetPlace.createOne({
                 data: {
                   name: place.name,
                   description: `Lugar ubicado en ${address}. ${rating > 0 ? `Calificaci\xF3n: ${rating}/5 (${userRatingsTotal} rese\xF1as)` : ""}`,
@@ -18414,7 +18674,7 @@ async function importVeterinaries(city, type, context) {
                     if (Object.keys(updateData).length > 0) {
                       try {
                         await context.sudo().query.PetPlace.updateOne({
-                          where: { id: result3.id },
+                          where: { id: result4.id },
                           data: updateData
                         });
                       } catch (updateError) {
@@ -18435,7 +18695,7 @@ async function importVeterinaries(city, type, context) {
                               createdAt,
                               google_user: review.author_name || "",
                               google_user_photo: review.profile_photo_url || "",
-                              pet_place: { connect: { id: result3.id } }
+                              pet_place: { connect: { id: result4.id } }
                             }
                           });
                         } catch (reviewError) {
@@ -19077,21 +19337,21 @@ async function assignExistingLeadToCompany(context, params) {
 var MIN_RATING = 0;
 var MIN_REVIEWS = 0;
 var DEFAULT_MAX_RESULTS = 60;
-async function logSyncLeadsResult(context, userId, companyId, input, result3) {
+async function logSyncLeadsResult(context, userId, companyId, input, result4) {
   if (!userId) return;
   try {
     await context.sudo().query.TechLeadSyncLog.createOne({
       data: {
         user: { connect: { id: userId } },
         ...companyId && { company: { connect: { id: companyId } } },
-        success: result3.success,
-        message: result3.message,
-        created: result3.created,
-        alreadyInDb: result3.alreadyInDb,
-        skippedLowRating: result3.skippedLowRating,
-        syncedLeadsCount: result3.syncedLeadsCount,
-        syncedCount: result3.syncedCount,
-        leadLimit: result3.leadLimit,
+        success: result4.success,
+        message: result4.message,
+        created: result4.created,
+        alreadyInDb: result4.alreadyInDb,
+        skippedLowRating: result4.skippedLowRating,
+        syncedLeadsCount: result4.syncedLeadsCount,
+        syncedCount: result4.syncedCount,
+        leadLimit: result4.leadLimit,
         lat: input.lat,
         lng: input.lng,
         radius: input.radius,
@@ -19165,66 +19425,66 @@ var resolver5 = {
     });
     const company = user?.company;
     if (!company?.id) {
-      const result3 = {
+      const result4 = {
         success: false,
         message: "Tu usuario no tiene una empresa asignada",
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, void 0, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, void 0, input, result4);
+      return result4;
     }
     const credits = await getRemainingCredits(context, company.id);
     const { remainingQuota, syncedCount, leadLimit } = credits;
     const companyLabel = company?.name ?? "la empresa";
     if (credits.blockingReason === "no_subscription") {
-      const result3 = {
+      const result4 = {
         success: false,
         message: `"${company?.name ?? "La empresa"}" no tiene una suscripci\xF3n activa. Contrata o activa una suscripci\xF3n para sincronizar leads.`,
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "free_plan_expired") {
-      const result3 = {
+      const result4 = {
         success: false,
         message: "Tu plan gratuito ha terminado. Contrata o activa una suscripci\xF3n para poder obtener m\xE1s clientes.",
         ...emptyResult2,
         leadLimit: 0
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "no_lead_limit") {
-      const result3 = {
+      const result4 = {
         success: false,
         message: `La suscripci\xF3n activa de "${companyLabel}" no tiene l\xEDmite de leads configurado.`,
         ...emptyResult2,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (credits.blockingReason === "lead_limit_too_low") {
-      const result3 = {
+      const result4 = {
         success: false,
         message: `La suscripci\xF3n activa de "${companyLabel}" no permite sincronizar leads.`,
         ...emptyResult2,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     }
     if (remainingQuota === 0) {
-      const result3 = {
+      const result4 = {
         success: false,
         message: `Cuota mensual de tu suscripci\xF3n alcanzada (${syncedCount}/${leadLimit} leads). Pr\xF3ximo reinicio el mes siguiente.`,
         ...emptyResult2,
         syncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     }
     const maxResults = Math.min(
       input.maxResults ?? DEFAULT_MAX_RESULTS,
@@ -19300,20 +19560,20 @@ var resolver5 = {
         notes: "Leads asignados desde BD"
       });
       if (!consumeResult.success) {
-        const result3 = {
+        const result4 = {
           success: false,
           message: `Cuota mensual alcanzada (${consumeResult.syncedCount}/${consumeResult.leadLimit} leads).`,
           ...emptyResult2,
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result3);
-        return result3;
+        await logSyncLeadsResult(context, userId, company.id, input, result4);
+        return result4;
       }
       currentSyncedCount = consumeResult.syncedCount;
     }
     if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
-      const result3 = {
+      const result4 = {
         success: true,
         message: `${assignedFromDb} leads asignados. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
         created: 0,
@@ -19323,13 +19583,13 @@ var resolver5 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     }
     const apiKey2 = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey2) {
       if (syncedThisRequest > 0) {
-        const result4 = {
+        const result5 = {
           success: true,
           message: `${syncedThisRequest} leads asignados desde BD. GOOGLE_MAPS_API_KEY no configurada para buscar m\xE1s. Cuota: ${currentSyncedCount}${leadLimit !== null ? `/${leadLimit}` : ""} este mes.`,
           created: 0,
@@ -19339,16 +19599,16 @@ var resolver5 = {
           syncedCount: currentSyncedCount,
           leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result4);
-        return result4;
+        await logSyncLeadsResult(context, userId, company.id, input, result5);
+        return result5;
       }
-      const result3 = {
+      const result4 = {
         success: false,
         message: "GOOGLE_MAPS_API_KEY no configurada",
         ...emptyResult2
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     }
     const { lat, lng, radius, category } = input;
     const radiusMeters = Math.round(radius * 1e3);
@@ -19444,7 +19704,7 @@ var resolver5 = {
         if (!pageToken) break;
       }
       if (firstPageError && nearbyPlaces.length === 0) {
-        const result4 = {
+        const result5 = {
           success: false,
           message: firstPageError,
           created,
@@ -19454,8 +19714,8 @@ var resolver5 = {
           syncedCount: currentSyncedCount,
           leadLimit
         };
-        await logSyncLeadsResult(context, userId, company.id, input, result4);
-        return result4;
+        await logSyncLeadsResult(context, userId, company.id, input, result5);
+        return result5;
       }
       console.log("[syncLeadsFront] GOOGLE places collected", {
         total: nearbyPlaces.length
@@ -19561,7 +19821,7 @@ var resolver5 = {
         }
       }
       await chargeGoogleCreditsIfNeeded();
-      const result3 = {
+      const result4 = {
         success: true,
         message: `Sincronizaci\xF3n completada. Leads asignados a tu empresa: ${syncedThisRequest} ${leadLimit !== null ? ` Cuota: ${currentSyncedCount}/${leadLimit} este mes.` : ""}`,
         created,
@@ -19571,12 +19831,12 @@ var resolver5 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     } catch (err) {
       console.error("[syncLeadsFront] EXCEPTION in Google sync", err);
       await chargeGoogleCreditsIfNeeded();
-      const result3 = {
+      const result4 = {
         success: false,
         message: err instanceof Error ? err.message : "Error en sincronizaci\xF3n",
         created,
@@ -19586,8 +19846,8 @@ var resolver5 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logSyncLeadsResult(context, userId, company.id, input, result3);
-      return result3;
+      await logSyncLeadsResult(context, userId, company.id, input, result4);
+      return result4;
     }
   }
 };
@@ -19958,15 +20218,15 @@ var resolver7 = {
     let logUserId;
     let logCompanyId;
     let logPlanId;
-    const finish2 = async (step, result3, opts) => {
+    const finish2 = async (step, result4, opts) => {
       await writeSaasSubscriptionLog(context, {
         startedAt,
         input: logInput,
         step,
-        success: result3.success,
-        message: result3.message,
-        subscriptionId: result3.subscriptionId,
-        paymentId: result3.paymentId,
+        success: result4.success,
+        message: result4.message,
+        subscriptionId: result4.subscriptionId,
+        paymentId: result4.paymentId,
         userId: logUserId ?? null,
         companyId: logCompanyId ?? null,
         planId: logPlanId ?? null,
@@ -19975,7 +20235,7 @@ var resolver7 = {
         stripeSubscriptionId: opts?.stripeSubscriptionId ?? null,
         extra: opts?.extra
       });
-      return result3;
+      return result4;
     };
     try {
       if (!canActForEmail(context.session, input.email)) {
@@ -20638,14 +20898,14 @@ var resolver10 = {
     let logUserId;
     let logCompanyId;
     let logSubscriptionId;
-    const finish2 = async (step, result3, opts) => {
+    const finish2 = async (step, result4, opts) => {
       const response = {
-        creditsAdded: result3.creditsAdded ?? null,
-        newCreditsTotal: result3.newCreditsTotal ?? null,
-        subscriptionId: result3.subscriptionId ?? null,
-        success: result3.success,
-        message: result3.message,
-        paymentId: result3.paymentId
+        creditsAdded: result4.creditsAdded ?? null,
+        newCreditsTotal: result4.newCreditsTotal ?? null,
+        subscriptionId: result4.subscriptionId ?? null,
+        success: result4.success,
+        message: result4.message,
+        paymentId: result4.paymentId
       };
       await writeSaasSubscriptionLog(context, {
         startedAt,
@@ -21507,7 +21767,7 @@ var resolver14 = {
       );
     }
     try {
-      const result3 = await sendAdminBroadcastEmail({
+      const result4 = await sendAdminBroadcastEmail({
         context,
         audience,
         brand,
@@ -21523,7 +21783,7 @@ var resolver14 = {
         footerNote,
         dryRun
       });
-      if (result3.recipientCount === 0) {
+      if (result4.recipientCount === 0) {
         return fail2(
           audience === "custom" ? "No hay correos v\xE1lidos para enviar." : "No hay destinatarios con correo en esa audiencia.",
           { brand, audience, dryRun, recipientCount: 0 }
@@ -21532,8 +21792,8 @@ var resolver14 = {
       if (dryRun) {
         return {
           success: true,
-          message: `Listos ${result3.recipientCount} destinatarios. Nada se envi\xF3 (solo conteo).`,
-          recipientCount: result3.recipientCount,
+          message: `Listos ${result4.recipientCount} destinatarios. Nada se envi\xF3 (solo conteo).`,
+          recipientCount: result4.recipientCount,
           sentCount: 0,
           failedCount: 0,
           dryRun: true,
@@ -21541,30 +21801,30 @@ var resolver14 = {
           audience
         };
       }
-      const ok = result3.failedCount === 0;
+      const ok = result4.failedCount === 0;
       void logActivity(context, {
         type: ACTIVITY_EVENT.ADMIN_EMAIL_BROADCAST,
         companyId: null,
         entityType: "Email",
-        summary: `Envi\xF3 el correo "${subject}" a ${result3.sentCount} destinatarios`,
+        summary: `Envi\xF3 el correo "${subject}" a ${result4.sentCount} destinatarios`,
         success: ok,
-        errorMessage: ok ? null : `Fallaron ${result3.failedCount} env\xEDos`,
+        errorMessage: ok ? null : `Fallaron ${result4.failedCount} env\xEDos`,
         metadata: {
           audience,
           brand,
           subject,
-          recipientCount: result3.recipientCount,
-          sentCount: result3.sentCount,
-          failedCount: result3.failedCount,
+          recipientCount: result4.recipientCount,
+          sentCount: result4.sentCount,
+          failedCount: result4.failedCount,
           customRecipients: audience === "custom" ? customEmails?.length ?? 0 : null
         }
       });
       return {
         success: ok,
-        message: ok ? `Enviado a ${result3.sentCount} destinatarios.` : `Enviado a ${result3.sentCount}; fallaron ${result3.failedCount}.`,
-        recipientCount: result3.recipientCount,
-        sentCount: result3.sentCount,
-        failedCount: result3.failedCount,
+        message: ok ? `Enviado a ${result4.sentCount} destinatarios.` : `Enviado a ${result4.sentCount}; fallaron ${result4.failedCount}.`,
+        recipientCount: result4.recipientCount,
+        sentCount: result4.sentCount,
+        failedCount: result4.failedCount,
         dryRun: false,
         brand,
         audience
@@ -23149,7 +23409,7 @@ var mutationResolver = {
     try {
       const snapshot = await gatherMarketSnapshot(context, args);
       const userPrompt = formatMarketSnapshotPrompt(snapshot);
-      const result3 = await callCompanyAi({
+      const result4 = await callCompanyAi({
         context,
         companyId: args.companyId,
         featurePrompt: MARKET_ANALYSIS_FEATURE_PROMPT,
@@ -23158,7 +23418,7 @@ var mutationResolver = {
         bill: true,
         maxTokens: 800
       });
-      const parsed = parseMarketInsight(result3.text);
+      const parsed = parseMarketInsight(result4.text);
       const content = parsed.summary + (parsed.actions.length ? "\n" + parsed.actions.map((action, index) => `${index + 1}. ${action.title} \u2014 ${action.detail}`).join("\n") : "");
       const saved = await saveMarketInsight(context, {
         companyId: args.companyId,
@@ -23169,7 +23429,7 @@ var mutationResolver = {
       });
       return toResult2(true, "An\xE1lisis de mercado listo", {
         cached: false,
-        creditsCharged: result3.creditsCharged,
+        creditsCharged: result4.creditsCharged,
         insight: toPayload(saved)
       });
     } catch (err) {
@@ -23390,7 +23650,7 @@ var mutationResolver2 = {
         salesPersonId
       });
       const userPrompt = formatSnapshotPrompt(snapshot);
-      const result3 = await callCompanyAi({
+      const result4 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: DAILY_DIGEST_FEATURE_PROMPT,
@@ -23399,7 +23659,7 @@ var mutationResolver2 = {
         bill: true,
         maxTokens: 800
       });
-      let actions = parseDigestActions(result3.text);
+      let actions = parseDigestActions(result4.text);
       if (actions.length < 3) {
         actions = [
           ...actions,
@@ -23416,7 +23676,7 @@ var mutationResolver2 = {
       });
       return toResult3(true, "Listo. Estos son tus 3 siguientes pasos de hoy.", {
         cached: false,
-        creditsCharged: result3.creditsCharged,
+        creditsCharged: result4.creditsCharged,
         insight: toDigestInsightPayload(saved)
       });
     } catch (err) {
@@ -23442,7 +23702,7 @@ var mutationResolver2 = {
         query: "id name onboardingMainOffer onboardingIdealCustomer onboardingAvgTicketValue onboardingSalesPain allowedGooglePlaceCategories"
       });
       const userPrompt = playbookUserPrompt(company ?? {});
-      const result3 = await callCompanyAi({
+      const result4 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: PROFILE_PLAYBOOK_FEATURE_PROMPT,
@@ -23451,7 +23711,7 @@ var mutationResolver2 = {
         bill: true,
         maxTokens: 900
       });
-      let actions = parseDigestActions(result3.text);
+      let actions = parseDigestActions(result4.text);
       if (actions.length < 3) {
         actions = [...actions, ...fallbackPlaybookActions(userPrompt)].slice(
           0,
@@ -23465,7 +23725,7 @@ var mutationResolver2 = {
       });
       return toResult3(true, "Listo. Estas recomendaciones salen de tu perfil.", {
         cached: false,
-        creditsCharged: result3.creditsCharged,
+        creditsCharged: result4.creditsCharged,
         insight: toDigestInsightPayload(saved)
       });
     } catch (err) {
@@ -23802,7 +24062,7 @@ var mutationResolver3 = {
       });
     }
     try {
-      const result3 = await callCompanyAi({
+      const result4 = await callCompanyAi({
         context,
         companyId,
         featurePrompt: COMPANY_BRIEF_FEATURE_PROMPT,
@@ -23811,7 +24071,7 @@ var mutationResolver3 = {
         bill: true,
         maxTokens: 900
       });
-      let pillars = parseCompanyBriefPillars(result3.text, company);
+      let pillars = parseCompanyBriefPillars(result4.text, company);
       if (pillars.every((pillar) => !pillar.summary.trim())) {
         pillars = fallbackCompanyBriefPillars(company);
       }
@@ -23823,7 +24083,7 @@ var mutationResolver3 = {
       });
       return toResult4(true, "Listo. Esto es lo que Kadesh AI ya sabe de tu negocio.", {
         cached: false,
-        creditsCharged: result3.creditsCharged,
+        creditsCharged: result4.creditsCharged,
         insight: toCompanyBriefPayload(saved, company)
       });
     } catch (err) {
@@ -24251,8 +24511,8 @@ async function fetchAndCacheIndicator(context, indicatorId, geographicCode, rece
   let created = 0;
   let updated = 0;
   for (const row of mapped) {
-    const result3 = await upsertMappedIndicator(context, row);
-    if (result3 === "created") created += 1;
+    const result4 = await upsertMappedIndicator(context, row);
+    if (result4 === "created") created += 1;
     else updated += 1;
   }
   return { mapped, created, updated };
@@ -24299,17 +24559,17 @@ function emptyResult(message, extras) {
     ...extras
   };
 }
-async function logSync(context, userId, input, result3) {
+async function logSync(context, userId, input, result4) {
   try {
     await context.sudo().query.TechInegiSyncLog.createOne({
       data: {
         ...userId ? { user: { connect: { id: userId } } } : {},
-        success: result3.success,
-        message: result3.message,
-        created: result3.created,
-        updated: result3.updated,
-        alreadyInDb: result3.alreadyInDb,
-        totalFetched: result3.totalFetched,
+        success: result4.success,
+        message: result4.message,
+        created: result4.created,
+        updated: result4.updated,
+        alreadyInDb: result4.alreadyInDb,
+        totalFetched: result4.totalFetched,
         sourceMethod: INEGI_SYNC_SOURCE.API,
         searchParams: input
       }
@@ -24358,11 +24618,11 @@ var resolver16 = {
       INEGI_LIVE_SYNC_CAP
     );
     if (typeof input.radiusMeters === "number" && input.radiusMeters > DENUE_MAX_RADIUS_METERS) {
-      const result3 = emptyResult(
+      const result4 = emptyResult(
         `El radio m\xE1ximo de DENUE es ${DENUE_MAX_RADIUS_METERS} metros`
       );
-      await logSync(context, userId, input, result3);
-      return result3;
+      await logSync(context, userId, input, result4);
+      return result4;
     }
     console.log("[syncEstablishmentsFromInegi] START", {
       userId,
@@ -24392,7 +24652,7 @@ var resolver16 = {
         if (status === "created") created += 1;
         else updated += 1;
       }
-      const result3 = {
+      const result4 = {
         success: true,
         message: `DENUE: ${created} nuevos, ${updated} actualizados, ${skipped} omitidos`,
         created,
@@ -24400,18 +24660,18 @@ var resolver16 = {
         alreadyInDb: updated,
         totalFetched: rows2.length
       };
-      await logSync(context, userId, input, result3);
-      return result3;
+      await logSync(context, userId, input, result4);
+      return result4;
     } catch (err) {
       console.error("[syncEstablishmentsFromInegi] failed", {
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : void 0
       });
-      const result3 = emptyResult(
+      const result4 = emptyResult(
         err instanceof Error ? err.message : "Error al consultar DENUE"
       );
-      await logSync(context, userId, input, result3);
-      return result3;
+      await logSync(context, userId, input, result4);
+      return result4;
     }
   }
 };
@@ -25083,21 +25343,21 @@ function boundingBoxFilters(lat, lng, radiusKm) {
     { lng: { gte: lng - lngDelta, lte: lng + lngDelta } }
   ];
 }
-async function logResult(context, userId, companyId, input, result3) {
+async function logResult(context, userId, companyId, input, result4) {
   if (!userId) return;
   try {
     await context.sudo().query.TechLeadSyncLog.createOne({
       data: {
         user: { connect: { id: userId } },
         ...companyId ? { company: { connect: { id: companyId } } } : {},
-        success: result3.success,
-        message: result3.message,
-        created: result3.created,
-        alreadyInDb: result3.alreadyInDb,
-        skippedLowRating: result3.skippedLowRating,
-        syncedLeadsCount: result3.syncedLeadsCount,
-        syncedCount: result3.syncedCount,
-        leadLimit: result3.leadLimit,
+        success: result4.success,
+        message: result4.message,
+        created: result4.created,
+        alreadyInDb: result4.alreadyInDb,
+        skippedLowRating: result4.skippedLowRating,
+        syncedLeadsCount: result4.syncedLeadsCount,
+        syncedCount: result4.syncedCount,
+        leadLimit: result4.leadLimit,
         lat: input.lat,
         lng: input.lng,
         radius: input.radius,
@@ -25225,13 +25485,13 @@ var resolver17 = {
     });
     const company = user?.company;
     if (!company?.id) {
-      const result4 = {
+      const result5 = {
         success: false,
         message: MSG.noCompany,
         ...empty3
       };
-      await logResult(context, userId, void 0, input, result4);
-      return result4;
+      await logResult(context, userId, void 0, input, result5);
+      return result5;
     }
     const credits = await getRemainingCredits(context, company.id);
     const { remainingQuota, syncedCount, leadLimit } = credits;
@@ -25243,54 +25503,54 @@ var resolver17 = {
       blockingReason: credits.blockingReason ?? null
     });
     if (credits.blockingReason === "no_subscription") {
-      const result4 = {
+      const result5 = {
         success: false,
         message: MSG.noSubscription,
         ...empty3
       };
-      await logResult(context, userId, company.id, input, result4);
-      return result4;
+      await logResult(context, userId, company.id, input, result5);
+      return result5;
     }
     if (credits.blockingReason === "free_plan_expired") {
-      const result4 = {
+      const result5 = {
         success: false,
         message: MSG.freeExpired,
         ...empty3,
         leadLimit: 0
       };
-      await logResult(context, userId, company.id, input, result4);
-      return result4;
+      await logResult(context, userId, company.id, input, result5);
+      return result5;
     }
     if (credits.blockingReason === "no_lead_limit") {
-      const result4 = {
+      const result5 = {
         success: false,
         message: MSG.noLeadLimit,
         ...empty3,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result4);
-      return result4;
+      await logResult(context, userId, company.id, input, result5);
+      return result5;
     }
     if (credits.blockingReason === "lead_limit_too_low") {
-      const result4 = {
+      const result5 = {
         success: false,
         message: MSG.leadLimitTooLow,
         ...empty3,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result4);
-      return result4;
+      await logResult(context, userId, company.id, input, result5);
+      return result5;
     }
     if (remainingQuota === 0) {
-      const result4 = {
+      const result5 = {
         success: false,
         message: MSG.quotaFull(syncedCount, leadLimit),
         ...empty3,
         syncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result4);
-      return result4;
+      await logResult(context, userId, company.id, input, result5);
+      return result5;
     }
     const maxResults = Math.min(
       Math.max(1, input.maxResults ?? DEFAULT_MAX_RESULTS3),
@@ -25364,7 +25624,7 @@ var resolver17 = {
         notes: "Leads INEGI asignados desde BD"
       });
       if (!consumeResult.success) {
-        const result4 = {
+        const result5 = {
           success: false,
           message: MSG.quotaFull(
             consumeResult.syncedCount,
@@ -25374,8 +25634,8 @@ var resolver17 = {
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
-        await logResult(context, userId, company.id, input, result4);
-        return result4;
+        await logResult(context, userId, company.id, input, result5);
+        return result5;
       }
       currentSyncedCount = consumeResult.syncedCount;
     }
@@ -25385,7 +25645,7 @@ var resolver17 = {
       currentSyncedCount
     });
     if (syncedThisRequest >= maxResults || leadLimit !== null && currentSyncedCount >= leadLimit) {
-      const result4 = {
+      const result5 = {
         success: true,
         message: MSG.added(assignedFromDb),
         created: 0,
@@ -25395,8 +25655,8 @@ var resolver17 = {
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result4);
-      return result4;
+      await logResult(context, userId, company.id, input, result5);
+      return result5;
     }
     const catalogWhere = {
       AND: [
@@ -25533,28 +25793,28 @@ var resolver17 = {
           syncedThisRequest
         });
         if (nearbyCatalog.length === 0 && syncedThisRequest === 0) {
-          const result4 = {
+          const result5 = {
             success: false,
             message: MSG.searchFailed,
             ...empty3,
             syncedCount: currentSyncedCount,
             leadLimit
           };
-          await logResult(context, userId, company.id, input, result4);
-          return result4;
+          await logResult(context, userId, company.id, input, result5);
+          return result5;
         }
       }
     } else if (nearbyCatalog.length === 0 && !token && syncedThisRequest === 0) {
       console.warn("[syncLeadsFromInegi] abort: empty catalog and no INEGI_DENUE_TOKEN");
-      const result4 = {
+      const result5 = {
         success: false,
         message: MSG.searchFailed,
         ...empty3,
         syncedCount: currentSyncedCount,
         leadLimit
       };
-      await logResult(context, userId, company.id, input, result4);
-      return result4;
+      await logResult(context, userId, company.id, input, result5);
+      return result5;
     }
     let assignedFromCatalog = 0;
     for (const establishment of nearbyCatalog) {
@@ -25592,7 +25852,7 @@ var resolver17 = {
         currentSyncedCount = consumeResult.syncedCount;
       }
     }
-    const result3 = {
+    const result4 = {
       success: true,
       message: syncedThisRequest === 0 ? MSG.noneFound : MSG.added(syncedThisRequest),
       created,
@@ -25603,15 +25863,15 @@ var resolver17 = {
       leadLimit
     };
     console.log("[syncLeadsFromInegi] DONE", {
-      success: result3.success,
+      success: result4.success,
       syncedThisRequest,
       created,
       alreadyInDb,
       assignedFromCatalog,
-      message: result3.message
+      message: result4.message
     });
-    await logResult(context, userId, company.id, input, result3);
-    return result3;
+    await logResult(context, userId, company.id, input, result4);
+    return result4;
   }
 };
 var syncLeadsFromInegi_default = { typeDefs: typeDefs20, definition: definition17, resolver: resolver17 };
@@ -28123,8 +28383,8 @@ async function sendReminderNotification(context, reminder) {
       results.push({ channel, ok: false, error: true });
     }
   }
-  const delivered = results.some((result3) => result3.ok);
-  return { delivered, retry: !delivered && results.some((result3) => result3.error), results };
+  const delivered = results.some((result4) => result4.ok);
+  return { delivered, retry: !delivered && results.some((result4) => result4.error), results };
 }
 
 // graphql/customs/mutations/pet/card/sendDuePetReminders.ts
@@ -28803,7 +29063,7 @@ async function ensureOutreachTemplate(company, context) {
       });
       return { error: null };
     }
-    const result3 = await createWhatsAppTemplate({
+    const result4 = await createWhatsAppTemplate({
       wabaId: company.whatsappBusinessAccountId,
       accessToken,
       name: OUTREACH_TEMPLATE_NAME,
@@ -28816,7 +29076,7 @@ async function ensureOutreachTemplate(company, context) {
       data: {
         whatsappTemplateName: OUTREACH_TEMPLATE_NAME,
         whatsappTemplateLanguage: OUTREACH_TEMPLATE_LANGUAGE,
-        whatsappTemplateStatus: mapTemplateStatus(result3.status) ?? "pending"
+        whatsappTemplateStatus: mapTemplateStatus(result4.status) ?? "pending"
       }
     });
     return { error: null };
@@ -29078,16 +29338,16 @@ var resolver38 = {
     };
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
-      const result3 = await sendWhatsAppTextMessage({
+      const result4 = await sendWhatsAppTextMessage({
         phoneNumberId: company.whatsappPhoneNumberId,
         accessToken,
         to: target.to,
         body: trimmedBody
       });
       await context.sudo().query.TechWhatsAppMessage.createOne({
-        data: { ...baseData, waMessageId: result3.id, status: "sent" }
+        data: { ...baseData, waMessageId: result4.id, status: "sent" }
       });
-      return { success: true, message: "Mensaje enviado", messageId: result3.id };
+      return { success: true, message: "Mensaje enviado", messageId: result4.id };
     } catch (err) {
       const graphCode = err?.graphCode;
       const isOutsideWindow = graphCode === 131047;
@@ -29182,14 +29442,14 @@ ${line}`.trim();
 }
 function distinctSenders(messages) {
   const seen = /* @__PURE__ */ new Set();
-  const result3 = [];
+  const result4 = [];
   for (const msg of messages) {
     if (!seen.has(msg.sender)) {
       seen.add(msg.sender);
-      result3.push(msg.sender);
+      result4.push(msg.sender);
     }
   }
-  return result3;
+  return result4;
 }
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
@@ -31086,15 +31346,15 @@ function countsToList(rows2) {
 }
 async function optional(read, fallback) {
   try {
-    const result3 = await read();
-    return result3 instanceof Error ? fallback : result3;
+    const result4 = await read();
+    return result4 instanceof Error ? fallback : result4;
   } catch {
     return fallback;
   }
 }
-function unwrapPrisma(result3) {
-  if (result3 instanceof Error) throw result3;
-  return result3;
+function unwrapPrisma(result4) {
+  if (result4 instanceof Error) throw result4;
+  return result4;
 }
 async function lastSeenByCompany(prisma, companyIds) {
   if (!prisma.userActivityDay || !companyIds.length) return /* @__PURE__ */ new Map();
@@ -31782,11 +32042,11 @@ var resolver54 = {
   adminPurgeAnimalViews: async (_root, { animalId, onlyAnonymous }, context) => {
     if (!isPlatformAdmin(context.session)) return deny();
     const prisma = context.sudo().prisma;
-    const result3 = await prisma.animalView.deleteMany({
+    const result4 = await prisma.animalView.deleteMany({
       where: { animalId, ...onlyAnonymous ? { userId: null } : {} }
     });
-    if (result3 instanceof Error) throw result3;
-    const count2 = result3?.count ?? 0;
+    if (result4 instanceof Error) throw result4;
+    const count2 = result4?.count ?? 0;
     return {
       success: true,
       message: count2 === 1 ? "Se borr\xF3 1 vista." : `Se borraron ${count2} vistas.`
@@ -31795,8 +32055,107 @@ var resolver54 = {
 };
 var animals_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
-// graphql/customs/mutations/rollupDailyUsage.ts
+// graphql/customs/mutations/admin/zoneAlerts.ts
 var typeDefs58 = `
+  type Mutation {
+    adminUpdateZoneAlerts(
+      userId: ID!
+      enabled: Boolean
+      lat: Float
+      lng: Float
+      radiusKm: Int
+      disableWhatsapp: Boolean
+    ): AdminOpsActionResult!
+  }
+`;
+var definition55 = `
+  adminUpdateZoneAlerts(
+    userId: ID!
+    enabled: Boolean
+    lat: Float
+    lng: Float
+    radiusKm: Int
+    disableWhatsapp: Boolean
+  ): AdminOpsActionResult!
+`;
+function result3(success, message) {
+  return { success, message };
+}
+var resolver55 = {
+  adminUpdateZoneAlerts: async (_root, args, context) => {
+    if (!isPlatformAdmin(context.session)) return result3(false, "Solo un administrador de Kadesh puede hacer esto.");
+    const prisma = context.sudo().prisma;
+    const user = await prisma.user.findUnique({
+      where: { id: args.userId },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        petAlertsEnabled: true,
+        alertLat: true,
+        alertLng: true,
+        alertRadiusKm: true,
+        whatsappNotifications: true
+      }
+    });
+    if (!user || user instanceof Error) return result3(false, "No encontramos a esa persona.");
+    const data = {};
+    const hasPoint = args.lat != null || args.lng != null;
+    if (hasPoint) {
+      const lat = Number(args.lat);
+      const lng = Number(args.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        return result3(false, "La zona no es v\xE1lida: usa latitud y longitud, por ejemplo 19.7027, -101.1923.");
+      }
+      data.alertLat = lat;
+      data.alertLng = lng;
+    }
+    if (args.radiusKm != null) {
+      const radius = Math.round(Number(args.radiusKm));
+      if (!Number.isFinite(radius) || radius < 1 || radius > 50) {
+        return result3(false, "El radio va de 1 a 50 km.");
+      }
+      data.alertRadiusKm = radius;
+    }
+    if (args.enabled != null) {
+      const hasZone = (data.alertLat ?? user.alertLat) != null && (data.alertLng ?? user.alertLng) != null;
+      if (args.enabled && !hasZone) return result3(false, "Para encender las alertas, primero elige el centro de su zona.");
+      data.petAlertsEnabled = args.enabled;
+    }
+    if (args.disableWhatsapp) data.whatsappNotifications = false;
+    if (Object.keys(data).length === 0) return result3(false, "No hay cambios que guardar.");
+    const updated = await prisma.user.update({ where: { id: user.id }, data });
+    if (updated instanceof Error) return result3(false, "No se pudo guardar. Intenta de nuevo.");
+    const name = [user.name, user.lastName].filter(Boolean).join(" ") || user.id;
+    const changes = [];
+    if ("petAlertsEnabled" in data && data.petAlertsEnabled !== user.petAlertsEnabled) {
+      changes.push(data.petAlertsEnabled ? "encendi\xF3 sus alertas" : "apag\xF3 sus alertas");
+    }
+    if (hasPoint) changes.push("movi\xF3 su zona");
+    if ("alertRadiusKm" in data && data.alertRadiusKm !== user.alertRadiusKm) changes.push(`radio a ${data.alertRadiusKm} km`);
+    if (args.disableWhatsapp && user.whatsappNotifications) changes.push("apag\xF3 su WhatsApp");
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_ZONE_ALERTS_UPDATED,
+      entityType: "User",
+      entityId: user.id,
+      summary: `Alertas de zona de ${name}: ${changes.join(", ") || "sin cambios"}`,
+      metadata: {
+        before: {
+          enabled: user.petAlertsEnabled,
+          radiusKm: user.alertRadiusKm,
+          whatsapp: user.whatsappNotifications
+        },
+        after: data
+      }
+    });
+    return result3(true, changes.length ? `Listo: ${changes.join(", ")}.` : "Guardado.");
+  }
+};
+var adminZoneAlerts = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var zoneAlerts_default = adminZoneAlerts;
+
+// graphql/customs/mutations/rollupDailyUsage.ts
+var typeDefs59 = `
   type RollupDailyUsageDay {
     day: String!
     companies: Int!
@@ -31812,11 +32171,11 @@ var typeDefs58 = `
     rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   }
 `;
-var definition55 = `
+var definition56 = `
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
 `;
 var MAX_DAYS = 62;
-var resolver55 = {
+var resolver56 = {
   /**
    * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). La llama un cron diario
    * (.github/workflows/rollup-daily-usage.yml) con `CRON_SECRET`, igual que publishScheduledPosts.
@@ -31849,18 +32208,18 @@ var resolver55 = {
     }
   }
 };
-var rollupDailyUsage_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var rollupDailyUsage_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/mutations/notifications/markAllNotificationsRead.ts
-var typeDefs59 = `
+var typeDefs60 = `
   type Mutation {
     markAllNotificationsRead(product: String): Int!
   }
 `;
-var definition56 = `
+var definition57 = `
   markAllNotificationsRead(product: String): Int!
 `;
-var resolver56 = {
+var resolver57 = {
   /**
    * Marca como leídas todas las notificaciones no leídas de quien tiene la sesión (opcionalmente
    * solo las de un producto: "pet" | "saas"). Devuelve cuántas cambió. Marcar una sola se hace
@@ -31870,7 +32229,7 @@ var resolver56 = {
     const userId = getSessionUserId(context.session);
     if (!userId) throw new Error("Inicia sesi\xF3n para ver tus notificaciones.");
     const prisma = context.sudo().prisma;
-    const result3 = await prisma.notification.updateMany({
+    const result4 = await prisma.notification.updateMany({
       where: {
         recipientId: userId,
         readAt: null,
@@ -31878,20 +32237,20 @@ var resolver56 = {
       },
       data: { readAt: /* @__PURE__ */ new Date() }
     });
-    if (result3 instanceof Error) throw result3;
-    return result3?.count ?? 0;
+    if (result4 instanceof Error) throw result4;
+    return result4?.count ?? 0;
   }
 };
-var markAllNotificationsRead_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var markAllNotificationsRead_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // graphql/customs/mutations/notifications/pushTokens.ts
-var typeDefs60 = `
+var typeDefs61 = `
   type Mutation {
     registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
     unregisterPushToken(token: String!): Boolean!
   }
 `;
-var definition57 = `
+var definition58 = `
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
   unregisterPushToken(token: String!): Boolean!
 `;
@@ -31904,7 +32263,7 @@ function unwrap(value) {
   if (value instanceof Error) throw value;
   return value;
 }
-var resolver57 = {
+var resolver58 = {
   /**
    * Guarda (o actualiza) el token push de este dispositivo para quien tiene la sesión. Un token es
    * de un solo dispositivo: si estaba con otra cuenta (cambio de sesión en el mismo teléfono), pasa
@@ -31950,13 +32309,13 @@ var resolver57 = {
   unregisterPushToken: async (_root, { token }, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return false;
-    const result3 = unwrap(
+    const result4 = unwrap(
       await prismaOf4(context).tokenNotification.deleteMany({ where: { token: token.trim(), userId } })
     );
-    return result3.count > 0;
+    return result4.count > 0;
   }
 };
-var pushTokens_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var pushTokens_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -32009,6 +32368,7 @@ var customMutation = {
     ${companyOps_default.typeDefs}
     ${accountControl_default.typeDefs}
     ${animals_default.typeDefs}
+    ${zoneAlerts_default.typeDefs}
     ${rollupDailyUsage_default.typeDefs}
     ${markAllNotificationsRead_default.typeDefs}
     ${pushTokens_default.typeDefs}
@@ -32062,6 +32422,7 @@ var customMutation = {
     ${companyOps_default.definition}
     ${accountControl_default.definition}
     ${animals_default.definition}
+    ${zoneAlerts_default.definition}
     ${rollupDailyUsage_default.definition}
     ${markAllNotificationsRead_default.definition}
     ${pushTokens_default.definition}
@@ -32115,6 +32476,7 @@ var customMutation = {
     ...companyOps_default.resolver,
     ...accountControl_default.resolver,
     ...animals_default.resolver,
+    ...zoneAlerts_default.resolver,
     ...rollupDailyUsage_default.resolver,
     ...markAllNotificationsRead_default.resolver,
     ...pushTokens_default.resolver
@@ -32128,7 +32490,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs61 = `
+var typeDefs62 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -32187,7 +32549,7 @@ var typeDefs61 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition58 = `
+var definition59 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -32237,7 +32599,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver58 = {
+var resolver59 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -32400,10 +32762,10 @@ var resolver58 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var nearbyAnimals_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs62 = `
+var typeDefs63 = `
   type AnimalReportDuplicate {
     id: ID!
     name: String!
@@ -32424,7 +32786,7 @@ var typeDefs62 = `
     isMine: Boolean!
   }
 `;
-var definition59 = `
+var definition60 = `
   findAnimalReportDuplicates(
     phone: String
     phone2: String
@@ -32448,7 +32810,7 @@ function cleanPhone(raw) {
   const normalized = normalizeMxPhone(value);
   return normalized.ok ? normalized.digits : value;
 }
-var resolver59 = {
+var resolver60 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     const sessionUserId = getSessionUserId(context.session);
     if (!isSignedIn(context.session) && !sessionUserId) {
@@ -32476,7 +32838,7 @@ var resolver59 = {
     }));
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -32488,7 +32850,7 @@ function convertGoogleTimeToHours(timeString) {
   return isNaN(hours) ? 0 : hours;
 }
 function parseAddressComponents4(addressComponents) {
-  const result3 = {
+  const result4 = {
     street: "",
     municipality: "",
     state: "",
@@ -32496,7 +32858,7 @@ function parseAddressComponents4(addressComponents) {
     cp: ""
   };
   if (!Array.isArray(addressComponents)) {
-    return result3;
+    return result4;
   }
   let streetNumber = "";
   let route = "";
@@ -32510,26 +32872,26 @@ function parseAddressComponents4(addressComponents) {
       route = longName;
     }
     if (types.includes("locality")) {
-      result3.municipality = longName;
+      result4.municipality = longName;
     }
     if (types.includes("administrative_area_level_1")) {
-      result3.state = longName;
+      result4.state = longName;
     }
     if (types.includes("country")) {
-      result3.country = longName;
+      result4.country = longName;
     }
     if (types.includes("postal_code")) {
-      result3.cp = longName;
+      result4.cp = longName;
     }
   }
   if (streetNumber && route) {
-    result3.street = `${streetNumber} ${route}`.trim();
+    result4.street = `${streetNumber} ${route}`.trim();
   } else if (streetNumber) {
-    result3.street = streetNumber;
+    result4.street = streetNumber;
   } else if (route) {
-    result3.street = route;
+    result4.street = route;
   }
-  return result3;
+  return result4;
 }
 var GOOGLE_AREA_CELL_DEG = 0.05;
 var GOOGLE_AREA_TTL_DAYS = 180;
@@ -32754,7 +33116,7 @@ async function ensureAreaSearchedOnGoogle(context, { lat, lng, type, radiusKm })
   const radius = Math.min(radiusKm, GOOGLE_MAX_RADIUS_KM);
   const inFlight = inFlightAreaSearches.get(key);
   if (inFlight) return inFlight;
-  const run2 = (async () => {
+  const run3 = (async () => {
     const area = await context.sudo().query.PetPlaceSearchArea.findOne({
       where: { key },
       query: "id radiusKm searchedAt"
@@ -32771,9 +33133,9 @@ async function ensureAreaSearchedOnGoogle(context, { lat, lng, type, radiusKm })
     }
     return true;
   })();
-  inFlightAreaSearches.set(key, run2);
+  inFlightAreaSearches.set(key, run3);
   try {
-    return await run2;
+    return await run3;
   } finally {
     inFlightAreaSearches.delete(key);
   }
@@ -32852,7 +33214,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs63 = `
+var typeDefs64 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -32912,10 +33274,10 @@ var typeDefs63 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition60 = `
+var definition61 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver60 = {
+var resolver61 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -32949,7 +33311,7 @@ var resolver60 = {
         const ratingB = b.averageRating || 0;
         return ratingB - ratingA;
       });
-      const result4 = sortedPlaces.slice(0, limit).map((place) => ({
+      const result5 = sortedPlaces.slice(0, limit).map((place) => ({
         ...place,
         pet_place_reviews: place.pet_place_reviews ?? [],
         distance: null
@@ -32957,8 +33319,8 @@ var resolver60 = {
       }));
       return {
         success: true,
-        message: result4.length > 0 ? "PetPlaces found" : "No PetPlaces found",
-        petPlaces: result4
+        message: result5.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+        petPlaces: result5
       };
     }
     if (typeof lat !== "number" || typeof lng !== "number") {
@@ -32984,21 +33346,21 @@ var resolver60 = {
         console.error("Error alimentando BD desde Google (Caso C):", err);
       }
     }
-    const result3 = places.slice(0, limit).map((place) => ({
+    const result4 = places.slice(0, limit).map((place) => ({
       ...place,
       pet_place_reviews: place.pet_place_reviews ?? []
     }));
     return {
       success: true,
-      message: result3.length > 0 ? "PetPlaces found" : "No PetPlaces found",
-      petPlaces: result3
+      message: result4.length > 0 ? "PetPlaces found" : "No PetPlaces found",
+      petPlaces: result4
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs64 = `
+var typeDefs65 = `
   type StripeCard {
     brand: String
     country: String
@@ -33032,10 +33394,10 @@ var typeDefs64 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition61 = `
+var definition62 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver61 = {
+var resolver62 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -33071,10 +33433,10 @@ var resolver61 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+var stripePaymentMethods_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs65 = `
+var typeDefs66 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -33112,7 +33474,7 @@ var typeDefs65 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition62 = `
+var definition63 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -33132,7 +33494,7 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver62 = {
+var resolver63 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return fail9("Solo operaciones puede verificar planes con Stripe.");
@@ -33233,7 +33595,7 @@ var resolver62 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var stripePlanCheck_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -33371,7 +33733,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs66 = `
+var typeDefs67 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -33399,10 +33761,10 @@ var typeDefs66 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition63 = `
+var definition64 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver63 = {
+var resolver64 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -33520,11 +33882,11 @@ var resolver63 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var subscriptionStatus_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs67 = `
+var typeDefs68 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -33536,10 +33898,10 @@ var typeDefs67 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition64 = `
+var definition65 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver64 = {
+var resolver65 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -33572,10 +33934,10 @@ var resolver64 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs68 = `
+var typeDefs69 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -33587,10 +33949,10 @@ var typeDefs68 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition65 = `
+var definition66 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver65 = {
+var resolver66 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -33612,11 +33974,11 @@ var resolver65 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs69 = `
+var typeDefs70 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -33645,14 +34007,14 @@ var typeDefs69 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition66 = `
+var definition67 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver66 = {
+var resolver67 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -33708,11 +34070,11 @@ var resolver66 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+var whatsappConversations_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs70 = `
+var typeDefs71 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -33724,10 +34086,10 @@ var typeDefs70 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition67 = `
+var definition68 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver67 = {
+var resolver68 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -33768,10 +34130,10 @@ var resolver67 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs71 = `
+var typeDefs72 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -33789,10 +34151,10 @@ var typeDefs71 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition68 = `
+var definition69 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver68 = {
+var resolver69 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -33818,10 +34180,10 @@ var resolver68 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs72 = `
+var typeDefs73 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -33847,13 +34209,13 @@ var typeDefs72 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition69 = `
+var definition70 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
 function fail10(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver69 = {
+var resolver70 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -33910,11 +34272,11 @@ var resolver69 = {
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs73 = `
+var typeDefs74 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -33942,10 +34304,10 @@ var typeDefs73 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition70 = `
+var definition71 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver70 = {
+var resolver71 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
@@ -33997,7 +34359,7 @@ var resolver70 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
 
 // utils/analytics/health.ts
 var HEALTH_WINDOW_DAYS = 28;
@@ -34256,7 +34618,7 @@ async function loadCompanyHealth(prisma, companyIds) {
       const t = totals.get(company.id);
       const seenAt = lastSeen.get(company.id) ?? null;
       const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS4)) : HEALTH_WINDOW_DAYS;
-      const result3 = scoreHealth({
+      const result4 = scoreHealth({
         ageDays,
         teamSize: teamSize.get(company.id) ?? 0,
         activeUsers: activeUsers.get(company.id) ?? 0,
@@ -34277,7 +34639,7 @@ async function loadCompanyHealth(prisma, companyIds) {
         daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS4) : null
       });
       byCompany.set(company.id, {
-        ...result3,
+        ...result4,
         companyId: company.id,
         teamSize: teamSize.get(company.id) ?? 0,
         activeUsers: activeUsers.get(company.id) ?? 0,
@@ -34297,7 +34659,7 @@ var LIVE_STATUSES = [
   SUBSCRIPTION_STATUS.UNPAID
 ];
 var SORTS = ["risk", "best", "drop", "name"];
-var typeDefs74 = `
+var typeDefs75 = `
   input AdminHealthInput {
     search: String
     """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
@@ -34379,7 +34741,7 @@ var typeDefs74 = `
     adminHealth(input: AdminHealthInput): AdminHealthResult!
   }
 `;
-var definition71 = `
+var definition72 = `
   adminHealth(input: AdminHealthInput): AdminHealthResult!
 `;
 function healthBrief(health) {
@@ -34398,7 +34760,7 @@ function matchesStatus(status, filter) {
   if (filter === "none") return !status;
   return status === filter;
 }
-var resolver71 = {
+var resolver72 = {
   adminHealth: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -34499,12 +34861,12 @@ var resolver71 = {
     };
   }
 };
-var adminHealth_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+var adminHealth_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
 var SORTS2 = ["recent", "name", "activity", "health"];
-var typeDefs75 = `
+var typeDefs76 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
@@ -34559,7 +34921,7 @@ var typeDefs75 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition72 = `
+var definition73 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
 function pickOwner(users) {
@@ -34568,7 +34930,7 @@ function pickOwner(users) {
   );
   return admin ?? users[0] ?? null;
 }
-var resolver72 = {
+var resolver73 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -34705,14 +35067,14 @@ var resolver72 = {
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
+var adminCompanies_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
 var APP_ERRORS_THRESHOLD = 3;
-var typeDefs76 = `
+var typeDefs77 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -34755,7 +35117,7 @@ var typeDefs76 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition73 = `
+var definition74 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -34766,7 +35128,7 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver73 = {
+var resolver74 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -35073,14 +35435,14 @@ var resolver73 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+var adminOpsSummary_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs77 = `
+var typeDefs78 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -35187,7 +35549,7 @@ var typeDefs77 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition74 = `
+var definition75 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows2, key) {
@@ -35325,7 +35687,7 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver74 = {
+var resolver75 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -35656,10 +36018,10 @@ var resolver74 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
+var adminCompanyInsights_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
 
 // graphql/customs/queries/admin/adminCompanyTrends.ts
-var typeDefs78 = `
+var typeDefs79 = `
   type AdminUsageWeek {
     """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
     weekStart: String!
@@ -35700,7 +36062,7 @@ var typeDefs78 = `
     adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   }
 `;
-var definition75 = `
+var definition76 = `
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
 `;
 var WEEK_FIELDS = [
@@ -35732,7 +36094,7 @@ function median(values) {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
-var resolver75 = {
+var resolver76 = {
   adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -35812,7 +36174,7 @@ var resolver75 = {
     }, EMPTY2);
   }
 };
-var adminCompanyTrends_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
+var adminCompanyTrends_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -35830,7 +36192,7 @@ var FEED_TYPES = [
   "errors"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs79 = `
+var typeDefs80 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -35868,7 +36230,7 @@ var typeDefs79 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition76 = `
+var definition77 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -36707,7 +37069,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver76 = {
+var resolver77 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -36743,7 +37105,7 @@ var resolver76 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
+var adminActivityFeed_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
 
 // graphql/customs/queries/admin/milestones.ts
 function earliest(map, companyId, at) {
@@ -36756,8 +37118,8 @@ function groupMin(rows2, field) {
   return rows2.map((row) => ({ companyId: row.companyId, at: row._min[field] ?? null }));
 }
 async function loadCompanyMilestones(prisma, companyIds) {
-  const result3 = /* @__PURE__ */ new Map();
-  if (!companyIds.length) return result3;
+  const result4 = /* @__PURE__ */ new Map();
+  if (!companyIds.length) return result4;
   const ids = { in: companyIds };
   const [profiles, extractions, quotations, whatsapp, statusChanges, activities, payments, paidPlans] = await Promise.all([
     prisma.saasCompany.findMany({
@@ -36819,8 +37181,8 @@ async function loadCompanyMilestones(prisma, companyIds) {
       _min: { activatedAt: true, createdAt: true }
     })
   ]);
-  for (const result4 of [profiles, extractions, quotations, whatsapp, activities, payments, paidPlans]) {
-    unwrapPrisma(result4);
+  for (const result5 of [profiles, extractions, quotations, whatsapp, activities, payments, paidPlans]) {
+    unwrapPrisma(result5);
   }
   const firstExtraction = /* @__PURE__ */ new Map();
   for (const row of groupMin(extractions, "createdAt")) earliest(firstExtraction, row.companyId, row.at);
@@ -36837,7 +37199,7 @@ async function loadCompanyMilestones(prisma, companyIds) {
   }
   const profileDone = new Set(profiles.map((row) => row.id));
   for (const companyId of companyIds) {
-    result3.set(companyId, {
+    result4.set(companyId, {
       profileDone: profileDone.has(companyId),
       firstExtractionAt: firstExtraction.get(companyId) ?? null,
       firstContactAt: firstContact.get(companyId) ?? null,
@@ -36845,11 +37207,11 @@ async function loadCompanyMilestones(prisma, companyIds) {
       paidAt: paid.get(companyId) ?? null
     });
   }
-  return result3;
+  return result4;
 }
 
 // graphql/customs/queries/admin/adminActivationFunnel.ts
-var typeDefs80 = `
+var typeDefs81 = `
   input AdminActivationInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -36888,7 +37250,7 @@ var typeDefs80 = `
     adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
   }
 `;
-var definition77 = `
+var definition78 = `
   adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
 `;
 var STEPS = [
@@ -36906,7 +37268,7 @@ function median2(values) {
   return Math.round(value * 10) / 10;
 }
 var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
-var resolver77 = {
+var resolver78 = {
   adminActivationFunnel: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -36978,10 +37340,10 @@ var resolver77 = {
     };
   }
 };
-var adminActivationFunnel_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
+var adminActivationFunnel_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
 
 // graphql/customs/queries/admin/adminCohorts.ts
-var typeDefs81 = `
+var typeDefs82 = `
   input AdminCohortsInput {
     """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
     months: Int
@@ -37003,7 +37365,7 @@ var typeDefs81 = `
     adminCohorts(input: AdminCohortsInput): AdminCohorts!
   }
 `;
-var definition78 = `
+var definition79 = `
   adminCohorts(input: AdminCohortsInput): AdminCohorts!
 `;
 function shiftMonth(month, offset) {
@@ -37016,7 +37378,7 @@ function monthsBetween(from, to) {
   const [ty, tm] = to.split("-").map(Number);
   return (ty - fy) * 12 + (tm - fm);
 }
-var resolver78 = {
+var resolver79 = {
   adminCohorts: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -37086,7 +37448,7 @@ var resolver78 = {
     return { rows: rows2 };
   }
 };
-var adminCohorts_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
+var adminCohorts_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
 
 // graphql/customs/queries/admin/adminEngagement.ts
 var MAU_DAYS = 30;
@@ -37099,7 +37461,7 @@ var MODULES = [
   { key: "whatsapp", field: "whatsappSent" },
   { key: "ai", field: "aiCalls" }
 ];
-var typeDefs82 = `
+var typeDefs83 = `
   input AdminEngagementInput {
     """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
     days: Int
@@ -37153,11 +37515,11 @@ var typeDefs82 = `
     adminEngagement(input: AdminEngagementInput): AdminEngagement!
   }
 `;
-var definition79 = `
+var definition80 = `
   adminEngagement(input: AdminEngagementInput): AdminEngagement!
 `;
 var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
-var resolver79 = {
+var resolver80 = {
   adminEngagement: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -37288,12 +37650,12 @@ var resolver79 = {
     };
   }
 };
-var adminEngagement_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
+var adminEngagement_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
 
 // graphql/customs/queries/admin/adminDemandGaps.ts
 var ZONE_STEP = 0.1;
 var LIST_LIMIT = 25;
-var typeDefs83 = `
+var typeDefs84 = `
   input AdminDemandGapsInput {
     """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -37348,7 +37710,7 @@ var typeDefs83 = `
     adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   }
 `;
-var definition80 = `
+var definition81 = `
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
 `;
 function emptyBucket() {
@@ -37365,7 +37727,7 @@ var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
 var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
 var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
 var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
-var resolver80 = {
+var resolver81 = {
   adminDemandGaps: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -37392,24 +37754,24 @@ var resolver80 = {
     const zones = /* @__PURE__ */ new Map();
     const gaps = /* @__PURE__ */ new Map();
     let lowRuns = 0;
-    for (const run2 of runs) {
-      const results = (run2.created ?? 0) + (run2.alreadyInDb ?? 0);
+    for (const run3 of runs) {
+      const results = (run3.created ?? 0) + (run3.alreadyInDb ?? 0);
       const low = results <= threshold;
       if (low) lowRuns += 1;
-      const category = run2.category?.trim() || "Sin giro";
-      const at = run2.createdAt ? new Date(run2.createdAt) : null;
+      const category = run3.category?.trim() || "Sin giro";
+      const at = run3.createdAt ? new Date(run3.createdAt) : null;
       const categoryBucket = categories.get(category) ?? emptyBucket();
-      addRun(categoryBucket, results, low, run2.companyId, at);
+      addRun(categoryBucket, results, low, run3.companyId, at);
       categories.set(category, categoryBucket);
-      if (run2.lat == null || run2.lng == null) continue;
-      const zone = zoneKey(run2.lat, run2.lng);
+      if (run3.lat == null || run3.lng == null) continue;
+      const zone = zoneKey(run3.lat, run3.lng);
       const zoneBucket = zones.get(zone) ?? { ...emptyBucket(), lowCategories: /* @__PURE__ */ new Map() };
-      addRun(zoneBucket, results, low, run2.companyId, at);
+      addRun(zoneBucket, results, low, run3.companyId, at);
       if (low) zoneBucket.lowCategories?.set(category, (zoneBucket.lowCategories.get(category) ?? 0) + 1);
       zones.set(zone, zoneBucket);
       const gapKey = `${category}|${zone}`;
       const gapBucket = gaps.get(gapKey) ?? { ...emptyBucket(), category, zone };
-      addRun(gapBucket, results, low, run2.companyId, at);
+      addRun(gapBucket, results, low, run3.companyId, at);
       gaps.set(gapKey, gapBucket);
     }
     const coords = (zone) => {
@@ -37449,12 +37811,12 @@ var resolver80 = {
     };
   }
 };
-var adminDemandGaps_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
+var adminDemandGaps_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
 
 // graphql/customs/queries/admin/adminAcquisition.ts
 var LIST_LIMIT2 = 10;
 var REFERRAL = "Referido";
-var typeDefs84 = `
+var typeDefs85 = `
   input AdminAcquisitionInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -37485,7 +37847,7 @@ var typeDefs84 = `
     adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   }
 `;
-var definition81 = `
+var definition82 = `
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
 `;
 function bump2(map, key, activated, paid) {
@@ -37499,7 +37861,7 @@ var sortRows = (map, limit) => {
   const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
   return limit ? rows2.slice(0, limit) : rows2;
 };
-var resolver81 = {
+var resolver82 = {
   adminAcquisition: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -37546,7 +37908,7 @@ var resolver81 = {
     };
   }
 };
-var adminAcquisition_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
+var adminAcquisition_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
 
 // utils/analytics/salesVelocity.ts
 var DAY_MS5 = 24 * 60 * 60 * 1e3;
@@ -37605,8 +37967,8 @@ function finish(group) {
 }
 async function rows(read, fallback) {
   try {
-    const result3 = await read();
-    return result3 instanceof Error ? fallback : result3;
+    const result4 = await read();
+    return result4 instanceof Error ? fallback : result4;
   } catch {
     return fallback;
   }
@@ -37874,7 +38236,7 @@ async function computeSalesVelocity(prisma, options) {
 
 // graphql/customs/queries/admin/adminSalesVelocity.ts
 var COMPANY_LIMIT = 25;
-var typeDefs85 = `
+var typeDefs86 = `
   input AdminSalesVelocityInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -37946,10 +38308,10 @@ var typeDefs85 = `
     adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   }
 `;
-var definition82 = `
+var definition83 = `
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
 `;
-var resolver82 = {
+var resolver83 = {
   adminSalesVelocity: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -37973,10 +38335,10 @@ var resolver82 = {
     return { ...totals, dataSince: toIso(dataSince), companies };
   }
 };
-var adminSalesVelocity_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
+var adminSalesVelocity_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
 
 // graphql/customs/queries/admin/adminAnimals.ts
-var typeDefs86 = `
+var typeDefs87 = `
   type AdminAnimalRow {
     id: ID!
     name: String!
@@ -38059,7 +38421,7 @@ var typeDefs86 = `
     facebookPublishedBy: AdminPersonRef
   }
 `;
-var definition83 = `
+var definition84 = `
   adminAnimals(
     search: String
     animalTypeId: ID
@@ -38166,7 +38528,7 @@ function toRow(raw, counts) {
     facebookPublishedAt: toIso(raw.facebookPublishedAt)
   };
 }
-var resolver83 = {
+var resolver84 = {
   adminAnimals: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
@@ -38268,10 +38630,10 @@ var resolver83 = {
     };
   }
 };
-var adminAnimals_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
+var adminAnimals_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
 
 // graphql/customs/queries/admin/adminPet.ts
-var typeDefs87 = `
+var typeDefs88 = `
   type AdminPetTopAnimal {
     id: ID!
     name: String!
@@ -38369,7 +38731,7 @@ var typeDefs87 = `
     points: [AdminPetSeriesPoint!]!
   }
 `;
-var definition84 = `
+var definition85 = `
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
 `;
@@ -38678,7 +39040,7 @@ async function topViewedAnimals(context, prisma, since) {
     ];
   });
 }
-var resolver84 = {
+var resolver85 = {
   adminPetSummary: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -38849,12 +39211,373 @@ var resolver84 = {
     return { metric, granularity, breakdown, from, to: lastBucket, total, points };
   }
 };
-var adminPet_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+var adminPet_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+
+// graphql/customs/queries/admin/adminNotifications.ts
+var typeDefs89 = `
+  type AdminNotificationRow {
+    id: ID!
+    createdAt: String
+    product: String
+    type: String!
+    title: String!
+    body: String
+    url: String
+    entityType: String
+    entityId: String
+    readAt: String
+    recipient: AdminPersonRef
+    recipientPhone: String
+    pushStatus: String
+    pushDevices: Int
+    whatsappStatus: String
+    whatsappDetail: String
+    whatsappUpdatedAt: String
+  }
+
+  type AdminNotificationSummary {
+    total: Int!
+    read: Int!
+    pushSent: Int!
+    pushFailed: Int!
+    pushNoDevices: Int!
+    whatsappDelivered: Int!
+    whatsappPending: Int!
+    whatsappFailed: Int!
+    whatsappSkipped: Int!
+  }
+
+  type AdminNotificationLog {
+    items: [AdminNotificationRow!]!
+    total: Int!
+    summary: AdminNotificationSummary!
+    types: [AdminCount!]!
+  }
+
+  type AdminZoneAlertRow {
+    id: ID!
+    name: String!
+    lastName: String
+    email: String
+    phone: String
+    enabled: Boolean!
+    lat: Float
+    lng: Float
+    radiusKm: Int
+    """on, off (no lo activ\xF3), no_phone (sin tel\xE9fono) o muted (silenci\xF3 las alertas de zona)."""
+    whatsapp: String!
+    pushDevices: Int!
+    alerts30d: Int!
+    lastAlertAt: String
+  }
+
+  type AdminZoneAlertSummary {
+    active: Int!
+    inactive: Int!
+    withPush: Int!
+    withWhatsapp: Int!
+    alerts7d: Int!
+  }
+
+  type AdminZoneAlerts {
+    items: [AdminZoneAlertRow!]!
+    total: Int!
+    summary: AdminZoneAlertSummary!
+  }
+
+  type AdminZonePreviewRow {
+    id: ID!
+    name: String!
+    lastName: String
+    email: String
+    distanceKm: Float!
+    radiusKm: Int
+    alertsToday: Int!
+    """Lleg\xF3 al tope del d\xEDa: hoy ya no recibir\xEDa la alerta."""
+    capped: Boolean!
+    pushDevices: Int!
+    whatsapp: String!
+  }
+
+  type AdminZonePreview {
+    items: [AdminZonePreviewRow!]!
+    total: Int!
+    wouldReceive: Int!
+    capped: Int!
+    maxPerDay: Int!
+  }
+`;
+var definition86 = `
+  adminNotificationLog(
+    product: String
+    type: String
+    channel: String
+    result: String
+    search: String
+    entityId: String
+    days: Int
+    take: Int
+    skip: Int
+  ): AdminNotificationLog!
+  adminZoneAlerts(search: String, status: String, take: Int, skip: Int): AdminZoneAlerts!
+  adminZoneAlertPreview(lat: Float!, lng: Float!): AdminZonePreview!
+`;
+var PUSH_OK = [PUSH_DELIVERY.SENT, PUSH_DELIVERY.PARTIAL];
+var WHATSAPP_OK = [WHATSAPP_DELIVERY.SENT, WHATSAPP_DELIVERY.DELIVERED, WHATSAPP_DELIVERY.READ];
+function channelWhere(channel, result4) {
+  const push = {
+    delivered: { pushStatus: { in: PUSH_OK } },
+    failed: { pushStatus: PUSH_DELIVERY.FAILED },
+    skipped: { pushStatus: PUSH_DELIVERY.NO_DEVICES },
+    all: { pushStatus: { not: null } }
+  };
+  const whatsapp = {
+    delivered: { whatsappStatus: { in: [WHATSAPP_DELIVERY.ACCEPTED, ...WHATSAPP_OK] } },
+    failed: { whatsappStatus: WHATSAPP_DELIVERY.FAILED },
+    skipped: { whatsappStatus: WHATSAPP_DELIVERY.SKIPPED },
+    all: { whatsappStatus: { not: null } }
+  };
+  const key = result4 in push ? result4 : "all";
+  if (channel === "push") return push[key];
+  if (channel === "whatsapp") return whatsapp[key];
+  if (key === "all") return {};
+  return { OR: [push[key], whatsapp[key]] };
+}
+function personSearch2(search) {
+  const q = search?.trim();
+  if (!q) return null;
+  return {
+    OR: [
+      { name: insensitive(q) },
+      { lastName: insensitive(q) },
+      { email: insensitive(q) },
+      { phone: { contains: q.replace(/\D/g, "") || q } }
+    ]
+  };
+}
+function whatsappState(user) {
+  if (!user.whatsappNotifications) return "off";
+  if (!user.phone?.trim()) return "no_phone";
+  if (!wantsWhatsappType(user.whatsappMutedTypes, NOTIFICATION_TYPE.ANIMAL_NEARBY)) return "muted";
+  return "on";
+}
+async function pushDevicesByUser(prisma, userIds) {
+  if (!userIds.length) return /* @__PURE__ */ new Map();
+  const rows2 = await prisma.tokenNotification.groupBy({
+    by: ["userId"],
+    where: { userId: { in: userIds } },
+    _count: { _all: true }
+  });
+  if (rows2 instanceof Error) throw rows2;
+  return new Map(rows2.map((row) => [row.userId, row._count._all]));
+}
+function countBy(rows2, key) {
+  if (rows2 instanceof Error) throw rows2;
+  return new Map(rows2.map((row) => [row[key] ?? null, row._count._all]));
+}
+var ZONE_SET = { alertLat: { not: null }, alertLng: { not: null } };
+var ACTIVE = { petAlertsEnabled: true, ...ZONE_SET };
+var USER_SELECT = {
+  id: true,
+  name: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  petAlertsEnabled: true,
+  alertLat: true,
+  alertLng: true,
+  alertRadiusKm: true,
+  whatsappNotifications: true,
+  whatsappMutedTypes: true
+};
+var resolver86 = {
+  adminNotificationLog: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const days = clampInt(args.days, 1, 365, 7);
+    const take = clampInt(args.take, 1, 100, 25);
+    const skip = clampInt(args.skip, 0, 1e6, 0);
+    const recipient = personSearch2(args.search);
+    const base = {
+      createdAt: { gte: daysAgo(days) },
+      ...args.product?.trim() ? { product: args.product.trim() } : {},
+      ...args.entityId?.trim() ? { entityId: args.entityId.trim() } : {},
+      ...recipient ? { recipient } : {}
+    };
+    const withType = { ...base, ...args.type?.trim() ? { type: args.type.trim() } : {} };
+    const where = { AND: [withType, channelWhere(args.channel?.trim() || "", args.result?.trim() || "")] };
+    const [total, rows2, read, byPush, byWhatsapp, byType] = await Promise.all([
+      prisma.notification.count({ where }),
+      prisma.notification.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }],
+        take,
+        skip,
+        include: { recipient: { select: { id: true, name: true, lastName: true, email: true, phone: true } } }
+      }),
+      prisma.notification.count({ where: { ...withType, readAt: { not: null } } }),
+      prisma.notification.groupBy({ by: ["pushStatus"], where: withType, _count: { _all: true } }),
+      prisma.notification.groupBy({ by: ["whatsappStatus"], where: withType, _count: { _all: true } }),
+      prisma.notification.groupBy({ by: ["type"], where: base, _count: { _all: true } })
+    ]);
+    for (const value of [total, rows2, read]) if (value instanceof Error) throw value;
+    const push = countBy(byPush, "pushStatus");
+    const whatsapp = countBy(byWhatsapp, "whatsappStatus");
+    const sum = (map, keys) => keys.reduce((acc, key) => acc + (map.get(key) ?? 0), 0);
+    const types = countBy(byType, "type");
+    return {
+      total,
+      items: rows2.map((row) => ({
+        id: row.id,
+        createdAt: toIso(row.createdAt),
+        product: row.product,
+        type: row.type,
+        title: row.title,
+        body: row.body || null,
+        url: row.url || null,
+        entityType: row.entityType || null,
+        entityId: row.entityId || null,
+        readAt: toIso(row.readAt),
+        recipient: personRef(row.recipient),
+        recipientPhone: row.recipient?.phone || null,
+        pushStatus: row.pushStatus ?? null,
+        pushDevices: row.pushDevices ?? null,
+        whatsappStatus: row.whatsappStatus ?? null,
+        whatsappDetail: row.whatsappDetail || null,
+        whatsappUpdatedAt: toIso(row.whatsappUpdatedAt)
+      })),
+      summary: {
+        total: [...push.values()].reduce((acc, count2) => acc + count2, 0),
+        read,
+        pushSent: sum(push, PUSH_OK),
+        pushFailed: sum(push, [PUSH_DELIVERY.FAILED]),
+        pushNoDevices: sum(push, [PUSH_DELIVERY.NO_DEVICES]),
+        whatsappDelivered: sum(whatsapp, WHATSAPP_OK),
+        whatsappPending: sum(whatsapp, [WHATSAPP_DELIVERY.ACCEPTED]),
+        whatsappFailed: sum(whatsapp, [WHATSAPP_DELIVERY.FAILED]),
+        whatsappSkipped: sum(whatsapp, [WHATSAPP_DELIVERY.SKIPPED])
+      },
+      types: [...types.entries()].filter(([key]) => key).map(([key, count2]) => ({ key, count: count2 })).sort((a, b) => b.count - a.count)
+    };
+  },
+  adminZoneAlerts: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const take = clampInt(args.take, 1, 100, 25);
+    const skip = clampInt(args.skip, 0, 1e6, 0);
+    const search = personSearch2(args.search);
+    const everyone = { OR: [{ petAlertsEnabled: true }, ZONE_SET] };
+    const status = args.status?.trim() || "all";
+    const statusWhere = status === "active" ? ACTIVE : status === "inactive" ? { NOT: ACTIVE } : {};
+    const where = { AND: [everyone, statusWhere, ...search ? [search] : []] };
+    const [total, users, active, inactive, activeUsers, alerts7d] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({ where, orderBy: [{ createdAt: "desc" }], take, skip, select: USER_SELECT }),
+      prisma.user.count({ where: ACTIVE }),
+      prisma.user.count({ where: { AND: [everyone, { NOT: ACTIVE }] } }),
+      prisma.user.findMany({
+        where: ACTIVE,
+        select: { id: true, phone: true, whatsappNotifications: true, whatsappMutedTypes: true }
+      }),
+      prisma.notification.count({
+        where: { type: NOTIFICATION_TYPE.ANIMAL_NEARBY, createdAt: { gte: daysAgo(7) } }
+      })
+    ]);
+    for (const value of [total, users, active, inactive, activeUsers, alerts7d]) if (value instanceof Error) throw value;
+    const pageIds = users.map((user) => user.id);
+    const activeIds = activeUsers.map((user) => user.id);
+    const [pagePush, activePush, received] = await Promise.all([
+      pushDevicesByUser(prisma, pageIds),
+      pushDevicesByUser(prisma, activeIds),
+      pageIds.length ? prisma.notification.groupBy({
+        by: ["recipientId"],
+        where: {
+          recipientId: { in: pageIds },
+          type: NOTIFICATION_TYPE.ANIMAL_NEARBY,
+          createdAt: { gte: daysAgo(30) }
+        },
+        _count: { _all: true },
+        _max: { createdAt: true }
+      }) : []
+    ]);
+    if (received instanceof Error) throw received;
+    const receivedBy = new Map(
+      received.map(
+        (row) => [row.recipientId, row]
+      )
+    );
+    return {
+      total,
+      items: users.map((user) => ({
+        id: user.id,
+        name: user.name ?? "",
+        lastName: user.lastName ?? null,
+        email: user.email ?? null,
+        phone: user.phone || null,
+        enabled: Boolean(user.petAlertsEnabled && user.alertLat != null && user.alertLng != null),
+        lat: user.alertLat ?? null,
+        lng: user.alertLng ?? null,
+        radiusKm: user.alertRadiusKm ?? null,
+        whatsapp: whatsappState(user),
+        pushDevices: pagePush.get(user.id) ?? 0,
+        alerts30d: receivedBy.get(user.id)?._count._all ?? 0,
+        lastAlertAt: toIso(receivedBy.get(user.id)?._max.createdAt ?? null)
+      })),
+      summary: {
+        active,
+        inactive,
+        withPush: activeIds.filter((id) => (activePush.get(id) ?? 0) > 0).length,
+        withWhatsapp: activeUsers.filter((user) => whatsappState(user) === "on").length,
+        alerts7d
+      }
+    };
+  },
+  adminZoneAlertPreview: async (_root, { lat, lng }, context) => {
+    assertPlatformAdmin(context);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      throw new Error("Ese punto no es v\xE1lido. Usa latitud y longitud, por ejemplo 19.7027, -101.1923.");
+    }
+    const prisma = adminPrisma(context);
+    const candidates = await findZoneAlertCandidates(prisma, { lat, lng });
+    const shown = candidates.slice(0, 200);
+    const ids = shown.map((row) => row.id);
+    const [users, push] = await Promise.all([
+      ids.length ? prisma.user.findMany({ where: { id: { in: ids } }, select: USER_SELECT }) : [],
+      pushDevicesByUser(prisma, ids)
+    ]);
+    if (users instanceof Error) throw users;
+    const userBy = new Map(users.map((user) => [user.id, user]));
+    const capped = candidates.filter((row) => row.alertsToday >= MAX_NEARBY_ALERTS_PER_DAY).length;
+    return {
+      total: candidates.length,
+      wouldReceive: candidates.length - capped,
+      capped,
+      maxPerDay: MAX_NEARBY_ALERTS_PER_DAY,
+      items: shown.map((row) => {
+        const user = userBy.get(row.id) ?? {};
+        return {
+          id: row.id,
+          name: user.name ?? "",
+          lastName: user.lastName ?? null,
+          email: user.email ?? null,
+          distanceKm: Math.round(row.distanceKm * 10) / 10,
+          radiusKm: user.alertRadiusKm ?? null,
+          alertsToday: row.alertsToday,
+          capped: row.alertsToday >= MAX_NEARBY_ALERTS_PER_DAY,
+          pushDevices: push.get(row.id) ?? 0,
+          whatsapp: whatsappState(user)
+        };
+      })
+    };
+  }
+};
+var adminNotifications = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var adminNotifications_default = adminNotifications;
 
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql8 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs88 = `
+var typeDefs90 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -38930,13 +39653,13 @@ var typeDefs88 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition85 = `
+var definition87 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
 var fail11 = (message, code) => new import_graphql8.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver85 = {
+var resolver87 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -38990,11 +39713,11 @@ var resolver85 = {
     ]);
     const personById = new Map(people.map((p) => [p.id, p]));
     const leadName2 = new Map(leads.map((l) => [l.id, l.businessName]));
-    const countBy = (groups, field) => new Map(
+    const countBy2 = (groups, field) => new Map(
       (Array.isArray(groups) ? groups : []).map((row) => [row[field] ?? "", row._count._all])
     );
-    const activitiesBy = countBy(activityGroups, "createdById");
-    const whatsappBy = countBy(whatsappGroups, "sentById");
+    const activitiesBy = countBy2(activityGroups, "createdById");
+    const whatsappBy = countBy2(whatsappGroups, "sentById");
     const sellers = seesTeam ? [...velocity.bySeller.entries()].map(([id, stats]) => ({
       userId: id || null,
       name: id ? fullName4(personById.get(id)) : "Sin vendedor",
@@ -39019,12 +39742,12 @@ var resolver85 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+var companyAnalytics_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache = null;
-var typeDefs89 = `
+var typeDefs91 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -39034,7 +39757,7 @@ var typeDefs89 = `
     updatedAt: String!
   }
 `;
-var definition86 = `landingStats: LandingStats!`;
+var definition88 = `landingStats: LandingStats!`;
 function unwrap2(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -39060,7 +39783,7 @@ async function computeLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver86 = {
+var resolver88 = {
   landingStats: async (_root, _args, context) => {
     if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
     const value = await computeLandingStats(context);
@@ -39068,13 +39791,13 @@ var resolver86 = {
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var landingStats_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES = ["in_family", "adopted"];
 var cache2 = null;
-var typeDefs90 = `
+var typeDefs92 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
@@ -39086,7 +39809,7 @@ var typeDefs90 = `
     updatedAt: String!
   }
 `;
-var definition87 = `petLandingStats: PetLandingStats!`;
+var definition89 = `petLandingStats: PetLandingStats!`;
 function unwrap3(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -39138,7 +39861,7 @@ async function computePetLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver87 = {
+var resolver89 = {
   petLandingStats: async (_root, _args, context) => {
     if (cache2 && Date.now() - cache2.at < CACHE_MS2) return cache2.value;
     const value = await computePetLandingStats(context);
@@ -39146,7 +39869,7 @@ var resolver87 = {
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
+var petLandingStats_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -39179,6 +39902,7 @@ var customQuery = {
     ${adminSalesVelocity_default.typeDefs}
     ${adminAnimals_default.typeDefs}
     ${adminPet_default.typeDefs}
+    ${adminNotifications_default.typeDefs}
     ${companyAnalytics_default.typeDefs}
     ${landingStats_default.typeDefs}
     ${petLandingStats_default.typeDefs}
@@ -39214,6 +39938,7 @@ var customQuery = {
     ${adminSalesVelocity_default.definition}
     ${adminAnimals_default.definition}
     ${adminPet_default.definition}
+    ${adminNotifications_default.definition}
     ${companyAnalytics_default.definition}
     ${landingStats_default.definition}
     ${petLandingStats_default.definition}
@@ -39249,6 +39974,7 @@ var customQuery = {
     ...adminSalesVelocity_default.resolver,
     ...adminAnimals_default.resolver,
     ...adminPet_default.resolver,
+    ...adminNotifications_default.resolver,
     ...companyAnalytics_default.resolver,
     ...landingStats_default.resolver,
     ...petLandingStats_default.resolver
@@ -39258,14 +39984,14 @@ var queries_default = customQuery;
 
 // graphql/customs/mutations/auth/passwordLoginAudit.ts
 var FIELD = "authenticateUserWithPassword";
-function resultUserId(result3) {
-  if (!result3 || typeof result3 !== "object") return null;
-  const item = result3.item;
+function resultUserId(result4) {
+  if (!result4 || typeof result4 !== "object") return null;
+  const item = result4.item;
   return typeof item?.id === "string" ? item.id : null;
 }
-function isSuccess(result3) {
+function isSuccess(result4) {
   return Boolean(
-    result3 && typeof result3 === "object" && typeof result3.sessionToken === "string"
+    result4 && typeof result4 === "object" && typeof result4.sessionToken === "string"
   );
 }
 async function findUserIdByEmail(context, email) {
@@ -39296,9 +40022,9 @@ function passwordLoginAuditResolvers(baseSchema) {
   const wrapped = async (root, args, context, info) => {
     const startedAt = Date.now();
     const email = typeof args?.email === "string" ? args.email.trim() : "";
-    let result3;
+    let result4;
     try {
-      result3 = await original(root, args, context, info);
+      result4 = await original(root, args, context, info);
     } catch (error) {
       await writeUserAuthLog(context, {
         startedAt,
@@ -39312,8 +40038,8 @@ function passwordLoginAuditResolvers(baseSchema) {
       });
       throw error;
     }
-    const success = isSuccess(result3);
-    const userId = success ? resultUserId(result3) : await findUserIdByEmail(context, email);
+    const success = isSuccess(result4);
+    const userId = success ? resultUserId(result4) : await findUserIdByEmail(context, email);
     const blocked = success && userId ? await loginBlockedReason(context, userId) : null;
     if (blocked) {
       await writeUserAuthLog(context, {
@@ -39341,7 +40067,7 @@ function passwordLoginAuditResolvers(baseSchema) {
       userId,
       responseSnapshot: success ? { method: "password", userId } : { method: "password", reason: "auth_failure" }
     });
-    return result3;
+    return result4;
   };
   return { [FIELD]: wrapped };
 }
@@ -39529,26 +40255,26 @@ async function persistIncomingMessages(companyId, accessToken, messages, contact
       body = msg.text.body;
     } else if (msg.type === "image" && msg.image) {
       mediaType = "image";
-      const result3 = await persistIncomingMedia({
+      const result4 = await persistIncomingMedia({
         media: msg.image,
         mediaType: "image",
         accessToken,
         companyId
       });
-      mediaKey = result3.mediaKey;
-      mediaFileName = result3.mediaFileName;
-      body = result3.body;
+      mediaKey = result4.mediaKey;
+      mediaFileName = result4.mediaFileName;
+      body = result4.body;
     } else if (msg.type === "document" && msg.document) {
       mediaType = "document";
-      const result3 = await persistIncomingMedia({
+      const result4 = await persistIncomingMedia({
         media: msg.document,
         mediaType: "document",
         accessToken,
         companyId
       });
-      mediaKey = result3.mediaKey;
-      mediaFileName = result3.mediaFileName;
-      body = result3.body;
+      mediaKey = result4.mediaKey;
+      mediaFileName = result4.mediaFileName;
+      body = result4.body;
     } else {
       body = msg.type ? `[${msg.type}, no soportado todav\xEDa]` : "";
     }
@@ -39621,6 +40347,7 @@ async function handleIncoming(req, res, context) {
       return;
     }
     logFailedStatuses(change.value?.statuses);
+    await recordWhatsappStatuses(context.sudo().prisma, change.value?.statuses);
     const messages = change.value?.messages ?? [];
     if (messages.length === 0) {
       console.log(
@@ -40567,7 +41294,7 @@ async function handleStatus(req, res, context) {
     completedAt: row.completedAt ?? null
   });
 }
-function run(handler, req, res, context) {
+function run2(handler, req, res, context) {
   void handler(req, res, context).catch((err) => {
     console.error("[meta data-deletion] error inesperado", err);
     if (!res.headersSent) res.sendStatus(500);
@@ -40578,11 +41305,11 @@ function registerMetaDataDeletionWebhook(app, context) {
     DATA_DELETION_PATH,
     import_express3.default.urlencoded({ extended: false }),
     (req, res) => {
-      run(handleDataDeletion, req, res, context);
+      run2(handleDataDeletion, req, res, context);
     }
   );
   app.get(STATUS_PATH, (req, res) => {
-    run(handleStatus, req, res, context);
+    run2(handleStatus, req, res, context);
   });
 }
 

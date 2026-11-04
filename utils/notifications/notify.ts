@@ -1,6 +1,7 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { Role } from "../../models/Role/constants";
 import type { NotificationType } from "../../models/Notification/constants";
+import type { NotificationIds } from "./delivery";
 import { sendPushToUsers } from "./push";
 import { sendNotificationWhatsappToOptedIn, type NotificationTemplateValues } from "./whatsapp";
 
@@ -45,7 +46,9 @@ export async function notify(context: KeystoneContext, input: NotifyInput): Prom
     }
     if (recipientIds.length === 0) return 0;
 
-    const result = await prisma.notification.createMany({
+    // `createManyAndReturn` (no `createMany`): con los ids, push y WhatsApp registran en cada fila
+    // a dónde se fue el aviso (Operaciones → Kadesh Pet → Avisos).
+    const created = await prisma.notification.createManyAndReturn({
       data: recipientIds.map((recipientId) => ({
         recipientId,
         product: input.product,
@@ -57,22 +60,39 @@ export async function notify(context: KeystoneContext, input: NotifyInput): Prom
         url: input.url ?? "",
         metadata: input.metadata ?? undefined,
       })),
+      select: { id: true, recipientId: true },
     });
     // Prisma de Keystone devuelve el error en vez de lanzarlo.
-    if (result instanceof Error) throw result;
+    if (created instanceof Error) throw created;
+    const notificationIds: NotificationIds = new Map(
+      (created as Array<{ id: string; recipientId: string | null }>)
+        .filter((row) => row.recipientId)
+        .map((row) => [row.recipientId as string, row.id]),
+    );
 
     if (input.product === "pet") {
-      void sendPushToUsers(context, recipientIds, {
-        title: input.title,
-        body: input.body,
-        url: input.url,
-        type: input.type,
-      });
+      void sendPushToUsers(
+        context,
+        recipientIds,
+        {
+          title: input.title,
+          body: input.body,
+          url: input.url,
+          type: input.type,
+        },
+        notificationIds,
+      );
     }
     // Sin await: el envío no frena la operación que dispara la notificación.
-    void sendNotificationWhatsappToOptedIn(prisma, recipientIds, input.type, input.templateValues ?? {});
+    void sendNotificationWhatsappToOptedIn(
+      prisma,
+      recipientIds,
+      input.type,
+      input.templateValues ?? {},
+      notificationIds,
+    );
 
-    return result?.count ?? recipientIds.length;
+    return (created as unknown[]).length;
   } catch (error) {
     console.error("[notify] No se pudo crear la notificación:", input.type, error);
     return 0;

@@ -42,3 +42,59 @@ export const NOTIFICATION_TYPE = {
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];
+
+/**
+ * Cómo le fue a cada canal de una notificación (la campana siempre se guarda). Lo escriben
+ * `push.ts`, `whatsapp.ts` y el webhook de WhatsApp; lo lee Operaciones → Kadesh Pet → Avisos.
+ * `null` = el canal no aplica (push solo en Pet; WhatsApp solo en tipos con plantilla).
+ */
+export const PUSH_DELIVERY = {
+  /** Expo aceptó el mensaje para todos sus dispositivos. */
+  SENT: "sent",
+  /** Para algunos dispositivos sí y para otros no. */
+  PARTIAL: "partial",
+  FAILED: "failed",
+  /** No tiene la app con notificaciones activas. */
+  NO_DEVICES: "no_devices",
+} as const;
+
+export const PUSH_DELIVERY_OPTIONS = [
+  { label: "Enviado", value: PUSH_DELIVERY.SENT },
+  { label: "Enviado a algunos dispositivos", value: PUSH_DELIVERY.PARTIAL },
+  { label: "Falló", value: PUSH_DELIVERY.FAILED },
+  { label: "Sin app", value: PUSH_DELIVERY.NO_DEVICES },
+];
+
+/** `accepted` → `sent` → `delivered` → `read` (los tres últimos los avisa Meta por webhook). */
+export const WHATSAPP_DELIVERY = {
+  /** No se mandó: ver `whatsappDetail` (WHATSAPP_SKIP_REASON). */
+  SKIPPED: "skipped",
+  /** Meta lo aceptó (tenemos `whatsappMessageId`). */
+  ACCEPTED: "accepted",
+  SENT: "sent",
+  DELIVERED: "delivered",
+  READ: "read",
+  /** Meta lo rechazó al mandarlo o avisó después que no lo entregó: ver `whatsappDetail`. */
+  FAILED: "failed",
+} as const;
+
+export type WhatsappDelivery = (typeof WHATSAPP_DELIVERY)[keyof typeof WHATSAPP_DELIVERY];
+
+export const WHATSAPP_DELIVERY_OPTIONS = [
+  { label: "No se mandó", value: WHATSAPP_DELIVERY.SKIPPED },
+  { label: "Aceptado por Meta", value: WHATSAPP_DELIVERY.ACCEPTED },
+  { label: "Enviado", value: WHATSAPP_DELIVERY.SENT },
+  { label: "Entregado", value: WHATSAPP_DELIVERY.DELIVERED },
+  { label: "Leído", value: WHATSAPP_DELIVERY.READ },
+  { label: "Falló", value: WHATSAPP_DELIVERY.FAILED },
+];
+
+/** Por qué no salió un WhatsApp (va en `whatsappDetail` con status `skipped`). */
+export const WHATSAPP_SKIP_REASON = {
+  NO_CONFIG: "sin_configuracion",
+  NO_OPT_IN: "sin_optin",
+  NO_PHONE: "sin_telefono",
+  INVALID_PHONE: "telefono_invalido",
+  MUTED: "silenciado",
+} as const;
+

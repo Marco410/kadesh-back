@@ -1,4 +1,11 @@
-import { NOTIFICATION_TYPE, type NotificationType } from "../../models/Notification/constants";
+import {
+  NOTIFICATION_TYPE,
+  WHATSAPP_DELIVERY,
+  WHATSAPP_SKIP_REASON,
+  type NotificationType,
+  type WhatsappDelivery,
+} from "../../models/Notification/constants";
+import { deliveryDetail, recordDelivery, recordDeliveryGroups, type NotificationIds } from "./delivery";
 import { sendWhatsAppTemplateMessage } from "../intregrations/whatsapp";
 import { normalizeMxPhone } from "../pet/phone";
 import { wantsWhatsappType } from "../../models/User/whatsappPrefs";
@@ -142,17 +149,67 @@ function toWhatsappNumber(raw: string | null | undefined): string | null {
   return digits.length >= 11 ? digits : null;
 }
 
+type Recipient = { id: string; phone?: string | null; whatsappNotifications?: boolean | null; whatsappMutedTypes?: unknown };
+
+/** Por qué no le toca WhatsApp a esta persona (null = sí se le manda). */
+function skipReason(user: Recipient, type: NotificationType): string | null {
+  if (!user.whatsappNotifications) return WHATSAPP_SKIP_REASON.NO_OPT_IN;
+  if (!user.phone?.trim()) return WHATSAPP_SKIP_REASON.NO_PHONE;
+  if (!wantsWhatsappType(user.whatsappMutedTypes, type)) return WHATSAPP_SKIP_REASON.MUTED;
+  return null;
+}
+
+/** Escribe en cada `Notification` el resultado de WhatsApp de su destinatario. */
+async function recordWhatsappOutcomes(
+  prisma: any,
+  outcomes: WhatsappOutcome[],
+  notificationIds?: NotificationIds,
+): Promise<void> {
+  if (!notificationIds?.size || !outcomes.length) return;
+  const now = new Date();
+  const groups = new Map<string, { ids: string[]; data: Record<string, unknown> }>();
+  const accepted: Array<{ id: string; messageId: string }> = [];
+  for (const outcome of outcomes) {
+    const id = notificationIds.get(outcome.userId);
+    if (!id) continue;
+    if (outcome.status === WHATSAPP_DELIVERY.ACCEPTED && outcome.messageId) {
+      accepted.push({ id, messageId: outcome.messageId });
+      continue;
+    }
+    const key = `${outcome.status}|${outcome.detail ?? ""}`;
+    const group = groups.get(key) ?? {
+      ids: [],
+      data: { whatsappStatus: outcome.status, whatsappDetail: outcome.detail ?? "", whatsappUpdatedAt: now },
+    };
+    group.ids.push(id);
+    groups.set(key, group);
+  }
+  await Promise.all([
+    recordDeliveryGroups(prisma, groups),
+    // Cada aceptado lleva su propio `wamid`: con él el webhook marca entregado / leído / falló.
+    ...accepted.map(({ id, messageId }) =>
+      recordDelivery(prisma, [id], {
+        whatsappStatus: WHATSAPP_DELIVERY.ACCEPTED,
+        whatsappMessageId: messageId,
+        whatsappDetail: "",
+        whatsappUpdatedAt: now,
+      }),
+    ),
+  ]);
+}
+
 /**
- * Busca, entre los destinatarios de la notificación, a quien activó `whatsappNotifications`, tiene
- * teléfono y no silenció este tipo (`whatsappMutedTypes`), y les manda la plantilla. Nunca lanza:
- * lo llama `notify` sin esperar.
- * `User.phone` no es nullable en la base (vacío es `""`): filtrar con `not: null` hace fallar a Prisma.
+ * Manda la plantilla del tipo a quien activó `whatsappNotifications`, tiene teléfono y no silenció
+ * este tipo (`whatsappMutedTypes`). Nunca lanza: lo llama `notify` sin esperar. Con
+ * `notificationIds`, deja en cada notificación su resultado (también a quien no se le mandó, con
+ * el motivo). Un tipo sin plantilla no deja nada: WhatsApp no aplica.
  */
 export async function sendNotificationWhatsappToOptedIn(
   prisma: any,
   recipientIds: string[],
   type: NotificationType,
   values: NotificationTemplateValues,
+  notificationIds?: NotificationIds,
 ): Promise<void> {
   try {
     // Un tipo sin plantilla se queda solo en la campana a propósito: no se avisa en el log.
@@ -161,63 +218,90 @@ export async function sendNotificationWhatsappToOptedIn(
       console.warn(
         `[notify:whatsapp] ${type} no salió por WhatsApp: falta ${missingPlatformVars().join(" y ")} en el entorno.`,
       );
+      await recordWhatsappOutcomes(
+        prisma,
+        recipientIds.map((userId) => ({
+          userId,
+          status: WHATSAPP_DELIVERY.SKIPPED,
+          detail: WHATSAPP_SKIP_REASON.NO_CONFIG,
+        })),
+        notificationIds,
+      );
       return;
     }
 
-    const candidates = await prisma.user.findMany({
-      where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: "" } },
-      select: { id: true, phone: true, whatsappMutedTypes: true },
+    // `User.phone` no es nullable en la base (vacío es `""`).
+    const users = await prisma.user.findMany({
+      where: { id: { in: recipientIds } },
+      select: { id: true, phone: true, whatsappNotifications: true, whatsappMutedTypes: true },
     });
     // Prisma de Keystone puede devolver el error en vez de lanzarlo.
-    if (candidates instanceof Error) throw candidates;
-    const optedIn = Array.isArray(candidates)
-      ? candidates.filter((user: { whatsappMutedTypes?: unknown }) => wantsWhatsappType(user.whatsappMutedTypes, type))
-      : [];
-    if (Array.isArray(candidates) && candidates.length > 0 && optedIn.length === 0) {
-      // Lo apagaron para este tipo: es su elección, no un problema.
-      return;
-    }
-    if (optedIn.length === 0) {
-      // En los avisos de Pet casi nadie lo tiene activo: registrarlo cada vez solo haría ruido.
-      if (WHATSAPP_TEMPLATES[type]?.audience === "pet") return;
-      const withOptIn = await prisma.user.count({
-        where: { id: { in: recipientIds }, whatsappNotifications: true },
-      });
-      const total = recipientIds.length;
-      const reason =
-        typeof withOptIn !== "number"
-          ? `ninguno de los ${total} destinatario(s) tiene avisos de WhatsApp activos con teléfono`
-          : withOptIn === 0
-            ? `ninguno de los ${total} destinatario(s) tiene activos los avisos de WhatsApp (User.whatsappNotifications)`
-            : `${withOptIn} de ${total} destinatario(s) tienen activos los avisos, pero sin teléfono (User.phone)`;
-      console.warn(`[notify:whatsapp] ${type} no salió por WhatsApp: ${reason}.`);
-      return;
+    if (users instanceof Error) throw users;
+
+    const skipped: WhatsappOutcome[] = [];
+    const optedIn: Recipient[] = [];
+    for (const user of users as Recipient[]) {
+      const reason = skipReason(user, type);
+      if (reason) skipped.push({ userId: user.id, status: WHATSAPP_DELIVERY.SKIPPED, detail: reason });
+      else optedIn.push(user);
     }
 
-    await sendNotificationWhatsapp(optedIn, type, values);
+    if (optedIn.length === 0 && WHATSAPP_TEMPLATES[type]?.audience !== "pet") {
+      // Avisos al admin: que no salga es un problema de configuración. En los de Pet casi nadie lo
+      // tiene activo y lo apagado por tipo es su elección: no se registra en el log.
+      const count = (reason: string) => skipped.filter((outcome) => outcome.detail === reason).length;
+      const noPhone = count(WHATSAPP_SKIP_REASON.NO_PHONE);
+      const noOptIn = count(WHATSAPP_SKIP_REASON.NO_OPT_IN);
+      const total = recipientIds.length;
+      // Si todos los que lo activaron lo silenciaron para este tipo, es su elección: sin log.
+      if (noPhone > 0 || noOptIn === skipped.length) {
+        const reason =
+          noPhone === 0
+            ? `ninguno de los ${total} destinatario(s) tiene activos los avisos de WhatsApp (User.whatsappNotifications)`
+            : `${noPhone} de ${total} destinatario(s) tienen activos los avisos, pero sin teléfono (User.phone)`;
+        console.warn(`[notify:whatsapp] ${type} no salió por WhatsApp: ${reason}.`);
+      }
+    }
+
+    const { outcomes } = optedIn.length
+      ? await sendNotificationWhatsapp(optedIn, type, values)
+      : { outcomes: [] as WhatsappOutcome[] };
+    await recordWhatsappOutcomes(prisma, [...skipped, ...outcomes], notificationIds);
   } catch (error) {
     console.error("[notify:whatsapp] No se pudo buscar a quién mandarle:", type, error);
   }
 }
+
+/** Resultado por destinatario: lo guarda `notify` en la `Notification` de cada quien. */
+export type WhatsappOutcome = {
+  userId: string;
+  status: WhatsappDelivery;
+  /** `wamid` cuando Meta lo aceptó. */
+  messageId?: string;
+  /** Motivo (WHATSAPP_SKIP_REASON) o error de Meta. */
+  detail?: string;
+};
 
 export type WhatsappSendResult = {
   /** Mensajes que Meta aceptó. */
   sent: number;
   /** Envíos que Meta rechazó o que fallaron (sin contar teléfonos inválidos). */
   failed: number;
+  outcomes: WhatsappOutcome[];
 };
 
 /**
  * Manda la plantilla del tipo a cada destinatario. Nunca lanza: un fallo de Meta no debe tocar la
  * notificación de la campana ni la operación que la disparó. En logs solo los últimos 4 dígitos.
- * Devuelve cuántos aceptó Meta y cuántos fallaron (los recordatorios lo usan para reintentar).
+ * Devuelve cuántos aceptó Meta y cuántos fallaron (los recordatorios lo usan para reintentar), y
+ * el resultado de cada quien.
  */
 export async function sendNotificationWhatsapp(
   recipients: Array<{ id: string; phone?: string | null }>,
   type: NotificationType,
   values: NotificationTemplateValues,
 ): Promise<WhatsappSendResult> {
-  const result: WhatsappSendResult = { sent: 0, failed: 0 };
+  const result: WhatsappSendResult = { sent: 0, failed: 0, outcomes: [] };
   try {
     const template = WHATSAPP_TEMPLATES[type];
     const config = platformWhatsappConfig();
@@ -230,6 +314,11 @@ export async function sendNotificationWhatsapp(
         const to = toWhatsappNumber(recipient.phone);
         if (!to) {
           console.warn(`[notify:whatsapp] ${type}: el usuario ${recipient.id} no tiene un teléfono válido.`);
+          result.outcomes.push({
+            userId: recipient.id,
+            status: WHATSAPP_DELIVERY.SKIPPED,
+            detail: WHATSAPP_SKIP_REASON.INVALID_PHONE,
+          });
           return;
         }
         try {
@@ -242,11 +331,13 @@ export async function sendNotificationWhatsapp(
           });
           // Meta lo aceptó. Si después no lo entrega, el webhook registra el `failed` con este id.
           result.sent += 1;
+          result.outcomes.push({ userId: recipient.id, status: WHATSAPP_DELIVERY.ACCEPTED, messageId: sent.id });
           console.log(
             `[notify:whatsapp] ${type} (${template.name}) aceptado por Meta para usuario ${recipient.id} (…${to.slice(-4)}): ${sent.id}`,
           );
         } catch (error) {
           result.failed += 1;
+          result.outcomes.push({ userId: recipient.id, status: WHATSAPP_DELIVERY.FAILED, detail: deliveryDetail(error) });
           console.error(
             `[notify:whatsapp] ${type} a usuario ${recipient.id} (…${to.slice(-4)}):`,
             error instanceof Error ? error.message : error,

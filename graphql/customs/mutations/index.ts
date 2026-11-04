@@ -46,6 +46,7 @@ import trackEvents from "./activity/trackEvents";
 import adminCompanyOps from "./admin/companyOps";
 import adminAccountControl from "./admin/accountControl";
 import adminAnimals from "./admin/animals";
+import adminZoneAlerts from "./admin/zoneAlerts";
 import rollupDailyUsage from "./rollupDailyUsage";
 import markAllNotificationsRead from "./notifications/markAllNotificationsRead";
 import pushTokens from "./notifications/pushTokens";
@@ -100,6 +101,7 @@ const customMutation = {
     ${adminCompanyOps.typeDefs}
     ${adminAccountControl.typeDefs}
     ${adminAnimals.typeDefs}
+    ${adminZoneAlerts.typeDefs}
     ${rollupDailyUsage.typeDefs}
     ${markAllNotificationsRead.typeDefs}
     ${pushTokens.typeDefs}
@@ -153,6 +155,7 @@ const customMutation = {
     ${adminCompanyOps.definition}
     ${adminAccountControl.definition}
     ${adminAnimals.definition}
+    ${adminZoneAlerts.definition}
     ${rollupDailyUsage.definition}
     ${markAllNotificationsRead.definition}
     ${pushTokens.definition}
@@ -206,6 +209,7 @@ const customMutation = {
     ...adminCompanyOps.resolver,
     ...adminAccountControl.resolver,
     ...adminAnimals.resolver,
+    ...adminZoneAlerts.resolver,
     ...rollupDailyUsage.resolver,
     ...markAllNotificationsRead.resolver,
     ...pushTokens.resolver,
