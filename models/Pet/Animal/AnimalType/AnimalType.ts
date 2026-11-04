@@ -4,10 +4,10 @@ import {
   ANIMAL_TYPE_OPTIONS,
   AnimalTypes,
 } from "../../../../utils/constants/constants";
-import access from "../../../../utils/generalAccess/access";
+import { publicReadAdminWriteAccess } from "../../../../utils/access/presets";
 
 export default list({
-  access,
+  access: publicReadAdminWriteAccess,
   fields: {
     name: select({
       defaultValue: AnimalTypes.DOG,

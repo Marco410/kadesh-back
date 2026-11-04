@@ -6,12 +6,12 @@ import {
   image,
   select,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import { publicReadAdminWriteAccess } from "../../../utils/access/presets";
 import { PRODUCT, PRODUCT_OPTIONS } from "../../../utils/constants/product";
 import { categoryUrlHook } from "./Category.hooks";
 
 export default list({
-  access,
+  access: publicReadAdminWriteAccess,
   ui: {
     listView: { initialColumns: ["name", "product", "url"] },
   },

@@ -1,4 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { isClientNonAdmin } from "../../../utils/access/presets";
+import { getSessionUserId } from "../../../utils/access/tenant";
+import { PET_PLACE_CLAIM_STATUS } from "./claim";
 
 const EMOJI_RE =
   /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
@@ -155,3 +158,63 @@ export const petPlaceSlugAfterOperation = {
     }
   },
 };
+
+
+/**
+ * - create desde un front (persona con sesión que registra su veterinaria): queda a su nombre,
+ *   como solicitud pendiente y con fecha de reclamo. El admin y el servidor (sudo) no cambian.
+ * - update (solo admin o sudo): mantiene `verified`, `verifiedAt` y `claimStatus` coherentes.
+ */
+export async function petPlaceResolveInput({
+  resolvedData,
+  item,
+  operation,
+  context,
+}: {
+  resolvedData: Record<string, any>;
+  item?: Record<string, any> | null;
+  operation: string;
+  context: KeystoneContext;
+}): Promise<Record<string, any>> {
+  if (operation === "create") {
+    if (!isClientNonAdmin(context)) return resolvedData;
+    const userId = getSessionUserId(context.session);
+    return {
+      ...resolvedData,
+      ...(userId ? { user: { connect: { id: userId } } } : {}),
+      claimStatus: PET_PLACE_CLAIM_STATUS.PENDING,
+      claimedAt: new Date(),
+    };
+  }
+  if (operation !== "update") return resolvedData;
+
+  const wasVerified = Boolean(item?.verified);
+  const nextVerified = resolvedData.verified;
+
+  if (nextVerified === true && !wasVerified) {
+    resolvedData.claimStatus = PET_PLACE_CLAIM_STATUS.VERIFIED;
+    if (resolvedData.verifiedAt === undefined) {
+      resolvedData.verifiedAt = new Date();
+    }
+  }
+
+  if (nextVerified === false && wasVerified) {
+    if (resolvedData.claimStatus === undefined) {
+      resolvedData.claimStatus = item?.userId
+        ? PET_PLACE_CLAIM_STATUS.PENDING
+        : PET_PLACE_CLAIM_STATUS.UNCLAIMED;
+    }
+    if (resolvedData.verifiedAt === undefined) {
+      resolvedData.verifiedAt = null;
+    }
+  }
+
+  if (resolvedData.claimStatus === PET_PLACE_CLAIM_STATUS.VERIFIED) {
+    resolvedData.verified = true;
+    if (!wasVerified && resolvedData.verifiedAt === undefined) {
+      resolvedData.verifiedAt = new Date();
+    }
+  }
+
+  return resolvedData;
+}

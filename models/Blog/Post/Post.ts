@@ -7,7 +7,7 @@ import {
   timestamp,
   select,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import { postAccess } from "./Post.access";
 import { PRODUCT, PRODUCT_OPTIONS } from "../../../utils/constants/product";
 import {
   postUrlHook,
@@ -18,7 +18,7 @@ import {
 import { document } from '@keystone-6/fields-document';
 
 export default list({
-  access,
+  access: postAccess,
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
     validateInput: postCategoryProductHook.validateInput,

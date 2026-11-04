@@ -5,11 +5,11 @@ import {
   select,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import { publicReadAdminWriteAccess } from "../../../utils/access/presets";
 import { dayOfWeek } from "../../../utils/constants/constants";
 
 export default list({
-  access,
+  access: publicReadAdminWriteAccess,
   fields: {
     day: select({
       options: [

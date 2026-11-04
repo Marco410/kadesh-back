@@ -1,4 +1,6 @@
 import { PRODUCT } from "../../../utils/constants/product";
+import { getSessionUserId } from "../../../utils/access/tenant";
+import { isClientNonAdmin } from "../../../utils/access/presets";
 
 function normalizeEmail(email: string | null | undefined): string {
   return (email ?? "").trim().toLowerCase();
@@ -12,9 +14,17 @@ function normalizeEmail(email: string | null | undefined): string {
  * una dejaba la otra activa (seguía llegando el correo de nuevo post).
  */
 export const blogSubscriptionHooks = {
-  resolveInput: async ({ resolvedData }: any) => {
+  resolveInput: async ({ resolvedData, operation, context }: any) => {
     if (typeof resolvedData.email === "string") {
       resolvedData.email = normalizeEmail(resolvedData.email);
+    }
+    // Suscripción desde un front (cualquiera puede crear): queda a nombre de la sesión, o de
+    // nadie si es anónima, y activa. Solo un admin o el servidor eligen otra persona o estado.
+    if (operation === "create" && isClientNonAdmin(context)) {
+      const userId = getSessionUserId(context.session);
+      if (userId) resolvedData.user = { connect: { id: userId } };
+      else delete resolvedData.user;
+      resolvedData.active = true;
     }
     return resolvedData;
   },

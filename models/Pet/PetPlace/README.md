@@ -20,6 +20,16 @@ Ver [`graphql/customs/mutations/pet/veterinary/README.md`](../../../graphql/cust
 
 Citas/reservas: ver [`PetPlaceAppointment/README.md`](./PetPlaceAppointment/README.md). El dueño verificado también agenda para un paciente de su lista (`createClinicAppointment`). No confundir con `Schedule` (horario semanal de apertura, campo `pet_place_schedules`).
 
+## Acceso
+
+`PetPlace.access.ts`:
+- Leer: público (directorio, ficha y SEO).
+- Crear: con sesión. `petPlaceResolveInput` (`PetPlace.hooks.ts`) la deja a nombre de quien la crea, `claimStatus: pending` y `claimedAt` ahora.
+- Editar y borrar: solo admin. El dueño edita con `updateMyPetPlace` y reclama con `claimPetPlace` (sudo).
+- Campos del reclamo (`claimPhone`, `claimNotes`, `claimRole`, `claimedAt`): los leen el dueño o el admin; solo el admin filtra u ordena por ellos.
+- `pipelineStatus`: solo admin.
+- Verificación, slug, `views`, campos de Google y relaciones (`services`, `patients`, `pet_place_*`): solo el admin los manda al crear.
+
 ## Qué no va aquí
 
 Importación masiva desde Places (`executeImportPetPlace`). El catálogo de servicios es [`PetPlaceService/README.md`](./PetPlaceService/README.md).

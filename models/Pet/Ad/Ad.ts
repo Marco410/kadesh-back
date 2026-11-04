@@ -10,11 +10,11 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import { adminOnlyAccess } from "../../../utils/access/presets";
 import { STATUS_AD, TYPES_AD } from "../../../utils/constants/constants";
 
 export default list({
-  access,
+  access: adminOnlyAccess,
   fields: {
     title: text(),
     description: text({

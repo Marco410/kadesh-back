@@ -3,13 +3,16 @@ import { relationship, select, text, timestamp } from "@keystone-6/core/fields";
 import { animalUserRowAccess, forceSessionUser } from "../Animal.access";
 import { notifyAnimalComment } from "../../../../utils/notifications/animalReportAlerts";
 import { ANIMAL_COMMENT_KIND, ANIMAL_COMMENT_KIND_OPTIONS } from "./constants";
+import { logAnimalCommentActivity } from "../../../../utils/pet/petActivity";
 
 export default list({
   access: animalUserRowAccess,
   hooks: {
     resolveInput: ({ resolvedData, operation, context }) =>
       forceSessionUser(resolvedData, operation, context),
-    afterOperation: async ({ operation, item, context }) => {
+    afterOperation: async ({ operation, item, originalItem, context }) => {
+      // Actividad de Kadesh Pet: comentario nuevo o borrado (sin el texto).
+      void logAnimalCommentActivity({ operation, item, originalItem, context } as any);
       if (operation !== "create" || !item?.id) return;
       // Sin await: el aviso no frena el comentario.
       void notifyAnimalComment(context, {

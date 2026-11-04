@@ -10,6 +10,7 @@ import {
 import { animalChildAccess, validateAnimalChildOwner } from "../Animal.access";
 import { ANIMAL_LOGS_OPTIONS } from "../../../../utils/constants/constants";
 import { animalLogSlugAfterOperation } from "../Animal.hooks";
+import { logAnimalLogActivity } from "../../../../utils/pet/petActivity";
 import { fillCityFromCoordinates } from "../../../../utils/pet/animalReport";
 
 export default list({
@@ -44,7 +45,11 @@ export default list({
       if (!String(data.postalCode || "").trim()) data.postalCode = place.postalCode;
       return data;
     },
-    ...animalLogSlugAfterOperation,
+    afterOperation: async (args: any) => {
+      await animalLogSlugAfterOperation.afterOperation(args);
+      // Actividad de Kadesh Pet: cambio de estado o bitácora borrada.
+      void logAnimalLogActivity(args);
+    },
   },
   fields: {
     animal: relationship({

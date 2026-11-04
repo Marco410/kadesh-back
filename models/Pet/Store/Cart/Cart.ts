@@ -1,9 +1,9 @@
 import { list } from "@keystone-6/core";
 import { relationship, text, timestamp } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { adminOnlyAccess } from "../../../../utils/access/presets";
 
 export default list({
-  access,
+  access: adminOnlyAccess,
   fields: {
     name: text({ validation: { isRequired: true } }),
     user: relationship({

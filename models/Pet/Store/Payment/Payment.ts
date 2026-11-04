@@ -6,10 +6,10 @@ import {
   relationship,
 } from "@keystone-6/core/fields";
 import { list } from "@keystone-6/core";
-import access from "../../../../utils/generalAccess/access";
+import { adminOnlyAccess } from "../../../../utils/access/presets";
 
 export default list({
-  access,
+  access: adminOnlyAccess,
   fields: {
     order_payment: relationship({
       ref: "Order.payment",

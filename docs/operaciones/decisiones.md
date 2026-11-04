@@ -334,3 +334,82 @@ Cada señal trae un motivo (`reason`) para que Inicio no repita avisos que ya ti
 - El cálculo es el mismo de Operaciones: se movió a `utils/analytics/salesVelocity.ts` y `adminSalesVelocity` lo usa también (mismos resultados, misma prueba).
 
 **Por qué:** Kadesh la vende como módulo aparte; un vendedor no debe ver el desempeño de sus compañeros salvo que la empresa lo decida.
+
+## 2026-11-04 — Fase 6.0: se acaba el acceso abierto genérico
+
+**Qué:** 25 listas usaban `utils/generalAccess/access.ts`, que dejaba a **cualquiera, sin sesión**, leer, editar o borrar cualquier fila. El archivo se borró. Las listas ahora usan reglas de `utils/access/presets.ts` o su propio `<Lista>.access.ts`:
+
+| Listas | Ahora |
+| --- | --- |
+| `Ad`, `Cart`, `Order`, `Payment`, `PaymentMethod`, `Product`, `WishList` (sin uso en ningún front) | Solo admin |
+| `AnimalType`, `AnimalBreed`, `PetPlaceType`, `Category`, `Tag`, `Schedule`, `SocialMedia` | Lectura pública, escritura admin |
+| `ContactForm`, `BlogSubscription` | Cualquiera crea; solo el admin lee y edita. El mensaje entra como "Nuevo"; la suscripción queda a nombre de la sesión (o de nadie) y activa. La baja sigue con `unsubscribeBlog` (sudo) |
+| `PostComment`, `PostLike`, `PostFavorite`, `PetPlaceLike`, `Review` | Lectura pública (conteos), crear con sesión y a nombre propio, editar solo admin, borrar el autor o admin. `Review` además valida calificación 1-5 y que sea de una veterinaria, y un cliente no puede llenar `google_user*` ni `product` |
+| `PostView` | Cualquiera la registra (a nombre de la sesión o de nadie); nadie edita; solo admin borra |
+| `Post` | El público solo ve publicados con fecha ya cumplida (o sin fecha); el admin ve todo; escribir es del admin. ClickUp y la publicación programada usan sudo |
+| `PetPlaceService` | Anónimo ve aprobados; con sesión, además los que pidió o los de su clínica; escribir es del admin |
+| `PetPlace` | Lectura pública; crear con sesión (queda a su nombre, pendiente y con fecha de reclamo); editar y borrar, admin. El teléfono, notas, rol y fecha del reclamo solo los leen el dueño o el admin, y solo el admin filtra por ellos; `pipelineStatus` es solo admin; verificación, slug, Google y relaciones solo los manda el admin |
+
+**Por qué:** antes cualquiera podía leer todos los mensajes de contacto (nombre, correo, teléfono) y los correos suscritos al blog, marcar una veterinaria como verificada, borrar reseñas o artículos, o ver pagos y pedidos. Es la puerta de abuso más grande que había.
+
+**Por qué no rompe nada:** el diseño revisó cada operación de landing, business y móvil. Los fronts mandan solo campos permitidos y los valores que el servidor fuerza salen iguales. El dueño de una veterinaria edita con `updateMyPetPlace`/`claimPetPlace` (sudo). El schema de GraphQL y Prisma no cambia (los campos privados van con `isFilterable`/`isOrderable` como función), así que móvil no regenera nada.
+
+**Ojo con Keystone:** una lectura denegada no da error, devuelve null, `[]` o 0. Por eso las listas que alimentan conteos públicos (comentarios, likes, calificación, `isOpen`) siguen con lectura pública. Un post que vuelve a borrador sale `null` en los likes, favoritos y comentarios de una persona: la landing filtra esas filas (móvil ya lo hacía).
+
+**Qué no hacer:** no dar `() => true` a update o delete de ninguna lista; usar un preset o un `.access.ts`.
+
+**Pendiente (fuera de esta fase):**
+- Las veterinarias registradas se ven públicas de inmediato, aunque el texto dice "Revisamos cada solicitud".
+- Suscribirse de nuevo al blog después de darse de baja falla, y los mensajes revelan si un correo está suscrito.
+- `PetPlace.user` y el `author` del blog salen null para visitantes sin sesión (ya pasaba).
+- Los campos virtuales de `PetPlace` (`isOpen`, `reviewsCount`, `averageRating`) podrían leer con `sudo()` para no depender de la lectura pública.
+
+## 2026-11-04 — Fase 6.1: app, pantalla e IP en cada evento; errores de cualquier persona
+
+**Qué:**
+- Los fronts mandan en cada petición `x-kadesh-app` (`pet-web`, `business-web`, `pet-mobile`) y `x-kadesh-page` (la pantalla). `ActivityEvent` los guarda en `app` y `page`. De la URL solo se guardan la ruta y `tab`, `vista`, `clinic` y `pet` (`cleanPage`).
+- `appErrorsPlugin` registra también los errores de visitantes sin sesión: mismo deduplicado de 10 min (por IP) y tope de 30 por IP por hora. Guarda si era consulta o cambio (`opType`) y los **nombres** de las variables (`data.name`, `where.id`), nunca sus valores.
+- Nuevo tipo `app.client_error` por `trackEvents` para lo que el servidor no ve: la petición no llegó o volvió 5xx/413/429 (`network`), la pantalla se cayó (`crash`), un error de código suelto (`script`) o no cargó el código tras un despliegue (`chunk`). Es lo único que `trackEvents` acepta sin sesión: 20 por IP cada 10 min y deduplicado de 10 min.
+- `adminActivityFeed` devuelve `ip`, `userAgent`, `app` y `page`, y filtra por `app`, `ip` y `fingerprint`. ARCO exporta y anonimiza los campos nuevos.
+
+**Por qué:** en Operaciones no se veía en qué pantalla ni desde qué sistema le fallaba algo a alguien, aunque la IP y el navegador ya se guardaban. La mayoría de quienes usan Kadesh Pet navega sin cuenta, así que sus errores no quedaban.
+
+**Ojo con la IP:** `requestIp` toma el primer `x-forwarded-for`. Si el proxy de Railway agrega en lugar de reemplazar, el cliente podría falsificarla, y la Fase 6.5 (límites y bloqueo) depende de ella. Antes de confiar en el bloqueo, probar con `curl -H 'X-Forwarded-For: 1.2.3.4'` contra el back: si la fila guarda `1.2.3.4`, poner `CLIENT_IP_HEADER` (`x-forwarded-for-last`, `x-real-ip` o `x-envoy-external-address`, lo que Railway ponga).
+
+**Qué no hacer:** no guardar valores de variables ni la URL completa; no reportar desde el navegador los errores de GraphQL (el back ya los registra con app, pantalla e IP).
+
+## 2026-11-04 — Fase 6.2: bandeja de Errores
+
+**Qué:** los `app.*` se agrupan por `fingerprint` (tipo + operación o tipo de falla + mensaje sin números, ids ni correos; los del navegador también por app). Operaciones → Errores muestra cada grupo con veces, personas, apps, pantalla y navegadores, y permite resolver, ignorar o reabrir con una nota (`ErrorIssue`). Si un error resuelto vuelve a pasar, sale como reabierto. El menú muestra cuántos siguen abiertos con actividad en 24 h.
+
+**Por qué:** una lista de eventos no dice qué error es nuevo, cuál afecta a más gente o cuál ya se corrigió.
+
+## 2026-11-04 — Fase 6.3: dispositivos e IPs por persona
+
+**Qué:** `adminPersonDevices` une eventos y accesos de una persona por IP + navegador, y lista otras cuentas que usaron sus IPs (90 días). Una IP con más de 15 cuentas se marca "de muchas cuentas" y no lista personas. Los accesos (`UserAuthLog`) ya muestran IP y dispositivo en Operaciones.
+
+**Por qué:** detectar cuentas compartidas o multicuentas. Coincidir en una IP es una señal para revisar, no una prueba (familias, oficinas, redes móviles, VPN).
+
+## 2026-11-04 — Fase 6.4: actividad de Kadesh Pet
+
+**Qué:** categoría `pet` en Actividad. Se registran: publicar, editar y borrar reportes; cambios de estado (no la bitácora inicial); comentarios; reclamos; registro, edición, reclamo y verificación de veterinarias; reseñas; altas con el formulario genérico (`auth.signup`) y el formulario de contacto (`contact.form_submitted`, en Navegación). La landing manda qué pantallas abre una persona con sesión y su latido (tiempo activo), como el panel de Negocios.
+
+**Por qué:** de Kadesh Pet solo quedaban fusiones, duplicados y reclamos; sin esto no se ve quién publica de más, comenta en masa o registra veterinarias falsas.
+
+**Qué no hacer:** no guardar el texto de comentarios, reseñas ni mensajes (solo ids, largo y calificación). Las ediciones y borrados del servidor (sudo) no se registran aquí: esos flujos dejan su propio evento.
+
+## 2026-11-04 — Fase 6.5: límites contra abuso, avisos y bloqueo de IP
+
+**Qué:**
+- `rateLimitPlugin` (Apollo) limita por IP o por persona: logins con Google (20/IP/15 min), registros (5/IP/h), reportes (10/persona/h y 20/IP/h), comentarios (30/persona/h), reseñas (10/persona/día), contacto (5/IP/h) y veterinarias (3/IP/día). Responde `RATE_LIMITED` con cuánto esperar. Admins de plataforma y la automatización de reportes no tienen límite.
+- Login con contraseña: solo cuentan los intentos fallidos (10 por IP y 5 por correo en 15 min). Al llegar al límite, los siguientes responden sin probar la contraseña y quedan en `UserAuthLog`.
+- Al pasarse: `security.rate_limited` en Actividad (categoría `security`). Si la misma IP o persona se pasa 3 veces en una hora, o es de login, aviso `security.alert` a la campana de los admins (y correo con `ADMIN_NOTIFICATION_EMAILS=on`), con 30 min entre avisos.
+- `BlockedIp` + middleware en `/api/graphql` (antes de la sesión y de Apollo): responde `IP_BLOCKED`. Se bloquea desde Operaciones → Seguridad, Actividad o Dispositivos. No deja bloquear la IP propia; si un admin usó la IP en 7 días pide confirmar. Salida de emergencia: `pnpm security:unblock <ip>` (o `:prod`).
+
+**Por qué:** no había ningún límite fuera de IA: cualquiera podía registrar cuentas, reportes o comentarios en masa, o probar contraseñas sin freno.
+
+**Limitaciones:** los contadores viven en memoria del proceso (se reinician al desplegar y no se comparten entre réplicas). Alcanza con una instancia en Railway; si se escala, moverlos a la base o a Redis.
+
+**WhatsApp:** para que el aviso llegue por WhatsApp hace falta una plantilla UTILITY aprobada por Meta, p. ej. `kadesh_admin_alerta_seguridad`: "Alerta de seguridad en Kadesh: {{1}}. {{2}} intentos en {{3}} min. Revisa Operaciones → Seguridad." Cuando esté aprobada, agregar `security.alert` a `WHATSAPP_TEMPLATES` (`utils/notifications/whatsapp.ts`). Mientras, solo campana y correo.
+
+**Qué no hacer:** no bloquear por IP sin confirmar antes que la IP es confiable (ver Fase 6.1).

@@ -1,4 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { ACTIVITY_EVENT } from "../../../../../models/ActivityEvent/constants";
+import { logPetPlaceEvent } from "../../../../../utils/pet/petActivity";
 import { getSessionUserId } from "../../../../../utils/access/tenant";
 import {
   PET_PLACE_CLAIM_ROLE,
@@ -174,6 +176,9 @@ const resolver = {
       };
     }
 
+    void logPetPlaceEvent(context, ACTIVITY_EVENT.PET_PLACE_CLAIMED, place.id, "Reclamó la veterinaria", {
+      role: role ?? null,
+    });
     return {
       success: true,
       message:

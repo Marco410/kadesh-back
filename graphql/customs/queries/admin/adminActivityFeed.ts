@@ -37,6 +37,8 @@ const FEED_TYPES = [
   "admin",
   "product",
   "errors",
+  "pet",
+  "security",
 ] as const;
 type FeedType = (typeof FEED_TYPES)[number];
 
@@ -47,10 +49,16 @@ const typeDefs = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
-    """auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide) | errors (lo que le falló a alguien en el panel)"""
+    """auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide) | errors (lo que le falló a alguien) | pet (Kadesh Pet) | security (límites y bloqueos)"""
     types: [String!]
     onlyErrors: Boolean
     search: String
+    """pet-web | business-web | pet-mobile: solo eventos propios (ActivityEvent) de esa app."""
+    app: String
+    """Todo lo que pasó desde esta IP (eventos y accesos)."""
+    ip: String
+    """Las ocurrencias de un error de la bandeja (ActivityEvent.fingerprint)."""
+    fingerprint: String
     """Cursor: devuelve lo ocurrido antes de esta fecha (ISO)."""
     before: String
     take: Int
@@ -69,6 +77,14 @@ const typeDefs = `
     entityType: String
     entityId: String
     meta: JSON
+    """IP de la petición (eventos y accesos)."""
+    ip: String
+    """Navegador o cliente (user agent crudo; el front lo traduce a SO y navegador)."""
+    userAgent: String
+    """pet-web | business-web | pet-mobile"""
+    app: String
+    """Pantalla en la que estaba la persona."""
+    page: String
   }
 
   type AdminActivityFeedResult {
@@ -94,6 +110,9 @@ type Input = {
   search?: string | null;
   before?: string | null;
   take?: number | null;
+  app?: string | null;
+  ip?: string | null;
+  fingerprint?: string | null;
 };
 
 type Person = { id: string; name?: string | null; lastName?: string | null; email?: string | null };
@@ -112,6 +131,10 @@ type FeedItem = {
   entityType: string | null;
   entityId: string | null;
   meta: Record<string, unknown> | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  app?: string | null;
+  page?: string | null;
 };
 
 type SourceCtx = {
@@ -123,6 +146,9 @@ type SourceCtx = {
   before: Date | null;
   take: number;
   types: Set<FeedType>;
+  app: string | null;
+  ip: string | null;
+  fingerprint: string | null;
 };
 
 const COMPANY_SELECT = { select: { id: true, name: true } } as const;
@@ -222,11 +248,13 @@ async function authSource(c: SourceCtx): Promise<FeedItem[]> {
   if (c.userId) where.userId = c.userId;
   if (c.companyId) and.push({ user: { companyId: c.companyId } });
   if (c.onlyErrors) where.success = false;
+  if (c.ip) where.ip = c.ip;
   if (c.search) {
     and.push({
       OR: [
         { emailMasked: insensitive(c.search) },
         { message: insensitive(c.search) },
+        { ip: insensitive(c.search) },
         { user: personSearch(c.search) },
       ],
     });
@@ -241,6 +269,8 @@ async function authSource(c: SourceCtx): Promise<FeedItem[]> {
     message: string;
     emailMasked: string;
     createdAt: Date;
+    ip: string | null;
+    userAgent: string | null;
     user: (Person & { company: CompanyRef | null }) | null;
   }> = await c.prisma.userAuthLog.findMany({
     where,
@@ -254,6 +284,8 @@ async function authSource(c: SourceCtx): Promise<FeedItem[]> {
       message: true,
       emailMasked: true,
       createdAt: true,
+      ip: true,
+      userAgent: true,
       user: PERSON_WITH_COMPANY,
     },
   });
@@ -301,6 +333,8 @@ async function authSource(c: SourceCtx): Promise<FeedItem[]> {
       entityType: "UserAuthLog",
       entityId: row.id,
       meta: null,
+      ip: row.ip,
+      userAgent: row.userAgent,
     };
   });
 }
@@ -1124,11 +1158,17 @@ async function activityEventSource(c: SourceCtx): Promise<FeedItem[]> {
   // Lo que hizo la persona y lo que le hicieron a su cuenta (roles, permisos).
   if (c.userId) and.push({ OR: [{ actorId: c.userId }, { entityType: "User", entityId: c.userId }] });
   if (c.onlyErrors) where.success = false;
+  if (c.app) where.app = c.app;
+  if (c.ip) where.ip = c.ip;
+  if (c.fingerprint) where.fingerprint = c.fingerprint;
   if (c.search) {
     and.push({
       OR: [
         { summary: insensitive(c.search) },
         { type: insensitive(c.search) },
+        { errorMessage: insensitive(c.search) },
+        { ip: insensitive(c.search) },
+        { page: insensitive(c.search) },
         { company: { name: insensitive(c.search) } },
         { actor: personSearch(c.search) },
       ],
@@ -1148,6 +1188,10 @@ async function activityEventSource(c: SourceCtx): Promise<FeedItem[]> {
     entityType: string | null;
     entityId: string | null;
     createdAt: Date;
+    ip: string | null;
+    userAgent: string | null;
+    app: string | null;
+    page: string | null;
     actor: Person | null;
     company: CompanyRef | null;
   }>;
@@ -1168,6 +1212,10 @@ async function activityEventSource(c: SourceCtx): Promise<FeedItem[]> {
         entityType: true,
         entityId: true,
         createdAt: true,
+        ip: true,
+        userAgent: true,
+        app: true,
+        page: true,
         actor: { select: PERSON_SELECT },
         company: COMPANY_SELECT,
       },
@@ -1197,7 +1245,18 @@ async function activityEventSource(c: SourceCtx): Promise<FeedItem[]> {
       ...(row.metadata && typeof row.metadata === "object" ? row.metadata : {}),
       source: row.source,
     },
+    ip: row.ip,
+    userAgent: row.userAgent,
+    app: row.app,
+    page: row.page,
   }));
+}
+
+/** Con filtro de app o de error, solo `ActivityEvent` tiene ese dato; con IP, también los accesos. */
+function sourcesFor(c: SourceCtx) {
+  if (c.app || c.fingerprint) return [activityEventSource];
+  if (c.ip) return [authSource, activityEventSource];
+  return SOURCES;
 }
 
 const SOURCES = [
@@ -1235,9 +1294,14 @@ const resolver = {
       // Uno de más por fuente para saber si hay otra página.
       take: take + 1,
       types: new Set(requested.length ? requested : DEFAULT_FEED_TYPES),
+      app: input?.app?.trim() || null,
+      ip: input?.ip?.trim() || null,
+      fingerprint: input?.fingerprint?.trim() || null,
     };
+    // La bandeja de Errores pide las ocurrencias de un error aunque no traiga tipos.
+    if (ctx.fingerprint && !requested.length) ctx.types = new Set(["errors"]);
 
-    const batches = await Promise.all(SOURCES.map((source) => source(ctx)));
+    const batches = await Promise.all(sourcesFor(ctx).map((source) => source(ctx)));
     const merged = batches
       .flat()
       .sort(
@@ -1252,6 +1316,10 @@ const resolver = {
         ...item,
         occurredAt: item.occurredAt.toISOString(),
         actor: personRef(item.actor),
+        ip: item.ip ?? null,
+        userAgent: item.userAgent ?? null,
+        app: item.app ?? null,
+        page: item.page ?? null,
       })),
       nextBefore: hasMore && page.length ? page[page.length - 1].occurredAt.toISOString() : null,
       hasMore,

@@ -30,7 +30,7 @@ Required env vars (see `config/.env.template`): `POSTGRES_DB`, `POSTGRES_USER`, 
 **Models** (`models/`): lists live under `models/Pet/` (KadeshPet), `models/Saas/` (CRM, billing, `Saas/Tech`), or the `models/` root if both products use them (`User`, `Role`). Register every list in `models/schema.ts`. Related sub-lists stay nested, e.g. `models/Pet/Animal/AnimalBreed/AnimalBreed.ts`, `models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts`. Editing `models/schema.ts` or any list's fields changes the generated `schema.prisma` / `schema.graphql`. **Do not create or run Prisma migrations** — tell the human to run `yarn migrate` (or write the SQL under `migrations/` by hand).
 
 Per-list conventions:
-- `access` is a plain object/function passed to `list({ access, fields })`, usually imported from a colocated `<Name>.access.ts` (see `models/User/User.access.ts`) or the shared open-access default in `utils/generalAccess/access.ts`.
+- `access` is a plain object/function passed to `list({ access, fields })`, usually imported from a colocated `<Name>.access.ts` (see `models/User/User.access.ts`) or a preset from `utils/access/presets.ts` (`adminOnlyAccess`, `publicReadAdminWriteAccess`, `anonymousCreateAccess`, `userRowAccess`, `viewRowAccess`). There is no open-access default anymore: never give a list `() => true` for update/delete.
 - Field-level and input validation goes in a colocated `<Name>.hooks.ts` (e.g. `models/User/User.hooks.ts`, `models/TokenNotification/TokenNotification.hooks.ts`), exporting hook objects (`validateInput`, `resolveInput`) that are wired into the relevant `fields: { ... }` entries via Keystone's `hooks` field option.
 - Enum-like values are plain TS `enum`s colocated with the model, e.g. `models/Role/constants.ts`.
 
@@ -48,7 +48,7 @@ Per-list conventions:
 
 **Seeding** (`utils/seed/`): `seed.ts` (root) boots a Keystone context via `getContext` and runs `utils/seed/index.ts`, which composes per-entity seed files (`user.ts`, `animal_types.ts`, `pet_place_types.ts`, `veterinary.ts`, `veterinary_services.ts`).
 
-**Shared utils** (`utils/`): `utils/constants/constants.ts` holds cross-cutting constant lists (e.g. `TYPES_PET_SHELTER`, used by both seed data and custom mutations); `utils/generalAccess/access.ts` is the default open-access policy for lists with no custom access rules; `utils/helpers/` holds small helpers (e.g. `unike_link.ts` for generating unique usernames/slugs).
+**Shared utils** (`utils/`): `utils/constants/constants.ts` holds cross-cutting constant lists (e.g. `TYPES_PET_SHELTER`, used by both seed data and custom mutations); `utils/access/presets.ts` holds the reusable access rules (plus `forceSessionUser` to stamp the session user on create); `utils/helpers/` holds small helpers (e.g. `unike_link.ts` for generating unique usernames/slugs).
 
 **Admin UI customization** (`admin/`): `admin/config.ts` registers custom Admin UI React components (`admin/components/`) like `CustomNavigation` and `CustomLogo`, wired into `keystone.ts`'s `ui` config.
 
@@ -59,6 +59,6 @@ Per-list conventions:
 ## Adding a new list
 
 1. Create `models/Pet/<Name>/<Name>.ts`, `models/Saas/<Name>/<Name>.ts`, or `models/<Name>/<Name>.ts` (shared) exporting `list({ access, fields })` from `@keystone-6/core`.
-2. Add access rules (reuse `utils/generalAccess/access.ts` or write a `<Name>.access.ts` using `hasRole`/`Role`).
+2. Add access rules (reuse a preset from `utils/access/presets.ts` or write a `<Name>.access.ts` using `hasRole`/`Role`). Never leave update/delete open to anyone.
 3. Register the list in `models/schema.ts`.
 4. Stop. Tell the human to run `yarn migrate` (or write the migration SQL by hand). Never create files under `migrations/` or run migrate commands.

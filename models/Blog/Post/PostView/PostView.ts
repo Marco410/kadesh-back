@@ -1,9 +1,14 @@
 import { list } from "@keystone-6/core";
 import { relationship, timestamp } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { forceSessionUser, viewRowAccess } from "../../../../utils/access/presets";
 
 export default list({
-  access,
+  access: viewRowAccess,
+  hooks: {
+    // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
+    resolveInput: ({ resolvedData, operation, context }) =>
+      forceSessionUser(resolvedData, operation, context),
+  },
   fields: {
     user: relationship({
       ref: "User",
