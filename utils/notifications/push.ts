@@ -1,4 +1,6 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
+import { PUSH_DELIVERY } from "../../models/Notification/constants";
+import { recordDelivery, recordDeliveryGroups, type NotificationIds } from "./delivery";
 
 /**
  * Push a la app de Kadesh Pet con la API de Expo (https://docs.expo.dev/push-notifications/sending-notifications/).
@@ -73,25 +75,76 @@ async function checkReceipts(context: KeystoneContext, ticketTokens: Map<string,
   }
 }
 
+type UserPush = { devices: number; ok: number };
+
+/**
+ * Escribe en cada `Notification` cómo le fue al push de esa persona: enviado, a algunos
+ * dispositivos, falló o sin app. Sin `notificationIds` (envíos sueltos) no registra nada.
+ */
+async function recordPushDelivery(
+  context: KeystoneContext,
+  userIds: string[],
+  byUser: Map<string, UserPush>,
+  notificationIds?: NotificationIds,
+): Promise<void> {
+  if (!notificationIds?.size) return;
+  const groups = new Map<string, { ids: string[]; data: Record<string, unknown> }>();
+  for (const userId of userIds) {
+    const notificationId = notificationIds.get(userId);
+    if (!notificationId) continue;
+    const push = byUser.get(userId) ?? { devices: 0, ok: 0 };
+    const status =
+      push.devices === 0
+        ? PUSH_DELIVERY.NO_DEVICES
+        : push.ok === push.devices
+          ? PUSH_DELIVERY.SENT
+          : push.ok > 0
+            ? PUSH_DELIVERY.PARTIAL
+            : PUSH_DELIVERY.FAILED;
+    const key = `${status}|${push.devices}`;
+    const group = groups.get(key) ?? { ids: [], data: { pushStatus: status, pushDevices: push.devices } };
+    group.ids.push(notificationId);
+    groups.set(key, group);
+  }
+  await recordDeliveryGroups(prismaOf(context), groups);
+}
+
 /**
  * Manda la notificación a todos los dispositivos registrados de esas personas. Devuelve cuántos
  * mensajes aceptó Expo. Los tokens dados de baja se borran (al momento y al revisar los recibos).
+ * Con `notificationIds` (lo pasa `notify`), registra en cada notificación cómo le fue al push.
  */
 export async function sendPushToUsers(
   context: KeystoneContext,
   userIds: string[],
   message: PushMessage,
+  notificationIds?: NotificationIds,
 ): Promise<number> {
+  const byUser = new Map<string, UserPush>();
+  let tokensLoaded = false;
   try {
     if (userIds.length === 0) return 0;
     const rows = await prismaOf(context).tokenNotification.findMany({
       where: { userId: { in: userIds } },
-      select: { token: true },
+      select: { token: true, userId: true },
     });
     if (rows instanceof Error) throw rows;
+    tokensLoaded = true;
 
-    const tokens = [...new Set((rows as Array<{ token: string }>).map((row) => row.token).filter(isExpoToken))];
-    if (tokens.length === 0) return 0;
+    // Token → persona, para contar por persona cuántos dispositivos aceptó Expo.
+    const ownerOf = new Map<string, string>();
+    for (const row of rows as Array<{ token: string; userId: string | null }>) {
+      if (!row.userId || !isExpoToken(row.token) || ownerOf.has(row.token)) continue;
+      ownerOf.set(row.token, row.userId);
+      const push = byUser.get(row.userId) ?? { devices: 0, ok: 0 };
+      push.devices += 1;
+      byUser.set(row.userId, push);
+    }
+    const tokens = [...ownerOf.keys()];
+    if (tokens.length === 0) {
+      await recordPushDelivery(context, userIds, byUser, notificationIds);
+      return 0;
+    }
 
     let accepted = 0;
     const dead: string[] = [];
@@ -122,14 +175,18 @@ export async function sendPushToUsers(
       (json.data ?? []).forEach((ticket, index) => {
         const token = batch[index];
         if (!token) return;
+        const push = byUser.get(ownerOf.get(token) ?? "");
         if (ticket.status === "ok") {
           accepted += 1;
+          if (push) push.ok += 1;
           ticketTokens.set(ticket.id, token);
         } else if (ticket.details?.error === "DeviceNotRegistered") {
           dead.push(token);
         }
       });
     }
+
+    await recordPushDelivery(context, userIds, byUser, notificationIds);
 
     await forgetTokens(context, dead);
     if (ticketTokens.size > 0) {
@@ -139,6 +196,12 @@ export async function sendPushToUsers(
     return accepted;
   } catch (error) {
     console.error("[push] No se pudo enviar:", message.type, error);
+    // Sin saber sus dispositivos, todo queda como fallido; si no, lo que no salió queda fallido.
+    if (tokensLoaded) {
+      await recordPushDelivery(context, userIds, byUser, notificationIds);
+    } else if (notificationIds?.size) {
+      await recordDelivery(prismaOf(context), [...notificationIds.values()], { pushStatus: PUSH_DELIVERY.FAILED });
+    }
     return 0;
   }
 }

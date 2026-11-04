@@ -132,6 +132,14 @@ Velocidad comercial desde `TechLeadStageChange`, actividades y WhatsApp: cierre,
 
 Lista y detalle de animales de la pestaña Kadesh Pet → Animales (ver `models/Pet/Animal/README.md`).
 
+#### `adminNotificationLog(product, type, channel, result, search, entityId, days, take, skip)`
+
+Kadesh Pet → Avisos. Cada aviso (una fila por destinatario) con a dónde se fue: campana (`readAt`), push y WhatsApp (ver «Entrega» en `models/Notification/README.md`). `channel`: `push` / `whatsapp` / todos. `result`: `delivered` (WhatsApp incluye «aceptado» mientras llega el acuse), `failed`, `skipped` (sin app o WhatsApp no mandado) o todos. `days` 1–365 (7 por defecto). `summary` y `types` salen de la misma ventana, sin el filtro de canal (y `types` sin el de tipo).
+
+#### `adminZoneAlerts(search, status, take, skip)` / `adminZoneAlertPreview(lat, lng)`
+
+Kadesh Pet → Alertas de zona. Personas con alertas encendidas o con zona elegida; `status`: `active` (encendidas y con zona), `inactive` o `all`. Cada fila trae su zona, radio, dispositivos con push, estado de WhatsApp (`on`, `off`, `no_phone`, `muted`) y alertas recibidas en 30 días. `adminZoneAlertPreview` dice quién recibiría una alerta en un punto con `findZoneAlertCandidates` (la misma regla que la alerta real) y marca a quien ya llegó al tope del día; no manda nada. Las acciones están en la mutación `adminUpdateZoneAlerts` (`mutations/admin/zoneAlerts.ts`), que deja `admin.zone_alerts_updated` en la actividad.
+
 #### `adminPetSummary(input: { days })`
 
 Cifras de Kadesh Pet → Resumen. `days` (7–3650) es la ventana de "nuevos en el periodo" y de la interacción; `null` = todo el historial (`newPrevPeriod` queda en 0).

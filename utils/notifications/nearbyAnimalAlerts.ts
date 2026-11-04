@@ -36,6 +36,61 @@ export type NearbyAnimalInput = {
   slug?: string | null;
 };
 
+export type ZoneAlertCandidate = {
+  id: string;
+  /** Distancia del punto al centro de su zona, en km. */
+  distanceKm: number;
+  /** Alertas de zona que recibió en las últimas 24 h (tope: MAX_NEARBY_ALERTS_PER_DAY). */
+  alertsToday: number;
+  /** Ya recibió la alerta de este animal (solo con `animalId`). */
+  alreadyAlerted: boolean;
+};
+
+/**
+ * Personas con alertas activas cuya zona incluye el punto, de la más cercana a la más lejana. Sin
+ * cuentas suspendidas o anonimizadas ni `excludeUserId`. No aplica el tope del día ni «ya avisado»:
+ * eso lo decide quien llama (la alerta real los salta; la vista previa de Operaciones los muestra).
+ * Distancia con haversine en SQL.
+ */
+export async function findZoneAlertCandidates(
+  prisma: any,
+  { lat, lng, excludeUserId = "", animalId = "" }: { lat: number; lng: number; excludeUserId?: string; animalId?: string },
+): Promise<ZoneAlertCandidate[]> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const rows = await prisma.$queryRaw`
+    SELECT u.id,
+      d.km AS "distanceKm",
+      (SELECT COUNT(*)::int FROM "Notification" n
+        WHERE n.recipient = u.id AND n.type = ${NOTIFICATION_TYPE.ANIMAL_NEARBY} AND n."createdAt" >= ${since}) AS "alertsToday",
+      EXISTS (SELECT 1 FROM "Notification" n
+        WHERE n.recipient = u.id AND n.type = ${NOTIFICATION_TYPE.ANIMAL_NEARBY} AND n."entityId" = ${animalId}
+          AND ${animalId} <> '') AS "alreadyAlerted"
+    FROM "User" u
+    CROSS JOIN LATERAL (
+      SELECT 6371 * acos(LEAST(1, GREATEST(-1,
+        cos(radians(${lat})) * cos(radians(u."alertLat")) * cos(radians(u."alertLng") - radians(${lng}))
+        + sin(radians(${lat})) * sin(radians(u."alertLat"))
+      ))) AS km
+    ) d
+    WHERE u."petAlertsEnabled" = true
+      AND u."alertLat" IS NOT NULL
+      AND u."alertLng" IS NOT NULL
+      AND u."suspendedAt" IS NULL
+      AND u."anonymizedAt" IS NULL
+      AND u.id <> ${excludeUserId}
+      AND d.km <= u."alertRadiusKm"
+    ORDER BY d.km ASC
+  `;
+  // Prisma de Keystone devuelve el error en vez de lanzarlo.
+  if (rows instanceof Error) throw rows;
+  return (rows as Array<{ id: string; distanceKm: number; alertsToday: number; alreadyAlerted: boolean }>).map((row) => ({
+    id: row.id,
+    distanceKm: Number(row.distanceKm),
+    alertsToday: Number(row.alertsToday),
+    alreadyAlerted: Boolean(row.alreadyAlerted),
+  }));
+}
+
 /**
  * Avisa (campana + push) a quienes tienen alertas activas y su zona incluye el lugar del reporte.
  * Se llama con el primer registro con ubicación de un animal perdido o encontrado. Nunca lanza.
@@ -52,36 +107,16 @@ export async function notifyNearbyAnimal(context: KeystoneContext, input: Nearby
     }
 
     const prisma = (context.sudo() as KeystoneContext & { prisma: any }).prisma;
-    const ownerId = input.ownerId ?? "";
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    // Distancia con haversine en SQL (km). Excluye cuentas suspendidas o anonimizadas, al autor,
-    // a quien ya recibió la alerta de este animal y a quien llegó al tope del día.
-    const rows = await prisma.$queryRaw`
-      SELECT u.id
-      FROM "User" u
-      WHERE u."petAlertsEnabled" = true
-        AND u."alertLat" IS NOT NULL
-        AND u."alertLng" IS NOT NULL
-        AND u."suspendedAt" IS NULL
-        AND u."anonymizedAt" IS NULL
-        AND u.id <> ${ownerId}
-        AND 6371 * acos(LEAST(1, GREATEST(-1,
-              cos(radians(${input.lat})) * cos(radians(u."alertLat")) * cos(radians(u."alertLng") - radians(${input.lng}))
-              + sin(radians(${input.lat})) * sin(radians(u."alertLat"))
-            ))) <= u."alertRadiusKm"
-        AND NOT EXISTS (
-          SELECT 1 FROM "Notification" n
-          WHERE n.recipient = u.id AND n.type = ${NOTIFICATION_TYPE.ANIMAL_NEARBY} AND n."entityId" = ${input.animalId}
-        )
-        AND (
-          SELECT COUNT(*) FROM "Notification" n
-          WHERE n.recipient = u.id AND n.type = ${NOTIFICATION_TYPE.ANIMAL_NEARBY} AND n."createdAt" >= ${since}
-        ) < ${MAX_NEARBY_ALERTS_PER_DAY}
-    `;
-    if (rows instanceof Error) throw rows;
-
-    const recipientIds = (rows as Array<{ id: string }>).map((row) => row.id);
+    const candidates = await findZoneAlertCandidates(prisma, {
+      lat: input.lat,
+      lng: input.lng,
+      excludeUserId: input.ownerId ?? "",
+      animalId: input.animalId,
+    });
+    // Ni a quien ya recibió la alerta de este animal, ni a quien llegó al tope del día.
+    const recipientIds = candidates
+      .filter((row) => !row.alreadyAlerted && row.alertsToday < MAX_NEARBY_ALERTS_PER_DAY)
+      .map((row) => row.id);
     if (recipientIds.length === 0) return 0;
 
     const name = input.name?.trim() || "";

@@ -1,5 +1,5 @@
 import type { ListAccessControl } from "@keystone-6/core/types";
-import { getSessionUserId, isSignedIn } from "../../utils/access/tenant";
+import { getSessionUserId, isPlatformAdmin, isSignedIn } from "../../utils/access/tenant";
 
 const signedIn = ({ session }: { session?: unknown }) => isSignedIn(session as any);
 
@@ -30,3 +30,11 @@ export const readOnlyField = {
   create: () => false,
   update: () => false,
 };
+
+/** Estado de entrega por canal: solo un admin lo lee y nadie lo escribe por API (solo el servidor). */
+export const deliveryField = {
+  read: ({ session }: { session?: unknown }) => isPlatformAdmin(session as any),
+  create: () => false,
+  update: () => false,
+};
+

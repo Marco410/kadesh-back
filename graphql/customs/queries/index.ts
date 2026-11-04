@@ -29,6 +29,7 @@ import adminAcquisition from "./admin/adminAcquisition";
 import adminSalesVelocity from "./admin/adminSalesVelocity";
 import adminAnimals from "./admin/adminAnimals";
 import adminPet from "./admin/adminPet";
+import adminNotifications from "./admin/adminNotifications";
 import companyAnalytics from "./analytics/companyAnalytics";
 import landingStats from "./landingStats";
 import petLandingStats from "./petLandingStats";
@@ -63,6 +64,7 @@ const customQuery = {
     ${adminSalesVelocity.typeDefs}
     ${adminAnimals.typeDefs}
     ${adminPet.typeDefs}
+    ${adminNotifications.typeDefs}
     ${companyAnalytics.typeDefs}
     ${landingStats.typeDefs}
     ${petLandingStats.typeDefs}
@@ -98,6 +100,7 @@ const customQuery = {
     ${adminSalesVelocity.definition}
     ${adminAnimals.definition}
     ${adminPet.definition}
+    ${adminNotifications.definition}
     ${companyAnalytics.definition}
     ${landingStats.definition}
     ${petLandingStats.definition}
@@ -133,6 +136,7 @@ const customQuery = {
     ...adminSalesVelocity.resolver,
     ...adminAnimals.resolver,
     ...adminPet.resolver,
+    ...adminNotifications.resolver,
     ...companyAnalytics.resolver,
     ...landingStats.resolver,
     ...petLandingStats.resolver,
