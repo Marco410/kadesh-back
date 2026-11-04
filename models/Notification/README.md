@@ -47,6 +47,7 @@ Los manda el cron diario `sendDuePetReminders` a los dueños de la mascota cuand
 
 Además de la campana, `notify` manda el aviso por WhatsApp desde el número de Kadesh:
 - Solo a quien tiene `User.whatsappNotifications` activo y un `phone` válido (10 dígitos de México, o con lada de otro país).
+- Los admins lo tienen activo por defecto: al crear un usuario con rol `admin`, o al darle ese rol, queda en `true` (`adminWhatsappDefaultHook` en `models/User/User.hooks.ts`). Se puede apagar desde su usuario en el Admin UI. Para los admins que ya existían: `pnpm whatsapp:admins-on --apply` (o `whatsapp:admins-on:prod`). El resto de los usuarios sigue apagado hasta que acepte.
 - Solo si el tipo tiene plantilla en `utils/notifications/whatsapp.ts` (`WHATSAPP_TEMPLATES`). Sin plantilla, solo campana.
 - Los valores de la plantilla llegan en `templateValues` (no se guardan). Un valor vacío se manda como "sin especificar", porque Meta rechaza parámetros vacíos.
 - Sin `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` no se manda nada. Cada aviso que no sale deja una línea en el log que dice por qué (ver abajo).
@@ -104,3 +105,11 @@ Qué: `notify` manda cada aviso también por WhatsApp desde el número de Kadesh
 Por qué: los admins quieren ver los avisos sin abrir el panel. La plantilla genérica (`kadesh_notificacion`) no se mandó a Meta porque la iba a clasificar como Marketing.
 
 Qué no hacer: no usar el WhatsApp BYOK de la empresa para esto. No mandar sin opt-in. No poner en las variables datos sensibles (datos bancarios, ni siquiera los nombres de los campos). Un tipo nuevo necesita su plantilla aprobada en Meta y su entrada en `WHATSAPP_TEMPLATES`; si no, se queda solo en la campana.
+
+### 2026-11-03: WhatsApp activo por defecto para admins
+
+Qué: al crear un admin o darle el rol, `whatsappNotifications` queda activo. El script `scripts/enableAdminWhatsappNotifications.ts` activa a los admins que ya existían.
+
+Por qué: el aviso no llegaba porque el admin nunca lo había activado, y el campo solo se cambia desde el Admin UI.
+
+Qué no hacer: no activarlo por defecto para todos los usuarios. Meta pide que cada persona acepte recibir WhatsApp del negocio; para usuarios hace falta que lo acepten en la web o la app.

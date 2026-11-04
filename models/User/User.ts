@@ -27,6 +27,7 @@ import {
   userBankDetailsNotificationHook,
   stripeCustomerHook,
   userReferralHook,
+  adminWhatsappDefaultHook,
 } from "./User.hooks";
 import access, {
   userCompanyFieldAccess,
@@ -61,7 +62,11 @@ async function resolveInput(
     resolvedData: afterStripe,
   });
 
-  return afterReferral;
+  // Después de `userRoleHook`: ya sin los roles que la sesión no puede asignar.
+  return adminWhatsappDefaultHook.resolveInput({
+    ...args,
+    resolvedData: afterReferral,
+  });
 }
 
 export default list({
@@ -137,7 +142,10 @@ export default list({
     /** Opt-in para recibir las notificaciones de la campana también por WhatsApp (al `phone`). */
     whatsappNotifications: checkbox({
       defaultValue: false,
-      ui: { description: "Recibir avisos de Kadesh por WhatsApp" },
+      ui: {
+        description:
+          "Recibir avisos de Kadesh por WhatsApp (al teléfono). Se activa solo al dar el rol admin.",
+      },
     }),
     roles: relationship({
       ref: "Role.users",
