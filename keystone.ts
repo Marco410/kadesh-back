@@ -5,6 +5,8 @@ import { withAuth, session } from "./auth/auth";
 import { sessionEndedNoticePlugin, withSessionGuards } from "./auth/sessionGuards";
 import { impersonationReadOnlyPlugin } from "./auth/impersonation";
 import { appErrorsPlugin } from "./utils/activity/appErrorsPlugin";
+import { rateLimitPlugin } from "./utils/security/rateLimitPlugin";
+import { registerIpBlocklist } from "./utils/security/blockedIps";
 import extendGraphqlSchema from "./graphql/extendedSchema";
 import { isPlatformAdmin } from "./utils/access/tenant";
 import registerWhatsAppWebhook from "./webhooks/whatsapp";
@@ -173,6 +175,8 @@ export default withSessionGuards(withAuth(
       maxFileSize: 200 * 1024 * 1024,
       port: Number(process.env.LOCAL_PORT) || 3001,
       extendExpressApp: (app, context) => {
+        // IPs bloqueadas desde Operaciones → Seguridad: cortan antes de la sesión y de Apollo.
+        registerIpBlocklist(app, context);
         // Dice en el log de arranque si los avisos a admins por WhatsApp pueden salir.
         logPlatformWhatsappStatus();
         registerWhatsAppWebhook(app, context);
@@ -195,6 +199,8 @@ export default withSessionGuards(withAuth(
           sessionEndedNoticePlugin,
           // Errores que ve alguien con sesión: quedan en Actividad → Errores (sin variables).
           appErrorsPlugin,
+          // Límites contra abuso (registros, reportes, comentarios, reseñas, contacto…).
+          rateLimitPlugin,
           {
             async requestDidStart() {
               return {

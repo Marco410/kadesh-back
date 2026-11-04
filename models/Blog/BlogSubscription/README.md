@@ -19,3 +19,7 @@ Qué: `resolveInput` lowercased el email; unicidad y `unsubscribeBlog` usan `mod
 Por qué: con casing distinto podían existir dos filas; la UI/admin mostraba la pausada y el envío seguía yendo a la activa.
 
 Qué no hacer: no mezclar esto con correos de `SystemRelease` (novedades de plataforma): esos van a usuarios con cuenta y no miran `BlogSubscription`.
+
+## Acceso
+
+`anonymousCreateAccess` (`utils/access/presets.ts`): cualquiera se suscribe; solo el admin lee la lista y edita. Desde un front, la suscripción queda a nombre de la sesión (o de nadie, si es anónima) y activa (`resolveInput`). La baja va por `unsubscribeBlog` (sudo).

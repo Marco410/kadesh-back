@@ -2,6 +2,7 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import {
   ACTIVITY_EVENT,
   ACTIVITY_SOURCE,
+  ANONYMOUS_CLIENT_EVENT_TYPES,
   CLIENT_ADMIN_EVENT_TYPES,
   CLIENT_EVENT_TYPES,
   HEARTBEAT_EVENT,
@@ -14,6 +15,8 @@ import {
 } from "../../../../utils/access/tenant";
 import { logActivity } from "../../../../utils/activity/logActivity";
 import { getImpersonation } from "../../../../auth/impersonation";
+import { cleanPage, requestIp, requestPage } from "../../../../utils/activity/requestMeta";
+import { createDeduper, createRateLimiter } from "../../../../utils/security/rateLimit";
 
 /**
  * Eventos que solo conoce el navegador: qué secciones abre la gente, qué módulos bloqueados ve,
@@ -22,11 +25,14 @@ import { getImpersonation } from "../../../../auth/impersonation";
  *
  * El servidor pone actor y empresa desde la sesión; del cliente solo acepta tipos de una lista
  * cerrada (`CLIENT_EVENT_TYPES`; `admin.*` solo para admin de plataforma).
+ *
+ * `app.client_error` (fase 6.1): errores que el servidor no ve (red caída, 5xx/413/429, pantalla
+ * caída). Es lo único que acepta sin sesión, con tope por IP.
  */
 
 const typeDefs = `
   input TrackEventInput {
-    """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
+    """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, app.client_error (también sin sesión), admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
     type: String!
     """Datos chicos y planos: sección, módulo, conteo… (sin datos personales)."""
     metadata: JSON
@@ -67,6 +73,14 @@ const MAX_TEXT = 200;
 const CLOCK_WINDOW_MS = 10 * 60 * 1000;
 /** Abrir varias veces la misma ficha en este lapso cuenta como una sola vista. */
 const ADMIN_VIEW_DEDUPE_MS = 10 * 60 * 1000;
+/** El mismo error del navegador, de la misma persona (o IP), cuenta una vez en este lapso. */
+const CLIENT_ERROR_REPEAT_MS = 10 * 60 * 1000;
+/** Errores que puede reportar un visitante sin sesión desde una IP. */
+const ANONYMOUS_ERRORS_PER_IP = { limit: 20, windowMs: 10 * 60 * 1000 };
+const ANONYMOUS_MAX_EVENTS = 10;
+
+const clientErrorIsNew = createDeduper(CLIENT_ERROR_REPEAT_MS);
+const anonymousErrorsPerIp = createRateLimiter(ANONYMOUS_ERRORS_PER_IP);
 const MX_DAY = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Mexico_City",
   year: "numeric",
@@ -131,6 +145,76 @@ function summaryFor(type: string, meta: Record<string, unknown>, label: string |
     default:
       return type;
   }
+}
+
+function clientErrorSummary(kind: string, operation: string | null, page: string | null): string {
+  switch (kind) {
+    case "crash":
+      return `Se cayó la pantalla ${page ?? ""}`.trim();
+    case "chunk":
+      return `No cargó la pantalla ${page ?? ""}`.trim();
+    case "script":
+      return `Error de código en ${page ?? "una pantalla"}`;
+    default:
+      return `Error de conexión en ${operation ?? "una petición"}`;
+  }
+}
+
+/**
+ * Guarda un error del navegador. `kind`: network (la petición no llegó o volvió 5xx/413/429),
+ * crash (la pantalla se cayó), script (error de código que no la tiró) o chunk (no cargó el
+ * código de la pantalla, suele pasar tras un despliegue). El mensaje va a
+ * `errorMessage` y la pantalla del momento del error a `page`.
+ */
+async function logClientError(
+  context: KeystoneContext,
+  input: TrackEventInput,
+  userId: string | null,
+): Promise<void> {
+  const metadata = flatMetadata(input.metadata);
+  const message = text(metadata.message) ?? "Error desconocido";
+  const kind = text(metadata.kind, 20) ?? "network";
+  const operation = text(metadata.operation, 80);
+  const page = cleanPage(metadata.page) ?? requestPage(context.req);
+  const who = userId ?? `ip:${requestIp(context.req) ?? "?"}`;
+  if (!clientErrorIsNew(`${who}|${kind}|${operation ?? ""}|${message}`)) return;
+
+  const { message: _message, page: _page, ...rest } = metadata;
+  await logActivity(context, {
+    type: ACTIVITY_EVENT.APP_CLIENT_ERROR,
+    actorId: userId,
+    summary: clientErrorSummary(kind, operation, page),
+    success: false,
+    errorMessage: message,
+    metadata: { ...rest, kind, operation },
+    page,
+    source: ACTIVITY_SOURCE.WEB,
+    occurredAt: clientTime(input.occurredAt),
+  });
+}
+
+/** Visitante sin sesión: solo errores del navegador, con tope por IP. */
+async function trackAnonymous(
+  context: KeystoneContext,
+  list: TrackEventInput[],
+): Promise<{ accepted: number; rejected: number }> {
+  const ip = requestIp(context.req) ?? "?";
+  let accepted = 0;
+  for (const input of list.slice(0, ANONYMOUS_MAX_EVENTS)) {
+    const type = text(input?.type, 60);
+    if (!type || !ANONYMOUS_CLIENT_EVENT_TYPES.has(type)) continue;
+    if (!anonymousErrorsPerIp.hit(ip).ok) break;
+    try {
+      await logClientError(context, input, null);
+      accepted += 1;
+    } catch (error) {
+      console.warn(
+        `[activity] trackEvents anónimo ${type}:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+  return { accepted, rejected: list.length - accepted };
 }
 
 /**
@@ -247,9 +331,9 @@ const resolver = {
     const session = context.session as Parameters<typeof getSessionUserId>[0];
     const userId = getSessionUserId(session);
     const list = Array.isArray(events) ? events : [];
-    if (!userId) return { accepted: 0, rejected: list.length };
     // Viendo como otra persona: lo que hace el admin no es uso del cliente (ni sus minutos).
     if (getImpersonation(context.session)) return { accepted: 0, rejected: list.length };
+    if (!userId) return trackAnonymous(context, list);
 
     const companyId = getSessionCompanyId(session);
     const admin = isPlatformAdmin(session);
@@ -267,6 +351,12 @@ const resolver = {
             heartbeatDone = true;
             if (await recordHeartbeat(context, userId, companyId)) accepted += 1;
           }
+          continue;
+        }
+
+        if (type === ACTIVITY_EVENT.APP_CLIENT_ERROR) {
+          await logClientError(context, input, userId);
+          accepted += 1;
           continue;
         }
 

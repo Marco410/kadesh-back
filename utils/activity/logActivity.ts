@@ -1,5 +1,6 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import {
+  ACTIVITY_EVENT,
   ACTIVITY_SOURCE,
   categoryForType,
   type ActivitySource,
@@ -9,7 +10,15 @@ import {
   getSessionUserId,
   isPlatformAdmin,
 } from "../access/tenant";
-import { requestIp, requestUserAgent } from "./requestMeta";
+import { errorFingerprint } from "./fingerprint";
+import {
+  cleanApp,
+  cleanPage,
+  requestApp,
+  requestIp,
+  requestPage,
+  requestUserAgent,
+} from "./requestMeta";
 
 export type LogActivityInput = {
   type: string;
@@ -28,6 +37,13 @@ export type LogActivityInput = {
   errorMessage?: string | null;
   /** Para webhooks: la hora del proveedor. Por defecto, ahora. */
   occurredAt?: Date;
+  /**
+   * Pantalla en la que estaba la persona. Por defecto, la del header `x-kadesh-page`; los errores
+   * del navegador mandan la del momento del error (la cola se envía después).
+   */
+  page?: string | null;
+  /** App que hizo la petición. Por defecto, la del header `x-kadesh-app` o el `origin`. */
+  app?: string | null;
 };
 
 const SENSITIVE_KEY =
@@ -123,6 +139,17 @@ export async function logActivity(
       input.companyId === undefined ? getSessionCompanyId(session) : input.companyId;
     const prisma = context.sudo().prisma as any;
     if (!prisma?.activityEvent) return;
+    const app = input.app !== undefined ? cleanApp(input.app) : requestApp(context.req);
+    const page = input.page !== undefined ? cleanPage(input.page) : requestPage(context.req);
+    const fingerprint = input.type.startsWith("app.")
+      ? errorFingerprint({
+          type: input.type,
+          app: input.type === ACTIVITY_EVENT.APP_ERROR ? null : app,
+          operation: typeof input.metadata?.operation === "string" ? input.metadata.operation : null,
+          kind: typeof input.metadata?.kind === "string" ? input.metadata.kind : null,
+          message: input.errorMessage ?? input.summary,
+        })
+      : null;
 
     await prisma.activityEvent.create({
       data: {
@@ -140,6 +167,9 @@ export async function logActivity(
         errorMessage: truncate(input.errorMessage, MAX_ERROR),
         ip: requestIp(context.req),
         userAgent: requestUserAgent(context.req),
+        app,
+        page,
+        fingerprint,
         ...(input.occurredAt ? { createdAt: input.occurredAt } : {}),
       },
     });

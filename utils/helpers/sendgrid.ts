@@ -929,3 +929,36 @@ export async function sendAdminBroadcastEmail(params: {
     failedCount,
   };
 }
+
+/**
+ * Aviso de seguridad a los admins (fase 6.5): alguien se pasó de un límite contra abuso.
+ * Solo sale si `ADMIN_NOTIFICATION_EMAILS=on` (lo revisa quien llama); siempre llega a la campana.
+ */
+export async function sendAdminSecurityAlertEmail({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: Array<[string, string]>;
+}): Promise<void> {
+  const recipients = parseAdminNotificationEmails();
+  if (recipients.length === 0) return;
+  const brand: EmailBrand = "saas";
+  await sendEmail({
+    to: recipients,
+    subject: `[Kadesh] Alerta de seguridad: ${title}`,
+    html: renderEmailLayout({
+      brand,
+      preheader: title,
+      eyebrow: "Alerta de seguridad",
+      title,
+      bodyHtml: `
+        ${emailParagraph(
+          "Revisa Operaciones → Seguridad. Desde ahí puedes ver todo lo que pasó desde esa IP y bloquearla.",
+        )}
+        ${emailInfoTable(rows.map(([label, value]) => [escapeHtml(label), escapeHtml(value)]))}`,
+      footerNote: "Mensaje automático. No respondas a este correo.",
+    }),
+    fromName: EMAIL_BRANDS[brand].name,
+  });
+}

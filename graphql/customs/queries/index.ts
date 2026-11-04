@@ -20,6 +20,9 @@ import adminOpsSummary from "./admin/adminOpsSummary";
 import adminCompanyInsights from "./admin/adminCompanyInsights";
 import adminCompanyTrends from "./admin/adminCompanyTrends";
 import adminActivityFeed from "./admin/adminActivityFeed";
+import adminErrorIssues from "./admin/adminErrorIssues";
+import adminPersonDevices from "./admin/adminPersonDevices";
+import adminSecurity from "./admin/adminSecurity";
 import adminHealth from "./admin/adminHealth";
 import adminActivationFunnel from "./admin/adminActivationFunnel";
 import adminCohorts from "./admin/adminCohorts";
@@ -55,6 +58,9 @@ const customQuery = {
     ${adminCompanyInsights.typeDefs}
     ${adminCompanyTrends.typeDefs}
     ${adminActivityFeed.typeDefs}
+    ${adminErrorIssues.typeDefs}
+    ${adminPersonDevices.typeDefs}
+    ${adminSecurity.typeDefs}
     ${adminHealth.typeDefs}
     ${adminActivationFunnel.typeDefs}
     ${adminCohorts.typeDefs}
@@ -91,6 +97,9 @@ const customQuery = {
     ${adminCompanyInsights.definition}
     ${adminCompanyTrends.definition}
     ${adminActivityFeed.definition}
+    ${adminErrorIssues.definition}
+    ${adminPersonDevices.definition}
+    ${adminSecurity.definition}
     ${adminHealth.definition}
     ${adminActivationFunnel.definition}
     ${adminCohorts.definition}
@@ -127,6 +136,9 @@ const customQuery = {
     ...adminCompanyInsights.resolver,
     ...adminCompanyTrends.resolver,
     ...adminActivityFeed.resolver,
+    ...adminErrorIssues.resolver,
+    ...adminPersonDevices.resolver,
+    ...adminSecurity.resolver,
     ...adminHealth.resolver,
     ...adminActivationFunnel.resolver,
     ...adminCohorts.resolver,

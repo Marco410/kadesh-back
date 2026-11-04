@@ -84,11 +84,26 @@ export default list({
     }),
     ip: text({
       db: { isNullable: true },
-      ui: { description: "IP de la petición (x-forwarded-for del proxy si existe)" },
+      isIndexed: true,
+      ui: { description: "IP de la petición (ver CLIENT_IP_HEADER en utils/activity/requestMeta.ts)" },
     }),
     userAgent: text({
       db: { isNullable: true },
       ui: { description: "Navegador o cliente que hizo la petición" },
+    }),
+    app: text({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "App que hizo la petición: pet-web, business-web o pet-mobile (ACTIVITY_APP)" },
+    }),
+    page: text({
+      db: { isNullable: true },
+      ui: { description: "Pantalla en la que estaba la persona (ruta y solo tab/vista/clinic/pet)" },
+    }),
+    fingerprint: text({
+      db: { isNullable: true },
+      isIndexed: true,
+      ui: { description: "Huella de los errores app.* para agruparlos en la bandeja de Errores" },
     }),
     createdAt: timestamp({
       defaultValue: { kind: "now" },

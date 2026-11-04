@@ -1,6 +1,7 @@
 import { list } from "@keystone-6/core";
 import { select, text, timestamp } from "@keystone-6/core/fields";
-import access from "../../utils/generalAccess/access";
+import { anonymousCreateAccess, isClientNonAdmin } from "../../utils/access/presets";
+import { logContactForm } from "../../utils/pet/petActivity";
 
 export const CONTACT_FORM_STATUS_OPTIONS = [
   { label: "Nuevo", value: "new" },
@@ -10,7 +11,18 @@ export const CONTACT_FORM_STATUS_OPTIONS = [
 ];
 
 export default list({
-  access,
+  // Cualquiera escribe; solo el admin lee los mensajes (nombre, correo y teléfono de quien escribe).
+  access: anonymousCreateAccess,
+  hooks: {
+    // Un mensaje nuevo desde el sitio siempre entra como "Nuevo".
+    resolveInput: ({ resolvedData, operation, context }) =>
+      operation === "create" && isClientNonAdmin(context)
+        ? { ...resolvedData, status: "new" }
+        : resolvedData,
+    afterOperation: async (args: any) => {
+      void logContactForm(args);
+    },
+  },
   fields: {
     name: text({
       validation: { isRequired: true },

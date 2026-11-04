@@ -20,6 +20,10 @@ Al pasar de pendiente a aprobado, el hook marca `active` y conecta el servicio a
 
 Cada solicitud manda correo a `SMTP_ADMIN_NOTIFICATION_EMAILS`. Aprobar o rechazar es en Keystone, en esta lista.
 
+## Acceso
+
+`PetPlaceService.access.ts`: el público solo ve los aprobados; quien tiene sesión ve además los que pidió o los de su clínica (para el "pendiente"); el admin ve todo. Crear, aprobar y rechazar es del admin; el dueño pide con `requestPetPlaceService` (sudo).
+
 ## Qué no va aquí
 
 Nombres libres escritos directo en la ficha. Horarios (`Schedule`). Citas (`PetPlaceAppointment`).

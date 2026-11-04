@@ -533,7 +533,15 @@ const resolver = {
         where: { actorId: userId },
         orderBy: { createdAt: "desc" },
         take: 1000,
-        select: { createdAt: true, type: true, summary: true },
+        select: {
+          createdAt: true,
+          type: true,
+          summary: true,
+          ip: true,
+          userAgent: true,
+          app: true,
+          page: true,
+        },
       }),
       prisma.userActivityDay.findMany({
         where: { userId },
@@ -666,7 +674,7 @@ const resolver = {
       }),
       prisma.activityEvent.updateMany({
         where: { actorId: userId },
-        data: { ip: null, userAgent: null },
+        data: { ip: null, userAgent: null, page: null },
       }),
       prisma.blogSubscription.deleteMany({
         where: { OR: [{ userId }, ...(user.email ? [{ email: user.email }] : [])] },

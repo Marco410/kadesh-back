@@ -1,6 +1,7 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { logActivity } from "../../../../utils/activity/logActivity";
+import { logAnimalClaimCancelled } from "../../../../utils/pet/petActivity";
 import {
   automationUserId,
   notifyClaimResolved,
@@ -196,6 +197,7 @@ const resolver = {
       where: { id: claim.id },
       data: { status: ANIMAL_CLAIM_STATUS.CANCELLED, resolvedAt: new Date().toISOString() },
     });
+    void logAnimalClaimCancelled(context, { id: claim.id, animalId: claim.animal.id ?? null });
     return { success: true, message: "Cancelaste tu solicitud.", animalSlug: claim.animal.slug ?? null };
   },
 };

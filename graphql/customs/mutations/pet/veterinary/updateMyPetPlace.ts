@@ -1,4 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { ACTIVITY_EVENT } from "../../../../../models/ActivityEvent/constants";
+import { logPetPlaceEvent } from "../../../../../utils/pet/petActivity";
 import { getSessionUserId } from "../../../../../utils/access/tenant";
 import { PET_PLACE_CLAIM_STATUS } from "../../../../../models/Pet/PetPlace/claim";
 import {
@@ -408,6 +410,13 @@ const resolver = {
       };
     }
 
+    void logPetPlaceEvent(context, ACTIVITY_EVENT.PET_PLACE_UPDATED, place.id, "Editó la veterinaria", {
+      fields: [
+        ...Object.keys(data),
+        ...(hasSocialUpdate ? ["socialMedia"] : []),
+        ...(hasSchedulesUpdate ? ["schedules"] : []),
+      ].slice(0, 20),
+    });
     return {
       success: true,
       message: "Datos actualizados.",

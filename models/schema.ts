@@ -10,6 +10,8 @@ import User from "./User/User";
 import UserAuthLog from "./User/UserAuthLog/UserAuthLog";
 import UserActivityDay from "./User/UserActivityDay/UserActivityDay";
 import ActivityEvent from "./ActivityEvent/ActivityEvent";
+import ErrorIssue from "./ErrorIssue/ErrorIssue";
+import BlockedIp from "./Security/BlockedIp/BlockedIp";
 import { withActivityHooks } from "../utils/activity/listActivityHooks";
 import AnimalBreed from "./Pet/Animal/AnimalBreed/AnimalBreed";
 import Pet from "./Pet/Pet";
@@ -92,6 +94,8 @@ import TechGoogleCalendarSyncLog from "./Saas/Tech/GoogleCalendarSyncLog/TechGoo
 // withActivityHooks agrega el registro de cambios (ActivityEvent) a las lists del CRM, equipo y planes.
 export default withActivityHooks({
   ActivityEvent,
+  ErrorIssue,
+  BlockedIp,
   Notification,
   Ad,
   Animal,

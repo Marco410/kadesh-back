@@ -6,11 +6,11 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { adminOnlyAccess } from "../../../../utils/access/presets";
 import { ORDER_STATUS } from "../../../../utils/constants/constants";
 
 export default list({
-  access,
+  access: adminOnlyAccess,
   fields: {
     total: integer(),
     status: select({ validation: { isRequired: true }, options: ORDER_STATUS }),

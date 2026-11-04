@@ -6,6 +6,52 @@ import {
   USER_AUTH_LOG_STEP,
 } from "../../../../models/User/UserAuthLog/constants";
 import { SUSPENDED_MESSAGE, loginBlockedReason } from "../../../../auth/sessionGuards";
+import { requestIp } from "../../../../utils/activity/requestMeta";
+import { LOGIN_FAILED_RULES, rateLimitedMessage } from "../../../../utils/security/constants";
+import { createRateLimiter } from "../../../../utils/security/rateLimit";
+import { maskedEmail, onRateLimitExceeded } from "../../../../utils/security/securityAlerts";
+
+/**
+ * Fuerza bruta (fase 6.5): solo cuentan los intentos fallidos, por IP y por correo. Al llegar al
+ * límite, los siguientes intentos responden sin probar la contraseña hasta que pase la ventana,
+ * y se avisa a los admins.
+ */
+const failedPerIp = createRateLimiter(LOGIN_FAILED_RULES.perIp);
+const failedPerEmail = createRateLimiter(LOGIN_FAILED_RULES.perEmail);
+
+function loginKeys(context: KeystoneContext, email: string) {
+  return { ip: `ip:${requestIp(context.req) ?? "?"}`, email: `email:${email.toLowerCase()}` };
+}
+
+async function recordFailedLogin(context: KeystoneContext, email: string) {
+  const keys = loginKeys(context, email);
+  const checks = [
+    { rule: LOGIN_FAILED_RULES.perIp, result: failedPerIp.hit(keys.ip) },
+    ...(email ? [{ rule: LOGIN_FAILED_RULES.perEmail, result: failedPerEmail.hit(keys.email) }] : []),
+  ];
+  for (const { rule, result } of checks) {
+    if (result.count < rule.limit) continue;
+    await onRateLimitExceeded(context, {
+      rule: rule.key,
+      limit: rule.limit,
+      windowMs: rule.windowMs,
+      count: result.count,
+      firstExceeded: result.count === rule.limit,
+      alertAlways: true,
+      subjectLabel: rule === LOGIN_FAILED_RULES.perEmail ? maskedEmail(email) : null,
+    });
+  }
+}
+
+/** Segundos que faltan si la IP o el correo ya llegaron al límite; `null` si puede intentar. */
+function loginLockedFor(context: KeystoneContext, email: string): number | null {
+  const keys = loginKeys(context, email);
+  const byIp = failedPerIp.peek(keys.ip);
+  const byEmail = email ? failedPerEmail.peek(keys.email) : null;
+  const locked = [byIp, byEmail].filter((result) => result && !result.ok);
+  if (locked.length === 0) return null;
+  return Math.max(...locked.map((result) => result!.retryAfterSec));
+}
 
 const FIELD = "authenticateUserWithPassword";
 
@@ -76,6 +122,21 @@ export function passwordLoginAuditResolvers(
     const startedAt = Date.now();
     const email = typeof args?.email === "string" ? args.email.trim() : "";
 
+    const lockedFor = loginLockedFor(context, email);
+    if (lockedFor != null) {
+      await writeUserAuthLog(context, {
+        startedAt,
+        source: USER_AUTH_LOG_SOURCE.CUSTOM_AUTH,
+        step: USER_AUTH_LOG_STEP.CUSTOM_AUTH_FAIL,
+        success: false,
+        message: "Bloqueado por demasiados intentos fallidos.",
+        email,
+        userId: await findUserIdByEmail(context, email),
+        responseSnapshot: { method: "password", reason: "rate_limited" },
+      });
+      return { code: "FAILURE", message: rateLimitedMessage(lockedFor) };
+    }
+
     let result: unknown;
     try {
       result = await original(root, args, context, info);
@@ -97,6 +158,7 @@ export function passwordLoginAuditResolvers(
     const userId = success
       ? resultUserId(result)
       : await findUserIdByEmail(context, email);
+    if (!success) await recordFailedLogin(context, email);
 
     // Contraseña correcta pero cuenta suspendida o anonimizada: no se entrega el token.
     // El mensaje solo lo ve quien sabe la contraseña (no revela si el correo existe).

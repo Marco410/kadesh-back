@@ -115,7 +115,7 @@ export async function checkPostUrl(
 
   let uniqueLink: string = baseLink;
 
-  let existingPost = await context.db.Post.findOne({
+  let existingPost = await context.sudo().db.Post.findOne({
     where: { url: uniqueLink },
   });
 
@@ -123,7 +123,7 @@ export async function checkPostUrl(
     let counter = 1;
     while (existingPost && existingPost.id !== currentPostId) {
       uniqueLink = `${baseLink}-${counter}`;
-      existingPost = await context.db.Post.findOne({
+      existingPost = await context.sudo().db.Post.findOne({
         where: { url: uniqueLink },
       });
       counter++;

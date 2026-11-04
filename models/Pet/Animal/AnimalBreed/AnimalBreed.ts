@@ -1,9 +1,9 @@
 import { list } from "@keystone-6/core";
 import { relationship, text } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { publicReadAdminWriteAccess } from "../../../../utils/access/presets";
 
 export default list({
-  access,
+  access: publicReadAdminWriteAccess,
   fields: {
     breed: text(),
     animal_type: relationship({
