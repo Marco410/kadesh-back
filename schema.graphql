@@ -229,6 +229,12 @@ type Notification {
   url: String
   metadata: JSON
   readAt: DateTime
+  pushStatus: String
+  pushDevices: Int
+  whatsappStatus: String
+  whatsappDetail: String
+  whatsappMessageId: String
+  whatsappUpdatedAt: DateTime
   createdAt: DateTime
 }
 
@@ -250,7 +256,24 @@ input NotificationWhereInput {
   entityId: StringFilter
   url: StringFilter
   readAt: DateTimeNullableFilter
+  pushStatus: StringNullableFilter
+  pushDevices: IntNullableFilter
+  whatsappStatus: StringNullableFilter
+  whatsappDetail: StringFilter
+  whatsappMessageId: StringFilter
+  whatsappUpdatedAt: DateTimeNullableFilter
   createdAt: DateTimeNullableFilter
+}
+
+input IntNullableFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntNullableFilter
 }
 
 input NotificationOrderByInput {
@@ -263,6 +286,12 @@ input NotificationOrderByInput {
   entityId: OrderDirection
   url: OrderDirection
   readAt: OrderDirection
+  pushStatus: OrderDirection
+  pushDevices: OrderDirection
+  whatsappStatus: OrderDirection
+  whatsappDetail: OrderDirection
+  whatsappMessageId: OrderDirection
+  whatsappUpdatedAt: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -277,6 +306,12 @@ input NotificationUpdateInput {
   url: String
   metadata: JSON
   readAt: DateTime
+  pushStatus: String
+  pushDevices: Int
+  whatsappStatus: String
+  whatsappDetail: String
+  whatsappMessageId: String
+  whatsappUpdatedAt: DateTime
   createdAt: DateTime
 }
 
@@ -296,6 +331,12 @@ input NotificationCreateInput {
   url: String
   metadata: JSON
   readAt: DateTime
+  pushStatus: String
+  pushDevices: Int
+  whatsappStatus: String
+  whatsappDetail: String
+  whatsappMessageId: String
+  whatsappUpdatedAt: DateTime
   createdAt: DateTime
 }
 
@@ -370,17 +411,6 @@ input CalendarDayNullableFilter {
   gt: CalendarDay
   gte: CalendarDay
   not: CalendarDayNullableFilter
-}
-
-input IntNullableFilter {
-  equals: Int
-  in: [Int!]
-  notIn: [Int!]
-  lt: Int
-  lte: Int
-  gt: Int
-  gte: Int
-  not: IntNullableFilter
 }
 
 input AdOrderByInput {
@@ -10112,6 +10142,7 @@ type Mutation {
   adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
   adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
+  adminUpdateZoneAlerts(userId: ID!, enabled: Boolean, lat: Float, lng: Float, radiusKm: Int, disableWhatsapp: Boolean): AdminOpsActionResult!
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   markAllNotificationsRead(product: String): Int!
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
@@ -10460,6 +10491,9 @@ type Query {
   adminAnimalDetail(id: ID!): AdminAnimalDetail
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
+  adminNotificationLog(product: String, type: String, channel: String, result: String, search: String, entityId: String, days: Int, take: Int, skip: Int): AdminNotificationLog!
+  adminZoneAlerts(search: String, status: String, take: Int, skip: Int): AdminZoneAlerts!
+  adminZoneAlertPreview(lat: Float!, lng: Float!): AdminZonePreview!
   landingStats: LandingStats!
   petLandingStats: PetLandingStats!
 }
@@ -12663,6 +12697,102 @@ type AdminPetSeries {
   to: String!
   total: Int!
   points: [AdminPetSeriesPoint!]!
+}
+
+type AdminNotificationRow {
+  id: ID!
+  createdAt: String
+  product: String
+  type: String!
+  title: String!
+  body: String
+  url: String
+  entityType: String
+  entityId: String
+  readAt: String
+  recipient: AdminPersonRef
+  recipientPhone: String
+  pushStatus: String
+  pushDevices: Int
+  whatsappStatus: String
+  whatsappDetail: String
+  whatsappUpdatedAt: String
+}
+
+type AdminNotificationSummary {
+  total: Int!
+  read: Int!
+  pushSent: Int!
+  pushFailed: Int!
+  pushNoDevices: Int!
+  whatsappDelivered: Int!
+  whatsappPending: Int!
+  whatsappFailed: Int!
+  whatsappSkipped: Int!
+}
+
+type AdminNotificationLog {
+  items: [AdminNotificationRow!]!
+  total: Int!
+  summary: AdminNotificationSummary!
+  types: [AdminCount!]!
+}
+
+type AdminZoneAlertRow {
+  id: ID!
+  name: String!
+  lastName: String
+  email: String
+  phone: String
+  enabled: Boolean!
+  lat: Float
+  lng: Float
+  radiusKm: Int
+
+  """
+  on, off (no lo activó), no_phone (sin teléfono) o muted (silenció las alertas de zona).
+  """
+  whatsapp: String!
+  pushDevices: Int!
+  alerts30d: Int!
+  lastAlertAt: String
+}
+
+type AdminZoneAlertSummary {
+  active: Int!
+  inactive: Int!
+  withPush: Int!
+  withWhatsapp: Int!
+  alerts7d: Int!
+}
+
+type AdminZoneAlerts {
+  items: [AdminZoneAlertRow!]!
+  total: Int!
+  summary: AdminZoneAlertSummary!
+}
+
+type AdminZonePreviewRow {
+  id: ID!
+  name: String!
+  lastName: String
+  email: String
+  distanceKm: Float!
+  radiusKm: Int
+  alertsToday: Int!
+
+  """Llegó al tope del día: hoy ya no recibiría la alerta."""
+  capped: Boolean!
+  pushDevices: Int!
+  whatsapp: String!
+}
+
+type AdminZonePreview {
+  items: [AdminZonePreviewRow!]!
+  total: Int!
+  wouldReceive: Int!
+  capped: Int!
+  maxPerDay: Int!
 }
 
 input CompanyAnalyticsInput {

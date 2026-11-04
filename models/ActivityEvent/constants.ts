@@ -150,6 +150,8 @@ export const ACTIVITY_EVENT = {
   ADMIN_ACCOUNT_MANAGER_ASSIGNED: "admin.account_manager_assigned",
   ADMIN_NOTE_ADDED: "admin.note_added",
   ADMIN_NOTE_DELETED: "admin.note_deleted",
+  // Kadesh Pet: alertas de zona de una persona (Operaciones → Kadesh Pet → Alertas de zona).
+  ADMIN_ZONE_ALERTS_UPDATED: "admin.zone_alerts_updated",
   ADMIN_PERSON_DATA_EXPORTED: "admin.person_data_exported",
   ADMIN_USER_ANONYMIZED: "admin.user_anonymized",
 

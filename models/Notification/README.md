@@ -154,6 +154,23 @@ Busca `[notify:whatsapp]` en los logs:
 
 Para que aparezca el `Meta no entregó …`, el WABA del número de plataforma tiene que estar conectado a una empresa con su App Secret; si no, el webhook lo descarta y lo dice en el log.
 
+## Entrega: a dónde se fue cada aviso
+
+Cada `Notification` guarda cómo le fue a cada canal, además de la campana (`readAt`). Solo un admin lo lee (`deliveryField`); lo escribe el servidor. Se ve en Operaciones → Kadesh Pet → Avisos (`adminNotificationLog`).
+
+| Campo | Qué guarda |
+| --- | --- |
+| `pushStatus` / `pushDevices` | `sent`, `partial` (algunos dispositivos), `failed` o `no_devices` (sin app), y a cuántos dispositivos se intentó. Vacío = no aplica (solo Pet). |
+| `whatsappStatus` | `skipped` (no se mandó), `accepted` (Meta lo aceptó), `sent`, `delivered`, `read` o `failed`. Vacío = el tipo no tiene plantilla. |
+| `whatsappDetail` | Con `skipped`, el motivo (`WHATSAPP_SKIP_REASON`: `sin_optin`, `sin_telefono`, `telefono_invalido`, `silenciado`, `sin_configuracion`). Con `failed`, el error de Meta. |
+| `whatsappMessageId` / `whatsappUpdatedAt` | El `wamid` y cuándo cambió el estado. |
+
+Cómo se llena:
+- `notify` crea las filas con `createManyAndReturn` y pasa el id de cada destinatario a `sendPushToUsers` y `sendNotificationWhatsappToOptedIn` (`utils/notifications/delivery.ts`).
+- El push queda al terminar el envío a Expo (los recibos de 15 min solo borran tokens dados de baja).
+- WhatsApp queda al mandar. Después, el webhook (`statuses`) lo mueve a `sent` → `delivered` → `read`, o a `failed` con el código de Meta, buscando por `whatsappMessageId`. Un acuse viejo que llega tarde no regresa el estado.
+- El canal `whatsapp` suelto de los recordatorios (sin `push`) no crea `Notification`, así que no deja registro aquí.
+
 ## Acceso
 
 - Cada quien solo ve, marca y borra las suyas (filtro por `recipient`). Nadie las crea por API.
@@ -203,3 +220,12 @@ Qué no hacer:
 - No unir las siete plantillas en una genérica: Meta la clasificaría como Marketing.
 - No poner el enlace al final del cuerpo: Meta rechaza una plantilla que empieza o termina con una variable.
 - No mandar el recordatorio por WhatsApp dos veces cuando el recordatorio trae `push` y `whatsapp`.
+
+### 2026-11-04: Registro de entrega por canal y administración de alertas de zona
+
+Qué: cada `Notification` guarda a dónde se fue (push y WhatsApp, ver «Entrega»). Operaciones → Kadesh Pet tiene **Avisos** (cada aviso, a quién y por qué canal, con filtros) y **Alertas de zona** (quién las tiene, su zona, radio y canales; apagarlas o encenderlas, mover la zona o el radio, apagar su WhatsApp, y ver quién recibiría una alerta en un punto). La regla de quién recibe una alerta de zona vive en `findZoneAlertCandidates` y la usan la alerta real y la vista previa.
+
+Por qué: el resultado de cada envío solo quedaba en el log de Railway, que se pierde, y no había cómo ver ni administrar a quién le llegan las alertas de zona.
+
+Qué no hacer: no encender el WhatsApp de un usuario desde Operaciones (Meta exige que acepte él mismo). No escribir los campos de entrega por API: solo el servidor.
+
