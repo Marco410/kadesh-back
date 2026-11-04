@@ -4,6 +4,7 @@ import { animalAccess, forceAnimalOwner } from "./Animal.access";
 import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
 import { animalCreateSideEffectsHook } from "./Animal.hooks";
 import { animalMergeAfterOperation, validateDuplicateOf } from "./Animal.merge";
+import { removeIncompleteOwnReports, validateOwnDuplicate } from "./Animal.ownDuplicates";
 import { normalizeMxPhone } from "../../../utils/pet/phone";
 import { isPlatformAdmin } from "../../../utils/access/tenant";
 
@@ -58,10 +59,14 @@ export default list({
           addValidationError(phone.reason);
         }
       }
+      // La misma persona publicando otra vez el mismo animal (ver Animal.ownDuplicates.ts).
+      await validateOwnDuplicate({ operation, resolvedData, context, addValidationError });
     },
     afterOperation: async (args) => {
       await animalCreateSideEffectsHook.afterOperation(args);
       await animalMergeAfterOperation(args);
+      // Sin await: limpiar el intento anterior a medias no frena la respuesta.
+      void removeIncompleteOwnReports(args);
     },
   },
   ui: {
