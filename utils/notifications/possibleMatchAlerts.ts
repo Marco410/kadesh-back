@@ -4,6 +4,7 @@ import { findSimilarReports } from "../pet/animalReport";
 import { isGenericName } from "../pet/reportSimilarity";
 import { reportAudience } from "./animalReportAlerts";
 import { notify } from "./notify";
+import { petSiteUrl } from "./whatsapp";
 
 /** Máximo de reportes del otro lado que se avisan por cada reporte nuevo. */
 const MAX_MATCH_ALERTS = 3;
@@ -98,6 +99,13 @@ export async function notifyPossibleMatches(context: KeystoneContext, input: Pos
         entityId: animal.id,
         url: input.url ?? null,
         metadata: { slug: input.slug ?? null, matchOf: match.id, score: match.score },
+        // kadesh_pet_coincidencia: posible coincidencia con un reporte tuyo. {summary} … {url}.
+        templateValues: {
+          summary: newIsLost
+            ? `Una familia busca a un animal parecido ${theirName ? `a ${theirName}` : "al que reportaste"}, perdido cerca de donde lo encontraron`
+            : `Reportaron uno encontrado parecido a ${theirName ?? "tu mascota"}, cerca de donde se perdió`,
+          url: input.url ?? petSiteUrl(),
+        },
       });
     }
     return sent;

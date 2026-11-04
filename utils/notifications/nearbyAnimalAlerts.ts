@@ -1,6 +1,7 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { NOTIFICATION_TYPE } from "../../models/Notification/constants";
 import { notify } from "./notify";
+import { petSiteUrl } from "./whatsapp";
 
 /** Estatus que avisan a la zona: se busca a su familia. */
 const ALERT_STATUSES = new Set(["lost", "found"]);
@@ -99,6 +100,12 @@ export async function notifyNearbyAnimal(context: KeystoneContext, input: Nearby
       entityId: input.animalId,
       url: input.url ?? null,
       metadata: { slug: input.slug ?? null, status },
+      // kadesh_pet_animal_cerca: «reportaron un animal {status} cerca de ti. Es {animal}. … {url}».
+      templateValues: {
+        status: lost ? "perdido" : "encontrado",
+        animal: `${name ? who : who.charAt(0).toLowerCase() + who.slice(1)}${where}`,
+        url: input.url ?? petSiteUrl(),
+      },
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar a la zona:", input.animalId, error);

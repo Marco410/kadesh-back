@@ -29,6 +29,7 @@ import {
   userReferralHook,
   adminWhatsappDefaultHook,
 } from "./User.hooks";
+import { whatsappMutedTypesHooks } from "./whatsappPrefs";
 import access, {
   userCompanyFieldAccess,
   userOnboardingFieldAccess,
@@ -145,6 +146,19 @@ export default list({
       ui: {
         description:
           "Recibir avisos de Kadesh por WhatsApp (al teléfono). Se activa solo al dar el rol admin.",
+      },
+    }),
+    /**
+     * Tipos de aviso que la persona NO quiere por WhatsApp (los demás le llegan con
+     * `whatsappNotifications`). Lista de `NOTIFICATION_TYPE`; vacío = todos. Ver whatsappPrefs.ts.
+     */
+    whatsappMutedTypes: json({
+      defaultValue: [],
+      access: userPetAlertsFieldAccess,
+      hooks: whatsappMutedTypesHooks,
+      ui: {
+        description: "Avisos que no quiere por WhatsApp (JSON array de tipos, p. ej. [\"animal.commented\"]). Vacío = todos.",
+        createView: { fieldMode: "hidden" },
       },
     }),
     roles: relationship({

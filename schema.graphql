@@ -8829,6 +8829,7 @@ type User {
   password: PasswordState
   phone: String
   whatsappNotifications: Boolean
+  whatsappMutedTypes: JSON
   roles(where: RoleWhereInput! = {}, orderBy: [RoleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RoleWhereUniqueInput): [Role!]
   rolesCount(where: RoleWhereInput! = {}): Int
   permissions: JSON
@@ -9103,6 +9104,7 @@ input UserUpdateInput {
   password: String
   phone: String
   whatsappNotifications: Boolean
+  whatsappMutedTypes: JSON
   roles: RoleRelateToManyForUpdateInput
   permissions: JSON
   referredBy: UserRelateToOneForUpdateInput
@@ -9226,6 +9228,7 @@ input UserCreateInput {
   password: String
   phone: String
   whatsappNotifications: Boolean
+  whatsappMutedTypes: JSON
   roles: RoleRelateToManyForCreateInput
   permissions: JSON
   referredBy: UserRelateToOneForCreateInput

@@ -422,8 +422,8 @@ function requestIp(req) {
   if (!req) return null;
   const forwarded = firstHeader(req.headers?.["x-forwarded-for"])?.split(",")[0]?.trim();
   const ip = forwarded || req.socket?.remoteAddress || "";
-  const clean = ip.replace(/^::ffff:/, "").slice(0, MAX_IP);
-  return clean || null;
+  const clean2 = ip.replace(/^::ffff:/, "").slice(0, MAX_IP);
+  return clean2 || null;
 }
 function requestUserAgent(req) {
   const ua = firstHeader(req?.headers?.["user-agent"])?.trim();
@@ -456,15 +456,15 @@ function scrubValue(value, depth) {
 }
 function scrubMetadata(metadata) {
   if (!metadata) return null;
-  const clean = scrubValue(metadata, 0);
+  const clean2 = scrubValue(metadata, 0);
   try {
-    if (JSON.stringify(clean).length > MAX_METADATA_BYTES) {
-      return { truncated: true, keys: Object.keys(clean).slice(0, MAX_ARRAY) };
+    if (JSON.stringify(clean2).length > MAX_METADATA_BYTES) {
+      return { truncated: true, keys: Object.keys(clean2).slice(0, MAX_ARRAY) };
     }
   } catch {
     return null;
   }
-  return clean;
+  return clean2;
 }
 function resolveSource(context, companyId) {
   const session2 = context.session;
@@ -2588,6 +2588,540 @@ async function sendAdminBroadcastEmail(params) {
   };
 }
 
+// utils/pet/reportSimilarity.ts
+var SIMILARITY_POSSIBLE = 45;
+var SIMILARITY_LIKELY = 70;
+var SIMILARITY_RADIUS_KM = 5;
+var SIMILARITY_WINDOW_DAYS = { lost: 90, other: 30 };
+var SIMILARITY_MAX_RESULTS = 3;
+var WEIGHTS = {
+  SAME_SOURCE: 100,
+  SAME_PHONE: 40,
+  SAME_NAME: 35,
+  SIMILAR_NAME: 25,
+  DIFFERENT_NAME: -20,
+  VERY_CLOSE: 25,
+  CLOSE: 20,
+  NEAR: 12,
+  AREA: 5,
+  SAME_SEX: 5,
+  DIFFERENT_SEX: -30,
+  SAME_COLOR: 10,
+  DIFFERENT_COLOR: -5,
+  SAME_BREED: 5,
+  SAME_MIXED_BREED: 2,
+  SIMILAR_DESCRIPTION: 10,
+  SAME_DATE: 5
+};
+var LOST_STATUSES = ["lost"];
+var STREET_STATUSES = ["found", "rescued", "abandoned"];
+var CLOSED_STATUSES = /* @__PURE__ */ new Set(["in_family", "adopted"]);
+function kindForStatuses(newStatus, candidateStatus) {
+  const candidate = (candidateStatus ?? "").toLowerCase();
+  if (CLOSED_STATUSES.has(candidate)) return null;
+  const status = (newStatus ?? "").toLowerCase();
+  if (!status) return "duplicate";
+  if (LOST_STATUSES.includes(status)) {
+    if (LOST_STATUSES.includes(candidate)) return "duplicate";
+    if (STREET_STATUSES.includes(candidate)) return "match";
+    return null;
+  }
+  if (STREET_STATUSES.includes(status)) {
+    if (STREET_STATUSES.includes(candidate)) return "duplicate";
+    if (LOST_STATUSES.includes(candidate)) return "match";
+    return null;
+  }
+  return status === candidate ? "duplicate" : null;
+}
+function windowDaysFor(status) {
+  return (status ?? "").toLowerCase() === "lost" ? SIMILARITY_WINDOW_DAYS.lost : SIMILARITY_WINDOW_DAYS.other;
+}
+function foldText(value) {
+  return (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+var GENERIC_NAMES = /* @__PURE__ */ new Set([
+  "",
+  "sin nombre",
+  "sinnombre",
+  "s n",
+  "n a",
+  "na",
+  "no se",
+  "no lo se",
+  "desconocido",
+  "desconocida",
+  "unnamed",
+  "perro",
+  "perra",
+  "perrito",
+  "perrita",
+  "gato",
+  "gata",
+  "gatito",
+  "gatita",
+  "cachorro",
+  "cachorra",
+  "cachorrito",
+  "cachorrita",
+  "callejero",
+  "callejera",
+  "callejerito",
+  "callejerita",
+  "ave",
+  "pajaro",
+  "pajarito",
+  "conejo",
+  "conejito",
+  "mascota"
+]);
+function isGenericName(name) {
+  const folded = foldText(name);
+  return GENERIC_NAMES.has(folded) || folded.startsWith("sin nombre");
+}
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+function compareNames(a, b) {
+  if (isGenericName(a) || isGenericName(b)) return null;
+  const left = foldText(a);
+  const right = foldText(b);
+  if (left === right) return "same";
+  const shorter = Math.min(left.length, right.length);
+  if (shorter >= 3 && (left.includes(right) || right.includes(left))) return "similar";
+  if (shorter >= 4) {
+    const allowed = shorter >= 7 ? 2 : 1;
+    if (levenshtein(left, right) <= allowed) return "similar";
+  }
+  return "different";
+}
+var COLOR_WORDS = {
+  blanco: "blanco",
+  hueso: "blanco",
+  albino: "blanco",
+  negro: "negro",
+  azabache: "negro",
+  cafe: "cafe",
+  marron: "cafe",
+  chocolate: "cafe",
+  canela: "cafe",
+  cobrizo: "cafe",
+  gris: "gris",
+  plateado: "gris",
+  plata: "gris",
+  cenizo: "gris",
+  azul: "gris",
+  dorado: "dorado",
+  amarillo: "dorado",
+  beige: "dorado",
+  crema: "dorado",
+  rubio: "dorado",
+  miel: "dorado",
+  arena: "dorado",
+  naranja: "naranja",
+  anaranjado: "naranja",
+  rojizo: "naranja",
+  pelirrojo: "naranja",
+  atigrado: "atigrado",
+  rayado: "atigrado",
+  tabby: "atigrado",
+  barcino: "atigrado",
+  manchas: "manchas",
+  mancha: "manchas",
+  manchado: "manchas",
+  pinto: "manchas",
+  moteado: "manchas",
+  dalmata: "manchas",
+  tricolor: "tricolor",
+  calico: "tricolor",
+  carey: "tricolor"
+};
+function colorOf(word) {
+  const candidates = [word, word.replace(/(es|s)$/, "")];
+  for (const value of candidates) {
+    if (COLOR_WORDS[value]) return COLOR_WORDS[value];
+    if (value.endsWith("a") && COLOR_WORDS[`${value.slice(0, -1)}o`]) {
+      return COLOR_WORDS[`${value.slice(0, -1)}o`];
+    }
+  }
+  return null;
+}
+function colorTokens(value) {
+  const tokens = /* @__PURE__ */ new Set();
+  for (const word of foldText(value).split(" ")) {
+    const color = word ? colorOf(word) : null;
+    if (color) tokens.add(color);
+  }
+  return tokens;
+}
+var STOPWORDS = /* @__PURE__ */ new Set([
+  "tiene",
+  "tenia",
+  "como",
+  "esta",
+  "este",
+  "estos",
+  "estas",
+  "para",
+  "pero",
+  "cuando",
+  "donde",
+  "porque",
+  "sobre",
+  "entre",
+  "hasta",
+  "desde",
+  "mucho",
+  "mucha",
+  "poco",
+  "poca",
+  "todo",
+  "toda",
+  "todos",
+  "todas",
+  "tambien",
+  "solo",
+  "ella",
+  "ellos",
+  "nombre",
+  "responde",
+  "perro",
+  "perra",
+  "perrito",
+  "perrita",
+  "gato",
+  "gata",
+  "gatito",
+  "gatita",
+  "color",
+  "mascota",
+  "informacion",
+  "favor",
+  "perdio",
+  "perdido",
+  "perdida",
+  "visto",
+  "vista",
+  "cualquier",
+  "ayuda",
+  "ayudanos",
+  "llamar",
+  "numero",
+  "telefono",
+  "contacto",
+  "recompensa",
+  "ofrece",
+  "gracias"
+]);
+function descriptionTokens(value) {
+  const tokens = /* @__PURE__ */ new Set();
+  for (const word of foldText(value).split(" ")) {
+    if (word.length >= 4 && !STOPWORDS.has(word)) tokens.add(word);
+  }
+  return tokens;
+}
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const token of a) if (b.has(token)) shared += 1;
+  return shared / (a.size + b.size - shared);
+}
+var MIXED_BREED = /mestiz|crioll|sin raza|no se|desconoc/i;
+function distancePoints(distanceKm) {
+  if (distanceKm == null || !Number.isFinite(distanceKm)) return [0, null];
+  if (distanceKm <= 0.5) return [WEIGHTS.VERY_CLOSE, "very_close"];
+  if (distanceKm <= 1.5) return [WEIGHTS.CLOSE, "close"];
+  if (distanceKm <= 3) return [WEIGHTS.NEAR, "close"];
+  if (distanceKm <= SIMILARITY_RADIUS_KM) return [WEIGHTS.AREA, null];
+  return [0, null];
+}
+function toTime(value) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+function scoreCandidate(input, candidate, distanceKm) {
+  const gains = [];
+  let score = 0;
+  const add = (points, reason) => {
+    score += points;
+    if (reason && points > 0) gains.push([points, reason]);
+  };
+  const source = input.sourceUrl?.trim();
+  if (source && source === candidate.sourceUrl?.trim()) {
+    return { score: WEIGHTS.SAME_SOURCE, reasons: ["same_source"] };
+  }
+  const inputPhones = new Set((input.phones ?? []).map((phone) => phone?.trim()).filter(Boolean));
+  if ((candidate.phones ?? []).some((phone) => phone?.trim() && inputPhones.has(phone.trim()))) {
+    add(WEIGHTS.SAME_PHONE, "same_phone");
+  }
+  const names = compareNames(input.name, candidate.name);
+  if (names === "same") add(WEIGHTS.SAME_NAME, "same_name");
+  else if (names === "similar") add(WEIGHTS.SIMILAR_NAME, "similar_name");
+  else if (names === "different") add(WEIGHTS.DIFFERENT_NAME);
+  const [distance, distanceReason] = distancePoints(distanceKm);
+  add(distance, distanceReason);
+  const sexes = ["male", "female"];
+  if (sexes.includes(input.sex ?? "") && sexes.includes(candidate.sex ?? "")) {
+    if (input.sex === candidate.sex) add(WEIGHTS.SAME_SEX, "same_sex");
+    else add(WEIGHTS.DIFFERENT_SEX);
+  }
+  const inputColors = colorTokens(input.color);
+  const candidateColors = colorTokens(candidate.color);
+  if (inputColors.size && candidateColors.size) {
+    let shared = 0;
+    for (const color of inputColors) if (candidateColors.has(color)) shared += 1;
+    const overlap = shared / Math.min(inputColors.size, candidateColors.size);
+    if (overlap >= 0.5) add(WEIGHTS.SAME_COLOR, "same_color");
+    else if (shared === 0) add(WEIGHTS.DIFFERENT_COLOR);
+  }
+  if (input.breedId && input.breedId === candidate.breedId) {
+    add(
+      MIXED_BREED.test(candidate.breedName ?? "") ? WEIGHTS.SAME_MIXED_BREED : WEIGHTS.SAME_BREED,
+      "same_breed"
+    );
+  }
+  if (jaccard(descriptionTokens(input.description), descriptionTokens(candidate.description)) >= 0.3) {
+    add(WEIGHTS.SIMILAR_DESCRIPTION, "similar_description");
+  }
+  const inputDate = toTime(input.date);
+  const candidateDate = toTime(candidate.date);
+  if (inputDate != null && candidateDate != null) {
+    if (Math.abs(inputDate - candidateDate) <= 7 * 24 * 60 * 60 * 1e3) {
+      add(WEIGHTS.SAME_DATE, "same_date");
+    }
+  }
+  const reasons = gains.sort((a, b) => b[0] - a[0]).map(([, reason]) => reason);
+  return {
+    score: Math.max(0, Math.min(100, score)),
+    reasons: [...new Set(reasons)]
+  };
+}
+function similarityLevel(score) {
+  if (score >= SIMILARITY_LIKELY) return "likely";
+  if (score >= SIMILARITY_POSSIBLE) return "possible";
+  return null;
+}
+
+// models/Pet/Animal/Animal.facebookPost.ts
+var FACEBOOK_POST_QUERY = `
+  id name slug physical_description age color size sex
+  animal_type { name }
+  animal_breed { breed }
+  logs(orderBy: [{ date_status: desc }, { createdAt: desc }]) {
+    status date_status placeLabel neighborhood city state notes
+  }
+`;
+var TYPES = {
+  dog: { emoji: "\u{1F436}", label: "Perro", little: { m: "este perrito", f: "esta perrita" }, hashtag: "Perro" },
+  cat: { emoji: "\u{1F431}", label: "Gato", little: { m: "este gatito", f: "esta gatita" }, hashtag: "Gato" },
+  bird: { emoji: "\u{1F426}", label: "Ave", little: { m: "esta ave", f: "esta ave" }, hashtag: "Ave" },
+  fish: { emoji: "\u{1F420}", label: "Pez", little: { m: "este pez", f: "este pez" }, hashtag: "Mascota" },
+  reptil: { emoji: "\u{1F98E}", label: "Reptil", little: { m: "este reptil", f: "este reptil" }, hashtag: "Mascota" },
+  mammal: { emoji: "\u{1F439}", label: "Mam\xEDfero", little: { m: "este animalito", f: "esta animalita" }, hashtag: "Mascota" }
+};
+var DEFAULT_TYPE = {
+  emoji: "\u{1F43E}",
+  label: "",
+  little: { m: "este animalito", f: "esta animalita" },
+  hashtag: "Mascota"
+};
+var TYPE_ALIASES = { perro: "dog", gato: "cat", ave: "bird", pez: "fish", mamifero: "mammal" };
+function typeInfo(name) {
+  const key = foldText(name);
+  return TYPES[TYPE_ALIASES[key] ?? key] ?? DEFAULT_TYPE;
+}
+function breedEmoji(type, breed, color) {
+  const b = foldText(breed);
+  const c = foldText(color);
+  if (type === "dog") {
+    if (/poodle|caniche/.test(b)) return "\u{1F429}";
+    if (/husky|malamute|lobo/.test(b)) return "\u{1F43A}";
+    if (/pastor|labrador|golden|retriever/.test(b)) return "\u{1F415}\u200D\u{1F9BA}";
+    return "\u{1F415}";
+  }
+  if (type === "cat") return /negr/.test(c) ? "\u{1F408}\u200D\u2B1B" : "\u{1F408}";
+  return typeInfo(type).emoji;
+}
+function gender(sex) {
+  return sex === "female" ? "f" : "m";
+}
+function g(sex, m, f) {
+  return gender(sex) === "f" ? f : m;
+}
+var STATUS_COPY = {
+  lost: {
+    header: () => "\u{1F198} \xA1SE BUSCA!",
+    intro: (who) => `\xA1Ay\xFAdanos a encontrar a ${who}! \u{1F64F}`,
+    placeLabel: () => "Se perdi\xF3 en",
+    dateLabel: () => "Se perdi\xF3 el",
+    cta: (sex) => [
+      `\u{1F440} \xBF${g(sex, "Lo", "La")} has visto? Entra al enlace para avisarle a su familia.`,
+      "\u{1F501} Comparte: puede estar cerca de ti o de alguien que conoces."
+    ],
+    hashtags: (type) => [`${type.hashtag}Perdido`, "MascotaPerdida", "SeBusca"]
+  },
+  found: {
+    header: (sex) => `\u{1F4E2} \xA1${g(sex, "ENCONTRADO", "ENCONTRADA")}!`,
+    intro: (who, sex) => `${capitalize(who)} fue ${g(sex, "encontrado", "encontrada")} y busca a su familia. \u{1F3E0}`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} encontraron en`,
+    dateLabel: (sex) => `${g(sex, "Encontrado", "Encontrada")} el`,
+    cta: (sex) => [
+      `\u{1F3E0} \xBFEs tuy${g(sex, "o", "a")} o conoces a su familia? Entra al enlace para contactar.`,
+      "\u{1F501} Comparte para que llegue a su familia."
+    ],
+    hashtags: (type) => [`${type.hashtag}Encontrado`, "MascotaEncontrada"]
+  },
+  in_adoption: {
+    header: () => "\u{1F3E1} \xA1EN ADOPCI\xD3N! \u{1F495}",
+    intro: (who) => `${capitalize(who)} busca un hogar lleno de amor. \u{1F970}`,
+    placeLabel: () => "Est\xE1 en",
+    cta: (sex) => [
+      `\u{1F48C} \xBFLe das un hogar? Entra al enlace para conocer${g(sex, "lo", "la")}.`,
+      "\u{1F501} Comparte: alguien de tus contactos puede ser su familia."
+    ],
+    hashtags: (type) => ["AdoptaNoCompres", `${type.hashtag}EnAdopcion`]
+  },
+  abandoned: {
+    header: () => "\u26A0\uFE0F \xA1NECESITA AYUDA!",
+    intro: (who, sex) => `${capitalize(who)} fue ${g(sex, "abandonado", "abandonada")} y necesita una mano. \u{1F64F}`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} vieron en`,
+    dateLabel: () => "Visto el",
+    cta: () => ["\u{1F64F} \xBFPuedes ayudar o sabes algo? Entra al enlace.", "\u{1F501} Comparte para que llegue a quien pueda ayudar."],
+    hashtags: (type) => [`${type.hashtag}Abandonado`, "RescateAnimal"]
+  },
+  rescued: {
+    header: (sex) => `\u{1F64C} \xA1${g(sex, "RESCATADO", "RESCATADA")}!`,
+    intro: (who, sex) => `${capitalize(who)} fue ${g(sex, "rescatado", "rescatada")} y ya est\xE1 a salvo. \u{1F49B}`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} rescataron en`,
+    dateLabel: (sex) => `${g(sex, "Rescatado", "Rescatada")} el`,
+    cta: (sex) => [`\u{1F49B} \xBF${g(sex, "Lo", "La")} reconoces o quieres ayudar? Entra al enlace.`],
+    hashtags: () => ["RescateAnimal"]
+  },
+  adopted: {
+    header: (sex) => `\u{1F389} \xA1${g(sex, "ADOPTADO", "ADOPTADA")}!`,
+    intro: (who) => `${capitalize(who)} ya encontr\xF3 un hogar. \u{1F495}`,
+    cta: () => ["\u{1F64F} Gracias a todos los que compartieron."],
+    hashtags: () => ["AdoptaNoCompres", "FinalFeliz"]
+  },
+  in_family: {
+    header: () => "\u{1F3E0} \xA1YA EST\xC1 EN CASA! \u{1F389}",
+    intro: (who) => `${capitalize(who)} volvi\xF3 con su familia. \u{1F495}`,
+    cta: () => ["\u{1F64F} Gracias a todos los que compartieron."],
+    hashtags: () => ["FinalFeliz"]
+  }
+};
+function capitalize(text78) {
+  return text78 ? text78[0].toUpperCase() + text78.slice(1) : text78;
+}
+function clean(value) {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+function placeOf(log2) {
+  if (!log2) return "";
+  const parts = [];
+  for (const raw of [log2.placeLabel || log2.neighborhood, log2.city, log2.state]) {
+    const part = clean(raw);
+    if (!part || /^sin especificar$/i.test(part)) continue;
+    const folded = foldText(part);
+    if (parts.some((existing) => foldText(existing).includes(folded))) continue;
+    parts.push(part);
+  }
+  return parts.join(", ");
+}
+var DATE_FORMAT = new Intl.DateTimeFormat("es-MX", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  timeZone: "America/Mexico_City"
+});
+var DATE_FORMAT_YEAR = new Intl.DateTimeFormat("es-MX", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "America/Mexico_City"
+});
+function dateOf(value, now = /* @__PURE__ */ new Date()) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return (sameYear ? DATE_FORMAT : DATE_FORMAT_YEAR).format(date).replace(",", "");
+}
+function hashtagOf(text78) {
+  const words = clean(text78).split(/[^\p{L}\p{N}]+/u).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
+  return words.join("");
+}
+var DEFAULT_NOTES = /^sin informaci[oó]n adicional\.?$/i;
+var NO_BREED = /^(sin asignar|no se|no sé|desconocid[ao])$/i;
+function buildAnimalFacebookMessage(animal, now = /* @__PURE__ */ new Date()) {
+  const typeKey = TYPE_ALIASES[foldText(animal.animal_type?.name)] ?? foldText(animal.animal_type?.name);
+  const type = typeInfo(animal.animal_type?.name);
+  const sex = animal.sex;
+  const latest = animal.logs?.[0] ?? null;
+  const status = clean(latest?.status).toLowerCase();
+  const copy = STATUS_COPY[status];
+  const name = clean(animal.name);
+  const named = Boolean(name) && !isGenericName(name);
+  const who = named ? name : type.little[gender(sex)];
+  const lines = [];
+  if (copy) {
+    lines.push(`${copy.header(sex)} ${type.emoji}`);
+    lines.push(copy.intro(who, sex));
+  } else {
+    lines.push(`${type.emoji} ${named ? name : capitalize(type.little[gender(sex)])}`);
+  }
+  const facts = [];
+  const breed = clean(animal.animal_breed?.breed);
+  const sexLabel = sex === "male" ? "Macho \u2642\uFE0F" : sex === "female" ? "Hembra \u2640\uFE0F" : "";
+  const identity = [type.label, breed && !NO_BREED.test(breed) ? breed : "", sexLabel].filter(Boolean);
+  if (identity.length) facts.push(`${breedEmoji(typeKey, breed, clean(animal.color))} ${identity.join(" \xB7 ")}`);
+  if (clean(animal.age)) facts.push(`\u{1F382} Edad: ${clean(animal.age)}`);
+  if (clean(animal.color)) facts.push(`\u{1F3A8} Color: ${clean(animal.color)}`);
+  if (clean(animal.size)) facts.push(`\u{1F4CF} Tama\xF1o: ${clean(animal.size)}`);
+  if (facts.length) lines.push("", ...facts);
+  const place = placeOf(latest) || placeOf(animal.logs?.[animal.logs.length - 1]);
+  const when = copy?.dateLabel ? dateOf(latest?.date_status, now) : "";
+  const whereWhen = [];
+  if (place) whereWhen.push(`\u{1F4CD} ${copy?.placeLabel ? `${copy.placeLabel(sex)}: ` : ""}${place}`);
+  if (when) whereWhen.push(`\u{1F4C5} ${copy.dateLabel(sex)}: ${when}`);
+  if (whereWhen.length) lines.push("", ...whereWhen);
+  const description = clean(animal.physical_description);
+  const notes = clean(latest?.notes);
+  const extra = [];
+  if (description) extra.push(`\u{1F4DD} ${description}`);
+  if (notes && !DEFAULT_NOTES.test(notes) && foldText(notes) !== foldText(description)) extra.push(`\u{1F4AC} ${notes}`);
+  if (extra.length) lines.push("", ...extra);
+  lines.push("", ...copy ? copy.cta(sex) : ["\u{1F449} Toda la informaci\xF3n en el enlace."]);
+  const city = clean(latest?.city);
+  const hashtags = [
+    ...copy ? copy.hashtags(type) : [],
+    city && !/^sin especificar$/i.test(city) ? hashtagOf(city) : "",
+    "KadeshPet"
+  ].filter(Boolean);
+  lines.push("", [...new Set(hashtags)].map((tag) => `#${tag}`).join(" "));
+  return lines.join("\n");
+}
+async function loadAnimalFacebookMessage(context, animalId) {
+  const animal = await context.sudo().query.Animal.findOne({
+    where: { id: animalId },
+    query: FACEBOOK_POST_QUERY
+  });
+  if (!animal) return null;
+  return { slug: animal.slug ?? null, message: buildAnimalFacebookMessage(animal) };
+}
+
 // models/Notification/constants.ts
 var NOTIFICATION_PRODUCT = {
   PET: "pet",
@@ -3153,9 +3687,9 @@ async function debugWhatsAppToken({
   }
   const data = parsed?.data;
   const wabaIds = /* @__PURE__ */ new Set();
-  for (const g of data?.granular_scopes ?? []) {
-    if (g.scope === "whatsapp_business_management") {
-      for (const id of g.target_ids ?? []) wabaIds.add(id);
+  for (const g2 of data?.granular_scopes ?? []) {
+    if (g2.scope === "whatsapp_business_management") {
+      for (const id of g2.target_ids ?? []) wabaIds.add(id);
     }
   }
   return {
@@ -3255,6 +3789,26 @@ function normalizeMxPhone(raw) {
   return { ok: true, digits };
 }
 
+// models/User/whatsappPrefs.ts
+var KNOWN_TYPES = new Set(Object.values(NOTIFICATION_TYPE));
+var whatsappMutedTypesHooks = {
+  resolveInput: async ({ resolvedData, fieldKey }) => {
+    const value = resolvedData[fieldKey];
+    if (!Array.isArray(value)) return value;
+    return [...new Set(value.filter((type) => typeof type === "string"))];
+  },
+  validateInput: async ({ resolvedData, addValidationError, fieldKey }) => {
+    const value = resolvedData[fieldKey];
+    if (value === void 0 || value === null) return;
+    if (!Array.isArray(value) || value.some((type) => typeof type !== "string" || !KNOWN_TYPES.has(type))) {
+      addValidationError("Los avisos de WhatsApp a silenciar deben ser una lista de tipos de aviso conocidos.");
+    }
+  }
+};
+function wantsWhatsappType(mutedTypes, type) {
+  return !(Array.isArray(mutedTypes) && mutedTypes.includes(type));
+}
+
 // utils/notifications/whatsapp.ts
 var TEMPLATE_LANGUAGE = "es_MX";
 var PARAM_FALLBACK = "sin especificar";
@@ -3262,17 +3816,60 @@ var PARAM_MAX_LENGTH = 200;
 var WHATSAPP_TEMPLATES = {
   [NOTIFICATION_TYPE.ANIMAL_CREATED]: {
     name: "kadesh_admin_animal_creado",
+    audience: "admin",
     params: (v) => [v.animalName, v.animalType, v.creatorName]
   },
   [NOTIFICATION_TYPE.PET_PLACE_SERVICE_REQUESTED]: {
     name: "kadesh_admin_servicio_solicitado",
+    audience: "admin",
     params: (v) => [v.serviceName, v.petPlaceName, v.requesterName]
   },
   [NOTIFICATION_TYPE.USER_BANK_DETAILS_UPDATED]: {
     name: "kadesh_admin_datos_bancarios",
+    audience: "admin",
     params: (v) => [v.userName]
+  },
+  // ── Kadesh Pet (opt-in en /notificaciones de la web) ─────────────────────────────────────
+  [NOTIFICATION_TYPE.ANIMAL_NEARBY]: {
+    name: "kadesh_pet_animal_cerca",
+    audience: "pet",
+    params: (v) => [v.status, v.animal, v.url]
+  },
+  [NOTIFICATION_TYPE.ANIMAL_POSSIBLE_MATCH]: {
+    name: "kadesh_pet_coincidencia",
+    audience: "pet",
+    params: (v) => [v.summary, v.url]
+  },
+  [NOTIFICATION_TYPE.ANIMAL_CLAIM_REQUESTED]: {
+    name: "kadesh_pet_reclamo_solicitado",
+    audience: "pet",
+    params: (v) => [v.claimantName, v.animalName, v.url]
+  },
+  [NOTIFICATION_TYPE.ANIMAL_CLAIM_APPROVED]: {
+    name: "kadesh_pet_reclamo_aceptado",
+    audience: "pet",
+    params: (v) => [v.animalName, v.url]
+  },
+  [NOTIFICATION_TYPE.ANIMAL_CLAIM_REJECTED]: {
+    name: "kadesh_pet_reclamo_rechazado",
+    audience: "pet",
+    params: (v) => [v.animalName, v.reason, v.url]
+  },
+  [NOTIFICATION_TYPE.ANIMAL_COMMENTED]: {
+    name: "kadesh_pet_comentario",
+    audience: "pet",
+    params: (v) => [v.authorName, v.animalName, v.comment, v.url]
+  },
+  [NOTIFICATION_TYPE.PET_REMINDER_DUE]: {
+    name: "kadesh_pet_recordatorio",
+    audience: "pet",
+    params: (v) => [v.petName, v.reminder, v.due, v.url]
   }
 };
+function petSiteUrl(path3 = "/notificaciones") {
+  const base = (process.env.PET_FRONTEND_URL?.trim() || process.env.FRONTEND_URL?.trim() || "https://pet.kadesh.com.mx").replace(/\/$/, "");
+  return `${base}${path3}`;
+}
 function hasWhatsappTemplate(type) {
   return Boolean(WHATSAPP_TEMPLATES[type]);
 }
@@ -3300,9 +3897,9 @@ function logPlatformWhatsappStatus() {
   );
 }
 function templateParam(value) {
-  const clean = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
-  if (!clean) return PARAM_FALLBACK;
-  return clean.length > PARAM_MAX_LENGTH ? `${clean.slice(0, PARAM_MAX_LENGTH - 1)}\u2026` : clean;
+  const clean2 = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (!clean2) return PARAM_FALLBACK;
+  return clean2.length > PARAM_MAX_LENGTH ? `${clean2.slice(0, PARAM_MAX_LENGTH - 1)}\u2026` : clean2;
 }
 function toWhatsappNumber(raw) {
   if (!raw) return null;
@@ -3320,12 +3917,17 @@ async function sendNotificationWhatsappToOptedIn(prisma, recipientIds, type, val
       );
       return;
     }
-    const optedIn = await prisma.user.findMany({
+    const candidates = await prisma.user.findMany({
       where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: "" } },
-      select: { id: true, phone: true }
+      select: { id: true, phone: true, whatsappMutedTypes: true }
     });
-    if (optedIn instanceof Error) throw optedIn;
-    if (!Array.isArray(optedIn) || optedIn.length === 0) {
+    if (candidates instanceof Error) throw candidates;
+    const optedIn = Array.isArray(candidates) ? candidates.filter((user) => wantsWhatsappType(user.whatsappMutedTypes, type)) : [];
+    if (Array.isArray(candidates) && candidates.length > 0 && optedIn.length === 0) {
+      return;
+    }
+    if (optedIn.length === 0) {
+      if (WHATSAPP_TEMPLATES[type]?.audience === "pet") return;
       const withOptIn = await prisma.user.count({
         where: { id: { in: recipientIds }, whatsappNotifications: true }
       });
@@ -3340,10 +3942,11 @@ async function sendNotificationWhatsappToOptedIn(prisma, recipientIds, type, val
   }
 }
 async function sendNotificationWhatsapp(recipients, type, values) {
+  const result3 = { sent: 0, failed: 0 };
   try {
     const template = WHATSAPP_TEMPLATES[type];
     const config2 = platformWhatsappConfig();
-    if (!template || !config2) return;
+    if (!template || !config2) return result3;
     const bodyParams = template.params(values).map(templateParam);
     await Promise.allSettled(
       recipients.map(async (recipient) => {
@@ -3360,10 +3963,12 @@ async function sendNotificationWhatsapp(recipients, type, values) {
             language: TEMPLATE_LANGUAGE,
             bodyParams
           });
+          result3.sent += 1;
           console.log(
             `[notify:whatsapp] ${type} (${template.name}) aceptado por Meta para usuario ${recipient.id} (\u2026${to.slice(-4)}): ${sent.id}`
           );
         } catch (error) {
+          result3.failed += 1;
           console.error(
             `[notify:whatsapp] ${type} a usuario ${recipient.id} (\u2026${to.slice(-4)}):`,
             error instanceof Error ? error.message : error
@@ -3374,6 +3979,7 @@ async function sendNotificationWhatsapp(recipients, type, values) {
   } catch (error) {
     console.error("[notify:whatsapp] No se pudo mandar:", type, error);
   }
+  return result3;
 }
 
 // utils/notifications/notify.ts
@@ -3489,7 +4095,13 @@ async function notifyNearbyAnimal(context, input) {
       entityType: "Animal",
       entityId: input.animalId,
       url: input.url ?? null,
-      metadata: { slug: input.slug ?? null, status }
+      metadata: { slug: input.slug ?? null, status },
+      // kadesh_pet_animal_cerca: «reportaron un animal {status} cerca de ti. Es {animal}. … {url}».
+      templateValues: {
+        status: lost ? "perdido" : "encontrado",
+        animal: `${name ? who : who.charAt(0).toLowerCase() + who.slice(1)}${where}`,
+        url: input.url ?? petSiteUrl()
+      }
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar a la zona:", input.animalId, error);
@@ -3557,332 +4169,6 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c * 100) / 100;
-}
-
-// utils/pet/reportSimilarity.ts
-var SIMILARITY_POSSIBLE = 45;
-var SIMILARITY_LIKELY = 70;
-var SIMILARITY_RADIUS_KM = 5;
-var SIMILARITY_WINDOW_DAYS = { lost: 90, other: 30 };
-var SIMILARITY_MAX_RESULTS = 3;
-var WEIGHTS = {
-  SAME_SOURCE: 100,
-  SAME_PHONE: 40,
-  SAME_NAME: 35,
-  SIMILAR_NAME: 25,
-  DIFFERENT_NAME: -20,
-  VERY_CLOSE: 25,
-  CLOSE: 20,
-  NEAR: 12,
-  AREA: 5,
-  SAME_SEX: 5,
-  DIFFERENT_SEX: -30,
-  SAME_COLOR: 10,
-  DIFFERENT_COLOR: -5,
-  SAME_BREED: 5,
-  SAME_MIXED_BREED: 2,
-  SIMILAR_DESCRIPTION: 10,
-  SAME_DATE: 5
-};
-var LOST_STATUSES = ["lost"];
-var STREET_STATUSES = ["found", "rescued", "abandoned"];
-var CLOSED_STATUSES = /* @__PURE__ */ new Set(["in_family", "adopted"]);
-function kindForStatuses(newStatus, candidateStatus) {
-  const candidate = (candidateStatus ?? "").toLowerCase();
-  if (CLOSED_STATUSES.has(candidate)) return null;
-  const status = (newStatus ?? "").toLowerCase();
-  if (!status) return "duplicate";
-  if (LOST_STATUSES.includes(status)) {
-    if (LOST_STATUSES.includes(candidate)) return "duplicate";
-    if (STREET_STATUSES.includes(candidate)) return "match";
-    return null;
-  }
-  if (STREET_STATUSES.includes(status)) {
-    if (STREET_STATUSES.includes(candidate)) return "duplicate";
-    if (LOST_STATUSES.includes(candidate)) return "match";
-    return null;
-  }
-  return status === candidate ? "duplicate" : null;
-}
-function windowDaysFor(status) {
-  return (status ?? "").toLowerCase() === "lost" ? SIMILARITY_WINDOW_DAYS.lost : SIMILARITY_WINDOW_DAYS.other;
-}
-function foldText(value) {
-  return (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-}
-var GENERIC_NAMES = /* @__PURE__ */ new Set([
-  "",
-  "sin nombre",
-  "sinnombre",
-  "s n",
-  "n a",
-  "na",
-  "no se",
-  "no lo se",
-  "desconocido",
-  "desconocida",
-  "unnamed",
-  "perro",
-  "perra",
-  "perrito",
-  "perrita",
-  "gato",
-  "gata",
-  "gatito",
-  "gatita",
-  "cachorro",
-  "cachorra",
-  "cachorrito",
-  "cachorrita",
-  "callejero",
-  "callejera",
-  "callejerito",
-  "callejerita",
-  "ave",
-  "pajaro",
-  "pajarito",
-  "conejo",
-  "conejito",
-  "mascota"
-]);
-function isGenericName(name) {
-  const folded = foldText(name);
-  return GENERIC_NAMES.has(folded) || folded.startsWith("sin nombre");
-}
-function levenshtein(a, b) {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i += 1) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
-    }
-    previous = current;
-  }
-  return previous[b.length];
-}
-function compareNames(a, b) {
-  if (isGenericName(a) || isGenericName(b)) return null;
-  const left = foldText(a);
-  const right = foldText(b);
-  if (left === right) return "same";
-  const shorter = Math.min(left.length, right.length);
-  if (shorter >= 3 && (left.includes(right) || right.includes(left))) return "similar";
-  if (shorter >= 4) {
-    const allowed = shorter >= 7 ? 2 : 1;
-    if (levenshtein(left, right) <= allowed) return "similar";
-  }
-  return "different";
-}
-var COLOR_WORDS = {
-  blanco: "blanco",
-  hueso: "blanco",
-  albino: "blanco",
-  negro: "negro",
-  azabache: "negro",
-  cafe: "cafe",
-  marron: "cafe",
-  chocolate: "cafe",
-  canela: "cafe",
-  cobrizo: "cafe",
-  gris: "gris",
-  plateado: "gris",
-  plata: "gris",
-  cenizo: "gris",
-  azul: "gris",
-  dorado: "dorado",
-  amarillo: "dorado",
-  beige: "dorado",
-  crema: "dorado",
-  rubio: "dorado",
-  miel: "dorado",
-  arena: "dorado",
-  naranja: "naranja",
-  anaranjado: "naranja",
-  rojizo: "naranja",
-  pelirrojo: "naranja",
-  atigrado: "atigrado",
-  rayado: "atigrado",
-  tabby: "atigrado",
-  barcino: "atigrado",
-  manchas: "manchas",
-  mancha: "manchas",
-  manchado: "manchas",
-  pinto: "manchas",
-  moteado: "manchas",
-  dalmata: "manchas",
-  tricolor: "tricolor",
-  calico: "tricolor",
-  carey: "tricolor"
-};
-function colorOf(word) {
-  const candidates = [word, word.replace(/(es|s)$/, "")];
-  for (const value of candidates) {
-    if (COLOR_WORDS[value]) return COLOR_WORDS[value];
-    if (value.endsWith("a") && COLOR_WORDS[`${value.slice(0, -1)}o`]) {
-      return COLOR_WORDS[`${value.slice(0, -1)}o`];
-    }
-  }
-  return null;
-}
-function colorTokens(value) {
-  const tokens = /* @__PURE__ */ new Set();
-  for (const word of foldText(value).split(" ")) {
-    const color = word ? colorOf(word) : null;
-    if (color) tokens.add(color);
-  }
-  return tokens;
-}
-var STOPWORDS = /* @__PURE__ */ new Set([
-  "tiene",
-  "tenia",
-  "como",
-  "esta",
-  "este",
-  "estos",
-  "estas",
-  "para",
-  "pero",
-  "cuando",
-  "donde",
-  "porque",
-  "sobre",
-  "entre",
-  "hasta",
-  "desde",
-  "mucho",
-  "mucha",
-  "poco",
-  "poca",
-  "todo",
-  "toda",
-  "todos",
-  "todas",
-  "tambien",
-  "solo",
-  "ella",
-  "ellos",
-  "nombre",
-  "responde",
-  "perro",
-  "perra",
-  "perrito",
-  "perrita",
-  "gato",
-  "gata",
-  "gatito",
-  "gatita",
-  "color",
-  "mascota",
-  "informacion",
-  "favor",
-  "perdio",
-  "perdido",
-  "perdida",
-  "visto",
-  "vista",
-  "cualquier",
-  "ayuda",
-  "ayudanos",
-  "llamar",
-  "numero",
-  "telefono",
-  "contacto",
-  "recompensa",
-  "ofrece",
-  "gracias"
-]);
-function descriptionTokens(value) {
-  const tokens = /* @__PURE__ */ new Set();
-  for (const word of foldText(value).split(" ")) {
-    if (word.length >= 4 && !STOPWORDS.has(word)) tokens.add(word);
-  }
-  return tokens;
-}
-function jaccard(a, b) {
-  if (!a.size || !b.size) return 0;
-  let shared = 0;
-  for (const token of a) if (b.has(token)) shared += 1;
-  return shared / (a.size + b.size - shared);
-}
-var MIXED_BREED = /mestiz|crioll|sin raza|no se|desconoc/i;
-function distancePoints(distanceKm) {
-  if (distanceKm == null || !Number.isFinite(distanceKm)) return [0, null];
-  if (distanceKm <= 0.5) return [WEIGHTS.VERY_CLOSE, "very_close"];
-  if (distanceKm <= 1.5) return [WEIGHTS.CLOSE, "close"];
-  if (distanceKm <= 3) return [WEIGHTS.NEAR, "close"];
-  if (distanceKm <= SIMILARITY_RADIUS_KM) return [WEIGHTS.AREA, null];
-  return [0, null];
-}
-function toTime(value) {
-  if (!value) return null;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) ? time : null;
-}
-function scoreCandidate(input, candidate, distanceKm) {
-  const gains = [];
-  let score = 0;
-  const add = (points, reason) => {
-    score += points;
-    if (reason && points > 0) gains.push([points, reason]);
-  };
-  const source = input.sourceUrl?.trim();
-  if (source && source === candidate.sourceUrl?.trim()) {
-    return { score: WEIGHTS.SAME_SOURCE, reasons: ["same_source"] };
-  }
-  const inputPhones = new Set((input.phones ?? []).map((phone) => phone?.trim()).filter(Boolean));
-  if ((candidate.phones ?? []).some((phone) => phone?.trim() && inputPhones.has(phone.trim()))) {
-    add(WEIGHTS.SAME_PHONE, "same_phone");
-  }
-  const names = compareNames(input.name, candidate.name);
-  if (names === "same") add(WEIGHTS.SAME_NAME, "same_name");
-  else if (names === "similar") add(WEIGHTS.SIMILAR_NAME, "similar_name");
-  else if (names === "different") add(WEIGHTS.DIFFERENT_NAME);
-  const [distance, distanceReason] = distancePoints(distanceKm);
-  add(distance, distanceReason);
-  const sexes = ["male", "female"];
-  if (sexes.includes(input.sex ?? "") && sexes.includes(candidate.sex ?? "")) {
-    if (input.sex === candidate.sex) add(WEIGHTS.SAME_SEX, "same_sex");
-    else add(WEIGHTS.DIFFERENT_SEX);
-  }
-  const inputColors = colorTokens(input.color);
-  const candidateColors = colorTokens(candidate.color);
-  if (inputColors.size && candidateColors.size) {
-    let shared = 0;
-    for (const color of inputColors) if (candidateColors.has(color)) shared += 1;
-    const overlap = shared / Math.min(inputColors.size, candidateColors.size);
-    if (overlap >= 0.5) add(WEIGHTS.SAME_COLOR, "same_color");
-    else if (shared === 0) add(WEIGHTS.DIFFERENT_COLOR);
-  }
-  if (input.breedId && input.breedId === candidate.breedId) {
-    add(
-      MIXED_BREED.test(candidate.breedName ?? "") ? WEIGHTS.SAME_MIXED_BREED : WEIGHTS.SAME_BREED,
-      "same_breed"
-    );
-  }
-  if (jaccard(descriptionTokens(input.description), descriptionTokens(candidate.description)) >= 0.3) {
-    add(WEIGHTS.SIMILAR_DESCRIPTION, "similar_description");
-  }
-  const inputDate = toTime(input.date);
-  const candidateDate = toTime(candidate.date);
-  if (inputDate != null && candidateDate != null) {
-    if (Math.abs(inputDate - candidateDate) <= 7 * 24 * 60 * 60 * 1e3) {
-      add(WEIGHTS.SAME_DATE, "same_date");
-    }
-  }
-  const reasons = gains.sort((a, b) => b[0] - a[0]).map(([, reason]) => reason);
-  return {
-    score: Math.max(0, Math.min(100, score)),
-    reasons: [...new Set(reasons)]
-  };
-}
-function similarityLevel(score) {
-  if (score >= SIMILARITY_LIKELY) return "likely";
-  if (score >= SIMILARITY_POSSIBLE) return "possible";
-  return null;
 }
 
 // utils/pet/animalReport.ts
@@ -4123,8 +4409,8 @@ function reportAudience(userId) {
   return [userId];
 }
 function excerpt(text78) {
-  const clean = text78.replace(/\s+/g, " ").trim();
-  return clean.length > EXCERPT_MAX ? `${clean.slice(0, EXCERPT_MAX - 1)}\u2026` : clean;
+  const clean2 = text78.replace(/\s+/g, " ").trim();
+  return clean2.length > EXCERPT_MAX ? `${clean2.slice(0, EXCERPT_MAX - 1)}\u2026` : clean2;
 }
 function firstName(name) {
   return name?.trim().split(/\s+/)[0] || "Alguien";
@@ -4165,6 +4451,7 @@ async function notifyAnimalComment(context, input) {
       title = lost ? `Podr\xEDan haber encontrado a ${name ?? "tu mascota"}` : `Alguien podr\xEDa ser la familia de ${name ?? "el animal que reportaste"}`;
       body = `${who} cree que es el mismo animal: \xAB${text78}\xBB`;
     }
+    const url = reportUrl(animal, "#comentarios");
     await notify(context, {
       audience,
       product: "pet",
@@ -4173,8 +4460,17 @@ async function notifyAnimalComment(context, input) {
       body,
       entityType: "Animal",
       entityId: animal.id,
-      url: reportUrl(animal, "#comentarios"),
-      metadata: { slug: animal.slug ?? null, commentId: input.commentId, kind: input.kind }
+      url,
+      metadata: { slug: animal.slug ?? null, commentId: input.commentId, kind: input.kind },
+      // kadesh_pet_comentario: {authorName} comentó en tu reporte de {animalName}: «{comment}» … {url}.
+      // kadesh_pet_coincidencia: posible coincidencia. {summary} … {url}. (duplicate_report no tiene plantilla.)
+      templateValues: {
+        authorName: who,
+        animalName: name ?? "tu mascota",
+        comment: text78,
+        summary: `${title}. ${who} cree que es el mismo animal`,
+        url
+      }
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar del comentario:", input.commentId, error);
@@ -4189,6 +4485,7 @@ async function notifyClaimRequested(context, claimId) {
     if (!claim?.animal) return;
     const name = animalName(claim.animal.name);
     const who = firstName(claim.claimant?.name);
+    const url = reportUrl(claim.animal, `?reclamo=${claim.id}`);
     await notify(context, {
       audience: reportAudience(claim.animal.user?.id),
       product: "pet",
@@ -4197,8 +4494,10 @@ async function notifyClaimRequested(context, claimId) {
       body: "Revisa su mensaje y decide si el reporte pasa a su nombre.",
       entityType: "Animal",
       entityId: claim.animal.id,
-      url: reportUrl(claim.animal, `?reclamo=${claim.id}`),
-      metadata: { slug: claim.animal.slug ?? null, claimId: claim.id }
+      url,
+      metadata: { slug: claim.animal.slug ?? null, claimId: claim.id },
+      // kadesh_pet_reclamo_solicitado: {claimantName} dice que el animal de tu reporte ({animalName}) es su mascota.
+      templateValues: { claimantName: who, animalName: name ?? "sin nombre", url }
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar de la solicitud:", claimId, error);
@@ -4207,6 +4506,8 @@ async function notifyClaimRequested(context, claimId) {
 async function notifyClaimResolved(context, input) {
   try {
     const name = animalName(input.animal.name);
+    const url = reportUrl(input.animal);
+    const reason = input.reason?.trim() || "Quien lo report\xF3 no la acept\xF3";
     await notify(context, {
       audience: [input.claimantId],
       product: "pet",
@@ -4215,8 +4516,10 @@ async function notifyClaimResolved(context, input) {
       body: input.approved ? "Revisa que el tel\xE9fono y los datos de contacto sean los tuyos." : input.reason?.trim() || "Quien lo report\xF3 no la acept\xF3. Puedes dejarle un comentario en la ficha.",
       entityType: "Animal",
       entityId: input.animal.id,
-      url: reportUrl(input.animal),
-      metadata: { slug: input.animal.slug ?? null }
+      url,
+      metadata: { slug: input.animal.slug ?? null },
+      // kadesh_pet_reclamo_aceptado ({animalName}, {url}) / kadesh_pet_reclamo_rechazado ({animalName}, {reason}, {url}).
+      templateValues: { animalName: name ?? "tu mascota", reason, url }
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar la respuesta de la solicitud:", input.animal.id, error);
@@ -4296,7 +4599,12 @@ async function notifyPossibleMatches(context, input) {
         entityType: "Animal",
         entityId: animal.id,
         url: input.url ?? null,
-        metadata: { slug: input.slug ?? null, matchOf: match.id, score: match.score }
+        metadata: { slug: input.slug ?? null, matchOf: match.id, score: match.score },
+        // kadesh_pet_coincidencia: posible coincidencia con un reporte tuyo. {summary} … {url}.
+        templateValues: {
+          summary: newIsLost ? `Una familia busca a un animal parecido ${theirName ? `a ${theirName}` : "al que reportaste"}, perdido cerca de donde lo encontraron` : `Reportaron uno encontrado parecido a ${theirName ?? "tu mascota"}, cerca de donde se perdi\xF3`,
+          url: input.url ?? petSiteUrl()
+        }
       });
     }
     return sent;
@@ -4458,17 +4766,15 @@ function sessionCreator(session2) {
   };
 }
 async function publishAnimalToFacebook(animal, context) {
-  if (!animal.slug) {
+  const post = await loadAnimalFacebookMessage(context, animal.id);
+  if (!post?.slug) {
     console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
     return null;
   }
-  const message = animal.physical_description ? `${animal.name}
-
-${animal.physical_description}` : animal.name || "Nuevo animal en Kadesh";
   const result3 = await postToFacebookPage({
     product: PRODUCT.PET,
-    message,
-    link: animalPublicUrl(animal.slug)
+    message: post.message,
+    link: animalPublicUrl(post.slug)
   });
   if (!result3?.id) return null;
   console.log(`[facebook] Animal publicado en la P\xE1gina de Pet: ${result3.id}`);
@@ -4484,23 +4790,7 @@ ${animal.physical_description}` : animal.name || "Nuevo animal en Kadesh";
   return result3.id;
 }
 async function publishAnimalToFacebookById(animalId, context) {
-  const animal = await context.sudo().query.Animal.findOne({
-    where: { id: animalId },
-    query: "id name physical_description slug"
-  });
-  if (!animal?.slug) {
-    console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
-    return null;
-  }
-  return publishAnimalToFacebook(
-    {
-      id: String(animal.id),
-      name: animal.name ?? null,
-      physical_description: animal.physical_description ?? null,
-      slug: animal.slug
-    },
-    context
-  );
+  return publishAnimalToFacebook({ id: animalId }, context);
 }
 setAnimalFacebookPublisher(publishAnimalToFacebookById);
 async function notifyAdminsNewAnimal(context, animal, creator) {
@@ -5655,6 +5945,26 @@ function relationIds(value) {
   ).filter(Boolean);
 }
 var ASSIGNABLE_SET = new Set(ASSIGNABLE_COMPANY_ROLE_NAMES);
+var adminWhatsappDefaultHook = {
+  resolveInput: async ({ resolvedData, inputData, item, operation, context }) => {
+    if (inputData && "whatsappNotifications" in inputData) return resolvedData;
+    const roleInput = resolvedData.roles;
+    const roleIds = [...relationIds(roleInput?.connect), ...relationIds(roleInput?.set)];
+    if (!roleIds.length) return resolvedData;
+    const sudo = context.sudo();
+    const getsAdmin = await sudo.query.Role.count({
+      where: { id: { in: roleIds }, name: { equals: "admin" /* ADMIN */ } }
+    });
+    if (!getsAdmin) return resolvedData;
+    if (operation === "update" && item?.id) {
+      const wasAdmin = await sudo.query.User.count({
+        where: { id: { equals: String(item.id) }, roles: { some: { name: { equals: "admin" /* ADMIN */ } } } }
+      });
+      if (wasAdmin) return resolvedData;
+    }
+    return { ...resolvedData, whatsappNotifications: true };
+  }
+};
 var userRoleHook = {
   resolveInput: async ({ resolvedData, item, operation, context }) => {
     if (operation === "create" && !item && !isPlatformAdmin(context.session)) {
@@ -6119,7 +6429,10 @@ async function resolveInput(args) {
     ...args,
     resolvedData: afterStripe
   });
-  return afterReferral;
+  return adminWhatsappDefaultHook.resolveInput({
+    ...args,
+    resolvedData: afterReferral
+  });
 }
 var User_default = (0, import_core9.list)({
   access: User_access_default,
@@ -6194,7 +6507,22 @@ var User_default = (0, import_core9.list)({
     /** Opt-in para recibir las notificaciones de la campana también por WhatsApp (al `phone`). */
     whatsappNotifications: (0, import_fields9.checkbox)({
       defaultValue: false,
-      ui: { description: "Recibir avisos de Kadesh por WhatsApp" }
+      ui: {
+        description: "Recibir avisos de Kadesh por WhatsApp (al tel\xE9fono). Se activa solo al dar el rol admin."
+      }
+    }),
+    /**
+     * Tipos de aviso que la persona NO quiere por WhatsApp (los demás le llegan con
+     * `whatsappNotifications`). Lista de `NOTIFICATION_TYPE`; vacío = todos. Ver whatsappPrefs.ts.
+     */
+    whatsappMutedTypes: (0, import_fields9.json)({
+      defaultValue: [],
+      access: userPetAlertsFieldAccess,
+      hooks: whatsappMutedTypesHooks,
+      ui: {
+        description: 'Avisos que no quiere por WhatsApp (JSON array de tipos, p. ej. ["animal.commented"]). Vac\xEDo = todos.',
+        createView: { fieldMode: "hidden" }
+      }
     }),
     roles: (0, import_fields9.relationship)({
       ref: "Role.users",
@@ -26631,7 +26959,7 @@ var veterinary_default = veterinaryMutations;
 var import_stream = require("stream");
 var import_graphql2 = require("graphql");
 var import_image_size = require("image-size");
-var TYPE_ALIASES = {
+var TYPE_ALIASES2 = {
   perro: "dog",
   dog: "dog",
   gato: "cat",
@@ -26707,7 +27035,7 @@ function parseLostDate(value) {
 }
 async function resolveType(context, type) {
   const key = type.trim();
-  const alias = TYPE_ALIASES[key.toLowerCase()] || key;
+  const alias = TYPE_ALIASES2[key.toLowerCase()] || key;
   const rows2 = await context.sudo().query.AnimalType.findMany({
     where: {
       OR: [
@@ -27310,11 +27638,11 @@ var resolver30 = {
   addPetFamilyMember: async (_root, { petId, email }, context) => {
     try {
       await requirePetOwner(context, petId, { principal: true });
-      const clean = (email ?? "").trim().toLowerCase();
-      if (!clean) throw new import_graphql6.GraphQLError("Escribe el correo de la persona.");
+      const clean2 = (email ?? "").trim().toLowerCase();
+      if (!clean2) throw new import_graphql6.GraphQLError("Escribe el correo de la persona.");
       const sudo = context.sudo();
       const [user] = await sudo.query.User.findMany({
-        where: { email: { equals: clean, mode: "insensitive" } },
+        where: { email: { equals: clean2, mode: "insensitive" } },
         query: "id",
         take: 1
       });
@@ -27680,6 +28008,14 @@ function reminderCopy(reminder, today) {
     dueLabel
   };
 }
+function reminderTemplateValues(reminder, copy) {
+  return {
+    petName: reminder.pet.name,
+    reminder: reminder.title,
+    due: copy.dueLabel,
+    url: petCardUrl(reminder.pet.id)
+  };
+}
 var sendPush = async (context, reminder, recipients, copy) => {
   const count2 = await notify(context, {
     audience: recipients.map((recipient) => recipient.id),
@@ -27690,7 +28026,8 @@ var sendPush = async (context, reminder, recipients, copy) => {
     entityType: "PetReminder",
     entityId: reminder.id,
     url: petCardUrl(reminder.pet.id),
-    metadata: { petId: reminder.pet.id, dueDate: reminder.dueDate }
+    metadata: { petId: reminder.pet.id, dueDate: reminder.dueDate },
+    templateValues: reminderTemplateValues(reminder, copy)
   });
   return { channel: PET_REMINDER_CHANNEL.PUSH, ok: count2 > 0, error: count2 === 0 };
 };
@@ -27717,11 +28054,22 @@ var sendEmailChannel = async (_context, reminder, recipients, copy) => {
   }
   return { channel: PET_REMINDER_CHANNEL.EMAIL, ok: sent > 0, error: sent === 0 && failed > 0 };
 };
-var sendWhatsappChannel = async (_context, reminder) => {
-  console.info("[petReminder] WhatsApp pendiente de implementar (falta plantilla aprobada en Meta)", {
-    reminderId: reminder.id
-  });
-  return { channel: PET_REMINDER_CHANNEL.WHATSAPP, ok: false, pending: true };
+var sendWhatsappChannel = async (_context, reminder, recipients, copy) => {
+  if (reminder.channels.includes(PET_REMINDER_CHANNEL.PUSH)) {
+    return { channel: PET_REMINDER_CHANNEL.WHATSAPP, ok: false, pending: true };
+  }
+  const optedIn = recipients.filter(
+    (recipient) => recipient.whatsappNotifications && recipient.phone?.trim() && wantsWhatsappType(recipient.whatsappMutedTypes, NOTIFICATION_TYPE.PET_REMINDER_DUE)
+  );
+  if (optedIn.length === 0) {
+    return { channel: PET_REMINDER_CHANNEL.WHATSAPP, ok: false, pending: true };
+  }
+  const { sent, failed } = await sendNotificationWhatsapp(
+    optedIn,
+    NOTIFICATION_TYPE.PET_REMINDER_DUE,
+    reminderTemplateValues(reminder, copy)
+  );
+  return { channel: PET_REMINDER_CHANNEL.WHATSAPP, ok: sent > 0, error: sent === 0 && failed > 0 };
 };
 var CHANNEL_SENDERS = {
   [PET_REMINDER_CHANNEL.PUSH]: sendPush,
@@ -27734,7 +28082,14 @@ async function reminderRecipients(context, petId) {
     where: { petId, user: { suspendedAt: null, anonymizedAt: null } },
     select: {
       user: {
-        select: { id: true, name: true, email: true, phone: true, whatsappNotifications: true }
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          whatsappNotifications: true,
+          whatsappMutedTypes: true
+        }
       }
     }
   });
@@ -38075,12 +38430,12 @@ function mxDayStartUtc(ymd) {
   return (/* @__PURE__ */ new Date(`${ymd}T00:00:00.000-06:00`)).toISOString().slice(0, 23).replace("T", " ");
 }
 function oneOf(value, allowed, fallback, label) {
-  const clean = value?.trim();
-  if (!clean) return fallback;
-  if (!allowed.includes(clean)) {
-    throw new Error(`Valor no v\xE1lido para ${label}: ${clean}.`);
+  const clean2 = value?.trim();
+  if (!clean2) return fallback;
+  if (!allowed.includes(clean2)) {
+    throw new Error(`Valor no v\xE1lido para ${label}: ${clean2}.`);
   }
-  return clean;
+  return clean2;
 }
 async function adminUserIds(prisma) {
   const rows2 = await prisma.user.findMany({

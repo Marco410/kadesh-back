@@ -95,6 +95,7 @@ export async function notifyAnimalComment(context: KeystoneContext, input: Comme
       body = `${who} cree que es el mismo animal: «${text}»`;
     }
 
+    const url = reportUrl(animal, "#comentarios");
     await notify(context, {
       audience,
       product: "pet",
@@ -103,8 +104,17 @@ export async function notifyAnimalComment(context: KeystoneContext, input: Comme
       body,
       entityType: "Animal",
       entityId: animal.id,
-      url: reportUrl(animal, "#comentarios"),
+      url,
       metadata: { slug: animal.slug ?? null, commentId: input.commentId, kind: input.kind },
+      // kadesh_pet_comentario: {authorName} comentó en tu reporte de {animalName}: «{comment}» … {url}.
+      // kadesh_pet_coincidencia: posible coincidencia. {summary} … {url}. (duplicate_report no tiene plantilla.)
+      templateValues: {
+        authorName: who,
+        animalName: name ?? "tu mascota",
+        comment: text,
+        summary: `${title}. ${who} cree que es el mismo animal`,
+        url,
+      },
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar del comentario:", input.commentId, error);
@@ -124,6 +134,7 @@ export async function notifyClaimRequested(context: KeystoneContext, claimId: st
     if (!claim?.animal) return;
     const name = animalName(claim.animal.name);
     const who = firstName(claim.claimant?.name);
+    const url = reportUrl(claim.animal, `?reclamo=${claim.id}`);
     await notify(context, {
       audience: reportAudience(claim.animal.user?.id),
       product: "pet",
@@ -132,8 +143,10 @@ export async function notifyClaimRequested(context: KeystoneContext, claimId: st
       body: "Revisa su mensaje y decide si el reporte pasa a su nombre.",
       entityType: "Animal",
       entityId: claim.animal.id,
-      url: reportUrl(claim.animal, `?reclamo=${claim.id}`),
+      url,
       metadata: { slug: claim.animal.slug ?? null, claimId: claim.id },
+      // kadesh_pet_reclamo_solicitado: {claimantName} dice que el animal de tu reporte ({animalName}) es su mascota.
+      templateValues: { claimantName: who, animalName: name ?? "sin nombre", url },
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar de la solicitud:", claimId, error);
@@ -151,6 +164,8 @@ export async function notifyClaimResolved(
 ): Promise<void> {
   try {
     const name = animalName(input.animal.name);
+    const url = reportUrl(input.animal);
+    const reason = input.reason?.trim() || "Quien lo reportó no la aceptó";
     await notify(context, {
       audience: [input.claimantId],
       product: "pet",
@@ -164,8 +179,10 @@ export async function notifyClaimResolved(
           "Quien lo reportó no la aceptó. Puedes dejarle un comentario en la ficha.",
       entityType: "Animal",
       entityId: input.animal.id,
-      url: reportUrl(input.animal),
+      url,
       metadata: { slug: input.animal.slug ?? null },
+      // kadesh_pet_reclamo_aceptado ({animalName}, {url}) / kadesh_pet_reclamo_rechazado ({animalName}, {reason}, {url}).
+      templateValues: { animalName: name ?? "tu mascota", reason, url },
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar la respuesta de la solicitud:", input.animal.id, error);
