@@ -39,6 +39,8 @@ export const NOTIFICATION_TYPE = {
   USER_BANK_DETAILS_UPDATED: "user.bank_details_updated",
   /** Se acerca la fecha de un recordatorio de la cartilla (vacuna, desparasitación…). Va a sus dueños. */
   PET_REMINDER_DUE: "pet.reminder_due",
+  /** Alguien se pasó de un límite contra abuso (login, registros, reportes…). Va a los admins. */
+  SECURITY_ALERT: "security.alert",
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];

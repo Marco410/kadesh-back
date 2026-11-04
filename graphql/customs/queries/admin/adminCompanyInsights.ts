@@ -1,9 +1,6 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { COMPANY_CREDIT_LEDGER_TYPE } from "../../../../models/Saas/SaasCompanyCreditLedger/constants";
-import {
-  ACTIVITY_CATEGORY,
-  ACTIVITY_EVENT,
-} from "../../../../models/ActivityEvent/constants";
+import { ACTIVITY_CATEGORY, ACTIVITY_EVENT, APP_ERROR_TYPES } from "../../../../models/ActivityEvent/constants";
 import {
   adminPrisma,
   assertPlatformAdmin,
@@ -682,7 +679,7 @@ const resolver = {
       appErrors: await optionalRead(
         async () => {
           const count = await prisma.activityEvent.count({
-            where: { companyId, type: ACTIVITY_EVENT.APP_ERROR, createdAt: { gte: since } },
+            where: { companyId, type: { in: [...APP_ERROR_TYPES] }, createdAt: { gte: since } },
           });
           return typeof count === "number" ? count : 0;
         },

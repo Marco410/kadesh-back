@@ -2,9 +2,17 @@ import type { KeystoneContext, ListAccessControl } from "@keystone-6/core/types"
 import {
   getSessionUserId,
   isPlatformAdmin,
-  isSignedIn,
 } from "../../../utils/access/tenant";
 import { isSudoContext } from "../../../utils/activity/listActivityHooks";
+import {
+  adminOnly,
+  anyone,
+  forceSessionUser,
+  ownRowWhere,
+  signedIn,
+} from "../../../utils/access/presets";
+
+export { forceSessionUser, ownRowWhere };
 
 /**
  * Animales de Kadesh Pet: la ficha es pública (cualquiera la ve), pero solo el dueño o un admin
@@ -12,9 +20,6 @@ import { isSudoContext } from "../../../utils/activity/listActivityHooks";
  * sin sesión, podía editar o borrar cualquier animal por API. Los flujos del servidor
  * (`createAnimalReport`, semillas) usan `sudo()` y no pasan por aquí.
  */
-
-const anyone = () => true;
-const signedIn = ({ session }: { session?: unknown }) => isSignedIn(session as any);
 
 function ownAnimalWhere({ session }: { session?: unknown }) {
   if (isPlatformAdmin(session as any)) return true;
@@ -80,15 +85,6 @@ export async function validateAnimalChildOwner({
   }
 }
 
-const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
-
-function ownRowWhere({ session }: { session?: unknown }) {
-  if (isPlatformAdmin(session as any)) return true;
-  const userId = getSessionUserId(session as any);
-  if (!userId) return false;
-  return { user: { id: { equals: userId } } };
-}
-
 /**
  * `AnimalComment` y `AnimalFavorite`: públicos para leer (la ficha muestra comentarios y
  * conteos); crear con sesión y a nombre propio; editar solo un admin; borrar el autor o un admin.
@@ -105,22 +101,3 @@ export const animalUserRowAccess: ListAccessControl<any> = {
 export const animalViewAccess: ListAccessControl<any> = {
   operation: { query: anyone, create: anyone, update: () => false, delete: adminOnly },
 };
-
-/**
- * Comentario, favorito o vista quedan a nombre de quien tiene la sesión (o de nadie, en una
- * vista anónima): el cliente ya no puede firmar por otra persona. Un admin y `sudo()` no cambian.
- */
-export function forceSessionUser(
-  resolvedData: Record<string, any>,
-  operation: string,
-  context: KeystoneContext,
-): Record<string, any> {
-  if (operation !== "create" || isSudoContext(context) || isPlatformAdmin(context.session)) {
-    return resolvedData;
-  }
-  const userId = getSessionUserId(context.session);
-  const next = { ...resolvedData };
-  if (userId) next.user = { connect: { id: userId } };
-  else delete next.user;
-  return next;
-}

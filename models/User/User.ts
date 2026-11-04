@@ -1,4 +1,5 @@
 import { graphql, list } from "@keystone-6/core";
+import { logUserSignup } from "../../utils/pet/petActivity";
 import {
   text,
   password,
@@ -76,6 +77,8 @@ export default list({
     resolveInput,
     validateInput: userCompanyManagedValidateInput,
     afterOperation: async (args: any) => {
+      // Alta sin sesión (Kadesh Pet web y app): queda en Actividad. Negocios y Google, en UserAuthLog.
+      void logUserSignup(args);
       await userBlogSubscriptionHook.afterOperation(args);
       await userWelcomeEmailHook.afterOperation(args);
       await userBankDetailsNotificationHook.afterOperation(args);

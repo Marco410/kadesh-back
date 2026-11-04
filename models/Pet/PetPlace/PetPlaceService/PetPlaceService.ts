@@ -1,11 +1,11 @@
 import { list } from "@keystone-6/core";
 import { checkbox, relationship, select, text, timestamp } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { petPlaceServiceAccess } from "./PetPlaceService.access";
 import { petPlaceServiceHooks } from "./PetPlaceService.hooks";
 import { PET_PLACE_SERVICE_STATUS, PET_PLACE_SERVICE_STATUS_OPTIONS } from "./status";
 
 export default list({
-  access,
+  access: petPlaceServiceAccess,
   ui: {
     listView: {
       initialColumns: ["name", "status", "active", "requestedFor"],

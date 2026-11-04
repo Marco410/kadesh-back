@@ -1,4 +1,6 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { ACTIVITY_EVENT } from "../../../../../models/ActivityEvent/constants";
+import { logPetPlaceEvent } from "../../../../../utils/pet/petActivity";
 import {
   getSessionUserId,
   isPlatformAdmin,
@@ -90,6 +92,9 @@ const resolver = {
             verifiedAt: new Date().toISOString(),
           },
         });
+        void logPetPlaceEvent(context, ACTIVITY_EVENT.PET_PLACE_VERIFIED, place.id, "Verificó la veterinaria", {
+          approved: true,
+        });
         return {
           success: true,
           message: "Ficha verificada. El dueño ya puede editarla.",
@@ -106,6 +111,9 @@ const resolver = {
           verifiedAt: null,
           user: { disconnect: true },
         },
+      });
+      void logPetPlaceEvent(context, ACTIVITY_EVENT.PET_PLACE_VERIFIED, place.id, "Rechazó el reclamo de", {
+        approved: false,
       });
       return {
         success: true,

@@ -6,7 +6,7 @@ import {
   timestamp,
   select,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import { anonymousCreateAccess } from "../../../utils/access/presets";
 import {
   PRODUCT,
   SINGLE_PRODUCT_OPTIONS,
@@ -14,7 +14,8 @@ import {
 import { blogSubscriptionHooks } from "./BlogSubscription.hooks";
 
 export default list({
-  access,
+  // Cualquiera se suscribe; solo el admin lee la lista. La baja va por `unsubscribeBlog` (sudo).
+  access: anonymousCreateAccess,
   hooks: {
     resolveInput: blogSubscriptionHooks.resolveInput,
     validateInput: blogSubscriptionHooks.validateInput,

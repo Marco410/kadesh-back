@@ -5,10 +5,20 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import { userRowAccess } from "../../../utils/access/presets";
+import { reviewResolveInput, reviewValidateInput } from "./Review.hooks";
+import { logReviewActivity } from "../../../utils/pet/petActivity";
 
 export default list({
-  access,
+  access: userRowAccess,
+  hooks: {
+    resolveInput: reviewResolveInput,
+    validateInput: reviewValidateInput,
+    // Actividad de Kadesh Pet: reseña nueva o borrada (sin el texto).
+    afterOperation: async (args: any) => {
+      void logReviewActivity(args);
+    },
+  },
   fields: {
     rating: integer(),
     review: text(),

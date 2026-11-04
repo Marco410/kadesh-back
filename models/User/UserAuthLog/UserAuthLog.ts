@@ -66,7 +66,8 @@ export default list({
     }),
     ip: text({
       db: { isNullable: true },
-      ui: { description: "IP de la petición (x-forwarded-for del proxy si existe)" },
+      isIndexed: true,
+      ui: { description: "IP de la petición (ver CLIENT_IP_HEADER en utils/activity/requestMeta.ts)" },
     }),
     userAgent: text({
       db: { isNullable: true },

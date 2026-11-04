@@ -17,6 +17,9 @@ type ActivityEvent {
   errorMessage: String
   ip: String
   userAgent: String
+  app: String
+  page: String
+  fingerprint: String
   createdAt: DateTime
 }
 
@@ -44,6 +47,9 @@ input ActivityEventWhereInput {
   errorMessage: StringNullableFilter
   ip: StringNullableFilter
   userAgent: StringNullableFilter
+  app: StringNullableFilter
+  page: StringNullableFilter
+  fingerprint: StringNullableFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -135,6 +141,9 @@ input ActivityEventOrderByInput {
   errorMessage: OrderDirection
   ip: OrderDirection
   userAgent: OrderDirection
+  app: OrderDirection
+  page: OrderDirection
+  fingerprint: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -158,6 +167,9 @@ input ActivityEventUpdateInput {
   errorMessage: String
   ip: String
   userAgent: String
+  app: String
+  page: String
+  fingerprint: String
   createdAt: DateTime
 }
 
@@ -199,6 +211,9 @@ input ActivityEventCreateInput {
   errorMessage: String
   ip: String
   userAgent: String
+  app: String
+  page: String
+  fingerprint: String
   createdAt: DateTime
 }
 
@@ -215,6 +230,126 @@ input SaasCompanyRelateToOneForCreateInput {
 input SaasWorkspaceRelateToOneForCreateInput {
   create: SaasWorkspaceCreateInput
   connect: SaasWorkspaceWhereUniqueInput
+}
+
+type ErrorIssue {
+  id: ID!
+  fingerprint: String
+  status: String
+  note: String
+  resolvedAt: DateTime
+  resolvedBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ErrorIssueWhereUniqueInput {
+  id: ID
+  fingerprint: String
+}
+
+input ErrorIssueWhereInput {
+  AND: [ErrorIssueWhereInput!]
+  OR: [ErrorIssueWhereInput!]
+  NOT: [ErrorIssueWhereInput!]
+  id: IDFilter
+  fingerprint: StringFilter
+  status: StringFilter
+  note: StringFilter
+  resolvedAt: DateTimeNullableFilter
+  resolvedBy: UserWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input ErrorIssueOrderByInput {
+  id: OrderDirection
+  fingerprint: OrderDirection
+  status: OrderDirection
+  note: OrderDirection
+  resolvedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ErrorIssueUpdateInput {
+  fingerprint: String
+  status: String
+  note: String
+  resolvedAt: DateTime
+  resolvedBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ErrorIssueUpdateArgs {
+  where: ErrorIssueWhereUniqueInput!
+  data: ErrorIssueUpdateInput!
+}
+
+input ErrorIssueCreateInput {
+  fingerprint: String
+  status: String
+  note: String
+  resolvedAt: DateTime
+  resolvedBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type BlockedIp {
+  id: ID!
+  ip: String
+  reason: String
+  expiresAt: DateTime
+  createdBy: User
+  createdAt: DateTime
+}
+
+input BlockedIpWhereUniqueInput {
+  id: ID
+  ip: String
+}
+
+input BlockedIpWhereInput {
+  AND: [BlockedIpWhereInput!]
+  OR: [BlockedIpWhereInput!]
+  NOT: [BlockedIpWhereInput!]
+  id: IDFilter
+  ip: StringFilter
+  reason: StringFilter
+  expiresAt: DateTimeNullableFilter
+  createdBy: UserWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input BlockedIpOrderByInput {
+  id: OrderDirection
+  ip: OrderDirection
+  reason: OrderDirection
+  expiresAt: OrderDirection
+  createdAt: OrderDirection
+}
+
+input BlockedIpUpdateInput {
+  ip: String
+  reason: String
+  expiresAt: DateTime
+  createdBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+}
+
+input BlockedIpUpdateArgs {
+  where: BlockedIpWhereUniqueInput!
+  data: BlockedIpUpdateInput!
+}
+
+input BlockedIpCreateInput {
+  ip: String
+  reason: String
+  expiresAt: DateTime
+  createdBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
 }
 
 type Notification {
@@ -9560,6 +9695,18 @@ type Mutation {
   updateActivityEvents(data: [ActivityEventUpdateArgs!]!): [ActivityEvent]
   deleteActivityEvent(where: ActivityEventWhereUniqueInput!): ActivityEvent
   deleteActivityEvents(where: [ActivityEventWhereUniqueInput!]!): [ActivityEvent]
+  createErrorIssue(data: ErrorIssueCreateInput!): ErrorIssue
+  createErrorIssues(data: [ErrorIssueCreateInput!]!): [ErrorIssue]
+  updateErrorIssue(where: ErrorIssueWhereUniqueInput!, data: ErrorIssueUpdateInput!): ErrorIssue
+  updateErrorIssues(data: [ErrorIssueUpdateArgs!]!): [ErrorIssue]
+  deleteErrorIssue(where: ErrorIssueWhereUniqueInput!): ErrorIssue
+  deleteErrorIssues(where: [ErrorIssueWhereUniqueInput!]!): [ErrorIssue]
+  createBlockedIp(data: BlockedIpCreateInput!): BlockedIp
+  createBlockedIps(data: [BlockedIpCreateInput!]!): [BlockedIp]
+  updateBlockedIp(where: BlockedIpWhereUniqueInput!, data: BlockedIpUpdateInput!): BlockedIp
+  updateBlockedIps(data: [BlockedIpUpdateArgs!]!): [BlockedIp]
+  deleteBlockedIp(where: BlockedIpWhereUniqueInput!): BlockedIp
+  deleteBlockedIps(where: [BlockedIpWhereUniqueInput!]!): [BlockedIp]
   createNotification(data: NotificationCreateInput!): Notification
   createNotifications(data: [NotificationCreateInput!]!): [Notification]
   updateNotification(where: NotificationWhereUniqueInput!, data: NotificationUpdateInput!): Notification
@@ -10143,6 +10290,13 @@ type Mutation {
   adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   adminUpdateZoneAlerts(userId: ID!, enabled: Boolean, lat: Float, lng: Float, radiusKm: Int, disableWhatsapp: Boolean): AdminOpsActionResult!
+
+  """status: open | resolved | ignored"""
+  adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
+
+  """days: vacío = indefinido."""
+  adminBlockIp(ip: String!, reason: String, days: Int, force: Boolean): AdminBlockIpResult!
+  adminUnblockIp(ip: String!): AdminOpsActionResult!
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   markAllNotificationsRead(product: String): Int!
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
@@ -10191,6 +10345,12 @@ type Query {
   activityEvent(where: ActivityEventWhereUniqueInput!): ActivityEvent
   activityEvents(where: ActivityEventWhereInput! = {}, orderBy: [ActivityEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ActivityEventWhereUniqueInput): [ActivityEvent!]
   activityEventsCount(where: ActivityEventWhereInput! = {}): Int
+  errorIssue(where: ErrorIssueWhereUniqueInput!): ErrorIssue
+  errorIssues(where: ErrorIssueWhereInput! = {}, orderBy: [ErrorIssueOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ErrorIssueWhereUniqueInput): [ErrorIssue!]
+  errorIssuesCount(where: ErrorIssueWhereInput! = {}): Int
+  blockedIp(where: BlockedIpWhereUniqueInput!): BlockedIp
+  blockedIps(where: BlockedIpWhereInput! = {}, orderBy: [BlockedIpOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlockedIpWhereUniqueInput): [BlockedIp!]
+  blockedIpsCount(where: BlockedIpWhereInput! = {}): Int
   notification(where: NotificationWhereUniqueInput!): Notification
   notifications(where: NotificationWhereInput! = {}, orderBy: [NotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: NotificationWhereUniqueInput): [Notification!]
   notificationsCount(where: NotificationWhereInput! = {}): Int
@@ -10474,6 +10634,21 @@ type Query {
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
+  adminErrorIssues(input: AdminErrorIssuesInput): AdminErrorIssuesResult!
+
+  """
+  Errores abiertos o reabiertos con actividad en las últimas 24 h (globo del menú).
+  """
+  adminOpenErrorIssuesCount: Int!
+
+  """
+  Dispositivos, IPs y cuentas que comparten IP con una persona (días hacia atrás: 1-395, por defecto 90).
+  """
+  adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
+
+  """Días hacia atrás (1-90). Por defecto, 7."""
+  adminSecuritySummary(days: Int): AdminSecuritySummary!
+  adminBlockedIps: [AdminBlockedIp!]!
   adminHealth(input: AdminHealthInput): AdminHealthResult!
   adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
   adminCohorts(input: AdminCohortsInput): AdminCohorts!
@@ -11405,7 +11580,7 @@ type SetGoogleCalendarPushSettingsResult {
 
 input TrackEventInput {
   """
-  ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt
+  ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, app.client_error (también sin sesión), admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt
   """
   type: String!
 
@@ -11449,6 +11624,14 @@ type AdminImpersonationResult {
   expiresAt: String
   user: AdminPersonRef
   companyName: String
+}
+
+type AdminBlockIpResult {
+  success: Boolean!
+  message: String!
+
+  """Un admin de Kadesh usó esa IP hace poco: hay que confirmar con force."""
+  needsConfirmation: Boolean!
 }
 
 type RollupDailyUsageDay {
@@ -12103,11 +12286,22 @@ input AdminActivityFeedInput {
   userId: ID
 
   """
-  auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide) | errors (lo que le falló a alguien en el panel)
+  auth | extraction | crm | team | ai | credits | billing | whatsapp | calendar | admin | product (navegación; solo si se pide) | errors (lo que le falló a alguien) | pet (Kadesh Pet) | security (límites y bloqueos)
   """
   types: [String!]
   onlyErrors: Boolean
   search: String
+
+  """
+  pet-web | business-web | pet-mobile: solo eventos propios (ActivityEvent) de esa app.
+  """
+  app: String
+
+  """Todo lo que pasó desde esta IP (eventos y accesos)."""
+  ip: String
+
+  """Las ocurrencias de un error de la bandeja (ActivityEvent.fingerprint)."""
+  fingerprint: String
 
   """Cursor: devuelve lo ocurrido antes de esta fecha (ISO)."""
   before: String
@@ -12127,12 +12321,169 @@ type AdminActivityItem {
   entityType: String
   entityId: String
   meta: JSON
+
+  """IP de la petición (eventos y accesos)."""
+  ip: String
+
+  """
+  Navegador o cliente (user agent crudo; el front lo traduce a SO y navegador).
+  """
+  userAgent: String
+
+  """pet-web | business-web | pet-mobile"""
+  app: String
+
+  """Pantalla en la que estaba la persona."""
+  page: String
 }
 
 type AdminActivityFeedResult {
   items: [AdminActivityItem!]!
   nextBefore: String
   hasMore: Boolean!
+}
+
+input AdminErrorIssuesInput {
+  """pet-web | business-web | pet-mobile"""
+  app: String
+
+  """
+  open (incluye reabiertos) | resolved | ignored | all. Por defecto, open.
+  """
+  status: String
+
+  """Días hacia atrás (1-90). Por defecto, 7."""
+  days: Int
+
+  """Busca en el mensaje, la operación y la pantalla."""
+  search: String
+  take: Int
+}
+
+type AdminErrorIssue {
+  fingerprint: ID!
+
+  """app.error (servidor) | app.client_error (navegador)"""
+  type: String!
+  title: String!
+  message: String
+  operation: String
+
+  """network | crash | chunk (navegador)"""
+  kind: String
+
+  """query | mutation"""
+  opType: String
+  code: String
+
+  """App de la ocurrencia más reciente."""
+  app: String
+  apps: [String!]!
+
+  """Pantalla de la ocurrencia más reciente."""
+  page: String
+  count: Int!
+
+  """Personas con sesión distintas."""
+  people: Int!
+
+  """Ocurrencias de visitantes sin sesión."""
+  anonymous: Int!
+  firstSeen: String!
+  lastSeen: String!
+
+  """open | resolved | ignored"""
+  status: String!
+
+  """Estaba resuelto y volvió a pasar."""
+  reopened: Boolean!
+  note: String
+  resolvedAt: String
+  resolvedBy: AdminPersonRef
+
+  """User agents más comunes (el front los traduce a sistema y navegador)."""
+  userAgents: [AdminCount!]!
+}
+
+type AdminErrorIssuesResult {
+  items: [AdminErrorIssue!]!
+
+  """Errores abiertos o reabiertos en el periodo (sin filtro de estado)."""
+  openCount: Int!
+}
+
+type AdminPersonDevice {
+  ip: String
+  userAgent: String
+  count: Int!
+  firstSeen: String!
+  lastSeen: String!
+
+  """actividad | accesos"""
+  sources: [String!]!
+}
+
+type AdminPersonSharedIp {
+  ip: String!
+
+  """Otras cuentas que usaron esta IP en el periodo."""
+  accounts: Int!
+
+  """Demasiadas cuentas (red compartida): no se listan."""
+  crowded: Boolean!
+}
+
+type AdminPersonSharedAccount {
+  person: AdminPersonRef!
+  company: AdminCompanyRef
+
+  """IPs en común con la persona."""
+  ips: [String!]!
+  count: Int!
+  lastSeen: String!
+}
+
+type AdminPersonDevices {
+  devices: [AdminPersonDevice!]!
+  sharedIps: [AdminPersonSharedIp!]!
+  sharedAccounts: [AdminPersonSharedAccount!]!
+}
+
+type AdminRateLimitHit {
+  ip: String
+  rule: String!
+  ruleLabel: String!
+  actor: AdminPersonRef
+
+  """Veces que se pasó del límite en el periodo."""
+  count: Int!
+  lastAt: String!
+  blocked: Boolean!
+}
+
+type AdminSignupIp {
+  ip: String!
+  accounts: Int!
+  lastAt: String!
+  blocked: Boolean!
+}
+
+type AdminSecuritySummary {
+  rateLimited: [AdminRateLimitHit!]!
+  signupIps: [AdminSignupIp!]!
+  blockedCount: Int!
+}
+
+type AdminBlockedIp {
+  id: ID!
+  ip: String!
+  reason: String
+  expiresAt: String
+  createdAt: String!
+  createdBy: AdminPersonRef
+
+  """Sigue vigente (sin fecha o con fecha futura)."""
+  active: Boolean!
 }
 
 input AdminHealthInput {

@@ -17,6 +17,8 @@ export const ACTIVITY_CATEGORY = {
   ADMIN: "admin",
   PRODUCT: "product",
   ERRORS: "errors",
+  PET: "pet",
+  SECURITY: "security",
 } as const;
 
 export type ActivityCategory =
@@ -35,6 +37,8 @@ export const ACTIVITY_CATEGORY_OPTIONS = [
   { label: "Kadesh (admin)", value: ACTIVITY_CATEGORY.ADMIN },
   { label: "Navegación", value: ACTIVITY_CATEGORY.PRODUCT },
   { label: "Errores", value: ACTIVITY_CATEGORY.ERRORS },
+  { label: "Kadesh Pet", value: ACTIVITY_CATEGORY.PET },
+  { label: "Seguridad", value: ACTIVITY_CATEGORY.SECURITY },
 ] as const;
 
 /** Quién originó el evento. */
@@ -153,7 +157,36 @@ export const ACTIVITY_EVENT = {
   // Kadesh Pet: alertas de zona de una persona (Operaciones → Kadesh Pet → Alertas de zona).
   ADMIN_ZONE_ALERTS_UPDATED: "admin.zone_alerts_updated",
   ADMIN_PERSON_DATA_EXPORTED: "admin.person_data_exported",
+  // Bandeja de Errores (fase 6.2): resolver, ignorar o reabrir un error agrupado.
+  ADMIN_ERROR_ISSUE_UPDATED: "admin.error_issue_updated",
   ADMIN_USER_ANONYMIZED: "admin.user_anonymized",
+
+  // Kadesh Pet (fase 6.4): lo que hace la gente en pet.kadesh.com.mx y la app. Nunca el texto de
+  // comentarios ni reseñas: solo ids, largo y calificación.
+  PET_ANIMAL_REPORTED: "pet.animal_reported",
+  PET_ANIMAL_UPDATED: "pet.animal_updated",
+  PET_ANIMAL_DELETED: "pet.animal_deleted",
+  PET_ANIMAL_STATUS_CHANGED: "pet.animal_status_changed",
+  PET_ANIMAL_LOG_DELETED: "pet.animal_log_deleted",
+  PET_COMMENT_ADDED: "pet.comment_added",
+  PET_COMMENT_DELETED: "pet.comment_deleted",
+  PET_CLAIM_REQUESTED: "pet.claim_requested",
+  PET_CLAIM_CANCELLED: "pet.claim_cancelled",
+  PET_PLACE_REGISTERED: "pet.place_registered",
+  PET_PLACE_UPDATED: "pet.place_updated",
+  PET_PLACE_CLAIMED: "pet.place_claimed",
+  PET_PLACE_VERIFIED: "pet.place_verified",
+  PET_REVIEW_ADDED: "pet.review_added",
+  PET_REVIEW_DELETED: "pet.review_deleted",
+  // Alta con el formulario genérico (Kadesh Pet web y app). Negocios y Google ya quedan en UserAuthLog.
+  AUTH_SIGNUP: "auth.signup",
+  // Formulario de contacto (landing y Negocios); sin datos personales en metadata.
+  CONTACT_FORM_SUBMITTED: "contact.form_submitted",
+
+  // Seguridad (fase 6.5): límites rebasados y bloqueos de IP.
+  SECURITY_RATE_LIMITED: "security.rate_limited",
+  ADMIN_IP_BLOCKED: "admin.ip_blocked",
+  ADMIN_IP_UNBLOCKED: "admin.ip_unblocked",
 
   // Navegación (lo manda el front con trackEvents)
   UI_SECTION_VIEWED: "ui.section_viewed",
@@ -164,6 +197,8 @@ export const ACTIVITY_EVENT = {
 
   // Errores que vio alguien en el panel (plugin de Apollo, fase 5)
   APP_ERROR: "app.error",
+  // Errores que solo ve el navegador: red caída, respuesta 5xx/413/429, pantalla caída (fase 6.1)
+  APP_CLIENT_ERROR: "app.client_error",
 } as const;
 
 export type ActivityEventType = (typeof ACTIVITY_EVENT)[keyof typeof ACTIVITY_EVENT];
@@ -176,6 +211,7 @@ export const HEARTBEAT_MINUTES = 5;
 
 /** Lo que cualquier persona con sesión puede reportar con `trackEvents`. */
 export const CLIENT_EVENT_TYPES: ReadonlySet<string> = new Set([
+  ACTIVITY_EVENT.APP_CLIENT_ERROR,
   ACTIVITY_EVENT.AUTH_LOGOUT,
   ACTIVITY_EVENT.LEAD_EXPORTED,
   ACTIVITY_EVENT.UI_SECTION_VIEWED,
@@ -184,6 +220,31 @@ export const CLIENT_EVENT_TYPES: ReadonlySet<string> = new Set([
   ACTIVITY_EVENT.UI_TOUR_COMPLETED,
   ACTIVITY_EVENT.UI_TOUR_SKIPPED,
 ]);
+
+/**
+ * Lo único que un visitante sin sesión puede reportar con `trackEvents`, con tope por IP
+ * (la mayoría de quienes usan Kadesh Pet navega sin cuenta).
+ */
+export const ANONYMOUS_CLIENT_EVENT_TYPES: ReadonlySet<string> = new Set([
+  ACTIVITY_EVENT.APP_CLIENT_ERROR,
+]);
+
+/** Tipos de error de la app: los agrupa la bandeja de Errores (`fingerprint`). */
+export const APP_ERROR_TYPES: readonly string[] = [
+  ACTIVITY_EVENT.APP_ERROR,
+  ACTIVITY_EVENT.APP_CLIENT_ERROR,
+];
+
+/** Qué app hizo la petición (header `x-kadesh-app`, o el `origin` si no viene). */
+export const ACTIVITY_APP = {
+  PET_WEB: "pet-web",
+  BUSINESS_WEB: "business-web",
+  PET_MOBILE: "pet-mobile",
+} as const;
+
+export type ActivityApp = (typeof ACTIVITY_APP)[keyof typeof ACTIVITY_APP];
+
+export const ACTIVITY_APP_VALUES: ReadonlySet<string> = new Set(Object.values(ACTIVITY_APP));
 
 /** Solo el admin de plataforma puede reportarlos: registro de qué datos de clientes abrió. */
 export const CLIENT_ADMIN_EVENT_TYPES: ReadonlySet<string> = new Set([
@@ -226,6 +287,12 @@ const CATEGORY_BY_PREFIX: Record<string, ActivityCategory> = {
   admin: ACTIVITY_CATEGORY.ADMIN,
   ui: ACTIVITY_CATEGORY.PRODUCT,
   app: ACTIVITY_CATEGORY.ERRORS,
+  pet: ACTIVITY_CATEGORY.PET,
+  // Antes de la fase 6.4 los eventos de animales usaban `animal.*` (reclamos).
+  animal: ACTIVITY_CATEGORY.PET,
+  // Uso del sitio: sale en Navegación.
+  contact: ACTIVITY_CATEGORY.PRODUCT,
+  security: ACTIVITY_CATEGORY.SECURITY,
 };
 
 export function categoryForType(type: string): ActivityCategory {

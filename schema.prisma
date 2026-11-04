@@ -31,6 +31,9 @@ model ActivityEvent {
   errorMessage String?
   ip           String?
   userAgent    String?
+  app          String?
+  page         String?
+  fingerprint  String?
   createdAt    DateTime?      @default(now())
 
   @@index([type])
@@ -41,6 +44,37 @@ model ActivityEvent {
   @@index([entityType])
   @@index([entityId])
   @@index([source])
+  @@index([ip])
+  @@index([app])
+  @@index([fingerprint])
+  @@index([createdAt])
+}
+
+model ErrorIssue {
+  id           String    @id @default(cuid())
+  fingerprint  String    @unique @default("")
+  status       String    @default("open")
+  note         String    @default("")
+  resolvedAt   DateTime?
+  resolvedBy   User?     @relation("ErrorIssue_resolvedBy", fields: [resolvedById], references: [id])
+  resolvedById String?   @map("resolvedBy")
+  createdAt    DateTime? @default(now())
+  updatedAt    DateTime? @updatedAt
+
+  @@index([status])
+  @@index([resolvedById])
+}
+
+model BlockedIp {
+  id          String    @id @default(cuid())
+  ip          String    @unique @default("")
+  reason      String    @default("")
+  expiresAt   DateTime?
+  createdBy   User?     @relation("BlockedIp_createdBy", fields: [createdById], references: [id])
+  createdById String?   @map("createdBy")
+  createdAt   DateTime? @default(now())
+
+  @@index([createdById])
   @@index([createdAt])
 }
 
@@ -1939,6 +1973,8 @@ model User {
   anonymizedAt                             DateTime?
   signupAttribution                        Json?
   from_ActivityEvent_actor                 ActivityEvent[]          @relation("ActivityEvent_actor")
+  from_ErrorIssue_resolvedBy               ErrorIssue[]             @relation("ErrorIssue_resolvedBy")
+  from_BlockedIp_createdBy                 BlockedIp[]              @relation("BlockedIp_createdBy")
   from_Notification_recipient              Notification[]           @relation("Notification_recipient")
   from_Ad_user                             Ad[]                     @relation("Ad_user")
   from_Animal_user                         Animal[]                 @relation("Animal_user")
@@ -2010,6 +2046,7 @@ model UserAuthLog {
 
   @@index([userId])
   @@index([step])
+  @@index([ip])
 }
 
 model WishList {

@@ -4,10 +4,10 @@ import {
   relationship,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
+import { publicReadAdminWriteAccess } from "../../../utils/access/presets";
 
 export default list({
-  access,
+  access: publicReadAdminWriteAccess,
   fields: {
     name: text({ 
       validation: { isRequired: true },

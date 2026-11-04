@@ -1,4 +1,5 @@
 import { list } from "@keystone-6/core";
+import { logAnimalActivity } from "../../../utils/pet/petActivity";
 import { json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
 import { animalAccess, forceAnimalOwner } from "./Animal.access";
 import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
@@ -63,6 +64,8 @@ export default list({
       await validateOwnDuplicate({ operation, resolvedData, context, addValidationError });
     },
     afterOperation: async (args) => {
+      // Actividad de Kadesh Pet: publicar, editar o borrar el reporte (sin await, no frena).
+      void logAnimalActivity(args as any);
       await animalCreateSideEffectsHook.afterOperation(args);
       await animalMergeAfterOperation(args);
       // Sin await: limpiar el intento anterior a medias no frena la respuesta.

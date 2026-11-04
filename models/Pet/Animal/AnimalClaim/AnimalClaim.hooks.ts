@@ -1,4 +1,5 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
+import { logAnimalClaimRequested } from "../../../../utils/pet/petActivity";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { isSudoContext } from "../../../../utils/activity/listActivityHooks";
 import { normalizeMxPhone } from "../../../../utils/pet/phone";
@@ -114,4 +115,5 @@ export async function animalClaimAfterOperation({
 }) {
   if (operation !== "create" || !item?.id) return;
   void notifyClaimRequested(context, String(item.id));
+  void logAnimalClaimRequested({ operation, item, context });
 }

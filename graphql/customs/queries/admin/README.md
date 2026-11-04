@@ -81,10 +81,13 @@ Línea de tiempo unificada a partir de los logs que ya existen:
 | `calendar` | Fallos de `TechGoogleCalendarSyncLog` |
 | `team` | `ActivityEvent`: roles, permisos, altas de personas, espacios, datos de la empresa |
 | `product` | `ActivityEvent`: navegación (secciones, módulos bloqueados, tours). **No entra en "todo"**: solo si se pide |
+| `errors` | `ActivityEvent`: `app.error` (servidor) y `app.client_error` (navegador) |
+| `pet` | `ActivityEvent`: reportes, estados, comentarios, reclamos, veterinarias y reseñas de Kadesh Pet |
+| `security` | `ActivityEvent`: límites rebasados (`security.rate_limited`) |
 
 Además, `ActivityEvent` aporta a cada tipo sus eventos propios (cambios del CRM, ciclo de Stripe, ajustes, registro del admin). La categoría del evento es el tipo del feed. Los tipos de `FEED_HIDDEN_EVENT_TYPES` no se muestran porque ya salen de su tabla (cotización enviada/aceptada, cobro fallido o reembolsado). Antes de migrar esa tabla no existe y la fuente devuelve vacío.
 
-Filtros: `companyId`, `userId` (en eventos propios: lo que hizo la persona y lo que le hicieron a su cuenta), `types`, `onlyErrors`, `search`. Pagina por cursor: `before` = `occurredAt` del último item; `nextBefore` trae el siguiente. Cada fuente pide `take + 1` filas, se mezclan por fecha y se corta.
+Filtros: `companyId`, `userId` (en eventos propios: lo que hizo la persona y lo que le hicieron a su cuenta), `types`, `onlyErrors`, `search` (también mensaje de error, IP y pantalla), `app` (solo eventos propios), `ip` (eventos y accesos) y `fingerprint` (ocurrencias de un error de la bandeja). Cada item trae `ip`, `userAgent`, `app` y `page` (los accesos solo IP y navegador). Pagina por cursor: `before` = `occurredAt` del último item; `nextBefore` trae el siguiente. Cada fuente pide `take + 1` filas, se mezclan por fecha y se corta.
 
 ### Analítica (Fase 4)
 
@@ -124,7 +127,21 @@ Empresas registradas por canal, página de entrada y campaña (`User.signupAttri
 
 Velocidad comercial desde `TechLeadStageChange`, actividades y WhatsApp: cierre, ciclo de venta, por etapa (entraron, avanzaron, perdidos, días, estancados), primer contacto, WhatsApp y una lista por empresa (más estancados primero). `dataSince` = desde cuándo hay historial. Ver `docs/operaciones/decisiones.md`.
 
-`adminCompanyInsights.appErrors` y el motivo `app_errors` de "Requiere atención" salen de `app.error` (plugin `utils/activity/appErrorsPlugin.ts`).
+`adminCompanyInsights.appErrors` y el motivo `app_errors` de "Requiere atención" salen de `app.error` y `app.client_error` (`APP_ERROR_TYPES`).
+
+### Control y seguridad (Fase 6)
+
+#### `adminErrorIssues(input: { app, status, days, search, take })` / `adminOpenErrorIssuesCount`
+
+Bandeja de Errores: `app.*` agrupados por `fingerprint` con veces, personas (con sesión), ocurrencias sin sesión, primera y última vez, apps, pantalla y user agents más comunes. El estado vive en `ErrorIssue`; un resuelto que vuelve a pasar sale como abierto con `reopened: true`. `adminOpenErrorIssuesCount` es el globo del menú (abiertos con actividad en 24 h). Se cambia con `adminSetErrorIssueStatus(fingerprint, status, note)`.
+
+#### `adminPersonDevices(userId, days = 90)`
+
+Dispositivos (IP + navegador) de una persona desde `ActivityEvent` y `UserAuthLog`, y otras cuentas que usaron sus IPs. Una IP con más de 15 cuentas se marca `crowded` y no lista personas (red compartida).
+
+#### `adminSecuritySummary(days = 7)` / `adminBlockedIps`
+
+Límites rebasados por IP, regla y persona; IPs con 2 o más cuentas nuevas; IPs bloqueadas. Se bloquea con `adminBlockIp(ip, reason, days, force)` y se quita con `adminUnblockIp(ip)`.
 
 ### Kadesh Pet
 

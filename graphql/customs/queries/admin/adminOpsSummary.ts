@@ -3,7 +3,7 @@ import { SUBSCRIPTION_STATUS } from "../../../../models/Saas/SaasCompanySubscrip
 import { COMPANY_CREDIT_LEDGER_TYPE } from "../../../../models/Saas/SaasCompanyCreditLedger/constants";
 import { SAAS_SUBSCRIPTION_LOG_STEP } from "../../../../models/Saas/SaasSubscriptionLog/constants";
 import { loadCompanyHealth } from "./healthData";
-import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
+import { APP_ERROR_TYPES } from "../../../../models/ActivityEvent/constants";
 import {
   DAY_MS,
   activeUserIdsSince,
@@ -361,7 +361,7 @@ const resolver = {
         () =>
           prisma.activityEvent.groupBy({
             by: ["companyId"],
-            where: { type: ACTIVITY_EVENT.APP_ERROR, createdAt: { gte: since24h }, companyId: { in: realIds } },
+            where: { type: { in: [...APP_ERROR_TYPES] }, createdAt: { gte: since24h }, companyId: { in: realIds } },
             _count: { _all: true },
             _max: { createdAt: true },
           }),

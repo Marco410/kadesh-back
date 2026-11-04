@@ -8,7 +8,6 @@ import {
   timestamp,
   virtual,
 } from "@keystone-6/core/fields";
-import access from "../../../utils/generalAccess/access";
 import { KeystoneContext } from "@keystone-6/core/types";
 import { dayNames } from "../Schedule/Schedule";
 import {
@@ -16,7 +15,14 @@ import {
   PET_PLACE_CLAIM_STATUS_OPTIONS,
   PET_PLACE_CLAIM_ROLE_OPTIONS,
 } from "./claim";
-import { petPlaceSlugAfterOperation } from "./PetPlace.hooks";
+import { petPlaceResolveInput, petPlaceSlugAfterOperation } from "./PetPlace.hooks";
+import { logPetPlaceRegistered } from "../../../utils/pet/petActivity";
+import {
+  adminCreateOnly,
+  adminInternalField,
+  ownerPrivateField,
+  petPlaceAccess,
+} from "./PetPlace.access";
 import { PIPELINE_STATUS } from "../../Saas/Tech/crm/constants";
 
 const pipelineOptions = Object.values(PIPELINE_STATUS).map((value) => ({
@@ -25,51 +31,24 @@ const pipelineOptions = Object.values(PIPELINE_STATUS).map((value) => ({
 }));
 
 export default list({
-  access,
+  access: petPlaceAccess,
   ui: {
     listView: {
       initialColumns: ["name", "slug", "claimStatus", "verified", "municipality"],
     },
   },
   hooks: {
-    afterOperation: petPlaceSlugAfterOperation.afterOperation,
-    resolveInput: async ({ resolvedData, item, operation }) => {
-      if (operation !== "update") return resolvedData;
-
-      const wasVerified = Boolean(item?.verified);
-      const nextVerified = resolvedData.verified;
-
-      if (nextVerified === true && !wasVerified) {
-        resolvedData.claimStatus = PET_PLACE_CLAIM_STATUS.VERIFIED;
-        if (resolvedData.verifiedAt === undefined) {
-          resolvedData.verifiedAt = new Date();
-        }
-      }
-
-      if (nextVerified === false && wasVerified) {
-        if (resolvedData.claimStatus === undefined) {
-          resolvedData.claimStatus = item?.userId
-            ? PET_PLACE_CLAIM_STATUS.PENDING
-            : PET_PLACE_CLAIM_STATUS.UNCLAIMED;
-        }
-        if (resolvedData.verifiedAt === undefined) {
-          resolvedData.verifiedAt = null;
-        }
-      }
-
-      if (resolvedData.claimStatus === PET_PLACE_CLAIM_STATUS.VERIFIED) {
-        resolvedData.verified = true;
-        if (!wasVerified && resolvedData.verifiedAt === undefined) {
-          resolvedData.verifiedAt = new Date();
-        }
-      }
-
-      return resolvedData;
+    afterOperation: async (args: any) => {
+      await petPlaceSlugAfterOperation.afterOperation(args);
+      // Actividad de Kadesh Pet: registro desde el sitio o la app (no la importación de Google).
+      void logPetPlaceRegistered(args);
     },
+    resolveInput: petPlaceResolveInput,
   },
   fields: {
     name: text({ validation: { isRequired: true } }),
     slug: text({
+      ...adminCreateOnly,
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -107,21 +86,24 @@ export default list({
     cp: text(),
     lat: text(),
     lng: text(),
-    views: integer(),
+    views: integer({ ...adminCreateOnly }),
     types: relationship({
       ref: "PetPlaceType",
       many: true,
     }),
     services: relationship({
+      ...adminCreateOnly,
       ref: "PetPlaceService",
       many: true,
     }),
     requested_services: relationship({
+      ...adminCreateOnly,
       ref: "PetPlaceService.requestedFor",
       many: true,
       ui: { description: "Servicios que esta clínica pidió al catálogo" },
     }),
     patients: relationship({
+      ...adminCreateOnly,
       ref: "User.clinic_patients_of",
       many: true,
       ui: { description: "Pacientes dados de alta por esta clínica" },
@@ -132,6 +114,7 @@ export default list({
       ui: { description: "Dueño o solicitante de la ficha" },
     }),
     verified: checkbox({
+      ...adminCreateOnly,
       defaultValue: false,
       ui: {
         description:
@@ -139,6 +122,7 @@ export default list({
       },
     }),
     verifiedAt: timestamp({
+      ...adminCreateOnly,
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -151,10 +135,12 @@ export default list({
       ui: { displayMode: "segmented-control" },
     }),
     claimRole: select({
+      ...ownerPrivateField,
       options: PET_PLACE_CLAIM_ROLE_OPTIONS,
       ui: { description: "Rol declarado al reclamar" },
     }),
     pipelineStatus: select({
+      ...adminInternalField,
       type: "string",
       options: pipelineOptions,
       defaultValue: PIPELINE_STATUS.DETECTADO,
@@ -165,15 +151,18 @@ export default list({
       },
     }),
     claimPhone: text({
+      ...ownerPrivateField,
       ui: { description: "Teléfono que dejó en la solicitud" },
     }),
     claimNotes: text({
+      ...ownerPrivateField,
       ui: {
         displayMode: "textarea",
         description: "Cómo comprueba que es suya (cédula, RFC, etc.)",
       },
     }),
     claimedAt: timestamp({
+      ...ownerPrivateField,
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -216,22 +205,27 @@ export default list({
       }),
     }),
     pet_place_social_media: relationship({
+      ...adminCreateOnly,
       ref: "SocialMedia.pet_place",
       many: true,
     }),
     pet_place_likes: relationship({
+      ...adminCreateOnly,
       ref: "PetPlaceLike.pet_place",
       many: true,
     }),
     pet_place_schedules: relationship({
+      ...adminCreateOnly,
       ref: "Schedule.pet_place",
       many: true,
     }),
     pet_place_appointments: relationship({
+      ...adminCreateOnly,
       ref: "PetPlaceAppointment.pet_place",
       many: true,
     }),
     pet_place_reviews: relationship({
+      ...adminCreateOnly,
       ref: "Review.pet_place",
       many: true,
     }),
@@ -283,16 +277,18 @@ export default list({
       }),
     }),
     pet_place_ads: relationship({
+      ...adminCreateOnly,
       ref: "Ad.pet_place",
       many: true,
     }),
     address: text(),
     google_place_id: text({
+      ...adminCreateOnly,
       isIndexed: "unique",
       db: { isNullable: true },
       validation: { isRequired: false },
     }),
-    google_opening_hours: text(),
+    google_opening_hours: text({ ...adminCreateOnly }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

@@ -6,7 +6,7 @@ import {
   text,
   timestamp,
 } from "@keystone-6/core/fields";
-import access from "../../../../utils/generalAccess/access";
+import { adminOnlyAccess } from "../../../../utils/access/presets";
 import {
   ANIMAL_TYPE_OPTIONS,
   BRANDS,
@@ -14,7 +14,7 @@ import {
 } from "../../../../utils/constants/constants";
 
 export default list({
-  access,
+  access: adminOnlyAccess,
   fields: {
     name: text({ validation: { isRequired: true } }),
     price: integer({ validation: { isRequired: true } }),

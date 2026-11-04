@@ -13,6 +13,7 @@ Backend de la pantalla **Operaciones** del front (`/panel/clientes/admin`, solo 
 | **3b** | Suspender empresa o persona, cerrar sesiones, "entrar como" (solo lectura), transferir la propiedad, ARCO (exportar y anonimizar), quitar `customAuth` | Migrado junto con 3a (`20261011070506_suspended_migration`) |
 | **5** | Velocidad comercial: historial de etapas (`TechLeadStageChange`), `adminSalesVelocity` (cierre, ciclo, primer contacto, WhatsApp, estancados) y errores por empresa (`app.error`) | Código listo. **Falta `yarn migrate`** y `pnpm pipeline:backfill --apply` |
 | **4** | Analítica: salud de cada cuenta con riesgo de baja y oportunidad de venta, activación, retención por mes de registro, DAU/WAU/MAU y módulos por plan, demanda no cubierta, de dónde llegan los clientes (`User.signupAttribution`) | Código listo. **Falta `yarn migrate`** |
+| **6** | Control: app y pantalla en cada evento, errores de cualquier persona y del navegador (`app.client_error`), bandeja de Errores (`ErrorIssue`), dispositivos e IPs por persona, actividad de Kadesh Pet, límites contra abuso y bloqueo de IP (`BlockedIp`). Además, se cerró el acceso abierto genérico de 25 listas (6.0) | Código listo. **Falta `yarn migrate`** (campos `app`, `page`, `fingerprint` en `ActivityEvent`, índices en `ip`, `ErrorIssue`, `BlockedIp`). Verificar la IP en Railway antes de confiar en el bloqueo |
 
 Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`ActivityEvent`, `UserActivityDay`) y dos columnas en `UserAuthLog` (`ip`, `userAgent`). La 3 agrega `SaasCompanyNote`, `SaasCompanyDailyUsage`, `SaasCompany.accountManager` y los campos de control de cuenta (`suspendedAt`, `suspendedReason`, `sessionVersion`, `anonymizedAt`). La 4 solo agrega `User.signupAttribution`.
 
@@ -34,6 +35,14 @@ Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`Ac
   - Eventos del navegador y latido: `graphql/customs/mutations/activity/trackEvents.ts`
   - Webhook de Stripe: `webhooks/stripe.ts`; sincronización de estado compartida: `utils/saas/stripeSubscriptionSync.ts`
   - Retención: `pnpm activity:prune`
+
+- Fase 6:
+  - Contexto de la petición: `utils/activity/requestMeta.ts` (IP, navegador, app, pantalla)
+  - Errores: `utils/activity/appErrorsPlugin.ts`, `trackEvents` (`app.client_error`), `utils/activity/fingerprint.ts`, `graphql/customs/queries/admin/adminErrorIssues.ts`, `graphql/customs/mutations/admin/errorIssues.ts`
+  - Dispositivos: `graphql/customs/queries/admin/adminPersonDevices.ts`
+  - Kadesh Pet: `utils/pet/petActivity.ts`
+  - Seguridad: `utils/security/*` (límites, avisos, bloqueo), `graphql/customs/queries/admin/adminSecurity.ts`, `graphql/customs/mutations/admin/security.ts`, `pnpm security:unblock`
+  - Accesos: `utils/access/presets.ts`
 
 - Fase 4:
   - Salud: `utils/analytics/health.ts` (regla) y `graphql/customs/queries/admin/healthData.ts` (datos de muchas empresas en pocas consultas)

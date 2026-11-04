@@ -26,13 +26,16 @@ El feed de Operaciones (`adminActivityFeed`) une todas esas fuentes. Para que ni
 ## Campos
 
 - `type`: texto (`lead.status_changed`). El catálogo vive en `constants.ts` (`ACTIVITY_EVENT`) para agregar tipos sin migrar.
-- `category`: sale del prefijo del tipo (`categoryForType`) y es el filtro del feed: `auth`, `extraction`, `crm`, `team`, `ai`, `credits`, `billing`, `whatsapp`, `calendar`, `admin`, `product` (navegación).
+- `category`: sale del prefijo del tipo (`categoryForType`) y es el filtro del feed: `auth`, `extraction`, `crm`, `team`, `ai`, `credits`, `billing`, `whatsapp`, `calendar`, `admin`, `product` (navegación), `errors`, `pet` (Kadesh Pet) y `security` (límites y bloqueos).
 - `actor`, `company`, `workspace`: relaciones de **un solo lado** (no agregan campos a `User`, `SaasCompany` ni `SaasWorkspace`). Al borrar al actor o a la empresa, el evento queda con `null`.
 - `entityType` / `entityId`: el item afectado (`TechBusinessLead`, `SaasQuotation`, `User`…).
 - `summary`: frase en español lista para mostrar.
 - `metadata`: `{ from, to }`, `{ changes: { campo: [antes, después] } }`, conteos, montos.
 - `source`: `web` (persona en el panel), `admin` (admin de Kadesh sobre datos de otra empresa), `webhook` (Stripe), `system` (servidor sin persona).
 - `success` / `errorMessage`, `ip`, `userAgent`, `createdAt`.
+- `app` (fase 6.1): `pet-web`, `business-web` o `pet-mobile`. Sale del header `x-kadesh-app` (lista cerrada) o, si no viene, del `origin`.
+- `page` (fase 6.1): pantalla en la que estaba la persona, del header `x-kadesh-page`. Solo la ruta y los parámetros `tab`, `vista`, `clinic` y `pet` (`cleanPage` en `utils/activity/requestMeta.ts`); nunca tokens, correos ni búsquedas. Los errores del navegador mandan la pantalla del momento del error.
+- `fingerprint` (fase 6.2): solo en `app.*`. Agrupa el mismo error (tipo, operación o tipo de falla, mensaje sin números ni ids) para la bandeja de Errores (`utils/activity/fingerprint.ts`).
 
 ## Cómo se escribe
 
@@ -41,13 +44,16 @@ Nunca por API (`create`/`update` = false). Solo el servidor, con `utils/activity
 - No lanza: si falla el registro, la operación del usuario sigue.
 - Escribe con Prisma (sudo), sin hooks ni access.
 - Limpia `metadata` (`scrubMetadata`): oculta llaves como `password`, `token`, `apiKey`, `prompt`, `body`; recorta textos y arreglos.
-- Toma IP (`x-forwarded-for` del proxy si existe) y navegador de `context.req`.
+- Toma IP, navegador, app y pantalla de `context.req` (`requestMeta.ts`). La fuente de la IP se ajusta con `CLIENT_IP_HEADER` (ver `requestIp`).
 
 Tres caminos:
 
 1. **Hooks de lists** (`utils/activity/listActivityHooks.ts`, aplicado en `models/schema.ts` con `withActivityHooks`). Registran el antes y el después de lo que una **persona** cambia con las mutaciones generadas (panel o Admin UI). Solo corren con contexto **no sudo** y con sesión.
 2. **Llamadas explícitas** en mutaciones custom que escriben con sudo: `addOwnLead`, `promoteInegiEstablishmentToLead`, `sendAdminBroadcastEmail`, `updatePlanFeatureCatalog`, conectar/desconectar Google Calendar, ajustes de IA y de WhatsApp, asignar/enlazar/importar chats de WhatsApp, créditos agotados (`utils/saas/companyCredits.ts`), y el estado de suscripciones (`utils/saas/stripeSubscriptionSync.ts`).
-3. **`trackEvents`** (`graphql/customs/mutations/activity/trackEvents.ts`): lo que solo sabe el navegador. Lista cerrada de tipos (`CLIENT_EVENT_TYPES`; los `admin.*` solo para admin de plataforma). El servidor pone actor y empresa.
+3. **`trackEvents`** (`graphql/customs/mutations/activity/trackEvents.ts`): lo que solo sabe el navegador. Lista cerrada de tipos (`CLIENT_EVENT_TYPES`; los `admin.*` solo para admin de plataforma). El servidor pone actor y empresa. `app.client_error` también se acepta sin sesión, con tope por IP (`ANONYMOUS_CLIENT_EVENT_TYPES`).
+4. **Errores de la app** (`utils/activity/appErrorsPlugin.ts`): `app.error` cuando falla una operación GraphQL, con o sin sesión (sin sesión, con tope por IP). Guarda operación, si era consulta o cambio (`opType`), código y los **nombres** de las variables, nunca sus valores.
+5. **Kadesh Pet** (`utils/pet/petActivity.ts`): `pet.*`, `auth.signup` y `contact.form_submitted` desde los `afterOperation` de `Animal`, `AnimalLog`, `AnimalComment`, `AnimalClaim`, `PetPlace`, `Review`, `User` y `ContactForm`, y desde las mutaciones de veterinarias. Nunca el texto de comentarios, reseñas ni mensajes.
+6. **Seguridad** (`utils/security/securityAlerts.ts`): `security.rate_limited` cuando alguien se pasa de un límite contra abuso.
 
 ## Lists con hooks
 
@@ -77,7 +83,7 @@ Tres caminos:
 
 1. Agrega el tipo en `ACTIVITY_EVENT` (y en `CATEGORY_BY_PREFIX` si es un prefijo nuevo).
 2. Si lo dispara una persona con una mutación generada, agrégalo al tracker de su list. Si lo dispara una mutación custom, llama `logActivity` sin `await` (`void logActivity(...)`).
-3. Si lo manda el front, agrégalo a `CLIENT_EVENT_TYPES` y a `TRACK_EVENT` en `kadesh-business/src/utils/activity/track.ts`.
+3. Si lo manda el front, agrégalo a `CLIENT_EVENT_TYPES` y a `TRACK_EVENT` en `kadesh-business/src/utils/activity/track.ts` (y en `kadesh-landing/src/utils/activity/track.ts` si es de Kadesh Pet).
 4. Si el feed ya lo muestra desde otra tabla, agrégalo a `FEED_HIDDEN_EVENT_TYPES`.
 
 ## Retención
@@ -107,3 +113,12 @@ Cómo se distingue: el contexto sudo usa otro schema GraphQL (`context.graphql.s
 Qué: el latido del front (cada 5 min con la pestaña visible) no crea filas aquí; suma minutos en `UserActivityDay`.
 
 Por qué: un evento por latido serían ~12 filas por hora por persona. Con una fila por día la tabla queda chica, salen directos los usuarios activos (DAU/WAU/MAU) y el "visto por última vez", y `ActivityEvent` sigue siendo solo de inserción.
+
+### 2026-11-04 — Fase 6: app, pantalla y errores de cualquier persona
+
+Qué: cada evento guarda desde qué app y en qué pantalla pasó (`app`, `page`), los errores también se registran para visitantes sin sesión (con tope por IP), el navegador reporta lo que el servidor no ve (`app.client_error`: red caída, 5xx/413/429, pantalla caída) y los errores se agrupan por `fingerprint` en la bandeja de Errores. Kadesh Pet registra sus acciones (`pet.*`).
+
+Por qué: Operaciones solo veía "Falló X" sin saber dónde ni desde qué dispositivo, y la mayoría de quienes usan Kadesh Pet navega sin cuenta.
+
+Qué no hacer: no guardar valores de variables, ni la URL completa (`page` pasa por `cleanPage`), ni textos de comentarios o reseñas.
+
