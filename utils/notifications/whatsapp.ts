@@ -43,6 +43,33 @@ export function platformWhatsappConfig(): { phoneNumberId: string; accessToken: 
   return { phoneNumberId, accessToken };
 }
 
+/** Nombres de las variables que faltan para el número de Kadesh (vacío = configurado). */
+function missingPlatformVars(): string[] {
+  return [
+    ["WHATSAPP_PLATFORM_PHONE_NUMBER_ID", process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID],
+    ["WHATSAPP_PLATFORM_ACCESS_TOKEN", process.env.WHATSAPP_PLATFORM_ACCESS_TOKEN],
+  ]
+    .filter(([, value]) => !value?.trim())
+    .map(([name]) => name as string);
+}
+
+/**
+ * Una línea al arrancar para saber, desde los logs de Railway, si los avisos por WhatsApp pueden
+ * salir. Ojo: el WhatsApp que se conecta en el CRM es otro (el de la empresa, guardado en la base).
+ */
+export function logPlatformWhatsappStatus(): void {
+  const missing = missingPlatformVars();
+  if (missing.length) {
+    console.warn(`[notify:whatsapp] Avisos por WhatsApp APAGADOS: falta ${missing.join(" y ")}.`);
+    return;
+  }
+  const id = process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID?.trim() ?? "";
+  console.log(
+    `[notify:whatsapp] Avisos por WhatsApp activos (phone number id …${id.slice(-4)}). ` +
+      `Plantillas: ${Object.values(WHATSAPP_TEMPLATES).map((t) => t?.name).join(", ")}.`,
+  );
+}
+
 /** Meta rechaza parámetros vacíos o con saltos de línea, tabs o muchos espacios seguidos. */
 function templateParam(value: string | null | undefined): string {
   const clean = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
@@ -71,7 +98,14 @@ export async function sendNotificationWhatsappToOptedIn(
   values: NotificationTemplateValues,
 ): Promise<void> {
   try {
-    if (!hasWhatsappTemplate(type) || !platformWhatsappConfig()) return;
+    // Un tipo sin plantilla se queda solo en la campana a propósito: no se avisa en el log.
+    if (!hasWhatsappTemplate(type)) return;
+    if (!platformWhatsappConfig()) {
+      console.warn(
+        `[notify:whatsapp] ${type} no salió por WhatsApp: falta ${missingPlatformVars().join(" y ")} en el entorno.`,
+      );
+      return;
+    }
 
     const optedIn = await prisma.user.findMany({
       where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: "" } },
@@ -79,7 +113,20 @@ export async function sendNotificationWhatsappToOptedIn(
     });
     // Prisma de Keystone puede devolver el error en vez de lanzarlo.
     if (optedIn instanceof Error) throw optedIn;
-    if (!Array.isArray(optedIn) || optedIn.length === 0) return;
+    if (!Array.isArray(optedIn) || optedIn.length === 0) {
+      const withOptIn = await prisma.user.count({
+        where: { id: { in: recipientIds }, whatsappNotifications: true },
+      });
+      const total = recipientIds.length;
+      const reason =
+        typeof withOptIn !== "number"
+          ? `ninguno de los ${total} destinatario(s) tiene avisos de WhatsApp activos con teléfono`
+          : withOptIn === 0
+            ? `ninguno de los ${total} destinatario(s) tiene activos los avisos de WhatsApp (User.whatsappNotifications)`
+            : `${withOptIn} de ${total} destinatario(s) tienen activos los avisos, pero sin teléfono (User.phone)`;
+      console.warn(`[notify:whatsapp] ${type} no salió por WhatsApp: ${reason}.`);
+      return;
+    }
 
     await sendNotificationWhatsapp(optedIn, type, values);
   } catch (error) {
@@ -106,15 +153,22 @@ export async function sendNotificationWhatsapp(
     await Promise.allSettled(
       recipients.map(async (recipient) => {
         const to = toWhatsappNumber(recipient.phone);
-        if (!to) return;
+        if (!to) {
+          console.warn(`[notify:whatsapp] ${type}: el usuario ${recipient.id} no tiene un teléfono válido.`);
+          return;
+        }
         try {
-          await sendWhatsAppTemplateMessage({
+          const sent = await sendWhatsAppTemplateMessage({
             ...config,
             to,
             templateName: template.name,
             language: TEMPLATE_LANGUAGE,
             bodyParams,
           });
+          // Meta lo aceptó. Si después no lo entrega, el webhook registra el `failed` con este id.
+          console.log(
+            `[notify:whatsapp] ${type} (${template.name}) aceptado por Meta para usuario ${recipient.id} (…${to.slice(-4)}): ${sent.id}`,
+          );
         } catch (error) {
           console.error(
             `[notify:whatsapp] ${type} a usuario ${recipient.id} (…${to.slice(-4)}):`,

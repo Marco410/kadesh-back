@@ -49,13 +49,31 @@ Además de la campana, `notify` manda el aviso por WhatsApp desde el número de 
 - Solo a quien tiene `User.whatsappNotifications` activo y un `phone` válido (10 dígitos de México, o con lada de otro país).
 - Solo si el tipo tiene plantilla en `utils/notifications/whatsapp.ts` (`WHATSAPP_TEMPLATES`). Sin plantilla, solo campana.
 - Los valores de la plantilla llegan en `templateValues` (no se guardan). Un valor vacío se manda como "sin especificar", porque Meta rechaza parámetros vacíos.
-- Sin `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` no se manda nada. Un error de Meta solo queda en el log.
+- Sin `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` no se manda nada. Cada aviso que no sale deja una línea en el log que dice por qué (ver abajo).
 
 | Tipo | Plantilla (UTILITY, es_MX) | Variables |
 | --- | --- | --- |
 | `animal.created` | `kadesh_admin_animal_creado` | animal, tipo, quién lo registró |
 | `petplace.service_requested` | `kadesh_admin_servicio_solicitado` | servicio, clínica, quién lo pidió |
 | `user.bank_details_updated` | `kadesh_admin_datos_bancarios` | nombre del usuario |
+
+### Si no llega el WhatsApp
+
+El número de estos avisos sale de las variables `WHATSAPP_PLATFORM_*`. No es el WhatsApp que se conecta en el CRM: ese guarda sus credenciales en `SaasCompany`, y lo usan "Mandar mensaje de inicio" y el chat. Que el CRM sí mande no prueba nada de estos avisos. El chat del CRM tampoco muestra estos avisos: solo guarda lo que se manda desde ahí.
+
+Busca `[notify:whatsapp]` en los logs:
+
+| Línea | Qué pasa |
+| --- | --- |
+| `Avisos por WhatsApp APAGADOS: falta …` (al arrancar) | Faltan las variables en el entorno. |
+| `… no salió por WhatsApp: falta …` | Lo mismo, al momento del aviso. |
+| `… ninguno de los N destinatario(s) tiene activos los avisos de WhatsApp` | Ningún admin tiene `whatsappNotifications`. |
+| `… tienen activos los avisos, pero sin teléfono` | El admin no tiene `User.phone`. |
+| `… no tiene un teléfono válido` | El `phone` no se puede convertir a número de WhatsApp. |
+| `… a usuario … : [whatsapp] Graph API error …` | Meta rechazó el envío: plantilla no aprobada, idioma o número de variables. |
+| `… aceptado por Meta para usuario … : wamid…` | Meta lo aceptó. Si no llega, busca ese `wamid` en `[whatsapp webhook] Meta no entregó …`, que trae el código de error de Meta. |
+
+Para que aparezca el `Meta no entregó …`, el WABA del número de plataforma tiene que estar conectado a una empresa con su App Secret; si no, el webhook lo descarta y lo dice en el log.
 
 ## Acceso
 

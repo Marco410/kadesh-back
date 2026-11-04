@@ -3282,6 +3282,23 @@ function platformWhatsappConfig() {
   if (!phoneNumberId || !accessToken) return null;
   return { phoneNumberId, accessToken };
 }
+function missingPlatformVars() {
+  return [
+    ["WHATSAPP_PLATFORM_PHONE_NUMBER_ID", process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID],
+    ["WHATSAPP_PLATFORM_ACCESS_TOKEN", process.env.WHATSAPP_PLATFORM_ACCESS_TOKEN]
+  ].filter(([, value]) => !value?.trim()).map(([name]) => name);
+}
+function logPlatformWhatsappStatus() {
+  const missing = missingPlatformVars();
+  if (missing.length) {
+    console.warn(`[notify:whatsapp] Avisos por WhatsApp APAGADOS: falta ${missing.join(" y ")}.`);
+    return;
+  }
+  const id = process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID?.trim() ?? "";
+  console.log(
+    `[notify:whatsapp] Avisos por WhatsApp activos (phone number id \u2026${id.slice(-4)}). Plantillas: ${Object.values(WHATSAPP_TEMPLATES).map((t) => t?.name).join(", ")}.`
+  );
+}
 function templateParam(value) {
   const clean = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
   if (!clean) return PARAM_FALLBACK;
@@ -3296,13 +3313,27 @@ function toWhatsappNumber(raw) {
 }
 async function sendNotificationWhatsappToOptedIn(prisma, recipientIds, type, values) {
   try {
-    if (!hasWhatsappTemplate(type) || !platformWhatsappConfig()) return;
+    if (!hasWhatsappTemplate(type)) return;
+    if (!platformWhatsappConfig()) {
+      console.warn(
+        `[notify:whatsapp] ${type} no sali\xF3 por WhatsApp: falta ${missingPlatformVars().join(" y ")} en el entorno.`
+      );
+      return;
+    }
     const optedIn = await prisma.user.findMany({
       where: { id: { in: recipientIds }, whatsappNotifications: true, phone: { not: "" } },
       select: { id: true, phone: true }
     });
     if (optedIn instanceof Error) throw optedIn;
-    if (!Array.isArray(optedIn) || optedIn.length === 0) return;
+    if (!Array.isArray(optedIn) || optedIn.length === 0) {
+      const withOptIn = await prisma.user.count({
+        where: { id: { in: recipientIds }, whatsappNotifications: true }
+      });
+      const total = recipientIds.length;
+      const reason = typeof withOptIn !== "number" ? `ninguno de los ${total} destinatario(s) tiene avisos de WhatsApp activos con tel\xE9fono` : withOptIn === 0 ? `ninguno de los ${total} destinatario(s) tiene activos los avisos de WhatsApp (User.whatsappNotifications)` : `${withOptIn} de ${total} destinatario(s) tienen activos los avisos, pero sin tel\xE9fono (User.phone)`;
+      console.warn(`[notify:whatsapp] ${type} no sali\xF3 por WhatsApp: ${reason}.`);
+      return;
+    }
     await sendNotificationWhatsapp(optedIn, type, values);
   } catch (error) {
     console.error("[notify:whatsapp] No se pudo buscar a qui\xE9n mandarle:", type, error);
@@ -3317,15 +3348,21 @@ async function sendNotificationWhatsapp(recipients, type, values) {
     await Promise.allSettled(
       recipients.map(async (recipient) => {
         const to = toWhatsappNumber(recipient.phone);
-        if (!to) return;
+        if (!to) {
+          console.warn(`[notify:whatsapp] ${type}: el usuario ${recipient.id} no tiene un tel\xE9fono v\xE1lido.`);
+          return;
+        }
         try {
-          await sendWhatsAppTemplateMessage({
+          const sent = await sendWhatsAppTemplateMessage({
             ...config2,
             to,
             templateName: template.name,
             language: TEMPLATE_LANGUAGE,
             bodyParams
           });
+          console.log(
+            `[notify:whatsapp] ${type} (${template.name}) aceptado por Meta para usuario ${recipient.id} (\u2026${to.slice(-4)}): ${sent.id}`
+          );
         } catch (error) {
           console.error(
             `[notify:whatsapp] ${type} a usuario ${recipient.id} (\u2026${to.slice(-4)}):`,
@@ -4797,6 +4834,139 @@ var animalMergeAfterOperation = async ({
   }
 };
 
+// models/Pet/Animal/Animal.ownDuplicates.ts
+var DAY_MS2 = 24 * 60 * 60 * 1e3;
+var GENERIC_NAME_WINDOW_MS = DAY_MS2;
+function relationId(value) {
+  const id = value?.connect?.id;
+  return typeof id === "string" && id ? id : null;
+}
+function isSameReport(input, row, now) {
+  const names = compareNames(input.name, row.name);
+  if (names === "same" || names === "similar") return true;
+  if (names !== null) return false;
+  const created = row.createdAt ? new Date(row.createdAt).getTime() : NaN;
+  if (!Number.isFinite(created) || now - created > GENERIC_NAME_WINDOW_MS) return false;
+  const phone = (input.contactNumber ?? "").trim();
+  const description = foldText(input.description);
+  return Boolean(phone) && phone === (row.contactNumber ?? "").trim() && Boolean(description) && description === foldText(row.physical_description);
+}
+async function findOwnRepeatedReports(context, input) {
+  const now = Date.now();
+  const since = new Date(now - SIMILARITY_WINDOW_DAYS.lost * DAY_MS2).toISOString();
+  const rows2 = await context.sudo().query.Animal.findMany({
+    where: {
+      user: { id: { equals: input.userId } },
+      animal_type: { id: { equals: input.animalTypeId } },
+      duplicateOf: null,
+      createdAt: { gte: since },
+      ...input.excludeId ? { id: { not: { equals: input.excludeId } } } : {}
+    },
+    orderBy: [{ createdAt: "desc" }],
+    take: 50,
+    query: `
+      id name slug contactNumber physical_description createdAt logsCount multimediaCount
+      pet { id }
+      logs(orderBy: [{ date_status: desc }, { createdAt: desc }], take: 1) { status }
+    `
+  });
+  return rows2.filter((row) => !CLOSED_STATUSES.has((row.logs?.[0]?.status ?? "").toLowerCase())).filter((row) => !row.pet).filter((row) => isSameReport(input, row, now)).map((row) => ({
+    id: row.id,
+    name: row.name ?? null,
+    slug: row.slug ?? null,
+    createdAt: row.createdAt ?? null,
+    logsCount: row.logsCount ?? 0,
+    multimediaCount: row.multimediaCount ?? 0
+  }));
+}
+function appliesTo(context) {
+  return !isSudoContext(context) && !isPlatformAdmin(context.session);
+}
+async function validateOwnDuplicate({
+  operation,
+  resolvedData,
+  context,
+  addValidationError
+}) {
+  if (operation !== "create" || !appliesTo(context)) return;
+  const userId = relationId(resolvedData.user);
+  const animalTypeId = relationId(resolvedData.animal_type);
+  if (!userId || !animalTypeId) return;
+  try {
+    const repeated = await findOwnRepeatedReports(context, {
+      userId,
+      animalTypeId,
+      name: resolvedData.name,
+      contactNumber: resolvedData.contactNumber,
+      description: resolvedData.physical_description
+    });
+    const complete4 = repeated.find((report) => report.logsCount > 0);
+    if (!complete4) return;
+    const name = complete4.name?.trim() || "este animal";
+    const url = petPublicUrl(complete4.slug || complete4.id);
+    addValidationError(
+      `Ya publicaste a ${name}. Si te falt\xF3 algo, agr\xE9galo en tu reporte: ${url}`
+    );
+  } catch (error) {
+    console.error("[animal] no se pudo revisar si el reporte ya exist\xEDa:", error);
+  }
+}
+async function hasDependents(context, animalId) {
+  const sudo = context.sudo();
+  const where = { animal: { id: { equals: animalId } } };
+  const [comments, claims, favorites, pets, merged] = await Promise.all([
+    sudo.query.AnimalComment.count({ where }),
+    sudo.query.AnimalClaim.count({ where }),
+    sudo.query.AnimalFavorite.count({ where }),
+    sudo.query.Pet.count({ where: { lostReport: { id: { equals: animalId } } } }),
+    sudo.query.Animal.count({ where: { duplicateOf: { id: { equals: animalId } } } })
+  ]);
+  return comments + claims + favorites + pets + merged > 0;
+}
+async function removeIncompleteOwnReports({
+  operation,
+  item,
+  context
+}) {
+  if (operation !== "create" || !item?.id || !appliesTo(context)) return;
+  const userId = typeof item.userId === "string" ? item.userId : null;
+  const animalTypeId = typeof item.animal_typeId === "string" ? item.animal_typeId : null;
+  if (!userId || !animalTypeId) return;
+  try {
+    const newId = String(item.id);
+    const createdAt = item.createdAt ? new Date(item.createdAt).getTime() : Date.now();
+    const repeated = await findOwnRepeatedReports(context, {
+      userId,
+      animalTypeId,
+      name: item.name,
+      contactNumber: item.contactNumber,
+      description: item.physical_description,
+      excludeId: newId
+    });
+    const incomplete = repeated.filter((report) => {
+      if (report.logsCount > 0 || report.multimediaCount > 0) return false;
+      const time = report.createdAt ? new Date(report.createdAt).getTime() : NaN;
+      return Number.isFinite(time) && time <= createdAt;
+    });
+    for (const report of incomplete) {
+      if (await hasDependents(context, report.id)) continue;
+      await context.sudo().query.Animal.deleteOne({ where: { id: report.id } });
+      console.log(
+        `[animal] se borr\xF3 el reporte a medias ${report.id} (\xAB${report.name ?? ""}\xBB): se public\xF3 de nuevo como ${newId}`
+      );
+      void logActivity(context, {
+        type: "pet.incomplete_report_removed",
+        summary: `Se borr\xF3 un reporte a medias de \xAB${report.name ?? report.id}\xBB al publicarlo de nuevo`,
+        entityType: "Animal",
+        entityId: report.id,
+        metadata: { replacedBy: newId }
+      });
+    }
+  } catch (error) {
+    console.error("[animal] no se pudieron limpiar reportes a medias:", error);
+  }
+}
+
 // models/Pet/Animal/Animal.ts
 var adminOnly2 = ({ session: session2 }) => isPlatformAdmin(session2);
 function cleanDuplicateCheck(value) {
@@ -4843,10 +5013,12 @@ var Animal_default = (0, import_core.list)({
           addValidationError(phone.reason);
         }
       }
+      await validateOwnDuplicate({ operation, resolvedData, context, addValidationError });
     },
     afterOperation: async (args) => {
       await animalCreateSideEffectsHook.afterOperation(args);
       await animalMergeAfterOperation(args);
+      void removeIncompleteOwnReports(args);
     }
   },
   ui: {
@@ -16276,7 +16448,7 @@ var PUSH_FLAG_BY_SOURCE = {
   ["task" /* TASK */]: "pushTasks"
 };
 var SELECTION_TARGET_QUERY = `id googleCalendarId account { ${ACCOUNT_TOKEN_QUERY} }`;
-var DAY_MS2 = 24 * 60 * 60 * 1e3;
+var DAY_MS3 = 24 * 60 * 60 * 1e3;
 function toDateOnly(iso) {
   return new Date(iso).toISOString().slice(0, 10);
 }
@@ -16289,7 +16461,7 @@ function buildGoogleEventBody(event) {
   if (event.allDay) {
     const startDate = toDateOnly(event.startAt);
     const lastDay = event.endAt ? toDateOnly(event.endAt) : startDate;
-    const endExclusive = new Date((/* @__PURE__ */ new Date(`${lastDay}T00:00:00Z`)).getTime() + DAY_MS2).toISOString().slice(0, 10);
+    const endExclusive = new Date((/* @__PURE__ */ new Date(`${lastDay}T00:00:00Z`)).getTime() + DAY_MS3).toISOString().slice(0, 10);
     return { ...base, start: { date: startDate }, end: { date: endExclusive } };
   }
   const start = new Date(event.startAt);
@@ -30396,9 +30568,9 @@ function assertPlatformAdmin(context) {
 function adminPrisma(context) {
   return context.sudo().prisma;
 }
-var DAY_MS3 = 24 * 60 * 60 * 1e3;
+var DAY_MS4 = 24 * 60 * 60 * 1e3;
 function daysAgo(days, from = /* @__PURE__ */ new Date()) {
-  return new Date(from.getTime() - days * DAY_MS3);
+  return new Date(from.getTime() - days * DAY_MS4);
 }
 function toIso(value) {
   if (!value) return null;
@@ -30491,7 +30663,7 @@ function trialEndDate(sub) {
   if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
   if (sub.currentPeriodEnd) return new Date(sub.currentPeriodEnd);
   if (!sub.activatedAt) return null;
-  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS3);
+  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS4);
 }
 function monthlyAmount(cost, frequency) {
   if (!cost || cost <= 0) return 0;
@@ -33728,7 +33900,7 @@ async function loadCompanyHealth(prisma, companyIds) {
     for (const company of companies) {
       const t = totals.get(company.id);
       const seenAt = lastSeen.get(company.id) ?? null;
-      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS3)) : HEALTH_WINDOW_DAYS;
+      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS4)) : HEALTH_WINDOW_DAYS;
       const result3 = scoreHealth({
         ageDays,
         teamSize: teamSize.get(company.id) ?? 0,
@@ -33747,7 +33919,7 @@ async function loadCompanyHealth(prisma, companyIds) {
         creditsExhaustedDay: exhaustedDay.get(company.id) ?? null,
         purchaseIntent: intentCount.get(company.id) ?? 0,
         paymentFailures: failures.get(company.id) ?? 0,
-        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS3) : null
+        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS4) : null
       });
       byCompany.set(company.id, {
         ...result3,
@@ -34244,7 +34416,7 @@ var resolver73 = {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const now = /* @__PURE__ */ new Date();
-    const since24h = new Date(now.getTime() - DAY_MS3);
+    const since24h = new Date(now.getTime() - DAY_MS4);
     const since7d = daysAgo(7, now);
     const sinceInactive = daysAgo(INACTIVE_DAYS, now);
     const { year, month } = currentPeriod();
@@ -34307,7 +34479,7 @@ var resolver73 = {
             severity: "high",
             at: toIso(trialEnd)
           });
-        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS3) {
+        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS4) {
           trialsEndingSoon += 1;
           attention.push({
             companyId: company.id,
@@ -35038,7 +35210,7 @@ var resolver74 = {
     }
     const creditsByDay = [];
     for (let i = windowDays - 1; i >= 0; i -= 1) {
-      const day = toMxDay(new Date(now.getTime() - i * DAY_MS3));
+      const day = toMxDay(new Date(now.getTime() - i * DAY_MS4));
       creditsByDay.push({ date: day, value: byDay.get(day) ?? 0 });
     }
     const whatsappDirections = new Map(
@@ -36417,7 +36589,7 @@ var resolver77 = {
           if (!at) continue;
           reached += 1;
           if (company.createdAt) {
-            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS3));
+            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS4));
           }
         }
         return {
@@ -37022,7 +37194,7 @@ var resolver81 = {
 var adminAcquisition_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
 
 // utils/analytics/salesVelocity.ts
-var DAY_MS4 = 24 * 60 * 60 * 1e3;
+var DAY_MS5 = 24 * 60 * 60 * 1e3;
 var P = PIPELINE_STATUS;
 var RANK = {
   [P.DETECTADO]: 1,
@@ -37042,7 +37214,7 @@ var LOST = /* @__PURE__ */ new Set([P.PROPUESTA_RECHAZADA, P.CERRADO_PERDIDO, P.
 var CONTACT_RANK = 3;
 var STALLED_DAYS = 14;
 var LOOKBACK_DAYS = 180;
-var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS4;
+var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS5;
 var emptyGroup = () => ({
   entered: 0,
   contacted: 0,
@@ -37087,9 +37259,9 @@ async function rows(read, fallback) {
 async function computeSalesVelocity(prisma, options) {
   const { days, companyWhere } = options;
   const now = Date.now();
-  const since = new Date(now - days * DAY_MS4);
+  const since = new Date(now - days * DAY_MS5);
   const sinceMs = since.getTime();
-  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS4);
+  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS5);
   const sellerScope = options.salesPersonId ?? null;
   const needStatuses = Boolean(options.bySeller || sellerScope);
   const [allChanges, firstChange, activities, allMessages, statuses] = await Promise.all([
@@ -37219,7 +37391,7 @@ async function computeSalesVelocity(prisma, options) {
           wonStatusIds.push(statusId);
           for (const group of groups) group.won += 1;
           if (entry) {
-            const cycle = (at - entry.changedAt.getTime()) / DAY_MS4;
+            const cycle = (at - entry.changedAt.getTime()) / DAY_MS5;
             cycles.push(cycle);
             for (const group of groups) group.cycles.push(cycle);
           }
@@ -37229,11 +37401,11 @@ async function computeSalesVelocity(prisma, options) {
         }
       }
       if (next && next.changedAt.getTime() >= sinceMs) {
-        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS4);
+        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS5);
       }
     });
     const idle = now - last.changedAt.getTime();
-    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS4) {
+    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS5) {
       stageOf(last.toStatus).stalled += 1;
       for (const group of groups) group.stalled += 1;
       stalledDeals.push({
@@ -37243,7 +37415,7 @@ async function computeSalesVelocity(prisma, options) {
         salesPersonId: sellerOf.get(statusId) || null,
         stage: last.toStatus,
         since: last.changedAt,
-        days: Math.floor(idle / DAY_MS4)
+        days: Math.floor(idle / DAY_MS5)
       });
     }
     if (entry && entry.changedAt.getTime() >= sinceMs) {
@@ -38882,6 +39054,15 @@ function extToFilename(filename, mimeType) {
   const ext = mimeType.split("/")[1] || "bin";
   return `archivo-${import_crypto6.default.randomUUID()}.${ext}`;
 }
+function logFailedStatuses(statuses) {
+  for (const status of statuses ?? []) {
+    if (status.status !== "failed") continue;
+    const error = status.errors?.[0];
+    console.error(
+      `[whatsapp webhook] Meta no entreg\xF3 ${status.id ?? "\u2014"} a \u2026${(status.recipient_id ?? "").slice(-4)}: ${error?.code ?? "\u2014"} ${error?.title ?? ""}${error?.error_data?.details ? ` (${error.error_data.details})` : ""}`
+    );
+  }
+}
 async function persistIncomingMedia({
   media,
   mediaType,
@@ -39084,6 +39265,7 @@ async function handleIncoming(req, res, context) {
       await handleTemplateStatusUpdate(company.id, change.value, context);
       return;
     }
+    logFailedStatuses(change.value?.statuses);
     const messages = change.value?.messages ?? [];
     if (messages.length === 0) {
       console.log(
@@ -40479,6 +40661,7 @@ var keystone_default = withSessionGuards(withAuth(
       maxFileSize: 200 * 1024 * 1024,
       port: Number(process.env.LOCAL_PORT) || 3001,
       extendExpressApp: (app, context) => {
+        logPlatformWhatsappStatus();
         registerWhatsAppWebhook(app, context);
         registerClickUpWebhook(app, context);
         registerMetaDataDeletionWebhook(app, context);
