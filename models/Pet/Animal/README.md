@@ -27,6 +27,9 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
   - Queda un comentario `duplicate_report` en el principal y se avisa `animal.merged` a quien hizo el repetido.
   - `getNearbyAnimals` ya no lo lista y la web redirige su ficha al principal (308).
 - `duplicateCheck` (JSON, solo admin lo lee): los parecidos que la persona descartó al publicar, para decidir si unirlos.
+- **La misma persona publicando otra vez** (`Animal.ownDuplicates.ts`, solo `createAnimal` con sesión y sin admin): busca sus reportes del mismo tipo de los últimos 90 días que no estén unidos a otro ni cerrados. Cuenta como el mismo animal si el nombre es igual o parecido (`compareNames`). Con nombre genérico («Sin nombre») solo cuenta si es de las últimas 24 h, con el mismo teléfono y la misma descripción.
+  - Si ya tiene uno con bitácora, el alta falla con «Ya publicaste a {nombre}…» y el link a su reporte.
+  - Si quedó uno a medias (sin bitácora ni fotos, comentarios, solicitudes, favoritos, mascota o repetidos encima), se borra al crear el nuevo. Queda `pet.incomplete_report_removed` en `ActivityEvent`.
 - Con el primer registro de un perdido o encontrado, además de la alerta de zona, `notifyPossibleMatches` avisa a quien atiende hasta 3 reportes `match` `likely` (`animal.possible_match`, una vez por reporte y destinatario).
 
 ## Decisiones
@@ -97,4 +100,20 @@ Qué no hacer: no filtrar con `logs: { some: { status } }`, que trae animales qu
 Qué: `adminPetSummary` y `adminPetSeries` (`graphql/customs/queries/admin/adminPet.ts`) cuentan animales por estatus actual, tipo, origen y ubicación, y registros por día, semana o mes. Usan el mismo «último registro de la bitácora» que `adminAnimals` y no cuentan duplicados fusionados.
 
 Por qué: Operaciones necesitaba ver cuántos animales hay perdidos, encontrados o en adopción y cómo crecen los registros. Detalle y reglas en `graphql/customs/queries/admin/README.md`.
+
+### 2026-11-03 — La misma persona no publica dos veces el mismo animal
+
+Qué: `createAnimal` revisa en el servidor si la persona ya tiene ese reporte (ver Invariantes). Si está completo, no la deja publicar otro. Si quedó a medias, lo borra al crear el nuevo. La web y la app retoman el paso que falló (bitácora o fotos) en vez de crear otro animal.
+
+Por qué: la web y la app publican en tres pasos (`createAnimal` → `createAnimalLog` → `createAnimalMultimedias`). Si fallaba la bitácora o las fotos y la persona reintentaba, quedaba otro animal: «Nano» salió tres veces, dos sin foto ni ubicación. El aviso de parecidos del front se puede cerrar y no ve los reportes sin bitácora, y `createAnimalReport` era el único que revisaba en el servidor.
+
+Qué no hacer: no frenar aquí reportes de otras personas (dueño y voluntario pueden reportar al mismo animal; para eso están el aviso de parecidos, los comentarios y `duplicateOf`). No borrar un reporte con bitácora, fotos o algo encima.
+
+### 2026-11-03 — Texto del post de Facebook con emojis y todos los datos
+
+Qué: el post de la Página de Pet ya no es solo «nombre + señas». `buildAnimalFacebookMessage` (`Animal.facebookPost.ts`) arma un encabezado por estatus (🆘 ¡SE BUSCA!, 📢 ¡ENCONTRADO!, 🏡 ¡EN ADOPCIÓN!…), el emoji del tipo y la raza (🐶, 🐈‍⬛, 🐩…), sexo, edad, color, tamaño, dónde y cuándo (del registro más reciente), señas, notas, qué hacer y hashtags (estatus, ciudad, #KadeshPet). Concuerda con el sexo (encontrado/encontrada). Aplica a la publicación automática y al botón de Operaciones; los posts que ya salieron no cambian.
+
+Por qué: el post salía muy seco y mucha gente no llena todo; la ubicación y el estatus ya estaban en la bitácora pero no salían.
+
+Qué no hacer: no poner el teléfono en el post. El contacto está en la ficha (el enlace del post) y la Página tiene mucho alcance.
 

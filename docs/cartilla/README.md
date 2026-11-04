@@ -98,16 +98,17 @@ El workflow `.github/workflows/send-pet-reminders.yml` corre diario a las 15:00 
 | `email` | `sendPetReminderEmail` (`utils/helpers/sendgrid.ts`), con la marca de Kadesh Pet. |
 
 Los dos enlazan a la cartilla en la web: `{PET_FRONTEND_URL}/perfil?tab=pets&pet=<id>` (`petCardUrl` en `utils/pet/petCard.ts`), la pestaña Mascotas de kadesh-landing.
-| `whatsapp` | **Pendiente de implementar.** Solo deja un log. Ver abajo. |
+| `whatsapp` | WhatsApp directo a los dueños con `whatsappNotifications` y teléfono, con `kadesh_pet_recordatorio`. Si el recordatorio también trae `push`, no se manda aquí: ya salió por `notify`. Ver abajo. |
 
-### Activar WhatsApp
+### WhatsApp
 
-El número de Kadesh ya manda WhatsApp, pero Meta exige una plantilla UTILITY aprobada por tipo de aviso. Para recordatorios:
+Plantilla `kadesh_pet_recordatorio` (texto y ejemplos en `models/Notification/README.md`, "Plantillas de Kadesh Pet"), con 4 variables: mascota, recordatorio, cuándo vence ("vence mañana", "venció el 3 de noviembre") y enlace a la cartilla.
 
-1. Aprobar `kadesh_pet_recordatorio` (es_MX) en WhatsApp Manager, con 3 variables: mascota, recordatorio y fecha.
-2. Agregarla a `WHATSAPP_TEMPLATES` (`utils/notifications/whatsapp.ts`) bajo `pet.reminder_due`.
-3. En `sendWhatsappChannel` (`utils/pet/petReminders.ts`), llamar a `sendNotificationWhatsapp` con los dueños que tengan `whatsappNotifications` y `phone`.
-4. Con la plantilla registrada, `notify` también la mandaría desde el canal `push`. Antes hay que darle a `notify` una opción para no mandar WhatsApp en esa llamada; si no, el aviso llega doble o por un canal que la persona no eligió.
+- La persona activa los avisos por WhatsApp en la web (`/notificaciones`), que guarda `User.whatsappNotifications`.
+- Con el canal `push`, `notify` manda el WhatsApp a los dueños con el opt-in y teléfono. No hace falta elegir el canal `whatsapp` en cada recordatorio (la web no lo ofrece).
+- Solo con el canal `whatsapp`, `sendWhatsappChannel` lo manda directo. Con los dos canales no llega doble.
+- Nadie con el opt-in no es un fallo (no se reintenta). Si Meta rechaza todos los envíos de un recordatorio solo-WhatsApp, cuenta como fallo y se reintenta mañana.
+- Hasta que Meta apruebe la plantilla, el envío falla y deja el error en el log; la campana y el push no se afectan.
 
 ## Migración (la corre una persona, no el agente)
 
@@ -305,7 +306,7 @@ curl -sS -X POST "$KADESH_API_URL" -H "Content-Type: application/json" \
 
 ## Pendiente y límites conocidos
 
-- WhatsApp de recordatorios: ver "Activar WhatsApp".
+- WhatsApp de recordatorios: depende de que Meta apruebe `kadesh_pet_recordatorio` (ver "WhatsApp").
 - La campana de la web muestra `pet.reminder_due` como cualquier aviso (título, texto y enlace). Si se quiere un ícono propio, va en `kadesh/components/notifications`.
 - Si alguien cierra el reporte desde la ficha del animal ("Agregar registro" → En familia) en vez de usar `markPetAsFound`, la mascota se queda en `lost`. El front de la cartilla debe usar la mutación.
 - Las veterinarias todavía no leen la cartilla ni validan registros (`verifiedByVet`). Eso es la Fase 3.

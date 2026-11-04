@@ -5,6 +5,8 @@ import {
   type PetReminderChannel,
 } from "../../models/Pet/constants";
 import { notify } from "../notifications/notify";
+import { sendNotificationWhatsapp, type NotificationTemplateValues } from "../notifications/whatsapp";
+import { wantsWhatsappType } from "../../models/User/whatsappPrefs";
 import { sendPetReminderEmail } from "../helpers/sendgrid";
 import { mxToday } from "../usage/dailyUsageRollup";
 import { petCardUrl } from "./petCard";
@@ -24,6 +26,8 @@ type Recipient = {
   email: string | null;
   phone: string | null;
   whatsappNotifications: boolean;
+  /** Tipos que no quiere por WhatsApp (`User.whatsappMutedTypes`). */
+  whatsappMutedTypes: unknown;
 };
 
 type ReminderCopy = { title: string; body: string; dateLabel: string; dueLabel: string };
@@ -66,7 +70,20 @@ function reminderCopy(reminder: DueReminder, today: string): ReminderCopy {
   };
 }
 
-/** Campana + push de la app (Expo). No hay plantilla de WhatsApp para este tipo, así que `notify` no la manda. */
+/** Variables de `kadesh_pet_recordatorio`: «{petName} tiene pendiente «{reminder}», que {due}. … {url}». */
+function reminderTemplateValues(reminder: DueReminder, copy: ReminderCopy): NotificationTemplateValues {
+  return {
+    petName: reminder.pet.name,
+    reminder: reminder.title,
+    due: copy.dueLabel,
+    url: petCardUrl(reminder.pet.id),
+  };
+}
+
+/**
+ * Campana + push de la app (Expo) y, por `notify`, WhatsApp a los dueños que activaron
+ * `whatsappNotifications` (plantilla `kadesh_pet_recordatorio`).
+ */
 const sendPush: ChannelSender = async (context, reminder, recipients, copy) => {
   const count = await notify(context, {
     audience: recipients.map((recipient) => recipient.id),
@@ -78,6 +95,7 @@ const sendPush: ChannelSender = async (context, reminder, recipients, copy) => {
     entityId: reminder.id,
     url: petCardUrl(reminder.pet.id),
     metadata: { petId: reminder.pet.id, dueDate: reminder.dueDate },
+    templateValues: reminderTemplateValues(reminder, copy),
   });
   // `notify` nunca lanza: 0 filas = no se pudo guardar.
   return { channel: PET_REMINDER_CHANNEL.PUSH, ok: count > 0, error: count === 0 };
@@ -108,20 +126,30 @@ const sendEmailChannel: ChannelSender = async (_context, reminder, recipients, c
 };
 
 /**
- * TODO(whatsapp): pendiente de implementar. El número de Kadesh ya manda WhatsApp
- * (`utils/notifications/whatsapp.ts`), pero cada tipo necesita una plantilla UTILITY aprobada en
- * Meta. Para activarlo:
- *   1. Aprobar `kadesh_pet_recordatorio` en WhatsApp Manager (es_MX, variables: mascota, recordatorio, fecha).
- *   2. Agregarla a `WHATSAPP_TEMPLATES` con `NOTIFICATION_TYPE.PET_REMINDER_DUE`.
- *   3. Aquí: `sendNotificationWhatsapp(recipients.filter(r => r.whatsappNotifications && r.phone), …)`.
- *   4. Con plantilla, `notify` también la mandaría desde el canal push: agregarle a `notify` una
- *      opción para apagar WhatsApp en esa llamada. Ver docs/cartilla/README.md.
+ * Canal `whatsapp` explícito. El WhatsApp de un recordatorio sale con el canal `push` (vía
+ * `notify`) a quien activó `whatsappNotifications`; si el recordatorio también trae `push`, aquí no
+ * se manda otra vez (llegaría doble). Sin `push`, se manda directo a los dueños con el opt-in y
+ * teléfono. Nadie con WhatsApp activo no es un fallo: no se reintenta.
  */
-const sendWhatsappChannel: ChannelSender = async (_context, reminder) => {
-  console.info("[petReminder] WhatsApp pendiente de implementar (falta plantilla aprobada en Meta)", {
-    reminderId: reminder.id,
-  });
-  return { channel: PET_REMINDER_CHANNEL.WHATSAPP, ok: false, pending: true };
+const sendWhatsappChannel: ChannelSender = async (_context, reminder, recipients, copy) => {
+  if (reminder.channels.includes(PET_REMINDER_CHANNEL.PUSH)) {
+    return { channel: PET_REMINDER_CHANNEL.WHATSAPP, ok: false, pending: true };
+  }
+  const optedIn = recipients.filter(
+    (recipient) =>
+      recipient.whatsappNotifications &&
+      recipient.phone?.trim() &&
+      wantsWhatsappType(recipient.whatsappMutedTypes, NOTIFICATION_TYPE.PET_REMINDER_DUE),
+  );
+  if (optedIn.length === 0) {
+    return { channel: PET_REMINDER_CHANNEL.WHATSAPP, ok: false, pending: true };
+  }
+  const { sent, failed } = await sendNotificationWhatsapp(
+    optedIn,
+    NOTIFICATION_TYPE.PET_REMINDER_DUE,
+    reminderTemplateValues(reminder, copy),
+  );
+  return { channel: PET_REMINDER_CHANNEL.WHATSAPP, ok: sent > 0, error: sent === 0 && failed > 0 };
 };
 
 const CHANNEL_SENDERS: Record<PetReminderChannel, ChannelSender> = {
@@ -137,7 +165,14 @@ async function reminderRecipients(context: KeystoneContext, petId: string): Prom
     where: { petId, user: { suspendedAt: null, anonymizedAt: null } },
     select: {
       user: {
-        select: { id: true, name: true, email: true, phone: true, whatsappNotifications: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          whatsappNotifications: true,
+          whatsappMutedTypes: true,
+        },
       },
     },
   });

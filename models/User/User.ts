@@ -27,7 +27,9 @@ import {
   userBankDetailsNotificationHook,
   stripeCustomerHook,
   userReferralHook,
+  adminWhatsappDefaultHook,
 } from "./User.hooks";
+import { whatsappMutedTypesHooks } from "./whatsappPrefs";
 import access, {
   userCompanyFieldAccess,
   userOnboardingFieldAccess,
@@ -61,7 +63,11 @@ async function resolveInput(
     resolvedData: afterStripe,
   });
 
-  return afterReferral;
+  // Después de `userRoleHook`: ya sin los roles que la sesión no puede asignar.
+  return adminWhatsappDefaultHook.resolveInput({
+    ...args,
+    resolvedData: afterReferral,
+  });
 }
 
 export default list({
@@ -137,7 +143,23 @@ export default list({
     /** Opt-in para recibir las notificaciones de la campana también por WhatsApp (al `phone`). */
     whatsappNotifications: checkbox({
       defaultValue: false,
-      ui: { description: "Recibir avisos de Kadesh por WhatsApp" },
+      ui: {
+        description:
+          "Recibir avisos de Kadesh por WhatsApp (al teléfono). Se activa solo al dar el rol admin.",
+      },
+    }),
+    /**
+     * Tipos de aviso que la persona NO quiere por WhatsApp (los demás le llegan con
+     * `whatsappNotifications`). Lista de `NOTIFICATION_TYPE`; vacío = todos. Ver whatsappPrefs.ts.
+     */
+    whatsappMutedTypes: json({
+      defaultValue: [],
+      access: userPetAlertsFieldAccess,
+      hooks: whatsappMutedTypesHooks,
+      ui: {
+        description: "Avisos que no quiere por WhatsApp (JSON array de tipos, p. ej. [\"animal.commented\"]). Vacío = todos.",
+        createView: { fieldMode: "hidden" },
+      },
     }),
     roles: relationship({
       ref: "Role.users",

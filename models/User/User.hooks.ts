@@ -138,6 +138,37 @@ function relationIds(value: unknown): string[] {
 
 const ASSIGNABLE_SET = new Set<string>(ASSIGNABLE_COMPANY_ROLE_NAMES);
 
+/**
+ * Los admins reciben los avisos por WhatsApp sin tener que activarlos: al crear un usuario con rol
+ * `admin`, o al darle ese rol, `whatsappNotifications` queda en `true`. Si el input trae el campo,
+ * gana el input; si ya era admin, se respeta lo que tenga (así puede apagarlo). Solo admins: a los
+ * demás usuarios Meta les exige aceptar antes de mandarles WhatsApp.
+ */
+export const adminWhatsappDefaultHook = {
+  resolveInput: async ({ resolvedData, inputData, item, operation, context }: any) => {
+    if (inputData && "whatsappNotifications" in inputData) return resolvedData;
+    const roleInput = resolvedData.roles as
+      | { connect?: unknown; set?: unknown }
+      | undefined;
+    const roleIds = [...relationIds(roleInput?.connect), ...relationIds(roleInput?.set)];
+    if (!roleIds.length) return resolvedData;
+
+    const sudo = context.sudo();
+    const getsAdmin = await sudo.query.Role.count({
+      where: { id: { in: roleIds }, name: { equals: Role.ADMIN } },
+    });
+    if (!getsAdmin) return resolvedData;
+
+    if (operation === "update" && item?.id) {
+      const wasAdmin = await sudo.query.User.count({
+        where: { id: { equals: String(item.id) }, roles: { some: { name: { equals: Role.ADMIN } } } },
+      });
+      if (wasAdmin) return resolvedData;
+    }
+    return { ...resolvedData, whatsappNotifications: true };
+  },
+};
+
 export const userRoleHook = {
   resolveInput: async ({ resolvedData, item, operation, context }: any) => {
     if (operation === "create" && !item && !isPlatformAdmin(context.session)) {

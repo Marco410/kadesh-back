@@ -11,6 +11,7 @@ import registerWhatsAppWebhook from "./webhooks/whatsapp";
 import registerClickUpWebhook from "./webhooks/clickup";
 import registerMetaDataDeletionWebhook from "./webhooks/metaDataDeletion";
 import registerStripeWebhook from "./webhooks/stripe";
+import { logPlatformWhatsappStatus } from "./utils/notifications/whatsapp";
 
 // Setup environment variables
 const path = require("path");
@@ -172,6 +173,8 @@ export default withSessionGuards(withAuth(
       maxFileSize: 200 * 1024 * 1024,
       port: Number(process.env.LOCAL_PORT) || 3001,
       extendExpressApp: (app, context) => {
+        // Dice en el log de arranque si los avisos a admins por WhatsApp pueden salir.
+        logPlatformWhatsappStatus();
         registerWhatsAppWebhook(app, context);
         registerClickUpWebhook(app, context);
         registerMetaDataDeletionWebhook(app, context);
