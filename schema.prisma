@@ -1862,6 +1862,7 @@ model User {
   password                                 String?
   phone                                    String                   @default("")
   whatsappNotifications                    Boolean                  @default(false)
+  whatsappMutedTypes                       Json?                    @default("[]")
   roles                                    Role[]                   @relation("Role_users")
   permissions                              Json?
   referredBy                               User?                    @relation("User_referredBy", fields: [referredById], references: [id])

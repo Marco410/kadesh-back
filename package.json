@@ -24,7 +24,9 @@
     "whatsapp:fix-import-dates": "tsx scripts/fixImportedWhatsAppDates.ts",
     "activity:prune": "tsx scripts/pruneActivityEvents.ts",
     "usage:rollup": "tsx scripts/rollupDailyUsage.ts",
-    "pipeline:backfill": "tsx scripts/backfillStageChanges.ts"
+    "pipeline:backfill": "tsx scripts/backfillStageChanges.ts",
+    "whatsapp:admins-on": "tsx scripts/enableAdminWhatsappNotifications.ts",
+    "whatsapp:admins-on:prod": "cross-env KADESH_ENV=prod tsx scripts/enableAdminWhatsappNotifications.ts"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.23",

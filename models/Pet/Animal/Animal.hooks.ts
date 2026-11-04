@@ -3,6 +3,7 @@ import { isPlatformAdmin } from "../../../utils/access/tenant";
 import { PRODUCT } from "../../../utils/constants/product";
 import { postToFacebookPage } from "../../../utils/intregrations/facebook";
 import { sendAdminNewAnimalEmail } from "../../../utils/helpers/sendgrid";
+import { loadAnimalFacebookMessage } from "./Animal.facebookPost";
 import { notifyNearbyAnimal } from "../../../utils/notifications/nearbyAnimalAlerts";
 import { notifyPossibleMatches } from "../../../utils/notifications/possibleMatchAlerts";
 import { adminNotificationEmailsEnabled, notify } from "../../../utils/notifications/notify";
@@ -208,30 +209,24 @@ function sessionCreator(session: KeystoneContext["session"]): {
 /**
  * Publica el animal en la Página de Facebook de Pet y deja registro (`facebookPostId`,
  * `facebookPublishedAt`, `facebookPublishedBy`): así Operaciones sabe si ya salió y no lo repite.
+ * El texto lo arma `buildAnimalFacebookMessage` (Animal.facebookPost.ts) con todo lo del reporte.
  * Devuelve el id del post, o null si no se publicó (Página sin configurar, sin slug o error).
  */
 async function publishAnimalToFacebook(
-  animal: {
-    id: string;
-    name?: string | null;
-    physical_description?: string | null;
-    slug?: string | null;
-  },
+  animal: { id: string },
   context: KeystoneContext,
 ): Promise<string | null> {
-  if (!animal.slug) {
+  // Se relee aquí: el slug definitivo y el estatus/lugar salen del primer registro.
+  const post = await loadAnimalFacebookMessage(context, animal.id);
+  if (!post?.slug) {
     console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
     return null;
   }
 
-  const message = animal.physical_description
-    ? `${animal.name}\n\n${animal.physical_description}`
-    : animal.name || "Nuevo animal en Kadesh";
-
   const result = await postToFacebookPage({
     product: PRODUCT.PET,
-    message,
-    link: animalPublicUrl(animal.slug),
+    message: post.message,
+    link: animalPublicUrl(post.slug),
   });
   if (!result?.id) return null;
 
@@ -253,23 +248,7 @@ export async function publishAnimalToFacebookById(
   animalId: string,
   context: KeystoneContext,
 ): Promise<string | null> {
-  const animal = await context.sudo().query.Animal.findOne({
-    where: { id: animalId },
-    query: "id name physical_description slug",
-  });
-  if (!animal?.slug) {
-    console.warn("[facebook] Animal sin slug; no se publica en Facebook.");
-    return null;
-  }
-  return publishAnimalToFacebook(
-    {
-      id: String(animal.id),
-      name: animal.name ?? null,
-      physical_description: animal.physical_description ?? null,
-      slug: animal.slug,
-    },
-    context,
-  );
+  return publishAnimalToFacebook({ id: animalId }, context);
 }
 
 setAnimalFacebookPublisher(publishAnimalToFacebookById);

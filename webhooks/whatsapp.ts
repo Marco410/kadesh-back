@@ -25,6 +25,19 @@ type WhatsAppWebhookMessage = {
   document?: WhatsAppWebhookMediaRef;
 };
 
+type WhatsAppWebhookStatus = {
+  /** `wamid` del mensaje que mandamos. */
+  id?: string;
+  status?: string;
+  recipient_id?: string;
+  errors?: Array<{
+    code?: number;
+    title?: string;
+    message?: string;
+    error_data?: { details?: string };
+  }>;
+};
+
 type WhatsAppWebhookChange = {
   field?: string;
   value?: {
@@ -33,7 +46,7 @@ type WhatsAppWebhookChange = {
     contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
     messages?: WhatsAppWebhookMessage[];
     /** Acuses de entrega/lectura de lo que mandamos. No se persisten; sólo se registran. */
-    statuses?: Array<{ id?: string; status?: string }>;
+    statuses?: WhatsAppWebhookStatus[];
     event?: string;
     message_template_name?: string;
   };
@@ -50,6 +63,24 @@ function extToFilename(filename: string | undefined, mimeType: string): string {
   if (filename) return filename;
   const ext = mimeType.split("/")[1] || "bin";
   return `archivo-${crypto.randomUUID()}.${ext}`;
+}
+
+/**
+ * Meta acepta un mensaje (200 con `wamid`) y si luego no lo puede entregar lo avisa aquí, con
+ * status `failed`. Sin esta línea, un aviso rechazado (plantilla pausada, límite de Marketing,
+ * número sin WhatsApp) no deja rastro en el log. Solo los últimos 4 dígitos del número.
+ */
+function logFailedStatuses(statuses: WhatsAppWebhookStatus[] | undefined) {
+  for (const status of statuses ?? []) {
+    if (status.status !== "failed") continue;
+    const error = status.errors?.[0];
+    console.error(
+      `[whatsapp webhook] Meta no entregó ${status.id ?? "—"} a …${(status.recipient_id ?? "").slice(-4)}: ` +
+        `${error?.code ?? "—"} ${error?.title ?? ""}${
+          error?.error_data?.details ? ` (${error.error_data.details})` : ""
+        }`,
+    );
+  }
 }
 
 /** Descarga y guarda en R2 la media de un mensaje entrante; regresa los campos a persistir. */
@@ -334,6 +365,8 @@ async function handleIncoming(
       await handleTemplateStatusUpdate(company.id, change.value, context);
       return;
     }
+
+    logFailedStatuses(change.value?.statuses);
 
     const messages = change.value?.messages ?? [];
     if (messages.length === 0) {
