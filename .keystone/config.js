@@ -36200,8 +36200,6 @@ async function createPetPlaceFromGoogleResult(place, type, context) {
   const address = place.formatted_address || place.vicinity || "";
   const lat = place.geometry?.location?.lat?.toString() || "";
   const lng = place.geometry?.location?.lng?.toString() || "";
-  const rating = place.rating || 0;
-  const userRatingsTotal = place.user_ratings_total || 0;
   const placeId = place.place_id || "";
   if (!placeId) {
     return null;
@@ -36236,7 +36234,8 @@ async function createPetPlaceFromGoogleResult(place, type, context) {
   return context.sudo().query.PetPlace.createOne({
     data: {
       name: place.name,
-      description: `Place located at ${address}. ${rating > 0 ? `Rating: ${rating}/5 (${userRatingsTotal} reviews)` : ""}`,
+      // En español: se usa en la descripción de la ficha (buscadores). La calificación de Google no va aquí.
+      description: `Ubicada en ${address}.`,
       types: { connect: [{ id: petPlaceType.id }] },
       phone: "",
       website: "",
