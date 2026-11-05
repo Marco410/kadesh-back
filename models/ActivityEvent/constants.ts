@@ -178,6 +178,11 @@ export const ACTIVITY_EVENT = {
   PET_PLACE_VERIFIED: "pet.place_verified",
   PET_REVIEW_ADDED: "pet.review_added",
   PET_REVIEW_DELETED: "pet.review_deleted",
+  // Eventos (campañas, jornadas): publicar, editar, revisar (admin) y cancelar.
+  PET_EVENT_SUBMITTED: "pet.event_submitted",
+  PET_EVENT_UPDATED: "pet.event_updated",
+  PET_EVENT_REVIEWED: "pet.event_reviewed",
+  PET_EVENT_CANCELLED: "pet.event_cancelled",
   // Alta con el formulario genérico (Kadesh Pet web y app). Negocios y Google ya quedan en UserAuthLog.
   AUTH_SIGNUP: "auth.signup",
   // Formulario de contacto (landing y Negocios); sin datos personales en metadata.

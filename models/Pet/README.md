@@ -14,6 +14,10 @@ Invariantes:
 - `Pet.status` entra y sale de `lost` solo con `markPetAsLost` / `markPetAsFound`, que también amarran `Pet.lostReport` y `Animal.pet`.
 - Al borrar una mascota se borran sus datos propios; reportes y citas se quedan con `pet` en null.
 
+## Eventos
+
+`PetEvent` (+ `PetEventSession`, `PetEventMultimedia`, `PetEventInterest`): campañas y jornadas que publica la comunidad, con revisión de un admin y avisos por zona. Detalle en `PetEvent/README.md`.
+
 ## Decisiones
 
 ### 2026-10-23 — Cartilla digital sobre la `Pet` existente

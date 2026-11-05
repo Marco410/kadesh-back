@@ -36,6 +36,7 @@ import adminNotifications from "./admin/adminNotifications";
 import companyAnalytics from "./analytics/companyAnalytics";
 import landingStats from "./landingStats";
 import petLandingStats from "./petLandingStats";
+import petEvents from "./petEvents";
 
 const customQuery = {
   typeDefs: `
@@ -74,6 +75,7 @@ const customQuery = {
     ${companyAnalytics.typeDefs}
     ${landingStats.typeDefs}
     ${petLandingStats.typeDefs}
+    ${petEvents.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -113,6 +115,7 @@ const customQuery = {
     ${companyAnalytics.definition}
     ${landingStats.definition}
     ${petLandingStats.definition}
+    ${petEvents.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -152,6 +155,7 @@ const customQuery = {
     ...companyAnalytics.resolver,
     ...landingStats.resolver,
     ...petLandingStats.resolver,
+    ...petEvents.resolver,
   },
 };
 

@@ -3317,6 +3317,514 @@ input PetPlaceTypeCreateInput {
   plural: String
 }
 
+type PetEvent {
+  id: ID!
+  title: String
+  slug: String
+  category: String
+  species: [String!]
+  description: String
+  requirements: String
+  organizerName: String
+  contactPhone: String
+  petPlace: PetPlace
+  user: User
+  lat: Float
+  lng: Float
+  placeLabel: String
+  address: String
+  neighborhood: String
+  city: String
+  cityKey: String
+  state: String
+  stateCode: String
+  timeZone: String
+  scope: String
+  reachKm: Int
+  isFree: Boolean
+  price: Int
+  priceNote: String
+  capacity: Int
+  registrationUrl: String
+  registrationWhatsapp: String
+  facebookUrl: String
+  instagramUrl: String
+  tiktokUrl: String
+  xUrl: String
+  websiteUrl: String
+  sessions(where: PetEventSessionWhereInput! = {}, orderBy: [PetEventSessionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetEventSessionWhereUniqueInput): [PetEventSession!]
+  sessionsCount(where: PetEventSessionWhereInput! = {}): Int
+  firstStartsAt: DateTime
+  lastEndsAt: DateTime
+  multimedia(where: PetEventMultimediaWhereInput! = {}, orderBy: [PetEventMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetEventMultimediaWhereUniqueInput): [PetEventMultimedia!]
+  multimediaCount(where: PetEventMultimediaWhereInput! = {}): Int
+  interests(where: PetEventInterestWhereInput! = {}, orderBy: [PetEventInterestOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetEventInterestWhereUniqueInput): [PetEventInterest!]
+  interestsCount(where: PetEventInterestWhereInput! = {}): Int
+  status: String
+  reviewNote: String
+  reviewedAt: DateTime
+  reviewedBy: User
+  approvedAt: DateTime
+  pendingChangeNotice: Boolean
+  zoneAlertsSentAt: DateTime
+  zoneAlertsCount: Int
+  cancelledAt: DateTime
+  cancelReason: String
+  nextStartsAt: String
+  nextEndsAt: String
+  interestedCount: Int
+  goingCount: Int
+  isFull: Boolean
+  myInterest: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PetEventWhereUniqueInput {
+  id: ID
+  slug: String
+}
+
+input PetEventWhereInput {
+  AND: [PetEventWhereInput!]
+  OR: [PetEventWhereInput!]
+  NOT: [PetEventWhereInput!]
+  id: IDFilter
+  title: StringFilter
+  slug: StringNullableFilter
+  category: StringFilter
+  description: StringFilter
+  requirements: StringFilter
+  organizerName: StringFilter
+  contactPhone: StringFilter
+  petPlace: PetPlaceWhereInput
+  user: UserWhereInput
+  lat: FloatFilter
+  lng: FloatFilter
+  placeLabel: StringFilter
+  address: StringFilter
+  neighborhood: StringFilter
+  city: StringFilter
+  cityKey: StringNullableFilter
+  state: StringFilter
+  stateCode: StringNullableFilter
+  timeZone: StringFilter
+  scope: StringFilter
+  reachKm: IntNullableFilter
+  isFree: BooleanFilter
+  price: IntNullableFilter
+  priceNote: StringFilter
+  capacity: IntNullableFilter
+  registrationUrl: StringFilter
+  registrationWhatsapp: StringFilter
+  facebookUrl: StringFilter
+  instagramUrl: StringFilter
+  tiktokUrl: StringFilter
+  xUrl: StringFilter
+  websiteUrl: StringFilter
+  sessions: PetEventSessionManyRelationFilter
+  firstStartsAt: DateTimeNullableFilter
+  lastEndsAt: DateTimeNullableFilter
+  multimedia: PetEventMultimediaManyRelationFilter
+  interests: PetEventInterestManyRelationFilter
+  status: StringFilter
+  reviewNote: StringFilter
+  reviewedAt: DateTimeNullableFilter
+  reviewedBy: UserWhereInput
+  approvedAt: DateTimeNullableFilter
+  pendingChangeNotice: BooleanFilter
+  zoneAlertsSentAt: DateTimeNullableFilter
+  zoneAlertsCount: IntNullableFilter
+  cancelledAt: DateTimeNullableFilter
+  cancelReason: StringFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input FloatFilter {
+  equals: Float
+  in: [Float!]
+  notIn: [Float!]
+  lt: Float
+  lte: Float
+  gt: Float
+  gte: Float
+  not: FloatFilter
+}
+
+input PetEventSessionManyRelationFilter {
+  every: PetEventSessionWhereInput
+  some: PetEventSessionWhereInput
+  none: PetEventSessionWhereInput
+}
+
+input PetEventMultimediaManyRelationFilter {
+  every: PetEventMultimediaWhereInput
+  some: PetEventMultimediaWhereInput
+  none: PetEventMultimediaWhereInput
+}
+
+input PetEventInterestManyRelationFilter {
+  every: PetEventInterestWhereInput
+  some: PetEventInterestWhereInput
+  none: PetEventInterestWhereInput
+}
+
+input PetEventOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  slug: OrderDirection
+  category: OrderDirection
+  description: OrderDirection
+  requirements: OrderDirection
+  organizerName: OrderDirection
+  contactPhone: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  placeLabel: OrderDirection
+  address: OrderDirection
+  neighborhood: OrderDirection
+  city: OrderDirection
+  cityKey: OrderDirection
+  state: OrderDirection
+  stateCode: OrderDirection
+  timeZone: OrderDirection
+  scope: OrderDirection
+  reachKm: OrderDirection
+  isFree: OrderDirection
+  price: OrderDirection
+  priceNote: OrderDirection
+  capacity: OrderDirection
+  registrationUrl: OrderDirection
+  registrationWhatsapp: OrderDirection
+  facebookUrl: OrderDirection
+  instagramUrl: OrderDirection
+  tiktokUrl: OrderDirection
+  xUrl: OrderDirection
+  websiteUrl: OrderDirection
+  firstStartsAt: OrderDirection
+  lastEndsAt: OrderDirection
+  status: OrderDirection
+  reviewNote: OrderDirection
+  reviewedAt: OrderDirection
+  approvedAt: OrderDirection
+  pendingChangeNotice: OrderDirection
+  zoneAlertsSentAt: OrderDirection
+  zoneAlertsCount: OrderDirection
+  cancelledAt: OrderDirection
+  cancelReason: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PetEventUpdateInput {
+  title: String
+  slug: String
+  category: String
+  species: [String!]
+  description: String
+  requirements: String
+  organizerName: String
+  contactPhone: String
+  petPlace: PetPlaceRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  lat: Float
+  lng: Float
+  placeLabel: String
+  address: String
+  neighborhood: String
+  city: String
+  cityKey: String
+  state: String
+  stateCode: String
+  timeZone: String
+  scope: String
+  reachKm: Int
+  isFree: Boolean
+  price: Int
+  priceNote: String
+  capacity: Int
+  registrationUrl: String
+  registrationWhatsapp: String
+  facebookUrl: String
+  instagramUrl: String
+  tiktokUrl: String
+  xUrl: String
+  websiteUrl: String
+  sessions: PetEventSessionRelateToManyForUpdateInput
+  firstStartsAt: DateTime
+  lastEndsAt: DateTime
+  multimedia: PetEventMultimediaRelateToManyForUpdateInput
+  interests: PetEventInterestRelateToManyForUpdateInput
+  status: String
+  reviewNote: String
+  reviewedAt: DateTime
+  reviewedBy: UserRelateToOneForUpdateInput
+  approvedAt: DateTime
+  pendingChangeNotice: Boolean
+  zoneAlertsSentAt: DateTime
+  zoneAlertsCount: Int
+  cancelledAt: DateTime
+  cancelReason: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PetEventSessionRelateToManyForUpdateInput {
+  disconnect: [PetEventSessionWhereUniqueInput!]
+  set: [PetEventSessionWhereUniqueInput!]
+  create: [PetEventSessionCreateInput!]
+  connect: [PetEventSessionWhereUniqueInput!]
+}
+
+input PetEventMultimediaRelateToManyForUpdateInput {
+  disconnect: [PetEventMultimediaWhereUniqueInput!]
+  set: [PetEventMultimediaWhereUniqueInput!]
+  create: [PetEventMultimediaCreateInput!]
+  connect: [PetEventMultimediaWhereUniqueInput!]
+}
+
+input PetEventInterestRelateToManyForUpdateInput {
+  disconnect: [PetEventInterestWhereUniqueInput!]
+  set: [PetEventInterestWhereUniqueInput!]
+  create: [PetEventInterestCreateInput!]
+  connect: [PetEventInterestWhereUniqueInput!]
+}
+
+input PetEventUpdateArgs {
+  where: PetEventWhereUniqueInput!
+  data: PetEventUpdateInput!
+}
+
+input PetEventCreateInput {
+  title: String
+  slug: String
+  category: String
+  species: [String!]
+  description: String
+  requirements: String
+  organizerName: String
+  contactPhone: String
+  petPlace: PetPlaceRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  lat: Float
+  lng: Float
+  placeLabel: String
+  address: String
+  neighborhood: String
+  city: String
+  cityKey: String
+  state: String
+  stateCode: String
+  timeZone: String
+  scope: String
+  reachKm: Int
+  isFree: Boolean
+  price: Int
+  priceNote: String
+  capacity: Int
+  registrationUrl: String
+  registrationWhatsapp: String
+  facebookUrl: String
+  instagramUrl: String
+  tiktokUrl: String
+  xUrl: String
+  websiteUrl: String
+  sessions: PetEventSessionRelateToManyForCreateInput
+  firstStartsAt: DateTime
+  lastEndsAt: DateTime
+  multimedia: PetEventMultimediaRelateToManyForCreateInput
+  interests: PetEventInterestRelateToManyForCreateInput
+  status: String
+  reviewNote: String
+  reviewedAt: DateTime
+  reviewedBy: UserRelateToOneForCreateInput
+  approvedAt: DateTime
+  pendingChangeNotice: Boolean
+  zoneAlertsSentAt: DateTime
+  zoneAlertsCount: Int
+  cancelledAt: DateTime
+  cancelReason: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PetEventSessionRelateToManyForCreateInput {
+  create: [PetEventSessionCreateInput!]
+  connect: [PetEventSessionWhereUniqueInput!]
+}
+
+input PetEventMultimediaRelateToManyForCreateInput {
+  create: [PetEventMultimediaCreateInput!]
+  connect: [PetEventMultimediaWhereUniqueInput!]
+}
+
+input PetEventInterestRelateToManyForCreateInput {
+  create: [PetEventInterestCreateInput!]
+  connect: [PetEventInterestWhereUniqueInput!]
+}
+
+type PetEventSession {
+  id: ID!
+  event: PetEvent
+  startsAt: DateTime
+  endsAt: DateTime
+}
+
+input PetEventSessionWhereUniqueInput {
+  id: ID
+}
+
+input PetEventSessionWhereInput {
+  AND: [PetEventSessionWhereInput!]
+  OR: [PetEventSessionWhereInput!]
+  NOT: [PetEventSessionWhereInput!]
+  id: IDFilter
+  event: PetEventWhereInput
+  startsAt: DateTimeFilter
+  endsAt: DateTimeFilter
+}
+
+input PetEventSessionOrderByInput {
+  id: OrderDirection
+  startsAt: OrderDirection
+  endsAt: OrderDirection
+}
+
+input PetEventSessionUpdateInput {
+  event: PetEventRelateToOneForUpdateInput
+  startsAt: DateTime
+  endsAt: DateTime
+}
+
+input PetEventRelateToOneForUpdateInput {
+  create: PetEventCreateInput
+  connect: PetEventWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PetEventSessionUpdateArgs {
+  where: PetEventSessionWhereUniqueInput!
+  data: PetEventSessionUpdateInput!
+}
+
+input PetEventSessionCreateInput {
+  event: PetEventRelateToOneForCreateInput
+  startsAt: DateTime
+  endsAt: DateTime
+}
+
+input PetEventRelateToOneForCreateInput {
+  create: PetEventCreateInput
+  connect: PetEventWhereUniqueInput
+}
+
+type PetEventMultimedia {
+  id: ID!
+  image: ImageFieldOutput
+  event: PetEvent
+  order: Int
+  createdAt: DateTime
+}
+
+input PetEventMultimediaWhereUniqueInput {
+  id: ID
+}
+
+input PetEventMultimediaWhereInput {
+  AND: [PetEventMultimediaWhereInput!]
+  OR: [PetEventMultimediaWhereInput!]
+  NOT: [PetEventMultimediaWhereInput!]
+  id: IDFilter
+  event: PetEventWhereInput
+  order: IntFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PetEventMultimediaOrderByInput {
+  id: OrderDirection
+  order: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetEventMultimediaUpdateInput {
+  image: ImageFieldInput
+  event: PetEventRelateToOneForUpdateInput
+  order: Int
+  createdAt: DateTime
+}
+
+input PetEventMultimediaUpdateArgs {
+  where: PetEventMultimediaWhereUniqueInput!
+  data: PetEventMultimediaUpdateInput!
+}
+
+input PetEventMultimediaCreateInput {
+  image: ImageFieldInput
+  event: PetEventRelateToOneForCreateInput
+  order: Int
+  createdAt: DateTime
+}
+
+type PetEventInterest {
+  id: ID!
+  key: String
+  event: PetEvent
+  user: User
+  kind: String
+  lastRemindedSessionId: String
+  createdAt: DateTime
+}
+
+input PetEventInterestWhereUniqueInput {
+  id: ID
+  key: String
+}
+
+input PetEventInterestWhereInput {
+  AND: [PetEventInterestWhereInput!]
+  OR: [PetEventInterestWhereInput!]
+  NOT: [PetEventInterestWhereInput!]
+  id: IDFilter
+  key: StringFilter
+  event: PetEventWhereInput
+  user: UserWhereInput
+  kind: StringFilter
+  lastRemindedSessionId: StringNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PetEventInterestOrderByInput {
+  id: OrderDirection
+  key: OrderDirection
+  kind: OrderDirection
+  lastRemindedSessionId: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetEventInterestUpdateInput {
+  key: String
+  event: PetEventRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  kind: String
+  lastRemindedSessionId: String
+  createdAt: DateTime
+}
+
+input PetEventInterestUpdateArgs {
+  where: PetEventInterestWhereUniqueInput!
+  data: PetEventInterestUpdateInput!
+}
+
+input PetEventInterestCreateInput {
+  key: String
+  event: PetEventRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  kind: String
+  lastRemindedSessionId: String
+  createdAt: DateTime
+}
+
 type Post {
   id: ID!
   product: String
@@ -9088,6 +9596,10 @@ type User {
   alertLat: Float
   alertLng: Float
   alertRadiusKm: Int
+  eventAlertsEnabled: Boolean
+  alertCity: String
+  alertCityKey: String
+  alertStateCode: String
   suspendedAt: DateTime
   suspendedReason: String
   sessionVersion: Int
@@ -9176,6 +9688,10 @@ input UserWhereInput {
   alertLat: FloatNullableFilter
   alertLng: FloatNullableFilter
   alertRadiusKm: IntNullableFilter
+  eventAlertsEnabled: BooleanFilter
+  alertCity: StringNullableFilter
+  alertCityKey: StringNullableFilter
+  alertStateCode: StringNullableFilter
   suspendedAt: DateTimeNullableFilter
   suspendedReason: StringNullableFilter
   sessionVersion: IntNullableFilter
@@ -9251,6 +9767,10 @@ input UserOrderByInput {
   alertLat: OrderDirection
   alertLng: OrderDirection
   alertRadiusKm: OrderDirection
+  eventAlertsEnabled: OrderDirection
+  alertCity: OrderDirection
+  alertCityKey: OrderDirection
+  alertStateCode: OrderDirection
   suspendedAt: OrderDirection
   suspendedReason: OrderDirection
   sessionVersion: OrderDirection
@@ -9327,6 +9847,10 @@ input UserUpdateInput {
   alertLat: Float
   alertLng: Float
   alertRadiusKm: Int
+  eventAlertsEnabled: Boolean
+  alertCity: String
+  alertCityKey: String
+  alertStateCode: String
   suspendedAt: DateTime
   suspendedReason: String
   sessionVersion: Int
@@ -9451,6 +9975,10 @@ input UserCreateInput {
   alertLat: Float
   alertLng: Float
   alertRadiusKm: Int
+  eventAlertsEnabled: Boolean
+  alertCity: String
+  alertCityKey: String
+  alertStateCode: String
   suspendedAt: DateTime
   suspendedReason: String
   sessionVersion: Int
@@ -9893,6 +10421,30 @@ type Mutation {
   updatePetPlaceTypes(data: [PetPlaceTypeUpdateArgs!]!): [PetPlaceType]
   deletePetPlaceType(where: PetPlaceTypeWhereUniqueInput!): PetPlaceType
   deletePetPlaceTypes(where: [PetPlaceTypeWhereUniqueInput!]!): [PetPlaceType]
+  createPetEvent(data: PetEventCreateInput!): PetEvent
+  createPetEvents(data: [PetEventCreateInput!]!): [PetEvent]
+  updatePetEvent(where: PetEventWhereUniqueInput!, data: PetEventUpdateInput!): PetEvent
+  updatePetEvents(data: [PetEventUpdateArgs!]!): [PetEvent]
+  deletePetEvent(where: PetEventWhereUniqueInput!): PetEvent
+  deletePetEvents(where: [PetEventWhereUniqueInput!]!): [PetEvent]
+  createPetEventSession(data: PetEventSessionCreateInput!): PetEventSession
+  createPetEventSessions(data: [PetEventSessionCreateInput!]!): [PetEventSession]
+  updatePetEventSession(where: PetEventSessionWhereUniqueInput!, data: PetEventSessionUpdateInput!): PetEventSession
+  updatePetEventSessions(data: [PetEventSessionUpdateArgs!]!): [PetEventSession]
+  deletePetEventSession(where: PetEventSessionWhereUniqueInput!): PetEventSession
+  deletePetEventSessions(where: [PetEventSessionWhereUniqueInput!]!): [PetEventSession]
+  createPetEventMultimedia(data: PetEventMultimediaCreateInput!): PetEventMultimedia
+  createPetEventMultimedias(data: [PetEventMultimediaCreateInput!]!): [PetEventMultimedia]
+  updatePetEventMultimedia(where: PetEventMultimediaWhereUniqueInput!, data: PetEventMultimediaUpdateInput!): PetEventMultimedia
+  updatePetEventMultimedias(data: [PetEventMultimediaUpdateArgs!]!): [PetEventMultimedia]
+  deletePetEventMultimedia(where: PetEventMultimediaWhereUniqueInput!): PetEventMultimedia
+  deletePetEventMultimedias(where: [PetEventMultimediaWhereUniqueInput!]!): [PetEventMultimedia]
+  createPetEventInterest(data: PetEventInterestCreateInput!): PetEventInterest
+  createPetEventInterests(data: [PetEventInterestCreateInput!]!): [PetEventInterest]
+  updatePetEventInterest(where: PetEventInterestWhereUniqueInput!, data: PetEventInterestUpdateInput!): PetEventInterest
+  updatePetEventInterests(data: [PetEventInterestUpdateArgs!]!): [PetEventInterest]
+  deletePetEventInterest(where: PetEventInterestWhereUniqueInput!): PetEventInterest
+  deletePetEventInterests(where: [PetEventInterestWhereUniqueInput!]!): [PetEventInterest]
   createPost(data: PostCreateInput!): Post
   createPosts(data: [PostCreateInput!]!): [Post]
   updatePost(where: PostWhereUniqueInput!, data: PostUpdateInput!): Post
@@ -10319,6 +10871,13 @@ type Mutation {
   addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
   registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
   sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
+  submitPetEvent(input: PetEventInput!): PetEventMutationResult!
+  updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
+  cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
+  setPetEventInterest(eventId: ID!, kind: String): PetEventInterestResult!
+  reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
+  sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
+  backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -10444,6 +11003,18 @@ type Query {
   petPlaceType(where: PetPlaceTypeWhereUniqueInput!): PetPlaceType
   petPlaceTypes(where: PetPlaceTypeWhereInput! = {}, orderBy: [PetPlaceTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetPlaceTypeWhereUniqueInput): [PetPlaceType!]
   petPlaceTypesCount(where: PetPlaceTypeWhereInput! = {}): Int
+  petEvent(where: PetEventWhereUniqueInput!): PetEvent
+  petEvents(where: PetEventWhereInput! = {}, orderBy: [PetEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetEventWhereUniqueInput): [PetEvent!]
+  petEventsCount(where: PetEventWhereInput! = {}): Int
+  petEventSession(where: PetEventSessionWhereUniqueInput!): PetEventSession
+  petEventSessions(where: PetEventSessionWhereInput! = {}, orderBy: [PetEventSessionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetEventSessionWhereUniqueInput): [PetEventSession!]
+  petEventSessionsCount(where: PetEventSessionWhereInput! = {}): Int
+  petEventMultimedia(where: PetEventMultimediaWhereUniqueInput!): PetEventMultimedia
+  petEventMultimedias(where: PetEventMultimediaWhereInput! = {}, orderBy: [PetEventMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetEventMultimediaWhereUniqueInput): [PetEventMultimedia!]
+  petEventMultimediasCount(where: PetEventMultimediaWhereInput! = {}): Int
+  petEventInterest(where: PetEventInterestWhereUniqueInput!): PetEventInterest
+  petEventInterests(where: PetEventInterestWhereInput! = {}, orderBy: [PetEventInterestOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetEventInterestWhereUniqueInput): [PetEventInterest!]
+  petEventInterestsCount(where: PetEventInterestWhereInput! = {}): Int
   post(where: PostWhereUniqueInput!): Post
   posts(where: PostWhereInput! = {}, orderBy: [PostOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PostWhereUniqueInput): [Post!]
   postsCount(where: PostWhereInput! = {}): Int
@@ -10671,6 +11242,9 @@ type Query {
   adminZoneAlertPreview(lat: Float!, lng: Float!): AdminZonePreview!
   landingStats: LandingStats!
   petLandingStats: PetLandingStats!
+  petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
+  petEventFacets: [PetEventStateFacet!]!
+  adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
 }
 
 union AuthenticatedItem = User
@@ -11406,6 +11980,99 @@ type SendDuePetRemindersResult {
   processed: Int!
   sent: Int!
   failed: Int!
+}
+
+input PetEventSessionInput {
+  """ISO 8601 en UTC"""
+  startsAt: String!
+  endsAt: String!
+}
+
+input PetEventInput {
+  title: String!
+
+  """
+  esterilizacion | vacunacion | adopcion | desparasitacion | consulta | colecta | voluntariado | taller | otro
+  """
+  category: String!
+
+  """dog | cat | other"""
+  species: [String!]
+  description: String!
+  requirements: String
+  organizerName: String
+  contactPhone: String
+
+  """Veterinaria verificada de la persona (opcional)"""
+  petPlaceId: ID
+  lat: Float!
+  lng: Float!
+  placeLabel: String
+  address: String
+  neighborhood: String
+  city: String
+  state: String
+
+  """zone | city | state | national (national solo admins)"""
+  scope: String!
+
+  """Solo con scope zone: 5, 10, 20 o 50"""
+  reachKm: Int
+  isFree: Boolean!
+
+  """Pesos MXN"""
+  price: Int
+  priceNote: String
+  capacity: Int
+  registrationUrl: String
+  registrationWhatsapp: String
+
+  """Link o usuario (@refugio); se guarda como link"""
+  facebookUrl: String
+  instagramUrl: String
+  tiktokUrl: String
+  xUrl: String
+  websiteUrl: String
+  sessions: [PetEventSessionInput!]!
+}
+
+type PetEventMutationResult {
+  success: Boolean!
+  message: String!
+  event: PetEvent
+}
+
+type PetEventInterestResult {
+  success: Boolean!
+  message: String!
+
+  """interested | going | null (ya no le interesa)"""
+  kind: String
+  interestedCount: Int!
+  goingCount: Int!
+  isFull: Boolean!
+}
+
+type SendPetEventNotificationsResult {
+  success: Boolean!
+  message: String!
+
+  """Personas a las que se les mandó recordatorio"""
+  reminders: Int!
+
+  """Eventos que avisaron a su zona en esta corrida"""
+  zoneEvents: Int!
+
+  """Personas avisadas por esos eventos"""
+  zoneRecipients: Int!
+}
+
+type BackfillAlertRegionsResult {
+  success: Boolean!
+  message: String!
+  processed: Int!
+  updated: Int!
+  remaining: Int!
 }
 
 type UnsubscribeBlogResult {
@@ -13239,4 +13906,82 @@ type PetLandingStats {
   veterinariesVerified: Int!
   cities: Int!
   updatedAt: String!
+}
+
+input PetEventsFeedInput {
+  """Clave INEGI (16) o slug (michoacan)"""
+  state: String
+
+  """Municipio como llave: morelia, san-luis-potosi"""
+  city: String
+  category: String
+
+  """
+  ISO 8601: la próxima fecha empieza antes de esto (esta semana, este mes)
+  """
+  to: String
+  lat: Float
+  lng: Float
+
+  """
+  Con lat/lng: solo eventos a esta distancia en km (los nacionales siempre salen)
+  """
+  radiusKm: Float
+
+  """date (por defecto) | distance"""
+  sort: String
+
+  """true = eventos que ya terminaron, del más reciente al más viejo"""
+  past: Boolean
+  take: Int = 12
+  skip: Int = 0
+}
+
+type PetEventsFeedItem {
+  event: PetEvent!
+
+  """Próxima fecha (o la última, con past)"""
+  nextStartsAt: String
+  nextEndsAt: String
+
+  """Con lat/lng"""
+  distanceKm: Float
+}
+
+type PetEventsFeedResult {
+  total: Int!
+  items: [PetEventsFeedItem!]!
+}
+
+type PetEventCityFacet {
+  key: String!
+  name: String!
+  count: Int!
+}
+
+type PetEventStateFacet {
+  code: String!
+  slug: String!
+  name: String!
+  count: Int!
+  cities: [PetEventCityFacet!]!
+}
+
+type PetEventAlertPreview {
+  """
+  Personas a las que se avisaría (ya sin quienes llegaron al tope del día o ya recibieron este evento)
+  """
+  recipients: Int!
+
+  """Personas a las que les toca el evento, sin topes"""
+  candidates: Int!
+  alreadySent: Boolean!
+
+  """
+  true = se avisa al aprobar; false = lo manda el cron cuando falten 14 días
+  """
+  sendNow: Boolean!
+
+  """ISO 8601: cuándo avisará el cron si no es ahora"""
+  sendAt: String
 }
