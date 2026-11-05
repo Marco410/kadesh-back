@@ -90,6 +90,11 @@ const storage: Record<string, any> = {
           type: "image",
           pathPrefix: prefix("ads/"),
         },
+        s3_events: {
+          ...s3Common,
+          type: "image",
+          pathPrefix: prefix("events/"),
+        },
         s3_tech_files: {
           ...s3Common,
           type: "file",
@@ -139,6 +144,12 @@ const storage: Record<string, any> = {
           storagePath: "public/images",
         },
         s3_ads: {
+          kind: "local",
+          type: "image",
+          serverRoute: { path: "/images" },
+          storagePath: "public/images",
+        },
+        s3_events: {
           kind: "local",
           type: "image",
           serverRoute: { path: "/images" },

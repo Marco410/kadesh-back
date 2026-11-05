@@ -26,6 +26,21 @@ Toda notificación con `product: "pet"` también sale como push a los dispositiv
 - Un reporte con más de 3 días de antigüedad (fecha del avistamiento) no avisa.
 - Sin sesión (seed o scripts) no se avisa.
 - Los campos de la zona los edita la propia persona con `updateUser` (acceso `userPetAlertsFieldAccess`).
+## Avisos de eventos (`event.*`)
+
+`utils/notifications/eventAlerts.ts`. Reglas completas en `models/Pet/PetEvent/README.md`.
+
+| Tipo | Cuándo | A quién |
+| --- | --- | --- |
+| `event.nearby` | un evento aprobado le toca a su zona, municipio o estado (o es nacional), a 14 días o menos de la fecha; máx. 3 al día | quien tiene `eventAlertsEnabled` y centro de alertas, salvo quien lo organiza |
+| `event.reminder` | faltan 24 h o menos para una fecha (cron cada hora), una vez por fecha | quien marcó «Me interesa» o «Asistiré» |
+| `event.submitted` | se publicó o editó un evento y espera revisión | admins |
+| `event.approved` / `event.rejected` | un admin lo revisó (el rechazo lleva el motivo) | quien lo publicó |
+| `event.cancelled` | se canceló uno que llegó a publicarse | quien marcó «Me interesa» o «Asistiré» |
+| `event.updated` | cambiaron fechas o lugar de uno publicado | quien marcó «Me interesa» o «Asistiré» |
+
+Sin plantilla de WhatsApp por ahora: solo campana y push.
+
 ## Avisos de un reporte (comentarios, coincidencias, solicitudes y reportes unidos)
 
 `utils/notifications/animalReportAlerts.ts` y `utils/notifications/possibleMatchAlerts.ts`. Van a quien atiende el reporte (`Animal.user`). Si lo subió la cuenta de automatización (`PET_AUTOMATION_USER_ID`) o no tiene autor, van a los admins. El link abre la ficha (`#comentarios` en comentarios, `?reclamo=<id>` en solicitudes). Comentarios, coincidencias y solicitudes también salen por WhatsApp a quien lo activó (ver "WhatsApp"); `animal.duplicate_reported` y `animal.merged` no tienen plantilla: solo campana y push.

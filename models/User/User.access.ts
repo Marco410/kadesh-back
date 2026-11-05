@@ -166,6 +166,17 @@ export const userPetAlertsFieldAccess = {
     isPlatformAdmin(session) || isSelf(session, item),
 };
 
+/**
+ * Municipio y estado de la zona de alertas: los calcula el servidor (`alertRegion.ts`) al cambiar
+ * el centro. La propia persona (o un admin) los lee; nadie los escribe por API.
+ */
+export const userAlertRegionFieldAccess = {
+  read: ({ session, item }: any) =>
+    isPlatformAdmin(session) || isSelf(session, item),
+  create: () => false,
+  update: () => false,
+};
+
 export const userSecretFieldAccess = {
   read: ({ session, item }: any) =>
     isPlatformAdmin(session) || isSelf(session, item),

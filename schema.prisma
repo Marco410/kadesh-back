@@ -587,6 +587,7 @@ model PetPlace {
   google_opening_hours            String                @default("")
   createdAt                       DateTime?             @default(now())
   from_PetHealthRecord_veterinary PetHealthRecord[]     @relation("PetHealthRecord_veterinary")
+  from_PetEvent_petPlace          PetEvent[]            @relation("PetEvent_petPlace")
 
   @@index([userId])
   @@index([pipelineStatus])
@@ -666,6 +667,116 @@ model PetPlaceType {
   label               String     @unique @default("")
   plural              String     @default("")
   from_PetPlace_types PetPlace[] @relation("PetPlace_types")
+}
+
+model PetEvent {
+  id                   String               @id @default(cuid())
+  title                String               @default("")
+  slug                 String?              @unique
+  category             String
+  species              Json                 @default("[]")
+  description          String               @default("")
+  requirements         String               @default("")
+  organizerName        String               @default("")
+  contactPhone         String               @default("")
+  petPlace             PetPlace?            @relation("PetEvent_petPlace", fields: [petPlaceId], references: [id])
+  petPlaceId           String?              @map("petPlace")
+  user                 User?                @relation("PetEvent_user", fields: [userId], references: [id])
+  userId               String?              @map("user")
+  lat                  Float
+  lng                  Float
+  placeLabel           String               @default("")
+  address              String               @default("")
+  neighborhood         String               @default("")
+  city                 String               @default("")
+  cityKey              String?
+  state                String               @default("")
+  stateCode            String?
+  timeZone             String               @default("America/Mexico_City")
+  scope                String               @default("zone")
+  reachKm              Int?                 @default(10)
+  isFree               Boolean              @default(true)
+  price                Int?
+  priceNote            String               @default("")
+  capacity             Int?
+  registrationUrl      String               @default("")
+  registrationWhatsapp String               @default("")
+  facebookUrl          String               @default("")
+  instagramUrl         String               @default("")
+  tiktokUrl            String               @default("")
+  xUrl                 String               @default("")
+  websiteUrl           String               @default("")
+  sessions             PetEventSession[]    @relation("PetEventSession_event")
+  firstStartsAt        DateTime?
+  lastEndsAt           DateTime?
+  multimedia           PetEventMultimedia[] @relation("PetEventMultimedia_event")
+  interests            PetEventInterest[]   @relation("PetEventInterest_event")
+  status               String               @default("pending")
+  reviewNote           String               @default("")
+  reviewedAt           DateTime?
+  reviewedBy           User?                @relation("PetEvent_reviewedBy", fields: [reviewedById], references: [id])
+  reviewedById         String?              @map("reviewedBy")
+  approvedAt           DateTime?
+  pendingChangeNotice  Boolean              @default(false)
+  zoneAlertsSentAt     DateTime?
+  zoneAlertsCount      Int?                 @default(0)
+  cancelledAt          DateTime?
+  cancelReason         String               @default("")
+  createdAt            DateTime?            @default(now())
+  updatedAt            DateTime?            @updatedAt
+
+  @@index([category])
+  @@index([petPlaceId])
+  @@index([userId])
+  @@index([cityKey])
+  @@index([stateCode])
+  @@index([firstStartsAt])
+  @@index([lastEndsAt])
+  @@index([status])
+  @@index([reviewedById])
+}
+
+model PetEventSession {
+  id       String    @id @default(cuid())
+  event    PetEvent? @relation("PetEventSession_event", fields: [eventId], references: [id])
+  eventId  String?   @map("event")
+  startsAt DateTime
+  endsAt   DateTime
+
+  @@index([eventId])
+  @@index([startsAt])
+  @@index([endsAt])
+}
+
+model PetEventMultimedia {
+  id              String    @id @default(cuid())
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  event           PetEvent? @relation("PetEventMultimedia_event", fields: [eventId], references: [id])
+  eventId         String?   @map("event")
+  order           Int       @default(1)
+  createdAt       DateTime? @default(now())
+
+  @@index([eventId])
+}
+
+model PetEventInterest {
+  id                    String    @id @default(cuid())
+  key                   String    @unique @default("")
+  event                 PetEvent? @relation("PetEventInterest_event", fields: [eventId], references: [id])
+  eventId               String?   @map("event")
+  user                  User?     @relation("PetEventInterest_user", fields: [userId], references: [id])
+  userId                String?   @map("user")
+  kind                  String    @default("interested")
+  lastRemindedSessionId String?
+  createdAt             DateTime? @default(now())
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([kind])
 }
 
 model Post {
@@ -1967,6 +2078,10 @@ model User {
   alertLat                                 Float?
   alertLng                                 Float?
   alertRadiusKm                            Int?                     @default(5)
+  eventAlertsEnabled                       Boolean                  @default(true)
+  alertCity                                String?
+  alertCityKey                             String?
+  alertStateCode                           String?
   suspendedAt                              DateTime?
   suspendedReason                          String?
   sessionVersion                           Int?                     @default(0)
@@ -1991,6 +2106,9 @@ model User {
   from_PetOwner_user                       PetOwner[]               @relation("PetOwner_user")
   from_PetHealthRecord_createdBy           PetHealthRecord[]        @relation("PetHealthRecord_createdBy")
   from_PetPlaceLike_user                   PetPlaceLike[]           @relation("PetPlaceLike_user")
+  from_PetEvent_user                       PetEvent[]               @relation("PetEvent_user")
+  from_PetEvent_reviewedBy                 PetEvent[]               @relation("PetEvent_reviewedBy")
+  from_PetEventInterest_user               PetEventInterest[]       @relation("PetEventInterest_user")
   from_Post_author                         Post[]                   @relation("Post_author")
   from_PostComment_user                    PostComment[]            @relation("PostComment_user")
   from_PostFavorite_user                   PostFavorite[]           @relation("PostFavorite_user")
@@ -2009,6 +2127,8 @@ model User {
   @@index([referredById])
   @@index([companyId])
   @@index([product])
+  @@index([alertCityKey])
+  @@index([alertStateCode])
 }
 
 model UserActivityDay {

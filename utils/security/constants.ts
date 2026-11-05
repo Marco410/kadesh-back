@@ -72,6 +72,14 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     windowMs: HOUR,
   },
   {
+    key: "pet_event_user",
+    label: "Eventos publicados por persona",
+    fields: ["submitPetEvent"],
+    scope: "user",
+    limit: 5,
+    windowMs: DAY,
+  },
+  {
     key: "comment_user",
     label: "Comentarios por persona",
     fields: ["createAnimalComment", "createPostComment"],
