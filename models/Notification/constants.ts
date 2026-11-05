@@ -55,6 +55,14 @@ export const NOTIFICATION_TYPE = {
   EVENT_CANCELLED: "event.cancelled",
   /** Cambiaron las fechas o el lugar de un evento. Va a quienes marcaron «Me interesa» o «Asistiré». */
   EVENT_UPDATED: "event.updated",
+  /** Alguien activó un espacio de rescate y espera verificación. Va a los admins. */
+  RESCUE_SUBMITTED: "rescue.submitted",
+  /** Un admin verificó el espacio de rescate. Va a sus administradores. */
+  RESCUE_VERIFIED: "rescue.verified",
+  /** Un admin rechazó o suspendió el espacio de rescate. Va a sus administradores. */
+  RESCUE_REJECTED: "rescue.rejected",
+  /** Te agregaron al equipo de un espacio de rescate. Va a la persona agregada. */
+  RESCUE_MEMBER_ADDED: "rescue.member_added",
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];

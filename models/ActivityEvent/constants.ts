@@ -183,6 +183,12 @@ export const ACTIVITY_EVENT = {
   PET_EVENT_UPDATED: "pet.event_updated",
   PET_EVENT_REVIEWED: "pet.event_reviewed",
   PET_EVENT_CANCELLED: "pet.event_cancelled",
+  // Espacios de rescate: activar, cambiar estado (admin) y equipo.
+  PET_RESCUE_CREATED: "pet.rescue_created",
+  PET_RESCUE_STATUS_CHANGED: "pet.rescue_status_changed",
+  PET_RESCUE_MEMBER_ADDED: "pet.rescue_member_added",
+  PET_RESCUE_MEMBER_UPDATED: "pet.rescue_member_updated",
+  PET_RESCUE_MEMBER_REMOVED: "pet.rescue_member_removed",
   // Alta con el formulario genérico (Kadesh Pet web y app). Negocios y Google ya quedan en UserAuthLog.
   AUTH_SIGNUP: "auth.signup",
   // Formulario de contacto (landing y Negocios); sin datos personales en metadata.

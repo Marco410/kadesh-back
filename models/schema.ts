@@ -21,6 +21,8 @@ import PetHealthRecord from "./Pet/HealthRecord/PetHealthRecord";
 import PetHealthRecordAttachment from "./Pet/HealthRecord/PetHealthRecordAttachment/PetHealthRecordAttachment";
 import PetReminder from "./Pet/Reminder/PetReminder";
 import PetPlace from "./Pet/PetPlace/PetPlace";
+import RescueOrganization from "./Pet/RescueOrganization/RescueOrganization";
+import RescueOrganizationMember from "./Pet/RescueOrganization/RescueOrganizationMember/RescueOrganizationMember";
 import PetPlaceAppointment from "./Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment";
 import PetPlaceLike from "./Pet/PetPlace/PetPlaceLike/PetPlaceLike";
 import PetPlaceService from "./Pet/PetPlace/PetPlaceService/PetPlaceService";
@@ -141,6 +143,8 @@ export default withActivityHooks({
   PostLike,
   PostView,
   Product,
+  RescueOrganization,
+  RescueOrganizationMember,
   Review,
   Role,
   SaasCompany,

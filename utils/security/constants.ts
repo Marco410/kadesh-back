@@ -80,6 +80,23 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     windowMs: DAY,
   },
   {
+    key: "rescue_org_user",
+    label: "Espacios de rescate activados por persona",
+    fields: ["activateRescueOrganization"],
+    scope: "user",
+    limit: 3,
+    windowMs: DAY,
+  },
+  {
+    // Buscar por correo dice si la cuenta existe: tope contra quien quiera adivinar correos.
+    key: "rescue_member_user",
+    label: "Personas agregadas a espacios de rescate",
+    fields: ["addRescueOrganizationMember"],
+    scope: "user",
+    limit: 30,
+    windowMs: HOUR,
+  },
+  {
     key: "comment_user",
     label: "Comentarios por persona",
     fields: ["createAnimalComment", "createPostComment"],

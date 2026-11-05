@@ -1,7 +1,9 @@
-import { list } from "@keystone-6/core";
+import { graphql, list } from "@keystone-6/core";
+import type { KeystoneContext } from "@keystone-6/core/types";
 import { logAnimalActivity } from "../../../utils/pet/petActivity";
-import { json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
-import { animalAccess, forceAnimalOwner } from "./Animal.access";
+import { json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
+import { animalAccess, canEditAnimalAs, forceAnimalOwner, validateAnimalOrganization } from "./Animal.access";
+import { getSessionUserId } from "../../../utils/access/tenant";
 import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
 import { animalCreateSideEffectsHook } from "./Animal.hooks";
 import { animalMergeAfterOperation, validateDuplicateOf } from "./Animal.merge";
@@ -62,6 +64,8 @@ export default list({
       }
       // La misma persona publicando otra vez el mismo animal (ver Animal.ownDuplicates.ts).
       await validateOwnDuplicate({ operation, resolvedData, context, addValidationError });
+      // A nombre de un espacio de rescate: solo su equipo y si está activo.
+      await validateAnimalOrganization({ resolvedData, context, addValidationError });
     },
     afterOperation: async (args) => {
       // Actividad de Kadesh Pet: publicar, editar o borrar el reporte (sin await, no frena).
@@ -124,6 +128,26 @@ export default list({
     user: relationship({
       ref: "User",
       many: false,
+    }),
+    /**
+     * Espacio de rescate a cuyo nombre se publica. `user` sigue siendo quien lo publicó. Leerlo
+     * pasa por el acceso de `RescueOrganization`: el público solo ve las verificadas (null si no).
+     */
+    organization: relationship({
+      ref: "RescueOrganization.animals",
+      many: false,
+      ui: { description: "Espacio de rescate a cuyo nombre se publicó (opcional)" },
+    }),
+    /** ¿Quien consulta puede editar este reporte? (autor, equipo de su organización o admin). */
+    viewerCanEdit: virtual({
+      field: graphql.field({
+        type: graphql.nonNull(graphql.Boolean),
+        async resolve(item: any, _args, context: KeystoneContext) {
+          if (isPlatformAdmin(context.session)) return true;
+          return canEditAnimalAs(context, item, getSessionUserId(context.session));
+        },
+      }),
+      ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } },
     }),
     multimedia: relationship({
       ref: "AnimalMultimedia.animal",

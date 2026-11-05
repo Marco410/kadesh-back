@@ -25,6 +25,7 @@ import createAnimalReport from "./pet/createAnimalReport";
 import animalClaims from "./pet/animalClaims";
 import petCardMutations from "./pet/card";
 import petEventMutations from "./pet/events";
+import rescueMutations from "./pet/rescue";
 import unsubscribeBlog from "./unsubscribeBlog";
 import publishScheduledPosts from "./publishScheduledPosts";
 import upsertDraftSystemRelease from "./upsertDraftSystemRelease";
@@ -83,6 +84,7 @@ const customMutation = {
     ${animalClaims.typeDefs}
     ${petCardMutations.typeDefs}
     ${petEventMutations.typeDefs}
+    ${rescueMutations.typeDefs}
     ${unsubscribeBlog.typeDefs}
     ${publishScheduledPosts.typeDefs}
     ${upsertDraftSystemRelease.typeDefs}
@@ -140,6 +142,7 @@ const customMutation = {
     ${animalClaims.definition}
     ${petCardMutations.definition}
     ${petEventMutations.definition}
+    ${rescueMutations.definition}
     ${unsubscribeBlog.definition}
     ${publishScheduledPosts.definition}
     ${upsertDraftSystemRelease.definition}
@@ -197,6 +200,7 @@ const customMutation = {
     ...animalClaims.resolver,
     ...petCardMutations.resolver,
     ...petEventMutations.resolver,
+    ...rescueMutations.resolver,
     ...unsubscribeBlog.resolver,
     ...publishScheduledPosts.resolver,
     ...upsertDraftSystemRelease.resolver,
