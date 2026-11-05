@@ -8,7 +8,7 @@ import { petSiteUrl } from "../notifications/whatsapp";
  * apoyan en el índice de Bing. Google no usa IndexNow (para Google: sitemap y Search Console).
  *
  * La clave es pública: la sirve la web en `/indexnow-key.txt` (kadesh-landing,
- * `src/app/indexnow-key.txt/route.ts`). `INDEXNOW_KEY` debe ser la misma.
+ * `src/core/indexnow.ts`). `INDEXNOW_KEY` debe ser la misma.
  * Solo en producción (`NODE_ENV=production`); `INDEXNOW=off` lo apaga. Nunca lanza.
  */
 
