@@ -31,10 +31,12 @@ import {
   adminWhatsappDefaultHook,
 } from "./User.hooks";
 import { whatsappMutedTypesHooks } from "./whatsappPrefs";
+import { resolveAlertRegion } from "./alertRegion";
 import access, {
   userCompanyFieldAccess,
   userOnboardingFieldAccess,
   userPetAlertsFieldAccess,
+  userAlertRegionFieldAccess,
   userPermissionsFieldAccess,
   userRolesFieldAccess,
   userSecretFieldAccess,
@@ -65,9 +67,15 @@ async function resolveInput(
   });
 
   // Después de `userRoleHook`: ya sin los roles que la sesión no puede asignar.
-  return adminWhatsappDefaultHook.resolveInput({
+  const afterWhatsapp = await adminWhatsappDefaultHook.resolveInput({
     ...args,
     resolvedData: afterReferral,
+  });
+
+  // Municipio y estado de la zona de alertas (avisos de eventos por municipio o estado).
+  return resolveAlertRegion({
+    resolvedData: afterWhatsapp as Record<string, any>,
+    item: (args as any).item,
   });
 }
 
@@ -494,6 +502,30 @@ export default list({
       validation: { min: 1, max: 50 },
       access: userPetAlertsFieldAccess,
       ui: { description: "Radio de la zona de alertas, en km (1–50)" },
+    }),
+    // Avisos de eventos (campañas, jornadas) en la misma zona. Ver utils/notifications/eventAlerts.ts.
+    eventAlertsEnabled: checkbox({
+      defaultValue: true,
+      access: userPetAlertsFieldAccess,
+      ui: { description: "Recibe avisos de eventos (campañas, jornadas) en su zona, municipio o estado" },
+    }),
+    // Los calcula el servidor desde alertLat/alertLng (models/User/alertRegion.ts).
+    alertCity: text({
+      db: { isNullable: true },
+      access: userAlertRegionFieldAccess,
+      ui: { description: "Municipio del centro de la zona de alertas", itemView: { fieldMode: "read" } },
+    }),
+    alertCityKey: text({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: userAlertRegionFieldAccess,
+      ui: { itemView: { fieldMode: "read" }, listView: { fieldMode: "hidden" } },
+    }),
+    alertStateCode: text({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: userAlertRegionFieldAccess,
+      ui: { description: "Clave INEGI del estado del centro (01–32)", itemView: { fieldMode: "read" } },
     }),
     // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
     suspendedAt: timestamp({

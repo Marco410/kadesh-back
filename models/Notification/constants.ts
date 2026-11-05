@@ -41,6 +41,20 @@ export const NOTIFICATION_TYPE = {
   PET_REMINDER_DUE: "pet.reminder_due",
   /** Alguien se pasó de un límite contra abuso (login, registros, reportes…). Va a los admins. */
   SECURITY_ALERT: "security.alert",
+  /** Un evento aprobado (campaña, jornada…) le toca a la zona, municipio o estado de la persona. */
+  EVENT_NEARBY: "event.nearby",
+  /** Falta un día (o menos) para una fecha de un evento que marcó «Me interesa» o «Asistiré». */
+  EVENT_REMINDER: "event.reminder",
+  /** Alguien publicó o editó un evento y espera revisión. Va a los admins. */
+  EVENT_SUBMITTED: "event.submitted",
+  /** Un admin aprobó el evento. Va a quien lo publicó. */
+  EVENT_APPROVED: "event.approved",
+  /** Un admin rechazó el evento (con motivo). Va a quien lo publicó. */
+  EVENT_REJECTED: "event.rejected",
+  /** Se canceló un evento. Va a quienes marcaron «Me interesa» o «Asistiré». */
+  EVENT_CANCELLED: "event.cancelled",
+  /** Cambiaron las fechas o el lugar de un evento. Va a quienes marcaron «Me interesa» o «Asistiré». */
+  EVENT_UPDATED: "event.updated",
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];
