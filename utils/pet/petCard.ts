@@ -25,6 +25,16 @@ export function petCardUrl(petId: string): string {
   return `${petFrontendBase()}/perfil?tab=pets&pet=${encodeURIComponent(petId)}`;
 }
 
+/** Lista «Mis mascotas» del perfil. */
+export function petListUrl(): string {
+  return `${petFrontendBase()}/perfil?tab=pets`;
+}
+
+/** Lista de fichas de un espacio de rescate en su panel. */
+export function rescuePetsListUrl(organizationId: string): string {
+  return `${petFrontendBase()}/perfil?tab=rescate&org=${encodeURIComponent(organizationId)}&vista=fichas`;
+}
+
 /** Ficha interna de un animal en el panel de su espacio de rescate. */
 export function rescuePetCardUrl(organizationId: string, petId: string): string {
   return `${petFrontendBase()}/perfil?tab=rescate&org=${encodeURIComponent(organizationId)}&vista=fichas&pet=${encodeURIComponent(petId)}`;

@@ -97,6 +97,32 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     windowMs: HOUR,
   },
   {
+    key: "adoption_application_user",
+    label: "Solicitudes de adopción por persona",
+    fields: ["submitAdoptionApplication"],
+    scope: "user",
+    limit: 10,
+    windowMs: DAY,
+  },
+  {
+    key: "pet_transfer_code_user",
+    label: "Códigos de traspaso de mascotas generados",
+    fields: ["createPetTransferCode"],
+    scope: "user",
+    limit: 20,
+    windowMs: DAY,
+  },
+  {
+    // Contra quien quiera adivinar códigos: ver y canjear cuentan juntos.
+    key: "pet_transfer_redeem_user",
+    label: "Intentos de canjear un código de traspaso",
+    fields: ["previewPetTransferCode", "redeemPetTransferCode"],
+    scope: "user",
+    limit: 15,
+    windowMs: HOUR,
+    alertAlways: true,
+  },
+  {
     key: "comment_user",
     label: "Comentarios por persona",
     fields: ["createAnimalComment", "createPostComment"],

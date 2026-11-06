@@ -1013,6 +1013,100 @@ input AnimalClaimCreateInput {
   createdAt: DateTime
 }
 
+type AdoptionApplication {
+  id: ID!
+  animal: Animal
+  applicant: User
+  applicantName: String
+  applicantEmail: String
+  phone: String
+  message: String
+  answers: JSON
+  status: String
+  decisionNote: String
+  decidedBy: User
+  decidedAt: DateTime
+  pet: Pet
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AdoptionApplicationWhereUniqueInput {
+  id: ID
+}
+
+input AdoptionApplicationWhereInput {
+  AND: [AdoptionApplicationWhereInput!]
+  OR: [AdoptionApplicationWhereInput!]
+  NOT: [AdoptionApplicationWhereInput!]
+  id: IDFilter
+  animal: AnimalWhereInput
+  applicant: UserWhereInput
+  applicantName: StringFilter
+  applicantEmail: StringFilter
+  phone: StringFilter
+  message: StringFilter
+  status: StringFilter
+  decisionNote: StringFilter
+  decidedBy: UserWhereInput
+  decidedAt: DateTimeNullableFilter
+  pet: PetWhereInput
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input AdoptionApplicationOrderByInput {
+  id: OrderDirection
+  applicantName: OrderDirection
+  applicantEmail: OrderDirection
+  phone: OrderDirection
+  message: OrderDirection
+  status: OrderDirection
+  decisionNote: OrderDirection
+  decidedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input AdoptionApplicationUpdateInput {
+  animal: AnimalRelateToOneForUpdateInput
+  applicant: UserRelateToOneForUpdateInput
+  applicantName: String
+  applicantEmail: String
+  phone: String
+  message: String
+  answers: JSON
+  status: String
+  decisionNote: String
+  decidedBy: UserRelateToOneForUpdateInput
+  decidedAt: DateTime
+  pet: PetRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AdoptionApplicationUpdateArgs {
+  where: AdoptionApplicationWhereUniqueInput!
+  data: AdoptionApplicationUpdateInput!
+}
+
+input AdoptionApplicationCreateInput {
+  animal: AnimalRelateToOneForCreateInput
+  applicant: UserRelateToOneForCreateInput
+  applicantName: String
+  applicantEmail: String
+  phone: String
+  message: String
+  answers: JSON
+  status: String
+  decisionNote: String
+  decidedBy: UserRelateToOneForCreateInput
+  decidedAt: DateTime
+  pet: PetRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
 type AnimalComment {
   id: ID!
   comment: String
@@ -4681,6 +4775,84 @@ input RescueOrganizationMemberCreateInput {
   organization: RescueOrganizationRelateToOneForCreateInput
   user: UserRelateToOneForCreateInput
   role: String
+  createdAt: DateTime
+}
+
+type PetTransfer {
+  id: ID!
+  pet: Pet
+  code: String
+  status: String
+  expiresAt: DateTime
+  message: String
+  fromOrganization: RescueOrganization
+  createdBy: User
+  redeemedBy: User
+  redeemedAt: DateTime
+  isExpired: Boolean
+  createdAt: DateTime
+}
+
+input PetTransferWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input PetTransferWhereInput {
+  AND: [PetTransferWhereInput!]
+  OR: [PetTransferWhereInput!]
+  NOT: [PetTransferWhereInput!]
+  id: IDFilter
+  pet: PetWhereInput
+  code: StringFilter
+  status: StringFilter
+  expiresAt: DateTimeFilter
+  message: StringFilter
+  fromOrganization: RescueOrganizationWhereInput
+  createdBy: UserWhereInput
+  redeemedBy: UserWhereInput
+  redeemedAt: DateTimeNullableFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PetTransferOrderByInput {
+  id: OrderDirection
+  code: OrderDirection
+  status: OrderDirection
+  expiresAt: OrderDirection
+  message: OrderDirection
+  redeemedAt: OrderDirection
+  createdAt: OrderDirection
+}
+
+input PetTransferUpdateInput {
+  pet: PetRelateToOneForUpdateInput
+  code: String
+  status: String
+  expiresAt: DateTime
+  message: String
+  fromOrganization: RescueOrganizationRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  redeemedBy: UserRelateToOneForUpdateInput
+  redeemedAt: DateTime
+  createdAt: DateTime
+}
+
+input PetTransferUpdateArgs {
+  where: PetTransferWhereUniqueInput!
+  data: PetTransferUpdateInput!
+}
+
+input PetTransferCreateInput {
+  pet: PetRelateToOneForCreateInput
+  code: String
+  status: String
+  expiresAt: DateTime
+  message: String
+  fromOrganization: RescueOrganizationRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  redeemedBy: UserRelateToOneForCreateInput
+  redeemedAt: DateTime
   createdAt: DateTime
 }
 
@@ -10625,6 +10797,12 @@ type Mutation {
   updateAnimalClaims(data: [AnimalClaimUpdateArgs!]!): [AnimalClaim]
   deleteAnimalClaim(where: AnimalClaimWhereUniqueInput!): AnimalClaim
   deleteAnimalClaims(where: [AnimalClaimWhereUniqueInput!]!): [AnimalClaim]
+  createAdoptionApplication(data: AdoptionApplicationCreateInput!): AdoptionApplication
+  createAdoptionApplications(data: [AdoptionApplicationCreateInput!]!): [AdoptionApplication]
+  updateAdoptionApplication(where: AdoptionApplicationWhereUniqueInput!, data: AdoptionApplicationUpdateInput!): AdoptionApplication
+  updateAdoptionApplications(data: [AdoptionApplicationUpdateArgs!]!): [AdoptionApplication]
+  deleteAdoptionApplication(where: AdoptionApplicationWhereUniqueInput!): AdoptionApplication
+  deleteAdoptionApplications(where: [AdoptionApplicationWhereUniqueInput!]!): [AdoptionApplication]
   createAnimalComment(data: AnimalCommentCreateInput!): AnimalComment
   createAnimalComments(data: [AnimalCommentCreateInput!]!): [AnimalComment]
   updateAnimalComment(where: AnimalCommentWhereUniqueInput!, data: AnimalCommentUpdateInput!): AnimalComment
@@ -10853,6 +11031,12 @@ type Mutation {
   updateRescueOrganizationMembers(data: [RescueOrganizationMemberUpdateArgs!]!): [RescueOrganizationMember]
   deleteRescueOrganizationMember(where: RescueOrganizationMemberWhereUniqueInput!): RescueOrganizationMember
   deleteRescueOrganizationMembers(where: [RescueOrganizationMemberWhereUniqueInput!]!): [RescueOrganizationMember]
+  createPetTransfer(data: PetTransferCreateInput!): PetTransfer
+  createPetTransfers(data: [PetTransferCreateInput!]!): [PetTransfer]
+  updatePetTransfer(where: PetTransferWhereUniqueInput!, data: PetTransferUpdateInput!): PetTransfer
+  updatePetTransfers(data: [PetTransferUpdateArgs!]!): [PetTransfer]
+  deletePetTransfer(where: PetTransferWhereUniqueInput!): PetTransfer
+  deletePetTransfers(where: [PetTransferWhereUniqueInput!]!): [PetTransfer]
   createReview(data: ReviewCreateInput!): Review
   createReviews(data: [ReviewCreateInput!]!): [Review]
   updateReview(where: ReviewWhereUniqueInput!, data: ReviewUpdateInput!): Review
@@ -11238,11 +11422,21 @@ type Mutation {
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
+  submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
+
+  """status: in_review | approved | rejected"""
+  reviewAdoptionApplication(applicationId: ID!, status: String!, note: String): AdoptionApplicationResult!
+  withdrawAdoptionApplication(applicationId: ID!): AdoptionApplicationResult!
+  completeAdoptionApplication(applicationId: ID!): CompleteAdoptionApplicationResult!
   markPetAsLost(petId: ID!, lastSeenLocation: PetLastSeenLocationInput!, lastSeenDate: String!, notes: String, contactPhone: String): MarkPetAsLostResult!
   markPetAsFound(petId: ID!): MarkPetAsFoundResult!
   addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
   registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
   sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
+  createPetTransferCode(petId: ID!, message: String): PetTransferCodeResult!
+  cancelPetTransferCode(transferId: ID!): PetTransferCodeResult!
+  previewPetTransferCode(code: String!): PetTransferPreview!
+  redeemPetTransferCode(code: String!): PetTransferRedeemResult!
   submitPetEvent(input: PetEventInput!): PetEventMutationResult!
   updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
   cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
@@ -11308,6 +11502,9 @@ type Query {
   animalClaim(where: AnimalClaimWhereUniqueInput!): AnimalClaim
   animalClaims(where: AnimalClaimWhereInput! = {}, orderBy: [AnimalClaimOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalClaimWhereUniqueInput): [AnimalClaim!]
   animalClaimsCount(where: AnimalClaimWhereInput! = {}): Int
+  adoptionApplication(where: AdoptionApplicationWhereUniqueInput!): AdoptionApplication
+  adoptionApplications(where: AdoptionApplicationWhereInput! = {}, orderBy: [AdoptionApplicationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdoptionApplicationWhereUniqueInput): [AdoptionApplication!]
+  adoptionApplicationsCount(where: AdoptionApplicationWhereInput! = {}): Int
   animalComment(where: AnimalCommentWhereUniqueInput!): AnimalComment
   animalComments(where: AnimalCommentWhereInput! = {}, orderBy: [AnimalCommentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalCommentWhereUniqueInput): [AnimalComment!]
   animalCommentsCount(where: AnimalCommentWhereInput! = {}): Int
@@ -11422,6 +11619,9 @@ type Query {
   rescueOrganizationMember(where: RescueOrganizationMemberWhereUniqueInput!): RescueOrganizationMember
   rescueOrganizationMembers(where: RescueOrganizationMemberWhereInput! = {}, orderBy: [RescueOrganizationMemberOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RescueOrganizationMemberWhereUniqueInput): [RescueOrganizationMember!]
   rescueOrganizationMembersCount(where: RescueOrganizationMemberWhereInput! = {}): Int
+  petTransfer(where: PetTransferWhereUniqueInput!): PetTransfer
+  petTransfers(where: PetTransferWhereInput! = {}, orderBy: [PetTransferOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetTransferWhereUniqueInput): [PetTransfer!]
+  petTransfersCount(where: PetTransferWhereInput! = {}): Int
   review(where: ReviewWhereUniqueInput!): Review
   reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
   reviewsCount(where: ReviewWhereInput! = {}): Int
@@ -12325,6 +12525,43 @@ type AnimalClaimResult {
   animalSlug: String
 }
 
+input AdoptionApplicationInput {
+  phone: String!
+
+  """Por qué quiere adoptarlo (20 a 1000 caracteres)"""
+  message: String!
+
+  """house | apartment | other"""
+  housing: String!
+
+  """own | rent | family"""
+  housingOwnership: String!
+
+  """Si renta: ¿le permiten tener mascotas?"""
+  petsAllowed: Boolean
+  hasYard: Boolean!
+  hasChildren: Boolean!
+  otherPets: String
+
+  """Horas al día que estaría solo (0 a 24)"""
+  hoursAlone: Int!
+  experience: String
+  commitSterilization: Boolean!
+  acceptsFollowUp: Boolean!
+}
+
+type AdoptionApplicationResult {
+  success: Boolean!
+  message: String!
+  application: AdoptionApplication
+}
+
+type CompleteAdoptionApplicationResult {
+  success: Boolean!
+  message: String!
+  petId: ID
+}
+
 input PetLastSeenLocationInput {
   lat: String!
   lng: String!
@@ -12370,6 +12607,35 @@ type SendDuePetRemindersResult {
   processed: Int!
   sent: Int!
   failed: Int!
+}
+
+type PetTransferCodeResult {
+  success: Boolean!
+  message: String!
+  transfer: PetTransfer
+}
+
+type PetTransferPreview {
+  success: Boolean!
+  message: String!
+  petName: String
+
+  """Valor de AnimalType.name (dog, cat…)"""
+  species: String
+  breed: String
+  photoUrl: String
+
+  """Quien da la mascota: el espacio de rescate o el nombre de la persona"""
+  fromName: String
+  fromOrganization: Boolean
+  transferMessage: String
+  expiresAt: String
+}
+
+type PetTransferRedeemResult {
+  success: Boolean!
+  message: String!
+  petId: ID
 }
 
 input PetEventSessionInput {

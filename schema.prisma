@@ -137,45 +137,46 @@ model Ad {
 }
 
 model Animal {
-  id                         String              @id @default(cuid())
-  name                       String              @default("")
-  slug                       String?             @unique
-  physical_description       String              @default("")
-  age                        String              @default("")
-  sex                        String?             @default("male")
-  color                      String              @default("")
-  size                       String              @default("")
-  contactNumber              String              @default("")
-  contactNumber2             String              @default("")
-  sourceUrl                  String              @default("")
-  reportedBy                 String?             @default("owner")
-  animal_type                AnimalType?         @relation("Animal_animal_type", fields: [animal_typeId], references: [id])
-  animal_typeId              String?             @map("animal_type")
-  animal_breed               AnimalBreed?        @relation("Animal_animal_breed", fields: [animal_breedId], references: [id])
-  animal_breedId             String?             @map("animal_breed")
-  user                       User?               @relation("Animal_user", fields: [userId], references: [id])
-  userId                     String?             @map("user")
-  organization               RescueOrganization? @relation("Animal_organization", fields: [organizationId], references: [id])
-  organizationId             String?             @map("organization")
-  multimedia                 AnimalMultimedia[]  @relation("AnimalMultimedia_animal")
-  logs                       AnimalLog[]         @relation("AnimalLog_animal")
-  animal_views               AnimalView[]        @relation("AnimalView_animal")
-  facebookPostId             String              @default("")
-  facebookPublishedAt        DateTime?
-  facebookPublishedBy        User?               @relation("Animal_facebookPublishedBy", fields: [facebookPublishedById], references: [id])
-  facebookPublishedById      String?             @map("facebookPublishedBy")
-  pet                        Pet?                @relation("Animal_pet", fields: [petId], references: [id])
-  petId                      String?             @map("pet")
-  duplicateOf                Animal?             @relation("Animal_duplicateOf", fields: [duplicateOfId], references: [id])
-  duplicateOfId              String?             @map("duplicateOf")
-  duplicateCheck             Json?
-  createdAt                  DateTime?           @default(now())
-  from_Animal_duplicateOf    Animal[]            @relation("Animal_duplicateOf")
-  from_AnimalClaim_animal    AnimalClaim[]       @relation("AnimalClaim_animal")
-  from_AnimalComment_animal  AnimalComment[]     @relation("AnimalComment_animal")
-  from_AnimalFavorite_animal AnimalFavorite[]    @relation("AnimalFavorite_animal")
-  from_Pet_lostReport        Pet[]               @relation("Pet_lostReport")
-  from_Pet_publicReport      Pet[]               @relation("Pet_publicReport")
+  id                              String                @id @default(cuid())
+  name                            String                @default("")
+  slug                            String?               @unique
+  physical_description            String                @default("")
+  age                             String                @default("")
+  sex                             String?               @default("male")
+  color                           String                @default("")
+  size                            String                @default("")
+  contactNumber                   String                @default("")
+  contactNumber2                  String                @default("")
+  sourceUrl                       String                @default("")
+  reportedBy                      String?               @default("owner")
+  animal_type                     AnimalType?           @relation("Animal_animal_type", fields: [animal_typeId], references: [id])
+  animal_typeId                   String?               @map("animal_type")
+  animal_breed                    AnimalBreed?          @relation("Animal_animal_breed", fields: [animal_breedId], references: [id])
+  animal_breedId                  String?               @map("animal_breed")
+  user                            User?                 @relation("Animal_user", fields: [userId], references: [id])
+  userId                          String?               @map("user")
+  organization                    RescueOrganization?   @relation("Animal_organization", fields: [organizationId], references: [id])
+  organizationId                  String?               @map("organization")
+  multimedia                      AnimalMultimedia[]    @relation("AnimalMultimedia_animal")
+  logs                            AnimalLog[]           @relation("AnimalLog_animal")
+  animal_views                    AnimalView[]          @relation("AnimalView_animal")
+  facebookPostId                  String                @default("")
+  facebookPublishedAt             DateTime?
+  facebookPublishedBy             User?                 @relation("Animal_facebookPublishedBy", fields: [facebookPublishedById], references: [id])
+  facebookPublishedById           String?               @map("facebookPublishedBy")
+  pet                             Pet?                  @relation("Animal_pet", fields: [petId], references: [id])
+  petId                           String?               @map("pet")
+  duplicateOf                     Animal?               @relation("Animal_duplicateOf", fields: [duplicateOfId], references: [id])
+  duplicateOfId                   String?               @map("duplicateOf")
+  duplicateCheck                  Json?
+  createdAt                       DateTime?             @default(now())
+  from_Animal_duplicateOf         Animal[]              @relation("Animal_duplicateOf")
+  from_AnimalClaim_animal         AnimalClaim[]         @relation("AnimalClaim_animal")
+  from_AdoptionApplication_animal AdoptionApplication[] @relation("AdoptionApplication_animal")
+  from_AnimalComment_animal       AnimalComment[]       @relation("AnimalComment_animal")
+  from_AnimalFavorite_animal      AnimalFavorite[]      @relation("AnimalFavorite_animal")
+  from_Pet_lostReport             Pet[]                 @relation("Pet_lostReport")
+  from_Pet_publicReport           Pet[]                 @relation("Pet_publicReport")
 
   @@index([animal_typeId])
   @@index([animal_breedId])
@@ -224,6 +225,33 @@ model AnimalClaim {
   @@index([claimantId])
   @@index([previousUserId])
   @@index([resolvedById])
+}
+
+model AdoptionApplication {
+  id             String    @id @default(cuid())
+  animal         Animal?   @relation("AdoptionApplication_animal", fields: [animalId], references: [id])
+  animalId       String?   @map("animal")
+  applicant      User?     @relation("AdoptionApplication_applicant", fields: [applicantId], references: [id])
+  applicantId    String?   @map("applicant")
+  applicantName  String    @default("")
+  applicantEmail String    @default("")
+  phone          String    @default("")
+  message        String    @default("")
+  answers        Json?
+  status         String    @default("submitted")
+  decisionNote   String    @default("")
+  decidedBy      User?     @relation("AdoptionApplication_decidedBy", fields: [decidedById], references: [id])
+  decidedById    String?   @map("decidedBy")
+  decidedAt      DateTime?
+  pet            Pet?      @relation("AdoptionApplication_pet", fields: [petId], references: [id])
+  petId          String?   @map("pet")
+  createdAt      DateTime? @default(now())
+  updatedAt      DateTime? @default(now()) @updatedAt
+
+  @@index([animalId])
+  @@index([applicantId])
+  @@index([decidedById])
+  @@index([petId])
 }
 
 model AnimalComment {
@@ -466,7 +494,9 @@ model Pet {
   createdAt                    DateTime?                 @default(now())
   updatedAt                    DateTime?                 @default(now()) @updatedAt
   from_Animal_pet              Animal[]                  @relation("Animal_pet")
+  from_AdoptionApplication_pet AdoptionApplication[]     @relation("AdoptionApplication_pet")
   from_PetPlaceAppointment_pet PetPlaceAppointment[]     @relation("PetPlaceAppointment_pet")
+  from_PetTransfer_pet         PetTransfer[]             @relation("PetTransfer_pet")
 
   @@index([animal_typeId])
   @@index([animal_breedId])
@@ -898,49 +928,50 @@ model Product {
 }
 
 model RescueOrganization {
-  id                               String                     @id @default(cuid())
-  name                             String                     @default("")
-  slug                             String?                    @unique
-  type                             String                     @default("independent")
-  description                      String                     @default("")
-  logo_id                          String?
-  logo_filesize                    Int?
-  logo_width                       Int?
-  logo_height                      Int?
-  logo_extension                   String?
-  cover_id                         String?
-  cover_filesize                   Int?
-  cover_width                      Int?
-  cover_height                     Int?
-  cover_extension                  String?
-  city                             String                     @default("")
-  state                            String                     @default("")
-  species                          Json                       @default("[]")
-  capacity                         Int?
-  whatsapp                         String                     @default("")
-  email                            String                     @default("")
-  websiteUrl                       String                     @default("")
-  facebookUrl                      String                     @default("")
-  instagramUrl                     String                     @default("")
-  tiktokUrl                        String                     @default("")
-  donationUrl                      String                     @default("")
-  donationInfo                     String                     @default("")
-  needs                            String                     @default("")
-  status                           String                     @default("pending")
-  statusNote                       String                     @default("")
-  verifiedAt                       DateTime?
-  isAlly                           Boolean                    @default(false)
-  allySince                        DateTime?
-  allyOrder                        Int?
-  adminNotes                       String                     @default("")
-  createdBy                        User?                      @relation("RescueOrganization_createdBy", fields: [createdById], references: [id])
-  createdById                      String?                    @map("createdBy")
-  members                          RescueOrganizationMember[] @relation("RescueOrganizationMember_organization")
-  animals                          Animal[]                   @relation("Animal_organization")
-  pets                             Pet[]                      @relation("Pet_organization")
-  createdAt                        DateTime?                  @default(now())
-  updatedAt                        DateTime?                  @updatedAt
-  from_Pet_adoptedFromOrganization Pet[]                      @relation("Pet_adoptedFromOrganization")
+  id                                String                     @id @default(cuid())
+  name                              String                     @default("")
+  slug                              String?                    @unique
+  type                              String                     @default("independent")
+  description                       String                     @default("")
+  logo_id                           String?
+  logo_filesize                     Int?
+  logo_width                        Int?
+  logo_height                       Int?
+  logo_extension                    String?
+  cover_id                          String?
+  cover_filesize                    Int?
+  cover_width                       Int?
+  cover_height                      Int?
+  cover_extension                   String?
+  city                              String                     @default("")
+  state                             String                     @default("")
+  species                           Json                       @default("[]")
+  capacity                          Int?
+  whatsapp                          String                     @default("")
+  email                             String                     @default("")
+  websiteUrl                        String                     @default("")
+  facebookUrl                       String                     @default("")
+  instagramUrl                      String                     @default("")
+  tiktokUrl                         String                     @default("")
+  donationUrl                       String                     @default("")
+  donationInfo                      String                     @default("")
+  needs                             String                     @default("")
+  status                            String                     @default("pending")
+  statusNote                        String                     @default("")
+  verifiedAt                        DateTime?
+  isAlly                            Boolean                    @default(false)
+  allySince                         DateTime?
+  allyOrder                         Int?
+  adminNotes                        String                     @default("")
+  createdBy                         User?                      @relation("RescueOrganization_createdBy", fields: [createdById], references: [id])
+  createdById                       String?                    @map("createdBy")
+  members                           RescueOrganizationMember[] @relation("RescueOrganizationMember_organization")
+  animals                           Animal[]                   @relation("Animal_organization")
+  pets                              Pet[]                      @relation("Pet_organization")
+  createdAt                         DateTime?                  @default(now())
+  updatedAt                         DateTime?                  @updatedAt
+  from_Pet_adoptedFromOrganization  Pet[]                      @relation("Pet_adoptedFromOrganization")
+  from_PetTransfer_fromOrganization PetTransfer[]              @relation("PetTransfer_fromOrganization")
 
   @@index([status])
   @@index([createdById])
@@ -958,6 +989,29 @@ model RescueOrganizationMember {
 
   @@index([organizationId])
   @@index([userId])
+}
+
+model PetTransfer {
+  id                 String              @id @default(cuid())
+  pet                Pet?                @relation("PetTransfer_pet", fields: [petId], references: [id])
+  petId              String?             @map("pet")
+  code               String              @unique @default("")
+  status             String              @default("pending")
+  expiresAt          DateTime
+  message            String              @default("")
+  fromOrganization   RescueOrganization? @relation("PetTransfer_fromOrganization", fields: [fromOrganizationId], references: [id])
+  fromOrganizationId String?             @map("fromOrganization")
+  createdBy          User?               @relation("PetTransfer_createdBy", fields: [createdById], references: [id])
+  createdById        String?             @map("createdBy")
+  redeemedBy         User?               @relation("PetTransfer_redeemedBy", fields: [redeemedById], references: [id])
+  redeemedById       String?             @map("redeemedBy")
+  redeemedAt         DateTime?
+  createdAt          DateTime?           @default(now())
+
+  @@index([petId])
+  @@index([fromOrganizationId])
+  @@index([createdById])
+  @@index([redeemedById])
 }
 
 model Review {
@@ -2179,6 +2233,8 @@ model User {
   from_AnimalClaim_claimant                AnimalClaim[]              @relation("AnimalClaim_claimant")
   from_AnimalClaim_previousUser            AnimalClaim[]              @relation("AnimalClaim_previousUser")
   from_AnimalClaim_resolvedBy              AnimalClaim[]              @relation("AnimalClaim_resolvedBy")
+  from_AdoptionApplication_applicant       AdoptionApplication[]      @relation("AdoptionApplication_applicant")
+  from_AdoptionApplication_decidedBy       AdoptionApplication[]      @relation("AdoptionApplication_decidedBy")
   from_AnimalComment_user                  AnimalComment[]            @relation("AnimalComment_user")
   from_AnimalFavorite_user                 AnimalFavorite[]           @relation("AnimalFavorite_user")
   from_AnimalView_user                     AnimalView[]               @relation("AnimalView_user")
@@ -2198,6 +2254,8 @@ model User {
   from_PostView_user                       PostView[]                 @relation("PostView_user")
   from_RescueOrganization_createdBy        RescueOrganization[]       @relation("RescueOrganization_createdBy")
   from_RescueOrganizationMember_user       RescueOrganizationMember[] @relation("RescueOrganizationMember_user")
+  from_PetTransfer_createdBy               PetTransfer[]              @relation("PetTransfer_createdBy")
+  from_PetTransfer_redeemedBy              PetTransfer[]              @relation("PetTransfer_redeemedBy")
   from_Review_user                         Review[]                   @relation("Review_user")
   from_SaasCompany_accountManager          SaasCompany[]              @relation("SaasCompany_accountManager")
   from_SaasCompanyNote_author              SaasCompanyNote[]          @relation("SaasCompanyNote_author")

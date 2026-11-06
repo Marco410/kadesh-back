@@ -6,6 +6,7 @@ import AnimalLog from "./Pet/Animal/AnimalLog/AnimalLog";
 import AnimalView from "./Pet/Animal/AnimalView/AnimalView";
 import AnimalComment from "./Pet/Animal/AnimalComment/AnimalComment";
 import AnimalClaim from "./Pet/Animal/AnimalClaim/AnimalClaim";
+import AdoptionApplication from "./Pet/Animal/AdoptionApplication/AdoptionApplication";
 import User from "./User/User";
 import UserAuthLog from "./User/UserAuthLog/UserAuthLog";
 import UserActivityDay from "./User/UserActivityDay/UserActivityDay";
@@ -23,6 +24,7 @@ import PetReminder from "./Pet/Reminder/PetReminder";
 import PetPlace from "./Pet/PetPlace/PetPlace";
 import RescueOrganization from "./Pet/RescueOrganization/RescueOrganization";
 import RescueOrganizationMember from "./Pet/RescueOrganization/RescueOrganizationMember/RescueOrganizationMember";
+import PetTransfer from "./Pet/PetTransfer/PetTransfer";
 import PetPlaceAppointment from "./Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment";
 import PetPlaceLike from "./Pet/PetPlace/PetPlaceLike/PetPlaceLike";
 import PetPlaceService from "./Pet/PetPlace/PetPlaceService/PetPlaceService";
@@ -107,6 +109,7 @@ export default withActivityHooks({
   Animal,
   AnimalBreed,
   AnimalClaim,
+  AdoptionApplication,
   AnimalComment,
   AnimalFavorite,
   AnimalLog,
@@ -145,6 +148,7 @@ export default withActivityHooks({
   Product,
   RescueOrganization,
   RescueOrganizationMember,
+  PetTransfer,
   Review,
   Role,
   SaasCompany,

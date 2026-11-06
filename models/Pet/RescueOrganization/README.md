@@ -62,8 +62,30 @@ Decisiones de la Fase 2:
 - **Adoptante con cuenta existente.** Igual que el equipo: no se crean cuentas a nombre de otros.
 - **«Perdido» sigue siendo de la cartilla familiar** (`markPetAsLost`); una ficha se publica en adopción o como rescatado.
 
+## Solicitudes de adopción y traspasos (Fase 3)
+
+**Solicitudes** (`models/Pet/Animal/AdoptionApplication/`, mutaciones en `graphql/customs/mutations/pet/adoptionApplications.ts`). Sirven para cualquier animal «En adopción», sea de un espacio o de una persona.
+
+- **Enviar** (`submitAdoptionApplication`), con sesión:
+  - El último estado del animal debe ser `in_adoption`, y quien lo publicó (o su equipo) no puede solicitarlo.
+  - Una solicitud abierta por persona y animal; tope de 10 al día (`adoption_application_user`).
+  - Pide teléfono, por qué quiere adoptarlo y un cuestionario (`answers`): vivienda, si es propia o rentada (y si permiten mascotas), patio, niños, otros animales, horas solo y experiencia. También dos compromisos obligatorios: esterilizar y aceptar seguimiento.
+  - Se copian el nombre y el correo de quien la envía: quien revisa no puede leer su `User`.
+  - Avisa a quien publicó al animal y a admin/coordinación del espacio (`adoption.application_received`).
+- **Revisar** (`reviewAdoptionApplication`): «En revisión», «Aprobada» o «No aprobada», con un mensaje opcional que le llega a quien la envió (`adoption.application_updated`). Lo hace quien puede editar al animal.
+- **Retirar** (`withdrawAdoptionApplication`): quien la envió.
+- **Completar** (`completeAdoptionApplication`): solo desde «Aprobada». En un espacio lo hacen admin y coordinación; si no, el autor del reporte.
+  - Si el animal ya tiene cartilla, pasa al adoptante: la ficha del espacio, o la cartilla del autor si él es el principal.
+  - Si no tiene, se crea una en la cuenta del adoptante con los datos y fotos del reporte.
+  - El reporte queda «Adoptado», la solicitud «Adoptó» y las demás abiertas «Cerrada», con un aviso amable a cada quien.
+- **Estados**: `submitted`, `in_review`, `approved`, `rejected`, `withdrawn`, `completed` y `closed`. Abiertas: las tres primeras.
+- **Acceso**: la ven quien la envió, quien puede editar al animal y un admin de plataforma. Por API solo la escribe un admin.
+
+**Traspaso con código** (`PetTransfer`): ver `docs/cartilla/README.md` («Traspasos»). Para un espacio es otra forma de entregar al animal: admin o coordinación generan el código desde la ficha y quien adopta lo escribe en su cuenta. Funciona igual que `completeRescueAdoption`, sin que el espacio tenga que conocer su correo.
+
+Cuando el animal encuentra familia por cualquier vía (solicitud, código o correo), las solicitudes abiertas se cierran (`settleApplicationsAfterAdoption`) y los códigos sin usar de esa mascota se cancelan.
+
 ## Pendiente (siguientes fases)
 
-- Solicitudes de adopción (`AdoptionApplication`) con «Quiero adoptarlo» en la ficha pública.
 - Seguimiento después de la adopción (con permiso del adoptante).
 - Reportar como perdido un animal de una ficha (hoy solo la cartilla familiar).
