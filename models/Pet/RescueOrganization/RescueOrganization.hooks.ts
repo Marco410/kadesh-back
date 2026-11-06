@@ -42,14 +42,16 @@ export async function resolveRescueOrgInput({ operation, resolvedData, item, con
     data.slug = clean ? await uniqueRescueSlug(context, clean, item?.id ? String(item.id) : undefined) : item?.slug;
   }
 
-  if ("status" in data && data.status === RESCUE_ORG_STATUS.VERIFIED && !item?.verifiedAt && !data.verifiedAt) {
+  // `resolvedData` trae todas las llaves; las que no vienen en el cambio valen `undefined`.
+  const statusChanged = data.status !== undefined;
+  if (statusChanged && data.status === RESCUE_ORG_STATUS.VERIFIED && !item?.verifiedAt && !data.verifiedAt) {
     data.verifiedAt = new Date().toISOString();
   }
   // Al dejar de estar verificada, sale de la portada de aliados.
-  if ("status" in data && data.status !== RESCUE_ORG_STATUS.VERIFIED && item?.isAlly && data.isAlly !== true) {
+  if (statusChanged && data.status !== RESCUE_ORG_STATUS.VERIFIED && item?.isAlly && data.isAlly !== true) {
     data.isAlly = false;
   }
-  if ("isAlly" in data) {
+  if (data.isAlly !== undefined) {
     if (data.isAlly && !item?.allySince && !data.allySince) data.allySince = new Date().toISOString();
     if (data.isAlly === false) data.allySince = null;
   }

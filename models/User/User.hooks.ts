@@ -279,7 +279,7 @@ export const userRoleHook = {
 /** Normaliza / valida `permissions` y bloquea auto-asignación por no managers. */
 export const userPermissionsHook = {
   resolveInput: async ({ resolvedData, context }: any) => {
-    if (!("permissions" in resolvedData)) return resolvedData;
+    if (resolvedData.permissions === undefined) return resolvedData;
 
     if (
       !isPlatformAdmin(context.session) &&

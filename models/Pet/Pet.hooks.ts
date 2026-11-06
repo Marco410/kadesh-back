@@ -23,7 +23,8 @@ type HookArgs = {
  * `markPetAsFound` lo quita, para que la mascota y el reporte no se desfasen.
  */
 function validatePetStatus({ operation, item, resolvedData, context, addValidationError }: HookArgs) {
-  if (!resolvedData || !("status" in resolvedData)) return;
+  // `resolvedData` trae todas las llaves; sin `status` en el cambio no hay nada que revisar.
+  if (!resolvedData || resolvedData.status === undefined) return;
   if (isSudoContext(context) || isPlatformAdmin(context.session)) return;
   const next = resolvedData.status;
   const current = operation === "update" ? item?.status : null;
@@ -79,11 +80,12 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
     } else if (!org?.status || !RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) {
       fail("Este espacio de rescate no está activo.");
     }
-  } else if (("stage" in resolvedData || "intakeDate" in resolvedData) && !isEditor) {
+  } else if ((resolvedData.stage !== undefined || resolvedData.intakeDate !== undefined) && !isEditor) {
+    // `resolvedData` trae todas las llaves; las que no vienen en el cambio valen `undefined`.
     fail("La etapa y la fecha de llegada las cambia el equipo del espacio.");
   }
 
-  if ("fosterMember" in resolvedData) {
+  if (resolvedData.fosterMember !== undefined) {
     if (!role || !RESCUE_ANIMAL_MANAGER_ROLES.includes(role)) {
       fail("El hogar temporal lo asignan admin y coordinación del espacio.");
       return;

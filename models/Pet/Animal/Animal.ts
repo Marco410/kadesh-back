@@ -33,7 +33,9 @@ export default list({
   hooks: {
     resolveInput: ({ resolvedData, operation, context }) => {
       const data = forceAnimalOwner({ ...resolvedData }, operation, context);
-      if ("duplicateCheck" in data) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
+      // `resolvedData` trae todas las llaves (las que no vienen valen `undefined`): con `in` se
+      // borraba `duplicateCheck` en cada edición del reporte.
+      if (data.duplicateCheck !== undefined) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
       for (const key of ["contactNumber", "contactNumber2"] as const) {
         if (!(key in data) || data[key] == null) continue;
         const raw = String(data[key]);

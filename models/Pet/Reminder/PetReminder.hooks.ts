@@ -12,10 +12,13 @@ type HookArgs = {
   addValidationError?: (message: string) => void;
 };
 
-/** Una fecha nueva es un aviso nuevo: vuelve a `pending` salvo que también se mande el status. */
+/**
+ * Una fecha nueva es un aviso nuevo: vuelve a `pending` salvo que también se mande el status.
+ * `resolvedData` trae todas las llaves de la lista; las que no vienen en el cambio valen `undefined`.
+ */
 function resetWhenDueDateChanges({ operation, item, resolvedData = {} }: HookArgs) {
   const data = { ...resolvedData };
-  if (operation !== "update" || !("dueDate" in data) || "status" in data) return data;
+  if (operation !== "update" || data.dueDate === undefined || data.status !== undefined) return data;
   if (toYmd(data.dueDate) !== toYmd(item?.dueDate)) {
     data.status = PET_REMINDER_STATUS.PENDING;
     data.sentAt = null;
@@ -31,10 +34,10 @@ async function validateReminder(args: HookArgs) {
   }
   await validatePetChildOwner({ resolvedData, context, addValidationError });
 
-  if ("channels" in resolvedData && (!Array.isArray(resolvedData.channels) || resolvedData.channels.length === 0)) {
+  if (resolvedData.channels !== undefined && (!Array.isArray(resolvedData.channels) || resolvedData.channels.length === 0)) {
     addValidationError("Elige al menos un canal para el recordatorio.");
   }
-  if ("notifyDaysBefore" in resolvedData) {
+  if (resolvedData.notifyDaysBefore !== undefined) {
     const days = Number(resolvedData.notifyDaysBefore);
     if (!Number.isInteger(days) || days < 0 || days > PET_REMINDER_MAX_DAYS_BEFORE) {
       addValidationError(`Los días de aviso van de 0 a ${PET_REMINDER_MAX_DAYS_BEFORE}.`);
