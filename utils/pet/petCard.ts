@@ -25,6 +25,11 @@ export function petCardUrl(petId: string): string {
   return `${petFrontendBase()}/perfil?tab=pets&pet=${encodeURIComponent(petId)}`;
 }
 
+/** Una solicitud de adopción en «Adopciones» del perfil de quien la envió (estado, proceso y editarla). */
+export function adoptionApplicationUrl(applicationId: string): string {
+  return `${petFrontendBase()}/perfil?tab=adopciones&solicitud=${encodeURIComponent(applicationId)}`;
+}
+
 /** Lista «Mis mascotas» del perfil. */
 export function petListUrl(): string {
   return `${petFrontendBase()}/perfil?tab=pets`;

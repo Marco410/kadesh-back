@@ -197,6 +197,7 @@ export const ACTIVITY_EVENT = {
   PET_ANIMAL_KEPT: "pet.animal_kept",
   // Solicitudes de adopción y traspasos de cartilla con código.
   PET_ADOPTION_APPLICATION_SUBMITTED: "pet.adoption_application_submitted",
+  PET_ADOPTION_APPLICATION_EDITED: "pet.adoption_application_edited",
   PET_ADOPTION_APPLICATION_REVIEWED: "pet.adoption_application_reviewed",
   PET_ADOPTION_APPLICATION_WITHDRAWN: "pet.adoption_application_withdrawn",
   PET_ADOPTION_APPLICATION_COMPLETED: "pet.adoption_application_completed",

@@ -11424,6 +11424,9 @@ type Mutation {
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
 
+  """Solo quien la envió y solo mientras siga «Enviada» (submitted)."""
+  editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
+
   """status: in_review | approved | rejected"""
   reviewAdoptionApplication(applicationId: ID!, status: String!, note: String): AdoptionApplicationResult!
   withdrawAdoptionApplication(applicationId: ID!): AdoptionApplicationResult!

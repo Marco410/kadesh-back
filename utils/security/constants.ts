@@ -105,6 +105,14 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     windowMs: DAY,
   },
   {
+    key: "adoption_application_edit_user",
+    label: "Ediciones de solicitudes de adopción por persona",
+    fields: ["editAdoptionApplication"],
+    scope: "user",
+    limit: 20,
+    windowMs: DAY,
+  },
+  {
     key: "pet_transfer_code_user",
     label: "Códigos de traspaso de mascotas generados",
     fields: ["createPetTransferCode"],

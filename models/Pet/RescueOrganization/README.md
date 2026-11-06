@@ -13,8 +13,8 @@ Rescatistas independientes, refugios, hogares temporales, colectivos y asociacio
 ## Ciclo de vida
 
 1. **Activar.** `activateRescueOrganization(input)` crea la organización en `pending` y deja a quien llama como `admin`. Avisa a los admins (`rescue.submitted`). El tope es de 3 espacios por persona. El logo y la portada se suben después con `updateRescueOrganization` (upload de Keystone).
-2. **Verificar.** Un admin valida por WhatsApp y cambia `status` a `verified` en el admin de Keystone. El hook pone `verifiedAt` y avisa a los admins del espacio (`rescue.verified`). Con `rejected` o `suspended` también les avisa (`rescue.rejected`), con el motivo de `statusNote`.
-3. **Aliado.** Un admin marca `isAlly` (y opcionalmente `allyOrder`). Solo se permite en organizaciones verificadas. Al dejar de estar verificada, deja de ser aliada sola. La consulta pública es `rescueAllies(take)`.
+2. **Verificar.** Un admin valida por WhatsApp y cambia `status` a `verified` en Operaciones de kadesh-business (Kadesh Pet → Espacios de rescate; también se puede en el admin de Keystone). La campana de Operaciones lleva de `rescue.submitted` directo a su revisión. El hook pone `verifiedAt` y avisa a los admins del espacio (`rescue.verified`). Con `rejected` o `suspended` también les avisa (`rescue.rejected`), con el motivo de `statusNote`.
+3. **Aliado.** Un admin marca `isAlly` (y opcionalmente `allyOrder`), en la misma pantalla de Operaciones. Solo se permite en organizaciones verificadas. Al dejar de estar verificada, deja de ser aliada sola. La consulta pública es `rescueAllies(take)`.
 
 ## Acceso
 
@@ -72,8 +72,10 @@ Decisiones de la Fase 2:
   - Pide teléfono, por qué quiere adoptarlo y un cuestionario (`answers`): vivienda, si es propia o rentada (y si permiten mascotas), patio, niños, otros animales, horas solo y experiencia. También dos compromisos obligatorios: esterilizar y aceptar seguimiento.
   - Se copian el nombre y el correo de quien la envía: quien revisa no puede leer su `User`.
   - Avisa a quien publicó al animal y a admin/coordinación del espacio (`adoption.application_received`).
-- **Revisar** (`reviewAdoptionApplication`): «En revisión», «Aprobada» o «No aprobada», con un mensaje opcional que le llega a quien la envió (`adoption.application_updated`). Lo hace quien puede editar al animal.
+- **Editar** (`editAdoptionApplication`; `updateAdoptionApplication` es el CRUD de Keystone, solo admin): quien la envió corrige teléfono, mensaje y cuestionario mientras siga «Enviada» (nadie la ha puesto en revisión ni decidido). Mismas validaciones que al enviar; tope de 20 ediciones al día (`adoption_application_edit_user`). Avisa a quien atiende al animal que la actualizó (`adoption.application_received`, con `metadata.edited`).
+- **Revisar** (`reviewAdoptionApplication`): «En revisión», «Aprobada» o «No aprobada», con un mensaje opcional que le llega a quien la envió (`adoption.application_updated`). Lo hace quien puede editar al animal. Al ponerla «En revisión», quien la envió ya no puede editarla.
 - **Retirar** (`withdrawAdoptionApplication`): quien la envió.
+- Los avisos a quien la envió (`adoption.application_updated`) abren su solicitud en el perfil de la web (`adoptionApplicationUrl`: `/perfil?tab=adopciones&solicitud=<id>`), donde ve el proceso, la edita o la retira.
 - **Completar** (`completeAdoptionApplication`): solo desde «Aprobada». En un espacio lo hacen admin y coordinación; si no, el autor del reporte.
   - Si el animal ya tiene cartilla, pasa al adoptante: la ficha del espacio, o la cartilla del autor si él es el principal.
   - Si no tiene, se crea una en la cuenta del adoptante con los datos y fotos del reporte.

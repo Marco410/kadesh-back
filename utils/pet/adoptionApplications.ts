@@ -5,7 +5,7 @@ import {
 } from "../../models/Pet/Animal/AdoptionApplication/constants";
 import { NOTIFICATION_TYPE } from "../../models/Notification/constants";
 import { notify } from "../notifications/notify";
-import { petPublicUrl } from "./animalReport";
+import { adoptionApplicationUrl } from "./petCard";
 
 function prismaOf(context: KeystoneContext): any {
   return (context.sudo() as KeystoneContext & { prisma: any }).prisma;
@@ -53,7 +53,7 @@ export async function settleApplicationsAfterAdoption(
           body: "Gracias por querer adoptar. Hay más animales esperando un hogar en KADESH.",
           entityType: "AdoptionApplication",
           entityId: application.id,
-          url: petPublicUrl(animal.slug || animal.id),
+          url: adoptionApplicationUrl(application.id),
           metadata: { status: ADOPTION_APPLICATION_STATUS.CLOSED },
         });
       }

@@ -21,7 +21,7 @@ import { reportAudienceWithTeam } from "../../../../utils/notifications/animalRe
 import { notify } from "../../../../utils/notifications/notify";
 import { settleApplicationsAfterAdoption } from "../../../../utils/pet/adoptionApplications";
 import { petPublicUrl } from "../../../../utils/pet/animalReport";
-import { petCardUrl } from "../../../../utils/pet/petCard";
+import { adoptionApplicationUrl, petCardUrl } from "../../../../utils/pet/petCard";
 import {
   REPORT_FOR_PET_QUERY,
   cancelPendingTransfers,
@@ -41,6 +41,8 @@ import { closeReportAsAdopted, lastReportLog } from "../../../../utils/pet/repor
  *   publicó ella. Una abierta por animal. Avisa a quien lo publicó y a admin/coordinación del espacio.
  * - `reviewAdoptionApplication`: quien atiende el animal (autor o equipo del espacio) la pone en
  *   revisión, la aprueba o la rechaza. Avisa a quien la envió.
+ * - `editAdoptionApplication`: quien la envió la corrige mientras siga «Enviada» (nadie la ha
+ *   puesto en revisión ni decidido). Avisa a quien atiende el animal que la actualizó.
  * - `withdrawAdoptionApplication`: quien la envió la retira.
  * - `completeAdoptionApplication`: con la solicitud aprobada, el animal pasa a la cuenta del
  *   adoptante con su cartilla (si no tenía, se crea desde el reporte) y el reporte queda
@@ -84,6 +86,8 @@ const typeDefs = `
 
 const definition = `
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
+  "Solo quien la envió y solo mientras siga «Enviada» (submitted)."
+  editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
   "status: in_review | approved | rejected"
   reviewAdoptionApplication(applicationId: ID!, status: String!, note: String): AdoptionApplicationResult!
   withdrawAdoptionApplication(applicationId: ID!): AdoptionApplicationResult!
@@ -203,6 +207,22 @@ function validateInput(input: ApplicationInput): { ok: true; phone: string } | {
   return { ok: true, phone: phone.digits };
 }
 
+/** El JSON `answers` tal como se guarda (al enviar y al editar). */
+function answersFrom(input: ApplicationInput) {
+  return {
+    housing: input.housing,
+    housingOwnership: input.housingOwnership,
+    petsAllowed: input.housingOwnership === "rent" ? Boolean(input.petsAllowed) : null,
+    hasYard: Boolean(input.hasYard),
+    hasChildren: Boolean(input.hasChildren),
+    otherPets: (input.otherPets ?? "").trim(),
+    hoursAlone: Number(input.hoursAlone),
+    experience: (input.experience ?? "").trim(),
+    commitSterilization: true,
+    acceptsFollowUp: true,
+  };
+}
+
 const REVIEW_COPY: Record<string, (name: string, note: string) => { title: string; body: string }> = {
   [ADOPTION_APPLICATION_STATUS.IN_REVIEW]: (name) => ({
     title: `Tu solicitud para adoptar a ${name} está en revisión`,
@@ -261,18 +281,7 @@ const resolver = {
           applicantEmail: applicant?.email ?? "",
           phone: checked.phone,
           message: input.message.trim(),
-          answers: {
-            housing: input.housing,
-            housingOwnership: input.housingOwnership,
-            petsAllowed: input.housingOwnership === "rent" ? Boolean(input.petsAllowed) : null,
-            hasYard: Boolean(input.hasYard),
-            hasChildren: Boolean(input.hasChildren),
-            otherPets: (input.otherPets ?? "").trim(),
-            hoursAlone: Number(input.hoursAlone),
-            experience: (input.experience ?? "").trim(),
-            commitSterilization: true,
-            acceptsFollowUp: true,
-          },
+          answers: answersFrom(input),
           status: ADOPTION_APPLICATION_STATUS.SUBMITTED,
         },
         query: "id",
@@ -351,7 +360,7 @@ const resolver = {
           body: copy.body,
           entityType: "AdoptionApplication",
           entityId: application.id,
-          url: animalUrl(animal),
+          url: adoptionApplicationUrl(application.id),
           metadata: { status },
         });
       }
@@ -375,6 +384,63 @@ const resolver = {
     } catch (error) {
       console.error("[reviewAdoptionApplication]", error);
       return fail(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
+    }
+  },
+
+  editAdoptionApplication: async (
+    _root: unknown,
+    { applicationId, input }: { applicationId: string; input: ApplicationInput },
+    context: KeystoneContext,
+  ) => {
+    const fail = (message: string) => ({ success: false, message, application: null });
+    try {
+      const userId = getSessionUserId(context.session);
+      const application = await loadApplication(context, applicationId);
+      if (!userId || application.applicant?.id !== userId) return fail("Solo quien envió la solicitud puede editarla.");
+      const animal = application.animal!;
+      const name = animalLabel(animal);
+      if (application.status !== ADOPTION_APPLICATION_STATUS.SUBMITTED) {
+        return fail(
+          ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)
+            ? `Quien cuida a ${name} ya la está revisando, así que ya no se puede editar. Si algo cambió, cuéntaselo cuando te contacte.`
+            : "Esta solicitud ya está cerrada.",
+        );
+      }
+      const checked = validateInput(input);
+      if (!checked.ok) return fail(checked.message);
+
+      const updated = await prismaOf(context).adoptionApplication.update({
+        where: { id: application.id },
+        data: { phone: checked.phone, message: input.message.trim(), answers: answersFrom(input) },
+      });
+      if (updated instanceof Error) throw updated;
+
+      void notify(context, {
+        audience: await reportAudienceWithTeam(context, animal),
+        product: "pet",
+        type: NOTIFICATION_TYPE.ADOPTION_APPLICATION_RECEIVED,
+        title: `${firstName(application.applicantName)} actualizó su solicitud para adoptar a ${name}`,
+        body: input.message.trim().replace(/\s+/g, " ").slice(0, 140),
+        entityType: "AdoptionApplication",
+        entityId: application.id,
+        url: animalUrl(animal, application.id),
+        metadata: { animalId: animal.id, organizationId: animal.organization?.id ?? null, edited: true },
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_ADOPTION_APPLICATION_EDITED,
+        summary: `Editó su solicitud para adoptar a "${name.slice(0, 60)}"`,
+        entityType: "AdoptionApplication",
+        entityId: application.id,
+        metadata: { animalId: animal.id },
+      });
+      return {
+        success: true,
+        message: `Guardamos los cambios. Quien cuida a ${name} verá tu solicitud actualizada.`,
+        application: await context.db.AdoptionApplication.findOne({ where: { id: application.id } }),
+      };
+    } catch (error) {
+      console.error("[editAdoptionApplication]", error);
+      return fail(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
     }
   },
 

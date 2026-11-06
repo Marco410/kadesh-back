@@ -218,6 +218,7 @@ var ACTIVITY_EVENT = {
   PET_ANIMAL_KEPT: "pet.animal_kept",
   // Solicitudes de adopción y traspasos de cartilla con código.
   PET_ADOPTION_APPLICATION_SUBMITTED: "pet.adoption_application_submitted",
+  PET_ADOPTION_APPLICATION_EDITED: "pet.adoption_application_edited",
   PET_ADOPTION_APPLICATION_REVIEWED: "pet.adoption_application_reviewed",
   PET_ADOPTION_APPLICATION_WITHDRAWN: "pet.adoption_application_withdrawn",
   PET_ADOPTION_APPLICATION_COMPLETED: "pet.adoption_application_completed",
@@ -6154,7 +6155,7 @@ var Animal_default = (0, import_core.list)({
   hooks: {
     resolveInput: ({ resolvedData, operation, context }) => {
       const data = forceAnimalOwner({ ...resolvedData }, operation, context);
-      if ("duplicateCheck" in data) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
+      if (data.duplicateCheck !== void 0) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
       for (const key of ["contactNumber", "contactNumber2"]) {
         if (!(key in data) || data[key] == null) continue;
         const raw = String(data[key]);
@@ -6420,7 +6421,7 @@ var AnimalLog_default = (0, import_core5.list)({
     validateInput: validateAnimalChildOwner,
     resolveInput: async ({ resolvedData, operation }) => {
       const data = { ...resolvedData };
-      const shouldFill = operation === "create" || "city" in data || "lat" in data || "lng" in data;
+      const shouldFill = operation === "create" || data.city !== void 0 || data.lat !== void 0 || data.lng !== void 0;
       if (!shouldFill) return data;
       const city = typeof data.city === "string" ? data.city : "";
       const lat = typeof data.lat === "string" ? data.lat : "";
@@ -7042,7 +7043,7 @@ var userRoleHook = {
 };
 var userPermissionsHook = {
   resolveInput: async ({ resolvedData, context }) => {
-    if (!("permissions" in resolvedData)) return resolvedData;
+    if (resolvedData.permissions === void 0) return resolvedData;
     if (!isPlatformAdmin(context.session) && !canManageCompanyUsers(context.session)) {
       delete resolvedData.permissions;
       return resolvedData;
@@ -7363,8 +7364,8 @@ function cityKey(text86) {
 // models/User/alertRegion.ts
 var EMPTY_REGION = { alertCity: null, alertCityKey: null, alertStateCode: null };
 async function resolveAlertRegion({ resolvedData, item }) {
-  const latChanged = "alertLat" in resolvedData;
-  const lngChanged = "alertLng" in resolvedData;
+  const latChanged = resolvedData.alertLat !== void 0;
+  const lngChanged = resolvedData.alertLng !== void 0;
   if (!latChanged && !lngChanged) return resolvedData;
   const lat = latChanged ? resolvedData.alertLat : item?.alertLat;
   const lng = lngChanged ? resolvedData.alertLng : item?.alertLng;
@@ -8912,7 +8913,7 @@ async function rollupDailyUsageRange(context, lastDay, days) {
 
 // models/Pet/Pet.hooks.ts
 function validatePetStatus({ operation, item, resolvedData, context, addValidationError }) {
-  if (!resolvedData || !("status" in resolvedData)) return;
+  if (!resolvedData || resolvedData.status === void 0) return;
   if (isSudoContext(context) || isPlatformAdmin(context.session)) return;
   const next = resolvedData.status;
   const current = operation === "update" ? item?.status : null;
@@ -8954,10 +8955,10 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
     } else if (!org?.status || !RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) {
       fail12("Este espacio de rescate no est\xE1 activo.");
     }
-  } else if (("stage" in resolvedData || "intakeDate" in resolvedData) && !isEditor) {
+  } else if ((resolvedData.stage !== void 0 || resolvedData.intakeDate !== void 0) && !isEditor) {
     fail12("La etapa y la fecha de llegada las cambia el equipo del espacio.");
   }
-  if ("fosterMember" in resolvedData) {
+  if (resolvedData.fosterMember !== void 0) {
     if (!role || !RESCUE_ANIMAL_MANAGER_ROLES.includes(role)) {
       fail12("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
       return;
@@ -9331,7 +9332,7 @@ async function validateHealthRecord(args) {
     })
   });
   const applied = toYmd(resolvedData.appliedDate ?? item?.appliedDate);
-  const next = toYmd("nextDueDate" in resolvedData ? resolvedData.nextDueDate : item?.nextDueDate);
+  const next = toYmd(resolvedData.nextDueDate !== void 0 ? resolvedData.nextDueDate : item?.nextDueDate);
   if (applied && next && next < applied) {
     addValidationError?.("La pr\xF3xima fecha no puede ser anterior a la fecha de aplicaci\xF3n.");
   }
@@ -9513,7 +9514,7 @@ var import_fields22 = require("@keystone-6/core/fields");
 // models/Pet/Reminder/PetReminder.hooks.ts
 function resetWhenDueDateChanges({ operation, item, resolvedData = {} }) {
   const data = { ...resolvedData };
-  if (operation !== "update" || !("dueDate" in data) || "status" in data) return data;
+  if (operation !== "update" || data.dueDate === void 0 || data.status !== void 0) return data;
   if (toYmd(data.dueDate) !== toYmd(item?.dueDate)) {
     data.status = PET_REMINDER_STATUS.PENDING;
     data.sentAt = null;
@@ -9528,10 +9529,10 @@ async function validateReminder(args) {
     addValidationError("Elige la mascota de este recordatorio.");
   }
   await validatePetChildOwner({ resolvedData, context, addValidationError });
-  if ("channels" in resolvedData && (!Array.isArray(resolvedData.channels) || resolvedData.channels.length === 0)) {
+  if (resolvedData.channels !== void 0 && (!Array.isArray(resolvedData.channels) || resolvedData.channels.length === 0)) {
     addValidationError("Elige al menos un canal para el recordatorio.");
   }
-  if ("notifyDaysBefore" in resolvedData) {
+  if (resolvedData.notifyDaysBefore !== void 0) {
     const days = Number(resolvedData.notifyDaysBefore);
     if (!Number.isInteger(days) || days < 0 || days > PET_REMINDER_MAX_DAYS_BEFORE) {
       addValidationError(`Los d\xEDas de aviso van de 0 a ${PET_REMINDER_MAX_DAYS_BEFORE}.`);
@@ -10631,26 +10632,27 @@ function optionalUrl2(raw, label) {
 function normalizeRescueOrgProfile(data) {
   const next = { ...data };
   const errors = [];
-  if ("name" in next) {
+  const has = (field) => next[field] !== void 0;
+  if (has("name")) {
     next.name = cleanLine(next.name, RESCUE_ORG_LIMITS.NAME_MAX);
     if (next.name.length < RESCUE_ORG_LIMITS.NAME_MIN) {
       errors.push(`El nombre debe tener al menos ${RESCUE_ORG_LIMITS.NAME_MIN} letras.`);
     }
   }
-  if ("type" in next && next.type != null && !TYPE_VALUES.has(next.type)) {
+  if (has("type") && next.type !== null && !TYPE_VALUES.has(next.type)) {
     errors.push("Elige qu\xE9 tipo de espacio de rescate eres.");
   }
-  if ("description" in next) next.description = cleanText(next.description, RESCUE_ORG_LIMITS.DESCRIPTION_MAX);
-  if ("needs" in next) next.needs = cleanText(next.needs, RESCUE_ORG_LIMITS.NEEDS_MAX);
-  if ("donationInfo" in next) next.donationInfo = cleanText(next.donationInfo, RESCUE_ORG_LIMITS.DONATION_INFO_MAX);
-  if ("statusNote" in next) next.statusNote = cleanText(next.statusNote, RESCUE_ORG_LIMITS.STATUS_NOTE_MAX);
-  if ("city" in next) next.city = cleanLine(next.city, RESCUE_ORG_LIMITS.CITY_MAX);
-  if ("state" in next) next.state = cleanLine(next.state, RESCUE_ORG_LIMITS.CITY_MAX);
-  if ("species" in next && next.species != null) {
+  if (has("description")) next.description = cleanText(next.description, RESCUE_ORG_LIMITS.DESCRIPTION_MAX);
+  if (has("needs")) next.needs = cleanText(next.needs, RESCUE_ORG_LIMITS.NEEDS_MAX);
+  if (has("donationInfo")) next.donationInfo = cleanText(next.donationInfo, RESCUE_ORG_LIMITS.DONATION_INFO_MAX);
+  if (has("statusNote")) next.statusNote = cleanText(next.statusNote, RESCUE_ORG_LIMITS.STATUS_NOTE_MAX);
+  if (has("city")) next.city = cleanLine(next.city, RESCUE_ORG_LIMITS.CITY_MAX);
+  if (has("state")) next.state = cleanLine(next.state, RESCUE_ORG_LIMITS.CITY_MAX);
+  if (has("species") && next.species !== null) {
     const list100 = Array.isArray(next.species) ? next.species : [];
     next.species = [...new Set(list100.filter((value) => SPECIES_VALUES2.has(String(value))))];
   }
-  if ("whatsapp" in next && next.whatsapp != null) {
+  if (has("whatsapp") && next.whatsapp !== null) {
     const raw = String(next.whatsapp).trim();
     if (!raw) next.whatsapp = "";
     else {
@@ -10659,7 +10661,7 @@ function normalizeRescueOrgProfile(data) {
       else errors.push(`WhatsApp: ${phone.reason}`);
     }
   }
-  if ("email" in next && next.email != null) {
+  if (has("email") && next.email !== null) {
     next.email = String(next.email).trim().toLowerCase().slice(0, 200);
     if (next.email && !EMAIL_PATTERN.test(next.email)) errors.push("Revisa el correo de contacto.");
   }
@@ -10667,18 +10669,18 @@ function normalizeRescueOrgProfile(data) {
     ["websiteUrl", "El link del sitio web"],
     ["donationUrl", "El link para donar"]
   ]) {
-    if (!(field in next) || next[field] == null) continue;
+    if (!has(field) || next[field] === null) continue;
     const result5 = optionalUrl2(next[field], label);
     if (result5.ok) next[field] = result5.url;
     else errors.push(result5.message);
   }
   for (const field of ["facebookUrl", "instagramUrl", "tiktokUrl"]) {
-    if (!(field in next) || next[field] == null) continue;
+    if (!has(field) || next[field] === null) continue;
     const result5 = normalizeSocialUrl(field, next[field]);
     if (result5.ok) next[field] = result5.url;
     else errors.push(result5.message);
   }
-  if ("capacity" in next && next.capacity != null) {
+  if (has("capacity") && next.capacity !== null) {
     const n = Math.round(Number(next.capacity));
     if (!Number.isFinite(n) || n < 0 || n > RESCUE_ORG_LIMITS.CAPACITY_MAX) {
       errors.push("Revisa la capacidad.");
@@ -10720,13 +10722,14 @@ async function resolveRescueOrgInput({ operation, resolvedData, item, context })
     const clean3 = data.slug.trim().toLowerCase();
     data.slug = clean3 ? await uniqueRescueSlug(context, clean3, item?.id ? String(item.id) : void 0) : item?.slug;
   }
-  if ("status" in data && data.status === RESCUE_ORG_STATUS.VERIFIED && !item?.verifiedAt && !data.verifiedAt) {
+  const statusChanged = data.status !== void 0;
+  if (statusChanged && data.status === RESCUE_ORG_STATUS.VERIFIED && !item?.verifiedAt && !data.verifiedAt) {
     data.verifiedAt = (/* @__PURE__ */ new Date()).toISOString();
   }
-  if ("status" in data && data.status !== RESCUE_ORG_STATUS.VERIFIED && item?.isAlly && data.isAlly !== true) {
+  if (statusChanged && data.status !== RESCUE_ORG_STATUS.VERIFIED && item?.isAlly && data.isAlly !== true) {
     data.isAlly = false;
   }
-  if ("isAlly" in data) {
+  if (data.isAlly !== void 0) {
     if (data.isAlly && !item?.allySince && !data.allySince) data.allySince = (/* @__PURE__ */ new Date()).toISOString();
     if (data.isAlly === false) data.allySince = null;
   }
@@ -11718,14 +11721,16 @@ var PetEvent_default = (0, import_core32.list)({
     // Los cambios hechos desde el admin de Keystone también dejan listos slug, estado y zona horaria.
     resolveInput: async ({ resolvedData, item, operation, context }) => {
       const data = { ...resolvedData };
-      if ("state" in data || "city" in data) {
+      const stateChanged = data.state !== void 0;
+      const cityChanged = data.city !== void 0;
+      if (stateChanged || cityChanged) {
         const stateCode = normalizeStateCode(data.state ?? item?.state) ?? item?.stateCode ?? null;
         if (stateCode) {
           data.stateCode = stateCode;
           data.timeZone = timeZoneForState(stateCode);
-          if ("state" in data) data.state = stateByCode(stateCode)?.name ?? data.state;
+          if (stateChanged) data.state = stateByCode(stateCode)?.name ?? data.state;
         }
-        if ("city" in data) data.cityKey = cityKey(data.city);
+        if (cityChanged) data.cityKey = cityKey(data.city);
       }
       if (operation === "create" && !data.slug) {
         data.slug = await uniquePetEventSlug(context, buildPetEventSlug(data.title ?? "evento", data.city));
@@ -14447,7 +14452,7 @@ async function resolveWorkspaceIdForTechItem(context, listKey, item) {
 }
 async function validateTechStatusCrmInput(args) {
   const { context, resolvedData, item, listKey, addValidationError } = args;
-  if (!("statusCrm" in resolvedData)) return;
+  if (resolvedData.statusCrm === void 0) return;
   const statusCrmId = getRelationshipConnectId(resolvedData.statusCrm);
   if (!statusCrmId) return;
   const workspaceIdFromInput = getRelationshipConnectId(
@@ -18147,7 +18152,7 @@ function computeLineAmounts(args) {
 var pendingRecalcKey = "__saasQuotationRecalcAfterDelete";
 var previousQuoteRecalcKey = "__saasQuotationRecalcPreviousQuoteId";
 function resolvedDataUpdatesQuote(resolvedData) {
-  return !!resolvedData && Object.prototype.hasOwnProperty.call(resolvedData, "quotation");
+  return !!resolvedData && resolvedData.quotation !== void 0;
 }
 function getQuoteIdFromResolved(resolvedData, item) {
   const fromConnect = resolvedData.quotation?.connect?.id;
@@ -20965,6 +20970,14 @@ var RATE_LIMIT_RULES = [
     fields: ["submitAdoptionApplication"],
     scope: "user",
     limit: 10,
+    windowMs: DAY
+  },
+  {
+    key: "adoption_application_edit_user",
+    label: "Ediciones de solicitudes de adopci\xF3n por persona",
+    fields: ["editAdoptionApplication"],
+    scope: "user",
+    limit: 20,
     windowMs: DAY
   },
   {
@@ -30962,53 +30975,6 @@ var animalClaims_default = animalClaims;
 // graphql/customs/mutations/pet/adoptionApplications.ts
 var import_graphql6 = require("graphql");
 
-// utils/pet/adoptionApplications.ts
-function prismaOf4(context) {
-  return context.sudo().prisma;
-}
-async function settleApplicationsAfterAdoption(context, {
-  animal,
-  adopterId,
-  petId
-}) {
-  try {
-    const prisma = prismaOf4(context);
-    const open = await prisma.adoptionApplication.findMany({
-      where: { animalId: animal.id, status: { in: ADOPTION_APPLICATION_ACTIVE_STATUSES } },
-      select: { id: true, applicantId: true }
-    });
-    if (open instanceof Error) throw open;
-    const now = /* @__PURE__ */ new Date();
-    const name = animal.name?.trim() || "El animal";
-    for (const application of open) {
-      const adopted = application.applicantId === adopterId;
-      await prisma.adoptionApplication.update({
-        where: { id: application.id },
-        data: adopted ? { status: ADOPTION_APPLICATION_STATUS.COMPLETED, petId, decidedAt: now } : {
-          status: ADOPTION_APPLICATION_STATUS.CLOSED,
-          decisionNote: `${name} ya encontr\xF3 familia.`,
-          decidedAt: now
-        }
-      });
-      if (!adopted && application.applicantId) {
-        void notify(context, {
-          audience: [application.applicantId],
-          product: "pet",
-          type: NOTIFICATION_TYPE.ADOPTION_APPLICATION_UPDATED,
-          title: `${name} ya encontr\xF3 familia`,
-          body: "Gracias por querer adoptar. Hay m\xE1s animales esperando un hogar en KADESH.",
-          entityType: "AdoptionApplication",
-          entityId: application.id,
-          url: petPublicUrl(animal.slug || animal.id),
-          metadata: { status: ADOPTION_APPLICATION_STATUS.CLOSED }
-        });
-      }
-    }
-  } catch (error) {
-    console.error("[adoptionApplications] No se pudieron cerrar las solicitudes", { animalId: animal.id }, error);
-  }
-}
-
 // utils/pet/petCard.ts
 var import_stream2 = require("stream");
 var import_graphql5 = require("graphql");
@@ -31019,6 +30985,9 @@ function petFrontendBase() {
 }
 function petCardUrl(petId) {
   return `${petFrontendBase()}/perfil?tab=pets&pet=${encodeURIComponent(petId)}`;
+}
+function adoptionApplicationUrl(applicationId) {
+  return `${petFrontendBase()}/perfil?tab=adopciones&solicitud=${encodeURIComponent(applicationId)}`;
 }
 function petListUrl() {
   return `${petFrontendBase()}/perfil?tab=pets`;
@@ -31143,6 +31112,53 @@ async function copyReportPhotosToPet(context, animalId, petId) {
     }
   }
   return copied;
+}
+
+// utils/pet/adoptionApplications.ts
+function prismaOf4(context) {
+  return context.sudo().prisma;
+}
+async function settleApplicationsAfterAdoption(context, {
+  animal,
+  adopterId,
+  petId
+}) {
+  try {
+    const prisma = prismaOf4(context);
+    const open = await prisma.adoptionApplication.findMany({
+      where: { animalId: animal.id, status: { in: ADOPTION_APPLICATION_ACTIVE_STATUSES } },
+      select: { id: true, applicantId: true }
+    });
+    if (open instanceof Error) throw open;
+    const now = /* @__PURE__ */ new Date();
+    const name = animal.name?.trim() || "El animal";
+    for (const application of open) {
+      const adopted = application.applicantId === adopterId;
+      await prisma.adoptionApplication.update({
+        where: { id: application.id },
+        data: adopted ? { status: ADOPTION_APPLICATION_STATUS.COMPLETED, petId, decidedAt: now } : {
+          status: ADOPTION_APPLICATION_STATUS.CLOSED,
+          decisionNote: `${name} ya encontr\xF3 familia.`,
+          decidedAt: now
+        }
+      });
+      if (!adopted && application.applicantId) {
+        void notify(context, {
+          audience: [application.applicantId],
+          product: "pet",
+          type: NOTIFICATION_TYPE.ADOPTION_APPLICATION_UPDATED,
+          title: `${name} ya encontr\xF3 familia`,
+          body: "Gracias por querer adoptar. Hay m\xE1s animales esperando un hogar en KADESH.",
+          entityType: "AdoptionApplication",
+          entityId: application.id,
+          url: adoptionApplicationUrl(application.id),
+          metadata: { status: ADOPTION_APPLICATION_STATUS.CLOSED }
+        });
+      }
+    }
+  } catch (error) {
+    console.error("[adoptionApplications] No se pudieron cerrar las solicitudes", { animalId: animal.id }, error);
+  }
 }
 
 // utils/pet/reportLogs.ts
@@ -31310,6 +31326,8 @@ var typeDefs31 = `
 `;
 var definition28 = `
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
+  "Solo quien la envi\xF3 y solo mientras siga \xABEnviada\xBB (submitted)."
+  editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
   "status: in_review | approved | rejected"
   reviewAdoptionApplication(applicationId: ID!, status: String!, note: String): AdoptionApplicationResult!
   withdrawAdoptionApplication(applicationId: ID!): AdoptionApplicationResult!
@@ -31384,6 +31402,20 @@ function validateInput(input) {
   }
   return { ok: true, phone: phone.digits };
 }
+function answersFrom(input) {
+  return {
+    housing: input.housing,
+    housingOwnership: input.housingOwnership,
+    petsAllowed: input.housingOwnership === "rent" ? Boolean(input.petsAllowed) : null,
+    hasYard: Boolean(input.hasYard),
+    hasChildren: Boolean(input.hasChildren),
+    otherPets: (input.otherPets ?? "").trim(),
+    hoursAlone: Number(input.hoursAlone),
+    experience: (input.experience ?? "").trim(),
+    commitSterilization: true,
+    acceptsFollowUp: true
+  };
+}
 var REVIEW_COPY = {
   [ADOPTION_APPLICATION_STATUS.IN_REVIEW]: (name) => ({
     title: `Tu solicitud para adoptar a ${name} est\xE1 en revisi\xF3n`,
@@ -31434,18 +31466,7 @@ var resolver28 = {
           applicantEmail: applicant?.email ?? "",
           phone: checked.phone,
           message: input.message.trim(),
-          answers: {
-            housing: input.housing,
-            housingOwnership: input.housingOwnership,
-            petsAllowed: input.housingOwnership === "rent" ? Boolean(input.petsAllowed) : null,
-            hasYard: Boolean(input.hasYard),
-            hasChildren: Boolean(input.hasChildren),
-            otherPets: (input.otherPets ?? "").trim(),
-            hoursAlone: Number(input.hoursAlone),
-            experience: (input.experience ?? "").trim(),
-            commitSterilization: true,
-            acceptsFollowUp: true
-          },
+          answers: answersFrom(input),
           status: ADOPTION_APPLICATION_STATUS.SUBMITTED
         },
         query: "id"
@@ -31516,7 +31537,7 @@ var resolver28 = {
           body: copy.body,
           entityType: "AdoptionApplication",
           entityId: application.id,
-          url: animalUrl(animal),
+          url: adoptionApplicationUrl(application.id),
           metadata: { status }
         });
       }
@@ -31535,6 +31556,54 @@ var resolver28 = {
     } catch (error) {
       console.error("[reviewAdoptionApplication]", error);
       return fail12(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
+    }
+  },
+  editAdoptionApplication: async (_root, { applicationId, input }, context) => {
+    const fail12 = (message) => ({ success: false, message, application: null });
+    try {
+      const userId = getSessionUserId(context.session);
+      const application = await loadApplication(context, applicationId);
+      if (!userId || application.applicant?.id !== userId) return fail12("Solo quien envi\xF3 la solicitud puede editarla.");
+      const animal = application.animal;
+      const name = animalLabel(animal);
+      if (application.status !== ADOPTION_APPLICATION_STATUS.SUBMITTED) {
+        return fail12(
+          ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status) ? `Quien cuida a ${name} ya la est\xE1 revisando, as\xED que ya no se puede editar. Si algo cambi\xF3, cu\xE9ntaselo cuando te contacte.` : "Esta solicitud ya est\xE1 cerrada."
+        );
+      }
+      const checked = validateInput(input);
+      if (!checked.ok) return fail12(checked.message);
+      const updated = await prismaOf6(context).adoptionApplication.update({
+        where: { id: application.id },
+        data: { phone: checked.phone, message: input.message.trim(), answers: answersFrom(input) }
+      });
+      if (updated instanceof Error) throw updated;
+      void notify(context, {
+        audience: await reportAudienceWithTeam(context, animal),
+        product: "pet",
+        type: NOTIFICATION_TYPE.ADOPTION_APPLICATION_RECEIVED,
+        title: `${firstName2(application.applicantName)} actualiz\xF3 su solicitud para adoptar a ${name}`,
+        body: input.message.trim().replace(/\s+/g, " ").slice(0, 140),
+        entityType: "AdoptionApplication",
+        entityId: application.id,
+        url: animalUrl(animal, application.id),
+        metadata: { animalId: animal.id, organizationId: animal.organization?.id ?? null, edited: true }
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_ADOPTION_APPLICATION_EDITED,
+        summary: `Edit\xF3 su solicitud para adoptar a "${name.slice(0, 60)}"`,
+        entityType: "AdoptionApplication",
+        entityId: application.id,
+        metadata: { animalId: animal.id }
+      });
+      return {
+        success: true,
+        message: `Guardamos los cambios. Quien cuida a ${name} ver\xE1 tu solicitud actualizada.`,
+        application: await context.db.AdoptionApplication.findOne({ where: { id: application.id } })
+      };
+    } catch (error) {
+      console.error("[editAdoptionApplication]", error);
+      return fail12(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
     }
   },
   withdrawAdoptionApplication: async (_root, { applicationId }, context) => {
