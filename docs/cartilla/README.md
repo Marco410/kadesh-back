@@ -54,6 +54,7 @@ Algunos nombres no son los del pedido original porque los campos de `Pet` ya exi
 - **Exactamente un principal:** se crea solo con la mascota. `role` no se edita por API, la fila principal no se borra por API, y `PetOwner.validateInput` rechaza un segundo principal o una persona repetida.
 - **Datos protegidos para los dueños:** `owners`, `lostReport`, `verifiedByVet`, `createdBy` y `sentAt` solo los escribe un admin o el servidor. `Pet.status` no entra ni sale de `lost` por API; para eso están las mutaciones.
 - **Nada de la cartilla es público.** `PetOwner.userName` solo da el nombre del otro dueño; el `User` (correo, teléfono) sigue bajo su propio acceso. El reporte de perdida es público como siempre: muestra el teléfono que la persona eligió para el cartel. `Animal.pet` se resuelve con el acceso de `Pet`, así que es `null` para quien no es dueño.
+- **Fichas de un espacio de rescate:** una `Pet` con `organization` no tiene dueños; la ven y editan admin, coordinación y voluntariado del espacio, y el hogar temporal asignado (`fosterMember`). Borrarla es de admin y coordinación. Al completar la adopción pasa a la familia como cualquier cartilla. Detalle en `models/Pet/RescueOrganization/README.md` («Fichas internas»).
 - **Citas:** la mascota debe ser del cliente de la cita (la reserve él o su veterinaria). Si vienen vacíos, `petName` y `petSpecies` se llenan desde `Pet`, porque la veterinaria no puede leer la cartilla.
 
 ## Hooks

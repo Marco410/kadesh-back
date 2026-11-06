@@ -63,6 +63,8 @@ export const NOTIFICATION_TYPE = {
   RESCUE_REJECTED: "rescue.rejected",
   /** Te agregaron al equipo de un espacio de rescate. Va a la persona agregada. */
   RESCUE_MEMBER_ADDED: "rescue.member_added",
+  /** Un espacio de rescate completó tu adopción: la mascota ya está en tu cartilla. Va al adoptante. */
+  PET_ADOPTION_COMPLETED: "pet.adoption_completed",
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];

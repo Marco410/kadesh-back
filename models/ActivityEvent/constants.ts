@@ -189,6 +189,12 @@ export const ACTIVITY_EVENT = {
   PET_RESCUE_MEMBER_ADDED: "pet.rescue_member_added",
   PET_RESCUE_MEMBER_UPDATED: "pet.rescue_member_updated",
   PET_RESCUE_MEMBER_REMOVED: "pet.rescue_member_removed",
+  // Ficha interna: crearla desde un reporte, publicarla y completar la adopción.
+  PET_RESCUE_PET_CREATED: "pet.rescue_pet_created",
+  PET_RESCUE_PET_PUBLISHED: "pet.rescue_pet_published",
+  PET_RESCUE_ADOPTION_COMPLETED: "pet.rescue_adoption_completed",
+  // «Se quedó conmigo»: quien publicó el reporte lo pasa a su cartilla.
+  PET_ANIMAL_KEPT: "pet.animal_kept",
   // Alta con el formulario genérico (Kadesh Pet web y app). Negocios y Google ya quedan en UserAuthLog.
   AUTH_SIGNUP: "auth.signup",
   // Formulario de contacto (landing y Negocios); sin datos personales en metadata.

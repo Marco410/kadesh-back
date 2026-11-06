@@ -2065,6 +2065,14 @@ type Pet {
   remindersCount(where: PetReminderWhereInput! = {}): Int
   status: String
   lostReport: Animal
+  organization: RescueOrganization
+  stage: String
+  intakeDate: CalendarDay
+  fosterMember: RescueOrganizationMember
+  publicReport: Animal
+  adoptedFromOrganization: RescueOrganization
+  adoptedAt: DateTime
+  viewerRole: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2095,6 +2103,13 @@ input PetWhereInput {
   reminders: PetReminderManyRelationFilter
   status: StringFilter
   lostReport: AnimalWhereInput
+  organization: RescueOrganizationWhereInput
+  stage: StringNullableFilter
+  intakeDate: CalendarDayNullableFilter
+  fosterMember: RescueOrganizationMemberWhereInput
+  publicReport: AnimalWhereInput
+  adoptedFromOrganization: RescueOrganizationWhereInput
+  adoptedAt: DateTimeNullableFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -2135,6 +2150,9 @@ input PetOrderByInput {
   sterilized: OrderDirection
   microchipNumber: OrderDirection
   status: OrderDirection
+  stage: OrderDirection
+  intakeDate: OrderDirection
+  adoptedAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2157,6 +2175,13 @@ input PetUpdateInput {
   reminders: PetReminderRelateToManyForUpdateInput
   status: String
   lostReport: AnimalRelateToOneForUpdateInput
+  organization: RescueOrganizationRelateToOneForUpdateInput
+  stage: String
+  intakeDate: CalendarDay
+  fosterMember: RescueOrganizationMemberRelateToOneForUpdateInput
+  publicReport: AnimalRelateToOneForUpdateInput
+  adoptedFromOrganization: RescueOrganizationRelateToOneForUpdateInput
+  adoptedAt: DateTime
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2189,6 +2214,12 @@ input PetReminderRelateToManyForUpdateInput {
   connect: [PetReminderWhereUniqueInput!]
 }
 
+input RescueOrganizationMemberRelateToOneForUpdateInput {
+  create: RescueOrganizationMemberCreateInput
+  connect: RescueOrganizationMemberWhereUniqueInput
+  disconnect: Boolean
+}
+
 input PetUpdateArgs {
   where: PetWhereUniqueInput!
   data: PetUpdateInput!
@@ -2212,6 +2243,13 @@ input PetCreateInput {
   reminders: PetReminderRelateToManyForCreateInput
   status: String
   lostReport: AnimalRelateToOneForCreateInput
+  organization: RescueOrganizationRelateToOneForCreateInput
+  stage: String
+  intakeDate: CalendarDay
+  fosterMember: RescueOrganizationMemberRelateToOneForCreateInput
+  publicReport: AnimalRelateToOneForCreateInput
+  adoptedFromOrganization: RescueOrganizationRelateToOneForCreateInput
+  adoptedAt: DateTime
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2234,6 +2272,11 @@ input PetHealthRecordRelateToManyForCreateInput {
 input PetReminderRelateToManyForCreateInput {
   create: [PetReminderCreateInput!]
   connect: [PetReminderWhereUniqueInput!]
+}
+
+input RescueOrganizationMemberRelateToOneForCreateInput {
+  create: RescueOrganizationMemberCreateInput
+  connect: RescueOrganizationMemberWhereUniqueInput
 }
 
 type PetMultimedia {
@@ -4373,6 +4416,8 @@ type RescueOrganization {
   membersCount(where: RescueOrganizationMemberWhereInput! = {}): Int
   animals(where: AnimalWhereInput! = {}, orderBy: [AnimalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalWhereUniqueInput): [Animal!]
   animalsCount(where: AnimalWhereInput! = {}): Int
+  pets(where: PetWhereInput! = {}, orderBy: [PetOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PetWhereUniqueInput): [Pet!]
+  petsCount(where: PetWhereInput! = {}): Int
   publishedCount: Int!
   adoptedCount: Int!
   inAdoptionCount: Int!
@@ -4417,6 +4462,7 @@ input RescueOrganizationWhereInput {
   createdBy: UserWhereInput
   members: RescueOrganizationMemberManyRelationFilter
   animals: AnimalManyRelationFilter
+  pets: PetManyRelationFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -4431,6 +4477,12 @@ input AnimalManyRelationFilter {
   every: AnimalWhereInput
   some: AnimalWhereInput
   none: AnimalWhereInput
+}
+
+input PetManyRelationFilter {
+  every: PetWhereInput
+  some: PetWhereInput
+  none: PetWhereInput
 }
 
 input RescueOrganizationOrderByInput {
@@ -4492,6 +4544,7 @@ input RescueOrganizationUpdateInput {
   createdBy: UserRelateToOneForUpdateInput
   members: RescueOrganizationMemberRelateToManyForUpdateInput
   animals: AnimalRelateToManyForUpdateInput
+  pets: PetRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -4508,6 +4561,13 @@ input AnimalRelateToManyForUpdateInput {
   set: [AnimalWhereUniqueInput!]
   create: [AnimalCreateInput!]
   connect: [AnimalWhereUniqueInput!]
+}
+
+input PetRelateToManyForUpdateInput {
+  disconnect: [PetWhereUniqueInput!]
+  set: [PetWhereUniqueInput!]
+  create: [PetCreateInput!]
+  connect: [PetWhereUniqueInput!]
 }
 
 input RescueOrganizationUpdateArgs {
@@ -4527,7 +4587,9 @@ input RescueOrganizationCreateInput {
   city: String
   state: String
 
-  """dog | cat | other"""
+  """
+  Tipos de animal (ANIMAL_TYPE_OPTIONS): dog | cat | bird | fish | reptil | mammal
+  """
   species: [String!]
   capacity: Int
 
@@ -4551,6 +4613,7 @@ input RescueOrganizationCreateInput {
   createdBy: UserRelateToOneForCreateInput
   members: RescueOrganizationMemberRelateToManyForCreateInput
   animals: AnimalRelateToManyForCreateInput
+  pets: PetRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -4563,6 +4626,11 @@ input RescueOrganizationMemberRelateToManyForCreateInput {
 input AnimalRelateToManyForCreateInput {
   create: [AnimalCreateInput!]
   connect: [AnimalWhereUniqueInput!]
+}
+
+input PetRelateToManyForCreateInput {
+  create: [PetCreateInput!]
+  connect: [PetWhereUniqueInput!]
 }
 
 type RescueOrganizationMember {
@@ -11186,6 +11254,13 @@ type Mutation {
   addRescueOrganizationMember(organizationId: ID!, email: String!, role: String!): RescueMemberResult!
   setRescueOrganizationMemberRole(memberId: ID!, role: String!): RescueMemberResult!
   removeRescueOrganizationMember(memberId: ID!): RescueMemberResult!
+  convertAnimalToPet(animalId: ID!, organizationId: ID): RescuePetResult!
+
+  """
+  status: in_adoption | rescued. location es obligatoria si la ficha aún no tiene reporte.
+  """
+  publishRescuePet(petId: ID!, status: String!, location: PetLastSeenLocationInput, notes: String): PublishRescuePetResult!
+  completeRescueAdoption(petId: ID!, email: String!): CompleteRescueAdoptionResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -12403,6 +12478,38 @@ type RescueMemberResult {
   """RESCUE_MEMBER_USER_NOT_FOUND cuando el correo no tiene cuenta"""
   code: String
   member: RescueOrganizationMember
+}
+
+type RescuePetResult {
+  success: Boolean!
+  message: String!
+  petId: ID
+
+  """Espacio de la ficha; null si quedó en tu cartilla («Se quedó conmigo»)"""
+  organizationId: ID
+}
+
+type PublishRescuePetResult {
+  success: Boolean!
+  message: String!
+  reportId: ID
+  slug: String
+  url: String
+
+  """
+  true si se creó un reporte nuevo; false si se agregó la bitácora al que ya tenía
+  """
+  createdReport: Boolean!
+}
+
+type CompleteRescueAdoptionResult {
+  success: Boolean!
+  message: String!
+
+  """RESCUE_ADOPTER_NOT_FOUND cuando el correo no tiene cuenta"""
+  code: String
+  petId: ID
+  adopterName: String
 }
 
 type UnsubscribeBlogResult {

@@ -9,7 +9,8 @@ import { sendNotificationWhatsapp, type NotificationTemplateValues } from "../no
 import { wantsWhatsappType } from "../../models/User/whatsappPrefs";
 import { sendPetReminderEmail } from "../helpers/sendgrid";
 import { mxToday } from "../usage/dailyUsageRollup";
-import { petCardUrl } from "./petCard";
+import { RESCUE_ANIMAL_MANAGER_ROLES } from "../../models/Pet/RescueOrganization/constants";
+import { petCardUrl, rescuePetCardUrl } from "./petCard";
 
 export type DueReminder = {
   id: string;
@@ -17,7 +18,8 @@ export type DueReminder = {
   /** "AAAA-MM-DD" */
   dueDate: string;
   channels: string[];
-  pet: { id: string; name: string };
+  /** Con `organizationId` es ficha de un espacio de rescate: avisa a su equipo, no a dueños. */
+  pet: { id: string; name: string; organizationId: string | null; fosterMemberId: string | null };
 };
 
 type Recipient = {
@@ -48,6 +50,13 @@ type ChannelSender = (
   copy: ReminderCopy,
 ) => Promise<ChannelResult>;
 
+/** La cartilla de la familia o, si es ficha de un espacio de rescate, la ficha en su panel. */
+function reminderUrl(reminder: DueReminder): string {
+  return reminder.pet.organizationId
+    ? rescuePetCardUrl(reminder.pet.organizationId, reminder.pet.id)
+    : petCardUrl(reminder.pet.id);
+}
+
 const DATE_LABEL = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "long", timeZone: "UTC" });
 
 function reminderCopy(reminder: DueReminder, today: string): ReminderCopy {
@@ -76,7 +85,7 @@ function reminderTemplateValues(reminder: DueReminder, copy: ReminderCopy): Noti
     petName: reminder.pet.name,
     reminder: reminder.title,
     due: copy.dueLabel,
-    url: petCardUrl(reminder.pet.id),
+    url: reminderUrl(reminder),
   };
 }
 
@@ -93,7 +102,7 @@ const sendPush: ChannelSender = async (context, reminder, recipients, copy) => {
     body: copy.body,
     entityType: "PetReminder",
     entityId: reminder.id,
-    url: petCardUrl(reminder.pet.id),
+    url: reminderUrl(reminder),
     metadata: { petId: reminder.pet.id, dueDate: reminder.dueDate },
     templateValues: reminderTemplateValues(reminder, copy),
   });
@@ -114,7 +123,7 @@ const sendEmailChannel: ChannelSender = async (_context, reminder, recipients, c
         title: reminder.title,
         dateLabel: copy.dateLabel,
         dueLabel: copy.dueLabel,
-        url: petCardUrl(reminder.pet.id),
+        url: reminderUrl(reminder),
       });
       sent += 1;
     } catch (error) {
@@ -158,28 +167,44 @@ const CHANNEL_SENDERS: Record<PetReminderChannel, ChannelSender> = {
   [PET_REMINDER_CHANNEL.WHATSAPP]: sendWhatsappChannel,
 };
 
-/** Dueños de la mascota que pueden recibir avisos (sin cuentas suspendidas ni anonimizadas). */
-async function reminderRecipients(context: KeystoneContext, petId: string): Promise<Recipient[]> {
+const RECIPIENT_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  whatsappNotifications: true,
+  whatsappMutedTypes: true,
+};
+/** Sin cuentas suspendidas ni anonimizadas. */
+const ACTIVE_USER = { suspendedAt: null, anonymizedAt: null };
+
+/**
+ * A quién se avisa: los dueños de la mascota o, si es ficha de un espacio de rescate, admin y
+ * coordinación del espacio y quien la tiene en su hogar temporal.
+ */
+async function reminderRecipients(context: KeystoneContext, pet: DueReminder["pet"]): Promise<Recipient[]> {
   const prisma = (context.sudo() as KeystoneContext & { prisma: any }).prisma;
-  const rows = await prisma.petOwner.findMany({
-    where: { petId, user: { suspendedAt: null, anonymizedAt: null } },
-    select: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          whatsappNotifications: true,
-          whatsappMutedTypes: true,
+  const rows = pet.organizationId
+    ? await prisma.rescueOrganizationMember.findMany({
+        where: {
+          user: ACTIVE_USER,
+          OR: [
+            { organizationId: pet.organizationId, role: { in: RESCUE_ANIMAL_MANAGER_ROLES } },
+            ...(pet.fosterMemberId ? [{ id: pet.fosterMemberId }] : []),
+          ],
         },
-      },
-    },
-  });
+        select: { user: { select: RECIPIENT_SELECT } },
+      })
+    : await prisma.petOwner.findMany({
+        where: { petId: pet.id, user: ACTIVE_USER },
+        select: { user: { select: RECIPIENT_SELECT } },
+      });
   if (rows instanceof Error) throw rows;
-  return (rows as Array<{ user: Recipient | null }>)
-    .map((row) => row.user)
-    .filter((user): user is Recipient => Boolean(user?.id));
+  const byId = new Map<string, Recipient>();
+  for (const row of rows as Array<{ user: Recipient | null }>) {
+    if (row.user?.id) byId.set(row.user.id, row.user);
+  }
+  return [...byId.values()];
 }
 
 export async function loadDueReminder(
@@ -188,10 +213,26 @@ export async function loadDueReminder(
 ): Promise<DueReminder | null> {
   const row = (await context.sudo().query.PetReminder.findOne({
     where: { id: reminderId },
-    query: "id title dueDate channels pet { id name }",
-  })) as (Omit<DueReminder, "channels"> & { channels: unknown }) | null;
+    query: "id title dueDate channels pet { id name organization { id } fosterMember { id } }",
+  })) as
+    | (Omit<DueReminder, "channels" | "pet"> & {
+        channels: unknown;
+        pet:
+          | { id: string; name: string; organization?: { id: string } | null; fosterMember?: { id: string } | null }
+          | null;
+      })
+    | null;
   if (!row?.pet) return null;
-  return { ...row, channels: Array.isArray(row.channels) ? (row.channels as string[]) : [] };
+  return {
+    ...row,
+    pet: {
+      id: row.pet.id,
+      name: row.pet.name,
+      organizationId: row.pet.organization?.id ?? null,
+      fosterMemberId: row.pet.fosterMember?.id ?? null,
+    },
+    channels: Array.isArray(row.channels) ? (row.channels as string[]) : [],
+  };
 }
 
 /**
@@ -202,9 +243,9 @@ export async function sendReminderNotification(
   context: KeystoneContext,
   reminder: DueReminder,
 ): Promise<{ delivered: boolean; retry: boolean; results: ChannelResult[] }> {
-  const recipients = await reminderRecipients(context, reminder.pet.id);
+  const recipients = await reminderRecipients(context, reminder.pet);
   if (recipients.length === 0) {
-    console.warn("[petReminder] La mascota no tiene dueños a quién avisar", { reminderId: reminder.id });
+    console.warn("[petReminder] La mascota no tiene a quién avisar (dueños o equipo)", { reminderId: reminder.id });
     return { delivered: false, retry: false, results: [] };
   }
 

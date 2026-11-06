@@ -6,12 +6,18 @@ import {
 } from "../../utils/access/tenant";
 import { isSudoContext } from "../../utils/activity/listActivityHooks";
 import { PET_OWNER_ROLE } from "./constants";
+import { rescueOrgMemberFilter } from "./RescueOrganization/RescueOrganization.access";
+import { RESCUE_ANIMAL_EDITOR_ROLES, RESCUE_ANIMAL_MANAGER_ROLES } from "./RescueOrganization/constants";
 
 /**
  * Cartilla: una mascota y todo lo que cuelga de ella (fotos, registros, adjuntos, recordatorios,
  * dueños) solo lo ven y cambian sus dueños (`PetOwner`). Borrar la mascota o quitar familiares es
  * del dueño principal. Un admin de plataforma ve todo. Las mutaciones de la cartilla
  * (`graphql/customs/mutations/pet/card/`) validan al dueño y luego escriben con `sudo()`.
+ *
+ * Ficha interna de un espacio de rescate (`Pet.organization`): no tiene dueños hasta que se adopta.
+ * La ven y editan admin, coordinación y voluntariado del espacio; quien es hogar temporal, solo
+ * las que tiene asignadas (`fosterMember`). Borrarla es de admin y coordinación.
  */
 
 type AccessArgs = { session?: unknown };
@@ -31,16 +37,37 @@ export function ownedPetFilter(userId: string, principalOnly = false) {
   };
 }
 
-function ownedPetWhere({ session }: AccessArgs) {
-  if (isPlatformAdmin(session as any)) return true;
-  const userId = getSessionUserId(session as any);
-  return userId ? ownedPetFilter(userId) : false;
+/**
+ * Mascotas que `userId` puede ver y editar: las suyas (dueño o familia), las fichas de un espacio
+ * donde es admin, coordinación o voluntariado, y las que tiene en su hogar temporal.
+ */
+export function editablePetFilter(userId: string) {
+  return {
+    OR: [
+      ownedPetFilter(userId),
+      { organization: rescueOrgMemberFilter(userId, RESCUE_ANIMAL_EDITOR_ROLES) },
+      { fosterMember: { user: { id: { equals: userId } } } },
+    ],
+  };
 }
 
-function principalPetWhere({ session }: AccessArgs) {
+function editablePetWhere({ session }: AccessArgs) {
   if (isPlatformAdmin(session as any)) return true;
   const userId = getSessionUserId(session as any);
-  return userId ? ownedPetFilter(userId, true) : false;
+  return userId ? editablePetFilter(userId) : false;
+}
+
+/** Borrar: el dueño principal, o admin y coordinación del espacio dueño de la ficha. */
+function deletablePetWhere({ session }: AccessArgs) {
+  if (isPlatformAdmin(session as any)) return true;
+  const userId = getSessionUserId(session as any);
+  if (!userId) return false;
+  return {
+    OR: [
+      ownedPetFilter(userId, true),
+      { organization: rescueOrgMemberFilter(userId, RESCUE_ANIMAL_MANAGER_ROLES) },
+    ],
+  };
 }
 
 function ownedChildWhere({ session }: AccessArgs) {
@@ -49,10 +76,16 @@ function ownedChildWhere({ session }: AccessArgs) {
   return userId ? { pet: ownedPetFilter(userId) } : false;
 }
 
-function ownedAttachmentWhere({ session }: AccessArgs) {
+function editableChildWhere({ session }: AccessArgs) {
   if (isPlatformAdmin(session as any)) return true;
   const userId = getSessionUserId(session as any);
-  return userId ? { healthRecord: { pet: ownedPetFilter(userId) } } : false;
+  return userId ? { pet: editablePetFilter(userId) } : false;
+}
+
+function editableAttachmentWhere({ session }: AccessArgs) {
+  if (isPlatformAdmin(session as any)) return true;
+  const userId = getSessionUserId(session as any);
+  return userId ? { healthRecord: { pet: editablePetFilter(userId) } } : false;
 }
 
 /**
@@ -72,22 +105,25 @@ function petOwnerDeleteWhere({ session }: AccessArgs) {
   };
 }
 
-/** `Pet`: ver y editar, sus dueños; crear, con sesión; borrar, solo el principal. */
+/**
+ * `Pet`: ver y editar, sus dueños o el equipo del espacio (ver `editablePetFilter`); crear, con
+ * sesión; borrar, el principal o admin y coordinación del espacio.
+ */
 export const petAccess: ListAccessControl<any> = {
   operation: { query: signedIn, create: signedIn, update: signedIn, delete: signedIn },
-  filter: { query: ownedPetWhere, update: ownedPetWhere, delete: principalPetWhere },
+  filter: { query: editablePetWhere, update: editablePetWhere, delete: deletablePetWhere },
 };
 
-/** `PetMultimedia`, `PetHealthRecord` y `PetReminder`: cualquier dueño de la mascota. */
+/** `PetMultimedia`, `PetHealthRecord` y `PetReminder`: quien puede editar la mascota. */
 export const petChildAccess: ListAccessControl<any> = {
   operation: { query: signedIn, create: signedIn, update: signedIn, delete: signedIn },
-  filter: { query: ownedChildWhere, update: ownedChildWhere, delete: ownedChildWhere },
+  filter: { query: editableChildWhere, update: editableChildWhere, delete: editableChildWhere },
 };
 
 /** `PetHealthRecordAttachment`: a través del registro y su mascota. */
 export const petHealthRecordAttachmentAccess: ListAccessControl<any> = {
   operation: { query: signedIn, create: signedIn, update: signedIn, delete: signedIn },
-  filter: { query: ownedAttachmentWhere, update: ownedAttachmentWhere, delete: ownedAttachmentWhere },
+  filter: { query: editableAttachmentWhere, update: editableAttachmentWhere, delete: editableAttachmentWhere },
 };
 
 /**
@@ -113,6 +149,50 @@ export async function findPetOwnerRole(
   return rows[0]?.role ?? null;
 }
 
+export type PetAccessRow = {
+  id: string;
+  organizationId?: string | null;
+  fosterMemberId?: string | null;
+};
+
+/**
+ * Con qué rol entra `userId` a la mascota: `principal` o `family` si es dueño; si es ficha de un
+ * espacio, su rol en el equipo (`admin`, `coordinator`, `volunteer`, o el que tenga si es el hogar
+ * temporal asignado). `null` si no puede verla. Lee con sudo.
+ */
+export async function findPetAccessRole(
+  context: KeystoneContext,
+  pet: PetAccessRow,
+  userId: string,
+): Promise<string | null> {
+  const ownerRole = await findPetOwnerRole(context, pet.id, userId);
+  if (ownerRole) return ownerRole;
+  if (!pet.organizationId) return null;
+  const [member] = (await context.sudo().query.RescueOrganizationMember.findMany({
+    where: { organization: { id: { equals: pet.organizationId } }, user: { id: { equals: userId } } },
+    query: "id role",
+    take: 1,
+  })) as Array<{ id: string; role: string }>;
+  if (!member) return null;
+  if (RESCUE_ANIMAL_EDITOR_ROLES.includes(member.role)) return member.role;
+  return pet.fosterMemberId && pet.fosterMemberId === member.id ? member.role : null;
+}
+
+/** `findPetAccessRole` a partir del id (lee la ficha con sudo). */
+export async function findPetAccessRoleById(
+  context: KeystoneContext,
+  petId: string,
+  userId: string,
+): Promise<string | null> {
+  const prisma = (context.sudo() as KeystoneContext & { prisma: any }).prisma;
+  const pet = await prisma.pet.findUnique({
+    where: { id: petId },
+    select: { id: true, organizationId: true, fosterMemberId: true },
+  });
+  if (!pet || pet instanceof Error) return null;
+  return findPetAccessRole(context, pet as PetAccessRow, userId);
+}
+
 type ValidateArgs = {
   resolvedData: Record<string, any>;
   context: KeystoneContext;
@@ -120,8 +200,8 @@ type ValidateArgs = {
 };
 
 /**
- * Crear (o mover) una foto, registro o recordatorio exige ser dueño de la mascota destino: el
- * filtro de acceso solo cubre leer, editar y borrar, no el create.
+ * Crear (o mover) una foto, registro o recordatorio exige poder editar la mascota destino (dueño
+ * o equipo del espacio): el filtro de acceso solo cubre leer, editar y borrar, no el create.
  */
 export async function validatePetChildOwner({
   resolvedData,
@@ -131,8 +211,8 @@ export async function validatePetChildOwner({
   const petId: string | undefined = resolvedData?.pet?.connect?.id;
   if (!petId || isSudoContext(context) || isPlatformAdmin(context.session)) return;
   const userId = getSessionUserId(context.session);
-  if (!userId || !(await findPetOwnerRole(context, petId, userId))) {
-    addValidationError("Solo los dueños de la mascota pueden agregar o mover datos de su cartilla.");
+  if (!userId || !(await findPetAccessRoleById(context, petId, userId))) {
+    addValidationError("Solo quien cuida a la mascota puede agregar o mover datos de su cartilla.");
   }
 }
 
@@ -150,7 +230,7 @@ export async function validateHealthRecordAttachmentOwner({
     query: "pet { id }",
   })) as { pet?: { id: string } | null } | null;
   const petId = record?.pet?.id;
-  if (!userId || !petId || !(await findPetOwnerRole(context, petId, userId))) {
-    addValidationError("Solo los dueños de la mascota pueden adjuntar archivos a su cartilla.");
+  if (!userId || !petId || !(await findPetAccessRoleById(context, petId, userId))) {
+    addValidationError("Solo quien cuida a la mascota puede adjuntar archivos a su cartilla.");
   }
 }

@@ -18,14 +18,14 @@ Rescatistas independientes, refugios, hogares temporales, colectivos y asociacio
 
 ## Acceso
 
-| Quién | `RescueOrganization` | Animales con `organization` |
-|---|---|---|
-| Público | Solo las `verified` | Leer (como todos los animales) |
-| `admin` | Leer y editar el perfil; equipo | Publicar, editar, borrar |
-| `coordinator` | Leer y editar el perfil | Publicar, editar, borrar |
-| `volunteer` | Leer | Publicar y editar (no borrar) |
-| `foster` | Leer | — |
-| Admin de plataforma | Todo, incluidos `status`, `isAlly`, `allyOrder`, `slug`, `adminNotes` | Todo |
+| Quién | `RescueOrganization` | Animales con `organization` | Fichas (`Pet.organization`) |
+|---|---|---|---|
+| Público | Solo las `verified` | Leer (como todos los animales) | — |
+| `admin` | Leer y editar el perfil; equipo | Publicar, editar, borrar | Todo: crear, editar, borrar, hogar temporal, publicar, completar adopción |
+| `coordinator` | Leer y editar el perfil | Publicar, editar, borrar | Igual que `admin` |
+| `volunteer` | Leer | Publicar y editar (no borrar) | Crear, editar (etapa, cartilla) y publicar; no borra ni adopta |
+| `foster` | Leer | — | Solo las que tiene asignadas (`fosterMember`): ver y actualizar la cartilla |
+| Admin de plataforma | Todo, incluidos `status`, `isAlly`, `allyOrder`, `slug`, `adminNotes` | Todo | Todo |
 
 - El equipo se escribe con `addRescueOrganizationMember`, `setRescueOrganizationMemberRole` y `removeRescueOrganizationMember`, siempre con sudo y validando el rol.
 - Por API, la list de miembros solo la escribe un admin de plataforma.
@@ -42,9 +42,28 @@ Rescatistas independientes, refugios, hogares temporales, colectivos y asociacio
 - **Avisos.** Los comentarios y reclamos de un animal de la organización llegan también a sus admins y coordinadores (`reportAudienceWithTeam`).
 - **Impacto.** `publishedCount`, `adoptedCount` e `inAdoptionCount` (y `rescueAllies`) usan el estado más reciente de la bitácora de cada animal, sin contar los reportes unidos a otro.
 
+## Fichas internas (Fase 2)
+
+Cada animal del espacio puede tener una **ficha**: una `Pet` con `organization`. Es la misma cartilla de las familias (fotos, registros de salud, recordatorios), sin dueños mientras está en el espacio.
+
+- **Campos de `Pet`**: `organization` (se elige al crear; después solo cambia por mutación), `stage` (`PET_RESCUE_STAGE`: recién llegado, en tratamiento, en hogar temporal, listo para adopción, apartado, se queda), `intakeDate`, `fosterMember` (alguien del equipo), `publicReport` (su reporte público), `adoptedFromOrganization` y `adoptedAt` (historial de la familia), y el virtual `viewerRole`.
+- **Acceso** (`Pet.access.ts` → `editablePetFilter`): dueños, o admin/coordinación/voluntariado del espacio, o el hogar temporal asignado. Aplica igual a fotos, registros, adjuntos y recordatorios.
+- **Reglas** (`Pet.hooks.ts`): crear con `organization` exige ser del equipo (sin `foster`) y un espacio activo; etapa y fecha de llegada solo en fichas y solo las cambia ese equipo; el hogar temporal lo asignan admin y coordinación. Una ficha no crea dueño principal.
+- **Mutaciones** (`graphql/customs/mutations/pet/rescue/rescuePets.ts`):
+  - `convertAnimalToPet(animalId, organizationId?)`: de reporte a ficha (copia datos y fotos, liga `Animal.pet` y `Pet.publicReport`; si el reporte no era del espacio, queda a su nombre). Sin `organizationId` es «Se quedó conmigo»: la cartilla es de quien publicó el reporte y el reporte se cierra «En familia». Solo para reportes sin espacio.
+  - `publishRescuePet(petId, status, location?, notes?)`: `in_adoption` o `rescued`. Si la ficha ya tiene reporte, le agrega la bitácora; si no, crea el reporte con `createAnimalReport` (WhatsApp del espacio, alerta de zona, sus fotos) a nombre del espacio. «En adopción» pone la etapa en «Listo para adopción».
+  - `completeRescueAdoption(petId, email)`: admin y coordinación. El adoptante (cuenta existente, si no `RESCUE_ADOPTER_NOT_FOUND`) queda como principal; la ficha deja el espacio (`organization`, etapa y hogar temporal en null; `adoptedFromOrganization` y `adoptedAt` quedan); el reporte recibe la bitácora «Adoptado». Le llega `pet.adoption_completed`.
+- **Recordatorios**: los de una ficha le llegan a admin y coordinación del espacio y al hogar temporal asignado, con enlace a la ficha en el panel (`rescuePetCardUrl`). Al adoptarse, los pendientes pasan al adoptante.
+
+Decisiones de la Fase 2:
+
+- **Sin dueños mientras está en el espacio.** Si quien la creó fuera principal, al salirse del equipo se llevaría la ficha. El acceso por rol se corta solo al quitar a alguien del equipo (y quitar al miembro deja `fosterMember` en null).
+- **Al adoptarse, el espacio deja de verla.** La cartilla es privada de la familia; el seguimiento después de la adopción será otra fase, con su permiso.
+- **Adoptante con cuenta existente.** Igual que el equipo: no se crean cuentas a nombre de otros.
+- **«Perdido» sigue siendo de la cartilla familiar** (`markPetAsLost`); una ficha se publica en adopción o como rescatado.
+
 ## Pendiente (siguientes fases)
 
-- Ficha interna con cartilla (`Pet.organization`, etapas, hogar temporal).
-- Convertir un reporte en mascota.
-- Transferir la cartilla al adoptante.
-- Solicitudes de adopción.
+- Solicitudes de adopción (`AdoptionApplication`) con «Quiero adoptarlo» en la ficha pública.
+- Seguimiento después de la adopción (con permiso del adoptante).
+- Reportar como perdido un animal de una ficha (hoy solo la cartilla familiar).

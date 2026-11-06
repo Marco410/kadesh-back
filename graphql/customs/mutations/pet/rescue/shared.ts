@@ -8,7 +8,7 @@ export const rescueSharedTypeDefs = `
     type: String!
     city: String
     state: String
-    "dog | cat | other"
+    "Tipos de animal (ANIMAL_TYPE_OPTIONS): dog | cat | bird | fish | reptil | mammal"
     species: [String!]
     description: String
     "10 dígitos; contacto público una vez verificada"

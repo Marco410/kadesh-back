@@ -165,6 +165,12 @@ export default list({
       many: true,
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } },
     }),
+    /** Fichas internas (cartillas) de sus animales. Leerlas pasa por el acceso de `Pet`. */
+    pets: relationship({
+      ref: "Pet.organization",
+      many: true,
+      ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } },
+    }),
 
     publishedCount: impactField("animals", "Animales publicados a su nombre (sin repetidos)"),
     adoptedCount: impactField("adopted", "Animales que ya tienen hogar"),

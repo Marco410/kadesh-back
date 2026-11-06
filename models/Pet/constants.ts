@@ -17,6 +17,29 @@ export const PET_STATUS_OPTIONS = [
   { label: "Transferida", value: PET_STATUS.TRANSFERRED },
 ];
 
+/**
+ * Etapa de un animal en la ficha interna de un espacio de rescate (`Pet.organization`). Solo aplica
+ * a esas mascotas; la de una familia no tiene etapa. Al adoptarse deja de ser del espacio y la
+ * etapa se borra (queda `adoptedFromOrganization`).
+ */
+export const PET_RESCUE_STAGE = {
+  INTAKE: "intake",
+  TREATMENT: "treatment",
+  FOSTER: "foster",
+  AVAILABLE: "available",
+  RESERVED: "reserved",
+  SANCTUARY: "sanctuary",
+} as const;
+
+export const PET_RESCUE_STAGE_OPTIONS = [
+  { label: "Recién llegado", value: PET_RESCUE_STAGE.INTAKE },
+  { label: "En tratamiento", value: PET_RESCUE_STAGE.TREATMENT },
+  { label: "En hogar temporal", value: PET_RESCUE_STAGE.FOSTER },
+  { label: "Listo para adopción", value: PET_RESCUE_STAGE.AVAILABLE },
+  { label: "Apartado", value: PET_RESCUE_STAGE.RESERVED },
+  { label: "Se queda en el espacio", value: PET_RESCUE_STAGE.SANCTUARY },
+];
+
 export const PET_STERILIZED_OPTIONS = [
   { label: "Sí", value: "yes" },
   { label: "No", value: "no" },
