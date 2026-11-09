@@ -61,7 +61,7 @@ export async function validateTechStatusCrmInput(args: {
 }): Promise<void> {
   const { context, resolvedData, item, listKey, addValidationError } = args;
 
-  if (!("statusCrm" in resolvedData)) return;
+  if (resolvedData.statusCrm === undefined) return;
 
   const statusCrmId = getRelationshipConnectId(resolvedData.statusCrm);
   if (!statusCrmId) return;

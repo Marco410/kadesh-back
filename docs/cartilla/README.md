@@ -54,6 +54,8 @@ Algunos nombres no son los del pedido original porque los campos de `Pet` ya exi
 - **Exactamente un principal:** se crea solo con la mascota. `role` no se edita por API, la fila principal no se borra por API, y `PetOwner.validateInput` rechaza un segundo principal o una persona repetida.
 - **Datos protegidos para los dueños:** `owners`, `lostReport`, `verifiedByVet`, `createdBy` y `sentAt` solo los escribe un admin o el servidor. `Pet.status` no entra ni sale de `lost` por API; para eso están las mutaciones.
 - **Nada de la cartilla es público.** `PetOwner.userName` solo da el nombre del otro dueño; el `User` (correo, teléfono) sigue bajo su propio acceso. El reporte de perdida es público como siempre: muestra el teléfono que la persona eligió para el cartel. `Animal.pet` se resuelve con el acceso de `Pet`, así que es `null` para quien no es dueño.
+- **Traspasos:** una mascota cambia de cuenta solo con un código de traspaso o al completar una adopción; nunca editando `owners` por API (ver «Traspasos»).
+- **Fichas de un espacio de rescate:** una `Pet` con `organization` no tiene dueños; la ven y editan admin, coordinación y voluntariado del espacio, y el hogar temporal asignado (`fosterMember`). Borrarla es de admin y coordinación. Al completar la adopción pasa a la familia como cualquier cartilla. Detalle en `models/Pet/RescueOrganization/README.md` («Fichas internas»).
 - **Citas:** la mascota debe ser del cliente de la cita (la reserve él o su veterinaria). Si vienen vacíos, `petName` y `petSpecies` se llenan desde `Pet`, porque la veterinaria no puede leer la cartilla.
 
 ## Hooks
@@ -82,6 +84,28 @@ Algunos nombres no son los del pedido original porque los campos de `Pet` ya exi
 - **`addPetFamilyMember(petId, email)`:** solo el principal. Busca la cuenta por correo y la agrega como `family`. Si el correo no tiene cuenta, el error trae `extensions.code = "PET_FAMILY_USER_NOT_FOUND"` y el front ofrece registrarla.
 - **`registerPetFamilyMember(petId, input: { name, lastName, email, phone, password })`:** solo el principal. Crea la cuenta de Pet con la contraseña que **él elige** (mínimo 8), la agrega como `family` y le manda `sendPetFamilyAccountEmail`: "<principal> te agregó a la cartilla de <mascota>; tu contraseña la eligió él, pídesela". El correo nunca lleva la contraseña. Si el correo ya tenía cuenta, solo la agrega y no toca su contraseña (`createdAccount: false`). Además del nuestro, le llega el correo de bienvenida genérico que manda `User` al crearse.
 - **`sendDuePetReminders(secret)`:** la llama el cron. Ver abajo.
+
+## Traspasos (cambiar de cuenta a una mascota)
+
+Una mascota pasa a otra cuenta con su cartilla completa (datos, fotos, registros, adjuntos y recordatorios) con un **código**. List `PetTransfer` (`models/Pet/PetTransfer/`); mutaciones en `graphql/customs/mutations/pet/card/petTransfer.ts`.
+
+- **Generar** (`createPetTransferCode(petId, message?)`):
+  - Lo hace el dueño principal o, si es ficha de un espacio de rescate, admin o coordinación.
+  - La mascota debe estar activa: una perdida primero se cierra con «Ya regresó a casa».
+  - El código tiene 8 caracteres, como «7KQ2-M9XA», sin 0/O ni 1/I/L. Vale 7 días y se usa una sola vez.
+  - Generar uno nuevo cancela el anterior. Tope de 20 al día (`pet_transfer_code_user`).
+- **Ver antes de aceptar** (`previewPetTransferCode(code)`): nombre, especie, raza, foto, quién lo da y su mensaje.
+- **Canjear** (`redeemPetTransferCode(code)`):
+  - Quien lo canjea queda como único dueño principal.
+  - Mascota de una familia: se van todos sus dueños anteriores (principal y familia).
+  - Ficha de un espacio: sale del espacio y su reporte queda «Adoptado».
+  - El código se aparta antes de mover nada (si dos lo canjean a la vez, gana uno) y vuelve a estar disponible si el traspaso falla.
+  - Se revalida que quien lo generó siga pudiendo dar la mascota.
+  - Avisa a quien lo dio (`pet.transfer_redeemed`).
+- **Cancelar** (`cancelPetTransferCode(transferId)`): quien lo generó o quien puede dar la mascota.
+- **Contra adivinar códigos**: ver y canjear comparten un tope de 15 por hora por persona y avisan a Seguridad (`pet_transfer_redeem_user`).
+- **Lectura**: la list solo la leen quien puede dar la mascota y quien generó el código. Quien recibe nunca la lee: escribe el código.
+- **En la web**: «Traspasar» en la cartilla (principal) o «Entregar con código» en la ficha del espacio, y «Recibir con código» en Mis mascotas. El enlace `/perfil?tab=pets&codigo=…` abre ese modal ya escrito.
 
 ## Recordatorios
 

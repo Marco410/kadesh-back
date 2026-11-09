@@ -3,6 +3,8 @@ import { NOTIFICATION_TYPE } from "../../models/Notification/constants";
 import { petPublicUrl } from "../pet/animalReport";
 import { isGenericName } from "../pet/reportSimilarity";
 import { notify } from "./notify";
+import { RESCUE_ANIMAL_MANAGER_ROLES } from "../../models/Pet/RescueOrganization/constants";
+import { rescueStaffIds } from "../../models/Pet/RescueOrganization/RescueOrganization.access";
 
 /**
  * Avisos de un reporte a quien lo atiende: comentarios, solicitudes para quedarse con el reporte
@@ -20,6 +22,20 @@ export function reportAudience(userId?: string | null): "platform_admins" | stri
   const automation = automationUserId();
   if (!userId || (automation && userId === automation)) return "platform_admins";
   return [userId];
+}
+
+/**
+ * Como `reportAudience`, más los admins y coordinadores del espacio de rescate a cuyo nombre está
+ * el reporte (aunque siga en revisión: su equipo lo atiende igual).
+ */
+export async function reportAudienceWithTeam(
+  context: KeystoneContext,
+  animal: { user?: { id: string } | null; organization?: { id: string } | null },
+): Promise<"platform_admins" | string[]> {
+  const base = reportAudience(animal.user?.id);
+  const staff = await rescueStaffIds(context, animal.organization?.id, RESCUE_ANIMAL_MANAGER_ROLES);
+  if (!staff.length) return base;
+  return [...new Set([...(Array.isArray(base) ? base : []), ...staff])];
 }
 
 function excerpt(text: string) {
@@ -54,21 +70,24 @@ export async function notifyAnimalComment(context: KeystoneContext, input: Comme
     const sudo = context.sudo();
     const animal = (await sudo.query.Animal.findOne({
       where: { id: input.animalId },
-      query: "id name slug user { id } logs(orderBy: { createdAt: desc }, take: 1) { status }",
+      query: "id name slug user { id } organization { id } logs(orderBy: { createdAt: desc }, take: 1) { status }",
     })) as {
       id: string;
       name?: string | null;
       slug?: string | null;
       user?: { id: string } | null;
+      organization?: { id: string } | null;
       logs?: Array<{ status?: string | null }> | null;
     } | null;
     if (!animal) return;
 
-    const audience = reportAudience(animal.user?.id);
+    const audience = await reportAudienceWithTeam(context, animal);
     const isComment = input.kind !== "duplicate_report" && input.kind !== "possible_match";
     // Los comentarios normales en reportes de la automatización no llegan a nadie (ruido).
     if (audience === "platform_admins" && isComment) return;
-    if (Array.isArray(audience) && input.authorId && audience.includes(input.authorId)) return;
+    // Quien comenta no se avisa a sí mismo (con equipo, sí a los demás).
+    const recipients = Array.isArray(audience) ? audience.filter((id) => id !== input.authorId) : audience;
+    if (Array.isArray(recipients) && recipients.length === 0) return;
 
     const author = input.authorId
       ? ((await sudo.query.User.findOne({ where: { id: input.authorId }, query: "name" })) as {
@@ -97,7 +116,7 @@ export async function notifyAnimalComment(context: KeystoneContext, input: Comme
 
     const url = reportUrl(animal, "#comentarios");
     await notify(context, {
-      audience,
+      audience: recipients,
       product: "pet",
       type,
       title,
@@ -125,18 +144,24 @@ export async function notifyClaimRequested(context: KeystoneContext, claimId: st
   try {
     const claim = (await context.sudo().query.AnimalClaim.findOne({
       where: { id: claimId },
-      query: "id claimant { id name } animal { id name slug user { id } }",
+      query: "id claimant { id name } animal { id name slug user { id } organization { id } }",
     })) as {
       id: string;
       claimant?: { id: string; name?: string | null } | null;
-      animal?: { id: string; name?: string | null; slug?: string | null; user?: { id: string } | null } | null;
+      animal?: {
+        id: string;
+        name?: string | null;
+        slug?: string | null;
+        user?: { id: string } | null;
+        organization?: { id: string } | null;
+      } | null;
     } | null;
     if (!claim?.animal) return;
     const name = animalName(claim.animal.name);
     const who = firstName(claim.claimant?.name);
     const url = reportUrl(claim.animal, `?reclamo=${claim.id}`);
     await notify(context, {
-      audience: reportAudience(claim.animal.user?.id),
+      audience: await reportAudienceWithTeam(context, claim.animal),
       product: "pet",
       type: NOTIFICATION_TYPE.ANIMAL_CLAIM_REQUESTED,
       title: name ? `${who} dice que ${name} es su mascota` : `${who} dice que el animal de tu reporte es su mascota`,

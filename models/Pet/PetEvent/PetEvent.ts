@@ -62,14 +62,17 @@ export default list({
     // Los cambios hechos desde el admin de Keystone también dejan listos slug, estado y zona horaria.
     resolveInput: async ({ resolvedData, item, operation, context }: any) => {
       const data = { ...resolvedData };
-      if ("state" in data || "city" in data) {
+      // `resolvedData` trae todas las llaves; las que no vienen en el cambio valen `undefined`.
+      const stateChanged = data.state !== undefined;
+      const cityChanged = data.city !== undefined;
+      if (stateChanged || cityChanged) {
         const stateCode = normalizeStateCode(data.state ?? item?.state) ?? item?.stateCode ?? null;
         if (stateCode) {
           data.stateCode = stateCode;
           data.timeZone = timeZoneForState(stateCode);
-          if ("state" in data) data.state = stateByCode(stateCode)?.name ?? data.state;
+          if (stateChanged) data.state = stateByCode(stateCode)?.name ?? data.state;
         }
-        if ("city" in data) data.cityKey = cityKey(data.city);
+        if (cityChanged) data.cityKey = cityKey(data.city);
       }
       if (operation === "create" && !data.slug) {
         data.slug = await uniquePetEventSlug(context, buildPetEventSlug(data.title ?? "evento", data.city));

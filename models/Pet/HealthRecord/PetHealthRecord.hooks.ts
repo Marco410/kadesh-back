@@ -42,7 +42,8 @@ async function validateHealthRecord(args: HookArgs) {
     addValidationError: addValidationError ?? (() => {}),
   });
   const applied = toYmd(resolvedData.appliedDate ?? item?.appliedDate);
-  const next = toYmd("nextDueDate" in resolvedData ? resolvedData.nextDueDate : item?.nextDueDate);
+  // `resolvedData` trae todas las llaves; si no viene en el cambio vale `undefined` y se usa la guardada.
+  const next = toYmd(resolvedData.nextDueDate !== undefined ? resolvedData.nextDueDate : item?.nextDueDate);
   if (applied && next && next < applied) {
     addValidationError?.("La próxima fecha no puede ser anterior a la fecha de aplicación.");
   }

@@ -183,6 +183,27 @@ export const ACTIVITY_EVENT = {
   PET_EVENT_UPDATED: "pet.event_updated",
   PET_EVENT_REVIEWED: "pet.event_reviewed",
   PET_EVENT_CANCELLED: "pet.event_cancelled",
+  // Espacios de rescate: activar, cambiar estado (admin) y equipo.
+  PET_RESCUE_CREATED: "pet.rescue_created",
+  PET_RESCUE_STATUS_CHANGED: "pet.rescue_status_changed",
+  PET_RESCUE_MEMBER_ADDED: "pet.rescue_member_added",
+  PET_RESCUE_MEMBER_UPDATED: "pet.rescue_member_updated",
+  PET_RESCUE_MEMBER_REMOVED: "pet.rescue_member_removed",
+  // Ficha interna: crearla desde un reporte, publicarla y completar la adopción.
+  PET_RESCUE_PET_CREATED: "pet.rescue_pet_created",
+  PET_RESCUE_PET_PUBLISHED: "pet.rescue_pet_published",
+  PET_RESCUE_ADOPTION_COMPLETED: "pet.rescue_adoption_completed",
+  // «Se quedó conmigo»: quien publicó el reporte lo pasa a su cartilla.
+  PET_ANIMAL_KEPT: "pet.animal_kept",
+  // Solicitudes de adopción y traspasos de cartilla con código.
+  PET_ADOPTION_APPLICATION_SUBMITTED: "pet.adoption_application_submitted",
+  PET_ADOPTION_APPLICATION_EDITED: "pet.adoption_application_edited",
+  PET_ADOPTION_APPLICATION_REVIEWED: "pet.adoption_application_reviewed",
+  PET_ADOPTION_APPLICATION_WITHDRAWN: "pet.adoption_application_withdrawn",
+  PET_ADOPTION_APPLICATION_COMPLETED: "pet.adoption_application_completed",
+  PET_TRANSFER_CODE_CREATED: "pet.transfer_code_created",
+  PET_TRANSFER_CODE_CANCELLED: "pet.transfer_code_cancelled",
+  PET_TRANSFER_REDEEMED: "pet.transfer_redeemed",
   // Alta con el formulario genérico (Kadesh Pet web y app). Negocios y Google ya quedan en UserAuthLog.
   AUTH_SIGNUP: "auth.signup",
   // Formulario de contacto (landing y Negocios); sin datos personales en metadata.

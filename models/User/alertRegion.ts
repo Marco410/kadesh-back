@@ -14,8 +14,10 @@ const EMPTY_REGION = { alertCity: null, alertCityKey: null, alertStateCode: null
  * Si Nominatim falla, queda vacío y `backfillAlertRegions` lo llena después.
  */
 export async function resolveAlertRegion({ resolvedData, item }: Args): Promise<Record<string, any>> {
-  const latChanged = "alertLat" in resolvedData;
-  const lngChanged = "alertLng" in resolvedData;
+  // `resolvedData` trae todas las llaves de la lista; las que no vienen en el cambio valen
+  // `undefined`. Con `in` cualquier update de User borraba el municipio y estado de la zona.
+  const latChanged = resolvedData.alertLat !== undefined;
+  const lngChanged = resolvedData.alertLng !== undefined;
   if (!latChanged && !lngChanged) return resolvedData;
 
   const lat = latChanged ? resolvedData.alertLat : item?.alertLat;

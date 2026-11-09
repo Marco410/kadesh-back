@@ -12,14 +12,37 @@ const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
 type ImageExtension = "jpg" | "png" | "webp" | "gif";
 
-/** Cartilla de la mascota en la web de Pet (pestaña Mascotas del perfil). */
-export function petCardUrl(petId: string): string {
-  const base = (
+function petFrontendBase(): string {
+  return (
     process.env.PET_FRONTEND_URL?.trim() ||
     process.env.FRONTEND_URL?.trim() ||
     "https://pet.kadesh.com.mx"
   ).replace(/\/$/, "");
-  return `${base}/perfil?tab=pets&pet=${encodeURIComponent(petId)}`;
+}
+
+/** Cartilla de la mascota en la web de Pet (pestaña Mascotas del perfil). */
+export function petCardUrl(petId: string): string {
+  return `${petFrontendBase()}/perfil?tab=pets&pet=${encodeURIComponent(petId)}`;
+}
+
+/** Una solicitud de adopción en «Adopciones» del perfil de quien la envió (estado, proceso y editarla). */
+export function adoptionApplicationUrl(applicationId: string): string {
+  return `${petFrontendBase()}/perfil?tab=adopciones&solicitud=${encodeURIComponent(applicationId)}`;
+}
+
+/** Lista «Mis mascotas» del perfil. */
+export function petListUrl(): string {
+  return `${petFrontendBase()}/perfil?tab=pets`;
+}
+
+/** Lista de fichas de un espacio de rescate en su panel. */
+export function rescuePetsListUrl(organizationId: string): string {
+  return `${petFrontendBase()}/perfil?tab=rescate&org=${encodeURIComponent(organizationId)}&vista=fichas`;
+}
+
+/** Ficha interna de un animal en el panel de su espacio de rescate. */
+export function rescuePetCardUrl(organizationId: string, petId: string): string {
+  return `${petFrontendBase()}/perfil?tab=rescate&org=${encodeURIComponent(organizationId)}&vista=fichas&pet=${encodeURIComponent(petId)}`;
 }
 
 /** Quien llama debe ser dueño de la mascota (o el principal, con `principal: true`). */
@@ -113,5 +136,62 @@ export async function copyPetPhotosToReport(
     }
   }
   if (copied > 0) noteAnimalCoverSaved(animalId, context);
+  return copied;
+}
+
+/**
+ * Lo contrario de `copyPetPhotosToReport`: las fotos del reporte (`s3_animals`) pasan a la ficha
+ * (`s3_pets`) al crearla desde un reporte (`convertAnimalToPet`). Tampoco lanza.
+ */
+export async function copyReportPhotosToPet(
+  context: KeystoneContext,
+  animalId: string,
+  petId: string,
+): Promise<number> {
+  const prisma = (context.sudo() as KeystoneContext & { prisma: any }).prisma;
+  const photos = await prisma.animalMultimedia.findMany({
+    where: { animalId, image_id: { not: null } },
+    orderBy: [{ order: "asc" }],
+    take: MAX_REPORT_PHOTOS,
+    select: { image_id: true, image_extension: true },
+  });
+  if (photos instanceof Error) {
+    console.error("[petCard] No se pudieron leer las fotos del reporte", { animalId }, photos);
+    return 0;
+  }
+
+  let copied = 0;
+  for (const photo of photos as Array<{ image_id: string; image_extension: string | null }>) {
+    try {
+      const extension = (photo.image_extension || "jpg") as ImageExtension;
+      const url = await context.images("s3_animals").getUrl(photo.image_id, extension);
+      if (!/^https?:\/\//i.test(url)) {
+        console.warn("[petCard] Foto sin URL absoluta, no se copia a la ficha", { animalId });
+        continue;
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} al descargar la foto`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      if (buffer.length > MAX_PHOTO_BYTES) throw new Error("La foto pesa más de 8 MB");
+      const stored = await context
+        .images("s3_pets")
+        .getDataFromStream(Readable.from(buffer), `reporte.${extension}`);
+      const created = await prisma.petMultimedia.create({
+        data: {
+          petId,
+          order: copied + 1,
+          image_id: stored.id,
+          image_extension: stored.extension,
+          image_filesize: stored.filesize,
+          image_width: stored.width,
+          image_height: stored.height,
+        },
+      });
+      if (created instanceof Error) throw created;
+      copied += 1;
+    } catch (error) {
+      console.error("[petCard] No se pudo copiar una foto a la ficha", { animalId, petId }, error);
+    }
+  }
   return copied;
 }

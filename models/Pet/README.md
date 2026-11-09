@@ -9,10 +9,12 @@ Dominio KadeshPet. Lists de adopción (`Animal`), mascotas del usuario con su ca
 `Pet` es la mascota de una familia; `PetOwner`, `PetHealthRecord` (+ `PetHealthRecordAttachment`) y `PetReminder` cuelgan de ella. Detalle, permisos, migración y ejemplos GraphQL en `docs/cartilla/README.md`.
 
 Invariantes:
-- Solo sus dueños (`PetOwner`) ven y cambian una mascota y todo lo suyo; un admin de plataforma ve todo (`Pet.access.ts`).
-- Exactamente un `PetOwner` principal por mascota: se crea solo al registrarla y no se borra ni se cambia por API.
+- Solo sus dueños (`PetOwner`) ven y cambian una mascota y todo lo suyo, o el equipo del espacio de rescate si es su ficha; un admin de plataforma ve todo (`Pet.access.ts`).
+- Exactamente un `PetOwner` principal por mascota: se crea solo al registrarla y no se borra ni se cambia por API. La excepción es la ficha de un espacio de rescate (`Pet.organization`): no tiene dueños hasta que `completeRescueAdoption` pone al adoptante como principal.
 - `Pet.status` entra y sale de `lost` solo con `markPetAsLost` / `markPetAsFound`, que también amarran `Pet.lostReport` y `Animal.pet`.
 - Al borrar una mascota se borran sus datos propios; reportes y citas se quedan con `pet` en null.
+- Una mascota solo cambia de cuenta con un código de traspaso (`PetTransfer`) o al completar una adopción (`completeRescueAdoption`, `completeAdoptionApplication`). Todas pasan por `utils/pet/petTransfer.ts`, y el código sin usar se cancela si cambia de manos por otra vía.
+- Las solicitudes de adopción (`AdoptionApplication`, en `Animal/`) son de un reporte «En adopción»; al encontrar familia se cierran todas (`utils/pet/adoptionApplications.ts`).
 
 ## Eventos
 

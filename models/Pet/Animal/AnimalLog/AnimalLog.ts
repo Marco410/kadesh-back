@@ -21,9 +21,9 @@ export default list({
       const data = { ...resolvedData };
       const shouldFill =
         operation === "create" ||
-        "city" in data ||
-        "lat" in data ||
-        "lng" in data;
+        data.city !== undefined ||
+        data.lat !== undefined ||
+        data.lng !== undefined;
       if (!shouldFill) return data;
       const city = typeof data.city === "string" ? data.city : "";
       const lat = typeof data.lat === "string" ? data.lat : "";
