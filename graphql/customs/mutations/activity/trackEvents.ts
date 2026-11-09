@@ -17,6 +17,7 @@ import { logActivity } from "../../../../utils/activity/logActivity";
 import { getImpersonation } from "../../../../auth/impersonation";
 import { cleanPage, requestIp, requestPage } from "../../../../utils/activity/requestMeta";
 import { createDeduper, createRateLimiter } from "../../../../utils/security/rateLimit";
+import { isKnownCrawlerRequest } from "../../../../utils/security/knownCrawlers";
 
 /**
  * Eventos que solo conoce el navegador: qué secciones abre la gente, qué módulos bloqueados ve,
@@ -165,12 +166,16 @@ function clientErrorSummary(kind: string, operation: string | null, page: string
  * crash (la pantalla se cayó), script (error de código que no la tiró) o chunk (no cargó el
  * código de la pantalla, suele pasar tras un despliegue). El mensaje va a
  * `errorMessage` y la pantalla del momento del error a `page`.
+ *
+ * Los de crawlers (user agent de bot o IP de Meta, ver `knownCrawlers`) no se guardan: son
+ * navegadores sin GPU ni sesión cuyas fallas no le pasaron a nadie.
  */
 async function logClientError(
   context: KeystoneContext,
   input: TrackEventInput,
   userId: string | null,
 ): Promise<void> {
+  if (isKnownCrawlerRequest(context.req)) return;
   const metadata = flatMetadata(input.metadata);
   const message = text(metadata.message) ?? "Error desconocido";
   const kind = text(metadata.kind, 20) ?? "network";
