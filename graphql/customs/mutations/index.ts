@@ -23,8 +23,10 @@ import fetchInegiIndicator from "./inegi/fetchInegiIndicator";
 import veterinaryMutations from "./pet/veterinary";
 import createAnimalReport from "./pet/createAnimalReport";
 import animalClaims from "./pet/animalClaims";
+import adoptionApplications from "./pet/adoptionApplications";
 import petCardMutations from "./pet/card";
 import petEventMutations from "./pet/events";
+import rescueMutations from "./pet/rescue";
 import unsubscribeBlog from "./unsubscribeBlog";
 import publishScheduledPosts from "./publishScheduledPosts";
 import upsertDraftSystemRelease from "./upsertDraftSystemRelease";
@@ -81,8 +83,10 @@ const customMutation = {
     ${veterinaryMutations.typeDefs}
     ${createAnimalReport.typeDefs}
     ${animalClaims.typeDefs}
+    ${adoptionApplications.typeDefs}
     ${petCardMutations.typeDefs}
     ${petEventMutations.typeDefs}
+    ${rescueMutations.typeDefs}
     ${unsubscribeBlog.typeDefs}
     ${publishScheduledPosts.typeDefs}
     ${upsertDraftSystemRelease.typeDefs}
@@ -138,8 +142,10 @@ const customMutation = {
     ${veterinaryMutations.definition}
     ${createAnimalReport.definition}
     ${animalClaims.definition}
+    ${adoptionApplications.definition}
     ${petCardMutations.definition}
     ${petEventMutations.definition}
+    ${rescueMutations.definition}
     ${unsubscribeBlog.definition}
     ${publishScheduledPosts.definition}
     ${upsertDraftSystemRelease.definition}
@@ -195,8 +201,10 @@ const customMutation = {
     ...veterinaryMutations.resolver,
     ...createAnimalReport.resolver,
     ...animalClaims.resolver,
+    ...adoptionApplications.resolver,
     ...petCardMutations.resolver,
     ...petEventMutations.resolver,
+    ...rescueMutations.resolver,
     ...unsubscribeBlog.resolver,
     ...publishScheduledPosts.resolver,
     ...upsertDraftSystemRelease.resolver,

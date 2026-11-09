@@ -37,6 +37,7 @@ import companyAnalytics from "./analytics/companyAnalytics";
 import landingStats from "./landingStats";
 import petLandingStats from "./petLandingStats";
 import petEvents from "./petEvents";
+import rescueAllies from "./rescueAllies";
 
 const customQuery = {
   typeDefs: `
@@ -75,6 +76,7 @@ const customQuery = {
     ${companyAnalytics.typeDefs}
     ${landingStats.typeDefs}
     ${petLandingStats.typeDefs}
+    ${rescueAllies.typeDefs}
     ${petEvents.typeDefs}
   `,
   definitions: `
@@ -116,6 +118,7 @@ const customQuery = {
     ${landingStats.definition}
     ${petLandingStats.definition}
     ${petEvents.definition}
+    ${rescueAllies.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -156,6 +159,7 @@ const customQuery = {
     ...landingStats.resolver,
     ...petLandingStats.resolver,
     ...petEvents.resolver,
+    ...rescueAllies.resolver,
   },
 };
 

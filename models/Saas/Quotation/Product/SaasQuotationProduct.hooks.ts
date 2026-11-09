@@ -6,7 +6,8 @@ const pendingRecalcKey = "__saasQuotationRecalcAfterDelete";
 const previousQuoteRecalcKey = "__saasQuotationRecalcPreviousQuoteId";
 
 function resolvedDataUpdatesQuote(resolvedData?: Record<string, unknown>): boolean {
-  return !!resolvedData && Object.prototype.hasOwnProperty.call(resolvedData, "quotation");
+  // `resolvedData` trae todas las llaves; si no se cambia la cotización, vale `undefined`.
+  return !!resolvedData && resolvedData.quotation !== undefined;
 }
 
 function getQuoteIdFromResolved(

@@ -7,6 +7,7 @@ import {
   notifyClaimResolved,
 } from "../../../../utils/notifications/animalReportAlerts";
 import { ANIMAL_CLAIM_STATUS } from "../../../../models/Pet/Animal/AnimalClaim/constants";
+import { canEditAnimalAs } from "../../../../models/Pet/Animal/Animal.access";
 
 /**
  * Responder una solicitud para quedarse con un reporte (`AnimalClaim`). La crea cualquiera con
@@ -43,11 +44,12 @@ type ClaimRow = {
     contactNumber?: string | null;
     contactNumber2?: string | null;
     user?: { id: string } | null;
+    organization?: { id: string } | null;
   } | null;
 };
 
 const CLAIM_QUERY =
-  "id status phone claimant { id } animal { id name slug contactNumber contactNumber2 user { id } }";
+  "id status phone claimant { id } animal { id name slug contactNumber contactNumber2 user { id } organization { id } }";
 
 async function loadClaim(context: KeystoneContext, claimId: string) {
   return (await context.sudo().query.AnimalClaim.findOne({
@@ -60,13 +62,21 @@ function fail(message: string) {
   return { success: false, message, animalSlug: null };
 }
 
-/** Quien atiende el reporte decide; si es la cuenta de automatización (o no hay), solo un admin. */
-function canResolve(context: KeystoneContext, claim: ClaimRow) {
+/**
+ * Quien atiende el reporte decide: su autor o el equipo de su espacio de rescate. Si el autor es la
+ * cuenta de automatización (o no hay), solo un admin.
+ */
+async function canResolve(context: KeystoneContext, claim: ClaimRow) {
   if (isPlatformAdmin(context.session)) return true;
   const userId = getSessionUserId(context.session);
   const ownerId = claim.animal?.user?.id;
-  if (!userId || !ownerId) return false;
-  return ownerId === userId && ownerId !== automationUserId();
+  if (!userId) return false;
+  if (ownerId && ownerId === userId && ownerId !== automationUserId()) return true;
+  return canEditAnimalAs(
+    context,
+    { userId: null, organizationId: claim.animal?.organization?.id ?? null },
+    userId,
+  );
 }
 
 const resolver = {
@@ -80,7 +90,7 @@ const resolver = {
     const claim = await loadClaim(context, claimId);
     if (!claim?.animal || !claim.claimant) return fail("No encontramos esa solicitud.");
     if (claim.status !== ANIMAL_CLAIM_STATUS.PENDING) return fail("Esta solicitud ya se respondió.");
-    if (!canResolve(context, claim)) return fail("Solo quien reportó al animal puede responder.");
+    if (!(await canResolve(context, claim))) return fail("Solo quien reportó al animal puede responder.");
 
     const sudo = context.sudo();
     const animal = claim.animal;
@@ -127,6 +137,8 @@ const resolver = {
         reportedBy: "owner",
         contactNumber,
         contactNumber2,
+        // Era la mascota de alguien: deja de estar a nombre del espacio de rescate.
+        ...(animal.organization?.id ? { organization: { disconnect: true } } : {}),
       },
     });
     await sudo.query.AnimalClaim.updateOne({

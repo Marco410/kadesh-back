@@ -17,6 +17,8 @@ type PetLandingStats = {
   animalsInAdoption: number;
   veterinaries: number;
   veterinariesVerified: number;
+  /** Espacios de rescate verificados. */
+  rescueOrganizations: number;
   cities: number;
   updatedAt: string;
 };
@@ -31,6 +33,7 @@ const typeDefs = `
     animalsInAdoption: Int!
     veterinaries: Int!
     veterinariesVerified: Int!
+    rescueOrganizations: Int!
     cities: Int!
     updatedAt: String!
   }
@@ -48,7 +51,7 @@ async function computePetLandingStats(context: KeystoneContext): Promise<PetLand
   const prisma = (context.sudo() as KeystoneContext & { prisma: any }).prisma;
   const veterinary = { types: { some: { value: "veterinary" } } };
 
-  const [animals, statusRows, veterinaries, veterinariesVerified, cityRows] = await Promise.all([
+  const [animals, statusRows, veterinaries, veterinariesVerified, cityRows, rescueOrganizations] = await Promise.all([
     prisma.animal.count(),
     // Estado actual de cada animal = su registro más reciente en la bitácora.
     prisma.$queryRaw`
@@ -73,6 +76,7 @@ async function computePetLandingStats(context: KeystoneContext): Promise<PetLand
       ) places
       WHERE trim(c) <> ''
     `,
+    prisma.rescueOrganization.count({ where: { status: "verified" } }),
   ]);
 
   const byStatus = new Map<string, number>(
@@ -91,6 +95,7 @@ async function computePetLandingStats(context: KeystoneContext): Promise<PetLand
     animalsInAdoption: count(["in_adoption"]),
     veterinaries: unwrap<number>(veterinaries),
     veterinariesVerified: unwrap<number>(veterinariesVerified),
+    rescueOrganizations: unwrap<number>(rescueOrganizations),
     cities: unwrap<{ n: number }[]>(cityRows)[0]?.n ?? 0,
     updatedAt: new Date().toISOString(),
   };

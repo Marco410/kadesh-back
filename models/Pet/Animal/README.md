@@ -117,3 +117,15 @@ Por qué: el post salía muy seco y mucha gente no llena todo; la ubicación y e
 
 Qué no hacer: no poner el teléfono en el post. El contacto está en la ficha (el enlace del post) y la Página tiene mucho alcance.
 
+
+### 2026-11-05 — Animales a nombre de un espacio de rescate (`Animal.organization`)
+
+Qué: un animal puede publicarse a nombre de un espacio de rescate (`RescueOrganization`, ver su README). `user` sigue siendo quien lo publicó.
+- Además del autor, lo editan los admins, coordinadores y voluntarios de la organización, y lo borran sus admins y coordinadores. Esto aplica también a sus fotos y bitácora (`editableAnimalFilter`).
+- Solo su equipo puede conectar la organización, y solo si está `pending` o `verified` (`validateAnimalOrganization`).
+- `viewerCanEdit` le dice al front si quien consulta puede editar, sin exponer al equipo.
+- Si se aprueba un reclamo, el reporte deja de estar a nombre de la organización.
+
+Por qué: los rescatistas trabajan en equipo y publicaban como «voluntario» suelto, sin perfil ni respaldo.
+
+Qué no hacer: no mostrar la organización mientras no esté verificada. El acceso de lectura de `RescueOrganization` ya la oculta: no saltárselo con sudo en consultas públicas.

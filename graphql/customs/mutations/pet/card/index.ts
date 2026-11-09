@@ -3,6 +3,7 @@ import markPetAsFound from "./markPetAsFound";
 import addPetFamilyMember from "./addPetFamilyMember";
 import registerPetFamilyMember from "./registerPetFamilyMember";
 import sendDuePetReminders from "./sendDuePetReminders";
+import petTransfer from "./petTransfer";
 
 /** Cartilla digital de la mascota. Ver docs/cartilla/README.md. */
 const petCardMutations = {
@@ -12,6 +13,7 @@ const petCardMutations = {
     ${addPetFamilyMember.typeDefs}
     ${registerPetFamilyMember.typeDefs}
     ${sendDuePetReminders.typeDefs}
+    ${petTransfer.typeDefs}
   `,
   definition: `
     ${markPetAsLost.definition}
@@ -19,6 +21,7 @@ const petCardMutations = {
     ${addPetFamilyMember.definition}
     ${registerPetFamilyMember.definition}
     ${sendDuePetReminders.definition}
+    ${petTransfer.definition}
   `,
   resolver: {
     ...markPetAsLost.resolver,
@@ -26,6 +29,7 @@ const petCardMutations = {
     ...addPetFamilyMember.resolver,
     ...registerPetFamilyMember.resolver,
     ...sendDuePetReminders.resolver,
+    ...petTransfer.resolver,
   },
 };
 
