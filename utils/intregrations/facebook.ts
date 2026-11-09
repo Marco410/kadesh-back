@@ -22,6 +22,14 @@ function facebookPageEnv(product: Product): FacebookPageEnv {
   };
 }
 
+/**
+ * Con `ENVIROMENT=DEV` nunca se publica: las Páginas y tokens son los mismos de producción,
+ * así que un post de prueba saldría al público.
+ */
+export function isFacebookPostingDisabled(): boolean {
+  return (process.env.ENVIROMENT ?? "").trim().toUpperCase() === "DEV";
+}
+
 /** `product` debe ser `pet` o `saas` (una Página real), nunca `all`: eso lo resuelve el caller. */
 export function isFacebookConfigured(product: Product): boolean {
   const { pageId, accessToken } = facebookPageEnv(product);
@@ -35,7 +43,8 @@ type FacebookGraphErrorBody = {
 /**
  * Publica en el feed de la Página de Facebook de `product` (Graph API). Facebook scrapea el
  * Open Graph de `link` solo (título/imagen/descripción) — no hace falta mandarlos aparte.
- * No lanza si falta configuración (solo warnea y no hace nada); sí lanza si la llamada falla.
+ * No lanza si falta configuración o si es DEV (solo avisa y no hace nada); sí lanza si la
+ * llamada falla.
  */
 export async function postToFacebookPage({
   product,
@@ -46,6 +55,11 @@ export async function postToFacebookPage({
   message: string;
   link: string;
 }): Promise<{ id: string } | undefined> {
+  if (isFacebookPostingDisabled()) {
+    console.log(`[facebook] ENVIROMENT=DEV: no se publica en la Página de "${product}".`);
+    return undefined;
+  }
+
   const { pageId, accessToken } = facebookPageEnv(product);
 
   if (!pageId || !accessToken) {
