@@ -8,6 +8,7 @@ import {
   select,
 } from "@keystone-6/core/fields";
 import { postAccess } from "./Post.access";
+import { postAuthorProfileField } from "./Post.authorProfile";
 import { PRODUCT, PRODUCT_OPTIONS } from "../../../utils/constants/product";
 import {
   postUrlHook,
@@ -118,6 +119,8 @@ export default list({
       ref: "User",
       many: false,
     }),
+    /** Datos públicos del autor para el blog: a un visitante `author` le llega `null`. */
+    authorProfile: postAuthorProfileField,
     comments: relationship({
       ref: "PostComment.post",
       many: true,
