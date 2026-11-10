@@ -13,6 +13,7 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
   - **Sin session** (seed/scripts) → ni Facebook ni correo.
 - Fallos de Facebook o correo se loguean; no abortan el create.
 - La espera de Facebook vive en el proceso que creó el animal. Si ese proceso se reinicia antes de publicar, ese animal no sale en la Página.
+- **Correo al dueño** (`Animal.publishedEmail.ts`): con el primer `AnimalLog` creado con sesión, el dueño (`Animal.user`) recibe «Tu reporte ya está publicado» cuando ya están las fotos (2.5 s tras la última, 90 s si no hay). Lleva sus datos, la tarjeta `/animales/{slug}/og` y lo que puede hacer: compartir, agregar registros, editar, alertas de zona, avisos por WhatsApp e impulsar en Facebook (solo `lost`/`found`). No sale sin sesión, al usuario de automatización (`PET_AUTOMATION_USER_ID`), a cuentas anonimizadas o suspendidas, ni si el reporte ya está unido a otro o se borró. La espera vive en el proceso, igual que la de Facebook.
 - **Reportes parecidos** (`findSimilarReports` en `utils/pet/animalReport.ts`, puntaje en `utils/pet/reportSimilarity.ts`): junta candidatos del mismo tipo por enlace, teléfono y registros a 5 km o menos (90 días si está perdido, 30 si no). Los descarta si están cerrados (`in_family`, `adopted`) o unidos a otro (`duplicateOf`). Califica nombre, distancia, sexo, color, raza, señas y fecha. Desde 45 puntos es `possible` y desde 70 `likely`. `kind: duplicate` es el mismo animal con el mismo estatus. `kind: match` es el otro lado (perdido ↔ encontrado, rescatado o abandonado). `findAnimalReportDuplicates` lo expone sin teléfonos. `createAnimalReport` solo bloquea un `duplicate` fuerte (`isStrongDuplicate`).
 - **Comentarios** (`AnimalComment.kind`: `comment`, `duplicate_report` o `possible_match`): cada comentario avisa a quien atiende el reporte, salvo que lo escriba esa misma persona. En reportes de la automatización (`PET_AUTOMATION_USER_ID`) o sin autor, solo los `duplicate_report` y `possible_match` avisan a los admins.
 - **Solicitudes para quedarse con el reporte** (`AnimalClaim`):
@@ -129,3 +130,14 @@ Qué: un animal puede publicarse a nombre de un espacio de rescate (`RescueOrgan
 Por qué: los rescatistas trabajan en equipo y publicaban como «voluntario» suelto, sin perfil ni respaldo.
 
 Qué no hacer: no mostrar la organización mientras no esté verificada. El acceso de lectura de `RescueOrganization` ya la oculta: no saltárselo con sudo en consultas públicas.
+
+
+### 2026-11-10 — Correo «Tu reporte ya está publicado» al dueño
+
+Qué: `animalLogSlugAfterOperation`, en el primer registro y con sesión, arranca `watchAnimalForPublishedEmail`. Al vencer la espera, `sendAnimalPublishedEmailFor` relee el reporte y manda `sendAnimalPublishedEmail` (`utils/helpers/sendgrid.ts`): datos del animal, la tarjeta para compartir y «Qué puedes hacer ahora». Personaliza según el dueño: si ya tiene alertas de zona dice dónde, y si ya tiene avisos por WhatsApp no los vuelve a ofrecer.
+- La espera de Facebook se volvió una fábrica (`animalSettleWatcher.ts`): cada espera es independiente y `noteAnimalSlugSettled` / `noteAnimalCoverSaved` avisan a todas. Por eso las fotos guardadas con prisma (`createAnimalReport`, `copyPetPhotosToReport`) también despiertan al correo.
+- Enlaces directos que entiende la ficha de kadesh-landing (y la app, ver su prompt de mobile-sync): `/animales/{slug}?accion=registro` abre «Agregar registro» y `?accion=impulsar` abre «Impulsar en Facebook». Si se cambian aquí, cambiarlos allá (`ANIMAL_DETAIL_ACTION`).
+
+Por qué: quien publicaba no recibía nada y no sabía que podía agregar registros, activar alertas o avisos por WhatsApp. El disparador es el primer registro y no el `create` del Animal porque el estado y el lugar viven en el registro, y un alta a medias puede borrarse (`removeIncompleteOwnReports`). Se espera a las fotos porque la tarjeta `/og` se cachea en el edge: pedirla antes la dejaría sin foto también para quien comparta el enlace.
+
+Qué no hacer: no usar la URL de S3 de la foto en el correo (caduca en 1 h). No activar los avisos por WhatsApp por la persona: solo se le invita (Meta exige que cada quien acepte). En el bloque de impulsar, respetar las reglas de texto de `kadesh-landing/src/components/animals/promotion/README.md` (opcional, todo va a Meta, sin cifras ni urgencia, antiestafa).
