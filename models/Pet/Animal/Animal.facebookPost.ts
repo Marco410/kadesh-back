@@ -17,7 +17,7 @@ export const FACEBOOK_POST_QUERY = `
   }
 `;
 
-type PostLog = {
+export type PostLog = {
   status?: string | null;
   date_status?: string | null;
   placeLabel?: string | null;
@@ -40,9 +40,9 @@ export type AnimalPostData = {
   logs?: PostLog[] | null;
 };
 
-type Gender = "m" | "f";
+export type Gender = "m" | "f";
 
-type TypeInfo = {
+export type TypeInfo = {
   emoji: string;
   label: string;
   /** «este perrito» / «esta perrita». */
@@ -68,7 +68,7 @@ const DEFAULT_TYPE: TypeInfo = {
 
 const TYPE_ALIASES: Record<string, string> = { perro: "dog", gato: "cat", ave: "bird", pez: "fish", mamifero: "mammal" };
 
-function typeInfo(name?: string | null): TypeInfo {
+export function typeInfo(name?: string | null): TypeInfo {
   const key = foldText(name);
   return TYPES[TYPE_ALIASES[key] ?? key] ?? DEFAULT_TYPE;
 }
@@ -87,12 +87,12 @@ function breedEmoji(type: string, breed: string, color: string): string {
   return typeInfo(type).emoji;
 }
 
-function gender(sex?: string | null): Gender {
+export function gender(sex?: string | null): Gender {
   return sex === "female" ? "f" : "m";
 }
 
 /** «o»/«a» según el sexo: `g(sex, "Lo", "La")`. Sin sexo conocido, masculino genérico. */
-function g(sex: string | null | undefined, m: string, f: string) {
+export function g(sex: string | null | undefined, m: string, f: string) {
   return gender(sex) === "f" ? f : m;
 }
 
@@ -168,7 +168,19 @@ const STATUS_COPY: Record<string, StatusCopy> = {
   },
 };
 
-function capitalize(text: string) {
+/** Etiquetas de «dónde» y «cuándo» según el estatus: «Se perdió en», «La encontraron el»… */
+export function statusPlaceDateLabels(
+  status: string | null | undefined,
+  sex?: string | null,
+): { place: string; date: string } {
+  const copy = STATUS_COPY[(status ?? "").trim().toLowerCase()];
+  return {
+    place: copy?.placeLabel?.(sex) ?? "Dónde",
+    date: copy?.dateLabel?.(sex) ?? "Fecha",
+  };
+}
+
+export function capitalize(text: string) {
   return text ? text[0].toUpperCase() + text.slice(1) : text;
 }
 
@@ -177,7 +189,7 @@ function clean(value?: string | null) {
 }
 
 /** «Arcos de Guadalupe, Zapopan, Jalisco» sin repetir partes que ya vienen en `placeLabel`. */
-function placeOf(log?: PostLog | null) {
+export function placeOf(log?: PostLog | null) {
   if (!log) return "";
   const parts: string[] = [];
   for (const raw of [log.placeLabel || log.neighborhood, log.city, log.state]) {
@@ -203,7 +215,7 @@ const DATE_FORMAT_YEAR = new Intl.DateTimeFormat("es-MX", {
   timeZone: "America/Mexico_City",
 });
 
-function dateOf(value?: string | null, now = new Date()) {
+export function dateOf(value?: string | null, now = new Date()) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -222,7 +234,7 @@ function hashtagOf(text: string) {
 }
 
 const DEFAULT_NOTES = /^sin informaci[oó]n adicional\.?$/i;
-const NO_BREED = /^(sin asignar|no se|no sé|desconocid[ao])$/i;
+export const NO_BREED = /^(sin asignar|no se|no sé|desconocid[ao])$/i;
 
 export function buildAnimalFacebookMessage(animal: AnimalPostData, now = new Date()): string {
   const typeKey = TYPE_ALIASES[foldText(animal.animal_type?.name)] ?? foldText(animal.animal_type?.name);

@@ -304,6 +304,241 @@ export async function sendAdminNewAnimalEmail({
   });
 }
 
+/** Datos del correo «tu reporte ya está publicado». Todo en texto plano: aquí se escapa. */
+export type AnimalPublishedEmailInput = {
+  to: string;
+  displayName: string;
+  /** Nombre del animal; vacío si es genérico («Sin nombre»). */
+  animalName: string;
+  /** Cómo nombrarlo sin nombre: «este perrito», «esta gatita». */
+  unnamedWho: string;
+  /** Concordancia: «lo» / «la». */
+  gender: "m" | "f";
+  /** `AnimalLog.status` del primer registro: lost, found, in_adoption… */
+  status: string;
+  statusLabel: string;
+  /** Filas de la tabla de datos, sin vacías. */
+  facts: ReadonlyArray<readonly [string, string]>;
+  /** «Rocky · Perdido en Morelia», como el botón de compartir de la ficha. */
+  shareTitle: string;
+  links: {
+    report: string;
+    /** Tarjeta para compartir (`/animales/{slug}/og`): la foto de S3 caduca en 1 h. */
+    image: string;
+    addLog: string;
+    edit: string;
+    alerts: string;
+    notificationSettings: string;
+    myReports: string;
+    /** Solo perdidos y encontrados. */
+    promote: string | null;
+  };
+  /** Alertas de zona ya activas. */
+  zoneAlert: { city: string; radiusKm: number | null } | null;
+  whatsappOn: boolean;
+};
+
+const EMAIL_FONT =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+function emailTextLink(label: string, href: string): string {
+  const { color } = EMAIL_BRANDS.pet;
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color:${color};font-weight:700;text-decoration:none;">${escapeHtml(label)}&nbsp;&rarr;</a>`;
+}
+
+/** Fila numerada de «Qué puedes hacer ahora». `bodyHtml` y `linksHtml` ya escapados. */
+function animalNextStepRow(
+  n: number,
+  title: string,
+  bodyHtml: string,
+  linksHtml: string,
+): string {
+  const { color, soft } = EMAIL_BRANDS.pet;
+  return `
+      <tr>
+        <td valign="top" style="padding:0 14px 20px 0;width:32px;">
+          <div style="width:28px;height:28px;line-height:28px;border-radius:50%;background:${soft};color:${color};font-family:${EMAIL_FONT};font-size:14px;font-weight:700;text-align:center;">${n}</div>
+        </td>
+        <td valign="top" style="padding:3px 0 20px 0;font-family:${EMAIL_FONT};">
+          <p style="margin:0 0 4px 0;font-size:16px;font-weight:700;line-height:1.4;color:${EMAIL_TEXT.heading};">${escapeHtml(title)}</p>
+          <p style="margin:0 0 8px 0;font-size:15px;line-height:1.6;color:${EMAIL_TEXT.body};">${bodyHtml}</p>
+          <p style="margin:0;font-size:15px;line-height:1.8;">${linksHtml}</p>
+        </td>
+      </tr>`;
+}
+
+function animalPublishedCopy(input: AnimalPublishedEmailInput): {
+  subject: string;
+  preheader: string;
+  intro: string;
+  closing: string;
+} {
+  const named = input.animalName.trim();
+  const whoHtml = `<strong>${escapeHtml(named || input.unnamedWho)}</strong>`;
+  const lo = input.gender === "f" ? "la" : "lo";
+
+  switch (input.status) {
+    case "lost":
+      return {
+        subject: named ? `Publicamos el reporte de ${named}` : "Publicamos tu reporte",
+        preheader: "Ya aparece en el mapa de su zona. Esto es lo que puedes hacer para que llegue a más gente.",
+        intro: `Ya publicamos el reporte de ${whoHtml}. Aparece en el mapa de la zona y avisamos a quienes tienen alertas cerca. Mientras más gente ${lo} vea, más fácil es que vuelva a casa.`,
+        closing: "Si alguien reporta un animal parecido cerca, te avisamos como posible coincidencia.",
+      };
+    case "found":
+      return {
+        subject: named ? `Publicamos el reporte de ${named}` : "Publicamos tu reporte",
+        preheader: "Ya aparece en el mapa de su zona. Esto es lo que puedes hacer para que llegue a su familia.",
+        intro: `Ya publicamos el reporte de ${whoHtml}. Aparece en el mapa de la zona y avisamos a quienes tienen alertas cerca, para que su familia ${lo} encuentre. Gracias por ayudar.`,
+        closing:
+          "Si alguien dice que es su mascota, te llega una solicitud para que la revises. Si alguien perdió un animal parecido cerca, te avisamos como posible coincidencia.",
+      };
+    case "in_adoption":
+      return {
+        subject: named ? `${named} ya está en adopción en KADESH` : "Tu publicación de adopción ya está en KADESH",
+        preheader: "Ya está publicado. Esto es lo que puedes hacer para que encuentre un hogar.",
+        intro: `Ya publicamos a ${whoHtml} en adopción. Quien quiera darle un hogar puede verlo en KADESH y mandarte una solicitud.`,
+        closing: "Las solicitudes de adopción te llegan a la campana de avisos y las revisas en la ficha.",
+      };
+    case "rescued":
+    case "abandoned":
+      return {
+        subject: named ? `Tu reporte de ${named} ya está publicado` : "Tu reporte ya está publicado",
+        preheader: "Ya está en KADESH. Esto es lo que puedes hacer ahora.",
+        intro: `Ya publicamos el reporte de ${whoHtml}. Gracias por ayudar: así más gente puede echar una mano.`,
+        closing: "Si alguien dice que es su mascota, te llega una solicitud para que la revises.",
+      };
+    default:
+      return {
+        subject: named ? `Tu reporte de ${named} ya está publicado` : "Tu reporte ya está publicado",
+        preheader: "Ya está en KADESH. Esto es lo que puedes hacer ahora.",
+        intro: `Ya publicamos el reporte de ${whoHtml}.`,
+        closing: "Los comentarios sobre tu reporte te llegan a la campana de avisos.",
+      };
+  }
+}
+
+export function buildAnimalPublishedEmailHtml(input: AnimalPublishedEmailInput): string {
+  const brand: EmailBrand = "pet";
+  const { color } = EMAIL_BRANDS[brand];
+  const { links } = input;
+  const copy = animalPublishedCopy(input);
+  const who = input.animalName.trim() || input.unnamedWho;
+  const isAdoption = input.status === "in_adoption";
+
+  const rows: [string, string][] = [
+    ["Estado", emailPill(brand, input.statusLabel)],
+    ...input.facts.map(([label, value]) => [label, escapeHtml(value)] as [string, string]),
+  ];
+
+  const shareText = `Ayuda a difundir este reporte en KADESH: ${input.shareTitle}\n${links.report}`;
+  const whatsappShare = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+  const facebookShare = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(links.report)}`;
+
+  const zone = input.zoneAlert;
+  const zoneBody = zone
+    ? `Ya tienes alertas de zona${zone.city ? ` en <strong>${escapeHtml(zone.city)}</strong>` : ""}${
+        zone.radiusKm ? ` (${zone.radiusKm} km)` : ""
+      }. Puedes cambiar la zona o el radio cuando quieras.`
+    : "Elige una zona y te avisamos cuando reporten una mascota perdida o encontrada ahí.";
+
+  // Solo los avisos que existen para este estado (plantillas de WhatsApp de kadesh-back):
+  // coincidencias en perdidos y encontrados; solicitudes «es mi mascota» en los de la calle.
+  const whatsappTopics =
+    input.status === "lost"
+      ? "comentarios y posibles coincidencias de tu reporte"
+      : input.status === "found"
+        ? "comentarios, posibles coincidencias y solicitudes de quien diga que es su mascota"
+        : input.status === "rescued" || input.status === "abandoned"
+          ? "comentarios y solicitudes de quien diga que es su mascota"
+          : "comentarios de tu publicación";
+  const whatsappBody = input.whatsappOn
+    ? `Ya los tienes activados: te llegan por WhatsApp los ${whatsappTopics}.`
+    : `Actívalos para enterarte al momento de ${whatsappTopics}. Solo te llegan si tú los activas.`;
+
+  const steps = [
+    animalNextStepRow(
+      1,
+      "Compártelo",
+      `Mándalo a tus grupos de vecinos, de mascotas y a tus contactos. Este es su enlace:<br><a href="${escapeHtml(links.report)}" target="_blank" rel="noopener noreferrer" style="color:${color};word-break:break-all;">${escapeHtml(links.report)}</a>`,
+      `${emailTextLink("Compartir por WhatsApp", whatsappShare)}<br>${emailTextLink("Compartir en Facebook", facebookShare)}`,
+    ),
+    animalNextStepRow(
+      2,
+      "Cuéntanos lo nuevo",
+      isAdoption
+        ? "Si ya encontró hogar o cambió algo, agrega un registro a su historial. Así quien sigue la publicación ve siempre lo último."
+        : "Cada vez que sepas algo (lo vieron en otro lugar, cambió su estado o ya está en casa), agrega un registro a su historial. Así quien sigue el reporte ve siempre lo último.",
+      emailTextLink("Agregar un registro", links.addLog),
+    ),
+    animalNextStepRow(
+      3,
+      "Mantén sus datos al día",
+      "Puedes cambiar las fotos, las señas y los teléfonos de contacto cuando quieras.",
+      emailTextLink("Editar reporte", links.edit),
+    ),
+    animalNextStepRow(
+      4,
+      "Alertas de zona",
+      zoneBody,
+      emailTextLink(zone ? "Ver mis alertas" : "Activar alertas de zona", links.alerts),
+    ),
+    animalNextStepRow(
+      5,
+      "Avisos por WhatsApp",
+      whatsappBody,
+      emailTextLink(input.whatsappOn ? "Ajustes de avisos" : "Activar avisos por WhatsApp", links.notificationSettings),
+    ),
+  ].join("");
+
+  const promote = links.promote
+    ? emailCallout(
+        brand,
+        `<strong style="color:${EMAIL_TEXT.heading};">¿Quieres que ${input.gender === "f" ? "la" : "lo"} vea más gente de la zona?</strong><br>
+        Los reportes se comparten gratis en la página de Facebook de KADESH. Si quieres llegar a más personas cerca, puedes pagar un anuncio: es opcional, lo que pagas va completo a Meta (KADESH no cobra nada) y te mandamos los comprobantes.<br>
+        <span style="display:inline-block;margin-top:10px;">${emailTextLink("Impulsar en Facebook", links.promote)}</span><br>
+        <span style="display:inline-block;margin-top:10px;font-size:13px;color:${EMAIL_TEXT.muted};">KADESH nunca te escribe primero para pedirte dinero y solo atiende por su WhatsApp oficial.</span>`,
+      )
+    : "";
+
+  return renderEmailLayout({
+    brand,
+    preheader: copy.preheader,
+    eyebrow: "Reporte publicado",
+    title: copy.subject,
+    bodyHtml: `
+      ${emailGreeting(input.displayName || "ahí")}
+      ${emailParagraph(copy.intro)}
+      <a href="${escapeHtml(links.report)}" target="_blank" rel="noopener noreferrer" style="display:block;margin:24px 0 0 0;text-decoration:none;">
+        <img src="${escapeHtml(links.image)}" width="528" alt="${escapeHtml(`Reporte de ${who}`)}" style="display:block;width:100%;max-width:528px;height:auto;border:0;border-radius:12px;background:${EMAIL_TEXT.surface};">
+      </a>
+      ${emailInfoTable(rows)}
+      ${emailButton(brand, "Ver reporte", links.report)}
+      <p style="margin:36px 0 16px 0;${SECTION_LABEL_STYLE}">Qué puedes hacer ahora</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${steps}</table>
+      ${promote}
+      <p style="margin:28px 0 0 0;font-family:${EMAIL_FONT};font-size:15px;line-height:1.6;color:${EMAIL_TEXT.body};">${escapeHtml(copy.closing)}</p>
+      <p style="margin:16px 0 0 0;font-family:${EMAIL_FONT};font-size:15px;line-height:1.6;">${emailTextLink("Ver todos tus reportes", links.myReports)}</p>`,
+    footerNote: "Recibiste este correo porque publicaste un reporte en Kadesh Pet.",
+  });
+}
+
+/** Al dueño de un reporte cuando ya quedó completo (primer registro y fotos). */
+export async function sendAnimalPublishedEmail(input: AnimalPublishedEmailInput): Promise<void> {
+  const trimmedTo = input.to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendAnimalPublishedEmail: sin email destino.");
+    return;
+  }
+
+  await sendEmail({
+    to: trimmedTo,
+    subject: animalPublishedCopy(input).subject,
+    html: buildAnimalPublishedEmailHtml(input),
+    fromName: EMAIL_BRANDS.pet.name,
+  });
+}
+
 export type NewPostEmailBrand = EmailBrand;
 
 /**
