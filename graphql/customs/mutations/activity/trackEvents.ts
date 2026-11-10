@@ -156,6 +156,9 @@ function clientErrorSummary(kind: string, operation: string | null, page: string
       return `No cargó la pantalla ${page ?? ""}`.trim();
     case "script":
       return `Error de código en ${page ?? "una pantalla"}`;
+    case "warning":
+      // Baja prioridad: no es una falla de Kadesh (p. ej. hidratación en una página que tradujo el navegador).
+      return `Aviso en ${page ?? "una pantalla"}`;
     default:
       return `Error de conexión en ${operation ?? "una petición"}`;
   }
@@ -163,8 +166,9 @@ function clientErrorSummary(kind: string, operation: string | null, page: string
 
 /**
  * Guarda un error del navegador. `kind`: network (la petición no llegó o volvió 5xx/413/429),
- * crash (la pantalla se cayó), script (error de código que no la tiró) o chunk (no cargó el
- * código de la pantalla, suele pasar tras un despliegue). El mensaje va a
+ * crash (la pantalla se cayó), script (error de código que no la tiró), chunk (no cargó el
+ * código de la pantalla, suele pasar tras un despliegue) o warning (aviso de baja prioridad que no
+ * es falla de Kadesh, como la hidratación en una página traducida por el navegador). El mensaje va a
  * `errorMessage` y la pantalla del momento del error a `page`.
  *
  * Los de crawlers (user agent de bot o IP de Meta, ver `knownCrawlers`) no se guardan: son

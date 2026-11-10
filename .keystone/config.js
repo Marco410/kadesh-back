@@ -2321,11 +2321,18 @@ function facebookPageEnv(product) {
     accessToken: process.env.FACEBOOK_PET_PAGE_ACCESS_TOKEN?.trim()
   };
 }
+function isFacebookPostingDisabled() {
+  return (process.env.ENVIROMENT ?? "").trim().toUpperCase() === "DEV";
+}
 async function postToFacebookPage({
   product,
   message,
   link
 }) {
+  if (isFacebookPostingDisabled()) {
+    console.log(`[facebook] ENVIROMENT=DEV: no se publica en la P\xE1gina de "${product}".`);
+    return void 0;
+  }
   const { pageId, accessToken } = facebookPageEnv(product);
   if (!pageId || !accessToken) {
     console.warn(
@@ -36777,6 +36784,8 @@ function clientErrorSummary(kind, operation, page) {
       return `No carg\xF3 la pantalla ${page ?? ""}`.trim();
     case "script":
       return `Error de c\xF3digo en ${page ?? "una pantalla"}`;
+    case "warning":
+      return `Aviso en ${page ?? "una pantalla"}`;
     default:
       return `Error de conexi\xF3n en ${operation ?? "una petici\xF3n"}`;
   }
@@ -38013,6 +38022,9 @@ var resolver66 = {
    */
   adminPublishAnimalToFacebook: async (_root, { animalId, force }, context) => {
     if (!isPlatformAdmin(context.session)) return deny();
+    if (isFacebookPostingDisabled()) {
+      return { success: false, message: "En el entorno DEV no se publica en Facebook." };
+    }
     const animal = await context.sudo().query.Animal.findOne({
       where: { id: animalId },
       query: "id slug facebookPublishedAt"

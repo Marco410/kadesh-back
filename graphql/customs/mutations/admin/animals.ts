@@ -1,6 +1,7 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { isPlatformAdmin } from "../../../../utils/access/tenant";
 import { publishAnimalToFacebookById } from "../../../../models/Pet/Animal/Animal.hooks";
+import { isFacebookPostingDisabled } from "../../../../utils/intregrations/facebook";
 
 /**
  * Acciones de Operaciones sobre animales de Kadesh Pet. Solo admin de plataforma.
@@ -35,6 +36,9 @@ const resolver = {
     context: KeystoneContext,
   ) => {
     if (!isPlatformAdmin(context.session)) return deny();
+    if (isFacebookPostingDisabled()) {
+      return { success: false, message: "En el entorno DEV no se publica en Facebook." };
+    }
     const animal = (await context.sudo().query.Animal.findOne({
       where: { id: animalId },
       query: "id slug facebookPublishedAt",
