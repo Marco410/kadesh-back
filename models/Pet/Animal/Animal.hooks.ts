@@ -14,6 +14,7 @@ import {
   setAnimalFacebookPublisher,
   watchAnimalForFacebook,
 } from "./scheduleAnimalFacebookPost";
+import { watchAnimalForPublishedEmail } from "./Animal.publishedEmail";
 
 const EMOJI_RE =
   /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
@@ -399,6 +400,7 @@ export const animalSlugAfterOperation = animalCreateSideEffectsHook;
  * On the first log, enrich the slug with status and city. Later logs leave
  * it alone so WhatsApp/cartel links stay valid. If that first log is "lost"
  * or "found" with coordinates, alert the people whose alert zone includes it.
+ * With a session, the owner also gets the "report published" email once the photos land.
  */
 export const animalLogSlugAfterOperation = {
   afterOperation: async ({
@@ -450,9 +452,13 @@ export const animalLogSlugAfterOperation = {
     try {
       const animal = await context.sudo().query.Animal.findOne({
         where: { id: animalId },
-        query: "id name slug user { id } animal_type { name }",
+        query: "id name slug user { id } animal_type { name } multimedia { id }",
       });
       if (!animal) return;
+      // Correo al dueño con su reporte y lo que puede hacer. Sale cuando ya están las fotos.
+      watchAnimalForPublishedEmail(animalId, context, {
+        coverSeen: Array.isArray(animal.multimedia) && animal.multimedia.length > 0,
+      });
       // `placeLabel` ya trae colonia y ciudad; si no hay, se arma con las dos.
       const place =
         (item.placeLabel || "").trim() ||
