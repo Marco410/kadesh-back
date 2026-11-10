@@ -36784,6 +36784,8 @@ function clientErrorSummary(kind, operation, page) {
       return `No carg\xF3 la pantalla ${page ?? ""}`.trim();
     case "script":
       return `Error de c\xF3digo en ${page ?? "una pantalla"}`;
+    case "warning":
+      return `Aviso en ${page ?? "una pantalla"}`;
     default:
       return `Error de conexi\xF3n en ${operation ?? "una petici\xF3n"}`;
   }
