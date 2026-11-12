@@ -1,6 +1,7 @@
 import { hasRole } from "../../../../auth/permissions";
 import { Role } from "../../../Role/constants";
 import { getSessionCompanyId } from "../../../../utils/access/tenant";
+import { normalizeSearchText } from "../../../../utils/helpers/normalizeSearchText";
 
 function stripTenantFromClient(
   resolvedData: Record<string, unknown>,
@@ -40,12 +41,7 @@ function isNoop(value: unknown) {
  * con `== null` strippeaba el connect de todo usuario que no fuera admin de plataforma,
  * y la sync de INEGI cobraba leads que nunca quedaban en la empresa.
  */
-export const businessLeadHooks = {
-  resolveInput: async ({
-    resolvedData,
-    context,
-    operation,
-  }: any) => {
+async function resolveTenant({ resolvedData, context, operation }: any) {
     if (hasRole(context.session, [Role.ADMIN])) {
       return resolvedData;
     }
@@ -75,6 +71,16 @@ export const businessLeadHooks = {
     }
 
     return stripTenantFromClient(resolvedData, "saasCompany");
+}
+
+export const businessLeadHooks = {
+  resolveInput: async (args: any) => {
+    const data = await resolveTenant(args);
+    // `resolvedData` trae todas las llaves; las que no vienen en el cambio valen `undefined`.
+    // `businessNameSearch` solo se recalcula cuando llega un businessName (alta, o edición
+    // que lo cambia). Corre también con `context.sudo()`: cubre importaciones y syncs.
+    if (typeof data?.businessName !== "string") return data;
+    return { ...data, businessNameSearch: normalizeSearchText(data.businessName) };
   },
   afterOperation: async () => {},
 };

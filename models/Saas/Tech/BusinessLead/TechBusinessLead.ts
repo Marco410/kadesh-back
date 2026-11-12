@@ -36,6 +36,17 @@ export default list({
       validation: { isRequired: true },
       isIndexed: true,
     }),
+    // businessName en minúsculas y sin acentos, para buscar con `contains`. Lo llena el hook
+    // del list; nadie lo escribe por la API ni desde la Admin UI.
+    businessNameSearch: text({
+      graphql: { omit: { create: true, update: true } },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        listView: { fieldMode: "hidden" },
+        description: "Nombre normalizado para búsqueda (se calcula solo)",
+      },
+    }),
     category: text({ isIndexed: true }),
     phone: text(),
     email: text(),
