@@ -1,7 +1,12 @@
 import { graphql, list } from "@keystone-6/core";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { logAnimalActivity } from "../../../utils/pet/petActivity";
-import { json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
+import { checkbox, json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
+import {
+  ANIMAL_OUTCOME_OPTIONS,
+  HELPED_BY_KADESH_OPTIONS,
+  OUTCOME_CHANNEL_OPTIONS,
+} from "./Animal.outcome";
 import { animalAccess, canEditAnimalAs, forceAnimalOwner, validateAnimalOrganization } from "./Animal.access";
 import { getSessionUserId } from "../../../utils/access/tenant";
 import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
@@ -12,6 +17,19 @@ import { normalizeMxPhone } from "../../../utils/pet/phone";
 import { isPlatformAdmin } from "../../../utils/access/tenant";
 
 const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
+
+/**
+ * Respuestas del cierre que no son públicas (si Kadesh ayudó, por dónde, la historia): las leen
+ * quien atiende el reporte y un admin. La historia pública sale por una consulta propia que
+ * respeta `storyConsent`.
+ */
+const outcomeAnswersRead = async ({ session, item, context }: any) => {
+  if (isPlatformAdmin(session)) return true;
+  return canEditAnimalAs(context, item, getSessionUserId(session));
+};
+
+/** Los campos de cierre solo los escriben `closeAnimalReport`/el hook de la bitácora (sudo) o un admin. */
+const outcomeFieldAccess = { create: adminOnly, update: adminOnly };
 
 /** Lo que manda la web al publicar «de todos modos»: ids y puntaje de los parecidos, nada más. */
 function cleanDuplicateCheck(value: unknown) {
@@ -207,6 +225,42 @@ export default list({
         itemView: { fieldMode: "read" },
         description: "Reportes parecidos que se ignoraron al publicar.",
       },
+    }),
+    /** Cómo terminó el caso (ver `Animal.outcome.ts`). Null mientras sigue abierto. */
+    outcome: select({
+      options: ANIMAL_OUTCOME_OPTIONS,
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { description: "Cómo terminó el caso. Lo llena «Cerrar caso» o la última bitácora." },
+    }),
+    closedAt: timestamp({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { description: "Cuándo se cerró el caso." },
+    }),
+    /** Null = no respondió (cierres por bitácora o anteriores a la pregunta). */
+    helpedByKadesh: select({
+      options: HELPED_BY_KADESH_OPTIONS,
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "¿Kadesh ayudó a resolverlo? Lo responde quien cierra el caso." },
+    }),
+    outcomeChannel: select({
+      options: OUTCOME_CHANNEL_OPTIONS,
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "Por dónde ayudó Kadesh." },
+    }),
+    outcomeStory: text({
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { displayMode: "textarea", description: "Lo que contó quien cerró el caso." },
+    }),
+    storyConsent: checkbox({
+      defaultValue: false,
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "Aceptó que su historia se publique en Kadesh." },
     }),
     createdAt: timestamp({
       defaultValue: {

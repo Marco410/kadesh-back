@@ -663,6 +663,12 @@ type Animal {
   pet: Pet
   duplicateOf: Animal
   duplicateCheck: JSON
+  outcome: String
+  closedAt: DateTime
+  helpedByKadesh: String
+  outcomeChannel: String
+  outcomeStory: String
+  storyConsent: Boolean
   createdAt: DateTime
 }
 
@@ -699,6 +705,12 @@ input AnimalWhereInput {
   facebookPublishedBy: UserWhereInput
   pet: PetWhereInput
   duplicateOf: AnimalWhereInput
+  outcome: StringNullableFilter
+  closedAt: DateTimeNullableFilter
+  helpedByKadesh: StringNullableFilter
+  outcomeChannel: StringNullableFilter
+  outcomeStory: StringFilter
+  storyConsent: BooleanFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -735,6 +747,12 @@ input AnimalOrderByInput {
   reportedBy: OrderDirection
   facebookPostId: OrderDirection
   facebookPublishedAt: OrderDirection
+  outcome: OrderDirection
+  closedAt: OrderDirection
+  helpedByKadesh: OrderDirection
+  outcomeChannel: OrderDirection
+  outcomeStory: OrderDirection
+  storyConsent: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -763,6 +781,12 @@ input AnimalUpdateInput {
   pet: PetRelateToOneForUpdateInput
   duplicateOf: AnimalRelateToOneForUpdateInput
   duplicateCheck: JSON
+  outcome: String
+  closedAt: DateTime
+  helpedByKadesh: String
+  outcomeChannel: String
+  outcomeStory: String
+  storyConsent: Boolean
   createdAt: DateTime
 }
 
@@ -847,6 +871,12 @@ input AnimalCreateInput {
   pet: PetRelateToOneForCreateInput
   duplicateOf: AnimalRelateToOneForCreateInput
   duplicateCheck: JSON
+  outcome: String
+  closedAt: DateTime
+  helpedByKadesh: String
+  outcomeChannel: String
+  outcomeStory: String
+  storyConsent: Boolean
   createdAt: DateTime
 }
 
@@ -11388,6 +11418,7 @@ type Mutation {
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   resolveAnimalClaim(claimId: ID!, approve: Boolean!, reason: String): AnimalClaimResult!
   cancelAnimalClaim(claimId: ID!): AnimalClaimResult!
+  closeAnimalReport(input: CloseAnimalReportInput!): CloseAnimalReportResult!
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
@@ -12549,6 +12580,23 @@ type AnimalClaimResult {
   success: Boolean!
   message: String!
   animalSlug: String
+}
+
+input CloseAnimalReportInput {
+  animalId: ID!
+  outcome: String!
+  helpedByKadesh: String
+  outcomeChannel: String
+  story: String
+  storyConsent: Boolean
+  notes: String
+}
+
+type CloseAnimalReportResult {
+  success: Boolean!
+  message: String!
+  animalSlug: String
+  status: String
 }
 
 input AdoptionApplicationInput {
@@ -14639,6 +14687,9 @@ type PetLandingStats {
   animalsLost: Int!
   animalsHome: Int!
   animalsInAdoption: Int!
+  reunions: Int!
+  adoptions: Int!
+  helpedByKadesh: Int!
   veterinaries: Int!
   veterinariesVerified: Int!
   rescueOrganizations: Int!

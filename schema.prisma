@@ -169,6 +169,12 @@ model Animal {
   duplicateOf                     Animal?               @relation("Animal_duplicateOf", fields: [duplicateOfId], references: [id])
   duplicateOfId                   String?               @map("duplicateOf")
   duplicateCheck                  Json?
+  outcome                         String?
+  closedAt                        DateTime?
+  helpedByKadesh                  String?
+  outcomeChannel                  String?
+  outcomeStory                    String                @default("")
+  storyConsent                    Boolean               @default(false)
   createdAt                       DateTime?             @default(now())
   from_Animal_duplicateOf         Animal[]              @relation("Animal_duplicateOf")
   from_AnimalClaim_animal         AnimalClaim[]         @relation("AnimalClaim_animal")
@@ -185,6 +191,8 @@ model Animal {
   @@index([facebookPublishedById])
   @@index([petId])
   @@index([duplicateOfId])
+  @@index([outcome])
+  @@index([closedAt])
 }
 
 model AnimalBreed {

@@ -28,6 +28,9 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
   - Queda un comentario `duplicate_report` en el principal y se avisa `animal.merged` a quien hizo el repetido.
   - `getNearbyAnimals` ya no lo lista y la web redirige su ficha al principal (308).
 - `duplicateCheck` (JSON, solo admin lo lee): los parecidos que la persona descartó al publicar, para decidir si unirlos.
+- **Desenlace del caso** (`Animal.outcome.ts`): `outcome` (`reunited`, `adopted`, `other_home`, `deceased`, `closed_unresolved`) y `closedAt` son públicos; `helpedByKadesh`, `outcomeChannel`, `outcomeStory` y `storyConsent` solo los leen quien atiende el reporte y un admin. Ninguno se escribe con `updateAnimal`: solo `closeAnimalReport`, el hook de la bitácora o un admin.
+  - `closeAnimalReport` guarda las respuestas y deja la bitácora final con la ubicación de la última (`in_family`, `adopted` o `closed`, que es «Caso cerrado» sin hogar). Si el caso ya estaba cerrado, solo corrige las respuestas.
+  - Cualquier otra bitácora final (web o app vieja, cartilla, adopciones, rescate) llena `outcome` y `closedAt` sin respuestas, siempre que antes hubo un caso abierto (`lost`, `found`, `rescued`, `abandoned`, `in_adoption`). Una bitácora de caso abierto sobre un caso cerrado lo reabre y limpia el cierre.
 - **La misma persona publicando otra vez** (`Animal.ownDuplicates.ts`, solo `createAnimal` con sesión y sin admin): busca sus reportes del mismo tipo de los últimos 90 días que no estén unidos a otro ni cerrados. Cuenta como el mismo animal si el nombre es igual o parecido (`compareNames`). Con nombre genérico («Sin nombre») solo cuenta si es de las últimas 24 h, con el mismo teléfono y la misma descripción.
   - Si ya tiene uno con bitácora, el alta falla con «Ya publicaste a {nombre}…» y el link a su reporte.
   - Si quedó uno a medias (sin bitácora ni fotos, comentarios, solicitudes, favoritos, mascota o repetidos encima), se borra al crear el nuevo. Queda `pet.incomplete_report_removed` en `ActivityEvent`.
@@ -141,3 +144,12 @@ Qué: `animalLogSlugAfterOperation`, en el primer registro y con sesión, arranc
 Por qué: quien publicaba no recibía nada y no sabía que podía agregar registros, activar alertas o avisos por WhatsApp. El disparador es el primer registro y no el `create` del Animal porque el estado y el lugar viven en el registro, y un alta a medias puede borrarse (`removeIncompleteOwnReports`). Se espera a las fotos porque la tarjeta `/og` se cachea en el edge: pedirla antes la dejaría sin foto también para quien comparta el enlace.
 
 Qué no hacer: no usar la URL de S3 de la foto en el correo (caduca en 1 h). No activar los avisos por WhatsApp por la persona: solo se le invita (Meta exige que cada quien acepte). En el bloque de impulsar, respetar las reglas de texto de `kadesh-landing/src/components/animals/promotion/README.md` (opcional, todo va a Meta, sin cifras ni urgencia, antiestafa).
+
+
+### 2026-11-12 — Cerrar el caso con «¿volvió a casa?» y contador de reencuentros
+
+Qué: campos de desenlace en `Animal` (ver Invariantes), la mutación `closeAnimalReport`, el estatus de bitácora `closed` («Caso cerrado») y tres cifras nuevas en `petLandingStats`: `reunions`, `adoptions` y `helpedByKadesh` (casos con hogar en los que quien cerró dijo que Kadesh ayudó). Backfill: `pnpm animals:backfill-outcomes` (reporte) y `--apply`.
+
+Por qué: la portada va a mostrar cuántos animales volvieron a casa y cuántos fueron adoptados, y solo contábamos el último estatus de la bitácora, sin saber si Kadesh ayudó ni cuándo se cerró. Además, los casos que no terminan en hogar (falleció, se dejó de buscar) no tenían cómo cerrarse y se quedaban en el mapa.
+
+Qué no hacer: no contar un reencuentro por el estatus de la bitácora (un animal que nace «En familia» no lo es): usar `outcome`. No inventar `helpedByKadesh` en los cierres sin respuesta: vacío es «no respondió». No publicar `outcomeStory` sin `storyConsent`.
