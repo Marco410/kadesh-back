@@ -1575,6 +1575,7 @@ model Tag {
 model TechBusinessLead {
   id                                    String                   @id @default(cuid())
   businessName                          String                   @default("")
+  businessNameSearch                    String                   @default("")
   category                              String                   @default("")
   phone                                 String                   @default("")
   email                                 String                   @default("")

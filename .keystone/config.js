@@ -14214,6 +14214,11 @@ var businessLeadAccess = {
   }
 };
 
+// utils/helpers/normalizeSearchText.ts
+function normalizeSearchText(value) {
+  return (value ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+}
+
 // models/Saas/Tech/BusinessLead/TechBusinessLead.hooks.ts
 function stripTenantFromClient(resolvedData, key) {
   const next = { ...resolvedData };
@@ -14234,34 +14239,35 @@ function connectIds(connect) {
 function isNoop(value) {
   return value == null || Array.isArray(value) && value.length === 0;
 }
-var businessLeadHooks = {
-  resolveInput: async ({
-    resolvedData,
-    context,
-    operation
-  }) => {
-    if (hasRole(context.session, ["admin" /* ADMIN */])) {
-      return resolvedData;
-    }
-    const companyId = getSessionCompanyId(context.session);
-    if (operation === "create" && companyId) {
+async function resolveTenant({ resolvedData, context, operation }) {
+  if (hasRole(context.session, ["admin" /* ADMIN */])) {
+    return resolvedData;
+  }
+  const companyId = getSessionCompanyId(context.session);
+  if (operation === "create" && companyId) {
+    return {
+      ...resolvedData,
+      saasCompany: { connect: [{ id: companyId }] }
+    };
+  }
+  if (operation === "update" && companyId && resolvedData?.saasCompany) {
+    const sc = resolvedData.saasCompany;
+    const ids = connectIds(sc.connect);
+    const onlyOwnConnect = ids.length > 0 && ids.every((id) => id === companyId) && isNoop(sc.disconnect) && sc.set == null;
+    if (onlyOwnConnect) {
       return {
         ...resolvedData,
-        saasCompany: { connect: [{ id: companyId }] }
+        saasCompany: { connect: ids.map((id) => ({ id })) }
       };
     }
-    if (operation === "update" && companyId && resolvedData?.saasCompany) {
-      const sc = resolvedData.saasCompany;
-      const ids = connectIds(sc.connect);
-      const onlyOwnConnect = ids.length > 0 && ids.every((id) => id === companyId) && isNoop(sc.disconnect) && sc.set == null;
-      if (onlyOwnConnect) {
-        return {
-          ...resolvedData,
-          saasCompany: { connect: ids.map((id) => ({ id })) }
-        };
-      }
-    }
-    return stripTenantFromClient(resolvedData, "saasCompany");
+  }
+  return stripTenantFromClient(resolvedData, "saasCompany");
+}
+var businessLeadHooks = {
+  resolveInput: async (args) => {
+    const data = await resolveTenant(args);
+    if (typeof data?.businessName !== "string") return data;
+    return { ...data, businessNameSearch: normalizeSearchText(data.businessName) };
   },
   afterOperation: async () => {
   }
@@ -14290,6 +14296,17 @@ var TechBusinessLead_default = (0, import_core61.list)({
     businessName: (0, import_fields61.text)({
       validation: { isRequired: true },
       isIndexed: true
+    }),
+    // businessName en minúsculas y sin acentos, para buscar con `contains`. Lo llena el hook
+    // del list; nadie lo escribe por la API ni desde la Admin UI.
+    businessNameSearch: (0, import_fields61.text)({
+      graphql: { omit: { create: true, update: true } },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        listView: { fieldMode: "hidden" },
+        description: "Nombre normalizado para b\xFAsqueda (se calcula solo)"
+      }
     }),
     category: (0, import_fields61.text)({ isIndexed: true }),
     phone: (0, import_fields61.text)(),
@@ -49219,7 +49236,9 @@ var keystone_default = withSessionGuards(withAuth(
   (0, import_core101.config)({
     db: {
       provider: "postgresql",
-      url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
+      // Sin connection_limit, Prisma abre núcleos × 2 + 1 conexiones y en Railway cuenta los
+      // núcleos del host (97 conexiones). Cada una le cuesta RAM a Postgres aunque esté inactiva.
+      url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300&connection_limit=${Number(process.env.DB_CONNECTION_LIMIT) || 5}&pool_timeout=${Number(process.env.DB_POOL_TIMEOUT) || 20}`,
       prismaClientPath: "node_modules/.prisma/client"
     },
     ui: {

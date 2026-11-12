@@ -7732,6 +7732,7 @@ input TagCreateInput {
 type TechBusinessLead {
   id: ID!
   businessName: String
+  businessNameSearch: String
   category: String
   phone: String
   email: String
@@ -7794,6 +7795,7 @@ input TechBusinessLeadWhereInput {
   NOT: [TechBusinessLeadWhereInput!]
   id: IDFilter
   businessName: StringFilter
+  businessNameSearch: StringFilter
   category: StringFilter
   phone: StringFilter
   email: StringFilter
@@ -7838,6 +7840,7 @@ input TechBusinessLeadWhereInput {
 input TechBusinessLeadOrderByInput {
   id: OrderDirection
   businessName: OrderDirection
+  businessNameSearch: OrderDirection
   category: OrderDirection
   phone: OrderDirection
   email: OrderDirection
