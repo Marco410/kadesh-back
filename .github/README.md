@@ -22,7 +22,10 @@ feat/… ──PR──► develop ──PR release──► main (prod)
 |---------|----------|
 | `ci.yml` | Typecheck + build Keystone en PRs/pushes a `develop` y `main` |
 | `promote-develop-to-main.yml` | Abre/actualiza PR de release `develop` → `main` |
-| `publish-scheduled-posts.yml` | Cron horario: publica posts programados del blog |
+| `send-pet-reminders.yml` | Cron diario (09:00 CDMX): recordatorios de la cartilla |
+| `send-pet-event-notifications.yml` | Cron horario: recordatorios de eventos y avisos a la zona |
+
+Los cron de GitHub no son puntuales: con carga los retrasa horas o se salta corridas. El 2026-11-12 se quitaron `publish-scheduled-posts.yml` y `rollup-daily-usage.yml`.
 
 ## Cómo saber que “está todo ok”
 

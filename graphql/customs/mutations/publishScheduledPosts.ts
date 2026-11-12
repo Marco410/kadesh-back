@@ -21,8 +21,9 @@ const definition = `
 
 const resolver = {
   /**
-   * Pensada para un cron externo (GitHub Actions, ver .github/workflows/publish-scheduled-posts.yml),
-   * no para un usuario logueado: se autoriza con `CRON_SECRET`, no con sesión/rol.
+   * Pensada para un cron externo, no para un usuario logueado: se autoriza con `CRON_SECRET`, no
+   * con sesión/rol. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
+   * models/README.md); se puede llamar a mano.
    *
    * La visibilidad de un post programado (`publishedAt` a futuro) ya funciona sola —los fronts
    * filtran por fecha en cada lectura, sin cron—. Lo único que este mutation resuelve es que el

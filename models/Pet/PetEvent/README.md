@@ -26,8 +26,10 @@ Eventos de Kadesh Pet: campañas de esterilización, jornadas de vacunación, fe
 - **Alcance (`scope`):** `zone` (radio `reachKm`: 5/10/20/50), `city`, `state`, `national` (solo admins).
 - **Costo:** gratis, o precio en pesos y/o nota («Cuota de recuperación»).
 - **Redes:** `facebookUrl`, `instagramUrl`, `tiktokUrl`, `xUrl` aceptan el link o el usuario (`@refugio`) y se guardan como link completo; un link de otro dominio se rechaza. `websiteUrl` es cualquier link http(s). Todas opcionales.
+- **Animales (`species`):** opcional; los mismos tipos que un reporte (`ANIMAL_TYPE_OPTIONS`: `dog`, `cat`, `bird`, `fish`, `reptil`, `mammal`). Vacío = cualquiera. Los valores desconocidos se quitan al guardar.
 - **Cupo:** con `capacity`, «Asistiré» se cierra al llenarse (`isFull`); «Me interesa» siempre se puede.
 - **Límite:** 5 eventos publicados por persona al día (`pet_event_user` en `utils/security/constants.ts`).
+- **Vistas (`viewsCount`):** las suma `recordPetEventView`, que la web llama al abrir la ficha. Solo cuentan las fichas públicas (publicado, o cancelado después de publicarse). No cuentan quien lo publicó, los admins de plataforma ni los crawlers (`isKnownCrawlerRequest`). Cada persona suma una vez por evento cada 30 min (`PET_EVENT_VIEW_DEDUPE_MS`). Sin sesión, la llave es IP + navegador. El total es público: lo ven la ficha y «Mis eventos».
 
 ## Avisos (`utils/notifications/eventAlerts.ts`)
 
@@ -58,6 +60,7 @@ Escritura:
 
 - `submitPetEvent(input: PetEventInput!)`, `updateMyPetEvent(id, input)`, `cancelPetEvent(id, reason)`.
 - `setPetEventInterest(eventId, kind: "interested" | "going" | null)`.
+- `recordPetEventView(eventId)` → `{ counted, viewsCount }`. Sin sesión también; nunca lanza error.
 - `reviewPetEvent(id, approved, note)` (admin), `backfillAlertRegions(limit)` (admin).
 - `sendPetEventNotifications(secret)` (cron: `.github/workflows/send-pet-event-notifications.yml`).
 - Fotos: `createPetEventMultimedia(data: { image: { upload }, event: { connect: { id } }, order })` y `deletePetEventMultimedia`.
@@ -73,3 +76,21 @@ Qué: lists `PetEvent*` nuevas; avisos reusando la zona de alertas de mascotas (
 Por qué: la comunidad pide un lugar para anunciar campañas. La revisión evita spam y avisos falsos; reusar la zona evita pedirle a la gente otra configuración.
 
 Qué no hacer: no abrir el CRUD de `PetEvent` a no admins (las reglas de revisión viven en las mutaciones); no avisar a la zona fuera de `sendZoneAlertsIfDue` (es lo que impide avisar dos veces); no permitir alcance nacional a no admins.
+
+### 2026-11-10 — «Para qué animales» usa los tipos de animal
+
+Qué: `species` pasó de `dog` / `cat` / `other` a `ANIMAL_TYPE_OPTIONS` (perro, gato, ave, pez, reptil, mamífero), como `RescueOrganization.species`.
+
+Por qué: con solo perros y gatos no se podía anunciar, por ejemplo, una jornada para aves o reptiles, y «Otros» no decía nada.
+
+Qué no hacer (especies): no volver a meter `other`. Los eventos viejos que lo tengan se leen igual (Keystone solo valida lo que llega); `normalizePetEventInput` lo quita al editarlos, y la web lo muestra como «Otros» mientras exista.
+
+### 2026-11-10 — Vistas de la ficha
+
+Qué: `PetEvent.viewsCount` (entero, 0 por defecto) y la mutación `recordPetEventView`. La ficha web muestra el total y «Mis eventos» también.
+
+Por qué: quien publica quiere saber cuánta gente vio su evento, y el número en la ficha da confianza.
+
+Cómo: un contador en la fila y no una list de vistas como `AnimalView`. No hace falta saber quién vio qué, y así no crece una tabla por cada visita. El incremento va con SQL directo (`UPDATE … RETURNING`) porque `prisma.petEvent.update` movería `updatedAt` (`@updatedAt`), y esa fecha es el `lastmod` del sitemap de la web: cada vista haría creer a los buscadores que el evento cambió.
+
+Qué no hacer: no sumar con `context.db` ni con `prisma.update` (cambian `updatedAt` y, con `context.db`, dejan un registro en Actividad por cada vista). No ponerle un límite por IP en `RATE_LIMIT_RULES`: en México muchas personas comparten IP por la red del celular, y al pasarse verían el aviso de «demasiados intentos» solo por abrir eventos. El repetido en 30 min ya cuida que recargar no infle el número.

@@ -31,8 +31,9 @@ const MAX_DAYS = 62;
 
 const resolver = {
   /**
-   * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). La llama un cron diario
-   * (.github/workflows/rollup-daily-usage.yml) con `CRON_SECRET`, igual que publishScheduledPosts.
+   * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). Se autoriza con
+   * `CRON_SECRET`. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
+   * docs/operaciones/README.md); también se llena con `pnpm usage:rollup`.
    * Sin `day`, calcula ayer (CDMX). `days` recalcula hacia atrás (p. ej. 3 por si un día falló).
    */
   rollupDailyUsage: async (

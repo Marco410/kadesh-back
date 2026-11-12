@@ -4,6 +4,8 @@
  * Ver README.md. El front (`kadesh/components/events/constants.ts`) repite estos valores.
  */
 
+import { ANIMAL_TYPE_OPTIONS } from "../../../utils/constants/constants";
+
 export const PET_EVENT_STATUS = {
   /** Lo mandó alguien que no es admin (o lo editó): espera revisión y no es público. */
   PENDING: "pending",
@@ -49,11 +51,12 @@ export const PET_EVENT_CATEGORY_OPTIONS: Array<{ label: string; value: PetEventC
   { label: "Otro", value: PET_EVENT_CATEGORY.OTHER, title: "Evento" },
 ];
 
-export const PET_EVENT_SPECIES_OPTIONS = [
-  { label: "Perros", value: "dog" },
-  { label: "Gatos", value: "cat" },
-  { label: "Otros", value: "other" },
-];
+/**
+ * Para qué animales es: los mismos tipos que un reporte (`AnimalType`), como en los espacios de
+ * rescate. Hay eventos guardados con el valor viejo `other` («Otros»): se leen tal cual, pero ya no se
+ * aceptan al guardar (`normalizePetEventInput` los quita).
+ */
+export const PET_EVENT_SPECIES_OPTIONS = ANIMAL_TYPE_OPTIONS;
 
 /** A quién «le toca» el evento: filtros y avisos de zona. */
 export const PET_EVENT_SCOPE = {
@@ -136,3 +139,9 @@ export const PET_EVENT_ALERTS = {
   /** El recordatorio sale cuando falta esto (o menos) para la fecha. */
   REMINDER_HOURS: 24,
 } as const;
+
+/**
+ * Vistas de la ficha (`recordPetEventView`): la misma persona (o la misma IP + navegador, sin
+ * sesión) suma una vista por evento en esta ventana, por más que recargue.
+ */
+export const PET_EVENT_VIEW_DEDUPE_MS = 30 * 60 * 1000;

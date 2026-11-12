@@ -3,6 +3,7 @@ import submitPetEvent from "./submitPetEvent";
 import updateMyPetEvent from "./updateMyPetEvent";
 import cancelPetEvent from "./cancelPetEvent";
 import setPetEventInterest from "./setPetEventInterest";
+import recordPetEventView from "./recordPetEventView";
 import reviewPetEvent from "./reviewPetEvent";
 import sendPetEventNotifications from "./sendPetEventNotifications";
 import backfillAlertRegions from "./backfillAlertRegions";
@@ -15,6 +16,7 @@ const petEventMutations = {
     ${updateMyPetEvent.typeDefs}
     ${cancelPetEvent.typeDefs}
     ${setPetEventInterest.typeDefs}
+    ${recordPetEventView.typeDefs}
     ${reviewPetEvent.typeDefs}
     ${sendPetEventNotifications.typeDefs}
     ${backfillAlertRegions.typeDefs}
@@ -24,6 +26,7 @@ const petEventMutations = {
     ${updateMyPetEvent.definition}
     ${cancelPetEvent.definition}
     ${setPetEventInterest.definition}
+    ${recordPetEventView.definition}
     ${reviewPetEvent.definition}
     ${sendPetEventNotifications.definition}
     ${backfillAlertRegions.definition}
@@ -33,6 +36,7 @@ const petEventMutations = {
     ...updateMyPetEvent.resolver,
     ...cancelPetEvent.resolver,
     ...setPetEventInterest.resolver,
+    ...recordPetEventView.resolver,
     ...reviewPetEvent.resolver,
     ...sendPetEventNotifications.resolver,
     ...backfillAlertRegions.resolver,
