@@ -186,7 +186,9 @@ export default withSessionGuards(withAuth(
   config({
     db: {
       provider: "postgresql",
-      url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300`,
+      // Sin connection_limit, Prisma abre núcleos × 2 + 1 conexiones y en Railway cuenta los
+      // núcleos del host (97 conexiones). Cada una le cuesta RAM a Postgres aunque esté inactiva.
+      url: `postgres://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.POSTGRES_DB}?connect_timeout=300&connection_limit=${Number(process.env.DB_CONNECTION_LIMIT) || 5}&pool_timeout=${Number(process.env.DB_POOL_TIMEOUT) || 20}`,
       prismaClientPath: "node_modules/.prisma/client",
     },
     ui: {
