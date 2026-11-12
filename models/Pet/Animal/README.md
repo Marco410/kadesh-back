@@ -28,6 +28,10 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
   - Queda un comentario `duplicate_report` en el principal y se avisa `animal.merged` a quien hizo el repetido.
   - `getNearbyAnimals` ya no lo lista y la web redirige su ficha al principal (308).
 - `duplicateCheck` (JSON, solo admin lo lee): los parecidos que la persona descartó al publicar, para decidir si unirlos.
+- **Seguimiento de casos** (`Animal.followUp.ts`, cron `sendAnimalFollowUps`): cada registro nuevo pone `lastActivityAt`, reinicia `followUpStage` y quita `inactiveAt`. En un caso abierto (último registro `lost`, `found`, `rescued`, `abandoned` o `in_adoption`, sin desenlace ni repetido):
+  - A los 7 días sin registros sale el primer recordatorio y a los 21 el segundo (al menos 7 días después del primero). Van a quien atiende el reporte por campana, push, WhatsApp (`kadesh_pet_seguimiento`, solo con opt-in) y correo, con enlaces a `?accion=cerrar` y `?accion=registro`. Nunca a la automatización.
+  - Sin respuesta, a los 45 días (y al menos 14 tras el segundo) el caso queda `inactiveAt` y `getNearbyAnimals` ya no lo lista. Los reportes sin dueño o de la automatización, a los 30 días. Un registro nuevo lo reactiva.
+  - Topes por corrida: 200 recordatorios y 500 casos inactivos.
 - **Desenlace del caso** (`Animal.outcome.ts`): `outcome` (`reunited`, `adopted`, `other_home`, `deceased`, `closed_unresolved`) y `closedAt` son públicos; `helpedByKadesh`, `outcomeChannel`, `outcomeStory` y `storyConsent` solo los leen quien atiende el reporte y un admin. Ninguno se escribe con `updateAnimal`: solo `closeAnimalReport`, el hook de la bitácora o un admin.
   - `closeAnimalReport` guarda las respuestas y deja la bitácora final con la ubicación de la última (`in_family`, `adopted` o `closed`, que es «Caso cerrado» sin hogar). Si el caso ya estaba cerrado, solo corrige las respuestas.
   - Cualquier otra bitácora final (web o app vieja, cartilla, adopciones, rescate) llena `outcome` y `closedAt` sin respuestas, siempre que antes hubo un caso abierto (`lost`, `found`, `rescued`, `abandoned`, `in_adoption`). Una bitácora de caso abierto sobre un caso cerrado lo reabre y limpia el cierre.
@@ -153,3 +157,12 @@ Qué: campos de desenlace en `Animal` (ver Invariantes), la mutación `closeAnim
 Por qué: la portada va a mostrar cuántos animales volvieron a casa y cuántos fueron adoptados, y solo contábamos el último estatus de la bitácora, sin saber si Kadesh ayudó ni cuándo se cerró. Además, los casos que no terminan en hogar (falleció, se dejó de buscar) no tenían cómo cerrarse y se quedaban en el mapa.
 
 Qué no hacer: no contar un reencuentro por el estatus de la bitácora (un animal que nace «En familia» no lo es): usar `outcome`. No inventar `helpedByKadesh` en los cierres sin respuesta: vacío es «no respondió». No publicar `outcomeStory` sin `storyConsent`.
+
+
+### 2026-11-12 — Recordatorios de seguimiento y casos inactivos
+
+Qué: campos `lastActivityAt`, `followUpStage`, `followUpSentAt` e `inactiveAt` (ver Invariantes), el hook `touchAnimalActivity` en la bitácora, la mutación `sendAnimalFollowUps` con su workflow diario (`.github/workflows/send-animal-follow-ups.yml`, 16:00 UTC), el tipo de aviso `animal.follow_up` con la plantilla `kadesh_pet_seguimiento` y el correo `sendAnimalFollowUpEmail`. `getNearbyAnimals` excluye los casos inactivos. Backfill: `pnpm animals:backfill-activity`, que hay que correr justo después de la migración porque la columna nueva arranca con la fecha de ese momento.
+
+Por qué: sin recordar a la gente que cierre o actualice el caso, el contador de reencuentros no crece y el mapa se llena de casos viejos que ya nadie busca.
+
+Qué no hacer: no borrar casos inactivos ni cerrarlos solos: solo dejan de salir en el mapa y la ficha sigue abierta. No mandar el recordatorio a la cuenta de automatización. No correr el cron antes del backfill: todos los casos se verían recién actualizados y luego, al corregirlos, saldría una ola de recordatorios de golpe (con el backfill también sale, pero topada a 200 por día).

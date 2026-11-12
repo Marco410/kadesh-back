@@ -1,7 +1,7 @@
 import { graphql, list } from "@keystone-6/core";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { logAnimalActivity } from "../../../utils/pet/petActivity";
-import { checkbox, json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
+import { checkbox, integer, json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
 import {
   ANIMAL_OUTCOME_OPTIONS,
   HELPED_BY_KADESH_OPTIONS,
@@ -261,6 +261,37 @@ export default list({
       defaultValue: false,
       access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
       ui: { description: "Aceptó que su historia se publique en Kadesh." },
+    }),
+    /** Seguimiento de casos abiertos (ver `Animal.followUp.ts`). Lo mantienen la bitácora y el cron. */
+    lastActivityAt: timestamp({
+      defaultValue: { kind: "now" },
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { createView: { fieldMode: "hidden" }, description: "Último registro del caso." },
+    }),
+    followUpStage: integer({
+      defaultValue: 0,
+      validation: { isRequired: true, min: 0, max: 2 },
+      access: { ...outcomeFieldAccess, read: adminOnly },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "Recordatorios de seguimiento enviados: 0 ninguno, 1 a la semana, 2 a las 3 semanas.",
+      },
+    }),
+    followUpSentAt: timestamp({
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: adminOnly },
+      ui: { createView: { fieldMode: "hidden" }, description: "Cuándo salió el último recordatorio." },
+    }),
+    inactiveAt: timestamp({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "El caso dejó de salir en el mapa por no tener novedades. Un registro nuevo lo reactiva.",
+      },
     }),
     createdAt: timestamp({
       defaultValue: {

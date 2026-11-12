@@ -175,6 +175,10 @@ model Animal {
   outcomeChannel                  String?
   outcomeStory                    String                @default("")
   storyConsent                    Boolean               @default(false)
+  lastActivityAt                  DateTime?             @default(now())
+  followUpStage                   Int                   @default(0)
+  followUpSentAt                  DateTime?
+  inactiveAt                      DateTime?
   createdAt                       DateTime?             @default(now())
   from_Animal_duplicateOf         Animal[]              @relation("Animal_duplicateOf")
   from_AnimalClaim_animal         AnimalClaim[]         @relation("AnimalClaim_animal")
@@ -193,6 +197,8 @@ model Animal {
   @@index([duplicateOfId])
   @@index([outcome])
   @@index([closedAt])
+  @@index([lastActivityAt])
+  @@index([inactiveAt])
 }
 
 model AnimalBreed {

@@ -24,6 +24,7 @@ import veterinaryMutations from "./pet/veterinary";
 import createAnimalReport from "./pet/createAnimalReport";
 import animalClaims from "./pet/animalClaims";
 import closeAnimalReport from "./pet/closeAnimalReport";
+import sendAnimalFollowUps from "./pet/sendAnimalFollowUps";
 import adoptionApplications from "./pet/adoptionApplications";
 import petCardMutations from "./pet/card";
 import petEventMutations from "./pet/events";
@@ -85,6 +86,7 @@ const customMutation = {
     ${createAnimalReport.typeDefs}
     ${animalClaims.typeDefs}
     ${closeAnimalReport.typeDefs}
+    ${sendAnimalFollowUps.typeDefs}
     ${adoptionApplications.typeDefs}
     ${petCardMutations.typeDefs}
     ${petEventMutations.typeDefs}
@@ -145,6 +147,7 @@ const customMutation = {
     ${createAnimalReport.definition}
     ${animalClaims.definition}
     ${closeAnimalReport.definition}
+    ${sendAnimalFollowUps.definition}
     ${adoptionApplications.definition}
     ${petCardMutations.definition}
     ${petEventMutations.definition}
@@ -205,6 +208,7 @@ const customMutation = {
     ...createAnimalReport.resolver,
     ...animalClaims.resolver,
     ...closeAnimalReport.resolver,
+    ...sendAnimalFollowUps.resolver,
     ...adoptionApplications.resolver,
     ...petCardMutations.resolver,
     ...petEventMutations.resolver,

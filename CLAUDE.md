@@ -93,7 +93,8 @@ Dato de Keystone 6.5 que explica casi todos los N+1 de este repo: las relaciones
 | Subida de archivos / cuerpo JSON | 200 MB / 15 MB | `keystone.ts` |
 | Imágenes que descarga el back | 8 MB | `utils/pet/petCard.ts`, `utils/clickup/postImage.ts` |
 | Tope de filas | eventos 48, aliados 300, mensajes de la bandeja 500 | `petEvents.ts`, `rescueAllies.ts`, `whatsapp/whatsappConversations.ts` |
-| Crons (GitHub Actions) | cada hora al minuto 5; diario 15:00 UTC | `.github/workflows/send-pet-event-notifications.yml`, `send-pet-reminders.yml` |
+| Crons (GitHub Actions) | cada hora al minuto 5; diario 15:00 UTC; diario 16:00 UTC | `.github/workflows/send-pet-event-notifications.yml`, `send-pet-reminders.yml`, `send-animal-follow-ups.yml` |
+| Seguimiento de casos | recordatorios a 7 y 21 días; inactivo a 45 (sin dueño, 30); topes 200 / 500 por corrida | `models/Pet/Animal/Animal.followUp.ts`, `graphql/customs/mutations/pet/sendAnimalFollowUps.ts` |
 
 La revalidación de caché de los fronts debe quedar por debajo de 1 h, que es lo que duran las URLs firmadas.
 

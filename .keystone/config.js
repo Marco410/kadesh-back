@@ -3279,6 +3279,45 @@ async function sendPetReminderEmail({
     fromName: EMAIL_BRANDS.pet.name
   });
 }
+async function sendAnimalFollowUpEmail({
+  to,
+  displayName: displayName4,
+  animalName: animalName2,
+  elapsed,
+  closeUrl,
+  addLogUrl,
+  finalNotice
+}) {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendAnimalFollowUpEmail: sin email destino.");
+    return;
+  }
+  const name = escapeHtml(animalName2);
+  const html = renderEmailLayout({
+    brand: "pet",
+    preheader: `Van ${elapsed} sin novedades de ${animalName2}. \xBFYa volvi\xF3 a casa?`,
+    eyebrow: "Seguimiento",
+    title: `\xBFC\xF3mo va el caso de ${animalName2}?`,
+    bodyHtml: `
+      ${emailGreeting(displayName4)}
+      ${emailParagraph(
+      `Van ${escapeHtml(elapsed)} sin registros en el reporte de <strong>${name}</strong>. Si ya volvi\xF3 a casa o encontr\xF3 hogar, cierra el caso: as\xED deja de salir como activo y suma a los reencuentros de Kadesh.`
+    )}
+      ${emailButton("pet", "Ya volvi\xF3: cerrar el caso", closeUrl)}
+      ${emailParagraph(
+      finalNotice ? "Si sigues buscando, agrega un registro con lo \xFAltimo que sepas. Si en 3 semanas no hay novedades, el reporte dejar\xE1 de salir en el mapa; podr\xE1s reactivarlo cuando quieras con un registro nuevo." : "Si sigues buscando, agrega un registro con lo \xFAltimo que sepas: as\xED el reporte se mantiene al d\xEDa para quien lo vea."
+    )}
+      ${emailButton("pet", "Sigo buscando: agregar registro", addLogUrl)}`,
+    footerNote: `Recibiste este correo porque publicaste el reporte de ${animalName2} en Kadesh Pet.`
+  });
+  await sendEmail({
+    to: trimmedTo,
+    subject: `\xBF${animalName2} ya volvi\xF3 a casa?`,
+    html,
+    fromName: EMAIL_BRANDS.pet.name
+  });
+}
 async function sendPetFamilyAccountEmail({
   to,
   displayName: displayName4,
@@ -4043,6 +4082,8 @@ var NOTIFICATION_TYPE = {
   ANIMAL_CLAIM_APPROVED: "animal.claim_approved",
   /** La solicitud para quedarse con el reporte se rechazó. */
   ANIMAL_CLAIM_REJECTED: "animal.claim_rejected",
+  /** Un caso abierto lleva 1 o 3 semanas sin registros: ¿volvió a casa o sigue buscándose? Va a quien lo atiende. */
+  ANIMAL_FOLLOW_UP: "animal.follow_up",
   /** Un admin unió un reporte repetido con el principal. Va a quien hizo el repetido. */
   ANIMAL_MERGED: "animal.merged",
   /** El dueño de una veterinaria pidió agregar un servicio al catálogo. */
@@ -4920,6 +4961,11 @@ var WHATSAPP_TEMPLATES = {
     name: "kadesh_pet_comentario",
     audience: "pet",
     params: (v) => [v.authorName, v.animalName, v.comment, v.url]
+  },
+  [NOTIFICATION_TYPE.ANIMAL_FOLLOW_UP]: {
+    name: "kadesh_pet_seguimiento",
+    audience: "pet",
+    params: (v) => [v.animalName, v.elapsed, v.url]
   },
   [NOTIFICATION_TYPE.PET_REMINDER_DUE]: {
     name: "kadesh_pet_recordatorio",
@@ -5838,7 +5884,7 @@ function watchAnimalForFacebook(animalId, context) {
 }
 
 // models/Pet/Animal/Animal.publishedEmail.ts
-var ANIMAL_DETAIL_ACTION = { addLog: "registro", promote: "impulsar" };
+var ANIMAL_DETAIL_ACTION = { addLog: "registro", promote: "impulsar", close: "cerrar" };
 var PROMOTABLE_STATUSES = /* @__PURE__ */ new Set(["lost", "found"]);
 var PUBLISHED_EMAIL_QUERY = `
   id name slug sex age color size
@@ -6765,6 +6811,37 @@ var Animal_default = (0, import_core.list)({
       access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
       ui: { description: "Acept\xF3 que su historia se publique en Kadesh." }
     }),
+    /** Seguimiento de casos abiertos (ver `Animal.followUp.ts`). Lo mantienen la bitácora y el cron. */
+    lastActivityAt: (0, import_fields.timestamp)({
+      defaultValue: { kind: "now" },
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { createView: { fieldMode: "hidden" }, description: "\xDAltimo registro del caso." }
+    }),
+    followUpStage: (0, import_fields.integer)({
+      defaultValue: 0,
+      validation: { isRequired: true, min: 0, max: 2 },
+      access: { ...outcomeFieldAccess, read: adminOnly2 },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "Recordatorios de seguimiento enviados: 0 ninguno, 1 a la semana, 2 a las 3 semanas."
+      }
+    }),
+    followUpSentAt: (0, import_fields.timestamp)({
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: adminOnly2 },
+      ui: { createView: { fieldMode: "hidden" }, description: "Cu\xE1ndo sali\xF3 el \xFAltimo recordatorio." }
+    }),
+    inactiveAt: (0, import_fields.timestamp)({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "El caso dej\xF3 de salir en el mapa por no tener novedades. Un registro nuevo lo reactiva."
+      }
+    }),
     createdAt: (0, import_fields.timestamp)({
       defaultValue: {
         kind: "now"
@@ -6856,6 +6933,37 @@ var AnimalFavorite_default = (0, import_core4.list)({
 // models/Pet/Animal/AnimalLog/AnimalLog.ts
 var import_core5 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
+
+// models/Pet/Animal/Animal.followUp.ts
+var DAY_MS3 = 24 * 60 * 60 * 1e3;
+var FOLLOW_UP_FIRST_DAYS = 7;
+var FOLLOW_UP_SECOND_DAYS = 21;
+var FOLLOW_UP_MIN_GAP_DAYS = 7;
+var INACTIVE_AFTER_DAYS = 45;
+var INACTIVE_MIN_GAP_DAYS = 14;
+var INACTIVE_UNOWNED_DAYS = 30;
+var daysAgo = (days, now = Date.now()) => new Date(now - days * DAY_MS3);
+async function touchAnimalActivity({
+  operation,
+  item,
+  context
+}) {
+  if (operation !== "create") return;
+  const animalId = item?.animalId ?? item?.animal;
+  if (!animalId || typeof animalId !== "string") return;
+  try {
+    const prisma = context.sudo().prisma;
+    const result5 = await prisma.animal.updateMany({
+      where: { id: animalId },
+      data: { lastActivityAt: /* @__PURE__ */ new Date(), followUpStage: 0, followUpSentAt: null, inactiveAt: null }
+    });
+    if (result5 instanceof Error) throw result5;
+  } catch (error) {
+    console.error("[animal] No se pudo registrar la actividad del caso", { animalId }, error);
+  }
+}
+
+// models/Pet/Animal/AnimalLog/AnimalLog.ts
 var AnimalLog_default = (0, import_core5.list)({
   access: animalChildAccess,
   hooks: {
@@ -6887,6 +6995,7 @@ var AnimalLog_default = (0, import_core5.list)({
     afterOperation: async (args) => {
       await animalLogSlugAfterOperation.afterOperation(args);
       await syncAnimalOutcomeFromLog(args);
+      await touchAnimalActivity(args);
       void logAnimalLogActivity(args);
     }
   },
@@ -10751,7 +10860,7 @@ var PET_EVENT_ALERTS = {
 var PET_EVENT_VIEW_DEDUPE_MS = 30 * 60 * 1e3;
 
 // models/Pet/PetEvent/PetEvent.rules.ts
-var DAY_MS3 = 24 * 60 * 60 * 1e3;
+var DAY_MS4 = 24 * 60 * 60 * 1e3;
 var PAST_TOLERANCE_MS = 10 * 60 * 1e3;
 var MX_BOUNDS = { minLat: 14, maxLat: 33, minLng: -119, maxLng: -86 };
 var CATEGORY_VALUES = new Set(PET_EVENT_CATEGORY_OPTIONS.map((option) => option.value));
@@ -10786,7 +10895,7 @@ function normalizeSessions(raw, { existing = [], now = /* @__PURE__ */ new Date(
     if (endsAt.getTime() <= startsAt.getTime()) {
       return { ok: false, message: "Cada fecha debe terminar despu\xE9s de empezar." };
     }
-    if (endsAt.getTime() - startsAt.getTime() > PET_EVENT_LIMITS.MAX_SESSION_DAYS * DAY_MS3) {
+    if (endsAt.getTime() - startsAt.getTime() > PET_EVENT_LIMITS.MAX_SESSION_DAYS * DAY_MS4) {
       return {
         ok: false,
         message: `Una fecha puede durar hasta ${PET_EVENT_LIMITS.MAX_SESSION_DAYS} d\xEDas. Si es m\xE1s, agrega varias fechas.`
@@ -20436,7 +20545,7 @@ var PUSH_FLAG_BY_SOURCE = {
   ["task" /* TASK */]: "pushTasks"
 };
 var SELECTION_TARGET_QUERY = `id googleCalendarId account { ${ACCOUNT_TOKEN_QUERY} }`;
-var DAY_MS4 = 24 * 60 * 60 * 1e3;
+var DAY_MS5 = 24 * 60 * 60 * 1e3;
 function toDateOnly(iso) {
   return new Date(iso).toISOString().slice(0, 10);
 }
@@ -20449,7 +20558,7 @@ function buildGoogleEventBody(event) {
   if (event.allDay) {
     const startDate = toDateOnly(event.startAt);
     const lastDay = event.endAt ? toDateOnly(event.endAt) : startDate;
-    const endExclusive = new Date((/* @__PURE__ */ new Date(`${lastDay}T00:00:00Z`)).getTime() + DAY_MS4).toISOString().slice(0, 10);
+    const endExclusive = new Date((/* @__PURE__ */ new Date(`${lastDay}T00:00:00Z`)).getTime() + DAY_MS5).toISOString().slice(0, 10);
     return { ...base, start: { date: startDate }, end: { date: endExclusive } };
   }
   const start = new Date(event.startAt);
@@ -23008,7 +23117,7 @@ async function consumeCompanyCredits(context, params) {
 }
 async function getCompanyRemainingCredits(context, companyId) {
   const { year, month } = getCurrentPeriodParts();
-  const empty3 = {
+  const empty4 = {
     blockingReason: null,
     remainingQuota: 0,
     syncedCount: 0,
@@ -23021,7 +23130,7 @@ async function getCompanyRemainingCredits(context, companyId) {
   };
   const subscription = await getActiveSubscription(context, companyId);
   if (!subscription) {
-    return { ...empty3, blockingReason: "no_subscription" };
+    return { ...empty4, blockingReason: "no_subscription" };
   }
   const isFreePlan = subscription.planCost != null && subscription.planCost <= 0;
   if (isFreePlan && subscription.activatedAt) {
@@ -23030,7 +23139,7 @@ async function getCompanyRemainingCredits(context, companyId) {
       subscription.currentPeriodEnd
     );
     if (isExpired) {
-      return { ...empty3, blockingReason: "free_plan_expired", leadLimit: 0 };
+      return { ...empty4, blockingReason: "free_plan_expired", leadLimit: 0 };
     }
   }
   const planLeadLimit = subscription.planLeadLimit ?? null;
@@ -23041,7 +23150,7 @@ async function getCompanyRemainingCredits(context, companyId) {
   );
   if (planLeadLimit === null) {
     return {
-      ...empty3,
+      ...empty4,
       blockingReason: "no_lead_limit",
       planLeadLimit,
       extraCredits
@@ -23049,7 +23158,7 @@ async function getCompanyRemainingCredits(context, companyId) {
   }
   if (planLeadLimit < 1 && extraCredits < 1) {
     return {
-      ...empty3,
+      ...empty4,
       blockingReason: "lead_limit_too_low",
       planLeadLimit,
       extraCredits,
@@ -29288,7 +29397,7 @@ var resolver17 = {
   syncLeadsFromInegi: async (_root, {
     input
   }, context) => {
-    const empty3 = emptyFields();
+    const empty4 = emptyFields();
     const session2 = context.session;
     const userId = session2?.data?.id;
     console.log("[syncLeadsFromInegi] START", {
@@ -29304,7 +29413,7 @@ var resolver17 = {
       return {
         success: false,
         message: MSG.login,
-        ...empty3
+        ...empty4
       };
     }
     const user = await context.sudo().query.User.findOne({
@@ -29316,7 +29425,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.noCompany,
-        ...empty3
+        ...empty4
       };
       await logResult(context, userId, void 0, input, result6);
       return result6;
@@ -29334,7 +29443,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.noSubscription,
-        ...empty3
+        ...empty4
       };
       await logResult(context, userId, company.id, input, result6);
       return result6;
@@ -29343,7 +29452,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.freeExpired,
-        ...empty3,
+        ...empty4,
         leadLimit: 0
       };
       await logResult(context, userId, company.id, input, result6);
@@ -29353,7 +29462,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.noLeadLimit,
-        ...empty3,
+        ...empty4,
         leadLimit
       };
       await logResult(context, userId, company.id, input, result6);
@@ -29363,7 +29472,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.leadLimitTooLow,
-        ...empty3,
+        ...empty4,
         leadLimit
       };
       await logResult(context, userId, company.id, input, result6);
@@ -29373,7 +29482,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.quotaFull(syncedCount, leadLimit),
-        ...empty3,
+        ...empty4,
         syncedCount,
         leadLimit
       };
@@ -29458,7 +29567,7 @@ var resolver17 = {
             consumeResult.syncedCount,
             consumeResult.leadLimit
           ),
-          ...empty3,
+          ...empty4,
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
@@ -29624,7 +29733,7 @@ var resolver17 = {
           const result6 = {
             success: false,
             message: MSG.searchFailed,
-            ...empty3,
+            ...empty4,
             syncedCount: currentSyncedCount,
             leadLimit
           };
@@ -29637,7 +29746,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.searchFailed,
-        ...empty3,
+        ...empty4,
         syncedCount: currentSyncedCount,
         leadLimit
       };
@@ -31642,6 +31751,173 @@ var resolver28 = {
 };
 var closeAnimalReport_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
+// graphql/customs/mutations/pet/sendAnimalFollowUps.ts
+var MAX_REMINDERS_PER_RUN = 200;
+var MAX_INACTIVE_PER_RUN = 500;
+var typeDefs32 = `
+  type SendAnimalFollowUpsResult {
+    success: Boolean!
+    message: String!
+    reminded: Int!
+    inactivated: Int!
+    failed: Int!
+  }
+`;
+var definition29 = `
+  sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
+`;
+var empty2 = { reminded: 0, inactivated: 0, failed: 0 };
+function unwrap(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+async function findReminderCandidates(prisma, automation) {
+  const now = Date.now();
+  const rows2 = await prisma.$queryRaw`
+    SELECT a.id, a.name, a.slug, a."followUpStage" AS stage, u.id AS "userId", u.name AS "userName",
+           u.email, u."anonymizedAt", u."suspendedAt"
+    FROM "Animal" a
+    JOIN "User" u ON u.id = a."user"
+    JOIN LATERAL (
+      SELECT l.status FROM "AnimalLog" l
+      WHERE l."animal" = a.id
+      ORDER BY l."date_status" DESC NULLS LAST, l."createdAt" DESC NULLS LAST
+      LIMIT 1
+    ) last ON true
+    WHERE a.outcome IS NULL
+      AND a."duplicateOf" IS NULL
+      AND a."inactiveAt" IS NULL
+      AND u.id <> ${automation}
+      AND last.status = ANY(${OPEN_CASE_STATUSES}::text[])
+      AND (
+        (a."followUpStage" = 0 AND a."lastActivityAt" <= ${daysAgo(FOLLOW_UP_FIRST_DAYS, now)})
+        OR (
+          a."followUpStage" = 1
+          AND a."lastActivityAt" <= ${daysAgo(FOLLOW_UP_SECOND_DAYS, now)}
+          AND a."followUpSentAt" <= ${daysAgo(FOLLOW_UP_MIN_GAP_DAYS, now)}
+        )
+      )
+    ORDER BY a."lastActivityAt" ASC
+    LIMIT ${MAX_REMINDERS_PER_RUN}::int
+  `;
+  return unwrap(rows2);
+}
+async function findInactiveCandidates(prisma, automation) {
+  const now = Date.now();
+  const rows2 = await prisma.$queryRaw`
+    SELECT a.id
+    FROM "Animal" a
+    JOIN LATERAL (
+      SELECT l.status FROM "AnimalLog" l
+      WHERE l."animal" = a.id
+      ORDER BY l."date_status" DESC NULLS LAST, l."createdAt" DESC NULLS LAST
+      LIMIT 1
+    ) last ON true
+    WHERE a.outcome IS NULL
+      AND a."duplicateOf" IS NULL
+      AND a."inactiveAt" IS NULL
+      AND last.status = ANY(${OPEN_CASE_STATUSES}::text[])
+      AND (
+        (
+          a."user" IS NOT NULL AND a."user" <> ${automation}
+          AND a."followUpStage" = 2
+          AND a."lastActivityAt" <= ${daysAgo(INACTIVE_AFTER_DAYS, now)}
+          AND a."followUpSentAt" <= ${daysAgo(INACTIVE_MIN_GAP_DAYS, now)}
+        )
+        OR (
+          (a."user" IS NULL OR a."user" = ${automation})
+          AND a."lastActivityAt" <= ${daysAgo(INACTIVE_UNOWNED_DAYS, now)}
+        )
+      )
+    LIMIT ${MAX_INACTIVE_PER_RUN}::int
+  `;
+  return unwrap(rows2).map((row) => row.id);
+}
+async function remind(context, animal) {
+  const nextStage = animal.stage + 1;
+  const prisma = context.sudo().prisma;
+  const claimed = unwrap(
+    await prisma.animal.updateMany({
+      where: { id: animal.id, followUpStage: animal.stage, outcome: null },
+      data: { followUpStage: nextStage, followUpSentAt: /* @__PURE__ */ new Date() }
+    })
+  );
+  if (claimed.count !== 1) return false;
+  const name = animal.name?.trim() || "tu reporte";
+  const elapsed = nextStage === 1 ? "una semana" : "3 semanas";
+  const detail = `/animales/${animal.slug || animal.id}`;
+  const url = petSiteUrl(detail);
+  const finalNotice = nextStage === 2;
+  await notify(context, {
+    audience: [animal.userId],
+    product: "pet",
+    type: NOTIFICATION_TYPE.ANIMAL_FOLLOW_UP,
+    title: `\xBF${name} ya volvi\xF3 a casa?`,
+    body: finalNotice ? `Van 3 semanas sin novedades. Cierra el caso si ya se resolvi\xF3 o agrega un registro: si no hay novedades, dejar\xE1 de salir en el mapa.` : `Va una semana sin novedades. Cierra el caso si ya se resolvi\xF3 o agrega un registro si sigues buscando.`,
+    entityType: "Animal",
+    entityId: animal.id,
+    url: detail,
+    metadata: { stage: nextStage },
+    templateValues: { animalName: name, elapsed, url }
+  });
+  if (animal.email && !animal.anonymizedAt && !animal.suspendedAt) {
+    try {
+      await sendAnimalFollowUpEmail({
+        to: animal.email,
+        displayName: animal.userName?.trim() || "",
+        animalName: name,
+        elapsed,
+        closeUrl: petSiteUrl(`${detail}?accion=${ANIMAL_DETAIL_ACTION.close}`),
+        addLogUrl: petSiteUrl(`${detail}?accion=${ANIMAL_DETAIL_ACTION.addLog}`),
+        finalNotice
+      });
+    } catch (error) {
+      console.error("[followUps] No se pudo mandar el correo", { animalId: animal.id }, error);
+    }
+  }
+  return true;
+}
+var resolver29 = {
+  sendAnimalFollowUps: async (_root, { secret }, context) => {
+    const expected = process.env.CRON_SECRET?.trim();
+    if (!expected || secret !== expected) {
+      return { success: false, message: "No autorizado.", ...empty2 };
+    }
+    try {
+      const prisma = context.sudo().prisma;
+      const automation = automationUserId() || "__sin_automatizacion__";
+      let reminded = 0;
+      let failed = 0;
+      for (const animal of await findReminderCandidates(prisma, automation)) {
+        try {
+          if (await remind(context, animal)) reminded += 1;
+        } catch (error) {
+          failed += 1;
+          console.error("[followUps] No se pudo mandar el recordatorio", { animalId: animal.id }, error);
+        }
+      }
+      const inactiveIds = await findInactiveCandidates(prisma, automation);
+      const inactivated = inactiveIds.length ? unwrap(
+        await prisma.animal.updateMany({
+          where: { id: { in: inactiveIds }, inactiveAt: null },
+          data: { inactiveAt: /* @__PURE__ */ new Date() }
+        })
+      ).count : 0;
+      return {
+        success: true,
+        message: `Recordatorios: ${reminded}. Casos inactivos: ${inactivated}.`,
+        reminded,
+        inactivated,
+        failed
+      };
+    } catch (error) {
+      console.error("[followUps] sendAnimalFollowUps", error);
+      return { success: false, message: "No se pudo completar el seguimiento.", ...empty2 };
+    }
+  }
+};
+var sendAnimalFollowUps_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+
 // graphql/customs/mutations/pet/adoptionApplications.ts
 var import_graphql6 = require("graphql");
 
@@ -31917,7 +32193,7 @@ async function transferPetToOwner(context, pet, newOwnerId, { reportNote } = {})
 }
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
-var typeDefs32 = `
+var typeDefs33 = `
   input AdoptionApplicationInput {
     phone: String!
     "Por qu\xE9 quiere adoptarlo (20 a 1000 caracteres)"
@@ -31950,7 +32226,7 @@ var typeDefs32 = `
     petId: ID
   }
 `;
-var definition29 = `
+var definition30 = `
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
   "Solo quien la envi\xF3 y solo mientras siga \xABEnviada\xBB (submitted)."
   editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
@@ -32056,7 +32332,7 @@ var REVIEW_COPY = {
     body: note || "Gracias por querer adoptar. Hay m\xE1s animales esperando un hogar en KADESH."
   })
 };
-var resolver29 = {
+var resolver30 = {
   submitAdoptionApplication: async (_root, { animalId, input }, context) => {
     const fail13 = (message) => ({ success: false, message, application: null });
     try {
@@ -32329,11 +32605,11 @@ var resolver29 = {
     }
   }
 };
-var adoptionApplications_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var adoptionApplications_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // graphql/customs/mutations/pet/card/markPetAsLost.ts
 var import_graphql7 = require("graphql");
-var typeDefs33 = `
+var typeDefs34 = `
   input PetLastSeenLocationInput {
     lat: String!
     lng: String!
@@ -32347,10 +32623,10 @@ var typeDefs33 = `
     url: String!
   }
 `;
-var definition30 = `
+var definition31 = `
   markPetAsLost(petId: ID!, lastSeenLocation: PetLastSeenLocationInput!, lastSeenDate: String!, notes: String, contactPhone: String): MarkPetAsLostResult!
 `;
-var resolver30 = {
+var resolver31 = {
   /**
    * Crea el reporte de perdida con los datos y fotos de la mascota, la marca `lost` y liga los dos.
    * El reporte sale por `createAnimalReport` (mismo slug, ciudad, validaciones, alerta de zona y
@@ -32430,21 +32706,21 @@ var resolver30 = {
     }
   }
 };
-var markPetAsLost_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var markPetAsLost_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // graphql/customs/mutations/pet/card/markPetAsFound.ts
 var import_graphql8 = require("graphql");
 var BACK_HOME_STATUS = "in_family";
-var typeDefs34 = `
+var typeDefs35 = `
   type MarkPetAsFoundResult {
     petId: ID!
     reportId: ID
   }
 `;
-var definition31 = `
+var definition32 = `
   markPetAsFound(petId: ID!): MarkPetAsFoundResult!
 `;
-var resolver31 = {
+var resolver32 = {
   /** La mascota vuelve a `active` y su reporte se cierra con una bitácora "En familia". */
   markPetAsFound: async (_root, { petId }, context) => {
     try {
@@ -32501,22 +32777,22 @@ var resolver31 = {
     }
   }
 };
-var markPetAsFound_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var markPetAsFound_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // graphql/customs/mutations/pet/card/addPetFamilyMember.ts
 var import_graphql9 = require("graphql");
 var PET_FAMILY_USER_NOT_FOUND = "PET_FAMILY_USER_NOT_FOUND";
-var typeDefs35 = `
+var typeDefs36 = `
   type PetFamilyMemberResult {
     id: ID!
     role: String!
     userName: String!
   }
 `;
-var definition32 = `
+var definition33 = `
   addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
 `;
-var resolver32 = {
+var resolver33 = {
   /**
    * El dueño principal agrega a un familiar por correo: nadie puede leer el `id` de otro `User`,
    * así que la búsqueda va con sudo y solo devuelve el nombre.
@@ -32557,13 +32833,13 @@ var resolver32 = {
     }
   }
 };
-var addPetFamilyMember_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var addPetFamilyMember_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/pet/card/registerPetFamilyMember.ts
 var import_graphql10 = require("graphql");
 var EMAIL_PATTERN3 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 var MIN_PASSWORD_LENGTH = 8;
-var typeDefs36 = `
+var typeDefs37 = `
   input RegisterPetFamilyMemberInput {
     name: String!
     lastName: String
@@ -32579,13 +32855,13 @@ var typeDefs36 = `
     createdAccount: Boolean!
   }
 `;
-var definition33 = `
+var definition34 = `
   registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
 `;
 function displayName(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver33 = {
+var resolver34 = {
   /**
    * El dueño principal registra a un familiar que aún no tiene cuenta: crea la cuenta con la
    * contraseña que él elige, lo agrega como `family` y le manda un correo que le dice que esa
@@ -32666,7 +32942,7 @@ var resolver33 = {
     }
   }
 };
-var registerPetFamilyMember_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var registerPetFamilyMember_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // utils/pet/petReminders.ts
 function reminderUrl(reminder) {
@@ -32826,7 +33102,7 @@ async function sendReminderNotification(context, reminder) {
 
 // graphql/customs/mutations/pet/card/sendDuePetReminders.ts
 var MAX_PER_RUN = 500;
-var typeDefs37 = `
+var typeDefs38 = `
   type SendDuePetRemindersResult {
     success: Boolean!
     message: String!
@@ -32835,11 +33111,11 @@ var typeDefs37 = `
     failed: Int!
   }
 `;
-var definition34 = `
+var definition35 = `
   sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
 `;
-var empty2 = { processed: 0, sent: 0, failed: 0 };
-var resolver34 = {
+var empty3 = { processed: 0, sent: 0, failed: 0 };
+var resolver35 = {
   /**
    * Manda los `PetReminder` pendientes cuya fecha de aviso (`dueDate - notifyDaysBefore`) ya llegó
    * (hoy en CDMX o antes). La llama un cron diario (.github/workflows/send-pet-reminders.yml) con
@@ -32848,7 +33124,7 @@ var resolver34 = {
   sendDuePetReminders: async (_root, { secret }, context) => {
     const expected = process.env.CRON_SECRET?.trim();
     if (!expected || secret !== expected) {
-      return { success: false, message: "No autorizado.", ...empty2 };
+      return { success: false, message: "No autorizado.", ...empty3 };
     }
     try {
       const prisma = context.sudo().prisma;
@@ -32900,17 +33176,17 @@ var resolver34 = {
       return {
         success: false,
         message: error instanceof Error ? error.message : "No se pudieron mandar los recordatorios.",
-        ...empty2
+        ...empty3
       };
     }
   }
 };
-var sendDuePetReminders_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var sendDuePetReminders_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/mutations/pet/card/petTransfer.ts
 var import_crypto5 = require("crypto");
 var import_graphql11 = require("graphql");
-var typeDefs38 = `
+var typeDefs39 = `
   type PetTransferCodeResult {
     success: Boolean!
     message: String!
@@ -32938,7 +33214,7 @@ var typeDefs38 = `
     petId: ID
   }
 `;
-var definition35 = `
+var definition36 = `
   createPetTransferCode(petId: ID!, message: String): PetTransferCodeResult!
   cancelPetTransferCode(transferId: ID!): PetTransferCodeResult!
   previewPetTransferCode(code: String!): PetTransferPreview!
@@ -33018,7 +33294,7 @@ async function loadRedeemable(context, rawCode, userId) {
 function displayName2(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver35 = {
+var resolver36 = {
   createPetTransferCode: async (_root, { petId, message }, context) => {
     const fail13 = (text86) => ({ success: false, message: text86, transfer: null });
     try {
@@ -33103,7 +33379,7 @@ var resolver35 = {
     }
   },
   previewPetTransferCode: async (_root, { code }, context) => {
-    const empty3 = {
+    const empty4 = {
       petName: null,
       species: null,
       breed: null,
@@ -33115,9 +33391,9 @@ var resolver35 = {
     };
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return { success: false, message: "Inicia sesi\xF3n para recibir a la mascota.", ...empty3 };
+      if (!userId) return { success: false, message: "Inicia sesi\xF3n para recibir a la mascota.", ...empty4 };
       const found = await loadRedeemable(context, code, userId);
-      if (!found.ok) return { success: false, message: found.message, ...empty3 };
+      if (!found.ok) return { success: false, message: found.message, ...empty4 };
       const { transfer } = found;
       const sudo = context.sudo();
       const [pet, giver] = await Promise.all([
@@ -33144,7 +33420,7 @@ var resolver35 = {
       };
     } catch (error) {
       console.error("[previewPetTransferCode]", error);
-      return { success: false, message: "No pudimos revisar el c\xF3digo. Intenta de nuevo.", ...empty3 };
+      return { success: false, message: "No pudimos revisar el c\xF3digo. Intenta de nuevo.", ...empty4 };
     }
   },
   redeemPetTransferCode: async (_root, { code }, context) => {
@@ -33221,7 +33497,7 @@ var resolver35 = {
     }
   }
 };
-var petTransfer_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var petTransfer_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/mutations/pet/card/index.ts
 var petCardMutations = {
@@ -33253,7 +33529,7 @@ var petCardMutations = {
 var card_default = petCardMutations;
 
 // utils/notifications/eventAlerts.ts
-var DAY_MS5 = 24 * 60 * 60 * 1e3;
+var DAY_MS6 = 24 * 60 * 60 * 1e3;
 function prismaOf8(context) {
   return context.sudo().prisma;
 }
@@ -33291,7 +33567,7 @@ function dayKey(date, timeZone) {
 function relativeEventDay(date, timeZone, now = /* @__PURE__ */ new Date()) {
   const key = dayKey(date, timeZone);
   if (key === dayKey(now, timeZone)) return "Hoy";
-  if (key === dayKey(new Date(now.getTime() + DAY_MS5), timeZone)) return "Ma\xF1ana";
+  if (key === dayKey(new Date(now.getTime() + DAY_MS6), timeZone)) return "Ma\xF1ana";
   return null;
 }
 function eventPlaceText(event) {
@@ -33306,7 +33582,7 @@ function eventPriceText(event) {
 }
 function isWithinAlertLead(startsAt, now = /* @__PURE__ */ new Date()) {
   if (!startsAt) return false;
-  return startsAt.getTime() - now.getTime() <= PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS5;
+  return startsAt.getTime() - now.getTime() <= PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS6;
 }
 async function loadPetEventForNotice(context, eventId, now = /* @__PURE__ */ new Date()) {
   try {
@@ -33358,7 +33634,7 @@ async function loadPetEventForNotice(context, eventId, now = /* @__PURE__ */ new
 }
 async function findEventAlertCandidates(context, event) {
   const prisma = prismaOf8(context);
-  const since = new Date(Date.now() - DAY_MS5);
+  const since = new Date(Date.now() - DAY_MS6);
   const zoneReach = event.scope === PET_EVENT_SCOPE.ZONE ? Math.max(0, Math.round(event.reachKm || 0)) : 0;
   const rows2 = await prisma.$queryRaw`
     SELECT u.id,
@@ -33593,11 +33869,11 @@ async function sendZoneAlertsIfDue(context, eventId, now = /* @__PURE__ */ new D
 }
 
 // graphql/customs/mutations/pet/events/submitPetEvent.ts
-var typeDefs39 = ``;
-var definition36 = `
+var typeDefs40 = ``;
+var definition37 = `
   submitPetEvent(input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver36 = {
+var resolver37 = {
   /**
    * Publica un evento con sus fechas. Si no lo manda un admin queda «En revisión» y se avisa a los
    * admins; un admin lo publica directo (y avisa a la zona si la fecha está cerca). Las fotos se
@@ -33655,7 +33931,7 @@ var resolver36 = {
     }
   }
 };
-var submitPetEvent_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var submitPetEvent_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/seo/indexNow.ts
 var DEFAULT_KEY = "6973631b0c498ed8f41a79e2d4c9211f";
@@ -33710,11 +33986,11 @@ async function submitPetEventToIndexNow(context, eventId) {
 }
 
 // graphql/customs/mutations/pet/events/updateMyPetEvent.ts
-var typeDefs40 = ``;
-var definition37 = `
+var typeDefs41 = ``;
+var definition38 = `
   updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver37 = {
+var resolver38 = {
   /**
    * Edita un evento propio (el formulario completo, con todas sus fechas). Si quien edita no es
    * admin y el evento estaba publicado o rechazado, vuelve a «En revisión». Si cambiaron las fechas
@@ -33823,14 +34099,14 @@ var resolver37 = {
     }
   }
 };
-var updateMyPetEvent_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var updateMyPetEvent_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // graphql/customs/mutations/pet/events/cancelPetEvent.ts
-var typeDefs41 = ``;
-var definition38 = `
+var typeDefs42 = ``;
+var definition39 = `
   cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
 `;
-var resolver38 = {
+var resolver39 = {
   /**
    * Cancela un evento (quien lo publicó o un admin). Si llegó a publicarse, la ficha sigue visible
    * con el aviso de cancelado y se avisa a quienes marcaron «Me interesa» o «Asistiré».
@@ -33877,10 +34153,10 @@ var resolver38 = {
     }
   }
 };
-var cancelPetEvent_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var cancelPetEvent_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // graphql/customs/mutations/pet/events/setPetEventInterest.ts
-var typeDefs42 = `
+var typeDefs43 = `
   type PetEventInterestResult {
     success: Boolean!
     message: String!
@@ -33891,7 +34167,7 @@ var typeDefs42 = `
     isFull: Boolean!
   }
 `;
-var definition39 = `
+var definition40 = `
   setPetEventInterest(eventId: ID!, kind: String): PetEventInterestResult!
 `;
 var KINDS = new Set(Object.values(PET_EVENT_INTEREST_KIND));
@@ -33907,18 +34183,18 @@ async function counts(prisma, eventId, capacity) {
     isFull: capacity ? goingCount >= capacity : false
   };
 }
-var resolver39 = {
+var resolver40 = {
   /**
    * «Me interesa» (`interested`), «Asistiré» (`going`) o quitarlo (`kind: null`). Con cupo,
    * «Asistiré» se cierra cuando ya hay tantas personas como lugares; «Me interesa» siempre se puede.
    * A quien marque cualquiera de los dos le llega el recordatorio un día antes.
    */
   setPetEventInterest: async (_root, { eventId, kind }, context) => {
-    const empty3 = { kind: null, interestedCount: 0, goingCount: 0, isFull: false };
+    const empty4 = { kind: null, interestedCount: 0, goingCount: 0, isFull: false };
     const userId = getSessionUserId(context.session);
-    if (!userId) return { success: false, message: "Inicia sesi\xF3n para guardar el evento.", ...empty3 };
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para guardar el evento.", ...empty4 };
     const nextKind = kind ? kind.trim() : null;
-    if (nextKind && !KINDS.has(nextKind)) return { success: false, message: "Opci\xF3n no v\xE1lida.", ...empty3 };
+    if (nextKind && !KINDS.has(nextKind)) return { success: false, message: "Opci\xF3n no v\xE1lida.", ...empty4 };
     try {
       const prisma = prismaOf9(context);
       const event = await prisma.petEvent.findUnique({
@@ -33926,7 +34202,7 @@ var resolver39 = {
         select: { id: true, status: true, capacity: true, lastEndsAt: true }
       });
       if (!event || event instanceof Error || event.status !== PET_EVENT_STATUS.APPROVED) {
-        return { success: false, message: "Este evento no est\xE1 disponible.", ...empty3 };
+        return { success: false, message: "Este evento no est\xE1 disponible.", ...empty4 };
       }
       if (event.lastEndsAt && event.lastEndsAt.getTime() < Date.now()) {
         return { success: false, message: "Este evento ya termin\xF3.", ...await counts(prisma, eventId, event.capacity), kind: null };
@@ -33967,11 +34243,11 @@ var resolver39 = {
       };
     } catch (error) {
       console.error("[setPetEventInterest]", error);
-      return { success: false, message: "No pudimos guardar tu respuesta. Intenta de nuevo.", ...empty3 };
+      return { success: false, message: "No pudimos guardar tu respuesta. Intenta de nuevo.", ...empty4 };
     }
   }
 };
-var setPetEventInterest_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var setPetEventInterest_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // utils/security/knownCrawlers.ts
 var import_net = require("net");
@@ -34037,14 +34313,14 @@ function isKnownCrawlerRequest(req) {
 }
 
 // graphql/customs/mutations/pet/events/recordPetEventView.ts
-var typeDefs43 = `
+var typeDefs44 = `
   type PetEventViewResult {
     "Si esta visita sum\xF3. No suman quien lo public\xF3, los admins, los bots ni repetir en 30 min."
     counted: Boolean!
     viewsCount: Int!
   }
 `;
-var definition40 = `
+var definition41 = `
   recordPetEventView(eventId: ID!): PetEventViewResult!
 `;
 var firstVisit = createDeduper(PET_EVENT_VIEW_DEDUPE_MS);
@@ -34057,7 +34333,7 @@ function isPublic(event) {
   if (event.status === PET_EVENT_STATUS.APPROVED) return true;
   return event.status === PET_EVENT_STATUS.CANCELLED && Boolean(event.approvedAt);
 }
-var resolver40 = {
+var resolver41 = {
   /**
    * La web la llama una vez al abrir la ficha y muestra el total que devuelve. Nunca falla hacia
    * afuera: si algo sale mal responde `counted: false` y la ficha se queda con el número que tenía.
@@ -34088,14 +34364,14 @@ var resolver40 = {
     }
   }
 };
-var recordPetEventView_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var recordPetEventView_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/mutations/pet/events/reviewPetEvent.ts
-var typeDefs44 = ``;
-var definition41 = `
+var typeDefs45 = ``;
+var definition42 = `
   reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
 `;
-var resolver41 = {
+var resolver42 = {
   /**
    * Operaciones → Kadesh Pet → Eventos. Aprobar publica el evento, avisa a quien lo publicó y, si
    * su próxima fecha está a 14 días o menos, a la zona (si no, el cron avisa cuando falten 14).
@@ -34191,14 +34467,14 @@ var resolver41 = {
     }
   }
 };
-var reviewPetEvent_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var reviewPetEvent_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/pet/events/sendPetEventNotifications.ts
-var MAX_REMINDERS_PER_RUN = 500;
+var MAX_REMINDERS_PER_RUN2 = 500;
 var MAX_ZONE_EVENTS_PER_RUN = 50;
 var HOUR_MS = 60 * 60 * 1e3;
-var DAY_MS6 = 24 * HOUR_MS;
-var typeDefs45 = `
+var DAY_MS7 = 24 * HOUR_MS;
+var typeDefs46 = `
   type SendPetEventNotificationsResult {
     success: Boolean!
     message: String!
@@ -34210,7 +34486,7 @@ var typeDefs45 = `
     zoneRecipients: Int!
   }
 `;
-var definition42 = `
+var definition43 = `
   sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
 `;
 async function sendReminders(context, now) {
@@ -34230,7 +34506,7 @@ async function sendReminders(context, now) {
       AND i."user" IS NOT NULL
       AND (i."lastRemindedSessionId" IS NULL OR i."lastRemindedSessionId" <> s.id)
     ORDER BY s."startsAt" ASC
-    LIMIT ${MAX_REMINDERS_PER_RUN}::int
+    LIMIT ${MAX_REMINDERS_PER_RUN2}::int
   `;
   if (rows2 instanceof Error) throw rows2;
   const groups = /* @__PURE__ */ new Map();
@@ -34274,7 +34550,7 @@ async function sendReminders(context, now) {
 }
 async function sendDueZoneAlerts(context, now) {
   const prisma = prismaOf9(context);
-  const leadUntil = new Date(now.getTime() + PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS6);
+  const leadUntil = new Date(now.getTime() + PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS7);
   const rows2 = await prisma.$queryRaw`
     SELECT e.id
     FROM "PetEvent" e
@@ -34298,16 +34574,16 @@ async function sendDueZoneAlerts(context, now) {
   }
   return { events, recipients };
 }
-var resolver42 = {
+var resolver43 = {
   /**
    * La llama cada hora .github/workflows/send-pet-event-notifications.yml con `CRON_SECRET`:
    * (a) recordatorios de fechas que empiezan en las próximas 24 h, una vez por fecha y persona;
    * (b) avisos a la zona de eventos aprobados cuya próxima fecha ya está a 14 días o menos.
    */
   sendPetEventNotifications: async (_root, { secret }, context) => {
-    const empty3 = { reminders: 0, zoneEvents: 0, zoneRecipients: 0 };
+    const empty4 = { reminders: 0, zoneEvents: 0, zoneRecipients: 0 };
     const expected = process.env.CRON_SECRET?.trim();
-    if (!expected || secret !== expected) return { success: false, message: "No autorizado.", ...empty3 };
+    if (!expected || secret !== expected) return { success: false, message: "No autorizado.", ...empty4 };
     try {
       const now = /* @__PURE__ */ new Date();
       const reminders = await sendReminders(context, now);
@@ -34324,18 +34600,18 @@ var resolver42 = {
       return {
         success: false,
         message: error instanceof Error ? error.message : "No se pudieron mandar los avisos de eventos.",
-        ...empty3
+        ...empty4
       };
     }
   }
 };
-var sendPetEventNotifications_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var sendPetEventNotifications_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/pet/events/backfillAlertRegions.ts
 var NOMINATIM_GAP_MS = 1100;
 var DEFAULT_LIMIT = 40;
 var MAX_LIMIT = 100;
-var typeDefs46 = `
+var typeDefs47 = `
   type BackfillAlertRegionsResult {
     success: Boolean!
     message: String!
@@ -34344,19 +34620,19 @@ var typeDefs46 = `
     remaining: Int!
   }
 `;
-var definition43 = `
+var definition44 = `
   backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
 `;
 var sleep2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-var resolver43 = {
+var resolver44 = {
   /**
    * Una vez, después de desplegar los eventos: llena `alertCity` / `alertStateCode` de quienes ya
    * tenían zona de alertas (desde ahora se llenan solos al guardar la zona). Solo admins. Se corre
    * varias veces hasta que `remaining` sea 0.
    */
   backfillAlertRegions: async (_root, { limit }, context) => {
-    const empty3 = { processed: 0, updated: 0, remaining: 0 };
-    if (!isPlatformAdmin(context.session)) return { success: false, message: "Solo admins.", ...empty3 };
+    const empty4 = { processed: 0, updated: 0, remaining: 0 };
+    if (!isPlatformAdmin(context.session)) return { success: false, message: "Solo admins.", ...empty4 };
     try {
       const prisma = prismaOf9(context);
       const take = Math.min(Math.max(Number(limit) || DEFAULT_LIMIT, 1), MAX_LIMIT);
@@ -34393,11 +34669,11 @@ var resolver43 = {
       };
     } catch (error) {
       console.error("[backfillAlertRegions]", error);
-      return { success: false, message: error instanceof Error ? error.message : "No se pudo completar.", ...empty3 };
+      return { success: false, message: error instanceof Error ? error.message : "No se pudo completar.", ...empty4 };
     }
   }
 };
-var backfillAlertRegions_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var backfillAlertRegions_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/mutations/pet/events/index.ts
 var petEventMutations = {
@@ -34436,15 +34712,15 @@ var petEventMutations = {
 var events_default = petEventMutations;
 
 // graphql/customs/mutations/pet/rescue/activateRescueOrganization.ts
-var typeDefs47 = ``;
-var definition44 = `
+var typeDefs48 = ``;
+var definition45 = `
   activateRescueOrganization(input: RescueOrganizationCreateInput!): RescueOrganizationResult!
 `;
 var TYPE_LABEL2 = Object.fromEntries(RESCUE_ORG_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 function failure2(message) {
   return { success: false, message, organization: null };
 }
-var resolver44 = {
+var resolver45 = {
   /**
    * Activa un espacio de rescate: crea la organización «En revisión» con quien llama como admin y
    * avisa a los admins de Kadesh para validarla por WhatsApp. El logo y la portada se suben
@@ -34522,7 +34798,7 @@ var resolver44 = {
     }
   }
 };
-var activateRescueOrganization_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var activateRescueOrganization_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
 var import_graphql12 = require("graphql");
@@ -34582,8 +34858,8 @@ async function countRescueAdmins(context, organizationId) {
 }
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
-var typeDefs48 = ``;
-var definition45 = `
+var typeDefs49 = ``;
+var definition46 = `
   addRescueOrganizationMember(organizationId: ID!, email: String!, role: String!): RescueMemberResult!
   setRescueOrganizationMemberRole(memberId: ID!, role: String!): RescueMemberResult!
   removeRescueOrganizationMember(memberId: ID!): RescueMemberResult!
@@ -34602,7 +34878,7 @@ async function loadMember(context, memberId) {
     query: "id role user { id } organization { id name }"
   });
 }
-var resolver45 = {
+var resolver46 = {
   addRescueOrganizationMember: async (_root, { organizationId, email, role }, context) => {
     try {
       const { organization } = await requireRescueRole(context, organizationId, [RESCUE_MEMBER_ROLE.ADMIN]);
@@ -34738,7 +35014,7 @@ var resolver45 = {
     }
   }
 };
-var rescueMembers_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var rescueMembers_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
 
 // graphql/customs/mutations/pet/rescue/rescuePets.ts
 var import_graphql13 = require("graphql");
@@ -34748,7 +35024,7 @@ var STATUS_LABEL2 = {
   rescued: "Rescatado"
 };
 var RESCUE_ADOPTER_NOT_FOUND = "RESCUE_ADOPTER_NOT_FOUND";
-var typeDefs49 = `
+var typeDefs50 = `
   type RescuePetResult {
     success: Boolean!
     message: String!
@@ -34776,7 +35052,7 @@ var typeDefs49 = `
     adopterName: String
   }
 `;
-var definition46 = `
+var definition47 = `
   convertAnimalToPet(animalId: ID!, organizationId: ID): RescuePetResult!
   "status: in_adoption | rescued. location es obligatoria si la ficha a\xFAn no tiene reporte."
   publishRescuePet(petId: ID!, status: String!, location: PetLastSeenLocationInput, notes: String): PublishRescuePetResult!
@@ -34798,7 +35074,7 @@ async function loadRescuePet(context, petId) {
   if (!pet.organization) throw new import_graphql13.GraphQLError("Esta mascota no es ficha de un espacio de rescate.");
   return pet;
 }
-var resolver46 = {
+var resolver47 = {
   convertAnimalToPet: async (_root, { animalId, organizationId }, context) => {
     const fail13 = (message) => ({ success: false, message, petId: null, organizationId: null });
     try {
@@ -35041,7 +35317,7 @@ var resolver46 = {
     }
   }
 };
-var rescuePets_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var rescuePets_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // graphql/customs/mutations/pet/rescue/index.ts
 var rescueMutations = {
@@ -35065,7 +35341,7 @@ var rescueMutations = {
 var rescue_default = rescueMutations;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs50 = `
+var typeDefs51 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -35075,10 +35351,10 @@ var typeDefs50 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition47 = `
+var definition48 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver47 = {
+var resolver48 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -35129,10 +35405,10 @@ var resolver47 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var unsubscribeBlog_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs51 = `
+var typeDefs52 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -35143,10 +35419,10 @@ var typeDefs51 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition48 = `
+var definition49 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver48 = {
+var resolver49 = {
   /**
    * Pensada para un cron externo, no para un usuario logueado: se autoriza con `CRON_SECRET`, no
    * con sesión/rol. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -35195,10 +35471,10 @@ var resolver48 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var publishScheduledPosts_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs52 = `
+var typeDefs53 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -35209,7 +35485,7 @@ var typeDefs52 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition49 = `
+var definition50 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -35218,7 +35494,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver49 = {
+var resolver50 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -35286,7 +35562,7 @@ var resolver49 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -35381,7 +35657,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs53 = `
+var typeDefs54 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -35405,7 +35681,7 @@ var typeDefs53 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition50 = `
+var definition51 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -35421,7 +35697,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver50 = {
+var resolver51 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -35525,7 +35801,7 @@ var resolver50 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // utils/whatsapp/templateStatus.ts
 var TEMPLATE_STATUS_MAP = {
@@ -35659,7 +35935,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs54 = `
+var typeDefs55 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -35673,10 +35949,10 @@ var typeDefs54 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition51 = `
+var definition52 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver51 = {
+var resolver52 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -35721,7 +35997,7 @@ var resolver51 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -35859,7 +36135,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs55 = `
+var typeDefs56 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -35870,10 +36146,10 @@ var typeDefs55 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition52 = `
+var definition53 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver52 = {
+var resolver53 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -35934,7 +36210,7 @@ var resolver52 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -36023,7 +36299,7 @@ function distinctSenders(messages) {
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs56 = `
+var typeDefs57 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -36040,7 +36316,7 @@ var typeDefs56 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition53 = `
+var definition54 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -36051,7 +36327,7 @@ var definition53 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver53 = {
+var resolver54 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -36137,10 +36413,10 @@ var resolver53 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs57 = `
+var typeDefs58 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -36150,7 +36426,7 @@ var typeDefs57 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition54 = `
+var definition55 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -36162,7 +36438,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver54 = {
+var resolver55 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -36268,7 +36544,7 @@ var resolver54 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
 var import_crypto6 = __toESM(require("crypto"));
@@ -36317,7 +36593,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs58 = `
+var typeDefs59 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -36328,7 +36604,7 @@ var typeDefs58 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition55 = `
+var definition56 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -36341,7 +36617,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver55 = {
+var resolver56 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -36425,10 +36701,10 @@ var resolver55 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs59 = `
+var typeDefs60 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -36438,13 +36714,13 @@ var typeDefs59 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition56 = `
+var definition57 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver56 = {
+var resolver57 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -36501,10 +36777,10 @@ var resolver56 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs60 = `
+var typeDefs61 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -36515,13 +36791,13 @@ var typeDefs60 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition57 = `
+var definition58 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver57 = {
+var resolver58 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -36558,7 +36834,7 @@ var resolver57 = {
     return toResult10(true, "Conversaci\xF3n enlazada al cliente", count2);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -36571,7 +36847,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs61 = `
+var typeDefs62 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -36607,7 +36883,7 @@ var typeDefs61 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition58 = `
+var definition59 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
 function fail6(message, detail = null) {
@@ -36624,7 +36900,7 @@ function fail6(message, detail = null) {
     templateError: null
   };
 }
-var resolver58 = {
+var resolver59 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -36798,7 +37074,7 @@ var resolver58 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // utils/googleCalendar/state.ts
 var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
@@ -36865,7 +37141,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs62 = `
+var typeDefs63 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -36876,11 +37152,11 @@ var typeDefs62 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition59 = `
+var definition60 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
 var fail7 = (message) => ({ success: false, message, url: null });
-var resolver59 = {
+var resolver60 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -36910,7 +37186,7 @@ var resolver59 = {
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -36965,7 +37241,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs63 = `
+var typeDefs64 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -36978,7 +37254,7 @@ var typeDefs63 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition60 = `
+var definition61 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
 var fail8 = (message) => ({
@@ -36988,7 +37264,7 @@ var fail8 = (message) => ({
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver60 = {
+var resolver61 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -37077,10 +37353,10 @@ var resolver60 = {
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs64 = `
+var typeDefs65 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -37090,10 +37366,10 @@ var typeDefs64 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition61 = `
+var definition62 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver61 = {
+var resolver62 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -37129,10 +37405,10 @@ var resolver61 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs65 = `
+var typeDefs66 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -37143,10 +37419,10 @@ var typeDefs65 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition62 = `
+var definition63 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver62 = {
+var resolver63 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -37192,10 +37468,10 @@ var resolver62 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs66 = `
+var typeDefs67 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -37207,10 +37483,10 @@ var typeDefs66 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition63 = `
+var definition64 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver63 = {
+var resolver64 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -37244,10 +37520,10 @@ var resolver63 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs67 = `
+var typeDefs68 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -37269,7 +37545,7 @@ var typeDefs67 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition64 = `
+var definition65 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
@@ -37282,7 +37558,7 @@ var fail9 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver64 = {
+var resolver65 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -37317,10 +37593,10 @@ var resolver64 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // graphql/customs/mutations/activity/trackEvents.ts
-var typeDefs68 = `
+var typeDefs69 = `
   input TrackEventInput {
     """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, app.client_error (tambi\xE9n sin sesi\xF3n), admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
     type: String!
@@ -37343,7 +37619,7 @@ var typeDefs68 = `
     trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
   }
 `;
-var definition65 = `
+var definition66 = `
   trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
 `;
 var MAX_EVENTS = 50;
@@ -37551,7 +37827,7 @@ async function recentlyViewed(context, actorId, type, companyId, entityId) {
   });
   return Boolean(found);
 }
-var resolver65 = {
+var resolver66 = {
   trackEvents: async (_root, { events }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -37623,10 +37899,10 @@ var resolver65 = {
     return { accepted, rejected: list100.length - accepted };
   }
 };
-var trackEvents_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+var trackEvents_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // graphql/customs/mutations/admin/companyOps.ts
-var typeDefs69 = `
+var typeDefs70 = `
   type AdminOpsActionResult {
     success: Boolean!
     message: String!
@@ -37637,7 +37913,7 @@ var typeDefs69 = `
     adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
   }
 `;
-var definition66 = `
+var definition67 = `
   adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
   adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
 `;
@@ -37671,7 +37947,7 @@ var REVIVABLE_STATUSES = /* @__PURE__ */ new Set([
   SUBSCRIPTION_STATUS.UNPAID,
   SUBSCRIPTION_STATUS.CANCELLED
 ]);
-var resolver66 = {
+var resolver67 = {
   /**
    * Mueve el fin de la prueba gratuita (`currentPeriodEnd` de la suscripción vigente).
    * `days` suma desde hoy o desde el fin actual (lo que sea más tarde); `until` fija la fecha.
@@ -37781,7 +38057,7 @@ var resolver66 = {
     return result(true, to ? `Ahora la cuenta es de ${to}.` : "La cuenta qued\xF3 sin due\xF1o.");
   }
 };
-var companyOps_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+var companyOps_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
 
 // graphql/customs/queries/admin/shared.ts
 var adminSharedTypeDefs = `
@@ -37817,9 +38093,9 @@ function assertPlatformAdmin(context) {
 function adminPrisma(context) {
   return context.sudo().prisma;
 }
-var DAY_MS7 = 24 * 60 * 60 * 1e3;
-function daysAgo(days, from = /* @__PURE__ */ new Date()) {
-  return new Date(from.getTime() - days * DAY_MS7);
+var DAY_MS8 = 24 * 60 * 60 * 1e3;
+function daysAgo2(days, from = /* @__PURE__ */ new Date()) {
+  return new Date(from.getTime() - days * DAY_MS8);
 }
 function toIso(value) {
   if (!value) return null;
@@ -37912,7 +38188,7 @@ function trialEndDate(sub) {
   if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
   if (sub.currentPeriodEnd) return new Date(sub.currentPeriodEnd);
   if (!sub.activatedAt) return null;
-  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS7);
+  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS8);
 }
 function monthlyAmount(cost, frequency) {
   if (!cost || cost <= 0) return 0;
@@ -38022,7 +38298,7 @@ function latestDate(...dates) {
 }
 
 // graphql/customs/mutations/admin/accountControl.ts
-var typeDefs70 = `
+var typeDefs71 = `
   type AdminControlResult {
     success: Boolean!
     message: String!
@@ -38049,7 +38325,7 @@ var typeDefs70 = `
     adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
   }
 `;
-var definition67 = `
+var definition68 = `
   adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
@@ -38096,7 +38372,7 @@ function adminIdOf(context) {
 }
 var NOT_ADMIN = result2(false, "Solo un administrador de Kadesh puede hacer esto.");
 var REASON_REQUIRED = result2(false, `Escribe el motivo (m\xEDnimo ${MIN_REASON} letras).`);
-var resolver67 = {
+var resolver68 = {
   /** Nadie del equipo puede entrar mientras la empresa esté suspendida; al suspender se cierran sus sesiones. */
   adminSetCompanySuspension: async (_root, { companyId, suspended, reason }, context) => {
     if (!adminIdOf(context)) return NOT_ADMIN;
@@ -38638,23 +38914,23 @@ var resolver67 = {
     return result2(true, "Cuenta anonimizada: se borraron sus datos personales y ya no puede entrar.");
   }
 };
-var accountControl_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+var accountControl_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
 
 // graphql/customs/mutations/admin/animals.ts
-var typeDefs71 = `
+var typeDefs72 = `
   type Mutation {
     adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
     adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   }
 `;
-var definition68 = `
+var definition69 = `
   adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
 `;
 function deny() {
   return { success: false, message: "Solo un administrador de Kadesh puede hacer esto." };
 }
-var resolver68 = {
+var resolver69 = {
   /**
    * Publica el animal en la Página de Facebook de Pet. Si ya se publicó, no lo repite salvo
    * `force` (volver a publicar a propósito). Sirve para los que subieron usuarios (no se
@@ -38698,10 +38974,10 @@ var resolver68 = {
     };
   }
 };
-var animals_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+var animals_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
 
 // graphql/customs/mutations/admin/zoneAlerts.ts
-var typeDefs72 = `
+var typeDefs73 = `
   type Mutation {
     adminUpdateZoneAlerts(
       userId: ID!
@@ -38713,7 +38989,7 @@ var typeDefs72 = `
     ): AdminOpsActionResult!
   }
 `;
-var definition69 = `
+var definition70 = `
   adminUpdateZoneAlerts(
     userId: ID!
     enabled: Boolean
@@ -38726,7 +39002,7 @@ var definition69 = `
 function result3(success, message) {
   return { success, message };
 }
-var resolver69 = {
+var resolver70 = {
   adminUpdateZoneAlerts: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) return result3(false, "Solo un administrador de Kadesh puede hacer esto.");
     const prisma = context.sudo().prisma;
@@ -38796,17 +39072,17 @@ var resolver69 = {
     return result3(true, changes.length ? `Listo: ${changes.join(", ")}.` : "Guardado.");
   }
 };
-var adminZoneAlerts = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+var adminZoneAlerts = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
 var zoneAlerts_default = adminZoneAlerts;
 
 // graphql/customs/mutations/admin/errorIssues.ts
-var typeDefs73 = `
+var typeDefs74 = `
   type Mutation {
     """status: open | resolved | ignored"""
     adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
   }
 `;
-var definition70 = `
+var definition71 = `
   adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
 `;
 var STATUS_LABELS2 = {
@@ -38818,7 +39094,7 @@ var MAX_NOTE = 2e3;
 function result4(success, message) {
   return { success, message };
 }
-var resolver70 = {
+var resolver71 = {
   adminSetErrorIssueStatus: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return result4(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -38862,10 +39138,10 @@ var resolver70 = {
     return result4(true, "Listo.");
   }
 };
-var errorIssues_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+var errorIssues_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
 
 // graphql/customs/mutations/admin/security.ts
-var typeDefs74 = `
+var typeDefs75 = `
   type AdminBlockIpResult {
     success: Boolean!
     message: String!
@@ -38879,7 +39155,7 @@ var typeDefs74 = `
     adminUnblockIp(ip: String!): AdminOpsActionResult!
   }
 `;
-var definition71 = `
+var definition72 = `
   adminBlockIp(ip: String!, reason: String, days: Int, force: Boolean): AdminBlockIpResult!
   adminUnblockIp(ip: String!): AdminOpsActionResult!
 `;
@@ -38910,7 +39186,7 @@ async function usedByAdmin(prisma, ip) {
   ]);
   return Boolean(event || auth);
 }
-var resolver71 = {
+var resolver72 = {
   adminBlockIp: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return blockResult(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -38972,10 +39248,10 @@ var resolver71 = {
     return { success: true, message: "IP desbloqueada." };
   }
 };
-var security_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+var security_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
 // graphql/customs/mutations/rollupDailyUsage.ts
-var typeDefs75 = `
+var typeDefs76 = `
   type RollupDailyUsageDay {
     day: String!
     companies: Int!
@@ -38991,11 +39267,11 @@ var typeDefs75 = `
     rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   }
 `;
-var definition72 = `
+var definition73 = `
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
 `;
 var MAX_DAYS2 = 62;
-var resolver72 = {
+var resolver73 = {
   /**
    * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). Se autoriza con
    * `CRON_SECRET`. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -39029,18 +39305,18 @@ var resolver72 = {
     }
   }
 };
-var rollupDailyUsage_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
+var rollupDailyUsage_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
 
 // graphql/customs/mutations/notifications/markAllNotificationsRead.ts
-var typeDefs76 = `
+var typeDefs77 = `
   type Mutation {
     markAllNotificationsRead(product: String): Int!
   }
 `;
-var definition73 = `
+var definition74 = `
   markAllNotificationsRead(product: String): Int!
 `;
-var resolver73 = {
+var resolver74 = {
   /**
    * Marca como leídas todas las notificaciones no leídas de quien tiene la sesión (opcionalmente
    * solo las de un producto: "pet" | "saas"). Devuelve cuántas cambió. Marcar una sola se hace
@@ -39062,16 +39338,16 @@ var resolver73 = {
     return result5?.count ?? 0;
   }
 };
-var markAllNotificationsRead_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+var markAllNotificationsRead_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/mutations/notifications/pushTokens.ts
-var typeDefs77 = `
+var typeDefs78 = `
   type Mutation {
     registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
     unregisterPushToken(token: String!): Boolean!
   }
 `;
-var definition74 = `
+var definition75 = `
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
   unregisterPushToken(token: String!): Boolean!
 `;
@@ -39080,11 +39356,11 @@ var PLATFORMS = new Set(Object.values(PUSH_PLATFORM));
 function prismaOf12(context) {
   return context.sudo().prisma;
 }
-function unwrap(value) {
+function unwrap2(value) {
   if (value instanceof Error) throw value;
   return value;
 }
-var resolver74 = {
+var resolver75 = {
   /**
    * Guarda (o actualiza) el token push de este dispositivo para quien tiene la sesión. Un token es
    * de un solo dispositivo: si estaba con otra cuenta (cambio de sesión en el mismo teléfono), pasa
@@ -39098,7 +39374,7 @@ var resolver74 = {
     if (!PLATFORMS.has(platform)) throw new Error("Plataforma no v\xE1lida.");
     const cleanDevice = deviceId?.trim().slice(0, 200) || null;
     const prisma = prismaOf12(context);
-    const existing = unwrap(
+    const existing = unwrap2(
       await prisma.tokenNotification.findMany({ where: { token: cleanToken }, select: { id: true } })
     );
     const data = {
@@ -39110,15 +39386,15 @@ var resolver74 = {
     };
     const [keep, ...duplicates] = existing;
     if (keep) {
-      unwrap(await prisma.tokenNotification.update({ where: { id: keep.id }, data }));
+      unwrap2(await prisma.tokenNotification.update({ where: { id: keep.id }, data }));
       if (duplicates.length) {
-        unwrap(await prisma.tokenNotification.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } }));
+        unwrap2(await prisma.tokenNotification.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } }));
       }
     } else {
-      unwrap(await prisma.tokenNotification.create({ data }));
+      unwrap2(await prisma.tokenNotification.create({ data }));
     }
     if (cleanDevice) {
-      unwrap(
+      unwrap2(
         await prisma.tokenNotification.deleteMany({
           where: { userId, deviceId: cleanDevice, token: { not: cleanToken } }
         })
@@ -39130,13 +39406,13 @@ var resolver74 = {
   unregisterPushToken: async (_root, { token }, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return false;
-    const result5 = unwrap(
+    const result5 = unwrap2(
       await prismaOf12(context).tokenNotification.deleteMany({ where: { token: token.trim(), userId } })
     );
     return result5.count > 0;
   }
 };
-var pushTokens_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
+var pushTokens_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -39167,6 +39443,7 @@ var customMutation = {
     ${createAnimalReport_default.typeDefs}
     ${animalClaims_default.typeDefs}
     ${closeAnimalReport_default.typeDefs}
+    ${sendAnimalFollowUps_default.typeDefs}
     ${adoptionApplications_default.typeDefs}
     ${card_default.typeDefs}
     ${events_default.typeDefs}
@@ -39227,6 +39504,7 @@ var customMutation = {
     ${createAnimalReport_default.definition}
     ${animalClaims_default.definition}
     ${closeAnimalReport_default.definition}
+    ${sendAnimalFollowUps_default.definition}
     ${adoptionApplications_default.definition}
     ${card_default.definition}
     ${events_default.definition}
@@ -39287,6 +39565,7 @@ var customMutation = {
     ...createAnimalReport_default.resolver,
     ...animalClaims_default.resolver,
     ...closeAnimalReport_default.resolver,
+    ...sendAnimalFollowUps_default.resolver,
     ...adoptionApplications_default.resolver,
     ...card_default.resolver,
     ...events_default.resolver,
@@ -39329,7 +39608,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs78 = `
+var typeDefs79 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -39388,7 +39667,7 @@ var typeDefs78 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition75 = `
+var definition76 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -39438,7 +39717,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver75 = {
+var resolver76 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -39453,7 +39732,7 @@ var resolver75 = {
       breed,
       location
     } = input;
-    const animalWhere = { duplicateOf: null };
+    const animalWhere = { duplicateOf: null, inactiveAt: null };
     if (animalType) {
       animalWhere.animal_type = { id: { equals: animalType } };
     }
@@ -39601,10 +39880,10 @@ var resolver75 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
+var nearbyAnimals_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs79 = `
+var typeDefs80 = `
   type AnimalReportDuplicate {
     id: ID!
     name: String!
@@ -39625,7 +39904,7 @@ var typeDefs79 = `
     isMine: Boolean!
   }
 `;
-var definition76 = `
+var definition77 = `
   findAnimalReportDuplicates(
     phone: String
     phone2: String
@@ -39649,7 +39928,7 @@ function cleanPhone(raw) {
   const normalized = normalizeMxPhone(value);
   return normalized.ok ? normalized.digits : value;
 }
-var resolver76 = {
+var resolver77 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     const sessionUserId = getSessionUserId(context.session);
     if (!isSignedIn(context.session) && !sessionUserId) {
@@ -39677,7 +39956,7 @@ var resolver76 = {
     }));
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -40052,7 +40331,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs80 = `
+var typeDefs81 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -40112,10 +40391,10 @@ var typeDefs80 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition77 = `
+var definition78 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver77 = {
+var resolver78 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -40195,10 +40474,10 @@ var resolver77 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs81 = `
+var typeDefs82 = `
   type StripeCard {
     brand: String
     country: String
@@ -40232,10 +40511,10 @@ var typeDefs81 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition78 = `
+var definition79 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver78 = {
+var resolver79 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -40271,10 +40550,10 @@ var resolver78 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
+var stripePaymentMethods_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs82 = `
+var typeDefs83 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -40312,7 +40591,7 @@ var typeDefs82 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition79 = `
+var definition80 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -40332,7 +40611,7 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver79 = {
+var resolver80 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return fail10("Solo operaciones puede verificar planes con Stripe.");
@@ -40433,7 +40712,7 @@ var resolver79 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
+var stripePlanCheck_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -40571,7 +40850,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs83 = `
+var typeDefs84 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -40599,10 +40878,10 @@ var typeDefs83 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition80 = `
+var definition81 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver80 = {
+var resolver81 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -40720,11 +40999,11 @@ var resolver80 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
+var subscriptionStatus_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs84 = `
+var typeDefs85 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -40736,10 +41015,10 @@ var typeDefs84 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition81 = `
+var definition82 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver81 = {
+var resolver82 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -40772,10 +41051,10 @@ var resolver81 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs85 = `
+var typeDefs86 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -40787,10 +41066,10 @@ var typeDefs85 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition82 = `
+var definition83 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver82 = {
+var resolver83 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -40812,11 +41091,11 @@ var resolver82 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs86 = `
+var typeDefs87 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -40845,14 +41124,14 @@ var typeDefs86 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition83 = `
+var definition84 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver83 = {
+var resolver84 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -40908,11 +41187,11 @@ var resolver83 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
+var whatsappConversations_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs87 = `
+var typeDefs88 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -40924,10 +41203,10 @@ var typeDefs87 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition84 = `
+var definition85 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver84 = {
+var resolver85 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -40968,10 +41247,10 @@ var resolver84 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs88 = `
+var typeDefs89 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -40989,10 +41268,10 @@ var typeDefs88 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition85 = `
+var definition86 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver85 = {
+var resolver86 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -41018,10 +41297,10 @@ var resolver85 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs89 = `
+var typeDefs90 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -41047,13 +41326,13 @@ var typeDefs89 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition86 = `
+var definition87 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
 function fail11(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver86 = {
+var resolver87 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -41110,11 +41389,11 @@ var resolver86 = {
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs90 = `
+var typeDefs91 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -41142,10 +41421,10 @@ var typeDefs90 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition87 = `
+var definition88 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver87 = {
+var resolver88 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
@@ -41197,7 +41476,7 @@ var resolver87 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
 
 // utils/analytics/health.ts
 var HEALTH_WINDOW_DAYS = 28;
@@ -41304,8 +41583,8 @@ function bump(map, key, value = 1) {
   map.set(key, (map.get(key) ?? 0) + value);
 }
 async function loadCompanyHealth(prisma, companyIds) {
-  const empty3 = { ready: false, computedThrough: null, byCompany: /* @__PURE__ */ new Map() };
-  if (!prisma.saasCompanyDailyUsage) return empty3;
+  const empty4 = { ready: false, computedThrough: null, byCompany: /* @__PURE__ */ new Map() };
+  if (!prisma.saasCompanyDailyUsage) return empty4;
   return optional(async () => {
     const today = mxToday();
     const lastDay = shiftDay(today, -1);
@@ -41455,7 +41734,7 @@ async function loadCompanyHealth(prisma, companyIds) {
     for (const company of companies) {
       const t = totals.get(company.id);
       const seenAt = lastSeen.get(company.id) ?? null;
-      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS7)) : HEALTH_WINDOW_DAYS;
+      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS8)) : HEALTH_WINDOW_DAYS;
       const result5 = scoreHealth({
         ageDays,
         teamSize: teamSize.get(company.id) ?? 0,
@@ -41474,7 +41753,7 @@ async function loadCompanyHealth(prisma, companyIds) {
         creditsExhaustedDay: exhaustedDay.get(company.id) ?? null,
         purchaseIntent: intentCount.get(company.id) ?? 0,
         paymentFailures: failures.get(company.id) ?? 0,
-        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS7) : null
+        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS8) : null
       });
       byCompany.set(company.id, {
         ...result5,
@@ -41486,7 +41765,7 @@ async function loadCompanyHealth(prisma, companyIds) {
     }
     const computedThrough = latestRollup?.day ? new Date(latestRollup.day).toISOString().slice(0, 10) : null;
     return { ready: Boolean(computedThrough), computedThrough, byCompany };
-  }, empty3);
+  }, empty4);
 }
 
 // graphql/customs/queries/admin/adminHealth.ts
@@ -41497,7 +41776,7 @@ var LIVE_STATUSES = [
   SUBSCRIPTION_STATUS.UNPAID
 ];
 var SORTS = ["risk", "best", "drop", "name"];
-var typeDefs91 = `
+var typeDefs92 = `
   input AdminHealthInput {
     search: String
     """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
@@ -41579,7 +41858,7 @@ var typeDefs91 = `
     adminHealth(input: AdminHealthInput): AdminHealthResult!
   }
 `;
-var definition88 = `
+var definition89 = `
   adminHealth(input: AdminHealthInput): AdminHealthResult!
 `;
 function healthBrief(health) {
@@ -41598,7 +41877,7 @@ function matchesStatus(status, filter) {
   if (filter === "none") return !status;
   return status === filter;
 }
-var resolver88 = {
+var resolver89 = {
   adminHealth: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -41699,12 +41978,12 @@ var resolver88 = {
     };
   }
 };
-var adminHealth_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
+var adminHealth_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
 
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
 var SORTS2 = ["recent", "name", "activity", "health"];
-var typeDefs92 = `
+var typeDefs93 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
@@ -41759,7 +42038,7 @@ var typeDefs92 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition89 = `
+var definition90 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
 function pickOwner(users) {
@@ -41768,7 +42047,7 @@ function pickOwner(users) {
   );
   return admin ?? users[0] ?? null;
 }
-var resolver89 = {
+var resolver90 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -41905,14 +42184,14 @@ var resolver89 = {
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
+var adminCompanies_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
 var APP_ERRORS_THRESHOLD = 3;
-var typeDefs93 = `
+var typeDefs94 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -41955,7 +42234,7 @@ var typeDefs93 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition90 = `
+var definition91 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -41966,14 +42245,14 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver90 = {
+var resolver91 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const now = /* @__PURE__ */ new Date();
-    const since24h = new Date(now.getTime() - DAY_MS7);
-    const since7d = daysAgo(7, now);
-    const sinceInactive = daysAgo(INACTIVE_DAYS, now);
+    const since24h = new Date(now.getTime() - DAY_MS8);
+    const since7d = daysAgo2(7, now);
+    const sinceInactive = daysAgo2(INACTIVE_DAYS, now);
     const { year, month } = currentPeriod();
     const monthStart = new Date(year, month - 1, 1);
     const testIds = await testCompanyIds(prisma);
@@ -42034,7 +42313,7 @@ var resolver90 = {
             severity: "high",
             at: toIso(trialEnd)
           });
-        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS7) {
+        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS8) {
           trialsEndingSoon += 1;
           attention.push({
             companyId: company.id,
@@ -42273,14 +42552,14 @@ var resolver90 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
+var adminOpsSummary_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs94 = `
+var typeDefs95 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -42387,7 +42666,7 @@ var typeDefs94 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition91 = `
+var definition92 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows2, key) {
@@ -42525,13 +42804,13 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver91 = {
+var resolver92 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const windowDays = clampInt(days, 1, 365, 30);
     const now = /* @__PURE__ */ new Date();
-    const since = daysAgo(windowDays, now);
+    const since = daysAgo2(windowDays, now);
     const todayMx = toMxDay(now);
     const todayStart = /* @__PURE__ */ new Date(`${todayMx}T00:00:00.000Z`);
     const crmScope = crmCompanyScope(companyId);
@@ -42765,7 +43044,7 @@ var resolver91 = {
     }
     const creditsByDay = [];
     for (let i = windowDays - 1; i >= 0; i -= 1) {
-      const day = toMxDay(new Date(now.getTime() - i * DAY_MS7));
+      const day = toMxDay(new Date(now.getTime() - i * DAY_MS8));
       creditsByDay.push({ date: day, value: byDay.get(day) ?? 0 });
     }
     const whatsappDirections = new Map(
@@ -42856,10 +43135,10 @@ var resolver91 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
+var adminCompanyInsights_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
 
 // graphql/customs/queries/admin/adminCompanyTrends.ts
-var typeDefs95 = `
+var typeDefs96 = `
   type AdminUsageWeek {
     """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
     weekStart: String!
@@ -42900,7 +43179,7 @@ var typeDefs95 = `
     adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   }
 `;
-var definition92 = `
+var definition93 = `
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
 `;
 var WEEK_FIELDS = [
@@ -42932,7 +43211,7 @@ function median(values2) {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
-var resolver92 = {
+var resolver93 = {
   adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -43012,7 +43291,7 @@ var resolver92 = {
     }, EMPTY2);
   }
 };
-var adminCompanyTrends_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
+var adminCompanyTrends_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -43032,7 +43311,7 @@ var FEED_TYPES = [
   "security"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs96 = `
+var typeDefs97 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -43084,7 +43363,7 @@ var typeDefs96 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition93 = `
+var definition94 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -43948,7 +44227,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver93 = {
+var resolver94 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -43992,10 +44271,10 @@ var resolver93 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
+var adminActivityFeed_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
 
 // graphql/customs/queries/admin/adminErrorIssues.ts
-var typeDefs97 = `
+var typeDefs98 = `
   input AdminErrorIssuesInput {
     """pet-web | business-web | pet-mobile"""
     app: String
@@ -44055,7 +44334,7 @@ var typeDefs97 = `
     adminOpenErrorIssuesCount: Int!
   }
 `;
-var definition94 = `
+var definition95 = `
   adminErrorIssues(input: AdminErrorIssuesInput): AdminErrorIssuesResult!
   adminOpenErrorIssuesCount: Int!
 `;
@@ -44118,7 +44397,7 @@ async function countOpenErrorIssues(prisma, since) {
     (group) => effectiveStatus(issues.get(group.fingerprint), group.lastSeen).status === ERROR_ISSUE_STATUS.OPEN
   ).length;
 }
-var resolver94 = {
+var resolver95 = {
   adminErrorIssues: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44127,7 +44406,7 @@ var resolver94 = {
     const app = input?.app?.trim() || null;
     const statusFilter = input?.status?.trim() || ERROR_ISSUE_STATUS.OPEN;
     const search = input?.search?.trim().toLowerCase() || null;
-    const where = baseWhere(daysAgo(days), app);
+    const where = baseWhere(daysAgo2(days), app);
     const groups = await loadGroups(prisma, where);
     if (groups.length === 0) return { items: [], openCount: 0 };
     const fingerprints = groups.map((group) => group.fingerprint);
@@ -44214,13 +44493,13 @@ var resolver94 = {
   },
   adminOpenErrorIssuesCount: async (_root, _args, context) => {
     assertPlatformAdmin(context);
-    return countOpenErrorIssues(adminPrisma(context), daysAgo(1));
+    return countOpenErrorIssues(adminPrisma(context), daysAgo2(1));
   }
 };
-var adminErrorIssues_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
+var adminErrorIssues_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
 
 // graphql/customs/queries/admin/adminPersonDevices.ts
-var typeDefs98 = `
+var typeDefs99 = `
   type AdminPersonDevice {
     ip: String
     userAgent: String
@@ -44259,7 +44538,7 @@ var typeDefs98 = `
     adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
   }
 `;
-var definition95 = `
+var definition96 = `
   adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
 `;
 var CROWDED_IP_ACCOUNTS = 15;
@@ -44289,13 +44568,13 @@ function mergeDevices(target, rows2, source) {
     current.sources.add(source);
   }
 }
-var resolver95 = {
+var resolver96 = {
   adminPersonDevices: async (_root, { userId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
-    const since = daysAgo(clampInt(days, 1, 395, 90));
-    const empty3 = { devices: [], sharedIps: [], sharedAccounts: [] };
-    if (!userId) return empty3;
+    const since = daysAgo2(clampInt(days, 1, 395, 90));
+    const empty4 = { devices: [], sharedIps: [], sharedAccounts: [] };
+    if (!userId) return empty4;
     const deviceArgs = {
       by: ["ip", "userAgent"],
       _count: { _all: true },
@@ -44315,7 +44594,7 @@ var resolver95 = {
       MAX_IPS
     );
     if (ips.length === 0) {
-      return { ...empty3, devices: devices.map(toDeviceOutput) };
+      return { ...empty4, devices: devices.map(toDeviceOutput) };
     }
     const [eventOthers, authOthers] = await Promise.all([
       prisma.activityEvent ? prisma.activityEvent.groupBy({
@@ -44380,10 +44659,10 @@ function toDeviceOutput(device) {
     sources: [...device.sources]
   };
 }
-var adminPersonDevices_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
+var adminPersonDevices_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
 
 // graphql/customs/queries/admin/adminSecurity.ts
-var typeDefs99 = `
+var typeDefs100 = `
   type AdminRateLimitHit {
     ip: String
     rule: String!
@@ -44425,7 +44704,7 @@ var typeDefs99 = `
     adminBlockedIps: [AdminBlockedIp!]!
   }
 `;
-var definition96 = `
+var definition97 = `
   adminSecuritySummary(days: Int): AdminSecuritySummary!
   adminBlockedIps: [AdminBlockedIp!]!
 `;
@@ -44436,11 +44715,11 @@ var SIGNUP_STEPS = [
   USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP,
   USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP
 ];
-var resolver96 = {
+var resolver97 = {
   adminSecuritySummary: async (_root, { days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
-    const since = daysAgo(clampInt(days, 1, 90, 7));
+    const since = daysAgo2(clampInt(days, 1, 90, 7));
     const [limitEvents, authSignups, eventSignups, blockedCount] = await Promise.all([
       prisma.activityEvent ? prisma.activityEvent.findMany({
         where: { type: ACTIVITY_EVENT.SECURITY_RATE_LIMITED, createdAt: { gte: since } },
@@ -44531,7 +44810,7 @@ var resolver96 = {
     }));
   }
 };
-var adminSecurity_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
+var adminSecurity_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
 
 // graphql/customs/queries/admin/milestones.ts
 function earliest(map, companyId, at) {
@@ -44637,7 +44916,7 @@ async function loadCompanyMilestones(prisma, companyIds) {
 }
 
 // graphql/customs/queries/admin/adminActivationFunnel.ts
-var typeDefs100 = `
+var typeDefs101 = `
   input AdminActivationInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -44676,7 +44955,7 @@ var typeDefs100 = `
     adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
   }
 `;
-var definition97 = `
+var definition98 = `
   adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
 `;
 var STEPS = [
@@ -44694,13 +44973,13 @@ function median2(values2) {
   return Math.round(value * 10) / 10;
 }
 var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
-var resolver97 = {
+var resolver98 = {
   adminActivationFunnel: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const days = clampInt(input?.days, 30, 365, 90);
     const to = /* @__PURE__ */ new Date();
-    const from = daysAgo(days, to);
+    const from = daysAgo2(days, to);
     const excludedIds = await analyticsExcludedCompanyIds(prisma);
     const companies = (await prisma.saasCompany.findMany({
       where: { createdAt: { gte: from, lte: to } },
@@ -44732,7 +45011,7 @@ var resolver97 = {
           if (!at) continue;
           reached += 1;
           if (company.createdAt) {
-            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS7));
+            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS8));
           }
         }
         return {
@@ -44766,10 +45045,10 @@ var resolver97 = {
     };
   }
 };
-var adminActivationFunnel_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
+var adminActivationFunnel_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
 
 // graphql/customs/queries/admin/adminCohorts.ts
-var typeDefs101 = `
+var typeDefs102 = `
   input AdminCohortsInput {
     """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
     months: Int
@@ -44791,7 +45070,7 @@ var typeDefs101 = `
     adminCohorts(input: AdminCohortsInput): AdminCohorts!
   }
 `;
-var definition98 = `
+var definition99 = `
   adminCohorts(input: AdminCohortsInput): AdminCohorts!
 `;
 function shiftMonth(month, offset) {
@@ -44804,7 +45083,7 @@ function monthsBetween(from, to) {
   const [ty, tm] = to.split("-").map(Number);
   return (ty - fy) * 12 + (tm - fm);
 }
-var resolver98 = {
+var resolver99 = {
   adminCohorts: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44874,7 +45153,7 @@ var resolver98 = {
     return { rows: rows2 };
   }
 };
-var adminCohorts_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
+var adminCohorts_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
 
 // graphql/customs/queries/admin/adminEngagement.ts
 var MAU_DAYS = 30;
@@ -44887,7 +45166,7 @@ var MODULES = [
   { key: "whatsapp", field: "whatsappSent" },
   { key: "ai", field: "aiCalls" }
 ];
-var typeDefs102 = `
+var typeDefs103 = `
   input AdminEngagementInput {
     """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
     days: Int
@@ -44941,11 +45220,11 @@ var typeDefs102 = `
     adminEngagement(input: AdminEngagementInput): AdminEngagement!
   }
 `;
-var definition99 = `
+var definition100 = `
   adminEngagement(input: AdminEngagementInput): AdminEngagement!
 `;
 var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
-var resolver99 = {
+var resolver100 = {
   adminEngagement: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45076,12 +45355,12 @@ var resolver99 = {
     };
   }
 };
-var adminEngagement_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
+var adminEngagement_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
 
 // graphql/customs/queries/admin/adminDemandGaps.ts
 var ZONE_STEP = 0.1;
 var LIST_LIMIT = 25;
-var typeDefs103 = `
+var typeDefs104 = `
   input AdminDemandGapsInput {
     """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -45136,7 +45415,7 @@ var typeDefs103 = `
     adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   }
 `;
-var definition100 = `
+var definition101 = `
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
 `;
 function emptyBucket() {
@@ -45153,7 +45432,7 @@ var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
 var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
 var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
 var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
-var resolver100 = {
+var resolver101 = {
   adminDemandGaps: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45163,7 +45442,7 @@ var resolver100 = {
     const runs = await prisma.techLeadSyncLog.findMany({
       where: {
         success: true,
-        createdAt: { gte: daysAgo(days) },
+        createdAt: { gte: daysAgo2(days) },
         OR: [{ companyId: null }, { companyId: { notIn: excludedIds } }]
       },
       select: {
@@ -45237,12 +45516,12 @@ var resolver100 = {
     };
   }
 };
-var adminDemandGaps_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
+var adminDemandGaps_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
 
 // graphql/customs/queries/admin/adminAcquisition.ts
 var LIST_LIMIT2 = 10;
 var REFERRAL = "Referido";
-var typeDefs104 = `
+var typeDefs105 = `
   input AdminAcquisitionInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -45273,7 +45552,7 @@ var typeDefs104 = `
     adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   }
 `;
-var definition101 = `
+var definition102 = `
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
 `;
 function bump2(map, key, activated, paid) {
@@ -45287,14 +45566,14 @@ var sortRows = (map, limit) => {
   const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
   return limit ? rows2.slice(0, limit) : rows2;
 };
-var resolver101 = {
+var resolver102 = {
   adminAcquisition: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const days = clampInt(input?.days, 7, 365, 90);
     const excludedIds = await analyticsExcludedCompanyIds(prisma);
     const companies = (await prisma.saasCompany.findMany({
-      where: { createdAt: { gte: daysAgo(days) } },
+      where: { createdAt: { gte: daysAgo2(days) } },
       select: { id: true }
     })).filter((company) => !excludedIds.has(company.id));
     const ids = companies.map((company) => company.id);
@@ -45334,10 +45613,10 @@ var resolver101 = {
     };
   }
 };
-var adminAcquisition_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
+var adminAcquisition_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
 
 // utils/analytics/salesVelocity.ts
-var DAY_MS8 = 24 * 60 * 60 * 1e3;
+var DAY_MS9 = 24 * 60 * 60 * 1e3;
 var P = PIPELINE_STATUS;
 var RANK = {
   [P.DETECTADO]: 1,
@@ -45357,7 +45636,7 @@ var LOST = /* @__PURE__ */ new Set([P.PROPUESTA_RECHAZADA, P.CERRADO_PERDIDO, P.
 var CONTACT_RANK = 3;
 var STALLED_DAYS = 14;
 var LOOKBACK_DAYS = 180;
-var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS8;
+var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS9;
 var emptyGroup = () => ({
   entered: 0,
   contacted: 0,
@@ -45402,9 +45681,9 @@ async function rows(read, fallback) {
 async function computeSalesVelocity(prisma, options) {
   const { days, companyWhere } = options;
   const now = Date.now();
-  const since = new Date(now - days * DAY_MS8);
+  const since = new Date(now - days * DAY_MS9);
   const sinceMs = since.getTime();
-  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS8);
+  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS9);
   const sellerScope = options.salesPersonId ?? null;
   const needStatuses = Boolean(options.bySeller || sellerScope);
   const [allChanges, firstChange, activities, allMessages, statuses] = await Promise.all([
@@ -45534,7 +45813,7 @@ async function computeSalesVelocity(prisma, options) {
           wonStatusIds.push(statusId);
           for (const group of groups) group.won += 1;
           if (entry) {
-            const cycle = (at - entry.changedAt.getTime()) / DAY_MS8;
+            const cycle = (at - entry.changedAt.getTime()) / DAY_MS9;
             cycles.push(cycle);
             for (const group of groups) group.cycles.push(cycle);
           }
@@ -45544,11 +45823,11 @@ async function computeSalesVelocity(prisma, options) {
         }
       }
       if (next && next.changedAt.getTime() >= sinceMs) {
-        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS8);
+        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS9);
       }
     });
     const idle = now - last.changedAt.getTime();
-    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS8) {
+    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS9) {
       stageOf(last.toStatus).stalled += 1;
       for (const group of groups) group.stalled += 1;
       stalledDeals.push({
@@ -45558,7 +45837,7 @@ async function computeSalesVelocity(prisma, options) {
         salesPersonId: sellerOf.get(statusId) || null,
         stage: last.toStatus,
         since: last.changedAt,
-        days: Math.floor(idle / DAY_MS8)
+        days: Math.floor(idle / DAY_MS9)
       });
     }
     if (entry && entry.changedAt.getTime() >= sinceMs) {
@@ -45662,7 +45941,7 @@ async function computeSalesVelocity(prisma, options) {
 
 // graphql/customs/queries/admin/adminSalesVelocity.ts
 var COMPANY_LIMIT = 25;
-var typeDefs105 = `
+var typeDefs106 = `
   input AdminSalesVelocityInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -45734,10 +46013,10 @@ var typeDefs105 = `
     adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   }
 `;
-var definition102 = `
+var definition103 = `
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
 `;
-var resolver102 = {
+var resolver103 = {
   adminSalesVelocity: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45761,10 +46040,10 @@ var resolver102 = {
     return { ...totals, dataSince: toIso(dataSince), companies };
   }
 };
-var adminSalesVelocity_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
+var adminSalesVelocity_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
 
 // graphql/customs/queries/admin/adminAnimals.ts
-var typeDefs106 = `
+var typeDefs107 = `
   type AdminAnimalRow {
     id: ID!
     name: String!
@@ -45847,7 +46126,7 @@ var typeDefs106 = `
     facebookPublishedBy: AdminPersonRef
   }
 `;
-var definition103 = `
+var definition104 = `
   adminAnimals(
     search: String
     animalTypeId: ID
@@ -45922,7 +46201,7 @@ async function countsFor(prisma, ids) {
     prisma.animalComment.groupBy({ by: ["animalId"], where: { animalId: { in: ids } }, _count: { _all: true } }),
     prisma.animalView.groupBy({
       by: ["animalId"],
-      where: { animalId: { in: ids }, createdAt: { gte: daysAgo(7) } },
+      where: { animalId: { in: ids }, createdAt: { gte: daysAgo2(7) } },
       _count: { _all: true }
     })
   ]);
@@ -45954,7 +46233,7 @@ function toRow(raw, counts2) {
     facebookPublishedAt: toIso(raw.facebookPublishedAt)
   };
 }
-var resolver103 = {
+var resolver104 = {
   adminAnimals: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
@@ -45992,7 +46271,7 @@ var resolver103 = {
         allLogs: logs(orderBy: [{ createdAt: desc }]) { id status notes city state address createdAt }`
     });
     if (!raw) return null;
-    const since30 = daysAgo(30);
+    const since30 = daysAgo2(30);
     const [counts2, comments, favorites, anonymous, viewsLast30, recentSigned] = await Promise.all([
       countsFor(prisma, [id]),
       prisma.animalComment.findMany({
@@ -46027,7 +46306,7 @@ var resolver103 = {
       byDay.set(day, (byDay.get(day) ?? 0) + 1);
     }
     const daily = Array.from({ length: 30 }, (_, i) => {
-      const day = toMxDay(daysAgo(29 - i));
+      const day = toMxDay(daysAgo2(29 - i));
       return { day, count: byDay.get(day) ?? 0 };
     });
     const total = raw.animal_viewsCount ?? 0;
@@ -46056,10 +46335,10 @@ var resolver103 = {
     };
   }
 };
-var adminAnimals_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
+var adminAnimals_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
 
 // graphql/customs/queries/admin/adminPet.ts
-var typeDefs107 = `
+var typeDefs108 = `
   type AdminPetTopAnimal {
     id: ID!
     name: String!
@@ -46157,7 +46436,7 @@ var typeDefs107 = `
     points: [AdminPetSeriesPoint!]!
   }
 `;
-var definition104 = `
+var definition105 = `
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
 `;
@@ -46466,13 +46745,13 @@ async function topViewedAnimals(context, prisma, since) {
     ];
   });
 }
-var resolver104 = {
+var resolver105 = {
   adminPetSummary: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const days = input?.days == null ? null : clampInt(input.days, 7, 3650, 90);
-    const since = days ? daysAgo(days) : null;
-    const prevSince = days ? daysAgo(days * 2) : null;
+    const since = days ? daysAgo2(days) : null;
+    const prevSince = days ? daysAgo2(days * 2) : null;
     const inPeriod = since ? { createdAt: { gte: since } } : {};
     const inPrevPeriod = since && prevSince ? { createdAt: { gte: prevSince, lt: since } } : null;
     const animalBase = { duplicateOfId: null };
@@ -46637,10 +46916,10 @@ var resolver104 = {
     return { metric, granularity, breakdown, from, to: lastBucket, total, points };
   }
 };
-var adminPet_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
+var adminPet_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
 
 // graphql/customs/queries/admin/adminNotifications.ts
-var typeDefs108 = `
+var typeDefs109 = `
   type AdminNotificationRow {
     id: ID!
     createdAt: String
@@ -46733,7 +47012,7 @@ var typeDefs108 = `
     maxPerDay: Int!
   }
 `;
-var definition105 = `
+var definition106 = `
   adminNotificationLog(
     product: String
     type: String
@@ -46816,7 +47095,7 @@ var USER_SELECT = {
   whatsappNotifications: true,
   whatsappMutedTypes: true
 };
-var resolver105 = {
+var resolver106 = {
   adminNotificationLog: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46825,7 +47104,7 @@ var resolver105 = {
     const skip = clampInt(args.skip, 0, 1e6, 0);
     const recipient = personSearch2(args.search);
     const base = {
-      createdAt: { gte: daysAgo(days) },
+      createdAt: { gte: daysAgo2(days) },
       ...args.product?.trim() ? { product: args.product.trim() } : {},
       ...args.entityId?.trim() ? { entityId: args.entityId.trim() } : {},
       ...recipient ? { recipient } : {}
@@ -46906,7 +47185,7 @@ var resolver105 = {
         select: { id: true, phone: true, whatsappNotifications: true, whatsappMutedTypes: true }
       }),
       prisma.notification.count({
-        where: { type: NOTIFICATION_TYPE.ANIMAL_NEARBY, createdAt: { gte: daysAgo(7) } }
+        where: { type: NOTIFICATION_TYPE.ANIMAL_NEARBY, createdAt: { gte: daysAgo2(7) } }
       })
     ]);
     for (const value of [total, users, active, inactive, activeUsers, alerts7d]) if (value instanceof Error) throw value;
@@ -46920,7 +47199,7 @@ var resolver105 = {
         where: {
           recipientId: { in: pageIds },
           type: NOTIFICATION_TYPE.ANIMAL_NEARBY,
-          createdAt: { gte: daysAgo(30) }
+          createdAt: { gte: daysAgo2(30) }
         },
         _count: { _all: true },
         _max: { createdAt: true }
@@ -46997,13 +47276,13 @@ var resolver105 = {
     };
   }
 };
-var adminNotifications = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
+var adminNotifications = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
 var adminNotifications_default = adminNotifications;
 
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql14 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs109 = `
+var typeDefs110 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -47079,13 +47358,13 @@ var typeDefs109 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition106 = `
+var definition107 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
 var fail12 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver106 = {
+var resolver107 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -47168,12 +47447,12 @@ var resolver106 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
+var companyAnalytics_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache = null;
-var typeDefs110 = `
+var typeDefs111 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -47183,8 +47462,8 @@ var typeDefs110 = `
     updatedAt: String!
   }
 `;
-var definition107 = `landingStats: LandingStats!`;
-function unwrap2(value) {
+var definition108 = `landingStats: LandingStats!`;
+function unwrap3(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -47200,16 +47479,16 @@ async function computeLandingStats(context) {
     analyticsExcludedCompanyIds(prisma)
   ]);
   return {
-    leadsTotal: unwrap2(leadsTotal),
-    leadsWithPhone: unwrap2(leadsWithPhone),
-    categories: unwrap2(categoryGroups).length,
-    cities: unwrap2(cityGroups).length,
+    leadsTotal: unwrap3(leadsTotal),
+    leadsWithPhone: unwrap3(leadsWithPhone),
+    categories: unwrap3(categoryGroups).length,
+    cities: unwrap3(cityGroups).length,
     // Sin cuentas de prueba ni empresas del equipo de Kadesh (misma regla que la Analítica).
-    companies: Math.max(0, unwrap2(companiesTotal) - excluded.size),
+    companies: Math.max(0, unwrap3(companiesTotal) - excluded.size),
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver107 = {
+var resolver108 = {
   landingStats: async (_root, _args, context) => {
     if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
     const value = await computeLandingStats(context);
@@ -47217,13 +47496,13 @@ var resolver107 = {
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
+var landingStats_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES2 = ["in_family", "adopted"];
 var cache2 = null;
-var typeDefs111 = `
+var typeDefs112 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
@@ -47239,8 +47518,8 @@ var typeDefs111 = `
     updatedAt: String!
   }
 `;
-var definition108 = `petLandingStats: PetLandingStats!`;
-function unwrap3(value) {
+var definition109 = `petLandingStats: PetLandingStats!`;
+function unwrap4(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -47281,32 +47560,32 @@ async function computePetLandingStats(context) {
       GROUP BY outcome, "helpedByKadesh"
     `
   ]);
-  const outcomes = unwrap3(outcomeRows);
+  const outcomes = unwrap4(outcomeRows);
   const countOutcome = (outcome) => outcomes.filter((row) => row.outcome === outcome).reduce((total, row) => total + row.n, 0);
   const helpedByKadesh = outcomes.filter((row) => row.helped === "yes" && HOME_OUTCOMES.includes(row.outcome)).reduce((total, row) => total + row.n, 0);
   const byStatus = new Map(
-    unwrap3(statusRows).map((row) => [
+    unwrap4(statusRows).map((row) => [
       row.status ?? "",
       row.n
     ])
   );
   const count2 = (statuses) => statuses.reduce((total, status) => total + (byStatus.get(status) ?? 0), 0);
   return {
-    animals: unwrap3(animals),
+    animals: unwrap4(animals),
     animalsLost: count2(["lost"]),
     animalsHome: count2(HOME_STATUSES2),
     animalsInAdoption: count2(["in_adoption"]),
     reunions: countOutcome(ANIMAL_OUTCOME.REUNITED),
     adoptions: countOutcome(ANIMAL_OUTCOME.ADOPTED),
     helpedByKadesh,
-    veterinaries: unwrap3(veterinaries),
-    veterinariesVerified: unwrap3(veterinariesVerified),
-    rescueOrganizations: unwrap3(rescueOrganizations),
-    cities: unwrap3(cityRows)[0]?.n ?? 0,
+    veterinaries: unwrap4(veterinaries),
+    veterinariesVerified: unwrap4(veterinariesVerified),
+    rescueOrganizations: unwrap4(rescueOrganizations),
+    cities: unwrap4(cityRows)[0]?.n ?? 0,
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver108 = {
+var resolver109 = {
   petLandingStats: async (_root, _args, context) => {
     if (cache2 && Date.now() - cache2.at < CACHE_MS2) return cache2.value;
     const value = await computePetLandingStats(context);
@@ -47314,13 +47593,13 @@ var resolver108 = {
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
+var petLandingStats_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
 
 // graphql/customs/queries/petEvents.ts
 var MAX_TAKE = 48;
-var DAY_MS9 = 24 * 60 * 60 * 1e3;
+var DAY_MS10 = 24 * 60 * 60 * 1e3;
 var MAX_DATE = /* @__PURE__ */ new Date("9999-12-31T00:00:00.000Z");
-var typeDefs112 = `
+var typeDefs113 = `
   input PetEventsFeedInput {
     "Clave INEGI (16) o slug (michoacan)"
     state: String
@@ -47381,7 +47660,7 @@ var typeDefs112 = `
     sendAt: String
   }
 `;
-var definition109 = `
+var definition110 = `
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
@@ -47394,7 +47673,7 @@ function validDate(value, fallback) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
-var resolver109 = {
+var resolver110 = {
   /**
    * Eventos publicados para la sección /eventos, la portada y la app: los próximos (por su próxima
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
@@ -47515,15 +47794,15 @@ var resolver109 = {
       candidates: candidates.length,
       alreadySent: Boolean(event.zoneAlertsSentAt),
       sendNow,
-      sendAt: !sendNow && event.next ? new Date(event.next.startsAt.getTime() - PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS9).toISOString() : null
+      sendAt: !sendNow && event.next ? new Date(event.next.startsAt.getTime() - PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS10).toISOString() : null
     };
   }
 };
-var petEvents_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
+var petEvents_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
 
 // graphql/customs/queries/rescueAllies.ts
 var MAX_TAKE2 = 300;
-var typeDefs113 = `
+var typeDefs114 = `
   type RescueAlly {
     id: ID!
     name: String!
@@ -47542,8 +47821,8 @@ var typeDefs113 = `
     allies: [RescueAlly!]!
   }
 `;
-var definition110 = `rescueAllies(take: Int): RescueAlliesResult!`;
-var resolver110 = {
+var definition111 = `rescueAllies(take: Int): RescueAlliesResult!`;
+var resolver111 = {
   rescueAllies: async (_root, { take }, context) => {
     const limit = Math.min(Math.max(Number(take) || MAX_TAKE2, 1), MAX_TAKE2);
     const rows2 = await context.sudo().query.RescueOrganization.findMany({
@@ -47581,7 +47860,7 @@ var resolver110 = {
     return { total: allies.length, allies: allies.slice(0, limit) };
   }
 };
-var rescueAllies_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
+var rescueAllies_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

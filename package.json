@@ -29,6 +29,8 @@
     "events:backfill-city-keys:prod": "cross-env KADESH_ENV=prod tsx scripts/backfillEventCityKeys.ts",
     "animals:backfill-outcomes": "tsx scripts/backfillAnimalOutcomes.ts",
     "animals:backfill-outcomes:prod": "cross-env KADESH_ENV=prod tsx scripts/backfillAnimalOutcomes.ts",
+    "animals:backfill-activity": "tsx scripts/backfillAnimalActivity.ts",
+    "animals:backfill-activity:prod": "cross-env KADESH_ENV=prod tsx scripts/backfillAnimalActivity.ts",
     "security:unblock": "tsx scripts/unblockIp.ts",
     "security:unblock:prod": "cross-env KADESH_ENV=prod tsx scripts/unblockIp.ts",
     "usage:rollup": "tsx scripts/rollupDailyUsage.ts",

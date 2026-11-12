@@ -53,6 +53,7 @@ Sin plantilla de WhatsApp por ahora: solo campana y push.
 | `animal.claim_requested` | alguien pide quedarse con el reporte (`AnimalClaim`) | quien atiende el reporte |
 | `animal.claim_approved` / `animal.claim_rejected` | se respondió la solicitud, o se rechazó por aprobar otra o por unir el reporte | quien la pidió |
 | `animal.merged` | un admin unió un reporte repetido con el principal (`Animal.duplicateOf`) | quien hizo el repetido |
+| `animal.follow_up` | un caso abierto lleva 1 o 3 semanas sin registros (cron `sendAnimalFollowUps`); también sale por correo | quien atiende el reporte (nunca la automatización) |
 
 ## Recordatorios de la cartilla (`pet.reminder_due`)
 
@@ -74,6 +75,7 @@ Además de la campana, `notify` manda el aviso por WhatsApp desde el número de 
 | `user.bank_details_updated` | `kadesh_admin_datos_bancarios` | nombre del usuario |
 | `animal.nearby` | `kadesh_pet_animal_cerca` | estado (perdido/encontrado), animal y lugar, enlace |
 | `animal.possible_match` | `kadesh_pet_coincidencia` | resumen, enlace |
+| `animal.follow_up` | `kadesh_pet_seguimiento` | animal, tiempo sin novedades, enlace a la ficha |
 | `animal.claim_requested` | `kadesh_pet_reclamo_solicitado` | quién lo pide, animal, enlace |
 | `animal.claim_approved` | `kadesh_pet_reclamo_aceptado` | animal, enlace |
 | `animal.claim_rejected` | `kadesh_pet_reclamo_rechazado` | animal, motivo, enlace |
@@ -148,6 +150,14 @@ Recordatorio de Kadesh Pet: {{1}} tiene pendiente «{{2}}», que {{3}}. Revisa s
 Puedes apagar los avisos por WhatsApp en pet.kadesh.com.mx/notificaciones
 ```
 Ejemplos: `Luna` · `Vacuna antirrábica` · `vence mañana` · `https://pet.kadesh.com.mx/perfil?tab=pets&pet=abc123`
+
+**`kadesh_pet_seguimiento`**
+```
+Seguimiento de Kadesh Pet: el reporte de {{1}} lleva {{2}} sin novedades. Si ya volvió a casa, cierra el caso; si sigues buscando, agrega un registro: {{3}}
+
+Puedes apagar los avisos por WhatsApp en pet.kadesh.com.mx/notificaciones
+```
+Ejemplos: `Firulais` · `una semana` · `https://pet.kadesh.com.mx/animales/firulais-perdido-centro`
 
 Si Meta cambia el texto al aprobar (o lo rechaza), el número y el orden de las variables deben seguir igual que en `WHATSAPP_TEMPLATES[tipo].params`; si cambian, hay que ajustar los dos.
 

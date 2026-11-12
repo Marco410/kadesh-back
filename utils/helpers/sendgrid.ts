@@ -877,6 +877,65 @@ export async function sendPetReminderEmail({
 }
 
 /**
+ * Seguimiento de un caso abierto sin registros (a la semana y a las 3 semanas): cerrarlo si ya
+ * volvió a casa o agregar un registro si sigue buscándose. Lo manda `sendAnimalFollowUps`.
+ */
+export async function sendAnimalFollowUpEmail({
+  to,
+  displayName,
+  animalName,
+  elapsed,
+  closeUrl,
+  addLogUrl,
+  finalNotice,
+}: {
+  to: string;
+  displayName: string;
+  animalName: string;
+  /** "una semana", "3 semanas" */
+  elapsed: string;
+  /** Ficha con `?accion=cerrar`. */
+  closeUrl: string;
+  /** Ficha con `?accion=registro`. */
+  addLogUrl: string;
+  /** Segundo recordatorio: avisa que el caso saldrá del mapa si no hay novedades. */
+  finalNotice: boolean;
+}): Promise<void> {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendAnimalFollowUpEmail: sin email destino.");
+    return;
+  }
+  const name = escapeHtml(animalName);
+  const html = renderEmailLayout({
+    brand: "pet",
+    preheader: `Van ${elapsed} sin novedades de ${animalName}. ¿Ya volvió a casa?`,
+    eyebrow: "Seguimiento",
+    title: `¿Cómo va el caso de ${animalName}?`,
+    bodyHtml: `
+      ${emailGreeting(displayName)}
+      ${emailParagraph(
+        `Van ${escapeHtml(elapsed)} sin registros en el reporte de <strong>${name}</strong>. Si ya volvió a casa o encontró hogar, cierra el caso: así deja de salir como activo y suma a los reencuentros de Kadesh.`,
+      )}
+      ${emailButton("pet", "Ya volvió: cerrar el caso", closeUrl)}
+      ${emailParagraph(
+        finalNotice
+          ? "Si sigues buscando, agrega un registro con lo último que sepas. Si en 3 semanas no hay novedades, el reporte dejará de salir en el mapa; podrás reactivarlo cuando quieras con un registro nuevo."
+          : "Si sigues buscando, agrega un registro con lo último que sepas: así el reporte se mantiene al día para quien lo vea.",
+      )}
+      ${emailButton("pet", "Sigo buscando: agregar registro", addLogUrl)}`,
+    footerNote: `Recibiste este correo porque publicaste el reporte de ${animalName} en Kadesh Pet.`,
+  });
+
+  await sendEmail({
+    to: trimmedTo,
+    subject: `¿${animalName} ya volvió a casa?`,
+    html,
+    fromName: EMAIL_BRANDS.pet.name,
+  });
+}
+
+/**
  * A quien el dueño principal registró como familiar de una mascota: ya tiene cuenta y la
  * contraseña la eligió ese familiar. Nunca lleva la contraseña.
  */

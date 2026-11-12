@@ -669,6 +669,10 @@ type Animal {
   outcomeChannel: String
   outcomeStory: String
   storyConsent: Boolean
+  lastActivityAt: DateTime
+  followUpStage: Int
+  followUpSentAt: DateTime
+  inactiveAt: DateTime
   createdAt: DateTime
 }
 
@@ -711,6 +715,10 @@ input AnimalWhereInput {
   outcomeChannel: StringNullableFilter
   outcomeStory: StringFilter
   storyConsent: BooleanFilter
+  lastActivityAt: DateTimeNullableFilter
+  followUpStage: IntFilter
+  followUpSentAt: DateTimeNullableFilter
+  inactiveAt: DateTimeNullableFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -730,6 +738,17 @@ input AnimalViewManyRelationFilter {
   every: AnimalViewWhereInput
   some: AnimalViewWhereInput
   none: AnimalViewWhereInput
+}
+
+input IntFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntFilter
 }
 
 input AnimalOrderByInput {
@@ -753,6 +772,10 @@ input AnimalOrderByInput {
   outcomeChannel: OrderDirection
   outcomeStory: OrderDirection
   storyConsent: OrderDirection
+  lastActivityAt: OrderDirection
+  followUpStage: OrderDirection
+  followUpSentAt: OrderDirection
+  inactiveAt: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -787,6 +810,10 @@ input AnimalUpdateInput {
   outcomeChannel: String
   outcomeStory: String
   storyConsent: Boolean
+  lastActivityAt: DateTime
+  followUpStage: Int
+  followUpSentAt: DateTime
+  inactiveAt: DateTime
   createdAt: DateTime
 }
 
@@ -877,6 +904,10 @@ input AnimalCreateInput {
   outcomeChannel: String
   outcomeStory: String
   storyConsent: Boolean
+  lastActivityAt: DateTime
+  followUpStage: Int
+  followUpSentAt: DateTime
+  inactiveAt: DateTime
   createdAt: DateTime
 }
 
@@ -1357,17 +1388,6 @@ input AnimalMultimediaWhereInput {
   animal: AnimalWhereInput
   order: IntFilter
   createdAt: DateTimeNullableFilter
-}
-
-input IntFilter {
-  equals: Int
-  in: [Int!]
-  notIn: [Int!]
-  lt: Int
-  lte: Int
-  gt: Int
-  gte: Int
-  not: IntFilter
 }
 
 input AnimalMultimediaOrderByInput {
@@ -11475,6 +11495,7 @@ type Mutation {
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
+  sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
 
   """Solo quien la envió y solo mientras siga «Enviada» (submitted)."""
@@ -12597,6 +12618,14 @@ type CloseAnimalReportResult {
   message: String!
   animalSlug: String
   status: String
+}
+
+type SendAnimalFollowUpsResult {
+  success: Boolean!
+  message: String!
+  reminded: Int!
+  inactivated: Int!
+  failed: Int!
 }
 
 input AdoptionApplicationInput {

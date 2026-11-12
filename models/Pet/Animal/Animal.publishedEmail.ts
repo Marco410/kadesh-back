@@ -28,7 +28,7 @@ import { createAnimalSettleWatcher } from "./animalSettleWatcher";
  */
 
 /** Enlaces directos que la ficha de la web entiende (kadesh-landing `ANIMAL_DETAIL_ACTION`). */
-export const ANIMAL_DETAIL_ACTION = { addLog: "registro", promote: "impulsar" } as const;
+export const ANIMAL_DETAIL_ACTION = { addLog: "registro", promote: "impulsar", close: "cerrar" } as const;
 
 const PROMOTABLE_STATUSES = new Set(["lost", "found"]);
 

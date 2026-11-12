@@ -77,6 +77,11 @@ const WHATSAPP_TEMPLATES: Partial<Record<NotificationType, WhatsappTemplate>> = 
     audience: "pet",
     params: (v) => [v.authorName, v.animalName, v.comment, v.url],
   },
+  [NOTIFICATION_TYPE.ANIMAL_FOLLOW_UP]: {
+    name: "kadesh_pet_seguimiento",
+    audience: "pet",
+    params: (v) => [v.animalName, v.elapsed, v.url],
+  },
   [NOTIFICATION_TYPE.PET_REMINDER_DUE]: {
     name: "kadesh_pet_recordatorio",
     audience: "pet",

@@ -164,7 +164,8 @@ const resolver = {
     } = input;
 
     // Build where clause for Animal query. Los repetidos unidos a otro no salen.
-    const animalWhere: any = { duplicateOf: null };
+    // Tampoco los casos inactivos (sin novedades por semanas, ver `Animal.followUp.ts`).
+    const animalWhere: any = { duplicateOf: null, inactiveAt: null };
 
     if (animalType) {
       animalWhere.animal_type = { id: { equals: animalType } };
