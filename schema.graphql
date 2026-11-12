@@ -3523,6 +3523,7 @@ type PetEvent {
   zoneAlertsCount: Int
   cancelledAt: DateTime
   cancelReason: String
+  viewsCount: Int
   nextStartsAt: String
   nextEndsAt: String
   interestedCount: Int
@@ -3590,6 +3591,7 @@ input PetEventWhereInput {
   zoneAlertsCount: IntNullableFilter
   cancelledAt: DateTimeNullableFilter
   cancelReason: StringFilter
+  viewsCount: IntFilter
   createdAt: DateTimeNullableFilter
   updatedAt: DateTimeNullableFilter
 }
@@ -3666,6 +3668,7 @@ input PetEventOrderByInput {
   zoneAlertsCount: OrderDirection
   cancelledAt: OrderDirection
   cancelReason: OrderDirection
+  viewsCount: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -3719,6 +3722,7 @@ input PetEventUpdateInput {
   zoneAlertsCount: Int
   cancelledAt: DateTime
   cancelReason: String
+  viewsCount: Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3798,6 +3802,7 @@ input PetEventCreateInput {
   zoneAlertsCount: Int
   cancelledAt: DateTime
   cancelReason: String
+  viewsCount: Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -11458,6 +11463,7 @@ type Mutation {
   updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
   cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
   setPetEventInterest(eventId: ID!, kind: String): PetEventInterestResult!
+  recordPetEventView(eventId: ID!): PetEventViewResult!
   reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
   sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
   backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
@@ -12724,6 +12730,14 @@ type PetEventInterestResult {
   interestedCount: Int!
   goingCount: Int!
   isFull: Boolean!
+}
+
+type PetEventViewResult {
+  """
+  Si esta visita sumó. No suman quien lo publicó, los admins, los bots ni repetir en 30 min.
+  """
+  counted: Boolean!
+  viewsCount: Int!
 }
 
 type SendPetEventNotificationsResult {

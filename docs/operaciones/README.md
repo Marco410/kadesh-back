@@ -62,7 +62,7 @@ Las fases 0 y 1 no cambian el schema de Prisma. La 2 sí: dos tablas nuevas (`Ac
 3. Back antes que front: el front nuevo pide campos (`usage`, `lastSeenAt`) que el back viejo no tiene.
 4. Stripe, **después** de que el back nuevo esté en línea: crear el destino `https://kadesh-back-production.up.railway.app/webhooks/stripe` (sin `/api/v1`) con los eventos `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted` y `charge.refunded`, estilo *snapshot*, versión `2025-05-28.basil`. Poner su *Signing secret* en `STRIPE_WEBHOOK_SECRET` (Railway → kadesh-back → Variables). Sin esa variable el webhook responde 503 y no procesa nada.
 5. Programar `pnpm activity:prune --apply` una vez al mes.
-6. Fase 3: el workflow `.github/workflows/rollup-daily-usage.yml` llama `rollupDailyUsage` cada noche con los mismos secrets que los posts programados (`KADESH_API_URL`, `CRON_SECRET`). Para llenar semanas pasadas: `pnpm usage:rollup --from=AAAA-MM-DD --to=AAAA-MM-DD`.
+6. Fase 3: `rollupDailyUsage` arma `SaasCompanyDailyUsage`. El workflow que la llamaba cada noche (`rollup-daily-usage.yml`) se quitó el 2026-11-12, así que ya no se llena sola: la tendencia y la comparación por plan del 360 se quedan en el último día calculado. Para llenarla: `pnpm usage:rollup --from=AAAA-MM-DD --to=AAAA-MM-DD`, o llamar `rollupDailyUsage(secret, days)` con `CRON_SECRET`.
 7. Aviso de privacidad y Términos: mencionar el registro de uso (secciones, tiempo activo), IP y navegador en accesos, y la analítica agregada.
 
 ### Fase 5

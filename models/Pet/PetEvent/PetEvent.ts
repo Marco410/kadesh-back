@@ -187,6 +187,16 @@ export default list({
     zoneAlertsCount: integer({ defaultValue: 0, ui: { description: "A cuántas personas se avisó" } }),
     cancelledAt: timestamp({ db: { isNullable: true } }),
     cancelReason: text(),
+    // Lo suma `recordPetEventView` con SQL directo: un update de Prisma movería `updatedAt` en cada vista.
+    viewsCount: integer({
+      defaultValue: 0,
+      db: { isNullable: false },
+      ui: {
+        description: "Vistas de la ficha publicada. No cuentan quien lo publicó, los admins ni los bots",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
 
     // Calculados
     nextStartsAt: virtual({

@@ -4,8 +4,8 @@ name: Send pet reminders
 # cartilla (vacunas, desparasitaciones…) cuya fecha de aviso ya llegó, por push, correo y
 # (cuando exista la plantilla) WhatsApp. Ver docs/cartilla/README.md.
 #
-# Usa los mismos secrets que publish-scheduled-posts.yml:
-#   KADESH_API_URL — endpoint GraphQL del backend en Railway
+# Requiere estos secrets del repo (Settings → Secrets and variables → Actions):
+#   KADESH_API_URL — endpoint GraphQL del backend en Railway, ej. https://<dominio>/api/graphql
 #   CRON_SECRET     — mismo valor que CRON_SECRET en las env vars de Railway
 
 on:
