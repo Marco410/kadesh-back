@@ -22,6 +22,8 @@ env:
   DB_HOST: 127.0.0.1
   DB_PORT: "5432"
   GOOGLE_MAPS_API_KEY: ci-placeholder
+  # utils/intregrations/stripe.ts crea el cliente al cargar el módulo y truena sin key.
+  STRIPE_SECRET_KEY: sk_test_ci_placeholder
 
 jobs:
   check:
