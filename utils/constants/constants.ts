@@ -494,6 +494,11 @@ export const ANIMAL_LOGS_OPTIONS = [
     label: "En adopción",
     value: "in_adoption",
   },
+  {
+    // Cierre sin hogar: falleció o se dejó de buscar (ver `Animal.outcome`).
+    label: "Caso cerrado",
+    value: "closed",
+  },
 
 ];
 

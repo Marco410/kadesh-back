@@ -10,6 +10,8 @@ import {
 import { animalChildAccess, validateAnimalChildOwner } from "../Animal.access";
 import { ANIMAL_LOGS_OPTIONS } from "../../../../utils/constants/constants";
 import { animalLogSlugAfterOperation } from "../Animal.hooks";
+import { syncAnimalOutcomeFromLog } from "../Animal.outcome";
+import { touchAnimalActivity } from "../Animal.followUp";
 import { logAnimalLogActivity } from "../../../../utils/pet/petActivity";
 import { fillCityFromCoordinates } from "../../../../utils/pet/animalReport";
 
@@ -47,6 +49,10 @@ export default list({
     },
     afterOperation: async (args: any) => {
       await animalLogSlugAfterOperation.afterOperation(args);
+      // Desenlace del caso (`Animal.outcome`): se llena con una bitácora final y se limpia al reabrir.
+      await syncAnimalOutcomeFromLog(args);
+      // Novedades del caso: reinicia los recordatorios de seguimiento y lo regresa al mapa.
+      await touchAnimalActivity(args);
       // Actividad de Kadesh Pet: cambio de estado o bitácora borrada.
       void logAnimalLogActivity(args);
     },

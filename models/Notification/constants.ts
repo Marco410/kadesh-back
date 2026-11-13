@@ -31,6 +31,8 @@ export const NOTIFICATION_TYPE = {
   ANIMAL_CLAIM_APPROVED: "animal.claim_approved",
   /** La solicitud para quedarse con el reporte se rechazó. */
   ANIMAL_CLAIM_REJECTED: "animal.claim_rejected",
+  /** Un caso abierto lleva 1 o 3 semanas sin registros: ¿volvió a casa o sigue buscándose? Va a quien lo atiende. */
+  ANIMAL_FOLLOW_UP: "animal.follow_up",
   /** Un admin unió un reporte repetido con el principal. Va a quien hizo el repetido. */
   ANIMAL_MERGED: "animal.merged",
   /** El dueño de una veterinaria pidió agregar un servicio al catálogo. */

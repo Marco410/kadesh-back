@@ -372,6 +372,11 @@ var ANIMAL_LOGS_OPTIONS = [
   {
     label: "En adopci\xF3n",
     value: "in_adoption"
+  },
+  {
+    // Cierre sin hogar: falleció o se dejó de buscar (ver `Animal.outcome`).
+    label: "Caso cerrado",
+    value: "closed"
   }
 ];
 var PRODUCT_CATEGORIES = [
@@ -1993,6 +1998,109 @@ async function logContactForm({ operation, item, context }) {
 // models/Pet/Animal/Animal.ts
 var import_fields = require("@keystone-6/core/fields");
 
+// models/Pet/Animal/Animal.outcome.ts
+var ANIMAL_OUTCOME = {
+  REUNITED: "reunited",
+  ADOPTED: "adopted",
+  OTHER_HOME: "other_home",
+  DECEASED: "deceased",
+  CLOSED_UNRESOLVED: "closed_unresolved"
+};
+var ANIMAL_OUTCOME_OPTIONS = [
+  { label: "Volvi\xF3 con su familia", value: ANIMAL_OUTCOME.REUNITED },
+  { label: "Adoptado", value: ANIMAL_OUTCOME.ADOPTED },
+  { label: "Encontr\xF3 otro hogar", value: ANIMAL_OUTCOME.OTHER_HOME },
+  { label: "Falleci\xF3", value: ANIMAL_OUTCOME.DECEASED },
+  { label: "Se cerr\xF3 sin encontrarlo", value: ANIMAL_OUTCOME.CLOSED_UNRESOLVED }
+];
+var HELPED_BY_KADESH_OPTIONS = [
+  { label: "S\xED", value: "yes" },
+  { label: "No", value: "no" },
+  { label: "No s\xE9", value: "unsure" }
+];
+var OUTCOME_CHANNEL_OPTIONS = [
+  { label: "Mapa o ficha en la web/app", value: "map" },
+  { label: "Alerta de zona", value: "zone_alert" },
+  { label: "Aviso por WhatsApp", value: "whatsapp" },
+  { label: "Cartel o QR", value: "poster" },
+  { label: "P\xE1gina de Facebook de Kadesh", value: "facebook" },
+  { label: "Aviso de coincidencia", value: "match" },
+  { label: "Alguien report\xF3 que lo vio", value: "sighting" },
+  { label: "Otro", value: "other" }
+];
+var OUTCOME_LOG_STATUS = {
+  [ANIMAL_OUTCOME.REUNITED]: "in_family",
+  [ANIMAL_OUTCOME.ADOPTED]: "adopted",
+  [ANIMAL_OUTCOME.OTHER_HOME]: "in_family",
+  [ANIMAL_OUTCOME.DECEASED]: "closed",
+  [ANIMAL_OUTCOME.CLOSED_UNRESOLVED]: "closed"
+};
+var LOG_STATUS_OUTCOME = {
+  in_family: ANIMAL_OUTCOME.REUNITED,
+  adopted: ANIMAL_OUTCOME.ADOPTED,
+  closed: ANIMAL_OUTCOME.CLOSED_UNRESOLVED
+};
+var OPEN_CASE_STATUSES = ["lost", "found", "rescued", "abandoned", "in_adoption"];
+var HOME_OUTCOMES = [
+  ANIMAL_OUTCOME.REUNITED,
+  ANIMAL_OUTCOME.ADOPTED,
+  ANIMAL_OUTCOME.OTHER_HOME
+];
+var values = (options) => options.map((option) => option.value);
+var isAnimalOutcome = (value) => typeof value === "string" && values(ANIMAL_OUTCOME_OPTIONS).includes(value);
+var isHelpedByKadesh = (value) => typeof value === "string" && values(HELPED_BY_KADESH_OPTIONS).includes(value);
+var isOutcomeChannel = (value) => typeof value === "string" && values(OUTCOME_CHANNEL_OPTIONS).includes(value);
+var CLEARED_OUTCOME = {
+  outcome: null,
+  helpedByKadesh: null,
+  outcomeChannel: null,
+  outcomeStory: "",
+  storyConsent: false,
+  closedAt: null
+};
+async function syncAnimalOutcomeFromLog({
+  operation,
+  item,
+  context
+}) {
+  if (operation !== "create") return;
+  const animalId = item?.animalId ?? item?.animal;
+  const status = typeof item?.status === "string" ? item.status : "";
+  if (!animalId || typeof animalId !== "string" || !status) return;
+  const inferred = LOG_STATUS_OUTCOME[status];
+  const reopens = OPEN_CASE_STATUSES.includes(status);
+  if (!inferred && !reopens) return;
+  try {
+    const sudo = context.sudo();
+    const animal = await sudo.query.Animal.findOne({
+      where: { id: animalId },
+      query: "id outcome"
+    });
+    if (!animal) return;
+    if (reopens) {
+      if (!animal.outcome) return;
+      await sudo.query.Animal.updateOne({ where: { id: animalId }, data: CLEARED_OUTCOME });
+      return;
+    }
+    if (animal.outcome) return;
+    const openLogs = await sudo.query.AnimalLog.count({
+      where: {
+        animal: { id: { equals: animalId } },
+        status: { in: OPEN_CASE_STATUSES },
+        id: { not: { equals: item.id } }
+      }
+    });
+    if (!openLogs) return;
+    const closedAt = item.date_status ? new Date(item.date_status).toISOString() : (/* @__PURE__ */ new Date()).toISOString();
+    await sudo.query.Animal.updateOne({
+      where: { id: animalId },
+      data: { outcome: inferred, closedAt }
+    });
+  } catch (error) {
+    console.error("[animal] No se pudo actualizar el desenlace desde la bit\xE1cora", { animalId }, error);
+  }
+}
+
 // utils/access/presets.ts
 var anyone = () => true;
 var nobody = () => false;
@@ -2454,6 +2562,399 @@ async function sendEmail({
     console.error("[mail] Error al enviar correo:", err);
     throw err;
   }
+}
+
+// utils/pet/reportSimilarity.ts
+var SIMILARITY_POSSIBLE = 45;
+var SIMILARITY_LIKELY = 70;
+var SIMILARITY_RADIUS_KM = 5;
+var SIMILARITY_WINDOW_DAYS = { lost: 90, other: 30 };
+var SIMILARITY_MAX_RESULTS = 3;
+var WEIGHTS = {
+  SAME_SOURCE: 100,
+  SAME_PHONE: 40,
+  SAME_NAME: 35,
+  SIMILAR_NAME: 25,
+  DIFFERENT_NAME: -20,
+  VERY_CLOSE: 25,
+  CLOSE: 20,
+  NEAR: 12,
+  AREA: 5,
+  SAME_SEX: 5,
+  DIFFERENT_SEX: -30,
+  SAME_COLOR: 10,
+  DIFFERENT_COLOR: -5,
+  SAME_BREED: 5,
+  SAME_MIXED_BREED: 2,
+  SIMILAR_DESCRIPTION: 10,
+  SAME_DATE: 5
+};
+var LOST_STATUSES = ["lost"];
+var STREET_STATUSES = ["found", "rescued", "abandoned"];
+var CLOSED_STATUSES = /* @__PURE__ */ new Set(["in_family", "adopted", "closed"]);
+function kindForStatuses(newStatus, candidateStatus) {
+  const candidate = (candidateStatus ?? "").toLowerCase();
+  if (CLOSED_STATUSES.has(candidate)) return null;
+  const status = (newStatus ?? "").toLowerCase();
+  if (!status) return "duplicate";
+  if (LOST_STATUSES.includes(status)) {
+    if (LOST_STATUSES.includes(candidate)) return "duplicate";
+    if (STREET_STATUSES.includes(candidate)) return "match";
+    return null;
+  }
+  if (STREET_STATUSES.includes(status)) {
+    if (STREET_STATUSES.includes(candidate)) return "duplicate";
+    if (LOST_STATUSES.includes(candidate)) return "match";
+    return null;
+  }
+  return status === candidate ? "duplicate" : null;
+}
+function windowDaysFor(status) {
+  return (status ?? "").toLowerCase() === "lost" ? SIMILARITY_WINDOW_DAYS.lost : SIMILARITY_WINDOW_DAYS.other;
+}
+function foldText(value) {
+  return (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+var GENERIC_NAMES = /* @__PURE__ */ new Set([
+  "",
+  "sin nombre",
+  "sinnombre",
+  "s n",
+  "n a",
+  "na",
+  "no se",
+  "no lo se",
+  "desconocido",
+  "desconocida",
+  "unnamed",
+  "perro",
+  "perra",
+  "perrito",
+  "perrita",
+  "gato",
+  "gata",
+  "gatito",
+  "gatita",
+  "cachorro",
+  "cachorra",
+  "cachorrito",
+  "cachorrita",
+  "callejero",
+  "callejera",
+  "callejerito",
+  "callejerita",
+  "ave",
+  "pajaro",
+  "pajarito",
+  "conejo",
+  "conejito",
+  "mascota"
+]);
+function isGenericName(name) {
+  const folded = foldText(name);
+  return GENERIC_NAMES.has(folded) || folded.startsWith("sin nombre");
+}
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+function compareNames(a, b) {
+  if (isGenericName(a) || isGenericName(b)) return null;
+  const left = foldText(a);
+  const right = foldText(b);
+  if (left === right) return "same";
+  const shorter = Math.min(left.length, right.length);
+  if (shorter >= 3 && (left.includes(right) || right.includes(left))) return "similar";
+  if (shorter >= 4) {
+    const allowed = shorter >= 7 ? 2 : 1;
+    if (levenshtein(left, right) <= allowed) return "similar";
+  }
+  return "different";
+}
+var COLOR_WORDS = {
+  blanco: "blanco",
+  hueso: "blanco",
+  albino: "blanco",
+  negro: "negro",
+  azabache: "negro",
+  cafe: "cafe",
+  marron: "cafe",
+  chocolate: "cafe",
+  canela: "cafe",
+  cobrizo: "cafe",
+  gris: "gris",
+  plateado: "gris",
+  plata: "gris",
+  cenizo: "gris",
+  azul: "gris",
+  dorado: "dorado",
+  amarillo: "dorado",
+  beige: "dorado",
+  crema: "dorado",
+  rubio: "dorado",
+  miel: "dorado",
+  arena: "dorado",
+  naranja: "naranja",
+  anaranjado: "naranja",
+  rojizo: "naranja",
+  pelirrojo: "naranja",
+  atigrado: "atigrado",
+  rayado: "atigrado",
+  tabby: "atigrado",
+  barcino: "atigrado",
+  manchas: "manchas",
+  mancha: "manchas",
+  manchado: "manchas",
+  pinto: "manchas",
+  moteado: "manchas",
+  dalmata: "manchas",
+  tricolor: "tricolor",
+  calico: "tricolor",
+  carey: "tricolor"
+};
+function colorOf(word) {
+  const candidates = [word, word.replace(/(es|s)$/, "")];
+  for (const value of candidates) {
+    if (COLOR_WORDS[value]) return COLOR_WORDS[value];
+    if (value.endsWith("a") && COLOR_WORDS[`${value.slice(0, -1)}o`]) {
+      return COLOR_WORDS[`${value.slice(0, -1)}o`];
+    }
+  }
+  return null;
+}
+function colorTokens(value) {
+  const tokens = /* @__PURE__ */ new Set();
+  for (const word of foldText(value).split(" ")) {
+    const color = word ? colorOf(word) : null;
+    if (color) tokens.add(color);
+  }
+  return tokens;
+}
+var STOPWORDS = /* @__PURE__ */ new Set([
+  "tiene",
+  "tenia",
+  "como",
+  "esta",
+  "este",
+  "estos",
+  "estas",
+  "para",
+  "pero",
+  "cuando",
+  "donde",
+  "porque",
+  "sobre",
+  "entre",
+  "hasta",
+  "desde",
+  "mucho",
+  "mucha",
+  "poco",
+  "poca",
+  "todo",
+  "toda",
+  "todos",
+  "todas",
+  "tambien",
+  "solo",
+  "ella",
+  "ellos",
+  "nombre",
+  "responde",
+  "perro",
+  "perra",
+  "perrito",
+  "perrita",
+  "gato",
+  "gata",
+  "gatito",
+  "gatita",
+  "color",
+  "mascota",
+  "informacion",
+  "favor",
+  "perdio",
+  "perdido",
+  "perdida",
+  "visto",
+  "vista",
+  "cualquier",
+  "ayuda",
+  "ayudanos",
+  "llamar",
+  "numero",
+  "telefono",
+  "contacto",
+  "recompensa",
+  "ofrece",
+  "gracias"
+]);
+function descriptionTokens(value) {
+  const tokens = /* @__PURE__ */ new Set();
+  for (const word of foldText(value).split(" ")) {
+    if (word.length >= 4 && !STOPWORDS.has(word)) tokens.add(word);
+  }
+  return tokens;
+}
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const token of a) if (b.has(token)) shared += 1;
+  return shared / (a.size + b.size - shared);
+}
+var MIXED_BREED = /mestiz|crioll|sin raza|no se|desconoc/i;
+function distancePoints(distanceKm) {
+  if (distanceKm == null || !Number.isFinite(distanceKm)) return [0, null];
+  if (distanceKm <= 0.5) return [WEIGHTS.VERY_CLOSE, "very_close"];
+  if (distanceKm <= 1.5) return [WEIGHTS.CLOSE, "close"];
+  if (distanceKm <= 3) return [WEIGHTS.NEAR, "close"];
+  if (distanceKm <= SIMILARITY_RADIUS_KM) return [WEIGHTS.AREA, null];
+  return [0, null];
+}
+function toTime(value) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+function scoreCandidate(input, candidate, distanceKm) {
+  const gains = [];
+  let score = 0;
+  const add = (points, reason) => {
+    score += points;
+    if (reason && points > 0) gains.push([points, reason]);
+  };
+  const source = input.sourceUrl?.trim();
+  if (source && source === candidate.sourceUrl?.trim()) {
+    return { score: WEIGHTS.SAME_SOURCE, reasons: ["same_source"] };
+  }
+  const inputPhones = new Set((input.phones ?? []).map((phone) => phone?.trim()).filter(Boolean));
+  if ((candidate.phones ?? []).some((phone) => phone?.trim() && inputPhones.has(phone.trim()))) {
+    add(WEIGHTS.SAME_PHONE, "same_phone");
+  }
+  const names = compareNames(input.name, candidate.name);
+  if (names === "same") add(WEIGHTS.SAME_NAME, "same_name");
+  else if (names === "similar") add(WEIGHTS.SIMILAR_NAME, "similar_name");
+  else if (names === "different") add(WEIGHTS.DIFFERENT_NAME);
+  const [distance, distanceReason] = distancePoints(distanceKm);
+  add(distance, distanceReason);
+  const sexes = ["male", "female"];
+  if (sexes.includes(input.sex ?? "") && sexes.includes(candidate.sex ?? "")) {
+    if (input.sex === candidate.sex) add(WEIGHTS.SAME_SEX, "same_sex");
+    else add(WEIGHTS.DIFFERENT_SEX);
+  }
+  const inputColors = colorTokens(input.color);
+  const candidateColors = colorTokens(candidate.color);
+  if (inputColors.size && candidateColors.size) {
+    let shared = 0;
+    for (const color of inputColors) if (candidateColors.has(color)) shared += 1;
+    const overlap = shared / Math.min(inputColors.size, candidateColors.size);
+    if (overlap >= 0.5) add(WEIGHTS.SAME_COLOR, "same_color");
+    else if (shared === 0) add(WEIGHTS.DIFFERENT_COLOR);
+  }
+  if (input.breedId && input.breedId === candidate.breedId) {
+    add(
+      MIXED_BREED.test(candidate.breedName ?? "") ? WEIGHTS.SAME_MIXED_BREED : WEIGHTS.SAME_BREED,
+      "same_breed"
+    );
+  }
+  if (jaccard(descriptionTokens(input.description), descriptionTokens(candidate.description)) >= 0.3) {
+    add(WEIGHTS.SIMILAR_DESCRIPTION, "similar_description");
+  }
+  const inputDate = toTime(input.date);
+  const candidateDate = toTime(candidate.date);
+  if (inputDate != null && candidateDate != null) {
+    if (Math.abs(inputDate - candidateDate) <= 7 * 24 * 60 * 60 * 1e3) {
+      add(WEIGHTS.SAME_DATE, "same_date");
+    }
+  }
+  const reasons = gains.sort((a, b) => b[0] - a[0]).map(([, reason]) => reason);
+  return {
+    score: Math.max(0, Math.min(100, score)),
+    reasons: [...new Set(reasons)]
+  };
+}
+function similarityLevel(score) {
+  if (score >= SIMILARITY_LIKELY) return "likely";
+  if (score >= SIMILARITY_POSSIBLE) return "possible";
+  return null;
+}
+
+// utils/pet/animalName.ts
+var PLACEHOLDERS = /* @__PURE__ */ new Set([
+  "",
+  "sin nombre",
+  "sin nombre conocido",
+  "desconocido",
+  "desconocida",
+  "nombre desconocido",
+  "no se",
+  "no lo se",
+  "no se su nombre",
+  "no tiene nombre",
+  "no tiene",
+  "ninguno",
+  "unknown",
+  "unnamed",
+  "n a",
+  "na"
+]);
+var fold = (value) => foldText(value);
+function isUnknownAnimalName(name) {
+  return PLACEHOLDERS.has(fold(name ?? ""));
+}
+function knownAnimalName(name) {
+  return isUnknownAnimalName(name) ? "" : (name ?? "").trim();
+}
+var FORMS = {
+  dog: { m: "Perro", f: "Perra", thisM: "este perro", thisF: "esta perra" },
+  cat: { m: "Gato", f: "Gata", thisM: "este gato", thisF: "esta gata" },
+  bird: { m: "Ave", f: "Ave", thisM: "esta ave", thisF: "esta ave" },
+  fish: { m: "Pez", f: "Pez", thisM: "este pez", thisF: "este pez" },
+  reptil: { m: "Reptil", f: "Reptil", thisM: "este reptil", thisF: "este reptil" }
+};
+var ALIASES = {
+  perro: "dog",
+  gato: "cat",
+  ave: "bird",
+  pez: "fish",
+  reptile: "reptil"
+};
+var DEFAULT_FORMS = { m: "Animal", f: "Animal", thisM: "este animal", thisF: "este animal" };
+function formsFor(typeName) {
+  const key = foldText(typeName ?? "");
+  return FORMS[ALIASES[key] ?? key] ?? DEFAULT_FORMS;
+}
+function shortColor(color) {
+  const clean4 = (color ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  return clean4 && clean4.length <= 24 ? clean4 : "";
+}
+function animalDisplayName(animal) {
+  const known = knownAnimalName(animal.name);
+  if (known) return known;
+  const forms = formsFor(animal.typeName);
+  const base = animal.sex === "female" ? forms.f : forms.m;
+  const color = shortColor(animal.color);
+  return color ? `${base} ${color}` : base;
+}
+function animalSentenceName(animal) {
+  const known = knownAnimalName(animal.name);
+  if (known) return known;
+  const forms = formsFor(animal.typeName);
+  return animal.sex === "female" ? forms.thisF : forms.thisM;
+}
+function capitalizeFirst(text86) {
+  return text86 ? text86.charAt(0).toUpperCase() + text86.slice(1) : text86;
 }
 
 // utils/helpers/emailLayout.ts
@@ -3171,6 +3672,45 @@ async function sendPetReminderEmail({
     fromName: EMAIL_BRANDS.pet.name
   });
 }
+async function sendAnimalFollowUpEmail({
+  to,
+  displayName: displayName4,
+  animalName: animalName2,
+  elapsed,
+  closeUrl,
+  addLogUrl,
+  finalNotice
+}) {
+  const trimmedTo = to?.trim();
+  if (!trimmedTo) {
+    console.warn("sendAnimalFollowUpEmail: sin email destino.");
+    return;
+  }
+  const name = escapeHtml(animalName2);
+  const html = renderEmailLayout({
+    brand: "pet",
+    preheader: `Van ${elapsed} sin novedades de ${animalName2}. \xBFYa volvi\xF3 a casa?`,
+    eyebrow: "Seguimiento",
+    title: `\xBFC\xF3mo va el caso de ${animalName2}?`,
+    bodyHtml: `
+      ${emailGreeting(displayName4)}
+      ${emailParagraph(
+      `Van ${escapeHtml(elapsed)} sin registros en el reporte de <strong>${name}</strong>. Si ya volvi\xF3 a casa o encontr\xF3 hogar, cierra el caso: as\xED deja de salir como activo y suma a los reencuentros de Kadesh.`
+    )}
+      ${emailButton("pet", "Ya volvi\xF3: cerrar el caso", closeUrl)}
+      ${emailParagraph(
+      finalNotice ? "Si sigues buscando, agrega un registro con lo \xFAltimo que sepas. Si en 3 semanas no hay novedades, el reporte dejar\xE1 de salir en el mapa; podr\xE1s reactivarlo cuando quieras con un registro nuevo." : "Si sigues buscando, agrega un registro con lo \xFAltimo que sepas: as\xED el reporte se mantiene al d\xEDa para quien lo vea."
+    )}
+      ${emailButton("pet", "Sigo buscando: agregar registro", addLogUrl)}`,
+    footerNote: `Recibiste este correo porque publicaste el reporte de ${animalName2} en Kadesh Pet.`
+  });
+  await sendEmail({
+    to: trimmedTo,
+    subject: `\xBF${capitalizeFirst(animalName2)} ya volvi\xF3 a casa?`,
+    html,
+    fromName: EMAIL_BRANDS.pet.name
+  });
+}
 async function sendPetFamilyAccountEmail({
   to,
   displayName: displayName4,
@@ -3366,332 +3906,6 @@ async function sendAdminSecurityAlertEmail({
     }),
     fromName: EMAIL_BRANDS[brand].name
   });
-}
-
-// utils/pet/reportSimilarity.ts
-var SIMILARITY_POSSIBLE = 45;
-var SIMILARITY_LIKELY = 70;
-var SIMILARITY_RADIUS_KM = 5;
-var SIMILARITY_WINDOW_DAYS = { lost: 90, other: 30 };
-var SIMILARITY_MAX_RESULTS = 3;
-var WEIGHTS = {
-  SAME_SOURCE: 100,
-  SAME_PHONE: 40,
-  SAME_NAME: 35,
-  SIMILAR_NAME: 25,
-  DIFFERENT_NAME: -20,
-  VERY_CLOSE: 25,
-  CLOSE: 20,
-  NEAR: 12,
-  AREA: 5,
-  SAME_SEX: 5,
-  DIFFERENT_SEX: -30,
-  SAME_COLOR: 10,
-  DIFFERENT_COLOR: -5,
-  SAME_BREED: 5,
-  SAME_MIXED_BREED: 2,
-  SIMILAR_DESCRIPTION: 10,
-  SAME_DATE: 5
-};
-var LOST_STATUSES = ["lost"];
-var STREET_STATUSES = ["found", "rescued", "abandoned"];
-var CLOSED_STATUSES = /* @__PURE__ */ new Set(["in_family", "adopted"]);
-function kindForStatuses(newStatus, candidateStatus) {
-  const candidate = (candidateStatus ?? "").toLowerCase();
-  if (CLOSED_STATUSES.has(candidate)) return null;
-  const status = (newStatus ?? "").toLowerCase();
-  if (!status) return "duplicate";
-  if (LOST_STATUSES.includes(status)) {
-    if (LOST_STATUSES.includes(candidate)) return "duplicate";
-    if (STREET_STATUSES.includes(candidate)) return "match";
-    return null;
-  }
-  if (STREET_STATUSES.includes(status)) {
-    if (STREET_STATUSES.includes(candidate)) return "duplicate";
-    if (LOST_STATUSES.includes(candidate)) return "match";
-    return null;
-  }
-  return status === candidate ? "duplicate" : null;
-}
-function windowDaysFor(status) {
-  return (status ?? "").toLowerCase() === "lost" ? SIMILARITY_WINDOW_DAYS.lost : SIMILARITY_WINDOW_DAYS.other;
-}
-function foldText(value) {
-  return (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-}
-var GENERIC_NAMES = /* @__PURE__ */ new Set([
-  "",
-  "sin nombre",
-  "sinnombre",
-  "s n",
-  "n a",
-  "na",
-  "no se",
-  "no lo se",
-  "desconocido",
-  "desconocida",
-  "unnamed",
-  "perro",
-  "perra",
-  "perrito",
-  "perrita",
-  "gato",
-  "gata",
-  "gatito",
-  "gatita",
-  "cachorro",
-  "cachorra",
-  "cachorrito",
-  "cachorrita",
-  "callejero",
-  "callejera",
-  "callejerito",
-  "callejerita",
-  "ave",
-  "pajaro",
-  "pajarito",
-  "conejo",
-  "conejito",
-  "mascota"
-]);
-function isGenericName(name) {
-  const folded = foldText(name);
-  return GENERIC_NAMES.has(folded) || folded.startsWith("sin nombre");
-}
-function levenshtein(a, b) {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i += 1) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
-    }
-    previous = current;
-  }
-  return previous[b.length];
-}
-function compareNames(a, b) {
-  if (isGenericName(a) || isGenericName(b)) return null;
-  const left = foldText(a);
-  const right = foldText(b);
-  if (left === right) return "same";
-  const shorter = Math.min(left.length, right.length);
-  if (shorter >= 3 && (left.includes(right) || right.includes(left))) return "similar";
-  if (shorter >= 4) {
-    const allowed = shorter >= 7 ? 2 : 1;
-    if (levenshtein(left, right) <= allowed) return "similar";
-  }
-  return "different";
-}
-var COLOR_WORDS = {
-  blanco: "blanco",
-  hueso: "blanco",
-  albino: "blanco",
-  negro: "negro",
-  azabache: "negro",
-  cafe: "cafe",
-  marron: "cafe",
-  chocolate: "cafe",
-  canela: "cafe",
-  cobrizo: "cafe",
-  gris: "gris",
-  plateado: "gris",
-  plata: "gris",
-  cenizo: "gris",
-  azul: "gris",
-  dorado: "dorado",
-  amarillo: "dorado",
-  beige: "dorado",
-  crema: "dorado",
-  rubio: "dorado",
-  miel: "dorado",
-  arena: "dorado",
-  naranja: "naranja",
-  anaranjado: "naranja",
-  rojizo: "naranja",
-  pelirrojo: "naranja",
-  atigrado: "atigrado",
-  rayado: "atigrado",
-  tabby: "atigrado",
-  barcino: "atigrado",
-  manchas: "manchas",
-  mancha: "manchas",
-  manchado: "manchas",
-  pinto: "manchas",
-  moteado: "manchas",
-  dalmata: "manchas",
-  tricolor: "tricolor",
-  calico: "tricolor",
-  carey: "tricolor"
-};
-function colorOf(word) {
-  const candidates = [word, word.replace(/(es|s)$/, "")];
-  for (const value of candidates) {
-    if (COLOR_WORDS[value]) return COLOR_WORDS[value];
-    if (value.endsWith("a") && COLOR_WORDS[`${value.slice(0, -1)}o`]) {
-      return COLOR_WORDS[`${value.slice(0, -1)}o`];
-    }
-  }
-  return null;
-}
-function colorTokens(value) {
-  const tokens = /* @__PURE__ */ new Set();
-  for (const word of foldText(value).split(" ")) {
-    const color = word ? colorOf(word) : null;
-    if (color) tokens.add(color);
-  }
-  return tokens;
-}
-var STOPWORDS = /* @__PURE__ */ new Set([
-  "tiene",
-  "tenia",
-  "como",
-  "esta",
-  "este",
-  "estos",
-  "estas",
-  "para",
-  "pero",
-  "cuando",
-  "donde",
-  "porque",
-  "sobre",
-  "entre",
-  "hasta",
-  "desde",
-  "mucho",
-  "mucha",
-  "poco",
-  "poca",
-  "todo",
-  "toda",
-  "todos",
-  "todas",
-  "tambien",
-  "solo",
-  "ella",
-  "ellos",
-  "nombre",
-  "responde",
-  "perro",
-  "perra",
-  "perrito",
-  "perrita",
-  "gato",
-  "gata",
-  "gatito",
-  "gatita",
-  "color",
-  "mascota",
-  "informacion",
-  "favor",
-  "perdio",
-  "perdido",
-  "perdida",
-  "visto",
-  "vista",
-  "cualquier",
-  "ayuda",
-  "ayudanos",
-  "llamar",
-  "numero",
-  "telefono",
-  "contacto",
-  "recompensa",
-  "ofrece",
-  "gracias"
-]);
-function descriptionTokens(value) {
-  const tokens = /* @__PURE__ */ new Set();
-  for (const word of foldText(value).split(" ")) {
-    if (word.length >= 4 && !STOPWORDS.has(word)) tokens.add(word);
-  }
-  return tokens;
-}
-function jaccard(a, b) {
-  if (!a.size || !b.size) return 0;
-  let shared = 0;
-  for (const token of a) if (b.has(token)) shared += 1;
-  return shared / (a.size + b.size - shared);
-}
-var MIXED_BREED = /mestiz|crioll|sin raza|no se|desconoc/i;
-function distancePoints(distanceKm) {
-  if (distanceKm == null || !Number.isFinite(distanceKm)) return [0, null];
-  if (distanceKm <= 0.5) return [WEIGHTS.VERY_CLOSE, "very_close"];
-  if (distanceKm <= 1.5) return [WEIGHTS.CLOSE, "close"];
-  if (distanceKm <= 3) return [WEIGHTS.NEAR, "close"];
-  if (distanceKm <= SIMILARITY_RADIUS_KM) return [WEIGHTS.AREA, null];
-  return [0, null];
-}
-function toTime(value) {
-  if (!value) return null;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) ? time : null;
-}
-function scoreCandidate(input, candidate, distanceKm) {
-  const gains = [];
-  let score = 0;
-  const add = (points, reason) => {
-    score += points;
-    if (reason && points > 0) gains.push([points, reason]);
-  };
-  const source = input.sourceUrl?.trim();
-  if (source && source === candidate.sourceUrl?.trim()) {
-    return { score: WEIGHTS.SAME_SOURCE, reasons: ["same_source"] };
-  }
-  const inputPhones = new Set((input.phones ?? []).map((phone) => phone?.trim()).filter(Boolean));
-  if ((candidate.phones ?? []).some((phone) => phone?.trim() && inputPhones.has(phone.trim()))) {
-    add(WEIGHTS.SAME_PHONE, "same_phone");
-  }
-  const names = compareNames(input.name, candidate.name);
-  if (names === "same") add(WEIGHTS.SAME_NAME, "same_name");
-  else if (names === "similar") add(WEIGHTS.SIMILAR_NAME, "similar_name");
-  else if (names === "different") add(WEIGHTS.DIFFERENT_NAME);
-  const [distance, distanceReason] = distancePoints(distanceKm);
-  add(distance, distanceReason);
-  const sexes = ["male", "female"];
-  if (sexes.includes(input.sex ?? "") && sexes.includes(candidate.sex ?? "")) {
-    if (input.sex === candidate.sex) add(WEIGHTS.SAME_SEX, "same_sex");
-    else add(WEIGHTS.DIFFERENT_SEX);
-  }
-  const inputColors = colorTokens(input.color);
-  const candidateColors = colorTokens(candidate.color);
-  if (inputColors.size && candidateColors.size) {
-    let shared = 0;
-    for (const color of inputColors) if (candidateColors.has(color)) shared += 1;
-    const overlap = shared / Math.min(inputColors.size, candidateColors.size);
-    if (overlap >= 0.5) add(WEIGHTS.SAME_COLOR, "same_color");
-    else if (shared === 0) add(WEIGHTS.DIFFERENT_COLOR);
-  }
-  if (input.breedId && input.breedId === candidate.breedId) {
-    add(
-      MIXED_BREED.test(candidate.breedName ?? "") ? WEIGHTS.SAME_MIXED_BREED : WEIGHTS.SAME_BREED,
-      "same_breed"
-    );
-  }
-  if (jaccard(descriptionTokens(input.description), descriptionTokens(candidate.description)) >= 0.3) {
-    add(WEIGHTS.SIMILAR_DESCRIPTION, "similar_description");
-  }
-  const inputDate = toTime(input.date);
-  const candidateDate = toTime(candidate.date);
-  if (inputDate != null && candidateDate != null) {
-    if (Math.abs(inputDate - candidateDate) <= 7 * 24 * 60 * 60 * 1e3) {
-      add(WEIGHTS.SAME_DATE, "same_date");
-    }
-  }
-  const reasons = gains.sort((a, b) => b[0] - a[0]).map(([, reason]) => reason);
-  return {
-    score: Math.max(0, Math.min(100, score)),
-    reasons: [...new Set(reasons)]
-  };
-}
-function similarityLevel(score) {
-  if (score >= SIMILARITY_LIKELY) return "likely";
-  if (score >= SIMILARITY_POSSIBLE) return "possible";
-  return null;
 }
 
 // models/Pet/Animal/Animal.facebookPost.ts
@@ -3935,6 +4149,8 @@ var NOTIFICATION_TYPE = {
   ANIMAL_CLAIM_APPROVED: "animal.claim_approved",
   /** La solicitud para quedarse con el reporte se rechazó. */
   ANIMAL_CLAIM_REJECTED: "animal.claim_rejected",
+  /** Un caso abierto lleva 1 o 3 semanas sin registros: ¿volvió a casa o sigue buscándose? Va a quien lo atiende. */
+  ANIMAL_FOLLOW_UP: "animal.follow_up",
   /** Un admin unió un reporte repetido con el principal. Va a quien hizo el repetido. */
   ANIMAL_MERGED: "animal.merged",
   /** El dueño de una veterinaria pidió agregar un servicio al catálogo. */
@@ -4813,6 +5029,11 @@ var WHATSAPP_TEMPLATES = {
     audience: "pet",
     params: (v) => [v.authorName, v.animalName, v.comment, v.url]
   },
+  [NOTIFICATION_TYPE.ANIMAL_FOLLOW_UP]: {
+    name: "kadesh_pet_seguimiento",
+    audience: "pet",
+    params: (v) => [v.animalName, v.elapsed, v.url]
+  },
   [NOTIFICATION_TYPE.PET_REMINDER_DUE]: {
     name: "kadesh_pet_recordatorio",
     audience: "pet",
@@ -4900,7 +5121,7 @@ async function recordWhatsappOutcomes(prisma, outcomes, notificationIds) {
     )
   ]);
 }
-async function sendNotificationWhatsappToOptedIn(prisma, recipientIds, type, values, notificationIds) {
+async function sendNotificationWhatsappToOptedIn(prisma, recipientIds, type, values2, notificationIds) {
   try {
     if (!hasWhatsappTemplate(type)) return;
     if (!platformWhatsappConfig()) {
@@ -4940,19 +5161,19 @@ async function sendNotificationWhatsappToOptedIn(prisma, recipientIds, type, val
         console.warn(`[notify:whatsapp] ${type} no sali\xF3 por WhatsApp: ${reason}.`);
       }
     }
-    const { outcomes } = optedIn.length ? await sendNotificationWhatsapp(optedIn, type, values) : { outcomes: [] };
+    const { outcomes } = optedIn.length ? await sendNotificationWhatsapp(optedIn, type, values2) : { outcomes: [] };
     await recordWhatsappOutcomes(prisma, [...skipped, ...outcomes], notificationIds);
   } catch (error) {
     console.error("[notify:whatsapp] No se pudo buscar a qui\xE9n mandarle:", type, error);
   }
 }
-async function sendNotificationWhatsapp(recipients, type, values) {
+async function sendNotificationWhatsapp(recipients, type, values2) {
   const result5 = { sent: 0, failed: 0, outcomes: [] };
   try {
     const template = WHATSAPP_TEMPLATES[type];
     const config2 = platformWhatsappConfig();
     if (!template || !config2) return result5;
-    const bodyParams = template.params(values).map(templateParam);
+    const bodyParams = template.params(values2).map(templateParam);
     await Promise.allSettled(
       recipients.map(async (recipient) => {
         const to = toWhatsappNumber(recipient.phone);
@@ -5229,6 +5450,7 @@ function petPublicUrl(slug) {
 }
 var CANDIDATE_QUERY = `
   id name slug sex color physical_description contactNumber contactNumber2 sourceUrl reportedBy createdAt
+  animal_type { name }
   animal_breed { id breed }
   user { id }
   multimedia(orderBy: { order: asc }, take: 1) { image { url } }
@@ -5357,7 +5579,13 @@ async function findSimilarReports(context, input) {
     const slug = row.slug?.trim() || row.id;
     results.push({
       id: row.id,
-      name: row.name?.trim() || "Sin nombre",
+      name: knownAnimalName(row.name),
+      displayName: animalDisplayName({
+        name: row.name,
+        typeName: row.animal_type?.name,
+        sex: row.sex,
+        color: row.color
+      }),
       slug: row.slug ?? null,
       url: petPublicUrl(slug),
       score,
@@ -5546,7 +5774,7 @@ async function notifyClaimRequested(context, claimId) {
       url,
       metadata: { slug: claim.animal.slug ?? null, claimId: claim.id },
       // kadesh_pet_reclamo_solicitado: {claimantName} dice que el animal de tu reporte ({animalName}) es su mascota.
-      templateValues: { claimantName: who, animalName: name ?? "sin nombre", url }
+      templateValues: { claimantName: who, animalName: name ?? "el animal de tu reporte", url }
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar de la solicitud:", claimId, error);
@@ -5638,7 +5866,7 @@ async function notifyPossibleMatches(context, input) {
         });
         if (already && !(already instanceof Error)) continue;
       }
-      const theirName = isGenericName(match.name) ? null : match.name;
+      const theirName = match.name && !isGenericName(match.name) ? match.name : null;
       sent += await notify(context, {
         audience,
         product: "pet",
@@ -5730,7 +5958,7 @@ function watchAnimalForFacebook(animalId, context) {
 }
 
 // models/Pet/Animal/Animal.publishedEmail.ts
-var ANIMAL_DETAIL_ACTION = { addLog: "registro", promote: "impulsar" };
+var ANIMAL_DETAIL_ACTION = { addLog: "registro", promote: "impulsar", close: "cerrar" };
 var PROMOTABLE_STATUSES = /* @__PURE__ */ new Set(["lost", "found"]);
 var PUBLISHED_EMAIL_QUERY = `
   id name slug sex age color size
@@ -6274,7 +6502,7 @@ async function mergeAnimalReport(context, { duplicateId, mainId }) {
   }
   void logActivity(context, {
     type: "admin.animal_merged",
-    summary: `Uni\xF3 el reporte \xAB${duplicate.name ?? duplicateId}\xBB con \xAB${main.name ?? mainId}\xBB`,
+    summary: `Uni\xF3 el reporte \xAB${duplicate.name || duplicateId}\xBB con \xAB${main.name || mainId}\xBB`,
     entityType: "Animal",
     entityId: duplicateId,
     metadata: { mainId, movedComments: comments?.count ?? 0 }
@@ -6432,6 +6660,19 @@ async function removeIncompleteOwnReports({
 
 // models/Pet/Animal/Animal.ts
 var adminOnly2 = ({ session: session2 }) => isPlatformAdmin(session2);
+async function nextAnimalFolio(context) {
+  const prisma = context.sudo().prisma;
+  const rows2 = await prisma.$queryRaw`SELECT nextval(pg_get_serial_sequence('"Animal"', 'folio'))::int AS folio`;
+  if (rows2 instanceof Error) throw rows2;
+  const folio = rows2[0]?.folio;
+  if (!Number.isInteger(folio)) throw new Error("No se pudo asignar el folio del reporte.");
+  return folio;
+}
+var outcomeAnswersRead = async ({ session: session2, item, context }) => {
+  if (isPlatformAdmin(session2)) return true;
+  return canEditAnimalAs(context, item, getSessionUserId(session2));
+};
+var outcomeFieldAccess = { create: adminOnly2, update: adminOnly2 };
 function cleanDuplicateCheck(value) {
   if (!value || typeof value !== "object") return null;
   const raw = value;
@@ -6445,8 +6686,10 @@ function cleanDuplicateCheck(value) {
 var Animal_default = (0, import_core.list)({
   access: animalAccess,
   hooks: {
-    resolveInput: ({ resolvedData, operation, context }) => {
+    resolveInput: async ({ resolvedData, operation, context }) => {
       const data = forceAnimalOwner({ ...resolvedData }, operation, context);
+      if (operation === "create" && data.folio == null) data.folio = await nextAnimalFolio(context);
+      if (typeof data.name === "string") data.name = knownAnimalName(data.name);
       if (data.duplicateCheck !== void 0) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
       for (const key of ["contactNumber", "contactNumber2"]) {
         if (!(key in data) || data[key] == null) continue;
@@ -6492,7 +6735,8 @@ var Animal_default = (0, import_core.list)({
     }
   },
   fields: {
-    name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    /** Vacío si no se sabe (la web y los avisos lo describen: «Perra café»). Ver `utils/pet/animalName.ts`. */
+    name: (0, import_fields.text)({ ui: { description: "Vac\xEDo si no se sabe su nombre." } }),
     slug: (0, import_fields.text)({
       isIndexed: "unique",
       db: { isNullable: true },
@@ -6500,6 +6744,23 @@ var Animal_default = (0, import_core.list)({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
         description: "URL amigable. Se genera sola y no cambia si editas el nombre."
+      }
+    }),
+    /**
+     * Folio corto y público del reporte (KP-01234 en el cartel). Sale de la secuencia de Postgres: al
+     * agregar la columna, los animales que ya existían reciben uno, y en cada `create` lo toma
+     * `nextAnimalFolio`. El QR del cartel apunta a `/f/{folio}` en la web, que redirige a la ficha.
+     * Nadie lo escribe desde la API.
+     */
+    folio: (0, import_fields.integer)({
+      defaultValue: { kind: "autoincrement" },
+      isIndexed: "unique",
+      db: { isNullable: false },
+      access: { create: () => false, update: () => false },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Folio del cartel (se muestra como KP-01234)."
       }
     }),
     physical_description: (0, import_fields.text)(),
@@ -6616,6 +6877,73 @@ var Animal_default = (0, import_core.list)({
         description: "Reportes parecidos que se ignoraron al publicar."
       }
     }),
+    /** Cómo terminó el caso (ver `Animal.outcome.ts`). Null mientras sigue abierto. */
+    outcome: (0, import_fields.select)({
+      options: ANIMAL_OUTCOME_OPTIONS,
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { description: "C\xF3mo termin\xF3 el caso. Lo llena \xABCerrar caso\xBB o la \xFAltima bit\xE1cora." }
+    }),
+    closedAt: (0, import_fields.timestamp)({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { description: "Cu\xE1ndo se cerr\xF3 el caso." }
+    }),
+    /** Null = no respondió (cierres por bitácora o anteriores a la pregunta). */
+    helpedByKadesh: (0, import_fields.select)({
+      options: HELPED_BY_KADESH_OPTIONS,
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "\xBFKadesh ayud\xF3 a resolverlo? Lo responde quien cierra el caso." }
+    }),
+    outcomeChannel: (0, import_fields.select)({
+      options: OUTCOME_CHANNEL_OPTIONS,
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "Por d\xF3nde ayud\xF3 Kadesh." }
+    }),
+    outcomeStory: (0, import_fields.text)({
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { displayMode: "textarea", description: "Lo que cont\xF3 quien cerr\xF3 el caso." }
+    }),
+    storyConsent: (0, import_fields.checkbox)({
+      defaultValue: false,
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "Acept\xF3 que su historia se publique en Kadesh." }
+    }),
+    /** Seguimiento de casos abiertos (ver `Animal.followUp.ts`). Lo mantienen la bitácora y el cron. */
+    lastActivityAt: (0, import_fields.timestamp)({
+      defaultValue: { kind: "now" },
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { createView: { fieldMode: "hidden" }, description: "\xDAltimo registro del caso." }
+    }),
+    followUpStage: (0, import_fields.integer)({
+      defaultValue: 0,
+      validation: { isRequired: true, min: 0, max: 2 },
+      access: { ...outcomeFieldAccess, read: adminOnly2 },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "Recordatorios de seguimiento enviados: 0 ninguno, 1 a la semana, 2 a las 3 semanas."
+      }
+    }),
+    followUpSentAt: (0, import_fields.timestamp)({
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: adminOnly2 },
+      ui: { createView: { fieldMode: "hidden" }, description: "Cu\xE1ndo sali\xF3 el \xFAltimo recordatorio." }
+    }),
+    inactiveAt: (0, import_fields.timestamp)({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "El caso dej\xF3 de salir en el mapa por no tener novedades. Un registro nuevo lo reactiva."
+      }
+    }),
     createdAt: (0, import_fields.timestamp)({
       defaultValue: {
         kind: "now"
@@ -6707,6 +7035,37 @@ var AnimalFavorite_default = (0, import_core4.list)({
 // models/Pet/Animal/AnimalLog/AnimalLog.ts
 var import_core5 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
+
+// models/Pet/Animal/Animal.followUp.ts
+var DAY_MS3 = 24 * 60 * 60 * 1e3;
+var FOLLOW_UP_FIRST_DAYS = 7;
+var FOLLOW_UP_SECOND_DAYS = 21;
+var FOLLOW_UP_MIN_GAP_DAYS = 7;
+var INACTIVE_AFTER_DAYS = 45;
+var INACTIVE_MIN_GAP_DAYS = 14;
+var INACTIVE_UNOWNED_DAYS = 30;
+var daysAgo = (days, now = Date.now()) => new Date(now - days * DAY_MS3);
+async function touchAnimalActivity({
+  operation,
+  item,
+  context
+}) {
+  if (operation !== "create") return;
+  const animalId = item?.animalId ?? item?.animal;
+  if (!animalId || typeof animalId !== "string") return;
+  try {
+    const prisma = context.sudo().prisma;
+    const result5 = await prisma.animal.updateMany({
+      where: { id: animalId },
+      data: { lastActivityAt: /* @__PURE__ */ new Date(), followUpStage: 0, followUpSentAt: null, inactiveAt: null }
+    });
+    if (result5 instanceof Error) throw result5;
+  } catch (error) {
+    console.error("[animal] No se pudo registrar la actividad del caso", { animalId }, error);
+  }
+}
+
+// models/Pet/Animal/AnimalLog/AnimalLog.ts
 var AnimalLog_default = (0, import_core5.list)({
   access: animalChildAccess,
   hooks: {
@@ -6737,6 +7096,8 @@ var AnimalLog_default = (0, import_core5.list)({
     },
     afterOperation: async (args) => {
       await animalLogSlugAfterOperation.afterOperation(args);
+      await syncAnimalOutcomeFromLog(args);
+      await touchAnimalActivity(args);
       void logAnimalLogActivity(args);
     }
   },
@@ -6919,6 +7280,7 @@ async function resolveAnimalClaimInput({ resolvedData, operation, context }) {
     if (animal?.user?.id) data.previousUser = { connect: { id: animal.user.id } };
   }
   if (typeof data.message === "string") data.message = data.message.trim();
+  if (typeof data.petName === "string") data.petName = knownAnimalName(data.petName).slice(0, 60);
   if (typeof data.phone === "string") {
     const phone = normalizeMxPhone(data.phone);
     if (phone.ok) data.phone = phone.digits;
@@ -7022,6 +7384,13 @@ var AnimalClaim_default = (0, import_core8.list)({
     }),
     phone: (0, import_fields8.text)({
       ui: { description: "Tel\xE9fono de quien reclama. Pasa al reporte si se aprueba." }
+    }),
+    /**
+     * Cómo se llama su mascota, según quien reclama (opcional). Ayuda a quien atiende el reporte a
+     * decidir y, si se aprueba y el reporte no tenía nombre, pasa a `Animal.name`.
+     */
+    petName: (0, import_fields8.text)({
+      ui: { description: "Nombre de la mascota seg\xFAn quien reclama. Si se aprueba y el reporte no ten\xEDa nombre, se usa." }
     }),
     evidence: (0, import_fields8.image)({
       storage: "s3_animals"
@@ -9226,12 +9595,12 @@ function resolveRescuePetInput({ operation, resolvedData }) {
 }
 async function validateRescuePet({ operation, item, resolvedData, context, addValidationError }) {
   if (!resolvedData || isSudoContext(context) || isPlatformAdmin(context.session)) return;
-  const fail12 = (message) => addValidationError?.(message);
+  const fail13 = (message) => addValidationError?.(message);
   const userId = getSessionUserId(context.session);
   const organizationId = (operation === "create" ? resolvedData.organization?.connect?.id : item?.organizationId) ?? null;
   if (!organizationId) {
     if (resolvedData.stage || resolvedData.intakeDate || resolvedData.fosterMember?.connect) {
-      fail12("La etapa, la fecha de llegada y el hogar temporal son solo para fichas de un espacio de rescate.");
+      fail13("La etapa, la fecha de llegada y el hogar temporal son solo para fichas de un espacio de rescate.");
     }
     return;
   }
@@ -9243,16 +9612,16 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
       query: "status"
     });
     if (!isEditor) {
-      fail12("Solo admin, coordinaci\xF3n o voluntariado del espacio pueden crear fichas a su nombre.");
+      fail13("Solo admin, coordinaci\xF3n o voluntariado del espacio pueden crear fichas a su nombre.");
     } else if (!org?.status || !RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) {
-      fail12("Este espacio de rescate no est\xE1 activo.");
+      fail13("Este espacio de rescate no est\xE1 activo.");
     }
   } else if ((resolvedData.stage !== void 0 || resolvedData.intakeDate !== void 0) && !isEditor) {
-    fail12("La etapa y la fecha de llegada las cambia el equipo del espacio.");
+    fail13("La etapa y la fecha de llegada las cambia el equipo del espacio.");
   }
   if (resolvedData.fosterMember !== void 0) {
     if (!role || !RESCUE_ANIMAL_MANAGER_ROLES.includes(role)) {
-      fail12("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
+      fail13("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
       return;
     }
     const memberId = resolvedData.fosterMember?.connect?.id;
@@ -9261,7 +9630,7 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
         where: { id: memberId },
         query: "organization { id }"
       });
-      if (member?.organization?.id !== organizationId) fail12("Elige a alguien del equipo del espacio.");
+      if (member?.organization?.id !== organizationId) fail13("Elige a alguien del equipo del espacio.");
     }
   }
 }
@@ -10601,7 +10970,7 @@ var PET_EVENT_ALERTS = {
 var PET_EVENT_VIEW_DEDUPE_MS = 30 * 60 * 1e3;
 
 // models/Pet/PetEvent/PetEvent.rules.ts
-var DAY_MS3 = 24 * 60 * 60 * 1e3;
+var DAY_MS4 = 24 * 60 * 60 * 1e3;
 var PAST_TOLERANCE_MS = 10 * 60 * 1e3;
 var MX_BOUNDS = { minLat: 14, maxLat: 33, minLng: -119, maxLng: -86 };
 var CATEGORY_VALUES = new Set(PET_EVENT_CATEGORY_OPTIONS.map((option) => option.value));
@@ -10636,7 +11005,7 @@ function normalizeSessions(raw, { existing = [], now = /* @__PURE__ */ new Date(
     if (endsAt.getTime() <= startsAt.getTime()) {
       return { ok: false, message: "Cada fecha debe terminar despu\xE9s de empezar." };
     }
-    if (endsAt.getTime() - startsAt.getTime() > PET_EVENT_LIMITS.MAX_SESSION_DAYS * DAY_MS3) {
+    if (endsAt.getTime() - startsAt.getTime() > PET_EVENT_LIMITS.MAX_SESSION_DAYS * DAY_MS4) {
       return {
         ok: false,
         message: `Una fecha puede durar hasta ${PET_EVENT_LIMITS.MAX_SESSION_DAYS} d\xEDas. Si es m\xE1s, agrega varias fechas.`
@@ -10713,39 +11082,39 @@ async function normalizePetEventInput(context, input, {
   existingSessions = [],
   now = /* @__PURE__ */ new Date()
 }) {
-  const fail12 = (message) => ({ ok: false, message });
+  const fail13 = (message) => ({ ok: false, message });
   const title = clean3(input.title, PET_EVENT_LIMITS.TITLE_MAX);
-  if (title.length < PET_EVENT_LIMITS.TITLE_MIN) return fail12("Escribe un t\xEDtulo de al menos 5 letras.");
+  if (title.length < PET_EVENT_LIMITS.TITLE_MIN) return fail13("Escribe un t\xEDtulo de al menos 5 letras.");
   const category = (input.category ?? "").trim();
-  if (!CATEGORY_VALUES.has(category)) return fail12("Elige el tipo de evento.");
+  if (!CATEGORY_VALUES.has(category)) return fail13("Elige el tipo de evento.");
   const species = [...new Set((input.species ?? []).filter((value) => SPECIES_VALUES.has(value)))];
   const description = cleanMultiline(input.description, PET_EVENT_LIMITS.DESCRIPTION_MAX);
   if (description.length < PET_EVENT_LIMITS.DESCRIPTION_MIN) {
-    return fail12("Cuenta un poco m\xE1s del evento (al menos 20 letras).");
+    return fail13("Cuenta un poco m\xE1s del evento (al menos 20 letras).");
   }
   const requirements = cleanMultiline(input.requirements, PET_EVENT_LIMITS.REQUIREMENTS_MAX);
   const organizerName = clean3(input.organizerName, PET_EVENT_LIMITS.ORGANIZER_MAX);
   const contactPhone = optionalPhone2(input.contactPhone, "Tel\xE9fono de contacto");
-  if (!contactPhone.ok) return fail12(contactPhone.message);
+  if (!contactPhone.ok) return fail13(contactPhone.message);
   const registrationWhatsapp = optionalPhone2(input.registrationWhatsapp, "WhatsApp de registro");
-  if (!registrationWhatsapp.ok) return fail12(registrationWhatsapp.message);
+  if (!registrationWhatsapp.ok) return fail13(registrationWhatsapp.message);
   const registrationUrl = optionalUrl(input.registrationUrl);
-  if (!registrationUrl.ok) return fail12(registrationUrl.message);
+  if (!registrationUrl.ok) return fail13(registrationUrl.message);
   const social = {};
   for (const field of Object.keys(PET_EVENT_SOCIAL_NETWORKS)) {
     const result5 = normalizeSocialUrl(field, input[field]);
-    if (!result5.ok) return fail12(result5.message);
+    if (!result5.ok) return fail13(result5.message);
     social[field] = result5.url;
   }
   const websiteUrl = optionalUrl(input.websiteUrl, "El link del sitio web");
-  if (!websiteUrl.ok) return fail12(websiteUrl.message);
+  if (!websiteUrl.ok) return fail13(websiteUrl.message);
   const lat = Number(input.lat);
   const lng = Number(input.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 && lng === 0) {
-    return fail12("Marca en el mapa d\xF3nde ser\xE1 el evento.");
+    return fail13("Marca en el mapa d\xF3nde ser\xE1 el evento.");
   }
   if (lat < MX_BOUNDS.minLat || lat > MX_BOUNDS.maxLat || lng < MX_BOUNDS.minLng || lng > MX_BOUNDS.maxLng) {
-    return fail12("Por ahora solo publicamos eventos en M\xE9xico.");
+    return fail13("Por ahora solo publicamos eventos en M\xE9xico.");
   }
   let city = clean3(input.city, 120);
   let stateText = clean3(input.state, 120);
@@ -10762,16 +11131,16 @@ async function normalizePetEventInput(context, input, {
   }
   const stateCode = normalizeStateCode(stateText);
   if (!stateCode) {
-    return fail12("No pudimos reconocer el estado del lugar. Mueve un poco el pin o intenta de nuevo.");
+    return fail13("No pudimos reconocer el estado del lugar. Mueve un poco el pin o intenta de nuevo.");
   }
   const placeLabel = clean3(input.placeLabel, PET_EVENT_LIMITS.PLACE_LABEL_MAX);
   const scope = (input.scope ?? "").trim();
-  if (!SCOPE_VALUES.has(scope)) return fail12("Elige a qui\xE9n va dirigido el evento.");
+  if (!SCOPE_VALUES.has(scope)) return fail13("Elige a qui\xE9n va dirigido el evento.");
   if (scope === PET_EVENT_SCOPE.NATIONAL && !isAdmin) {
-    return fail12("El alcance nacional solo lo asigna el equipo de Kadesh. Elige estado, municipio o zona.");
+    return fail13("El alcance nacional solo lo asigna el equipo de Kadesh. Elige estado, municipio o zona.");
   }
   if (scope === PET_EVENT_SCOPE.CITY && !cityKey(city)) {
-    return fail12("No pudimos reconocer el municipio. Elige el alcance por estado o por zona.");
+    return fail13("No pudimos reconocer el municipio. Elige el alcance por estado o por zona.");
   }
   const reachInput = optionalInt(input.reachKm);
   const reachKm = scope === PET_EVENT_SCOPE.ZONE ? PET_EVENT_REACH_KM_OPTIONS.includes(reachInput ?? -1) ? reachInput : DEFAULT_PET_EVENT_REACH_KM : DEFAULT_PET_EVENT_REACH_KM;
@@ -10781,16 +11150,16 @@ async function normalizePetEventInput(context, input, {
   if (!isFree) {
     price = optionalInt(input.price);
     if (price !== null && (price < 1 || price > PET_EVENT_LIMITS.PRICE_MAX)) {
-      return fail12("Revisa el costo: debe ser un n\xFAmero de pesos v\xE1lido.");
+      return fail13("Revisa el costo: debe ser un n\xFAmero de pesos v\xE1lido.");
     }
-    if (price === null && !priceNote) return fail12("Escribe el costo o explica la cuota (p. ej. \xABdonativo voluntario\xBB).");
+    if (price === null && !priceNote) return fail13("Escribe el costo o explica la cuota (p. ej. \xABdonativo voluntario\xBB).");
   }
   const capacity = optionalInt(input.capacity);
   if (capacity !== null && (capacity < 1 || capacity > PET_EVENT_LIMITS.CAPACITY_MAX)) {
-    return fail12("El cupo debe ser de al menos 1 lugar.");
+    return fail13("El cupo debe ser de al menos 1 lugar.");
   }
   const sessions = normalizeSessions(input.sessions, { existing: existingSessions, now });
-  if (!sessions.ok) return fail12(sessions.message);
+  if (!sessions.ok) return fail13(sessions.message);
   let petPlace = null;
   const petPlaceId = (input.petPlaceId ?? "").trim();
   if (petPlaceId) {
@@ -10799,7 +11168,7 @@ async function normalizePetEventInput(context, input, {
       query: "id claimStatus user { id }"
     });
     const owns = place && place.user?.id === userId && place.claimStatus === PET_PLACE_CLAIM_STATUS.VERIFIED;
-    if (!place || !isAdmin && !owns) return fail12("Solo puedes ligar una veterinaria verificada que sea tuya.");
+    if (!place || !isAdmin && !owns) return fail13("Solo puedes ligar una veterinaria verificada que sea tuya.");
     petPlace = { connect: { id: place.id } };
   }
   const state = stateByCode(stateCode);
@@ -20286,7 +20655,7 @@ var PUSH_FLAG_BY_SOURCE = {
   ["task" /* TASK */]: "pushTasks"
 };
 var SELECTION_TARGET_QUERY = `id googleCalendarId account { ${ACCOUNT_TOKEN_QUERY} }`;
-var DAY_MS4 = 24 * 60 * 60 * 1e3;
+var DAY_MS5 = 24 * 60 * 60 * 1e3;
 function toDateOnly(iso) {
   return new Date(iso).toISOString().slice(0, 10);
 }
@@ -20299,7 +20668,7 @@ function buildGoogleEventBody(event) {
   if (event.allDay) {
     const startDate = toDateOnly(event.startAt);
     const lastDay = event.endAt ? toDateOnly(event.endAt) : startDate;
-    const endExclusive = new Date((/* @__PURE__ */ new Date(`${lastDay}T00:00:00Z`)).getTime() + DAY_MS4).toISOString().slice(0, 10);
+    const endExclusive = new Date((/* @__PURE__ */ new Date(`${lastDay}T00:00:00Z`)).getTime() + DAY_MS5).toISOString().slice(0, 10);
     return { ...base, start: { date: startDate }, end: { date: endExclusive } };
   }
   const start = new Date(event.startAt);
@@ -21763,7 +22132,7 @@ var resolver = {
   }, context) => {
     const startedAt = Date.now();
     const isSaas = product === PRODUCT.SAAS;
-    const fail12 = async (message, email, userId) => {
+    const fail13 = async (message, email, userId) => {
       await writeUserAuthLog(context, {
         startedAt,
         source: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
@@ -21781,7 +22150,7 @@ var resolver = {
     };
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
-      return fail12("Token de Google inv\xE1lido o expirado", "");
+      return fail13("Token de Google inv\xE1lido o expirado", "");
     }
     let user = await context.sudo().query.User.findOne({
       where: { email: payload.email },
@@ -21806,7 +22175,7 @@ var resolver = {
         if (isSaas) {
           const signupRoleIds = await findSignupRoleIds(context);
           if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
-            return fail12(
+            return fail13(
               "No se pudieron asignar los roles de empresa. Contacta a soporte.",
               payload.email
             );
@@ -21831,14 +22200,14 @@ var resolver = {
           await provisionSignupCompany(context, user.id, baseName);
         }
       } catch (err) {
-        return fail12(
+        return fail13(
           err instanceof Error ? err.message : "Error al crear usuario",
           payload.email
         );
       }
     }
     if (await loginBlockedReason(context, user.id)) {
-      return fail12(SUSPENDED_MESSAGE, payload.email, user.id);
+      return fail13(SUSPENDED_MESSAGE, payload.email, user.id);
     }
     user = await context.sudo().query.User.updateOne({
       where: { id: user.id },
@@ -21846,14 +22215,14 @@ var resolver = {
       query: USER_QUERY
     });
     if (!context.sessionStrategy) {
-      return fail12("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail13("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     const sessionToken = await context.sessionStrategy.start({
       data: { listKey: "User", itemId: user.id },
       context
     });
     if (typeof sessionToken !== "string" || sessionToken.length === 0) {
-      return fail12("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail13("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     await writeUserAuthLog(context, {
       startedAt,
@@ -22858,7 +23227,7 @@ async function consumeCompanyCredits(context, params) {
 }
 async function getCompanyRemainingCredits(context, companyId) {
   const { year, month } = getCurrentPeriodParts();
-  const empty3 = {
+  const empty4 = {
     blockingReason: null,
     remainingQuota: 0,
     syncedCount: 0,
@@ -22871,7 +23240,7 @@ async function getCompanyRemainingCredits(context, companyId) {
   };
   const subscription = await getActiveSubscription(context, companyId);
   if (!subscription) {
-    return { ...empty3, blockingReason: "no_subscription" };
+    return { ...empty4, blockingReason: "no_subscription" };
   }
   const isFreePlan = subscription.planCost != null && subscription.planCost <= 0;
   if (isFreePlan && subscription.activatedAt) {
@@ -22880,7 +23249,7 @@ async function getCompanyRemainingCredits(context, companyId) {
       subscription.currentPeriodEnd
     );
     if (isExpired) {
-      return { ...empty3, blockingReason: "free_plan_expired", leadLimit: 0 };
+      return { ...empty4, blockingReason: "free_plan_expired", leadLimit: 0 };
     }
   }
   const planLeadLimit = subscription.planLeadLimit ?? null;
@@ -22891,7 +23260,7 @@ async function getCompanyRemainingCredits(context, companyId) {
   );
   if (planLeadLimit === null) {
     return {
-      ...empty3,
+      ...empty4,
       blockingReason: "no_lead_limit",
       planLeadLimit,
       extraCredits
@@ -22899,7 +23268,7 @@ async function getCompanyRemainingCredits(context, companyId) {
   }
   if (planLeadLimit < 1 && extraCredits < 1) {
     return {
-      ...empty3,
+      ...empty4,
       blockingReason: "lead_limit_too_low",
       planLeadLimit,
       extraCredits,
@@ -28853,7 +29222,7 @@ var INEGI_DENUE_CATEGORIES = [
   { value: "todos", label: "Negocios locales" },
   { value: "todos", label: "Otra" }
 ];
-function fold(value) {
+function fold2(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
 }
 var CATCH_ALL = /* @__PURE__ */ new Set([
@@ -28871,7 +29240,7 @@ var KEYWORD_ALIASES = {
   laboratorio: "laboratorios"
 };
 function denueKeywordVariants(keyword) {
-  const folded = fold(keyword);
+  const folded = fold2(keyword);
   if (!folded) return [];
   const variants = /* @__PURE__ */ new Set([folded]);
   if (folded.endsWith("es") && folded.length > 5) {
@@ -28890,13 +29259,13 @@ function denueContains(keyword) {
   }));
 }
 function resolveDenueSearch(raw) {
-  const folded = fold(raw);
+  const folded = fold2(raw);
   const compact = KEYWORD_ALIASES[folded] ?? folded;
   if (!compact || CATCH_ALL.has(compact) || CATCH_ALL.has(compact.replace(/\s/g, ""))) {
     return { keyword: "todos", isCatchAll: true, label: "Negocios locales" };
   }
   const inegiByValue = INEGI_DENUE_CATEGORIES.find(
-    (item) => fold(item.value) === compact
+    (item) => fold2(item.value) === compact
   );
   if (inegiByValue) {
     return {
@@ -28906,7 +29275,7 @@ function resolveDenueSearch(raw) {
     };
   }
   const google = GOOGLE_PLACE_CATEGORIES.find(
-    (item) => fold(item.value) === compact
+    (item) => fold2(item.value) === compact
   );
   if (google) {
     const mapped = INEGI_DENUE_CATEGORIES.find(
@@ -28921,11 +29290,11 @@ function resolveDenueSearch(raw) {
     }
   }
   const byLabel = [...INEGI_DENUE_CATEGORIES, ...GOOGLE_PLACE_CATEGORIES].find(
-    (item) => fold(item.label) === compact
+    (item) => fold2(item.label) === compact
   );
   if (byLabel) {
     const mapped = INEGI_DENUE_CATEGORIES.find((item) => item.label === byLabel.label) ?? INEGI_DENUE_CATEGORIES.find(
-      (item) => fold(item.value) === fold(byLabel.value)
+      (item) => fold2(item.value) === fold2(byLabel.value)
     );
     if (mapped) {
       return {
@@ -29138,7 +29507,7 @@ var resolver17 = {
   syncLeadsFromInegi: async (_root, {
     input
   }, context) => {
-    const empty3 = emptyFields();
+    const empty4 = emptyFields();
     const session2 = context.session;
     const userId = session2?.data?.id;
     console.log("[syncLeadsFromInegi] START", {
@@ -29154,7 +29523,7 @@ var resolver17 = {
       return {
         success: false,
         message: MSG.login,
-        ...empty3
+        ...empty4
       };
     }
     const user = await context.sudo().query.User.findOne({
@@ -29166,7 +29535,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.noCompany,
-        ...empty3
+        ...empty4
       };
       await logResult(context, userId, void 0, input, result6);
       return result6;
@@ -29184,7 +29553,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.noSubscription,
-        ...empty3
+        ...empty4
       };
       await logResult(context, userId, company.id, input, result6);
       return result6;
@@ -29193,7 +29562,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.freeExpired,
-        ...empty3,
+        ...empty4,
         leadLimit: 0
       };
       await logResult(context, userId, company.id, input, result6);
@@ -29203,7 +29572,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.noLeadLimit,
-        ...empty3,
+        ...empty4,
         leadLimit
       };
       await logResult(context, userId, company.id, input, result6);
@@ -29213,7 +29582,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.leadLimitTooLow,
-        ...empty3,
+        ...empty4,
         leadLimit
       };
       await logResult(context, userId, company.id, input, result6);
@@ -29223,7 +29592,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.quotaFull(syncedCount, leadLimit),
-        ...empty3,
+        ...empty4,
         syncedCount,
         leadLimit
       };
@@ -29308,7 +29677,7 @@ var resolver17 = {
             consumeResult.syncedCount,
             consumeResult.leadLimit
           ),
-          ...empty3,
+          ...empty4,
           syncedCount: consumeResult.syncedCount,
           leadLimit: consumeResult.leadLimit
         };
@@ -29474,7 +29843,7 @@ var resolver17 = {
           const result6 = {
             success: false,
             message: MSG.searchFailed,
-            ...empty3,
+            ...empty4,
             syncedCount: currentSyncedCount,
             leadLimit
           };
@@ -29487,7 +29856,7 @@ var resolver17 = {
       const result6 = {
         success: false,
         message: MSG.searchFailed,
-        ...empty3,
+        ...empty4,
         syncedCount: currentSyncedCount,
         leadLimit
       };
@@ -30060,8 +30429,8 @@ async function ensurePetPlaceType(context, value) {
     return raced;
   }
 }
-async function ensurePetPlaceTypes(context, values) {
-  const unique = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+async function ensurePetPlaceTypes(context, values2) {
+  const unique = [...new Set(values2.map((value) => value.trim()).filter(Boolean))];
   const rows2 = [];
   for (const value of unique) {
     const row = await ensurePetPlaceType(context, value);
@@ -31094,7 +31463,7 @@ var resolver26 = {
       const userId = input.reporterUserId?.trim() || sessionUser || process.env.PET_AUTOMATION_USER_ID?.trim() || "";
       const animal = await context.sudo().query.Animal.createOne({
         data: {
-          name: input.name.trim() || "Sin nombre",
+          name: knownAnimalName(input.name),
           contactNumber: phone,
           contactNumber2: phone2,
           sex: input.sex?.trim() || "unknown",
@@ -31179,7 +31548,7 @@ var definition27 = `
   resolveAnimalClaim(claimId: ID!, approve: Boolean!, reason: String): AnimalClaimResult!
   cancelAnimalClaim(claimId: ID!): AnimalClaimResult!
 `;
-var CLAIM_QUERY = "id status phone claimant { id } animal { id name slug contactNumber contactNumber2 user { id } organization { id } }";
+var CLAIM_QUERY = "id status phone petName claimant { id } animal { id name slug contactNumber contactNumber2 user { id } organization { id } }";
 async function loadClaim(context, claimId) {
   return await context.sudo().query.AnimalClaim.findOne({
     where: { id: claimId },
@@ -31231,7 +31600,7 @@ var resolver27 = {
       });
       void logActivity(context, {
         type: "animal.claim_rejected",
-        summary: `Rechaz\xF3 la solicitud para el reporte \xAB${animal.name ?? animal.id}\xBB`,
+        summary: `Rechaz\xF3 la solicitud para el reporte \xAB${animal.name || animal.id}\xBB`,
         entityType: "Animal",
         entityId: animal.id,
         metadata: { claimId: claim.id }
@@ -31249,6 +31618,8 @@ var resolver27 = {
         reportedBy: "owner",
         contactNumber,
         contactNumber2,
+        // El reporte no tenía nombre y quien lo reclamó dijo cómo se llama: ya es su nombre.
+        ...!knownAnimalName(animal.name) && knownAnimalName(claim.petName) ? { name: knownAnimalName(claim.petName) } : {},
         // Era la mascota de alguien: deja de estar a nombre del espacio de rescate.
         ...animal.organization?.id ? { organization: { disconnect: true } } : {}
       }
@@ -31291,7 +31662,7 @@ var resolver27 = {
     }
     void logActivity(context, {
       type: "animal.claim_approved",
-      summary: `Pas\xF3 el reporte \xAB${animal.name ?? animal.id}\xBB a nombre de quien lo reclam\xF3`,
+      summary: `Pas\xF3 el reporte \xAB${animal.name || animal.id}\xBB a nombre de quien lo reclam\xF3`,
       entityType: "Animal",
       entityId: animal.id,
       metadata: {
@@ -31324,6 +31695,342 @@ var resolver27 = {
 };
 var animalClaims = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 var animalClaims_default = animalClaims;
+
+// utils/pet/reportLogs.ts
+var HOME_REPORT_STATUSES = ["adopted", "in_family"];
+async function lastReportLog(context, reportId) {
+  const [last] = await context.sudo().query.AnimalLog.findMany({
+    where: { animal: { id: { equals: reportId } } },
+    orderBy: [{ date_status: "desc" }, { createdAt: "desc" }],
+    take: 1,
+    query: "status lat lng address city state country neighborhood postalCode placeLabel"
+  });
+  return last ?? null;
+}
+async function addReportLog(context, reportId, status, notes, last, location) {
+  const place = location ? { lat: String(location.lat), lng: String(location.lng), address: location.address ?? "" } : {
+    lat: last?.lat ?? "",
+    lng: last?.lng ?? "",
+    address: last?.address ?? "",
+    city: last?.city ?? "",
+    state: last?.state ?? "",
+    country: last?.country ?? "",
+    neighborhood: last?.neighborhood ?? "",
+    postalCode: last?.postalCode ?? "",
+    placeLabel: last?.placeLabel ?? ""
+  };
+  await context.sudo().query.AnimalLog.createOne({
+    data: {
+      animal: { connect: { id: reportId } },
+      status,
+      notes,
+      date_status: (/* @__PURE__ */ new Date()).toISOString(),
+      last_seen: false,
+      ...place
+    },
+    query: "id"
+  });
+}
+async function closeReportAsAdopted(context, reportId, notes) {
+  try {
+    const last = await lastReportLog(context, reportId);
+    if (last?.status !== "adopted") await addReportLog(context, reportId, "adopted", notes, last);
+  } catch (error) {
+    console.error("[reportLogs] No se pudo cerrar el reporte como adoptado", { reportId }, error);
+  }
+}
+
+// graphql/customs/mutations/pet/closeAnimalReport.ts
+var MAX_STORY = 1e3;
+var MAX_NOTES = 300;
+var typeDefs31 = `
+  input CloseAnimalReportInput {
+    animalId: ID!
+    outcome: String!
+    helpedByKadesh: String
+    outcomeChannel: String
+    story: String
+    storyConsent: Boolean
+    notes: String
+  }
+
+  type CloseAnimalReportResult {
+    success: Boolean!
+    message: String!
+    animalSlug: String
+    status: String
+  }
+
+  type Mutation {
+    closeAnimalReport(input: CloseAnimalReportInput!): CloseAnimalReportResult!
+  }
+`;
+var definition28 = `
+  closeAnimalReport(input: CloseAnimalReportInput!): CloseAnimalReportResult!
+`;
+var DEFAULT_NOTES2 = {
+  [ANIMAL_OUTCOME.REUNITED]: "Volvi\xF3 con su familia.",
+  [ANIMAL_OUTCOME.ADOPTED]: "Fue adoptado.",
+  [ANIMAL_OUTCOME.OTHER_HOME]: "Encontr\xF3 un hogar.",
+  [ANIMAL_OUTCOME.DECEASED]: "Falleci\xF3.",
+  [ANIMAL_OUTCOME.CLOSED_UNRESOLVED]: "Se cerr\xF3 el caso."
+};
+function fail5(message) {
+  return { success: false, message, animalSlug: null, status: null };
+}
+async function canClose(context, animal, userId) {
+  if (isPlatformAdmin(context.session)) return true;
+  const ownerId = animal.user?.id ?? null;
+  const automation = automationUserId();
+  return canEditAnimalAs(
+    context,
+    {
+      userId: ownerId && ownerId !== automation ? ownerId : null,
+      organizationId: animal.organization?.id ?? null
+    },
+    userId
+  );
+}
+var resolver28 = {
+  closeAnimalReport: async (_root, { input }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return fail5("Inicia sesi\xF3n para cerrar el caso.");
+    if (!isAnimalOutcome(input.outcome)) return fail5("Elige c\xF3mo termin\xF3 el caso.");
+    const helpedByKadesh = input.helpedByKadesh == null ? null : input.helpedByKadesh;
+    if (helpedByKadesh !== null && !isHelpedByKadesh(helpedByKadesh)) {
+      return fail5("La respuesta sobre Kadesh no es v\xE1lida.");
+    }
+    const outcomeChannel = helpedByKadesh === "yes" && input.outcomeChannel ? input.outcomeChannel : null;
+    if (outcomeChannel !== null && !isOutcomeChannel(outcomeChannel)) {
+      return fail5("Elige por d\xF3nde ayud\xF3 Kadesh.");
+    }
+    const story = (input.story ?? "").trim().slice(0, MAX_STORY);
+    const storyConsent = Boolean(story && input.storyConsent);
+    const notes = (input.notes ?? "").trim().slice(0, MAX_NOTES);
+    const sudo = context.sudo();
+    const animal = await sudo.query.Animal.findOne({
+      where: { id: input.animalId },
+      query: "id name slug outcome closedAt user { id } organization { id } duplicateOf { id } pet { id status }"
+    });
+    if (!animal) return fail5("No encontramos ese reporte.");
+    if (animal.duplicateOf?.id) return fail5("Este reporte est\xE1 unido a otro. Ci\xE9rralo desde el reporte principal.");
+    if (!await canClose(context, animal, userId)) {
+      return fail5("Solo quien atiende el reporte puede cerrarlo.");
+    }
+    const last = await lastReportLog(context, animal.id);
+    if (!last) return fail5("Este reporte a\xFAn no tiene registros: agrega uno antes de cerrarlo.");
+    const status = OUTCOME_LOG_STATUS[input.outcome];
+    const alreadyClosed = Boolean(animal.outcome);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await sudo.query.Animal.updateOne({
+      where: { id: animal.id },
+      data: {
+        outcome: input.outcome,
+        helpedByKadesh,
+        outcomeChannel,
+        outcomeStory: story,
+        storyConsent,
+        closedAt: animal.closedAt ?? now
+      }
+    });
+    if (last.status !== status) {
+      await addReportLog(context, animal.id, status, notes || DEFAULT_NOTES2[input.outcome], last);
+    }
+    if (input.outcome === ANIMAL_OUTCOME.REUNITED && animal.pet?.id && animal.pet.status === PET_STATUS.LOST) {
+      const prisma = sudo.prisma;
+      const updated = await prisma.pet.update({
+        where: { id: animal.pet.id },
+        data: { status: PET_STATUS.ACTIVE, lostReportId: null }
+      });
+      if (updated instanceof Error) {
+        console.error("[closeAnimalReport] No se pudo reactivar la mascota de la cartilla", updated);
+      }
+    }
+    void logActivity(context, {
+      type: alreadyClosed ? "animal.outcome_updated" : "animal.closed",
+      summary: `${alreadyClosed ? "Actualiz\xF3 el cierre de" : "Cerr\xF3"} el reporte \xAB${animal.name || animal.id}\xBB`,
+      entityType: "Animal",
+      entityId: animal.id,
+      metadata: { outcome: input.outcome, helpedByKadesh, outcomeChannel }
+    });
+    return {
+      success: true,
+      message: alreadyClosed ? "Actualizamos el cierre del caso." : "Cerraste el caso. \xA1Gracias por avisar!",
+      animalSlug: animal.slug ?? null,
+      status
+    };
+  }
+};
+var closeAnimalReport_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+
+// graphql/customs/mutations/pet/sendAnimalFollowUps.ts
+var MAX_REMINDERS_PER_RUN = 200;
+var MAX_INACTIVE_PER_RUN = 500;
+var typeDefs32 = `
+  type SendAnimalFollowUpsResult {
+    success: Boolean!
+    message: String!
+    reminded: Int!
+    inactivated: Int!
+    failed: Int!
+  }
+`;
+var definition29 = `
+  sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
+`;
+var empty2 = { reminded: 0, inactivated: 0, failed: 0 };
+function unwrap(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+async function findReminderCandidates(prisma, automation) {
+  const now = Date.now();
+  const rows2 = await prisma.$queryRaw`
+    SELECT a.id, a.name, a.sex, a.color, t.name AS "typeName", a.slug, a."followUpStage" AS stage,
+           u.id AS "userId", u.name AS "userName", u.email, u."anonymizedAt", u."suspendedAt"
+    FROM "Animal" a
+    JOIN "User" u ON u.id = a."user"
+    LEFT JOIN "AnimalType" t ON t.id = a."animal_type"
+    JOIN LATERAL (
+      SELECT l.status FROM "AnimalLog" l
+      WHERE l."animal" = a.id
+      ORDER BY l."date_status" DESC NULLS LAST, l."createdAt" DESC NULLS LAST
+      LIMIT 1
+    ) last ON true
+    WHERE a.outcome IS NULL
+      AND a."duplicateOf" IS NULL
+      AND a."inactiveAt" IS NULL
+      AND u.id <> ${automation}
+      AND last.status = ANY(${OPEN_CASE_STATUSES}::text[])
+      AND (
+        (a."followUpStage" = 0 AND a."lastActivityAt" <= ${daysAgo(FOLLOW_UP_FIRST_DAYS, now)})
+        OR (
+          a."followUpStage" = 1
+          AND a."lastActivityAt" <= ${daysAgo(FOLLOW_UP_SECOND_DAYS, now)}
+          AND a."followUpSentAt" <= ${daysAgo(FOLLOW_UP_MIN_GAP_DAYS, now)}
+        )
+      )
+    ORDER BY a."lastActivityAt" ASC
+    LIMIT ${MAX_REMINDERS_PER_RUN}::int
+  `;
+  return unwrap(rows2);
+}
+async function findInactiveCandidates(prisma, automation) {
+  const now = Date.now();
+  const rows2 = await prisma.$queryRaw`
+    SELECT a.id
+    FROM "Animal" a
+    JOIN LATERAL (
+      SELECT l.status FROM "AnimalLog" l
+      WHERE l."animal" = a.id
+      ORDER BY l."date_status" DESC NULLS LAST, l."createdAt" DESC NULLS LAST
+      LIMIT 1
+    ) last ON true
+    WHERE a.outcome IS NULL
+      AND a."duplicateOf" IS NULL
+      AND a."inactiveAt" IS NULL
+      AND last.status = ANY(${OPEN_CASE_STATUSES}::text[])
+      AND (
+        (
+          a."user" IS NOT NULL AND a."user" <> ${automation}
+          AND a."followUpStage" = 2
+          AND a."lastActivityAt" <= ${daysAgo(INACTIVE_AFTER_DAYS, now)}
+          AND a."followUpSentAt" <= ${daysAgo(INACTIVE_MIN_GAP_DAYS, now)}
+        )
+        OR (
+          (a."user" IS NULL OR a."user" = ${automation})
+          AND a."lastActivityAt" <= ${daysAgo(INACTIVE_UNOWNED_DAYS, now)}
+        )
+      )
+    LIMIT ${MAX_INACTIVE_PER_RUN}::int
+  `;
+  return unwrap(rows2).map((row) => row.id);
+}
+async function remind(context, animal) {
+  const nextStage = animal.stage + 1;
+  const prisma = context.sudo().prisma;
+  const claimed = unwrap(
+    await prisma.animal.updateMany({
+      where: { id: animal.id, followUpStage: animal.stage, outcome: null },
+      data: { followUpStage: nextStage, followUpSentAt: /* @__PURE__ */ new Date() }
+    })
+  );
+  if (claimed.count !== 1) return false;
+  const name = animalSentenceName(animal);
+  const Name = capitalizeFirst(name);
+  const elapsed = nextStage === 1 ? "una semana" : "3 semanas";
+  const detail = `/animales/${animal.slug || animal.id}`;
+  const url = petSiteUrl(detail);
+  const finalNotice = nextStage === 2;
+  await notify(context, {
+    audience: [animal.userId],
+    product: "pet",
+    type: NOTIFICATION_TYPE.ANIMAL_FOLLOW_UP,
+    title: `\xBF${Name} ya volvi\xF3 a casa?`,
+    body: finalNotice ? `Van 3 semanas sin novedades. Cierra el caso si ya se resolvi\xF3 o agrega un registro: si no hay novedades, dejar\xE1 de salir en el mapa.` : `Va una semana sin novedades. Cierra el caso si ya se resolvi\xF3 o agrega un registro si sigues buscando.`,
+    entityType: "Animal",
+    entityId: animal.id,
+    url: detail,
+    metadata: { stage: nextStage },
+    templateValues: { animalName: name, elapsed, url }
+  });
+  if (animal.email && !animal.anonymizedAt && !animal.suspendedAt) {
+    try {
+      await sendAnimalFollowUpEmail({
+        to: animal.email,
+        displayName: animal.userName?.trim() || "",
+        animalName: name,
+        elapsed,
+        closeUrl: petSiteUrl(`${detail}?accion=${ANIMAL_DETAIL_ACTION.close}`),
+        addLogUrl: petSiteUrl(`${detail}?accion=${ANIMAL_DETAIL_ACTION.addLog}`),
+        finalNotice
+      });
+    } catch (error) {
+      console.error("[followUps] No se pudo mandar el correo", { animalId: animal.id }, error);
+    }
+  }
+  return true;
+}
+var resolver29 = {
+  sendAnimalFollowUps: async (_root, { secret }, context) => {
+    const expected = process.env.CRON_SECRET?.trim();
+    if (!expected || secret !== expected) {
+      return { success: false, message: "No autorizado.", ...empty2 };
+    }
+    try {
+      const prisma = context.sudo().prisma;
+      const automation = automationUserId() || "__sin_automatizacion__";
+      let reminded = 0;
+      let failed = 0;
+      for (const animal of await findReminderCandidates(prisma, automation)) {
+        try {
+          if (await remind(context, animal)) reminded += 1;
+        } catch (error) {
+          failed += 1;
+          console.error("[followUps] No se pudo mandar el recordatorio", { animalId: animal.id }, error);
+        }
+      }
+      const inactiveIds = await findInactiveCandidates(prisma, automation);
+      const inactivated = inactiveIds.length ? unwrap(
+        await prisma.animal.updateMany({
+          where: { id: { in: inactiveIds }, inactiveAt: null },
+          data: { inactiveAt: /* @__PURE__ */ new Date() }
+        })
+      ).count : 0;
+      return {
+        success: true,
+        message: `Recordatorios: ${reminded}. Casos inactivos: ${inactivated}.`,
+        reminded,
+        inactivated,
+        failed
+      };
+    } catch (error) {
+      console.error("[followUps] sendAnimalFollowUps", error);
+      return { success: false, message: "No se pudo completar el seguimiento.", ...empty2 };
+    }
+  }
+};
+var sendAnimalFollowUps_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
 var import_graphql6 = require("graphql");
@@ -31514,61 +32221,23 @@ async function settleApplicationsAfterAdoption(context, {
   }
 }
 
-// utils/pet/reportLogs.ts
-var HOME_REPORT_STATUSES = ["adopted", "in_family"];
-async function lastReportLog(context, reportId) {
-  const [last] = await context.sudo().query.AnimalLog.findMany({
-    where: { animal: { id: { equals: reportId } } },
-    orderBy: [{ date_status: "desc" }, { createdAt: "desc" }],
-    take: 1,
-    query: "status lat lng address city state country neighborhood postalCode placeLabel"
-  });
-  return last ?? null;
-}
-async function addReportLog(context, reportId, status, notes, last, location) {
-  const place = location ? { lat: String(location.lat), lng: String(location.lng), address: location.address ?? "" } : {
-    lat: last?.lat ?? "",
-    lng: last?.lng ?? "",
-    address: last?.address ?? "",
-    city: last?.city ?? "",
-    state: last?.state ?? "",
-    country: last?.country ?? "",
-    neighborhood: last?.neighborhood ?? "",
-    postalCode: last?.postalCode ?? "",
-    placeLabel: last?.placeLabel ?? ""
-  };
-  await context.sudo().query.AnimalLog.createOne({
-    data: {
-      animal: { connect: { id: reportId } },
-      status,
-      notes,
-      date_status: (/* @__PURE__ */ new Date()).toISOString(),
-      last_seen: false,
-      ...place
-    },
-    query: "id"
-  });
-}
-async function closeReportAsAdopted(context, reportId, notes) {
-  try {
-    const last = await lastReportLog(context, reportId);
-    if (last?.status !== "adopted") await addReportLog(context, reportId, "adopted", notes, last);
-  } catch (error) {
-    console.error("[reportLogs] No se pudo cerrar el reporte como adoptado", { reportId }, error);
-  }
-}
-
 // utils/pet/petTransfer.ts
 function prismaOf5(context) {
   return context.sudo().prisma;
 }
 var SEX_VALUES = /* @__PURE__ */ new Set(["male", "female", "unknown"]);
-var REPORT_FOR_PET_QUERY = "id name slug sex color age physical_description animal_type { id } animal_breed { id } user { id } organization { id name status } pet { id } duplicateOf { id }";
+var REPORT_FOR_PET_QUERY = "id name slug sex color age physical_description animal_type { id name } animal_breed { id } user { id } organization { id name status } pet { id } duplicateOf { id }";
 async function createPetFromReport(context, report, target) {
   const sudo = context.sudo();
   const created = await sudo.query.Pet.createOne({
     data: {
-      name: report.name?.trim() || "Sin nombre",
+      // Sin nombre conocido, la cartilla arranca con la descripción («Perra café»); se puede cambiar.
+      name: animalDisplayName({
+        name: report.name,
+        typeName: report.animal_type?.name,
+        sex: report.sex,
+        color: report.color
+      }),
       sex: report.sex && SEX_VALUES.has(report.sex) ? report.sex : "unknown",
       color: report.color ?? "",
       approximateAge: report.age ?? "",
@@ -31644,7 +32313,7 @@ async function transferPetToOwner(context, pet, newOwnerId, { reportNote } = {})
 }
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
-var typeDefs31 = `
+var typeDefs33 = `
   input AdoptionApplicationInput {
     phone: String!
     "Por qu\xE9 quiere adoptarlo (20 a 1000 caracteres)"
@@ -31677,7 +32346,7 @@ var typeDefs31 = `
     petId: ID
   }
 `;
-var definition28 = `
+var definition30 = `
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
   "Solo quien la envi\xF3 y solo mientras siga \xABEnviada\xBB (submitted)."
   editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
@@ -31783,19 +32452,19 @@ var REVIEW_COPY = {
     body: note || "Gracias por querer adoptar. Hay m\xE1s animales esperando un hogar en KADESH."
   })
 };
-var resolver28 = {
+var resolver30 = {
   submitAdoptionApplication: async (_root, { animalId, input }, context) => {
-    const fail12 = (message) => ({ success: false, message, application: null });
+    const fail13 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail12("Inicia sesi\xF3n para enviar tu solicitud.");
+      if (!userId) return fail13("Inicia sesi\xF3n para enviar tu solicitud.");
       const sudo = context.sudo();
       const animal = await sudo.query.Animal.findOne({ where: { id: animalId }, query: ANIMAL_FIELDS });
-      if (!animal) return fail12("No encontramos ese animal.");
-      if (animal.duplicateOf) return fail12("Este reporte se uni\xF3 a otro: solicita desde el reporte principal.");
+      if (!animal) return fail13("No encontramos ese animal.");
+      if (animal.duplicateOf) return fail13("Este reporte se uni\xF3 a otro: solicita desde el reporte principal.");
       const last = await lastReportLog(context, animal.id);
-      if (last?.status !== "in_adoption") return fail12(`${animalLabel(animal)} ya no est\xE1 en adopci\xF3n.`);
-      if (await canReview(context, animal, userId)) return fail12("Es un animal que t\xFA (o tu equipo) publicaste.");
+      if (last?.status !== "in_adoption") return fail13(`${animalLabel(animal)} ya no est\xE1 en adopci\xF3n.`);
+      if (await canReview(context, animal, userId)) return fail13("Es un animal que t\xFA (o tu equipo) publicaste.");
       const open = await sudo.query.AdoptionApplication.count({
         where: {
           animal: { id: { equals: animal.id } },
@@ -31803,9 +32472,9 @@ var resolver28 = {
           status: { in: ADOPTION_APPLICATION_ACTIVE_STATUSES }
         }
       });
-      if (open > 0) return fail12(`Ya enviaste una solicitud para ${animalLabel(animal)}. Te avisaremos cuando respondan.`);
+      if (open > 0) return fail13(`Ya enviaste una solicitud para ${animalLabel(animal)}. Te avisaremos cuando respondan.`);
       const checked = validateInput(input);
-      if (!checked.ok) return fail12(checked.message);
+      if (!checked.ok) return fail13(checked.message);
       const applicant = await sudo.query.User.findOne({
         where: { id: userId },
         query: "name lastName email"
@@ -31850,23 +32519,23 @@ var resolver28 = {
       };
     } catch (error) {
       console.error("[submitAdoptionApplication]", error);
-      return fail12(errorMessage(error, "No pudimos enviar tu solicitud. Intenta de nuevo."));
+      return fail13(errorMessage(error, "No pudimos enviar tu solicitud. Intenta de nuevo."));
     }
   },
   reviewAdoptionApplication: async (_root, { applicationId, status, note }, context) => {
-    const fail12 = (message) => ({ success: false, message, application: null });
+    const fail13 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail12("Inicia sesi\xF3n para continuar.");
-      if (!ADOPTION_APPLICATION_REVIEW_STATUSES.includes(status)) return fail12("Elige qu\xE9 hacer con la solicitud.");
+      if (!userId) return fail13("Inicia sesi\xF3n para continuar.");
+      if (!ADOPTION_APPLICATION_REVIEW_STATUSES.includes(status)) return fail13("Elige qu\xE9 hacer con la solicitud.");
       const application = await loadApplication(context, applicationId);
       const animal = application.animal;
-      if (!await canReview(context, animal, userId)) return fail12("Solo quien atiende a este animal revisa sus solicitudes.");
-      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail12("Esta solicitud ya est\xE1 cerrada.");
-      if (application.status === status) return fail12("La solicitud ya est\xE1 as\xED.");
+      if (!await canReview(context, animal, userId)) return fail13("Solo quien atiende a este animal revisa sus solicitudes.");
+      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail13("Esta solicitud ya est\xE1 cerrada.");
+      if (application.status === status) return fail13("La solicitud ya est\xE1 as\xED.");
       const clean4 = (note ?? "").trim();
       if (clean4.length > ADOPTION_APPLICATION_LIMITS.NOTE_MAX) {
-        return fail12(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
+        return fail13(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
       }
       const updated = await prismaOf6(context).adoptionApplication.update({
         where: { id: application.id },
@@ -31908,24 +32577,24 @@ var resolver28 = {
       };
     } catch (error) {
       console.error("[reviewAdoptionApplication]", error);
-      return fail12(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
+      return fail13(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
     }
   },
   editAdoptionApplication: async (_root, { applicationId, input }, context) => {
-    const fail12 = (message) => ({ success: false, message, application: null });
+    const fail13 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
       const application = await loadApplication(context, applicationId);
-      if (!userId || application.applicant?.id !== userId) return fail12("Solo quien envi\xF3 la solicitud puede editarla.");
+      if (!userId || application.applicant?.id !== userId) return fail13("Solo quien envi\xF3 la solicitud puede editarla.");
       const animal = application.animal;
       const name = animalLabel(animal);
       if (application.status !== ADOPTION_APPLICATION_STATUS.SUBMITTED) {
-        return fail12(
+        return fail13(
           ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status) ? `Quien cuida a ${name} ya la est\xE1 revisando, as\xED que ya no se puede editar. Si algo cambi\xF3, cu\xE9ntaselo cuando te contacte.` : "Esta solicitud ya est\xE1 cerrada."
         );
       }
       const checked = validateInput(input);
-      if (!checked.ok) return fail12(checked.message);
+      if (!checked.ok) return fail13(checked.message);
       const updated = await prismaOf6(context).adoptionApplication.update({
         where: { id: application.id },
         data: { phone: checked.phone, message: input.message.trim(), answers: answersFrom(input) }
@@ -31956,16 +32625,16 @@ var resolver28 = {
       };
     } catch (error) {
       console.error("[editAdoptionApplication]", error);
-      return fail12(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
+      return fail13(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
     }
   },
   withdrawAdoptionApplication: async (_root, { applicationId }, context) => {
-    const fail12 = (message) => ({ success: false, message, application: null });
+    const fail13 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
       const application = await loadApplication(context, applicationId);
-      if (!userId || application.applicant?.id !== userId) return fail12("Solo quien envi\xF3 la solicitud puede retirarla.");
-      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail12("Esta solicitud ya est\xE1 cerrada.");
+      if (!userId || application.applicant?.id !== userId) return fail13("Solo quien envi\xF3 la solicitud puede retirarla.");
+      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail13("Esta solicitud ya est\xE1 cerrada.");
       const updated = await prismaOf6(context).adoptionApplication.update({
         where: { id: application.id },
         data: { status: ADOPTION_APPLICATION_STATUS.WITHDRAWN, decidedAt: /* @__PURE__ */ new Date() }
@@ -31984,40 +32653,40 @@ var resolver28 = {
       };
     } catch (error) {
       console.error("[withdrawAdoptionApplication]", error);
-      return fail12(errorMessage(error, "No pudimos retirar la solicitud. Intenta de nuevo."));
+      return fail13(errorMessage(error, "No pudimos retirar la solicitud. Intenta de nuevo."));
     }
   },
   completeAdoptionApplication: async (_root, { applicationId }, context) => {
-    const fail12 = (message) => ({ success: false, message, petId: null });
+    const fail13 = (message) => ({ success: false, message, petId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail12("Inicia sesi\xF3n para continuar.");
+      if (!userId) return fail13("Inicia sesi\xF3n para continuar.");
       const application = await loadApplication(context, applicationId);
       const animalRow = application.animal;
-      if (application.status !== ADOPTION_APPLICATION_STATUS.APPROVED) return fail12("Primero aprueba la solicitud.");
+      if (application.status !== ADOPTION_APPLICATION_STATUS.APPROVED) return fail13("Primero aprueba la solicitud.");
       if (!await canComplete(context, animalRow, userId)) {
-        return fail12(
+        return fail13(
           animalRow.organization ? "La adopci\xF3n la completan admin y coordinaci\xF3n del espacio." : "La adopci\xF3n la completa quien public\xF3 al animal."
         );
       }
       const adopterId = application.applicant?.id;
-      if (!adopterId) return fail12("La cuenta de quien pidi\xF3 adoptarlo ya no existe.");
+      if (!adopterId) return fail13("La cuenta de quien pidi\xF3 adoptarlo ya no existe.");
       const report = await context.sudo().query.Animal.findOne({
         where: { id: animalRow.id },
         query: REPORT_FOR_PET_QUERY
       });
-      if (!report) return fail12("No encontramos ese animal.");
+      if (!report) return fail13("No encontramos ese animal.");
       const name = animalLabel(report);
       const giverName = report.organization?.name ?? null;
       const reportNote = giverName ? `Adoptado con ${giverName} en KADESH.` : "Adoptado con KADESH.";
       let petId;
       if (report.pet) {
         const pet = await loadTransferablePet(context, report.pet.id);
-        if (!pet) return fail12("No encontramos su cartilla.");
+        if (!pet) return fail13("No encontramos su cartilla.");
         if (pet.organizationId) {
-          if (pet.organizationId !== report.organization?.id) return fail12("Su ficha es de otro espacio de rescate.");
+          if (pet.organizationId !== report.organization?.id) return fail13("Su ficha es de otro espacio de rescate.");
         } else if (!report.user?.id || await findPetOwnerRole(context, pet.id, report.user.id) !== PET_OWNER_ROLE.PRINCIPAL) {
-          return fail12("Este animal tiene la cartilla de otra persona: p\xEDdele que te la pase con un c\xF3digo.");
+          return fail13("Este animal tiene la cartilla de otra persona: p\xEDdele que te la pase con un c\xF3digo.");
         }
         await transferPetToOwner(context, pet, adopterId);
         await cancelPendingTransfers(context, pet.id);
@@ -32052,15 +32721,15 @@ var resolver28 = {
       };
     } catch (error) {
       console.error("[completeAdoptionApplication]", error);
-      return fail12(errorMessage(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
+      return fail13(errorMessage(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
     }
   }
 };
-var adoptionApplications_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var adoptionApplications_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // graphql/customs/mutations/pet/card/markPetAsLost.ts
 var import_graphql7 = require("graphql");
-var typeDefs32 = `
+var typeDefs34 = `
   input PetLastSeenLocationInput {
     lat: String!
     lng: String!
@@ -32074,10 +32743,10 @@ var typeDefs32 = `
     url: String!
   }
 `;
-var definition29 = `
+var definition31 = `
   markPetAsLost(petId: ID!, lastSeenLocation: PetLastSeenLocationInput!, lastSeenDate: String!, notes: String, contactPhone: String): MarkPetAsLostResult!
 `;
-var resolver29 = {
+var resolver31 = {
   /**
    * Crea el reporte de perdida con los datos y fotos de la mascota, la marca `lost` y liga los dos.
    * El reporte sale por `createAnimalReport` (mismo slug, ciudad, validaciones, alerta de zona y
@@ -32157,21 +32826,21 @@ var resolver29 = {
     }
   }
 };
-var markPetAsLost_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var markPetAsLost_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // graphql/customs/mutations/pet/card/markPetAsFound.ts
 var import_graphql8 = require("graphql");
 var BACK_HOME_STATUS = "in_family";
-var typeDefs33 = `
+var typeDefs35 = `
   type MarkPetAsFoundResult {
     petId: ID!
     reportId: ID
   }
 `;
-var definition30 = `
+var definition32 = `
   markPetAsFound(petId: ID!): MarkPetAsFoundResult!
 `;
-var resolver30 = {
+var resolver32 = {
   /** La mascota vuelve a `active` y su reporte se cierra con una bitácora "En familia". */
   markPetAsFound: async (_root, { petId }, context) => {
     try {
@@ -32228,22 +32897,22 @@ var resolver30 = {
     }
   }
 };
-var markPetAsFound_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var markPetAsFound_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // graphql/customs/mutations/pet/card/addPetFamilyMember.ts
 var import_graphql9 = require("graphql");
 var PET_FAMILY_USER_NOT_FOUND = "PET_FAMILY_USER_NOT_FOUND";
-var typeDefs34 = `
+var typeDefs36 = `
   type PetFamilyMemberResult {
     id: ID!
     role: String!
     userName: String!
   }
 `;
-var definition31 = `
+var definition33 = `
   addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
 `;
-var resolver31 = {
+var resolver33 = {
   /**
    * El dueño principal agrega a un familiar por correo: nadie puede leer el `id` de otro `User`,
    * así que la búsqueda va con sudo y solo devuelve el nombre.
@@ -32284,13 +32953,13 @@ var resolver31 = {
     }
   }
 };
-var addPetFamilyMember_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var addPetFamilyMember_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/pet/card/registerPetFamilyMember.ts
 var import_graphql10 = require("graphql");
 var EMAIL_PATTERN3 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 var MIN_PASSWORD_LENGTH = 8;
-var typeDefs35 = `
+var typeDefs37 = `
   input RegisterPetFamilyMemberInput {
     name: String!
     lastName: String
@@ -32306,13 +32975,13 @@ var typeDefs35 = `
     createdAccount: Boolean!
   }
 `;
-var definition32 = `
+var definition34 = `
   registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
 `;
 function displayName(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver32 = {
+var resolver34 = {
   /**
    * El dueño principal registra a un familiar que aún no tiene cuenta: crea la cuenta con la
    * contraseña que él elige, lo agrega como `family` y le manda un correo que le dice que esa
@@ -32393,7 +33062,7 @@ var resolver32 = {
     }
   }
 };
-var registerPetFamilyMember_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var registerPetFamilyMember_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // utils/pet/petReminders.ts
 function reminderUrl(reminder) {
@@ -32553,7 +33222,7 @@ async function sendReminderNotification(context, reminder) {
 
 // graphql/customs/mutations/pet/card/sendDuePetReminders.ts
 var MAX_PER_RUN = 500;
-var typeDefs36 = `
+var typeDefs38 = `
   type SendDuePetRemindersResult {
     success: Boolean!
     message: String!
@@ -32562,11 +33231,11 @@ var typeDefs36 = `
     failed: Int!
   }
 `;
-var definition33 = `
+var definition35 = `
   sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
 `;
-var empty2 = { processed: 0, sent: 0, failed: 0 };
-var resolver33 = {
+var empty3 = { processed: 0, sent: 0, failed: 0 };
+var resolver35 = {
   /**
    * Manda los `PetReminder` pendientes cuya fecha de aviso (`dueDate - notifyDaysBefore`) ya llegó
    * (hoy en CDMX o antes). La llama un cron diario (.github/workflows/send-pet-reminders.yml) con
@@ -32575,7 +33244,7 @@ var resolver33 = {
   sendDuePetReminders: async (_root, { secret }, context) => {
     const expected = process.env.CRON_SECRET?.trim();
     if (!expected || secret !== expected) {
-      return { success: false, message: "No autorizado.", ...empty2 };
+      return { success: false, message: "No autorizado.", ...empty3 };
     }
     try {
       const prisma = context.sudo().prisma;
@@ -32627,17 +33296,17 @@ var resolver33 = {
       return {
         success: false,
         message: error instanceof Error ? error.message : "No se pudieron mandar los recordatorios.",
-        ...empty2
+        ...empty3
       };
     }
   }
 };
-var sendDuePetReminders_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var sendDuePetReminders_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/mutations/pet/card/petTransfer.ts
 var import_crypto5 = require("crypto");
 var import_graphql11 = require("graphql");
-var typeDefs37 = `
+var typeDefs39 = `
   type PetTransferCodeResult {
     success: Boolean!
     message: String!
@@ -32665,7 +33334,7 @@ var typeDefs37 = `
     petId: ID
   }
 `;
-var definition34 = `
+var definition36 = `
   createPetTransferCode(petId: ID!, message: String): PetTransferCodeResult!
   cancelPetTransferCode(transferId: ID!): PetTransferCodeResult!
   previewPetTransferCode(code: String!): PetTransferPreview!
@@ -32745,19 +33414,19 @@ async function loadRedeemable(context, rawCode, userId) {
 function displayName2(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver34 = {
+var resolver36 = {
   createPetTransferCode: async (_root, { petId, message }, context) => {
-    const fail12 = (text86) => ({ success: false, message: text86, transfer: null });
+    const fail13 = (text86) => ({ success: false, message: text86, transfer: null });
     try {
       const { userId, pet, organization } = await requireGiver(context, petId);
       if (pet.status !== PET_STATUS.ACTIVE) {
-        return fail12(
+        return fail13(
           pet.status === PET_STATUS.LOST ? "Primero cierra su reporte de perdida con \xABYa regres\xF3 a casa\xBB." : "Solo se traspasa una mascota activa."
         );
       }
       const note = (message ?? "").trim();
       if (note.length > PET_TRANSFER_MESSAGE_MAX) {
-        return fail12(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
+        return fail13(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
       }
       await cancelPendingTransfers(context, pet.id);
       const prisma = prismaOf7(context);
@@ -32767,7 +33436,7 @@ var resolver34 = {
         const taken = await prisma.petTransfer.findUnique({ where: { code: candidate }, select: { id: true } });
         if (!taken) code = candidate;
       }
-      if (!code) return fail12("No pudimos generar el c\xF3digo. Intenta de nuevo.");
+      if (!code) return fail13("No pudimos generar el c\xF3digo. Intenta de nuevo.");
       const created = await prisma.petTransfer.create({
         data: {
           petId: pet.id,
@@ -32795,18 +33464,18 @@ var resolver34 = {
       };
     } catch (error) {
       console.error("[createPetTransferCode]", error);
-      return fail12(errorMessage2(error, "No pudimos generar el c\xF3digo. Intenta de nuevo."));
+      return fail13(errorMessage2(error, "No pudimos generar el c\xF3digo. Intenta de nuevo."));
     }
   },
   cancelPetTransferCode: async (_root, { transferId }, context) => {
-    const fail12 = (text86) => ({ success: false, message: text86, transfer: null });
+    const fail13 = (text86) => ({ success: false, message: text86, transfer: null });
     try {
       const prisma = prismaOf7(context);
       const transfer = await prisma.petTransfer.findUnique({ where: { id: transferId } });
-      if (!transfer?.petId) return fail12("No encontramos ese c\xF3digo.");
+      if (!transfer?.petId) return fail13("No encontramos ese c\xF3digo.");
       const userId = getSessionUserId(context.session);
       if (transfer.createdById !== userId) await requireGiver(context, transfer.petId);
-      if (transfer.status !== PET_TRANSFER_STATUS.PENDING) return fail12("Ese c\xF3digo ya no est\xE1 activo.");
+      if (transfer.status !== PET_TRANSFER_STATUS.PENDING) return fail13("Ese c\xF3digo ya no est\xE1 activo.");
       const updated = await prisma.petTransfer.update({
         where: { id: transfer.id },
         data: { status: PET_TRANSFER_STATUS.CANCELLED }
@@ -32826,11 +33495,11 @@ var resolver34 = {
       };
     } catch (error) {
       console.error("[cancelPetTransferCode]", error);
-      return fail12(errorMessage2(error, "No pudimos cancelar el c\xF3digo. Intenta de nuevo."));
+      return fail13(errorMessage2(error, "No pudimos cancelar el c\xF3digo. Intenta de nuevo."));
     }
   },
   previewPetTransferCode: async (_root, { code }, context) => {
-    const empty3 = {
+    const empty4 = {
       petName: null,
       species: null,
       breed: null,
@@ -32842,9 +33511,9 @@ var resolver34 = {
     };
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return { success: false, message: "Inicia sesi\xF3n para recibir a la mascota.", ...empty3 };
+      if (!userId) return { success: false, message: "Inicia sesi\xF3n para recibir a la mascota.", ...empty4 };
       const found = await loadRedeemable(context, code, userId);
-      if (!found.ok) return { success: false, message: found.message, ...empty3 };
+      if (!found.ok) return { success: false, message: found.message, ...empty4 };
       const { transfer } = found;
       const sudo = context.sudo();
       const [pet, giver] = await Promise.all([
@@ -32871,16 +33540,16 @@ var resolver34 = {
       };
     } catch (error) {
       console.error("[previewPetTransferCode]", error);
-      return { success: false, message: "No pudimos revisar el c\xF3digo. Intenta de nuevo.", ...empty3 };
+      return { success: false, message: "No pudimos revisar el c\xF3digo. Intenta de nuevo.", ...empty4 };
     }
   },
   redeemPetTransferCode: async (_root, { code }, context) => {
-    const fail12 = (text86) => ({ success: false, message: text86, petId: null });
+    const fail13 = (text86) => ({ success: false, message: text86, petId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail12("Inicia sesi\xF3n para recibir a la mascota.");
+      if (!userId) return fail13("Inicia sesi\xF3n para recibir a la mascota.");
       const found = await loadRedeemable(context, code, userId);
-      if (!found.ok) return fail12(found.message);
+      if (!found.ok) return fail13(found.message);
       const { transfer } = found;
       const prisma = prismaOf7(context);
       const claimed = await prisma.petTransfer.updateMany({
@@ -32888,7 +33557,7 @@ var resolver34 = {
         data: { status: PET_TRANSFER_STATUS.REDEEMED, redeemedById: userId, redeemedAt: /* @__PURE__ */ new Date() }
       });
       if (claimed instanceof Error) throw claimed;
-      if (claimed.count !== 1) return fail12("Ese c\xF3digo ya se us\xF3.");
+      if (claimed.count !== 1) return fail13("Ese c\xF3digo ya se us\xF3.");
       const pet = await loadTransferablePet(context, transfer.petId);
       const organization = transfer.fromOrganizationId ? await context.sudo().query.RescueOrganization.findOne({
         where: { id: transfer.fromOrganizationId },
@@ -32944,11 +33613,11 @@ var resolver34 = {
       return { success: true, message: `${pet.name} ya est\xE1 en tu cartilla.`, petId: pet.id };
     } catch (error) {
       console.error("[redeemPetTransferCode]", error);
-      return fail12(errorMessage2(error, "No pudimos recibir a la mascota. Intenta de nuevo."));
+      return fail13(errorMessage2(error, "No pudimos recibir a la mascota. Intenta de nuevo."));
     }
   }
 };
-var petTransfer_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var petTransfer_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/mutations/pet/card/index.ts
 var petCardMutations = {
@@ -32980,7 +33649,7 @@ var petCardMutations = {
 var card_default = petCardMutations;
 
 // utils/notifications/eventAlerts.ts
-var DAY_MS5 = 24 * 60 * 60 * 1e3;
+var DAY_MS6 = 24 * 60 * 60 * 1e3;
 function prismaOf8(context) {
   return context.sudo().prisma;
 }
@@ -33018,7 +33687,7 @@ function dayKey(date, timeZone) {
 function relativeEventDay(date, timeZone, now = /* @__PURE__ */ new Date()) {
   const key = dayKey(date, timeZone);
   if (key === dayKey(now, timeZone)) return "Hoy";
-  if (key === dayKey(new Date(now.getTime() + DAY_MS5), timeZone)) return "Ma\xF1ana";
+  if (key === dayKey(new Date(now.getTime() + DAY_MS6), timeZone)) return "Ma\xF1ana";
   return null;
 }
 function eventPlaceText(event) {
@@ -33033,7 +33702,7 @@ function eventPriceText(event) {
 }
 function isWithinAlertLead(startsAt, now = /* @__PURE__ */ new Date()) {
   if (!startsAt) return false;
-  return startsAt.getTime() - now.getTime() <= PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS5;
+  return startsAt.getTime() - now.getTime() <= PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS6;
 }
 async function loadPetEventForNotice(context, eventId, now = /* @__PURE__ */ new Date()) {
   try {
@@ -33085,7 +33754,7 @@ async function loadPetEventForNotice(context, eventId, now = /* @__PURE__ */ new
 }
 async function findEventAlertCandidates(context, event) {
   const prisma = prismaOf8(context);
-  const since = new Date(Date.now() - DAY_MS5);
+  const since = new Date(Date.now() - DAY_MS6);
   const zoneReach = event.scope === PET_EVENT_SCOPE.ZONE ? Math.max(0, Math.round(event.reachKm || 0)) : 0;
   const rows2 = await prisma.$queryRaw`
     SELECT u.id,
@@ -33320,11 +33989,11 @@ async function sendZoneAlertsIfDue(context, eventId, now = /* @__PURE__ */ new D
 }
 
 // graphql/customs/mutations/pet/events/submitPetEvent.ts
-var typeDefs38 = ``;
-var definition35 = `
+var typeDefs40 = ``;
+var definition37 = `
   submitPetEvent(input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver35 = {
+var resolver37 = {
   /**
    * Publica un evento con sus fechas. Si no lo manda un admin queda «En revisión» y se avisa a los
    * admins; un admin lo publica directo (y avisa a la zona si la fecha está cerca). Las fotos se
@@ -33382,7 +34051,7 @@ var resolver35 = {
     }
   }
 };
-var submitPetEvent_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var submitPetEvent_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // utils/seo/indexNow.ts
 var DEFAULT_KEY = "6973631b0c498ed8f41a79e2d4c9211f";
@@ -33437,11 +34106,11 @@ async function submitPetEventToIndexNow(context, eventId) {
 }
 
 // graphql/customs/mutations/pet/events/updateMyPetEvent.ts
-var typeDefs39 = ``;
-var definition36 = `
+var typeDefs41 = ``;
+var definition38 = `
   updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver36 = {
+var resolver38 = {
   /**
    * Edita un evento propio (el formulario completo, con todas sus fechas). Si quien edita no es
    * admin y el evento estaba publicado o rechazado, vuelve a «En revisión». Si cambiaron las fechas
@@ -33550,14 +34219,14 @@ var resolver36 = {
     }
   }
 };
-var updateMyPetEvent_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var updateMyPetEvent_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // graphql/customs/mutations/pet/events/cancelPetEvent.ts
-var typeDefs40 = ``;
-var definition37 = `
+var typeDefs42 = ``;
+var definition39 = `
   cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
 `;
-var resolver37 = {
+var resolver39 = {
   /**
    * Cancela un evento (quien lo publicó o un admin). Si llegó a publicarse, la ficha sigue visible
    * con el aviso de cancelado y se avisa a quienes marcaron «Me interesa» o «Asistiré».
@@ -33604,10 +34273,10 @@ var resolver37 = {
     }
   }
 };
-var cancelPetEvent_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var cancelPetEvent_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // graphql/customs/mutations/pet/events/setPetEventInterest.ts
-var typeDefs41 = `
+var typeDefs43 = `
   type PetEventInterestResult {
     success: Boolean!
     message: String!
@@ -33618,7 +34287,7 @@ var typeDefs41 = `
     isFull: Boolean!
   }
 `;
-var definition38 = `
+var definition40 = `
   setPetEventInterest(eventId: ID!, kind: String): PetEventInterestResult!
 `;
 var KINDS = new Set(Object.values(PET_EVENT_INTEREST_KIND));
@@ -33634,18 +34303,18 @@ async function counts(prisma, eventId, capacity) {
     isFull: capacity ? goingCount >= capacity : false
   };
 }
-var resolver38 = {
+var resolver40 = {
   /**
    * «Me interesa» (`interested`), «Asistiré» (`going`) o quitarlo (`kind: null`). Con cupo,
    * «Asistiré» se cierra cuando ya hay tantas personas como lugares; «Me interesa» siempre se puede.
    * A quien marque cualquiera de los dos le llega el recordatorio un día antes.
    */
   setPetEventInterest: async (_root, { eventId, kind }, context) => {
-    const empty3 = { kind: null, interestedCount: 0, goingCount: 0, isFull: false };
+    const empty4 = { kind: null, interestedCount: 0, goingCount: 0, isFull: false };
     const userId = getSessionUserId(context.session);
-    if (!userId) return { success: false, message: "Inicia sesi\xF3n para guardar el evento.", ...empty3 };
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para guardar el evento.", ...empty4 };
     const nextKind = kind ? kind.trim() : null;
-    if (nextKind && !KINDS.has(nextKind)) return { success: false, message: "Opci\xF3n no v\xE1lida.", ...empty3 };
+    if (nextKind && !KINDS.has(nextKind)) return { success: false, message: "Opci\xF3n no v\xE1lida.", ...empty4 };
     try {
       const prisma = prismaOf9(context);
       const event = await prisma.petEvent.findUnique({
@@ -33653,7 +34322,7 @@ var resolver38 = {
         select: { id: true, status: true, capacity: true, lastEndsAt: true }
       });
       if (!event || event instanceof Error || event.status !== PET_EVENT_STATUS.APPROVED) {
-        return { success: false, message: "Este evento no est\xE1 disponible.", ...empty3 };
+        return { success: false, message: "Este evento no est\xE1 disponible.", ...empty4 };
       }
       if (event.lastEndsAt && event.lastEndsAt.getTime() < Date.now()) {
         return { success: false, message: "Este evento ya termin\xF3.", ...await counts(prisma, eventId, event.capacity), kind: null };
@@ -33694,11 +34363,11 @@ var resolver38 = {
       };
     } catch (error) {
       console.error("[setPetEventInterest]", error);
-      return { success: false, message: "No pudimos guardar tu respuesta. Intenta de nuevo.", ...empty3 };
+      return { success: false, message: "No pudimos guardar tu respuesta. Intenta de nuevo.", ...empty4 };
     }
   }
 };
-var setPetEventInterest_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var setPetEventInterest_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // utils/security/knownCrawlers.ts
 var import_net = require("net");
@@ -33764,14 +34433,14 @@ function isKnownCrawlerRequest(req) {
 }
 
 // graphql/customs/mutations/pet/events/recordPetEventView.ts
-var typeDefs42 = `
+var typeDefs44 = `
   type PetEventViewResult {
     "Si esta visita sum\xF3. No suman quien lo public\xF3, los admins, los bots ni repetir en 30 min."
     counted: Boolean!
     viewsCount: Int!
   }
 `;
-var definition39 = `
+var definition41 = `
   recordPetEventView(eventId: ID!): PetEventViewResult!
 `;
 var firstVisit = createDeduper(PET_EVENT_VIEW_DEDUPE_MS);
@@ -33784,7 +34453,7 @@ function isPublic(event) {
   if (event.status === PET_EVENT_STATUS.APPROVED) return true;
   return event.status === PET_EVENT_STATUS.CANCELLED && Boolean(event.approvedAt);
 }
-var resolver39 = {
+var resolver41 = {
   /**
    * La web la llama una vez al abrir la ficha y muestra el total que devuelve. Nunca falla hacia
    * afuera: si algo sale mal responde `counted: false` y la ficha se queda con el número que tenía.
@@ -33815,14 +34484,14 @@ var resolver39 = {
     }
   }
 };
-var recordPetEventView_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var recordPetEventView_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/mutations/pet/events/reviewPetEvent.ts
-var typeDefs43 = ``;
-var definition40 = `
+var typeDefs45 = ``;
+var definition42 = `
   reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
 `;
-var resolver40 = {
+var resolver42 = {
   /**
    * Operaciones → Kadesh Pet → Eventos. Aprobar publica el evento, avisa a quien lo publicó y, si
    * su próxima fecha está a 14 días o menos, a la zona (si no, el cron avisa cuando falten 14).
@@ -33918,14 +34587,14 @@ var resolver40 = {
     }
   }
 };
-var reviewPetEvent_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var reviewPetEvent_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/pet/events/sendPetEventNotifications.ts
-var MAX_REMINDERS_PER_RUN = 500;
+var MAX_REMINDERS_PER_RUN2 = 500;
 var MAX_ZONE_EVENTS_PER_RUN = 50;
 var HOUR_MS = 60 * 60 * 1e3;
-var DAY_MS6 = 24 * HOUR_MS;
-var typeDefs44 = `
+var DAY_MS7 = 24 * HOUR_MS;
+var typeDefs46 = `
   type SendPetEventNotificationsResult {
     success: Boolean!
     message: String!
@@ -33937,7 +34606,7 @@ var typeDefs44 = `
     zoneRecipients: Int!
   }
 `;
-var definition41 = `
+var definition43 = `
   sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
 `;
 async function sendReminders(context, now) {
@@ -33957,7 +34626,7 @@ async function sendReminders(context, now) {
       AND i."user" IS NOT NULL
       AND (i."lastRemindedSessionId" IS NULL OR i."lastRemindedSessionId" <> s.id)
     ORDER BY s."startsAt" ASC
-    LIMIT ${MAX_REMINDERS_PER_RUN}::int
+    LIMIT ${MAX_REMINDERS_PER_RUN2}::int
   `;
   if (rows2 instanceof Error) throw rows2;
   const groups = /* @__PURE__ */ new Map();
@@ -34001,7 +34670,7 @@ async function sendReminders(context, now) {
 }
 async function sendDueZoneAlerts(context, now) {
   const prisma = prismaOf9(context);
-  const leadUntil = new Date(now.getTime() + PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS6);
+  const leadUntil = new Date(now.getTime() + PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS7);
   const rows2 = await prisma.$queryRaw`
     SELECT e.id
     FROM "PetEvent" e
@@ -34025,16 +34694,16 @@ async function sendDueZoneAlerts(context, now) {
   }
   return { events, recipients };
 }
-var resolver41 = {
+var resolver43 = {
   /**
    * La llama cada hora .github/workflows/send-pet-event-notifications.yml con `CRON_SECRET`:
    * (a) recordatorios de fechas que empiezan en las próximas 24 h, una vez por fecha y persona;
    * (b) avisos a la zona de eventos aprobados cuya próxima fecha ya está a 14 días o menos.
    */
   sendPetEventNotifications: async (_root, { secret }, context) => {
-    const empty3 = { reminders: 0, zoneEvents: 0, zoneRecipients: 0 };
+    const empty4 = { reminders: 0, zoneEvents: 0, zoneRecipients: 0 };
     const expected = process.env.CRON_SECRET?.trim();
-    if (!expected || secret !== expected) return { success: false, message: "No autorizado.", ...empty3 };
+    if (!expected || secret !== expected) return { success: false, message: "No autorizado.", ...empty4 };
     try {
       const now = /* @__PURE__ */ new Date();
       const reminders = await sendReminders(context, now);
@@ -34051,18 +34720,18 @@ var resolver41 = {
       return {
         success: false,
         message: error instanceof Error ? error.message : "No se pudieron mandar los avisos de eventos.",
-        ...empty3
+        ...empty4
       };
     }
   }
 };
-var sendPetEventNotifications_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var sendPetEventNotifications_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/pet/events/backfillAlertRegions.ts
 var NOMINATIM_GAP_MS = 1100;
 var DEFAULT_LIMIT = 40;
 var MAX_LIMIT = 100;
-var typeDefs45 = `
+var typeDefs47 = `
   type BackfillAlertRegionsResult {
     success: Boolean!
     message: String!
@@ -34071,19 +34740,19 @@ var typeDefs45 = `
     remaining: Int!
   }
 `;
-var definition42 = `
+var definition44 = `
   backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
 `;
 var sleep2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-var resolver42 = {
+var resolver44 = {
   /**
    * Una vez, después de desplegar los eventos: llena `alertCity` / `alertStateCode` de quienes ya
    * tenían zona de alertas (desde ahora se llenan solos al guardar la zona). Solo admins. Se corre
    * varias veces hasta que `remaining` sea 0.
    */
   backfillAlertRegions: async (_root, { limit }, context) => {
-    const empty3 = { processed: 0, updated: 0, remaining: 0 };
-    if (!isPlatformAdmin(context.session)) return { success: false, message: "Solo admins.", ...empty3 };
+    const empty4 = { processed: 0, updated: 0, remaining: 0 };
+    if (!isPlatformAdmin(context.session)) return { success: false, message: "Solo admins.", ...empty4 };
     try {
       const prisma = prismaOf9(context);
       const take = Math.min(Math.max(Number(limit) || DEFAULT_LIMIT, 1), MAX_LIMIT);
@@ -34120,11 +34789,11 @@ var resolver42 = {
       };
     } catch (error) {
       console.error("[backfillAlertRegions]", error);
-      return { success: false, message: error instanceof Error ? error.message : "No se pudo completar.", ...empty3 };
+      return { success: false, message: error instanceof Error ? error.message : "No se pudo completar.", ...empty4 };
     }
   }
 };
-var backfillAlertRegions_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var backfillAlertRegions_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/mutations/pet/events/index.ts
 var petEventMutations = {
@@ -34163,15 +34832,15 @@ var petEventMutations = {
 var events_default = petEventMutations;
 
 // graphql/customs/mutations/pet/rescue/activateRescueOrganization.ts
-var typeDefs46 = ``;
-var definition43 = `
+var typeDefs48 = ``;
+var definition45 = `
   activateRescueOrganization(input: RescueOrganizationCreateInput!): RescueOrganizationResult!
 `;
 var TYPE_LABEL2 = Object.fromEntries(RESCUE_ORG_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 function failure2(message) {
   return { success: false, message, organization: null };
 }
-var resolver43 = {
+var resolver45 = {
   /**
    * Activa un espacio de rescate: crea la organización «En revisión» con quien llama como admin y
    * avisa a los admins de Kadesh para validarla por WhatsApp. El logo y la portada se suben
@@ -34249,7 +34918,7 @@ var resolver43 = {
     }
   }
 };
-var activateRescueOrganization_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var activateRescueOrganization_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
 var import_graphql12 = require("graphql");
@@ -34309,8 +34978,8 @@ async function countRescueAdmins(context, organizationId) {
 }
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
-var typeDefs47 = ``;
-var definition44 = `
+var typeDefs49 = ``;
+var definition46 = `
   addRescueOrganizationMember(organizationId: ID!, email: String!, role: String!): RescueMemberResult!
   setRescueOrganizationMemberRole(memberId: ID!, role: String!): RescueMemberResult!
   removeRescueOrganizationMember(memberId: ID!): RescueMemberResult!
@@ -34329,7 +34998,7 @@ async function loadMember(context, memberId) {
     query: "id role user { id } organization { id name }"
   });
 }
-var resolver44 = {
+var resolver46 = {
   addRescueOrganizationMember: async (_root, { organizationId, email, role }, context) => {
     try {
       const { organization } = await requireRescueRole(context, organizationId, [RESCUE_MEMBER_ROLE.ADMIN]);
@@ -34465,7 +35134,7 @@ var resolver44 = {
     }
   }
 };
-var rescueMembers_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var rescueMembers_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
 
 // graphql/customs/mutations/pet/rescue/rescuePets.ts
 var import_graphql13 = require("graphql");
@@ -34475,7 +35144,7 @@ var STATUS_LABEL2 = {
   rescued: "Rescatado"
 };
 var RESCUE_ADOPTER_NOT_FOUND = "RESCUE_ADOPTER_NOT_FOUND";
-var typeDefs48 = `
+var typeDefs50 = `
   type RescuePetResult {
     success: Boolean!
     message: String!
@@ -34503,7 +35172,7 @@ var typeDefs48 = `
     adopterName: String
   }
 `;
-var definition45 = `
+var definition47 = `
   convertAnimalToPet(animalId: ID!, organizationId: ID): RescuePetResult!
   "status: in_adoption | rescued. location es obligatoria si la ficha a\xFAn no tiene reporte."
   publishRescuePet(petId: ID!, status: String!, location: PetLastSeenLocationInput, notes: String): PublishRescuePetResult!
@@ -34525,35 +35194,35 @@ async function loadRescuePet(context, petId) {
   if (!pet.organization) throw new import_graphql13.GraphQLError("Esta mascota no es ficha de un espacio de rescate.");
   return pet;
 }
-var resolver45 = {
+var resolver47 = {
   convertAnimalToPet: async (_root, { animalId, organizationId }, context) => {
-    const fail12 = (message) => ({ success: false, message, petId: null, organizationId: null });
+    const fail13 = (message) => ({ success: false, message, petId: null, organizationId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail12("Inicia sesi\xF3n para continuar.");
+      if (!userId) return fail13("Inicia sesi\xF3n para continuar.");
       const animal = await context.sudo().query.Animal.findOne({
         where: { id: animalId },
         query: REPORT_FOR_PET_QUERY
       });
-      if (!animal) return fail12("No encontramos ese reporte.");
-      if (animal.duplicateOf) return fail12("Este reporte est\xE1 unido a otro: hazlo desde el reporte principal.");
-      if (animal.pet) return fail12("Este animal ya tiene cartilla.");
+      if (!animal) return fail13("No encontramos ese reporte.");
+      if (animal.duplicateOf) return fail13("Este reporte est\xE1 unido a otro: hazlo desde el reporte principal.");
+      if (animal.pet) return fail13("Este animal ya tiene cartilla.");
       const canEdit = isPlatformAdmin(context.session) || await canEditAnimalAs(
         context,
         { userId: animal.user?.id ?? null, organizationId: animal.organization?.id ?? null },
         userId
       );
-      if (!canEdit) return fail12("Solo quien public\xF3 el reporte (o el equipo de su espacio) puede hacer esto.");
+      if (!canEdit) return fail13("Solo quien public\xF3 el reporte (o el equipo de su espacio) puede hacer esto.");
       let organization = null;
       if (organizationId) {
         const { organization: org } = await requireRescueRole(context, organizationId, RESCUE_ANIMAL_EDITOR_ROLES);
-        if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail12("Este espacio de rescate no est\xE1 activo.");
+        if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail13("Este espacio de rescate no est\xE1 activo.");
         if (animal.organization && animal.organization.id !== org.id) {
-          return fail12("Este reporte es de otro espacio de rescate.");
+          return fail13("Este reporte es de otro espacio de rescate.");
         }
         organization = org;
       } else if (animal.organization) {
-        return fail12("Este reporte es de un espacio de rescate: crea su ficha desde el panel del espacio.");
+        return fail13("Este reporte es de un espacio de rescate: crea su ficha desde el panel del espacio.");
       }
       const last = await lastReportLog(context, animal.id);
       const petId = organization ? await createPetFromReport(context, animal, {
@@ -34589,11 +35258,11 @@ var resolver45 = {
       return { success: true, message: `${name} ya est\xE1 en tu cartilla.`, petId, organizationId: null };
     } catch (error) {
       console.error("[convertAnimalToPet]", error);
-      return fail12(errorMessage4(error, "No pudimos crear la cartilla. Intenta de nuevo."));
+      return fail13(errorMessage4(error, "No pudimos crear la cartilla. Intenta de nuevo."));
     }
   },
   publishRescuePet: async (_root, args, context) => {
-    const fail12 = (message) => ({
+    const fail13 = (message) => ({
       success: false,
       message,
       reportId: null,
@@ -34603,14 +35272,14 @@ var resolver45 = {
     });
     try {
       if (!PUBLISHABLE_STATUSES.includes(args.status)) {
-        return fail12("Elige si lo publicas en adopci\xF3n o como rescatado.");
+        return fail13("Elige si lo publicas en adopci\xF3n o como rescatado.");
       }
       const status = args.status;
       const pet = await loadRescuePet(context, args.petId);
       const org = pet.organization;
       const { userId } = await requireRescueRole(context, org.id, RESCUE_ANIMAL_EDITOR_ROLES);
-      if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail12("Este espacio de rescate no est\xE1 activo.");
-      if (pet.status !== PET_STATUS.ACTIVE) return fail12("Solo se publica una ficha activa.");
+      if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail13("Este espacio de rescate no est\xE1 activo.");
+      if (pet.status !== PET_STATUS.ACTIVE) return fail13("Solo se publica una ficha activa.");
       const notes = args.notes?.trim() ?? "";
       const prisma = prismaOf10(context);
       let reportId;
@@ -34620,11 +35289,11 @@ var resolver45 = {
         reportId = pet.publicReport.id;
         slug = pet.publicReport.slug || pet.publicReport.id;
         const last = await lastReportLog(context, reportId);
-        if (last?.status === status) return fail12(`Ya est\xE1 publicado como \xAB${STATUS_LABEL2[status]}\xBB.`);
+        if (last?.status === status) return fail13(`Ya est\xE1 publicado como \xAB${STATUS_LABEL2[status]}\xBB.`);
         await addReportLog(context, reportId, status, notes, last, args.location);
       } else {
-        if (!args.location?.lat || !args.location?.lng) return fail12("Marca en el mapa d\xF3nde est\xE1 el animal.");
-        if (!pet.animal_type?.id) return fail12("Elige la especie en la ficha antes de publicarla.");
+        if (!args.location?.lat || !args.location?.lng) return fail13("Marca en el mapa d\xF3nde est\xE1 el animal.");
+        if (!pet.animal_type?.id) return fail13("Elige la especie en la ficha antes de publicarla.");
         let phone = org.whatsapp?.trim() || "";
         if (!phone) {
           const user = await context.sudo().query.User.findOne({
@@ -34633,7 +35302,7 @@ var resolver45 = {
           });
           phone = user?.phone?.trim() || "";
         }
-        if (!phone) return fail12("Agrega el WhatsApp del espacio en su perfil p\xFAblico para publicar.");
+        if (!phone) return fail13("Agrega el WhatsApp del espacio en su perfil p\xFAblico para publicar.");
         const report = await createAnimalReport_default.resolver.createAnimalReport(
           null,
           {
@@ -34694,11 +35363,11 @@ var resolver45 = {
       };
     } catch (error) {
       console.error("[publishRescuePet]", error);
-      return fail12(errorMessage4(error, "No pudimos publicar la ficha. Intenta de nuevo."));
+      return fail13(errorMessage4(error, "No pudimos publicar la ficha. Intenta de nuevo."));
     }
   },
   completeRescueAdoption: async (_root, { petId, email }, context) => {
-    const fail12 = (message, code = null) => ({
+    const fail13 = (message, code = null) => ({
       success: false,
       message,
       code,
@@ -34709,22 +35378,22 @@ var resolver45 = {
       const pet = await loadRescuePet(context, petId);
       const org = pet.organization;
       await requireRescueRole(context, org.id, RESCUE_ANIMAL_MANAGER_ROLES);
-      if (pet.status !== PET_STATUS.ACTIVE) return fail12("Solo se adopta una ficha activa.");
+      if (pet.status !== PET_STATUS.ACTIVE) return fail13("Solo se adopta una ficha activa.");
       const clean4 = (email ?? "").trim().toLowerCase();
-      if (!clean4) return fail12("Escribe el correo de quien adopta.");
+      if (!clean4) return fail13("Escribe el correo de quien adopta.");
       const [adopter] = await context.sudo().query.User.findMany({
         where: { email: { equals: clean4, mode: "insensitive" } },
         query: "id name lastName",
         take: 1
       });
       if (!adopter) {
-        return fail12(
+        return fail13(
           "No encontramos una cuenta de KADESH con ese correo. P\xEDdele que se registre (es gratis) y vuelve a intentarlo.",
           RESCUE_ADOPTER_NOT_FOUND
         );
       }
       const transferable = await loadTransferablePet(context, pet.id);
-      if (!transferable) return fail12("No encontramos esta ficha.");
+      if (!transferable) return fail13("No encontramos esta ficha.");
       await transferPetToOwner(context, transferable, adopter.id, {
         reportNote: `Adoptado con ${org.name} en KADESH.`
       });
@@ -34764,11 +35433,11 @@ var resolver45 = {
       };
     } catch (error) {
       console.error("[completeRescueAdoption]", error);
-      return fail12(errorMessage4(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
+      return fail13(errorMessage4(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
     }
   }
 };
-var rescuePets_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var rescuePets_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // graphql/customs/mutations/pet/rescue/index.ts
 var rescueMutations = {
@@ -34792,7 +35461,7 @@ var rescueMutations = {
 var rescue_default = rescueMutations;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs49 = `
+var typeDefs51 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -34802,10 +35471,10 @@ var typeDefs49 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition46 = `
+var definition48 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver46 = {
+var resolver48 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -34856,10 +35525,10 @@ var resolver46 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var unsubscribeBlog_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs50 = `
+var typeDefs52 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -34870,10 +35539,10 @@ var typeDefs50 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition47 = `
+var definition49 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver47 = {
+var resolver49 = {
   /**
    * Pensada para un cron externo, no para un usuario logueado: se autoriza con `CRON_SECRET`, no
    * con sesión/rol. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -34922,10 +35591,10 @@ var resolver47 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var publishScheduledPosts_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs51 = `
+var typeDefs53 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -34936,7 +35605,7 @@ var typeDefs51 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition48 = `
+var definition50 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -34945,7 +35614,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver48 = {
+var resolver50 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -35013,7 +35682,7 @@ var resolver48 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -35108,7 +35777,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs52 = `
+var typeDefs54 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -35132,7 +35801,7 @@ var typeDefs52 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition49 = `
+var definition51 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -35148,7 +35817,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver49 = {
+var resolver51 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -35252,7 +35921,7 @@ var resolver49 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // utils/whatsapp/templateStatus.ts
 var TEMPLATE_STATUS_MAP = {
@@ -35386,7 +36055,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs53 = `
+var typeDefs55 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -35400,10 +36069,10 @@ var typeDefs53 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition50 = `
+var definition52 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver50 = {
+var resolver52 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -35448,7 +36117,7 @@ var resolver50 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -35586,7 +36255,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs54 = `
+var typeDefs56 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -35597,10 +36266,10 @@ var typeDefs54 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition51 = `
+var definition53 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver51 = {
+var resolver53 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -35661,7 +36330,7 @@ var resolver51 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -35750,7 +36419,7 @@ function distinctSenders(messages) {
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs55 = `
+var typeDefs57 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -35767,7 +36436,7 @@ var typeDefs55 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition52 = `
+var definition54 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -35778,7 +36447,7 @@ var definition52 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver52 = {
+var resolver54 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -35864,10 +36533,10 @@ var resolver52 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs56 = `
+var typeDefs58 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -35877,7 +36546,7 @@ var typeDefs56 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition53 = `
+var definition55 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -35889,7 +36558,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver53 = {
+var resolver55 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -35995,7 +36664,7 @@ var resolver53 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
 var import_crypto6 = __toESM(require("crypto"));
@@ -36044,7 +36713,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs57 = `
+var typeDefs59 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -36055,7 +36724,7 @@ var typeDefs57 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition54 = `
+var definition56 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -36068,7 +36737,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver54 = {
+var resolver56 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -36152,10 +36821,10 @@ var resolver54 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs58 = `
+var typeDefs60 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -36165,13 +36834,13 @@ var typeDefs58 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition55 = `
+var definition57 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver55 = {
+var resolver57 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -36228,10 +36897,10 @@ var resolver55 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs59 = `
+var typeDefs61 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -36242,13 +36911,13 @@ var typeDefs59 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition56 = `
+var definition58 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver56 = {
+var resolver58 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -36285,7 +36954,7 @@ var resolver56 = {
     return toResult10(true, "Conversaci\xF3n enlazada al cliente", count2);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -36298,7 +36967,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs60 = `
+var typeDefs62 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -36334,10 +37003,10 @@ var typeDefs60 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition57 = `
+var definition59 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
-function fail5(message, detail = null) {
+function fail6(message, detail = null) {
   return {
     success: false,
     message,
@@ -36351,7 +37020,7 @@ function fail5(message, detail = null) {
     templateError: null
   };
 }
-var resolver57 = {
+var resolver59 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -36361,53 +37030,53 @@ var resolver57 = {
   discoverWhatsappAccount: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
-      return fail5(denyCompanyWhatsappAccessMessage(session2));
+      return fail6(denyCompanyWhatsappAccessMessage(session2));
     }
     const appId = input.appId.trim();
     const appSecret = input.appSecret.trim();
     const accessToken = input.accessToken.trim();
     if (!appId || !appSecret || !accessToken) {
-      return fail5("Faltan datos: pega el App ID, el App Secret y el token.");
+      return fail6("Faltan datos: pega el App ID, el App Secret y el token.");
     }
     const existing = await context.sudo().query.SaasCompany.findOne({
       where: { id: input.companyId },
       query: "id whatsappBusinessAccountId whatsappPhoneNumberId"
     });
-    if (!existing) return fail5("No se encontr\xF3 la empresa");
+    if (!existing) return fail6("No se encontr\xF3 la empresa");
     let wabaIds;
     try {
       const info = await debugWhatsAppToken({ appId, appSecret, accessToken });
       if (!info.isValid) {
-        return fail5(
+        return fail6(
           "El token no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema.",
           info.invalidReason
         );
       }
       if (info.appId && info.appId !== appId) {
-        return fail5(
+        return fail6(
           `Ese token es de otra App de Meta (ID ${info.appId}), no de la App con ID ${appId}. Genera el token desde la misma App.`
         );
       }
       if (info.expiresAt !== 0 && info.expiresAt * 1e3 - Date.now() < MIN_TOKEN_LIFETIME_MS) {
-        return fail5(
+        return fail6(
           "Ese token es temporal y va a dejar de funcionar pronto. Genera uno permanente (sin fecha de expiraci\xF3n) con un usuario del sistema."
         );
       }
       const missing = REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
       if (missing.length > 0) {
-        return fail5(
+        return fail6(
           `Al token le falta el permiso: ${missing.join(" y ")}. Genera uno nuevo con los dos permisos (whatsapp_business_messaging y whatsapp_business_management).`
         );
       }
       if (info.wabaIds.length === 0) {
-        return fail5(
+        return fail6(
           "El token no da acceso a ninguna cuenta de WhatsApp Business. Al generarlo, asigna la cuenta de WhatsApp Business al usuario del sistema."
         );
       }
       wabaIds = info.wabaIds;
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail5(f.message, f.detail);
+      return fail6(f.message, f.detail);
     }
     const options = [];
     let firstListError = null;
@@ -36422,9 +37091,9 @@ var resolver57 = {
     if (options.length === 0) {
       if (firstListError) {
         const f = friendlyWhatsappError(firstListError);
-        return fail5(f.message, f.detail);
+        return fail6(f.message, f.detail);
       }
-      return fail5(
+      return fail6(
         "Encontramos tu cuenta de WhatsApp Business pero no tiene ning\xFAn n\xFAmero. Agrega uno en WhatsApp \u2192 Configuraci\xF3n de la API y vuelve a intentar."
       );
     }
@@ -36432,12 +37101,12 @@ var resolver57 = {
     let chosen;
     if (wantedId) {
       chosen = options.find((o) => o.id === wantedId);
-      if (!chosen) return fail5("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
+      if (!chosen) return fail6("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
     } else if (options.length === 1) {
       chosen = options[0];
     } else {
       return {
-        ...fail5("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
+        ...fail6("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
         success: true,
         needsSelection: true,
         phoneOptions: options
@@ -36455,7 +37124,7 @@ var resolver57 = {
       take: 1
     });
     if (clash.length > 0) {
-      return fail5("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
+      return fail6("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
     }
     const changedAccount = existing.whatsappBusinessAccountId !== chosen.wabaId || existing.whatsappPhoneNumberId !== chosen.id;
     try {
@@ -36480,7 +37149,7 @@ var resolver57 = {
       });
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail5(f.message, f.detail);
+      return fail6(f.message, f.detail);
     }
     let webhookConfigured = false;
     let webhookError = null;
@@ -36525,7 +37194,7 @@ var resolver57 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // utils/googleCalendar/state.ts
 var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
@@ -36592,7 +37261,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs61 = `
+var typeDefs63 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -36603,27 +37272,27 @@ var typeDefs61 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition58 = `
+var definition60 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
-var fail6 = (message) => ({ success: false, message, url: null });
-var resolver58 = {
+var fail7 = (message) => ({ success: false, message, url: null });
+var resolver60 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail6(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail7(denyGoogleCalendarAccessMessage(session2));
     if (scopeType !== "personal" /* PERSONAL */ && scopeType !== "company" /* COMPANY */) {
-      return fail6("Tipo de cuenta inv\xE1lido (personal o company)");
+      return fail7("Tipo de cuenta inv\xE1lido (personal o company)");
     }
     const targetCompanyId = isPlatformAdmin(session2) && companyId || getSessionCompanyId(session2);
-    if (!targetCompanyId) return fail6("Tu usuario no tiene una empresa asignada");
+    if (!targetCompanyId) return fail7("Tu usuario no tiene una empresa asignada");
     if (!canConnectGoogleCalendar(session2, scopeType, targetCompanyId)) {
-      return fail6(
+      return fail7(
         scopeType === "company" /* COMPANY */ ? "Solo el administrador de la empresa puede conectar la cuenta compartida" : denyGoogleCalendarAccessMessage(session2)
       );
     }
     if (!await companyHasCalendarFeature(context, targetCompanyId)) {
-      return fail6(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail7(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const state = signGoogleCalendarState({
@@ -36633,11 +37302,11 @@ var resolver58 = {
       });
       return { success: true, message: null, url: buildGoogleAuthUrl(state) };
     } catch (err) {
-      return fail6(friendlyGoogleCalendarError(err));
+      return fail7(friendlyGoogleCalendarError(err));
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -36692,7 +37361,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs62 = `
+var typeDefs64 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -36705,37 +37374,37 @@ var typeDefs62 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition59 = `
+var definition61 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
-var fail7 = (message) => ({
+var fail8 = (message) => ({
   success: false,
   message,
   accountId: null,
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver59 = {
+var resolver61 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail7(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail8(denyGoogleCalendarAccessMessage(session2));
     const payload = verifyGoogleCalendarState(state);
     if (!payload || payload.uid !== userId) {
-      return fail7("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
+      return fail8("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
     }
     const { cid: companyId, st: scopeType } = payload;
     if (!canConnectGoogleCalendar(session2, scopeType, companyId)) {
-      return fail7(denyGoogleCalendarAccessMessage(session2));
+      return fail8(denyGoogleCalendarAccessMessage(session2));
     }
     if (!await companyHasCalendarFeature(context, companyId)) {
-      return fail7(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail8(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const tokens = await exchangeCodeForTokens(code);
       const calendars = await listCalendarList(tokens.accessToken);
       const email = calendars.find((c) => c.primary)?.id;
-      if (!email) return fail7("No se pudo identificar la cuenta de Google conectada");
+      if (!email) return fail8("No se pudo identificar la cuenta de Google conectada");
       const sudo = context.sudo();
       const ownerWhere = scopeType === "personal" /* PERSONAL */ ? { user: { id: { equals: userId } } } : { company: { id: { equals: companyId } } };
       const [existing] = await sudo.query.GoogleCalendarAccount.findMany({
@@ -36749,7 +37418,7 @@ var resolver59 = {
       });
       const refreshToken = tokens.refreshToken ?? (existing?.refreshTokenEncrypted ? decrypt(existing.refreshTokenEncrypted) : null);
       if (!refreshToken) {
-        return fail7(
+        return fail8(
           "Google no entreg\xF3 acceso permanente. Revoca el acceso de Kadesh en tu cuenta de Google y vuelve a conectar."
         );
       }
@@ -36800,14 +37469,14 @@ var resolver59 = {
       };
     } catch (err) {
       console.error("connectGoogleCalendarAccount:", err);
-      return fail7(friendlyGoogleCalendarError(err));
+      return fail8(friendlyGoogleCalendarError(err));
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs63 = `
+var typeDefs65 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -36817,10 +37486,10 @@ var typeDefs63 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition60 = `
+var definition62 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver60 = {
+var resolver62 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -36856,10 +37525,10 @@ var resolver60 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs64 = `
+var typeDefs66 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -36870,10 +37539,10 @@ var typeDefs64 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition61 = `
+var definition63 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver61 = {
+var resolver63 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -36919,10 +37588,10 @@ var resolver61 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs65 = `
+var typeDefs67 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -36934,10 +37603,10 @@ var typeDefs65 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition62 = `
+var definition64 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver62 = {
+var resolver64 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -36971,10 +37640,10 @@ var resolver62 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs66 = `
+var typeDefs68 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -36996,11 +37665,11 @@ var typeDefs66 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition63 = `
+var definition65 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
-var fail8 = (message) => ({
+var fail9 = (message) => ({
   success: false,
   message,
   selectionId: null,
@@ -37009,19 +37678,19 @@ var fail8 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver63 = {
+var resolver65 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
       query: `id account { ${ACCOUNT_SCOPE_QUERY} }`
     });
-    if (!selection?.account) return fail8("Calendario no encontrado");
+    if (!selection?.account) return fail9("Calendario no encontrado");
     if (!canManageGoogleCalendarAccount(context.session, selection.account)) {
-      return fail8(denyGoogleCalendarAccessMessage(context.session));
+      return fail9(denyGoogleCalendarAccessMessage(context.session));
     }
     const companyId = accountCompanyId(selection.account);
     if (companyId && !await companyHasCalendarFeature(context, companyId)) {
-      return fail8(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail9(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     const data = {};
     for (const flag of FLAGS) {
@@ -37044,10 +37713,10 @@ var resolver63 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // graphql/customs/mutations/activity/trackEvents.ts
-var typeDefs67 = `
+var typeDefs69 = `
   input TrackEventInput {
     """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, app.client_error (tambi\xE9n sin sesi\xF3n), admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
     type: String!
@@ -37070,7 +37739,7 @@ var typeDefs67 = `
     trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
   }
 `;
-var definition64 = `
+var definition66 = `
   trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
 `;
 var MAX_EVENTS = 50;
@@ -37278,7 +37947,7 @@ async function recentlyViewed(context, actorId, type, companyId, entityId) {
   });
   return Boolean(found);
 }
-var resolver64 = {
+var resolver66 = {
   trackEvents: async (_root, { events }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -37350,10 +38019,10 @@ var resolver64 = {
     return { accepted, rejected: list100.length - accepted };
   }
 };
-var trackEvents_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+var trackEvents_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // graphql/customs/mutations/admin/companyOps.ts
-var typeDefs68 = `
+var typeDefs70 = `
   type AdminOpsActionResult {
     success: Boolean!
     message: String!
@@ -37364,7 +38033,7 @@ var typeDefs68 = `
     adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
   }
 `;
-var definition65 = `
+var definition67 = `
   adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
   adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
 `;
@@ -37398,7 +38067,7 @@ var REVIVABLE_STATUSES = /* @__PURE__ */ new Set([
   SUBSCRIPTION_STATUS.UNPAID,
   SUBSCRIPTION_STATUS.CANCELLED
 ]);
-var resolver65 = {
+var resolver67 = {
   /**
    * Mueve el fin de la prueba gratuita (`currentPeriodEnd` de la suscripción vigente).
    * `days` suma desde hoy o desde el fin actual (lo que sea más tarde); `until` fija la fecha.
@@ -37508,7 +38177,7 @@ var resolver65 = {
     return result(true, to ? `Ahora la cuenta es de ${to}.` : "La cuenta qued\xF3 sin due\xF1o.");
   }
 };
-var companyOps_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+var companyOps_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
 
 // graphql/customs/queries/admin/shared.ts
 var adminSharedTypeDefs = `
@@ -37544,9 +38213,9 @@ function assertPlatformAdmin(context) {
 function adminPrisma(context) {
   return context.sudo().prisma;
 }
-var DAY_MS7 = 24 * 60 * 60 * 1e3;
-function daysAgo(days, from = /* @__PURE__ */ new Date()) {
-  return new Date(from.getTime() - days * DAY_MS7);
+var DAY_MS8 = 24 * 60 * 60 * 1e3;
+function daysAgo2(days, from = /* @__PURE__ */ new Date()) {
+  return new Date(from.getTime() - days * DAY_MS8);
 }
 function toIso(value) {
   if (!value) return null;
@@ -37639,7 +38308,7 @@ function trialEndDate(sub) {
   if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
   if (sub.currentPeriodEnd) return new Date(sub.currentPeriodEnd);
   if (!sub.activatedAt) return null;
-  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS7);
+  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS8);
 }
 function monthlyAmount(cost, frequency) {
   if (!cost || cost <= 0) return 0;
@@ -37749,7 +38418,7 @@ function latestDate(...dates) {
 }
 
 // graphql/customs/mutations/admin/accountControl.ts
-var typeDefs69 = `
+var typeDefs71 = `
   type AdminControlResult {
     success: Boolean!
     message: String!
@@ -37776,7 +38445,7 @@ var typeDefs69 = `
     adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
   }
 `;
-var definition66 = `
+var definition68 = `
   adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
@@ -37823,7 +38492,7 @@ function adminIdOf(context) {
 }
 var NOT_ADMIN = result2(false, "Solo un administrador de Kadesh puede hacer esto.");
 var REASON_REQUIRED = result2(false, `Escribe el motivo (m\xEDnimo ${MIN_REASON} letras).`);
-var resolver66 = {
+var resolver68 = {
   /** Nadie del equipo puede entrar mientras la empresa esté suspendida; al suspender se cierran sus sesiones. */
   adminSetCompanySuspension: async (_root, { companyId, suspended, reason }, context) => {
     if (!adminIdOf(context)) return NOT_ADMIN;
@@ -38365,23 +39034,23 @@ var resolver66 = {
     return result2(true, "Cuenta anonimizada: se borraron sus datos personales y ya no puede entrar.");
   }
 };
-var accountControl_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+var accountControl_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
 
 // graphql/customs/mutations/admin/animals.ts
-var typeDefs70 = `
+var typeDefs72 = `
   type Mutation {
     adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
     adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   }
 `;
-var definition67 = `
+var definition69 = `
   adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
 `;
 function deny() {
   return { success: false, message: "Solo un administrador de Kadesh puede hacer esto." };
 }
-var resolver67 = {
+var resolver69 = {
   /**
    * Publica el animal en la Página de Facebook de Pet. Si ya se publicó, no lo repite salvo
    * `force` (volver a publicar a propósito). Sirve para los que subieron usuarios (no se
@@ -38425,10 +39094,10 @@ var resolver67 = {
     };
   }
 };
-var animals_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+var animals_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
 
 // graphql/customs/mutations/admin/zoneAlerts.ts
-var typeDefs71 = `
+var typeDefs73 = `
   type Mutation {
     adminUpdateZoneAlerts(
       userId: ID!
@@ -38440,7 +39109,7 @@ var typeDefs71 = `
     ): AdminOpsActionResult!
   }
 `;
-var definition68 = `
+var definition70 = `
   adminUpdateZoneAlerts(
     userId: ID!
     enabled: Boolean
@@ -38453,7 +39122,7 @@ var definition68 = `
 function result3(success, message) {
   return { success, message };
 }
-var resolver68 = {
+var resolver70 = {
   adminUpdateZoneAlerts: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) return result3(false, "Solo un administrador de Kadesh puede hacer esto.");
     const prisma = context.sudo().prisma;
@@ -38523,17 +39192,17 @@ var resolver68 = {
     return result3(true, changes.length ? `Listo: ${changes.join(", ")}.` : "Guardado.");
   }
 };
-var adminZoneAlerts = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+var adminZoneAlerts = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
 var zoneAlerts_default = adminZoneAlerts;
 
 // graphql/customs/mutations/admin/errorIssues.ts
-var typeDefs72 = `
+var typeDefs74 = `
   type Mutation {
     """status: open | resolved | ignored"""
     adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
   }
 `;
-var definition69 = `
+var definition71 = `
   adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
 `;
 var STATUS_LABELS2 = {
@@ -38545,7 +39214,7 @@ var MAX_NOTE = 2e3;
 function result4(success, message) {
   return { success, message };
 }
-var resolver69 = {
+var resolver71 = {
   adminSetErrorIssueStatus: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return result4(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -38589,10 +39258,10 @@ var resolver69 = {
     return result4(true, "Listo.");
   }
 };
-var errorIssues_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+var errorIssues_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
 
 // graphql/customs/mutations/admin/security.ts
-var typeDefs73 = `
+var typeDefs75 = `
   type AdminBlockIpResult {
     success: Boolean!
     message: String!
@@ -38606,7 +39275,7 @@ var typeDefs73 = `
     adminUnblockIp(ip: String!): AdminOpsActionResult!
   }
 `;
-var definition70 = `
+var definition72 = `
   adminBlockIp(ip: String!, reason: String, days: Int, force: Boolean): AdminBlockIpResult!
   adminUnblockIp(ip: String!): AdminOpsActionResult!
 `;
@@ -38637,7 +39306,7 @@ async function usedByAdmin(prisma, ip) {
   ]);
   return Boolean(event || auth);
 }
-var resolver70 = {
+var resolver72 = {
   adminBlockIp: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return blockResult(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -38699,10 +39368,10 @@ var resolver70 = {
     return { success: true, message: "IP desbloqueada." };
   }
 };
-var security_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+var security_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
 // graphql/customs/mutations/rollupDailyUsage.ts
-var typeDefs74 = `
+var typeDefs76 = `
   type RollupDailyUsageDay {
     day: String!
     companies: Int!
@@ -38718,11 +39387,11 @@ var typeDefs74 = `
     rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   }
 `;
-var definition71 = `
+var definition73 = `
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
 `;
 var MAX_DAYS2 = 62;
-var resolver71 = {
+var resolver73 = {
   /**
    * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). Se autoriza con
    * `CRON_SECRET`. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -38756,18 +39425,18 @@ var resolver71 = {
     }
   }
 };
-var rollupDailyUsage_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+var rollupDailyUsage_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
 
 // graphql/customs/mutations/notifications/markAllNotificationsRead.ts
-var typeDefs75 = `
+var typeDefs77 = `
   type Mutation {
     markAllNotificationsRead(product: String): Int!
   }
 `;
-var definition72 = `
+var definition74 = `
   markAllNotificationsRead(product: String): Int!
 `;
-var resolver72 = {
+var resolver74 = {
   /**
    * Marca como leídas todas las notificaciones no leídas de quien tiene la sesión (opcionalmente
    * solo las de un producto: "pet" | "saas"). Devuelve cuántas cambió. Marcar una sola se hace
@@ -38789,16 +39458,16 @@ var resolver72 = {
     return result5?.count ?? 0;
   }
 };
-var markAllNotificationsRead_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
+var markAllNotificationsRead_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/mutations/notifications/pushTokens.ts
-var typeDefs76 = `
+var typeDefs78 = `
   type Mutation {
     registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
     unregisterPushToken(token: String!): Boolean!
   }
 `;
-var definition73 = `
+var definition75 = `
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
   unregisterPushToken(token: String!): Boolean!
 `;
@@ -38807,11 +39476,11 @@ var PLATFORMS = new Set(Object.values(PUSH_PLATFORM));
 function prismaOf12(context) {
   return context.sudo().prisma;
 }
-function unwrap(value) {
+function unwrap2(value) {
   if (value instanceof Error) throw value;
   return value;
 }
-var resolver73 = {
+var resolver75 = {
   /**
    * Guarda (o actualiza) el token push de este dispositivo para quien tiene la sesión. Un token es
    * de un solo dispositivo: si estaba con otra cuenta (cambio de sesión en el mismo teléfono), pasa
@@ -38825,7 +39494,7 @@ var resolver73 = {
     if (!PLATFORMS.has(platform)) throw new Error("Plataforma no v\xE1lida.");
     const cleanDevice = deviceId?.trim().slice(0, 200) || null;
     const prisma = prismaOf12(context);
-    const existing = unwrap(
+    const existing = unwrap2(
       await prisma.tokenNotification.findMany({ where: { token: cleanToken }, select: { id: true } })
     );
     const data = {
@@ -38837,15 +39506,15 @@ var resolver73 = {
     };
     const [keep, ...duplicates] = existing;
     if (keep) {
-      unwrap(await prisma.tokenNotification.update({ where: { id: keep.id }, data }));
+      unwrap2(await prisma.tokenNotification.update({ where: { id: keep.id }, data }));
       if (duplicates.length) {
-        unwrap(await prisma.tokenNotification.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } }));
+        unwrap2(await prisma.tokenNotification.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } }));
       }
     } else {
-      unwrap(await prisma.tokenNotification.create({ data }));
+      unwrap2(await prisma.tokenNotification.create({ data }));
     }
     if (cleanDevice) {
-      unwrap(
+      unwrap2(
         await prisma.tokenNotification.deleteMany({
           where: { userId, deviceId: cleanDevice, token: { not: cleanToken } }
         })
@@ -38857,13 +39526,13 @@ var resolver73 = {
   unregisterPushToken: async (_root, { token }, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return false;
-    const result5 = unwrap(
+    const result5 = unwrap2(
       await prismaOf12(context).tokenNotification.deleteMany({ where: { token: token.trim(), userId } })
     );
     return result5.count > 0;
   }
 };
-var pushTokens_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+var pushTokens_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -38893,6 +39562,8 @@ var customMutation = {
     ${veterinary_default.typeDefs}
     ${createAnimalReport_default.typeDefs}
     ${animalClaims_default.typeDefs}
+    ${closeAnimalReport_default.typeDefs}
+    ${sendAnimalFollowUps_default.typeDefs}
     ${adoptionApplications_default.typeDefs}
     ${card_default.typeDefs}
     ${events_default.typeDefs}
@@ -38952,6 +39623,8 @@ var customMutation = {
     ${veterinary_default.definition}
     ${createAnimalReport_default.definition}
     ${animalClaims_default.definition}
+    ${closeAnimalReport_default.definition}
+    ${sendAnimalFollowUps_default.definition}
     ${adoptionApplications_default.definition}
     ${card_default.definition}
     ${events_default.definition}
@@ -39011,6 +39684,8 @@ var customMutation = {
     ...veterinary_default.resolver,
     ...createAnimalReport_default.resolver,
     ...animalClaims_default.resolver,
+    ...closeAnimalReport_default.resolver,
+    ...sendAnimalFollowUps_default.resolver,
     ...adoptionApplications_default.resolver,
     ...card_default.resolver,
     ...events_default.resolver,
@@ -39053,7 +39728,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs77 = `
+var typeDefs79 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -39112,7 +39787,7 @@ var typeDefs77 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition74 = `
+var definition76 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -39162,7 +39837,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver74 = {
+var resolver76 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -39177,7 +39852,7 @@ var resolver74 = {
       breed,
       location
     } = input;
-    const animalWhere = { duplicateOf: null };
+    const animalWhere = { duplicateOf: null, inactiveAt: null };
     if (animalType) {
       animalWhere.animal_type = { id: { equals: animalType } };
     }
@@ -39325,13 +40000,16 @@ var resolver74 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
+var nearbyAnimals_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs78 = `
+var typeDefs80 = `
   type AnimalReportDuplicate {
     id: ID!
+    """Nombre real; vac\xEDo si no se sabe."""
     name: String!
+    """Para mostrar: el nombre, o \xABPerra caf\xE9\xBB si no se sabe."""
+    displayName: String!
     slug: String
     url: String!
     score: Int!
@@ -39349,7 +40027,7 @@ var typeDefs78 = `
     isMine: Boolean!
   }
 `;
-var definition75 = `
+var definition77 = `
   findAnimalReportDuplicates(
     phone: String
     phone2: String
@@ -39373,7 +40051,7 @@ function cleanPhone(raw) {
   const normalized = normalizeMxPhone(value);
   return normalized.ok ? normalized.digits : value;
 }
-var resolver75 = {
+var resolver77 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     const sessionUserId = getSessionUserId(context.session);
     if (!isSignedIn(context.session) && !sessionUserId) {
@@ -39401,7 +40079,7 @@ var resolver75 = {
     }));
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -39776,7 +40454,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs79 = `
+var typeDefs81 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -39836,10 +40514,10 @@ var typeDefs79 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition76 = `
+var definition78 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver76 = {
+var resolver78 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -39919,10 +40597,10 @@ var resolver76 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs80 = `
+var typeDefs82 = `
   type StripeCard {
     brand: String
     country: String
@@ -39956,10 +40634,10 @@ var typeDefs80 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition77 = `
+var definition79 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver77 = {
+var resolver79 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -39995,10 +40673,10 @@ var resolver77 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
+var stripePaymentMethods_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs81 = `
+var typeDefs83 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -40036,7 +40714,7 @@ var typeDefs81 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition78 = `
+var definition80 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -40045,7 +40723,7 @@ var INTERVAL_BY_FREQUENCY = {
   [PLAN_FREQUENCY.ANNUAL]: "year",
   [PLAN_FREQUENCY.ONCE]: null
 };
-function fail9(message) {
+function fail10(message) {
   return { success: false, message, allMatch: false, fields: [] };
 }
 function toMinorUnits(amount) {
@@ -40056,19 +40734,19 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver78 = {
+var resolver80 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
-      return fail9("Solo operaciones puede verificar planes con Stripe.");
+      return fail10("Solo operaciones puede verificar planes con Stripe.");
     }
     const plan = await context.sudo().query.SaasPlan.findOne({
       where: { id: input.planId },
       query: "id name cost currency frequency stripePriceId stripeProductId active"
     });
-    if (!plan) return fail9("No encontramos ese plan.");
+    if (!plan) return fail10("No encontramos ese plan.");
     const priceId = (input.stripePriceId ?? plan.stripePriceId ?? "").trim();
     if (!priceId) {
-      return fail9(
+      return fail10(
         "Este plan no tiene un precio de Stripe ligado. Pega el ID del precio para poder verificarlo."
       );
     }
@@ -40081,7 +40759,7 @@ var resolver78 = {
       price = await stripe_default.prices.retrieve(priceId, { expand: ["product"] });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      return fail9(`Stripe no reconoci\xF3 ese precio: ${message}`);
+      return fail10(`Stripe no reconoci\xF3 ese precio: ${message}`);
     }
     const product = price.product && typeof price.product === "object" ? price.product : null;
     const stripeProductId = product?.id ?? (typeof price.product === "string" ? price.product : null);
@@ -40157,7 +40835,7 @@ var resolver78 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
+var stripePlanCheck_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -40295,7 +40973,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs82 = `
+var typeDefs84 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -40323,10 +41001,10 @@ var typeDefs82 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition79 = `
+var definition81 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver79 = {
+var resolver81 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -40444,11 +41122,11 @@ var resolver79 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
+var subscriptionStatus_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs83 = `
+var typeDefs85 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -40460,10 +41138,10 @@ var typeDefs83 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition80 = `
+var definition82 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver80 = {
+var resolver82 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -40496,10 +41174,10 @@ var resolver80 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs84 = `
+var typeDefs86 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -40511,10 +41189,10 @@ var typeDefs84 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition81 = `
+var definition83 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver81 = {
+var resolver83 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -40536,11 +41214,11 @@ var resolver81 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs85 = `
+var typeDefs87 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -40569,14 +41247,14 @@ var typeDefs85 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition82 = `
+var definition84 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver82 = {
+var resolver84 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -40632,11 +41310,11 @@ var resolver82 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
+var whatsappConversations_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs86 = `
+var typeDefs88 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -40648,10 +41326,10 @@ var typeDefs86 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition83 = `
+var definition85 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver83 = {
+var resolver85 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -40692,10 +41370,10 @@ var resolver83 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs87 = `
+var typeDefs89 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -40713,10 +41391,10 @@ var typeDefs87 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition84 = `
+var definition86 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver84 = {
+var resolver86 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -40742,10 +41420,10 @@ var resolver84 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs88 = `
+var typeDefs90 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -40771,13 +41449,13 @@ var typeDefs88 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition85 = `
+var definition87 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
-function fail10(message) {
+function fail11(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver85 = {
+var resolver87 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -40792,23 +41470,23 @@ var resolver85 = {
         context
       );
       if (!target && !resolvedCompanyId) {
-        return fail10(error ?? "No se pudo resolver la conversaci\xF3n");
+        return fail11(error ?? "No se pudo resolver la conversaci\xF3n");
       }
       if (target) {
         resolvedCompanyId = resolvedCompanyId ?? target.companyId;
         recipientName = target.displayName;
       }
     }
-    if (!resolvedCompanyId) return fail10("Falta indicar la empresa o la conversaci\xF3n");
+    if (!resolvedCompanyId) return fail11("Falta indicar la empresa o la conversaci\xF3n");
     if (!canUseCompanyWhatsapp(context.session, resolvedCompanyId)) {
-      return fail10("No tienes acceso al WhatsApp de esta empresa");
+      return fail11("No tienes acceso al WhatsApp de esta empresa");
     }
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: resolvedCompanyId },
       query: "id name whatsappBusinessAccountId whatsappAccessTokenEncrypted"
     });
     if (!company?.whatsappBusinessAccountId || !company?.whatsappAccessTokenEncrypted) {
-      return fail10("WhatsApp no est\xE1 conectado para esta empresa");
+      return fail11("WhatsApp no est\xE1 conectado para esta empresa");
     }
     try {
       const templates = await listWhatsAppTemplates({
@@ -40828,17 +41506,17 @@ var resolver85 = {
         `[whatsapp] No se pudieron listar las plantillas de la empresa ${resolvedCompanyId}:`,
         err
       );
-      return fail10(
+      return fail11(
         err instanceof Error ? err.message.replace(/^\[whatsapp\] Graph API error[^:]*:\s*/, "") : "No se pudieron leer las plantillas de Meta"
       );
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs89 = `
+var typeDefs91 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -40866,25 +41544,25 @@ var typeDefs89 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition86 = `
+var definition88 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver86 = {
+var resolver88 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
     timeMax
   }, context) => {
-    const fail12 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail12(denyGoogleCalendarAccessMessage(context.session));
+    const fail13 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail13(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail12(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail13(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail12("Rango de fechas inv\xE1lido");
+      return fail13("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -40901,7 +41579,7 @@ var resolver86 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail12(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail13(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -40921,7 +41599,7 @@ var resolver86 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
 
 // utils/analytics/health.ts
 var HEALTH_WINDOW_DAYS = 28;
@@ -41028,8 +41706,8 @@ function bump(map, key, value = 1) {
   map.set(key, (map.get(key) ?? 0) + value);
 }
 async function loadCompanyHealth(prisma, companyIds) {
-  const empty3 = { ready: false, computedThrough: null, byCompany: /* @__PURE__ */ new Map() };
-  if (!prisma.saasCompanyDailyUsage) return empty3;
+  const empty4 = { ready: false, computedThrough: null, byCompany: /* @__PURE__ */ new Map() };
+  if (!prisma.saasCompanyDailyUsage) return empty4;
   return optional(async () => {
     const today = mxToday();
     const lastDay = shiftDay(today, -1);
@@ -41179,7 +41857,7 @@ async function loadCompanyHealth(prisma, companyIds) {
     for (const company of companies) {
       const t = totals.get(company.id);
       const seenAt = lastSeen.get(company.id) ?? null;
-      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS7)) : HEALTH_WINDOW_DAYS;
+      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS8)) : HEALTH_WINDOW_DAYS;
       const result5 = scoreHealth({
         ageDays,
         teamSize: teamSize.get(company.id) ?? 0,
@@ -41198,7 +41876,7 @@ async function loadCompanyHealth(prisma, companyIds) {
         creditsExhaustedDay: exhaustedDay.get(company.id) ?? null,
         purchaseIntent: intentCount.get(company.id) ?? 0,
         paymentFailures: failures.get(company.id) ?? 0,
-        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS7) : null
+        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS8) : null
       });
       byCompany.set(company.id, {
         ...result5,
@@ -41210,7 +41888,7 @@ async function loadCompanyHealth(prisma, companyIds) {
     }
     const computedThrough = latestRollup?.day ? new Date(latestRollup.day).toISOString().slice(0, 10) : null;
     return { ready: Boolean(computedThrough), computedThrough, byCompany };
-  }, empty3);
+  }, empty4);
 }
 
 // graphql/customs/queries/admin/adminHealth.ts
@@ -41221,7 +41899,7 @@ var LIVE_STATUSES = [
   SUBSCRIPTION_STATUS.UNPAID
 ];
 var SORTS = ["risk", "best", "drop", "name"];
-var typeDefs90 = `
+var typeDefs92 = `
   input AdminHealthInput {
     search: String
     """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
@@ -41303,7 +41981,7 @@ var typeDefs90 = `
     adminHealth(input: AdminHealthInput): AdminHealthResult!
   }
 `;
-var definition87 = `
+var definition89 = `
   adminHealth(input: AdminHealthInput): AdminHealthResult!
 `;
 function healthBrief(health) {
@@ -41322,7 +42000,7 @@ function matchesStatus(status, filter) {
   if (filter === "none") return !status;
   return status === filter;
 }
-var resolver87 = {
+var resolver89 = {
   adminHealth: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -41423,12 +42101,12 @@ var resolver87 = {
     };
   }
 };
-var adminHealth_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
+var adminHealth_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
 
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
 var SORTS2 = ["recent", "name", "activity", "health"];
-var typeDefs91 = `
+var typeDefs93 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
@@ -41483,7 +42161,7 @@ var typeDefs91 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition88 = `
+var definition90 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
 function pickOwner(users) {
@@ -41492,7 +42170,7 @@ function pickOwner(users) {
   );
   return admin ?? users[0] ?? null;
 }
-var resolver88 = {
+var resolver90 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -41629,14 +42307,14 @@ var resolver88 = {
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
+var adminCompanies_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
 var APP_ERRORS_THRESHOLD = 3;
-var typeDefs92 = `
+var typeDefs94 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -41679,7 +42357,7 @@ var typeDefs92 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition89 = `
+var definition91 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -41690,14 +42368,14 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver89 = {
+var resolver91 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const now = /* @__PURE__ */ new Date();
-    const since24h = new Date(now.getTime() - DAY_MS7);
-    const since7d = daysAgo(7, now);
-    const sinceInactive = daysAgo(INACTIVE_DAYS, now);
+    const since24h = new Date(now.getTime() - DAY_MS8);
+    const since7d = daysAgo2(7, now);
+    const sinceInactive = daysAgo2(INACTIVE_DAYS, now);
     const { year, month } = currentPeriod();
     const monthStart = new Date(year, month - 1, 1);
     const testIds = await testCompanyIds(prisma);
@@ -41758,7 +42436,7 @@ var resolver89 = {
             severity: "high",
             at: toIso(trialEnd)
           });
-        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS7) {
+        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS8) {
           trialsEndingSoon += 1;
           attention.push({
             companyId: company.id,
@@ -41997,14 +42675,14 @@ var resolver89 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
+var adminOpsSummary_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs93 = `
+var typeDefs95 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -42111,7 +42789,7 @@ var typeDefs93 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition90 = `
+var definition92 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows2, key) {
@@ -42151,9 +42829,9 @@ var PRODUCT_SIGNAL_TYPES = [
   ACTIVITY_EVENT.UI_UPGRADE_CLICKED,
   ACTIVITY_EVENT.LEAD_EXPORTED
 ];
-function tally(values) {
+function tally(values2) {
   const counts2 = /* @__PURE__ */ new Map();
-  for (const value of values) {
+  for (const value of values2) {
     if (!value) continue;
     counts2.set(value, (counts2.get(value) ?? 0) + 1);
   }
@@ -42249,13 +42927,13 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver90 = {
+var resolver92 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const windowDays = clampInt(days, 1, 365, 30);
     const now = /* @__PURE__ */ new Date();
-    const since = daysAgo(windowDays, now);
+    const since = daysAgo2(windowDays, now);
     const todayMx = toMxDay(now);
     const todayStart = /* @__PURE__ */ new Date(`${todayMx}T00:00:00.000Z`);
     const crmScope = crmCompanyScope(companyId);
@@ -42489,7 +43167,7 @@ var resolver90 = {
     }
     const creditsByDay = [];
     for (let i = windowDays - 1; i >= 0; i -= 1) {
-      const day = toMxDay(new Date(now.getTime() - i * DAY_MS7));
+      const day = toMxDay(new Date(now.getTime() - i * DAY_MS8));
       creditsByDay.push({ date: day, value: byDay.get(day) ?? 0 });
     }
     const whatsappDirections = new Map(
@@ -42580,10 +43258,10 @@ var resolver90 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
+var adminCompanyInsights_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
 
 // graphql/customs/queries/admin/adminCompanyTrends.ts
-var typeDefs94 = `
+var typeDefs96 = `
   type AdminUsageWeek {
     """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
     weekStart: String!
@@ -42624,7 +43302,7 @@ var typeDefs94 = `
     adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   }
 `;
-var definition91 = `
+var definition93 = `
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
 `;
 var WEEK_FIELDS = [
@@ -42649,14 +43327,14 @@ var BENCHMARK_FIELDS = [
   "quotationsCreated"
 ];
 var MIN_PEERS = 3;
-function median(values) {
-  if (values.length < MIN_PEERS) return null;
-  const sorted = [...values].sort((a, b) => a - b);
+function median(values2) {
+  if (values2.length < MIN_PEERS) return null;
+  const sorted = [...values2].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
-var resolver91 = {
+var resolver93 = {
   adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -42736,7 +43414,7 @@ var resolver91 = {
     }, EMPTY2);
   }
 };
-var adminCompanyTrends_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
+var adminCompanyTrends_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -42756,7 +43434,7 @@ var FEED_TYPES = [
   "security"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs95 = `
+var typeDefs97 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -42808,7 +43486,7 @@ var typeDefs95 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition92 = `
+var definition94 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -43672,7 +44350,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver92 = {
+var resolver94 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -43716,10 +44394,10 @@ var resolver92 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
+var adminActivityFeed_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
 
 // graphql/customs/queries/admin/adminErrorIssues.ts
-var typeDefs96 = `
+var typeDefs98 = `
   input AdminErrorIssuesInput {
     """pet-web | business-web | pet-mobile"""
     app: String
@@ -43779,7 +44457,7 @@ var typeDefs96 = `
     adminOpenErrorIssuesCount: Int!
   }
 `;
-var definition93 = `
+var definition95 = `
   adminErrorIssues(input: AdminErrorIssuesInput): AdminErrorIssuesResult!
   adminOpenErrorIssuesCount: Int!
 `;
@@ -43842,7 +44520,7 @@ async function countOpenErrorIssues(prisma, since) {
     (group) => effectiveStatus(issues.get(group.fingerprint), group.lastSeen).status === ERROR_ISSUE_STATUS.OPEN
   ).length;
 }
-var resolver93 = {
+var resolver95 = {
   adminErrorIssues: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -43851,7 +44529,7 @@ var resolver93 = {
     const app = input?.app?.trim() || null;
     const statusFilter = input?.status?.trim() || ERROR_ISSUE_STATUS.OPEN;
     const search = input?.search?.trim().toLowerCase() || null;
-    const where = baseWhere(daysAgo(days), app);
+    const where = baseWhere(daysAgo2(days), app);
     const groups = await loadGroups(prisma, where);
     if (groups.length === 0) return { items: [], openCount: 0 };
     const fingerprints = groups.map((group) => group.fingerprint);
@@ -43938,13 +44616,13 @@ var resolver93 = {
   },
   adminOpenErrorIssuesCount: async (_root, _args, context) => {
     assertPlatformAdmin(context);
-    return countOpenErrorIssues(adminPrisma(context), daysAgo(1));
+    return countOpenErrorIssues(adminPrisma(context), daysAgo2(1));
   }
 };
-var adminErrorIssues_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
+var adminErrorIssues_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
 
 // graphql/customs/queries/admin/adminPersonDevices.ts
-var typeDefs97 = `
+var typeDefs99 = `
   type AdminPersonDevice {
     ip: String
     userAgent: String
@@ -43983,7 +44661,7 @@ var typeDefs97 = `
     adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
   }
 `;
-var definition94 = `
+var definition96 = `
   adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
 `;
 var CROWDED_IP_ACCOUNTS = 15;
@@ -44013,13 +44691,13 @@ function mergeDevices(target, rows2, source) {
     current.sources.add(source);
   }
 }
-var resolver94 = {
+var resolver96 = {
   adminPersonDevices: async (_root, { userId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
-    const since = daysAgo(clampInt(days, 1, 395, 90));
-    const empty3 = { devices: [], sharedIps: [], sharedAccounts: [] };
-    if (!userId) return empty3;
+    const since = daysAgo2(clampInt(days, 1, 395, 90));
+    const empty4 = { devices: [], sharedIps: [], sharedAccounts: [] };
+    if (!userId) return empty4;
     const deviceArgs = {
       by: ["ip", "userAgent"],
       _count: { _all: true },
@@ -44039,7 +44717,7 @@ var resolver94 = {
       MAX_IPS
     );
     if (ips.length === 0) {
-      return { ...empty3, devices: devices.map(toDeviceOutput) };
+      return { ...empty4, devices: devices.map(toDeviceOutput) };
     }
     const [eventOthers, authOthers] = await Promise.all([
       prisma.activityEvent ? prisma.activityEvent.groupBy({
@@ -44104,10 +44782,10 @@ function toDeviceOutput(device) {
     sources: [...device.sources]
   };
 }
-var adminPersonDevices_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
+var adminPersonDevices_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
 
 // graphql/customs/queries/admin/adminSecurity.ts
-var typeDefs98 = `
+var typeDefs100 = `
   type AdminRateLimitHit {
     ip: String
     rule: String!
@@ -44149,7 +44827,7 @@ var typeDefs98 = `
     adminBlockedIps: [AdminBlockedIp!]!
   }
 `;
-var definition95 = `
+var definition97 = `
   adminSecuritySummary(days: Int): AdminSecuritySummary!
   adminBlockedIps: [AdminBlockedIp!]!
 `;
@@ -44160,11 +44838,11 @@ var SIGNUP_STEPS = [
   USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP,
   USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP
 ];
-var resolver95 = {
+var resolver97 = {
   adminSecuritySummary: async (_root, { days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
-    const since = daysAgo(clampInt(days, 1, 90, 7));
+    const since = daysAgo2(clampInt(days, 1, 90, 7));
     const [limitEvents, authSignups, eventSignups, blockedCount] = await Promise.all([
       prisma.activityEvent ? prisma.activityEvent.findMany({
         where: { type: ACTIVITY_EVENT.SECURITY_RATE_LIMITED, createdAt: { gte: since } },
@@ -44255,7 +44933,7 @@ var resolver95 = {
     }));
   }
 };
-var adminSecurity_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
+var adminSecurity_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
 
 // graphql/customs/queries/admin/milestones.ts
 function earliest(map, companyId, at) {
@@ -44361,7 +45039,7 @@ async function loadCompanyMilestones(prisma, companyIds) {
 }
 
 // graphql/customs/queries/admin/adminActivationFunnel.ts
-var typeDefs99 = `
+var typeDefs101 = `
   input AdminActivationInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -44400,7 +45078,7 @@ var typeDefs99 = `
     adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
   }
 `;
-var definition96 = `
+var definition98 = `
   adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
 `;
 var STEPS = [
@@ -44410,21 +45088,21 @@ var STEPS = [
   { key: "quotation", label: "Primera cotizaci\xF3n", at: (m) => m.firstQuotationAt },
   { key: "paid", label: "Pag\xF3", at: (m) => m.paidAt }
 ];
-function median2(values) {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b);
+function median2(values2) {
+  if (!values2.length) return null;
+  const sorted = [...values2].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   const value = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   return Math.round(value * 10) / 10;
 }
 var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
-var resolver96 = {
+var resolver98 = {
   adminActivationFunnel: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const days = clampInt(input?.days, 30, 365, 90);
     const to = /* @__PURE__ */ new Date();
-    const from = daysAgo(days, to);
+    const from = daysAgo2(days, to);
     const excludedIds = await analyticsExcludedCompanyIds(prisma);
     const companies = (await prisma.saasCompany.findMany({
       where: { createdAt: { gte: from, lte: to } },
@@ -44456,7 +45134,7 @@ var resolver96 = {
           if (!at) continue;
           reached += 1;
           if (company.createdAt) {
-            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS7));
+            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS8));
           }
         }
         return {
@@ -44490,10 +45168,10 @@ var resolver96 = {
     };
   }
 };
-var adminActivationFunnel_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
+var adminActivationFunnel_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
 
 // graphql/customs/queries/admin/adminCohorts.ts
-var typeDefs100 = `
+var typeDefs102 = `
   input AdminCohortsInput {
     """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
     months: Int
@@ -44515,7 +45193,7 @@ var typeDefs100 = `
     adminCohorts(input: AdminCohortsInput): AdminCohorts!
   }
 `;
-var definition97 = `
+var definition99 = `
   adminCohorts(input: AdminCohortsInput): AdminCohorts!
 `;
 function shiftMonth(month, offset) {
@@ -44528,7 +45206,7 @@ function monthsBetween(from, to) {
   const [ty, tm] = to.split("-").map(Number);
   return (ty - fy) * 12 + (tm - fm);
 }
-var resolver97 = {
+var resolver99 = {
   adminCohorts: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44598,7 +45276,7 @@ var resolver97 = {
     return { rows: rows2 };
   }
 };
-var adminCohorts_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
+var adminCohorts_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
 
 // graphql/customs/queries/admin/adminEngagement.ts
 var MAU_DAYS = 30;
@@ -44611,7 +45289,7 @@ var MODULES = [
   { key: "whatsapp", field: "whatsappSent" },
   { key: "ai", field: "aiCalls" }
 ];
-var typeDefs101 = `
+var typeDefs103 = `
   input AdminEngagementInput {
     """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
     days: Int
@@ -44665,11 +45343,11 @@ var typeDefs101 = `
     adminEngagement(input: AdminEngagementInput): AdminEngagement!
   }
 `;
-var definition98 = `
+var definition100 = `
   adminEngagement(input: AdminEngagementInput): AdminEngagement!
 `;
 var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
-var resolver98 = {
+var resolver100 = {
   adminEngagement: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44800,12 +45478,12 @@ var resolver98 = {
     };
   }
 };
-var adminEngagement_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
+var adminEngagement_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
 
 // graphql/customs/queries/admin/adminDemandGaps.ts
 var ZONE_STEP = 0.1;
 var LIST_LIMIT = 25;
-var typeDefs102 = `
+var typeDefs104 = `
   input AdminDemandGapsInput {
     """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -44860,7 +45538,7 @@ var typeDefs102 = `
     adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   }
 `;
-var definition99 = `
+var definition101 = `
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
 `;
 function emptyBucket() {
@@ -44877,7 +45555,7 @@ var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
 var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
 var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
 var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
-var resolver99 = {
+var resolver101 = {
   adminDemandGaps: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44887,7 +45565,7 @@ var resolver99 = {
     const runs = await prisma.techLeadSyncLog.findMany({
       where: {
         success: true,
-        createdAt: { gte: daysAgo(days) },
+        createdAt: { gte: daysAgo2(days) },
         OR: [{ companyId: null }, { companyId: { notIn: excludedIds } }]
       },
       select: {
@@ -44961,12 +45639,12 @@ var resolver99 = {
     };
   }
 };
-var adminDemandGaps_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
+var adminDemandGaps_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
 
 // graphql/customs/queries/admin/adminAcquisition.ts
 var LIST_LIMIT2 = 10;
 var REFERRAL = "Referido";
-var typeDefs103 = `
+var typeDefs105 = `
   input AdminAcquisitionInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -44997,7 +45675,7 @@ var typeDefs103 = `
     adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   }
 `;
-var definition100 = `
+var definition102 = `
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
 `;
 function bump2(map, key, activated, paid) {
@@ -45011,14 +45689,14 @@ var sortRows = (map, limit) => {
   const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
   return limit ? rows2.slice(0, limit) : rows2;
 };
-var resolver100 = {
+var resolver102 = {
   adminAcquisition: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const days = clampInt(input?.days, 7, 365, 90);
     const excludedIds = await analyticsExcludedCompanyIds(prisma);
     const companies = (await prisma.saasCompany.findMany({
-      where: { createdAt: { gte: daysAgo(days) } },
+      where: { createdAt: { gte: daysAgo2(days) } },
       select: { id: true }
     })).filter((company) => !excludedIds.has(company.id));
     const ids = companies.map((company) => company.id);
@@ -45058,10 +45736,10 @@ var resolver100 = {
     };
   }
 };
-var adminAcquisition_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
+var adminAcquisition_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
 
 // utils/analytics/salesVelocity.ts
-var DAY_MS8 = 24 * 60 * 60 * 1e3;
+var DAY_MS9 = 24 * 60 * 60 * 1e3;
 var P = PIPELINE_STATUS;
 var RANK = {
   [P.DETECTADO]: 1,
@@ -45081,7 +45759,7 @@ var LOST = /* @__PURE__ */ new Set([P.PROPUESTA_RECHAZADA, P.CERRADO_PERDIDO, P.
 var CONTACT_RANK = 3;
 var STALLED_DAYS = 14;
 var LOOKBACK_DAYS = 180;
-var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS8;
+var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS9;
 var emptyGroup = () => ({
   entered: 0,
   contacted: 0,
@@ -45092,9 +45770,9 @@ var emptyGroup = () => ({
   firstContactHours: [],
   stalled: 0
 });
-function median3(values) {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b);
+function median3(values2) {
+  if (!values2.length) return null;
+  const sorted = [...values2].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   const value = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   return Math.round(value * 10) / 10;
@@ -45126,9 +45804,9 @@ async function rows(read, fallback) {
 async function computeSalesVelocity(prisma, options) {
   const { days, companyWhere } = options;
   const now = Date.now();
-  const since = new Date(now - days * DAY_MS8);
+  const since = new Date(now - days * DAY_MS9);
   const sinceMs = since.getTime();
-  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS8);
+  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS9);
   const sellerScope = options.salesPersonId ?? null;
   const needStatuses = Boolean(options.bySeller || sellerScope);
   const [allChanges, firstChange, activities, allMessages, statuses] = await Promise.all([
@@ -45258,7 +45936,7 @@ async function computeSalesVelocity(prisma, options) {
           wonStatusIds.push(statusId);
           for (const group of groups) group.won += 1;
           if (entry) {
-            const cycle = (at - entry.changedAt.getTime()) / DAY_MS8;
+            const cycle = (at - entry.changedAt.getTime()) / DAY_MS9;
             cycles.push(cycle);
             for (const group of groups) group.cycles.push(cycle);
           }
@@ -45268,11 +45946,11 @@ async function computeSalesVelocity(prisma, options) {
         }
       }
       if (next && next.changedAt.getTime() >= sinceMs) {
-        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS8);
+        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS9);
       }
     });
     const idle = now - last.changedAt.getTime();
-    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS8) {
+    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS9) {
       stageOf(last.toStatus).stalled += 1;
       for (const group of groups) group.stalled += 1;
       stalledDeals.push({
@@ -45282,7 +45960,7 @@ async function computeSalesVelocity(prisma, options) {
         salesPersonId: sellerOf.get(statusId) || null,
         stage: last.toStatus,
         since: last.changedAt,
-        days: Math.floor(idle / DAY_MS8)
+        days: Math.floor(idle / DAY_MS9)
       });
     }
     if (entry && entry.changedAt.getTime() >= sinceMs) {
@@ -45386,7 +46064,7 @@ async function computeSalesVelocity(prisma, options) {
 
 // graphql/customs/queries/admin/adminSalesVelocity.ts
 var COMPANY_LIMIT = 25;
-var typeDefs104 = `
+var typeDefs106 = `
   input AdminSalesVelocityInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -45458,10 +46136,10 @@ var typeDefs104 = `
     adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   }
 `;
-var definition101 = `
+var definition103 = `
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
 `;
-var resolver101 = {
+var resolver103 = {
   adminSalesVelocity: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45485,10 +46163,10 @@ var resolver101 = {
     return { ...totals, dataSince: toIso(dataSince), companies };
   }
 };
-var adminSalesVelocity_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
+var adminSalesVelocity_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
 
 // graphql/customs/queries/admin/adminAnimals.ts
-var typeDefs105 = `
+var typeDefs107 = `
   type AdminAnimalRow {
     id: ID!
     name: String!
@@ -45571,7 +46249,7 @@ var typeDefs105 = `
     facebookPublishedBy: AdminPersonRef
   }
 `;
-var definition102 = `
+var definition104 = `
   adminAnimals(
     search: String
     animalTypeId: ID
@@ -45646,7 +46324,7 @@ async function countsFor(prisma, ids) {
     prisma.animalComment.groupBy({ by: ["animalId"], where: { animalId: { in: ids } }, _count: { _all: true } }),
     prisma.animalView.groupBy({
       by: ["animalId"],
-      where: { animalId: { in: ids }, createdAt: { gte: daysAgo(7) } },
+      where: { animalId: { in: ids }, createdAt: { gte: daysAgo2(7) } },
       _count: { _all: true }
     })
   ]);
@@ -45678,7 +46356,7 @@ function toRow(raw, counts2) {
     facebookPublishedAt: toIso(raw.facebookPublishedAt)
   };
 }
-var resolver102 = {
+var resolver104 = {
   adminAnimals: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
@@ -45716,7 +46394,7 @@ var resolver102 = {
         allLogs: logs(orderBy: [{ createdAt: desc }]) { id status notes city state address createdAt }`
     });
     if (!raw) return null;
-    const since30 = daysAgo(30);
+    const since30 = daysAgo2(30);
     const [counts2, comments, favorites, anonymous, viewsLast30, recentSigned] = await Promise.all([
       countsFor(prisma, [id]),
       prisma.animalComment.findMany({
@@ -45751,7 +46429,7 @@ var resolver102 = {
       byDay.set(day, (byDay.get(day) ?? 0) + 1);
     }
     const daily = Array.from({ length: 30 }, (_, i) => {
-      const day = toMxDay(daysAgo(29 - i));
+      const day = toMxDay(daysAgo2(29 - i));
       return { day, count: byDay.get(day) ?? 0 };
     });
     const total = raw.animal_viewsCount ?? 0;
@@ -45780,10 +46458,10 @@ var resolver102 = {
     };
   }
 };
-var adminAnimals_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
+var adminAnimals_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
 
 // graphql/customs/queries/admin/adminPet.ts
-var typeDefs106 = `
+var typeDefs108 = `
   type AdminPetTopAnimal {
     id: ID!
     name: String!
@@ -45881,7 +46559,7 @@ var typeDefs106 = `
     points: [AdminPetSeriesPoint!]!
   }
 `;
-var definition103 = `
+var definition105 = `
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
 `;
@@ -46190,13 +46868,13 @@ async function topViewedAnimals(context, prisma, since) {
     ];
   });
 }
-var resolver103 = {
+var resolver105 = {
   adminPetSummary: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const days = input?.days == null ? null : clampInt(input.days, 7, 3650, 90);
-    const since = days ? daysAgo(days) : null;
-    const prevSince = days ? daysAgo(days * 2) : null;
+    const since = days ? daysAgo2(days) : null;
+    const prevSince = days ? daysAgo2(days * 2) : null;
     const inPeriod = since ? { createdAt: { gte: since } } : {};
     const inPrevPeriod = since && prevSince ? { createdAt: { gte: prevSince, lt: since } } : null;
     const animalBase = { duplicateOfId: null };
@@ -46361,10 +47039,10 @@ var resolver103 = {
     return { metric, granularity, breakdown, from, to: lastBucket, total, points };
   }
 };
-var adminPet_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
+var adminPet_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
 
 // graphql/customs/queries/admin/adminNotifications.ts
-var typeDefs107 = `
+var typeDefs109 = `
   type AdminNotificationRow {
     id: ID!
     createdAt: String
@@ -46457,7 +47135,7 @@ var typeDefs107 = `
     maxPerDay: Int!
   }
 `;
-var definition104 = `
+var definition106 = `
   adminNotificationLog(
     product: String
     type: String
@@ -46540,7 +47218,7 @@ var USER_SELECT = {
   whatsappNotifications: true,
   whatsappMutedTypes: true
 };
-var resolver104 = {
+var resolver106 = {
   adminNotificationLog: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46549,7 +47227,7 @@ var resolver104 = {
     const skip = clampInt(args.skip, 0, 1e6, 0);
     const recipient = personSearch2(args.search);
     const base = {
-      createdAt: { gte: daysAgo(days) },
+      createdAt: { gte: daysAgo2(days) },
       ...args.product?.trim() ? { product: args.product.trim() } : {},
       ...args.entityId?.trim() ? { entityId: args.entityId.trim() } : {},
       ...recipient ? { recipient } : {}
@@ -46630,7 +47308,7 @@ var resolver104 = {
         select: { id: true, phone: true, whatsappNotifications: true, whatsappMutedTypes: true }
       }),
       prisma.notification.count({
-        where: { type: NOTIFICATION_TYPE.ANIMAL_NEARBY, createdAt: { gte: daysAgo(7) } }
+        where: { type: NOTIFICATION_TYPE.ANIMAL_NEARBY, createdAt: { gte: daysAgo2(7) } }
       })
     ]);
     for (const value of [total, users, active, inactive, activeUsers, alerts7d]) if (value instanceof Error) throw value;
@@ -46644,7 +47322,7 @@ var resolver104 = {
         where: {
           recipientId: { in: pageIds },
           type: NOTIFICATION_TYPE.ANIMAL_NEARBY,
-          createdAt: { gte: daysAgo(30) }
+          createdAt: { gte: daysAgo2(30) }
         },
         _count: { _all: true },
         _max: { createdAt: true }
@@ -46721,13 +47399,13 @@ var resolver104 = {
     };
   }
 };
-var adminNotifications = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
+var adminNotifications = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
 var adminNotifications_default = adminNotifications;
 
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql14 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs108 = `
+var typeDefs110 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -46803,24 +47481,24 @@ var typeDefs108 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition105 = `
+var definition107 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
-var fail11 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
+var fail12 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver105 = {
+var resolver107 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
     const companyId = getSessionCompanyId(session2);
-    if (!userId) throw fail11("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
-    if (!companyId) throw fail11("Tu cuenta no tiene empresa.", "NO_COMPANY");
+    if (!userId) throw fail12("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
+    if (!companyId) throw fail12("Tu cuenta no tiene empresa.", "NO_COMPANY");
     if (!hasPermission(session2, PERMISSION_KEYS.ANALITICA_VER, () => true)) {
-      throw fail11("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
+      throw fail12("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
     }
     if (!isPlatformAdmin(session2) && !await companyHasPlanFeature(context, companyId, PLAN_FEATURE.ANALYTICS)) {
-      throw fail11("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
+      throw fail12("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
     }
     const seesTeam = hasPermission(
       session2,
@@ -46892,12 +47570,12 @@ var resolver105 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
+var companyAnalytics_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache = null;
-var typeDefs109 = `
+var typeDefs111 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -46907,8 +47585,8 @@ var typeDefs109 = `
     updatedAt: String!
   }
 `;
-var definition106 = `landingStats: LandingStats!`;
-function unwrap2(value) {
+var definition108 = `landingStats: LandingStats!`;
+function unwrap3(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -46924,16 +47602,16 @@ async function computeLandingStats(context) {
     analyticsExcludedCompanyIds(prisma)
   ]);
   return {
-    leadsTotal: unwrap2(leadsTotal),
-    leadsWithPhone: unwrap2(leadsWithPhone),
-    categories: unwrap2(categoryGroups).length,
-    cities: unwrap2(cityGroups).length,
+    leadsTotal: unwrap3(leadsTotal),
+    leadsWithPhone: unwrap3(leadsWithPhone),
+    categories: unwrap3(categoryGroups).length,
+    cities: unwrap3(cityGroups).length,
     // Sin cuentas de prueba ni empresas del equipo de Kadesh (misma regla que la Analítica).
-    companies: Math.max(0, unwrap2(companiesTotal) - excluded.size),
+    companies: Math.max(0, unwrap3(companiesTotal) - excluded.size),
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver106 = {
+var resolver108 = {
   landingStats: async (_root, _args, context) => {
     if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
     const value = await computeLandingStats(context);
@@ -46941,18 +47619,21 @@ var resolver106 = {
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
+var landingStats_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES2 = ["in_family", "adopted"];
 var cache2 = null;
-var typeDefs110 = `
+var typeDefs112 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
     animalsHome: Int!
     animalsInAdoption: Int!
+    reunions: Int!
+    adoptions: Int!
+    helpedByKadesh: Int!
     veterinaries: Int!
     veterinariesVerified: Int!
     rescueOrganizations: Int!
@@ -46960,15 +47641,15 @@ var typeDefs110 = `
     updatedAt: String!
   }
 `;
-var definition107 = `petLandingStats: PetLandingStats!`;
-function unwrap3(value) {
+var definition109 = `petLandingStats: PetLandingStats!`;
+function unwrap4(value) {
   if (value instanceof Error) throw value;
   return value;
 }
 async function computePetLandingStats(context) {
   const prisma = context.sudo().prisma;
   const veterinary = { types: { some: { value: "veterinary" } } };
-  const [animals, statusRows, veterinaries, veterinariesVerified, cityRows, rescueOrganizations] = await Promise.all([
+  const [animals, statusRows, veterinaries, veterinariesVerified, cityRows, rescueOrganizations, outcomeRows] = await Promise.all([
     prisma.animal.count(),
     // Estado actual de cada animal = su registro más reciente en la bitácora.
     prisma.$queryRaw`
@@ -46993,28 +47674,41 @@ async function computePetLandingStats(context) {
       ) places
       WHERE trim(c) <> ''
     `,
-    prisma.rescueOrganization.count({ where: { status: "verified" } })
+    prisma.rescueOrganization.count({ where: { status: "verified" } }),
+    // Desenlaces de los casos cerrados (sin repetidos unidos a otro).
+    prisma.$queryRaw`
+      SELECT outcome, "helpedByKadesh" AS helped, COUNT(*)::int AS n
+      FROM "Animal"
+      WHERE outcome IS NOT NULL AND "duplicateOf" IS NULL
+      GROUP BY outcome, "helpedByKadesh"
+    `
   ]);
+  const outcomes = unwrap4(outcomeRows);
+  const countOutcome = (outcome) => outcomes.filter((row) => row.outcome === outcome).reduce((total, row) => total + row.n, 0);
+  const helpedByKadesh = outcomes.filter((row) => row.helped === "yes" && HOME_OUTCOMES.includes(row.outcome)).reduce((total, row) => total + row.n, 0);
   const byStatus = new Map(
-    unwrap3(statusRows).map((row) => [
+    unwrap4(statusRows).map((row) => [
       row.status ?? "",
       row.n
     ])
   );
   const count2 = (statuses) => statuses.reduce((total, status) => total + (byStatus.get(status) ?? 0), 0);
   return {
-    animals: unwrap3(animals),
+    animals: unwrap4(animals),
     animalsLost: count2(["lost"]),
     animalsHome: count2(HOME_STATUSES2),
     animalsInAdoption: count2(["in_adoption"]),
-    veterinaries: unwrap3(veterinaries),
-    veterinariesVerified: unwrap3(veterinariesVerified),
-    rescueOrganizations: unwrap3(rescueOrganizations),
-    cities: unwrap3(cityRows)[0]?.n ?? 0,
+    reunions: countOutcome(ANIMAL_OUTCOME.REUNITED),
+    adoptions: countOutcome(ANIMAL_OUTCOME.ADOPTED),
+    helpedByKadesh,
+    veterinaries: unwrap4(veterinaries),
+    veterinariesVerified: unwrap4(veterinariesVerified),
+    rescueOrganizations: unwrap4(rescueOrganizations),
+    cities: unwrap4(cityRows)[0]?.n ?? 0,
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver107 = {
+var resolver109 = {
   petLandingStats: async (_root, _args, context) => {
     if (cache2 && Date.now() - cache2.at < CACHE_MS2) return cache2.value;
     const value = await computePetLandingStats(context);
@@ -47022,13 +47716,13 @@ var resolver107 = {
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
+var petLandingStats_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
 
 // graphql/customs/queries/petEvents.ts
 var MAX_TAKE = 48;
-var DAY_MS9 = 24 * 60 * 60 * 1e3;
+var DAY_MS10 = 24 * 60 * 60 * 1e3;
 var MAX_DATE = /* @__PURE__ */ new Date("9999-12-31T00:00:00.000Z");
-var typeDefs111 = `
+var typeDefs113 = `
   input PetEventsFeedInput {
     "Clave INEGI (16) o slug (michoacan)"
     state: String
@@ -47089,7 +47783,7 @@ var typeDefs111 = `
     sendAt: String
   }
 `;
-var definition108 = `
+var definition110 = `
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
@@ -47102,7 +47796,7 @@ function validDate(value, fallback) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
-var resolver108 = {
+var resolver110 = {
   /**
    * Eventos publicados para la sección /eventos, la portada y la app: los próximos (por su próxima
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
@@ -47223,15 +47917,15 @@ var resolver108 = {
       candidates: candidates.length,
       alreadySent: Boolean(event.zoneAlertsSentAt),
       sendNow,
-      sendAt: !sendNow && event.next ? new Date(event.next.startsAt.getTime() - PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS9).toISOString() : null
+      sendAt: !sendNow && event.next ? new Date(event.next.startsAt.getTime() - PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS10).toISOString() : null
     };
   }
 };
-var petEvents_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
+var petEvents_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
 
 // graphql/customs/queries/rescueAllies.ts
 var MAX_TAKE2 = 300;
-var typeDefs112 = `
+var typeDefs114 = `
   type RescueAlly {
     id: ID!
     name: String!
@@ -47250,8 +47944,8 @@ var typeDefs112 = `
     allies: [RescueAlly!]!
   }
 `;
-var definition109 = `rescueAllies(take: Int): RescueAlliesResult!`;
-var resolver109 = {
+var definition111 = `rescueAllies(take: Int): RescueAlliesResult!`;
+var resolver111 = {
   rescueAllies: async (_root, { take }, context) => {
     const limit = Math.min(Math.max(Number(take) || MAX_TAKE2, 1), MAX_TAKE2);
     const rows2 = await context.sudo().query.RescueOrganization.findMany({
@@ -47289,7 +47983,7 @@ var resolver109 = {
     return { total: allies.length, allies: allies.slice(0, limit) };
   }
 };
-var rescueAllies_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
+var rescueAllies_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

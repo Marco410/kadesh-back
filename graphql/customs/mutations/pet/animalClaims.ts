@@ -8,6 +8,7 @@ import {
 } from "../../../../utils/notifications/animalReportAlerts";
 import { ANIMAL_CLAIM_STATUS } from "../../../../models/Pet/Animal/AnimalClaim/constants";
 import { canEditAnimalAs } from "../../../../models/Pet/Animal/Animal.access";
+import { knownAnimalName } from "../../../../utils/pet/animalName";
 
 /**
  * Responder una solicitud para quedarse con un reporte (`AnimalClaim`). La crea cualquiera con
@@ -36,6 +37,7 @@ type ClaimRow = {
   id: string;
   status: string;
   phone?: string | null;
+  petName?: string | null;
   claimant?: { id: string } | null;
   animal?: {
     id: string;
@@ -49,7 +51,7 @@ type ClaimRow = {
 };
 
 const CLAIM_QUERY =
-  "id status phone claimant { id } animal { id name slug contactNumber contactNumber2 user { id } organization { id } }";
+  "id status phone petName claimant { id } animal { id name slug contactNumber contactNumber2 user { id } organization { id } }";
 
 async function loadClaim(context: KeystoneContext, claimId: string) {
   return (await context.sudo().query.AnimalClaim.findOne({
@@ -115,7 +117,7 @@ const resolver = {
       });
       void logActivity(context, {
         type: "animal.claim_rejected",
-        summary: `Rechazó la solicitud para el reporte «${animal.name ?? animal.id}»`,
+        summary: `Rechazó la solicitud para el reporte «${animal.name || animal.id}»`,
         entityType: "Animal",
         entityId: animal.id,
         metadata: { claimId: claim.id },
@@ -137,6 +139,10 @@ const resolver = {
         reportedBy: "owner",
         contactNumber,
         contactNumber2,
+        // El reporte no tenía nombre y quien lo reclamó dijo cómo se llama: ya es su nombre.
+        ...(!knownAnimalName(animal.name) && knownAnimalName(claim.petName)
+          ? { name: knownAnimalName(claim.petName) }
+          : {}),
         // Era la mascota de alguien: deja de estar a nombre del espacio de rescate.
         ...(animal.organization?.id ? { organization: { disconnect: true } } : {}),
       },
@@ -181,7 +187,7 @@ const resolver = {
 
     void logActivity(context, {
       type: "animal.claim_approved",
-      summary: `Pasó el reporte «${animal.name ?? animal.id}» a nombre de quien lo reclamó`,
+      summary: `Pasó el reporte «${animal.name || animal.id}» a nombre de quien lo reclamó`,
       entityType: "Animal",
       entityId: animal.id,
       metadata: {

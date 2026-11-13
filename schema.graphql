@@ -637,6 +637,7 @@ type Animal {
   id: ID!
   name: String
   slug: String
+  folio: Int
   physical_description: String
   age: String
   sex: String
@@ -663,12 +664,23 @@ type Animal {
   pet: Pet
   duplicateOf: Animal
   duplicateCheck: JSON
+  outcome: String
+  closedAt: DateTime
+  helpedByKadesh: String
+  outcomeChannel: String
+  outcomeStory: String
+  storyConsent: Boolean
+  lastActivityAt: DateTime
+  followUpStage: Int
+  followUpSentAt: DateTime
+  inactiveAt: DateTime
   createdAt: DateTime
 }
 
 input AnimalWhereUniqueInput {
   id: ID
   slug: String
+  folio: Int
 }
 
 input AnimalWhereInput {
@@ -678,6 +690,7 @@ input AnimalWhereInput {
   id: IDFilter
   name: StringFilter
   slug: StringNullableFilter
+  folio: IntFilter
   physical_description: StringFilter
   age: StringFilter
   sex: StringNullableFilter
@@ -699,7 +712,28 @@ input AnimalWhereInput {
   facebookPublishedBy: UserWhereInput
   pet: PetWhereInput
   duplicateOf: AnimalWhereInput
+  outcome: StringNullableFilter
+  closedAt: DateTimeNullableFilter
+  helpedByKadesh: StringNullableFilter
+  outcomeChannel: StringNullableFilter
+  outcomeStory: StringFilter
+  storyConsent: BooleanFilter
+  lastActivityAt: DateTimeNullableFilter
+  followUpStage: IntFilter
+  followUpSentAt: DateTimeNullableFilter
+  inactiveAt: DateTimeNullableFilter
   createdAt: DateTimeNullableFilter
+}
+
+input IntFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntFilter
 }
 
 input AnimalMultimediaManyRelationFilter {
@@ -724,6 +758,7 @@ input AnimalOrderByInput {
   id: OrderDirection
   name: OrderDirection
   slug: OrderDirection
+  folio: OrderDirection
   physical_description: OrderDirection
   age: OrderDirection
   sex: OrderDirection
@@ -735,12 +770,23 @@ input AnimalOrderByInput {
   reportedBy: OrderDirection
   facebookPostId: OrderDirection
   facebookPublishedAt: OrderDirection
+  outcome: OrderDirection
+  closedAt: OrderDirection
+  helpedByKadesh: OrderDirection
+  outcomeChannel: OrderDirection
+  outcomeStory: OrderDirection
+  storyConsent: OrderDirection
+  lastActivityAt: OrderDirection
+  followUpStage: OrderDirection
+  followUpSentAt: OrderDirection
+  inactiveAt: OrderDirection
   createdAt: OrderDirection
 }
 
 input AnimalUpdateInput {
   name: String
   slug: String
+  folio: Int
   physical_description: String
   age: String
   sex: String
@@ -763,6 +809,16 @@ input AnimalUpdateInput {
   pet: PetRelateToOneForUpdateInput
   duplicateOf: AnimalRelateToOneForUpdateInput
   duplicateCheck: JSON
+  outcome: String
+  closedAt: DateTime
+  helpedByKadesh: String
+  outcomeChannel: String
+  outcomeStory: String
+  storyConsent: Boolean
+  lastActivityAt: DateTime
+  followUpStage: Int
+  followUpSentAt: DateTime
+  inactiveAt: DateTime
   createdAt: DateTime
 }
 
@@ -825,6 +881,7 @@ input AnimalUpdateArgs {
 input AnimalCreateInput {
   name: String
   slug: String
+  folio: Int
   physical_description: String
   age: String
   sex: String
@@ -847,6 +904,16 @@ input AnimalCreateInput {
   pet: PetRelateToOneForCreateInput
   duplicateOf: AnimalRelateToOneForCreateInput
   duplicateCheck: JSON
+  outcome: String
+  closedAt: DateTime
+  helpedByKadesh: String
+  outcomeChannel: String
+  outcomeStory: String
+  storyConsent: Boolean
+  lastActivityAt: DateTime
+  followUpStage: Int
+  followUpSentAt: DateTime
+  inactiveAt: DateTime
   createdAt: DateTime
 }
 
@@ -937,6 +1004,7 @@ type AnimalClaim {
   previousUser: User
   message: String
   phone: String
+  petName: String
   evidence: ImageFieldOutput
   status: String
   rejectReason: String
@@ -960,6 +1028,7 @@ input AnimalClaimWhereInput {
   previousUser: UserWhereInput
   message: StringFilter
   phone: StringFilter
+  petName: StringFilter
   status: StringFilter
   rejectReason: StringFilter
   resolvedBy: UserWhereInput
@@ -972,6 +1041,7 @@ input AnimalClaimOrderByInput {
   claimantName: OrderDirection
   message: OrderDirection
   phone: OrderDirection
+  petName: OrderDirection
   status: OrderDirection
   rejectReason: OrderDirection
   resolvedAt: OrderDirection
@@ -985,6 +1055,7 @@ input AnimalClaimUpdateInput {
   previousUser: UserRelateToOneForUpdateInput
   message: String
   phone: String
+  petName: String
   evidence: ImageFieldInput
   status: String
   rejectReason: String
@@ -1005,6 +1076,7 @@ input AnimalClaimCreateInput {
   previousUser: UserRelateToOneForCreateInput
   message: String
   phone: String
+  petName: String
   evidence: ImageFieldInput
   status: String
   rejectReason: String
@@ -1327,17 +1399,6 @@ input AnimalMultimediaWhereInput {
   animal: AnimalWhereInput
   order: IntFilter
   createdAt: DateTimeNullableFilter
-}
-
-input IntFilter {
-  equals: Int
-  in: [Int!]
-  notIn: [Int!]
-  lt: Int
-  lte: Int
-  gt: Int
-  gte: Int
-  not: IntFilter
 }
 
 input AnimalMultimediaOrderByInput {
@@ -11388,6 +11449,7 @@ type Mutation {
   fetchInegiIndicator(input: FetchInegiIndicatorInput!): FetchInegiIndicatorResult!
   resolveAnimalClaim(claimId: ID!, approve: Boolean!, reason: String): AnimalClaimResult!
   cancelAnimalClaim(claimId: ID!): AnimalClaimResult!
+  closeAnimalReport(input: CloseAnimalReportInput!): CloseAnimalReportResult!
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
@@ -11444,6 +11506,7 @@ type Mutation {
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
+  sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
 
   """Solo quien la envió y solo mientras siga «Enviada» (submitted)."""
@@ -12551,6 +12614,31 @@ type AnimalClaimResult {
   animalSlug: String
 }
 
+input CloseAnimalReportInput {
+  animalId: ID!
+  outcome: String!
+  helpedByKadesh: String
+  outcomeChannel: String
+  story: String
+  storyConsent: Boolean
+  notes: String
+}
+
+type CloseAnimalReportResult {
+  success: Boolean!
+  message: String!
+  animalSlug: String
+  status: String
+}
+
+type SendAnimalFollowUpsResult {
+  success: Boolean!
+  message: String!
+  reminded: Int!
+  inactivated: Int!
+  failed: Int!
+}
+
 input AdoptionApplicationInput {
   phone: String!
 
@@ -13105,7 +13193,12 @@ input NearbyAnimalsInput {
 
 type AnimalReportDuplicate {
   id: ID!
+
+  """Nombre real; vacío si no se sabe."""
   name: String!
+
+  """Para mostrar: el nombre, o «Perra café» si no se sabe."""
+  displayName: String!
   slug: String
   url: String!
   score: Int!
@@ -14639,6 +14732,9 @@ type PetLandingStats {
   animalsLost: Int!
   animalsHome: Int!
   animalsInAdoption: Int!
+  reunions: Int!
+  adoptions: Int!
+  helpedByKadesh: Int!
   veterinaries: Int!
   veterinariesVerified: Int!
   rescueOrganizations: Int!

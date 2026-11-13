@@ -1,7 +1,12 @@
 import { graphql, list } from "@keystone-6/core";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { logAnimalActivity } from "../../../utils/pet/petActivity";
-import { json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
+import { checkbox, integer, json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
+import {
+  ANIMAL_OUTCOME_OPTIONS,
+  HELPED_BY_KADESH_OPTIONS,
+  OUTCOME_CHANNEL_OPTIONS,
+} from "./Animal.outcome";
 import { animalAccess, canEditAnimalAs, forceAnimalOwner, validateAnimalOrganization } from "./Animal.access";
 import { getSessionUserId } from "../../../utils/access/tenant";
 import { ANIMAL_SEX_OPTIONS } from "../../../utils/constants/constants";
@@ -9,9 +14,38 @@ import { animalCreateSideEffectsHook } from "./Animal.hooks";
 import { animalMergeAfterOperation, validateDuplicateOf } from "./Animal.merge";
 import { removeIncompleteOwnReports, validateOwnDuplicate } from "./Animal.ownDuplicates";
 import { normalizeMxPhone } from "../../../utils/pet/phone";
+import { knownAnimalName } from "../../../utils/pet/animalName";
 import { isPlatformAdmin } from "../../../utils/access/tenant";
 
 const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
+
+/**
+ * Siguiente folio de la secuencia que crea Postgres para `folio` (`autoincrement`). Keystone 6.5
+ * exige `db.isNullable: false` para un autoincrement y, con eso, su validación pide el valor en cada
+ * `create` («Animal.folio: missing value») aunque la base lo asignaría sola. Se toma de la misma
+ * secuencia: dos reportes al mismo tiempo nunca reciben el mismo folio.
+ */
+async function nextAnimalFolio(context: KeystoneContext): Promise<number> {
+  const prisma = (context.sudo() as KeystoneContext & { prisma: any }).prisma;
+  const rows = await prisma.$queryRaw`SELECT nextval(pg_get_serial_sequence('"Animal"', 'folio'))::int AS folio`;
+  if (rows instanceof Error) throw rows;
+  const folio = (rows as Array<{ folio: number }>)[0]?.folio;
+  if (!Number.isInteger(folio)) throw new Error("No se pudo asignar el folio del reporte.");
+  return folio;
+}
+
+/**
+ * Respuestas del cierre que no son públicas (si Kadesh ayudó, por dónde, la historia): las leen
+ * quien atiende el reporte y un admin. La historia pública sale por una consulta propia que
+ * respeta `storyConsent`.
+ */
+const outcomeAnswersRead = async ({ session, item, context }: any) => {
+  if (isPlatformAdmin(session)) return true;
+  return canEditAnimalAs(context, item, getSessionUserId(session));
+};
+
+/** Los campos de cierre solo los escriben `closeAnimalReport`/el hook de la bitácora (sudo) o un admin. */
+const outcomeFieldAccess = { create: adminOnly, update: adminOnly };
 
 /** Lo que manda la web al publicar «de todos modos»: ids y puntaje de los parecidos, nada más. */
 function cleanDuplicateCheck(value: unknown) {
@@ -31,8 +65,11 @@ function cleanDuplicateCheck(value: unknown) {
 export default list({
   access: animalAccess,
   hooks: {
-    resolveInput: ({ resolvedData, operation, context }) => {
+    resolveInput: async ({ resolvedData, operation, context }) => {
       const data = forceAnimalOwner({ ...resolvedData }, operation, context);
+      if (operation === "create" && data.folio == null) data.folio = await nextAnimalFolio(context);
+      // «Sin nombre», «Desconocido», «No sé»… se guardan vacíos: el nombre se describe al mostrarlo.
+      if (typeof data.name === "string") data.name = knownAnimalName(data.name);
       // `resolvedData` trae todas las llaves (las que no vienen valen `undefined`): con `in` se
       // borraba `duplicateCheck` en cada edición del reporte.
       if (data.duplicateCheck !== undefined) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
@@ -84,7 +121,8 @@ export default list({
     },
   },
   fields: {
-    name: text({ validation: { isRequired: true } }),
+    /** Vacío si no se sabe (la web y los avisos lo describen: «Perra café»). Ver `utils/pet/animalName.ts`. */
+    name: text({ ui: { description: "Vacío si no se sabe su nombre." } }),
     slug: text({
       isIndexed: "unique",
       db: { isNullable: true },
@@ -92,6 +130,23 @@ export default list({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
         description: "URL amigable. Se genera sola y no cambia si editas el nombre.",
+      },
+    }),
+    /**
+     * Folio corto y público del reporte (KP-01234 en el cartel). Sale de la secuencia de Postgres: al
+     * agregar la columna, los animales que ya existían reciben uno, y en cada `create` lo toma
+     * `nextAnimalFolio`. El QR del cartel apunta a `/f/{folio}` en la web, que redirige a la ficha.
+     * Nadie lo escribe desde la API.
+     */
+    folio: integer({
+      defaultValue: { kind: "autoincrement" },
+      isIndexed: "unique",
+      db: { isNullable: false },
+      access: { create: () => false, update: () => false },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Folio del cartel (se muestra como KP-01234).",
       },
     }),
     physical_description: text(),
@@ -206,6 +261,73 @@ export default list({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
         description: "Reportes parecidos que se ignoraron al publicar.",
+      },
+    }),
+    /** Cómo terminó el caso (ver `Animal.outcome.ts`). Null mientras sigue abierto. */
+    outcome: select({
+      options: ANIMAL_OUTCOME_OPTIONS,
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { description: "Cómo terminó el caso. Lo llena «Cerrar caso» o la última bitácora." },
+    }),
+    closedAt: timestamp({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { description: "Cuándo se cerró el caso." },
+    }),
+    /** Null = no respondió (cierres por bitácora o anteriores a la pregunta). */
+    helpedByKadesh: select({
+      options: HELPED_BY_KADESH_OPTIONS,
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "¿Kadesh ayudó a resolverlo? Lo responde quien cierra el caso." },
+    }),
+    outcomeChannel: select({
+      options: OUTCOME_CHANNEL_OPTIONS,
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "Por dónde ayudó Kadesh." },
+    }),
+    outcomeStory: text({
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { displayMode: "textarea", description: "Lo que contó quien cerró el caso." },
+    }),
+    storyConsent: checkbox({
+      defaultValue: false,
+      access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
+      ui: { description: "Aceptó que su historia se publique en Kadesh." },
+    }),
+    /** Seguimiento de casos abiertos (ver `Animal.followUp.ts`). Lo mantienen la bitácora y el cron. */
+    lastActivityAt: timestamp({
+      defaultValue: { kind: "now" },
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: { createView: { fieldMode: "hidden" }, description: "Último registro del caso." },
+    }),
+    followUpStage: integer({
+      defaultValue: 0,
+      validation: { isRequired: true, min: 0, max: 2 },
+      access: { ...outcomeFieldAccess, read: adminOnly },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "Recordatorios de seguimiento enviados: 0 ninguno, 1 a la semana, 2 a las 3 semanas.",
+      },
+    }),
+    followUpSentAt: timestamp({
+      db: { isNullable: true },
+      access: { ...outcomeFieldAccess, read: adminOnly },
+      ui: { createView: { fieldMode: "hidden" }, description: "Cuándo salió el último recordatorio." },
+    }),
+    inactiveAt: timestamp({
+      db: { isNullable: true },
+      isIndexed: true,
+      access: outcomeFieldAccess,
+      ui: {
+        createView: { fieldMode: "hidden" },
+        description: "El caso dejó de salir en el mapa por no tener novedades. Un registro nuevo lo reactiva.",
       },
     }),
     createdAt: timestamp({

@@ -171,7 +171,7 @@ export async function notifyClaimRequested(context: KeystoneContext, claimId: st
       url,
       metadata: { slug: claim.animal.slug ?? null, claimId: claim.id },
       // kadesh_pet_reclamo_solicitado: {claimantName} dice que el animal de tu reporte ({animalName}) es su mascota.
-      templateValues: { claimantName: who, animalName: name ?? "sin nombre", url },
+      templateValues: { claimantName: who, animalName: name ?? "el animal de tu reporte", url },
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar de la solicitud:", claimId, error);

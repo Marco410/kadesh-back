@@ -13,6 +13,7 @@ import {
   type SimilarityKind,
   type SimilarityReason,
 } from "./reportSimilarity";
+import { animalDisplayName, knownAnimalName } from "./animalName";
 
 const COLONIA_PREFIX = /^(col\.?|colonia|fracc\.?|fraccionamiento|unidad)\s+/i;
 const STREET_LABEL =
@@ -41,7 +42,10 @@ export function petPublicUrl(slug: string) {
 
 export type SimilarReport = {
   id: string;
+  /** Nombre real; vacío si no se sabe. */
   name: string;
+  /** Para mostrar: el nombre, o «Perra café». */
+  displayName: string;
   slug: string | null;
   url: string;
   score: number;
@@ -94,6 +98,7 @@ type CandidateLog = {
 type CandidateRow = {
   id: string;
   name?: string | null;
+  animal_type?: { name?: string | null } | null;
   slug?: string | null;
   sex?: string | null;
   color?: string | null;
@@ -112,6 +117,7 @@ type CandidateRow = {
 
 const CANDIDATE_QUERY = `
   id name slug sex color physical_description contactNumber contactNumber2 sourceUrl reportedBy createdAt
+  animal_type { name }
   animal_breed { id breed }
   user { id }
   multimedia(orderBy: { order: asc }, take: 1) { image { url } }
@@ -270,7 +276,13 @@ export async function findSimilarReports(
     const slug = row.slug?.trim() || row.id;
     results.push({
       id: row.id,
-      name: row.name?.trim() || "Sin nombre",
+      name: knownAnimalName(row.name),
+      displayName: animalDisplayName({
+        name: row.name,
+        typeName: row.animal_type?.name,
+        sex: row.sex,
+        color: row.color,
+      }),
       slug: row.slug ?? null,
       url: petPublicUrl(slug),
       score,

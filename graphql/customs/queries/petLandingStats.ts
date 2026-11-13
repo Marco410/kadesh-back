@@ -1,4 +1,5 @@
 import { KeystoneContext } from "@keystone-6/core/types";
+import { ANIMAL_OUTCOME, HOME_OUTCOMES } from "../../../models/Pet/Animal/Animal.outcome";
 
 /**
  * Cifras públicas del hero de KADESH Pet (pet.kadesh.com.mx). Solo conteos agregados:
@@ -15,6 +16,12 @@ type PetLandingStats = {
   animalsLost: number;
   animalsHome: number;
   animalsInAdoption: number;
+  /** Casos cerrados como «volvió con su familia» (`Animal.outcome`). */
+  reunions: number;
+  /** Casos cerrados como «adoptado». */
+  adoptions: number;
+  /** Casos con hogar en los que quien cerró dijo que Kadesh ayudó. */
+  helpedByKadesh: number;
   veterinaries: number;
   veterinariesVerified: number;
   /** Espacios de rescate verificados. */
@@ -31,6 +38,9 @@ const typeDefs = `
     animalsLost: Int!
     animalsHome: Int!
     animalsInAdoption: Int!
+    reunions: Int!
+    adoptions: Int!
+    helpedByKadesh: Int!
     veterinaries: Int!
     veterinariesVerified: Int!
     rescueOrganizations: Int!
@@ -51,7 +61,7 @@ async function computePetLandingStats(context: KeystoneContext): Promise<PetLand
   const prisma = (context.sudo() as KeystoneContext & { prisma: any }).prisma;
   const veterinary = { types: { some: { value: "veterinary" } } };
 
-  const [animals, statusRows, veterinaries, veterinariesVerified, cityRows, rescueOrganizations] = await Promise.all([
+  const [animals, statusRows, veterinaries, veterinariesVerified, cityRows, rescueOrganizations, outcomeRows] = await Promise.all([
     prisma.animal.count(),
     // Estado actual de cada animal = su registro más reciente en la bitácora.
     prisma.$queryRaw`
@@ -77,7 +87,21 @@ async function computePetLandingStats(context: KeystoneContext): Promise<PetLand
       WHERE trim(c) <> ''
     `,
     prisma.rescueOrganization.count({ where: { status: "verified" } }),
+    // Desenlaces de los casos cerrados (sin repetidos unidos a otro).
+    prisma.$queryRaw`
+      SELECT outcome, "helpedByKadesh" AS helped, COUNT(*)::int AS n
+      FROM "Animal"
+      WHERE outcome IS NOT NULL AND "duplicateOf" IS NULL
+      GROUP BY outcome, "helpedByKadesh"
+    `,
   ]);
+
+  const outcomes = unwrap<{ outcome: string; helped: string | null; n: number }[]>(outcomeRows);
+  const countOutcome = (outcome: string) =>
+    outcomes.filter((row) => row.outcome === outcome).reduce((total, row) => total + row.n, 0);
+  const helpedByKadesh = outcomes
+    .filter((row) => row.helped === "yes" && HOME_OUTCOMES.includes(row.outcome))
+    .reduce((total, row) => total + row.n, 0);
 
   const byStatus = new Map<string, number>(
     unwrap<{ status: string | null; n: number }[]>(statusRows).map((row) => [
@@ -93,6 +117,9 @@ async function computePetLandingStats(context: KeystoneContext): Promise<PetLand
     animalsLost: count(["lost"]),
     animalsHome: count(HOME_STATUSES),
     animalsInAdoption: count(["in_adoption"]),
+    reunions: countOutcome(ANIMAL_OUTCOME.REUNITED),
+    adoptions: countOutcome(ANIMAL_OUTCOME.ADOPTED),
+    helpedByKadesh,
     veterinaries: unwrap<number>(veterinaries),
     veterinariesVerified: unwrap<number>(veterinariesVerified),
     rescueOrganizations: unwrap<number>(rescueOrganizations),

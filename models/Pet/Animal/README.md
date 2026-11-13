@@ -6,6 +6,9 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
 
 - **Acceso** (`Animal.access.ts`): la ficha, sus bitácoras y fotos son públicas para leer. Crear exige sesión; editar y borrar, ser el dueño (`Animal.user`) o admin de plataforma. Un usuario normal siempre queda como dueño de lo que crea. Crear una bitácora o foto exige ser dueño del animal destino (`validateInput`). Lo que hace el servidor con `sudo()` no pasa por estas reglas. Comentarios y favoritos: lectura pública, crear con sesión y siempre a nombre propio, borrar el autor o un admin, editar solo un admin. Vistas: se registran también sin sesión (nunca a nombre de otra persona), nadie las edita y solo un admin las borra; la lectura sigue pública porque `animal_viewsCount` pasa por ese acceso.
 - El `slug` se genera en el create y no se regenera al editar el nombre.
+- `name` puede ir vacío: es «no se sabe su nombre». El `resolveInput` convierte en vacío los textos de relleno («Sin nombre», «Desconocido», «No sé»…, `isUnknownAnimalName`). Para mostrarlo se usa `animalDisplayName` («Perra café») o `animalSentenceName` («esta perra») de `utils/pet/animalName.ts`; la web tiene la misma función en `src/components/animals/animalName.ts`.
+- Al aprobar una solicitud (`resolveAnimalClaim`), si el reporte no tenía nombre y quien reclamó dijo cómo se llama (`AnimalClaim.petName`), ese pasa a ser `Animal.name`.
+- `folio` (entero, único) lo asigna Postgres en orden y nadie lo escribe. La web lo muestra como `KP-01234` en el cartel y su QR apunta a `/f/{folio}`, que redirige a la ficha; no cambia aunque cambie el slug.
 - El primer `AnimalLog` puede enriquecer el slug con status/ciudad; logs posteriores no lo tocan.
 - Al **crear** un Animal con session:
   - **Admin de plataforma** (`Role.ADMIN`) → publica en la Página de Facebook Pet (`FACEBOOK_PET_*`) cuando el slug ya es el del primer log y la portada, si hay fotos, ya está guardada. Si log y fotos vienen en el mismo `create`, publica al terminar ese `create`. Si no hay fotos, publica a los 90 s del primer log. Link: `{PET_FRONTEND_URL}/animales/{slug}`.
@@ -28,6 +31,13 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
   - Queda un comentario `duplicate_report` en el principal y se avisa `animal.merged` a quien hizo el repetido.
   - `getNearbyAnimals` ya no lo lista y la web redirige su ficha al principal (308).
 - `duplicateCheck` (JSON, solo admin lo lee): los parecidos que la persona descartó al publicar, para decidir si unirlos.
+- **Seguimiento de casos** (`Animal.followUp.ts`, cron `sendAnimalFollowUps`): cada registro nuevo pone `lastActivityAt`, reinicia `followUpStage` y quita `inactiveAt`. En un caso abierto (último registro `lost`, `found`, `rescued`, `abandoned` o `in_adoption`, sin desenlace ni repetido):
+  - A los 7 días sin registros sale el primer recordatorio y a los 21 el segundo (al menos 7 días después del primero). Van a quien atiende el reporte por campana, push, WhatsApp (`kadesh_pet_seguimiento`, solo con opt-in) y correo, con enlaces a `?accion=cerrar` y `?accion=registro`. Nunca a la automatización.
+  - Sin respuesta, a los 45 días (y al menos 14 tras el segundo) el caso queda `inactiveAt` y `getNearbyAnimals` ya no lo lista. Los reportes sin dueño o de la automatización, a los 30 días. Un registro nuevo lo reactiva.
+  - Topes por corrida: 200 recordatorios y 500 casos inactivos.
+- **Desenlace del caso** (`Animal.outcome.ts`): `outcome` (`reunited`, `adopted`, `other_home`, `deceased`, `closed_unresolved`) y `closedAt` son públicos; `helpedByKadesh`, `outcomeChannel`, `outcomeStory` y `storyConsent` solo los leen quien atiende el reporte y un admin. Ninguno se escribe con `updateAnimal`: solo `closeAnimalReport`, el hook de la bitácora o un admin.
+  - `closeAnimalReport` guarda las respuestas y deja la bitácora final con la ubicación de la última (`in_family`, `adopted` o `closed`, que es «Caso cerrado» sin hogar). Si el caso ya estaba cerrado, solo corrige las respuestas.
+  - Cualquier otra bitácora final (web o app vieja, cartilla, adopciones, rescate) llena `outcome` y `closedAt` sin respuestas, siempre que antes hubo un caso abierto (`lost`, `found`, `rescued`, `abandoned`, `in_adoption`). Una bitácora de caso abierto sobre un caso cerrado lo reabre y limpia el cierre.
 - **La misma persona publicando otra vez** (`Animal.ownDuplicates.ts`, solo `createAnimal` con sesión y sin admin): busca sus reportes del mismo tipo de los últimos 90 días que no estén unidos a otro ni cerrados. Cuenta como el mismo animal si el nombre es igual o parecido (`compareNames`). Con nombre genérico («Sin nombre») solo cuenta si es de las últimas 24 h, con el mismo teléfono y la misma descripción.
   - Si ya tiene uno con bitácora, el alta falla con «Ya publicaste a {nombre}…» y el link a su reporte.
   - Si quedó uno a medias (sin bitácora ni fotos, comentarios, solicitudes, favoritos, mascota o repetidos encima), se borra al crear el nuevo. Queda `pet.incomplete_report_removed` en `ActivityEvent`.
@@ -141,3 +151,39 @@ Qué: `animalLogSlugAfterOperation`, en el primer registro y con sesión, arranc
 Por qué: quien publicaba no recibía nada y no sabía que podía agregar registros, activar alertas o avisos por WhatsApp. El disparador es el primer registro y no el `create` del Animal porque el estado y el lugar viven en el registro, y un alta a medias puede borrarse (`removeIncompleteOwnReports`). Se espera a las fotos porque la tarjeta `/og` se cachea en el edge: pedirla antes la dejaría sin foto también para quien comparta el enlace.
 
 Qué no hacer: no usar la URL de S3 de la foto en el correo (caduca en 1 h). No activar los avisos por WhatsApp por la persona: solo se le invita (Meta exige que cada quien acepte). En el bloque de impulsar, respetar las reglas de texto de `kadesh-landing/src/components/animals/promotion/README.md` (opcional, todo va a Meta, sin cifras ni urgencia, antiestafa).
+
+
+### 2026-11-12 — Cerrar el caso con «¿volvió a casa?» y contador de reencuentros
+
+Qué: campos de desenlace en `Animal` (ver Invariantes), la mutación `closeAnimalReport`, el estatus de bitácora `closed` («Caso cerrado») y tres cifras nuevas en `petLandingStats`: `reunions`, `adoptions` y `helpedByKadesh` (casos con hogar en los que quien cerró dijo que Kadesh ayudó). Backfill: `pnpm animals:backfill-outcomes` (reporte) y `--apply`.
+
+Por qué: la portada va a mostrar cuántos animales volvieron a casa y cuántos fueron adoptados, y solo contábamos el último estatus de la bitácora, sin saber si Kadesh ayudó ni cuándo se cerró. Además, los casos que no terminan en hogar (falleció, se dejó de buscar) no tenían cómo cerrarse y se quedaban en el mapa.
+
+Qué no hacer: no contar un reencuentro por el estatus de la bitácora (un animal que nace «En familia» no lo es): usar `outcome`. No inventar `helpedByKadesh` en los cierres sin respuesta: vacío es «no respondió». No publicar `outcomeStory` sin `storyConsent`.
+
+
+### 2026-11-12 — Recordatorios de seguimiento y casos inactivos
+
+Qué: campos `lastActivityAt`, `followUpStage`, `followUpSentAt` e `inactiveAt` (ver Invariantes), el hook `touchAnimalActivity` en la bitácora, la mutación `sendAnimalFollowUps` con su workflow diario (`.github/workflows/send-animal-follow-ups.yml`, 16:00 UTC), el tipo de aviso `animal.follow_up` con la plantilla `kadesh_pet_seguimiento` y el correo `sendAnimalFollowUpEmail`. `getNearbyAnimals` excluye los casos inactivos. Backfill: `pnpm animals:backfill-activity`, que hay que correr justo después de la migración porque la columna nueva arranca con la fecha de ese momento.
+
+Por qué: sin recordar a la gente que cierre o actualice el caso, el contador de reencuentros no crece y el mapa se llena de casos viejos que ya nadie busca.
+
+Qué no hacer: no borrar casos inactivos ni cerrarlos solos: solo dejan de salir en el mapa y la ficha sigue abierta. No mandar el recordatorio a la cuenta de automatización. No correr el cron antes del backfill: todos los casos se verían recién actualizados y luego, al corregirlos, saldría una ola de recordatorios de golpe (con el backfill también sale, pero topada a 200 por día).
+
+
+### 2026-11-12 — Folio del cartel (`Animal.folio`)
+
+Qué: entero único con `autoincrement`. Al aplicar la migración, Postgres numera también los animales que ya existían, así que no hace falta backfill. En cada `create`, el `resolveInput` de `Animal` toma el siguiente número de la misma secuencia (`nextAnimalFolio`): Keystone 6.5 exige `db.isNullable: false` en un autoincrement y entonces su validación pide el valor (`Animal.folio: missing value`) aunque la base lo pondría sola. Se puede consultar por folio: `animal(where: { folio: 123 })`.
+
+Por qué: el cartel impreso de kadesh-landing (`/cartel/{slug}`) lleva un QR a `/f/{folio}`. Una URL corta da un QR más simple que se escanea mejor en papel, y el folio sirve para que alguien lo dicte por teléfono o lo busque.
+
+Qué no hacer: no reasignar ni reutilizar folios: hay carteles pegados en la calle que apuntan a ellos.
+
+
+### 2026-11-13 — Nombre desconocido vacío en vez de «Sin nombre»
+
+Qué: `Animal.name` deja de ser obligatorio y los textos de relleno se guardan vacíos. Los avisos (seguimiento, solicitudes, coincidencias), el correo de seguimiento, los reportes parecidos (`findAnimalReportDuplicates` ahora devuelve `displayName`) y la cartilla que se crea de un reporte describen al animal («Perra café», «esta perra») en vez de decir «Sin nombre». `AnimalClaim.petName` (opcional): cómo se llama según quien reclama. Backfill: `pnpm animals:backfill-unknown-names`.
+
+Por qué: «Sin nombre» se mostraba como si fuera el nombre en títulos, carteles, cierres y recordatorios («¿Sin nombre volvió a casa?»). Casi siempre el animal sí tiene nombre; quien lo encontró no lo sabe. Cuando aparece la familia, su solicitud trae el nombre real.
+
+Qué no hacer: no volver a guardar un texto de relleno en `name`. No regenerar el slug al poner el nombre real: hay carteles y enlaces compartidos con el slug viejo.
