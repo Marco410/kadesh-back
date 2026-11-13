@@ -84,7 +84,7 @@ export async function notifyPossibleMatches(context: KeystoneContext, input: Pos
         });
         if (already && !(already instanceof Error)) continue;
       }
-      const theirName = isGenericName(match.name) ? null : match.name;
+      const theirName = match.name && !isGenericName(match.name) ? match.name : null;
       sent += await notify(context, {
         audience,
         product: "pet",

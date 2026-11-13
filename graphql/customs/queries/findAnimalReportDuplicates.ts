@@ -13,7 +13,10 @@ import { normalizeMxPhone } from "../../../utils/pet/phone";
 const typeDefs = `
   type AnimalReportDuplicate {
     id: ID!
+    """Nombre real; vacío si no se sabe."""
     name: String!
+    """Para mostrar: el nombre, o «Perra café» si no se sabe."""
+    displayName: String!
     slug: String
     url: String!
     score: Int!

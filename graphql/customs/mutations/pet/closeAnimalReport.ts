@@ -167,7 +167,7 @@ const resolver = {
 
     void logActivity(context, {
       type: alreadyClosed ? "animal.outcome_updated" : "animal.closed",
-      summary: `${alreadyClosed ? "Actualizó el cierre de" : "Cerró"} el reporte «${animal.name ?? animal.id}»`,
+      summary: `${alreadyClosed ? "Actualizó el cierre de" : "Cerró"} el reporte «${animal.name || animal.id}»`,
       entityType: "Animal",
       entityId: animal.id,
       metadata: { outcome: input.outcome, helpedByKadesh, outcomeChannel },

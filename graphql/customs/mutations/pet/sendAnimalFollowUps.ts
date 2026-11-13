@@ -15,6 +15,7 @@ import { automationUserId } from "../../../../utils/notifications/animalReportAl
 import { notify } from "../../../../utils/notifications/notify";
 import { petSiteUrl } from "../../../../utils/notifications/whatsapp";
 import { sendAnimalFollowUpEmail } from "../../../../utils/helpers/sendgrid";
+import { animalSentenceName, capitalizeFirst } from "../../../../utils/pet/animalName";
 
 /**
  * Seguimiento diario de casos abiertos (ver `models/Pet/Animal/Animal.followUp.ts`):
@@ -47,6 +48,9 @@ const definition = `
 type Candidate = {
   id: string;
   name: string | null;
+  sex: string | null;
+  color: string | null;
+  typeName: string | null;
   slug: string | null;
   stage: number;
   userId: string;
@@ -71,10 +75,11 @@ function unwrap<T>(value: T | Error): T {
 async function findReminderCandidates(prisma: any, automation: string): Promise<Candidate[]> {
   const now = Date.now();
   const rows = await prisma.$queryRaw`
-    SELECT a.id, a.name, a.slug, a."followUpStage" AS stage, u.id AS "userId", u.name AS "userName",
-           u.email, u."anonymizedAt", u."suspendedAt"
+    SELECT a.id, a.name, a.sex, a.color, t.name AS "typeName", a.slug, a."followUpStage" AS stage,
+           u.id AS "userId", u.name AS "userName", u.email, u."anonymizedAt", u."suspendedAt"
     FROM "Animal" a
     JOIN "User" u ON u.id = a."user"
+    LEFT JOIN "AnimalType" t ON t.id = a."animal_type"
     JOIN LATERAL (
       SELECT l.status FROM "AnimalLog" l
       WHERE l."animal" = a.id
@@ -145,7 +150,9 @@ async function remind(context: KeystoneContext, animal: Candidate): Promise<bool
   );
   if (claimed.count !== 1) return false;
 
-  const name = animal.name?.trim() || "tu reporte";
+  // Sin nombre conocido: «esta perra» (ver `utils/pet/animalName.ts`).
+  const name = animalSentenceName(animal);
+  const Name = capitalizeFirst(name);
   const elapsed = nextStage === 1 ? "una semana" : "3 semanas";
   const detail = `/animales/${animal.slug || animal.id}`;
   const url = petSiteUrl(detail);
@@ -155,7 +162,7 @@ async function remind(context: KeystoneContext, animal: Candidate): Promise<bool
     audience: [animal.userId],
     product: "pet",
     type: NOTIFICATION_TYPE.ANIMAL_FOLLOW_UP,
-    title: `¿${name} ya volvió a casa?`,
+    title: `¿${Name} ya volvió a casa?`,
     body: finalNotice
       ? `Van 3 semanas sin novedades. Cierra el caso si ya se resolvió o agrega un registro: si no hay novedades, dejará de salir en el mapa.`
       : `Va una semana sin novedades. Cierra el caso si ya se resolvió o agrega un registro si sigues buscando.`,

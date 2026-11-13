@@ -53,6 +53,13 @@ export default list({
     phone: text({
       ui: { description: "Teléfono de quien reclama. Pasa al reporte si se aprueba." },
     }),
+    /**
+     * Cómo se llama su mascota, según quien reclama (opcional). Ayuda a quien atiende el reporte a
+     * decidir y, si se aprueba y el reporte no tenía nombre, pasa a `Animal.name`.
+     */
+    petName: text({
+      ui: { description: "Nombre de la mascota según quien reclama. Si se aprueba y el reporte no tenía nombre, se usa." },
+    }),
     evidence: image({
       storage: "s3_animals",
     }),

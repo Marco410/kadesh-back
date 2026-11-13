@@ -140,6 +140,7 @@ model Animal {
   id                              String                @id @default(cuid())
   name                            String                @default("")
   slug                            String?               @unique
+  folio                           Int                   @unique @default(autoincrement())
   physical_description            String                @default("")
   age                             String                @default("")
   sex                             String?               @default("male")
@@ -223,6 +224,7 @@ model AnimalClaim {
   previousUserId     String?   @map("previousUser")
   message            String    @default("")
   phone              String    @default("")
+  petName            String    @default("")
   evidence_id        String?
   evidence_filesize  Int?
   evidence_width     Int?

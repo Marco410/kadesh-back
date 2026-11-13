@@ -1,4 +1,5 @@
 import { sendEmail } from "../intregrations/smtpMail";
+import { capitalizeFirst } from "../pet/animalName";
 import {
   EMAIL_BRANDS,
   EMAIL_TEXT,
@@ -929,7 +930,7 @@ export async function sendAnimalFollowUpEmail({
 
   await sendEmail({
     to: trimmedTo,
-    subject: `¿${animalName} ya volvió a casa?`,
+    subject: `¿${capitalizeFirst(animalName)} ya volvió a casa?`,
     html,
     fromName: EMAIL_BRANDS.pet.name,
   });

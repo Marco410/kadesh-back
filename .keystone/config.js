@@ -2564,6 +2564,399 @@ async function sendEmail({
   }
 }
 
+// utils/pet/reportSimilarity.ts
+var SIMILARITY_POSSIBLE = 45;
+var SIMILARITY_LIKELY = 70;
+var SIMILARITY_RADIUS_KM = 5;
+var SIMILARITY_WINDOW_DAYS = { lost: 90, other: 30 };
+var SIMILARITY_MAX_RESULTS = 3;
+var WEIGHTS = {
+  SAME_SOURCE: 100,
+  SAME_PHONE: 40,
+  SAME_NAME: 35,
+  SIMILAR_NAME: 25,
+  DIFFERENT_NAME: -20,
+  VERY_CLOSE: 25,
+  CLOSE: 20,
+  NEAR: 12,
+  AREA: 5,
+  SAME_SEX: 5,
+  DIFFERENT_SEX: -30,
+  SAME_COLOR: 10,
+  DIFFERENT_COLOR: -5,
+  SAME_BREED: 5,
+  SAME_MIXED_BREED: 2,
+  SIMILAR_DESCRIPTION: 10,
+  SAME_DATE: 5
+};
+var LOST_STATUSES = ["lost"];
+var STREET_STATUSES = ["found", "rescued", "abandoned"];
+var CLOSED_STATUSES = /* @__PURE__ */ new Set(["in_family", "adopted", "closed"]);
+function kindForStatuses(newStatus, candidateStatus) {
+  const candidate = (candidateStatus ?? "").toLowerCase();
+  if (CLOSED_STATUSES.has(candidate)) return null;
+  const status = (newStatus ?? "").toLowerCase();
+  if (!status) return "duplicate";
+  if (LOST_STATUSES.includes(status)) {
+    if (LOST_STATUSES.includes(candidate)) return "duplicate";
+    if (STREET_STATUSES.includes(candidate)) return "match";
+    return null;
+  }
+  if (STREET_STATUSES.includes(status)) {
+    if (STREET_STATUSES.includes(candidate)) return "duplicate";
+    if (LOST_STATUSES.includes(candidate)) return "match";
+    return null;
+  }
+  return status === candidate ? "duplicate" : null;
+}
+function windowDaysFor(status) {
+  return (status ?? "").toLowerCase() === "lost" ? SIMILARITY_WINDOW_DAYS.lost : SIMILARITY_WINDOW_DAYS.other;
+}
+function foldText(value) {
+  return (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+var GENERIC_NAMES = /* @__PURE__ */ new Set([
+  "",
+  "sin nombre",
+  "sinnombre",
+  "s n",
+  "n a",
+  "na",
+  "no se",
+  "no lo se",
+  "desconocido",
+  "desconocida",
+  "unnamed",
+  "perro",
+  "perra",
+  "perrito",
+  "perrita",
+  "gato",
+  "gata",
+  "gatito",
+  "gatita",
+  "cachorro",
+  "cachorra",
+  "cachorrito",
+  "cachorrita",
+  "callejero",
+  "callejera",
+  "callejerito",
+  "callejerita",
+  "ave",
+  "pajaro",
+  "pajarito",
+  "conejo",
+  "conejito",
+  "mascota"
+]);
+function isGenericName(name) {
+  const folded = foldText(name);
+  return GENERIC_NAMES.has(folded) || folded.startsWith("sin nombre");
+}
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+function compareNames(a, b) {
+  if (isGenericName(a) || isGenericName(b)) return null;
+  const left = foldText(a);
+  const right = foldText(b);
+  if (left === right) return "same";
+  const shorter = Math.min(left.length, right.length);
+  if (shorter >= 3 && (left.includes(right) || right.includes(left))) return "similar";
+  if (shorter >= 4) {
+    const allowed = shorter >= 7 ? 2 : 1;
+    if (levenshtein(left, right) <= allowed) return "similar";
+  }
+  return "different";
+}
+var COLOR_WORDS = {
+  blanco: "blanco",
+  hueso: "blanco",
+  albino: "blanco",
+  negro: "negro",
+  azabache: "negro",
+  cafe: "cafe",
+  marron: "cafe",
+  chocolate: "cafe",
+  canela: "cafe",
+  cobrizo: "cafe",
+  gris: "gris",
+  plateado: "gris",
+  plata: "gris",
+  cenizo: "gris",
+  azul: "gris",
+  dorado: "dorado",
+  amarillo: "dorado",
+  beige: "dorado",
+  crema: "dorado",
+  rubio: "dorado",
+  miel: "dorado",
+  arena: "dorado",
+  naranja: "naranja",
+  anaranjado: "naranja",
+  rojizo: "naranja",
+  pelirrojo: "naranja",
+  atigrado: "atigrado",
+  rayado: "atigrado",
+  tabby: "atigrado",
+  barcino: "atigrado",
+  manchas: "manchas",
+  mancha: "manchas",
+  manchado: "manchas",
+  pinto: "manchas",
+  moteado: "manchas",
+  dalmata: "manchas",
+  tricolor: "tricolor",
+  calico: "tricolor",
+  carey: "tricolor"
+};
+function colorOf(word) {
+  const candidates = [word, word.replace(/(es|s)$/, "")];
+  for (const value of candidates) {
+    if (COLOR_WORDS[value]) return COLOR_WORDS[value];
+    if (value.endsWith("a") && COLOR_WORDS[`${value.slice(0, -1)}o`]) {
+      return COLOR_WORDS[`${value.slice(0, -1)}o`];
+    }
+  }
+  return null;
+}
+function colorTokens(value) {
+  const tokens = /* @__PURE__ */ new Set();
+  for (const word of foldText(value).split(" ")) {
+    const color = word ? colorOf(word) : null;
+    if (color) tokens.add(color);
+  }
+  return tokens;
+}
+var STOPWORDS = /* @__PURE__ */ new Set([
+  "tiene",
+  "tenia",
+  "como",
+  "esta",
+  "este",
+  "estos",
+  "estas",
+  "para",
+  "pero",
+  "cuando",
+  "donde",
+  "porque",
+  "sobre",
+  "entre",
+  "hasta",
+  "desde",
+  "mucho",
+  "mucha",
+  "poco",
+  "poca",
+  "todo",
+  "toda",
+  "todos",
+  "todas",
+  "tambien",
+  "solo",
+  "ella",
+  "ellos",
+  "nombre",
+  "responde",
+  "perro",
+  "perra",
+  "perrito",
+  "perrita",
+  "gato",
+  "gata",
+  "gatito",
+  "gatita",
+  "color",
+  "mascota",
+  "informacion",
+  "favor",
+  "perdio",
+  "perdido",
+  "perdida",
+  "visto",
+  "vista",
+  "cualquier",
+  "ayuda",
+  "ayudanos",
+  "llamar",
+  "numero",
+  "telefono",
+  "contacto",
+  "recompensa",
+  "ofrece",
+  "gracias"
+]);
+function descriptionTokens(value) {
+  const tokens = /* @__PURE__ */ new Set();
+  for (const word of foldText(value).split(" ")) {
+    if (word.length >= 4 && !STOPWORDS.has(word)) tokens.add(word);
+  }
+  return tokens;
+}
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const token of a) if (b.has(token)) shared += 1;
+  return shared / (a.size + b.size - shared);
+}
+var MIXED_BREED = /mestiz|crioll|sin raza|no se|desconoc/i;
+function distancePoints(distanceKm) {
+  if (distanceKm == null || !Number.isFinite(distanceKm)) return [0, null];
+  if (distanceKm <= 0.5) return [WEIGHTS.VERY_CLOSE, "very_close"];
+  if (distanceKm <= 1.5) return [WEIGHTS.CLOSE, "close"];
+  if (distanceKm <= 3) return [WEIGHTS.NEAR, "close"];
+  if (distanceKm <= SIMILARITY_RADIUS_KM) return [WEIGHTS.AREA, null];
+  return [0, null];
+}
+function toTime(value) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+function scoreCandidate(input, candidate, distanceKm) {
+  const gains = [];
+  let score = 0;
+  const add = (points, reason) => {
+    score += points;
+    if (reason && points > 0) gains.push([points, reason]);
+  };
+  const source = input.sourceUrl?.trim();
+  if (source && source === candidate.sourceUrl?.trim()) {
+    return { score: WEIGHTS.SAME_SOURCE, reasons: ["same_source"] };
+  }
+  const inputPhones = new Set((input.phones ?? []).map((phone) => phone?.trim()).filter(Boolean));
+  if ((candidate.phones ?? []).some((phone) => phone?.trim() && inputPhones.has(phone.trim()))) {
+    add(WEIGHTS.SAME_PHONE, "same_phone");
+  }
+  const names = compareNames(input.name, candidate.name);
+  if (names === "same") add(WEIGHTS.SAME_NAME, "same_name");
+  else if (names === "similar") add(WEIGHTS.SIMILAR_NAME, "similar_name");
+  else if (names === "different") add(WEIGHTS.DIFFERENT_NAME);
+  const [distance, distanceReason] = distancePoints(distanceKm);
+  add(distance, distanceReason);
+  const sexes = ["male", "female"];
+  if (sexes.includes(input.sex ?? "") && sexes.includes(candidate.sex ?? "")) {
+    if (input.sex === candidate.sex) add(WEIGHTS.SAME_SEX, "same_sex");
+    else add(WEIGHTS.DIFFERENT_SEX);
+  }
+  const inputColors = colorTokens(input.color);
+  const candidateColors = colorTokens(candidate.color);
+  if (inputColors.size && candidateColors.size) {
+    let shared = 0;
+    for (const color of inputColors) if (candidateColors.has(color)) shared += 1;
+    const overlap = shared / Math.min(inputColors.size, candidateColors.size);
+    if (overlap >= 0.5) add(WEIGHTS.SAME_COLOR, "same_color");
+    else if (shared === 0) add(WEIGHTS.DIFFERENT_COLOR);
+  }
+  if (input.breedId && input.breedId === candidate.breedId) {
+    add(
+      MIXED_BREED.test(candidate.breedName ?? "") ? WEIGHTS.SAME_MIXED_BREED : WEIGHTS.SAME_BREED,
+      "same_breed"
+    );
+  }
+  if (jaccard(descriptionTokens(input.description), descriptionTokens(candidate.description)) >= 0.3) {
+    add(WEIGHTS.SIMILAR_DESCRIPTION, "similar_description");
+  }
+  const inputDate = toTime(input.date);
+  const candidateDate = toTime(candidate.date);
+  if (inputDate != null && candidateDate != null) {
+    if (Math.abs(inputDate - candidateDate) <= 7 * 24 * 60 * 60 * 1e3) {
+      add(WEIGHTS.SAME_DATE, "same_date");
+    }
+  }
+  const reasons = gains.sort((a, b) => b[0] - a[0]).map(([, reason]) => reason);
+  return {
+    score: Math.max(0, Math.min(100, score)),
+    reasons: [...new Set(reasons)]
+  };
+}
+function similarityLevel(score) {
+  if (score >= SIMILARITY_LIKELY) return "likely";
+  if (score >= SIMILARITY_POSSIBLE) return "possible";
+  return null;
+}
+
+// utils/pet/animalName.ts
+var PLACEHOLDERS = /* @__PURE__ */ new Set([
+  "",
+  "sin nombre",
+  "sin nombre conocido",
+  "desconocido",
+  "desconocida",
+  "nombre desconocido",
+  "no se",
+  "no lo se",
+  "no se su nombre",
+  "no tiene nombre",
+  "no tiene",
+  "ninguno",
+  "unknown",
+  "unnamed",
+  "n a",
+  "na"
+]);
+var fold = (value) => foldText(value);
+function isUnknownAnimalName(name) {
+  return PLACEHOLDERS.has(fold(name ?? ""));
+}
+function knownAnimalName(name) {
+  return isUnknownAnimalName(name) ? "" : (name ?? "").trim();
+}
+var FORMS = {
+  dog: { m: "Perro", f: "Perra", thisM: "este perro", thisF: "esta perra" },
+  cat: { m: "Gato", f: "Gata", thisM: "este gato", thisF: "esta gata" },
+  bird: { m: "Ave", f: "Ave", thisM: "esta ave", thisF: "esta ave" },
+  fish: { m: "Pez", f: "Pez", thisM: "este pez", thisF: "este pez" },
+  reptil: { m: "Reptil", f: "Reptil", thisM: "este reptil", thisF: "este reptil" }
+};
+var ALIASES = {
+  perro: "dog",
+  gato: "cat",
+  ave: "bird",
+  pez: "fish",
+  reptile: "reptil"
+};
+var DEFAULT_FORMS = { m: "Animal", f: "Animal", thisM: "este animal", thisF: "este animal" };
+function formsFor(typeName) {
+  const key = foldText(typeName ?? "");
+  return FORMS[ALIASES[key] ?? key] ?? DEFAULT_FORMS;
+}
+function shortColor(color) {
+  const clean4 = (color ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  return clean4 && clean4.length <= 24 ? clean4 : "";
+}
+function animalDisplayName(animal) {
+  const known = knownAnimalName(animal.name);
+  if (known) return known;
+  const forms = formsFor(animal.typeName);
+  const base = animal.sex === "female" ? forms.f : forms.m;
+  const color = shortColor(animal.color);
+  return color ? `${base} ${color}` : base;
+}
+function animalSentenceName(animal) {
+  const known = knownAnimalName(animal.name);
+  if (known) return known;
+  const forms = formsFor(animal.typeName);
+  return animal.sex === "female" ? forms.thisF : forms.thisM;
+}
+function capitalizeFirst(text86) {
+  return text86 ? text86.charAt(0).toUpperCase() + text86.slice(1) : text86;
+}
+
 // utils/helpers/emailLayout.ts
 function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -3313,7 +3706,7 @@ async function sendAnimalFollowUpEmail({
   });
   await sendEmail({
     to: trimmedTo,
-    subject: `\xBF${animalName2} ya volvi\xF3 a casa?`,
+    subject: `\xBF${capitalizeFirst(animalName2)} ya volvi\xF3 a casa?`,
     html,
     fromName: EMAIL_BRANDS.pet.name
   });
@@ -3513,332 +3906,6 @@ async function sendAdminSecurityAlertEmail({
     }),
     fromName: EMAIL_BRANDS[brand].name
   });
-}
-
-// utils/pet/reportSimilarity.ts
-var SIMILARITY_POSSIBLE = 45;
-var SIMILARITY_LIKELY = 70;
-var SIMILARITY_RADIUS_KM = 5;
-var SIMILARITY_WINDOW_DAYS = { lost: 90, other: 30 };
-var SIMILARITY_MAX_RESULTS = 3;
-var WEIGHTS = {
-  SAME_SOURCE: 100,
-  SAME_PHONE: 40,
-  SAME_NAME: 35,
-  SIMILAR_NAME: 25,
-  DIFFERENT_NAME: -20,
-  VERY_CLOSE: 25,
-  CLOSE: 20,
-  NEAR: 12,
-  AREA: 5,
-  SAME_SEX: 5,
-  DIFFERENT_SEX: -30,
-  SAME_COLOR: 10,
-  DIFFERENT_COLOR: -5,
-  SAME_BREED: 5,
-  SAME_MIXED_BREED: 2,
-  SIMILAR_DESCRIPTION: 10,
-  SAME_DATE: 5
-};
-var LOST_STATUSES = ["lost"];
-var STREET_STATUSES = ["found", "rescued", "abandoned"];
-var CLOSED_STATUSES = /* @__PURE__ */ new Set(["in_family", "adopted", "closed"]);
-function kindForStatuses(newStatus, candidateStatus) {
-  const candidate = (candidateStatus ?? "").toLowerCase();
-  if (CLOSED_STATUSES.has(candidate)) return null;
-  const status = (newStatus ?? "").toLowerCase();
-  if (!status) return "duplicate";
-  if (LOST_STATUSES.includes(status)) {
-    if (LOST_STATUSES.includes(candidate)) return "duplicate";
-    if (STREET_STATUSES.includes(candidate)) return "match";
-    return null;
-  }
-  if (STREET_STATUSES.includes(status)) {
-    if (STREET_STATUSES.includes(candidate)) return "duplicate";
-    if (LOST_STATUSES.includes(candidate)) return "match";
-    return null;
-  }
-  return status === candidate ? "duplicate" : null;
-}
-function windowDaysFor(status) {
-  return (status ?? "").toLowerCase() === "lost" ? SIMILARITY_WINDOW_DAYS.lost : SIMILARITY_WINDOW_DAYS.other;
-}
-function foldText(value) {
-  return (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-}
-var GENERIC_NAMES = /* @__PURE__ */ new Set([
-  "",
-  "sin nombre",
-  "sinnombre",
-  "s n",
-  "n a",
-  "na",
-  "no se",
-  "no lo se",
-  "desconocido",
-  "desconocida",
-  "unnamed",
-  "perro",
-  "perra",
-  "perrito",
-  "perrita",
-  "gato",
-  "gata",
-  "gatito",
-  "gatita",
-  "cachorro",
-  "cachorra",
-  "cachorrito",
-  "cachorrita",
-  "callejero",
-  "callejera",
-  "callejerito",
-  "callejerita",
-  "ave",
-  "pajaro",
-  "pajarito",
-  "conejo",
-  "conejito",
-  "mascota"
-]);
-function isGenericName(name) {
-  const folded = foldText(name);
-  return GENERIC_NAMES.has(folded) || folded.startsWith("sin nombre");
-}
-function levenshtein(a, b) {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i += 1) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
-    }
-    previous = current;
-  }
-  return previous[b.length];
-}
-function compareNames(a, b) {
-  if (isGenericName(a) || isGenericName(b)) return null;
-  const left = foldText(a);
-  const right = foldText(b);
-  if (left === right) return "same";
-  const shorter = Math.min(left.length, right.length);
-  if (shorter >= 3 && (left.includes(right) || right.includes(left))) return "similar";
-  if (shorter >= 4) {
-    const allowed = shorter >= 7 ? 2 : 1;
-    if (levenshtein(left, right) <= allowed) return "similar";
-  }
-  return "different";
-}
-var COLOR_WORDS = {
-  blanco: "blanco",
-  hueso: "blanco",
-  albino: "blanco",
-  negro: "negro",
-  azabache: "negro",
-  cafe: "cafe",
-  marron: "cafe",
-  chocolate: "cafe",
-  canela: "cafe",
-  cobrizo: "cafe",
-  gris: "gris",
-  plateado: "gris",
-  plata: "gris",
-  cenizo: "gris",
-  azul: "gris",
-  dorado: "dorado",
-  amarillo: "dorado",
-  beige: "dorado",
-  crema: "dorado",
-  rubio: "dorado",
-  miel: "dorado",
-  arena: "dorado",
-  naranja: "naranja",
-  anaranjado: "naranja",
-  rojizo: "naranja",
-  pelirrojo: "naranja",
-  atigrado: "atigrado",
-  rayado: "atigrado",
-  tabby: "atigrado",
-  barcino: "atigrado",
-  manchas: "manchas",
-  mancha: "manchas",
-  manchado: "manchas",
-  pinto: "manchas",
-  moteado: "manchas",
-  dalmata: "manchas",
-  tricolor: "tricolor",
-  calico: "tricolor",
-  carey: "tricolor"
-};
-function colorOf(word) {
-  const candidates = [word, word.replace(/(es|s)$/, "")];
-  for (const value of candidates) {
-    if (COLOR_WORDS[value]) return COLOR_WORDS[value];
-    if (value.endsWith("a") && COLOR_WORDS[`${value.slice(0, -1)}o`]) {
-      return COLOR_WORDS[`${value.slice(0, -1)}o`];
-    }
-  }
-  return null;
-}
-function colorTokens(value) {
-  const tokens = /* @__PURE__ */ new Set();
-  for (const word of foldText(value).split(" ")) {
-    const color = word ? colorOf(word) : null;
-    if (color) tokens.add(color);
-  }
-  return tokens;
-}
-var STOPWORDS = /* @__PURE__ */ new Set([
-  "tiene",
-  "tenia",
-  "como",
-  "esta",
-  "este",
-  "estos",
-  "estas",
-  "para",
-  "pero",
-  "cuando",
-  "donde",
-  "porque",
-  "sobre",
-  "entre",
-  "hasta",
-  "desde",
-  "mucho",
-  "mucha",
-  "poco",
-  "poca",
-  "todo",
-  "toda",
-  "todos",
-  "todas",
-  "tambien",
-  "solo",
-  "ella",
-  "ellos",
-  "nombre",
-  "responde",
-  "perro",
-  "perra",
-  "perrito",
-  "perrita",
-  "gato",
-  "gata",
-  "gatito",
-  "gatita",
-  "color",
-  "mascota",
-  "informacion",
-  "favor",
-  "perdio",
-  "perdido",
-  "perdida",
-  "visto",
-  "vista",
-  "cualquier",
-  "ayuda",
-  "ayudanos",
-  "llamar",
-  "numero",
-  "telefono",
-  "contacto",
-  "recompensa",
-  "ofrece",
-  "gracias"
-]);
-function descriptionTokens(value) {
-  const tokens = /* @__PURE__ */ new Set();
-  for (const word of foldText(value).split(" ")) {
-    if (word.length >= 4 && !STOPWORDS.has(word)) tokens.add(word);
-  }
-  return tokens;
-}
-function jaccard(a, b) {
-  if (!a.size || !b.size) return 0;
-  let shared = 0;
-  for (const token of a) if (b.has(token)) shared += 1;
-  return shared / (a.size + b.size - shared);
-}
-var MIXED_BREED = /mestiz|crioll|sin raza|no se|desconoc/i;
-function distancePoints(distanceKm) {
-  if (distanceKm == null || !Number.isFinite(distanceKm)) return [0, null];
-  if (distanceKm <= 0.5) return [WEIGHTS.VERY_CLOSE, "very_close"];
-  if (distanceKm <= 1.5) return [WEIGHTS.CLOSE, "close"];
-  if (distanceKm <= 3) return [WEIGHTS.NEAR, "close"];
-  if (distanceKm <= SIMILARITY_RADIUS_KM) return [WEIGHTS.AREA, null];
-  return [0, null];
-}
-function toTime(value) {
-  if (!value) return null;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) ? time : null;
-}
-function scoreCandidate(input, candidate, distanceKm) {
-  const gains = [];
-  let score = 0;
-  const add = (points, reason) => {
-    score += points;
-    if (reason && points > 0) gains.push([points, reason]);
-  };
-  const source = input.sourceUrl?.trim();
-  if (source && source === candidate.sourceUrl?.trim()) {
-    return { score: WEIGHTS.SAME_SOURCE, reasons: ["same_source"] };
-  }
-  const inputPhones = new Set((input.phones ?? []).map((phone) => phone?.trim()).filter(Boolean));
-  if ((candidate.phones ?? []).some((phone) => phone?.trim() && inputPhones.has(phone.trim()))) {
-    add(WEIGHTS.SAME_PHONE, "same_phone");
-  }
-  const names = compareNames(input.name, candidate.name);
-  if (names === "same") add(WEIGHTS.SAME_NAME, "same_name");
-  else if (names === "similar") add(WEIGHTS.SIMILAR_NAME, "similar_name");
-  else if (names === "different") add(WEIGHTS.DIFFERENT_NAME);
-  const [distance, distanceReason] = distancePoints(distanceKm);
-  add(distance, distanceReason);
-  const sexes = ["male", "female"];
-  if (sexes.includes(input.sex ?? "") && sexes.includes(candidate.sex ?? "")) {
-    if (input.sex === candidate.sex) add(WEIGHTS.SAME_SEX, "same_sex");
-    else add(WEIGHTS.DIFFERENT_SEX);
-  }
-  const inputColors = colorTokens(input.color);
-  const candidateColors = colorTokens(candidate.color);
-  if (inputColors.size && candidateColors.size) {
-    let shared = 0;
-    for (const color of inputColors) if (candidateColors.has(color)) shared += 1;
-    const overlap = shared / Math.min(inputColors.size, candidateColors.size);
-    if (overlap >= 0.5) add(WEIGHTS.SAME_COLOR, "same_color");
-    else if (shared === 0) add(WEIGHTS.DIFFERENT_COLOR);
-  }
-  if (input.breedId && input.breedId === candidate.breedId) {
-    add(
-      MIXED_BREED.test(candidate.breedName ?? "") ? WEIGHTS.SAME_MIXED_BREED : WEIGHTS.SAME_BREED,
-      "same_breed"
-    );
-  }
-  if (jaccard(descriptionTokens(input.description), descriptionTokens(candidate.description)) >= 0.3) {
-    add(WEIGHTS.SIMILAR_DESCRIPTION, "similar_description");
-  }
-  const inputDate = toTime(input.date);
-  const candidateDate = toTime(candidate.date);
-  if (inputDate != null && candidateDate != null) {
-    if (Math.abs(inputDate - candidateDate) <= 7 * 24 * 60 * 60 * 1e3) {
-      add(WEIGHTS.SAME_DATE, "same_date");
-    }
-  }
-  const reasons = gains.sort((a, b) => b[0] - a[0]).map(([, reason]) => reason);
-  return {
-    score: Math.max(0, Math.min(100, score)),
-    reasons: [...new Set(reasons)]
-  };
-}
-function similarityLevel(score) {
-  if (score >= SIMILARITY_LIKELY) return "likely";
-  if (score >= SIMILARITY_POSSIBLE) return "possible";
-  return null;
 }
 
 // models/Pet/Animal/Animal.facebookPost.ts
@@ -5383,6 +5450,7 @@ function petPublicUrl(slug) {
 }
 var CANDIDATE_QUERY = `
   id name slug sex color physical_description contactNumber contactNumber2 sourceUrl reportedBy createdAt
+  animal_type { name }
   animal_breed { id breed }
   user { id }
   multimedia(orderBy: { order: asc }, take: 1) { image { url } }
@@ -5511,7 +5579,13 @@ async function findSimilarReports(context, input) {
     const slug = row.slug?.trim() || row.id;
     results.push({
       id: row.id,
-      name: row.name?.trim() || "Sin nombre",
+      name: knownAnimalName(row.name),
+      displayName: animalDisplayName({
+        name: row.name,
+        typeName: row.animal_type?.name,
+        sex: row.sex,
+        color: row.color
+      }),
       slug: row.slug ?? null,
       url: petPublicUrl(slug),
       score,
@@ -5700,7 +5774,7 @@ async function notifyClaimRequested(context, claimId) {
       url,
       metadata: { slug: claim.animal.slug ?? null, claimId: claim.id },
       // kadesh_pet_reclamo_solicitado: {claimantName} dice que el animal de tu reporte ({animalName}) es su mascota.
-      templateValues: { claimantName: who, animalName: name ?? "sin nombre", url }
+      templateValues: { claimantName: who, animalName: name ?? "el animal de tu reporte", url }
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar de la solicitud:", claimId, error);
@@ -5792,7 +5866,7 @@ async function notifyPossibleMatches(context, input) {
         });
         if (already && !(already instanceof Error)) continue;
       }
-      const theirName = isGenericName(match.name) ? null : match.name;
+      const theirName = match.name && !isGenericName(match.name) ? match.name : null;
       sent += await notify(context, {
         audience,
         product: "pet",
@@ -6428,7 +6502,7 @@ async function mergeAnimalReport(context, { duplicateId, mainId }) {
   }
   void logActivity(context, {
     type: "admin.animal_merged",
-    summary: `Uni\xF3 el reporte \xAB${duplicate.name ?? duplicateId}\xBB con \xAB${main.name ?? mainId}\xBB`,
+    summary: `Uni\xF3 el reporte \xAB${duplicate.name || duplicateId}\xBB con \xAB${main.name || mainId}\xBB`,
     entityType: "Animal",
     entityId: duplicateId,
     metadata: { mainId, movedComments: comments?.count ?? 0 }
@@ -6586,6 +6660,14 @@ async function removeIncompleteOwnReports({
 
 // models/Pet/Animal/Animal.ts
 var adminOnly2 = ({ session: session2 }) => isPlatformAdmin(session2);
+async function nextAnimalFolio(context) {
+  const prisma = context.sudo().prisma;
+  const rows2 = await prisma.$queryRaw`SELECT nextval(pg_get_serial_sequence('"Animal"', 'folio'))::int AS folio`;
+  if (rows2 instanceof Error) throw rows2;
+  const folio = rows2[0]?.folio;
+  if (!Number.isInteger(folio)) throw new Error("No se pudo asignar el folio del reporte.");
+  return folio;
+}
 var outcomeAnswersRead = async ({ session: session2, item, context }) => {
   if (isPlatformAdmin(session2)) return true;
   return canEditAnimalAs(context, item, getSessionUserId(session2));
@@ -6604,8 +6686,10 @@ function cleanDuplicateCheck(value) {
 var Animal_default = (0, import_core.list)({
   access: animalAccess,
   hooks: {
-    resolveInput: ({ resolvedData, operation, context }) => {
+    resolveInput: async ({ resolvedData, operation, context }) => {
       const data = forceAnimalOwner({ ...resolvedData }, operation, context);
+      if (operation === "create" && data.folio == null) data.folio = await nextAnimalFolio(context);
+      if (typeof data.name === "string") data.name = knownAnimalName(data.name);
       if (data.duplicateCheck !== void 0) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
       for (const key of ["contactNumber", "contactNumber2"]) {
         if (!(key in data) || data[key] == null) continue;
@@ -6651,7 +6735,8 @@ var Animal_default = (0, import_core.list)({
     }
   },
   fields: {
-    name: (0, import_fields.text)({ validation: { isRequired: true } }),
+    /** Vacío si no se sabe (la web y los avisos lo describen: «Perra café»). Ver `utils/pet/animalName.ts`. */
+    name: (0, import_fields.text)({ ui: { description: "Vac\xEDo si no se sabe su nombre." } }),
     slug: (0, import_fields.text)({
       isIndexed: "unique",
       db: { isNullable: true },
@@ -6659,6 +6744,23 @@ var Animal_default = (0, import_core.list)({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
         description: "URL amigable. Se genera sola y no cambia si editas el nombre."
+      }
+    }),
+    /**
+     * Folio corto y público del reporte (KP-01234 en el cartel). Sale de la secuencia de Postgres: al
+     * agregar la columna, los animales que ya existían reciben uno, y en cada `create` lo toma
+     * `nextAnimalFolio`. El QR del cartel apunta a `/f/{folio}` en la web, que redirige a la ficha.
+     * Nadie lo escribe desde la API.
+     */
+    folio: (0, import_fields.integer)({
+      defaultValue: { kind: "autoincrement" },
+      isIndexed: "unique",
+      db: { isNullable: false },
+      access: { create: () => false, update: () => false },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Folio del cartel (se muestra como KP-01234)."
       }
     }),
     physical_description: (0, import_fields.text)(),
@@ -7178,6 +7280,7 @@ async function resolveAnimalClaimInput({ resolvedData, operation, context }) {
     if (animal?.user?.id) data.previousUser = { connect: { id: animal.user.id } };
   }
   if (typeof data.message === "string") data.message = data.message.trim();
+  if (typeof data.petName === "string") data.petName = knownAnimalName(data.petName).slice(0, 60);
   if (typeof data.phone === "string") {
     const phone = normalizeMxPhone(data.phone);
     if (phone.ok) data.phone = phone.digits;
@@ -7281,6 +7384,13 @@ var AnimalClaim_default = (0, import_core8.list)({
     }),
     phone: (0, import_fields8.text)({
       ui: { description: "Tel\xE9fono de quien reclama. Pasa al reporte si se aprueba." }
+    }),
+    /**
+     * Cómo se llama su mascota, según quien reclama (opcional). Ayuda a quien atiende el reporte a
+     * decidir y, si se aprueba y el reporte no tenía nombre, pasa a `Animal.name`.
+     */
+    petName: (0, import_fields8.text)({
+      ui: { description: "Nombre de la mascota seg\xFAn quien reclama. Si se aprueba y el reporte no ten\xEDa nombre, se usa." }
     }),
     evidence: (0, import_fields8.image)({
       storage: "s3_animals"
@@ -29112,7 +29222,7 @@ var INEGI_DENUE_CATEGORIES = [
   { value: "todos", label: "Negocios locales" },
   { value: "todos", label: "Otra" }
 ];
-function fold(value) {
+function fold2(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
 }
 var CATCH_ALL = /* @__PURE__ */ new Set([
@@ -29130,7 +29240,7 @@ var KEYWORD_ALIASES = {
   laboratorio: "laboratorios"
 };
 function denueKeywordVariants(keyword) {
-  const folded = fold(keyword);
+  const folded = fold2(keyword);
   if (!folded) return [];
   const variants = /* @__PURE__ */ new Set([folded]);
   if (folded.endsWith("es") && folded.length > 5) {
@@ -29149,13 +29259,13 @@ function denueContains(keyword) {
   }));
 }
 function resolveDenueSearch(raw) {
-  const folded = fold(raw);
+  const folded = fold2(raw);
   const compact = KEYWORD_ALIASES[folded] ?? folded;
   if (!compact || CATCH_ALL.has(compact) || CATCH_ALL.has(compact.replace(/\s/g, ""))) {
     return { keyword: "todos", isCatchAll: true, label: "Negocios locales" };
   }
   const inegiByValue = INEGI_DENUE_CATEGORIES.find(
-    (item) => fold(item.value) === compact
+    (item) => fold2(item.value) === compact
   );
   if (inegiByValue) {
     return {
@@ -29165,7 +29275,7 @@ function resolveDenueSearch(raw) {
     };
   }
   const google = GOOGLE_PLACE_CATEGORIES.find(
-    (item) => fold(item.value) === compact
+    (item) => fold2(item.value) === compact
   );
   if (google) {
     const mapped = INEGI_DENUE_CATEGORIES.find(
@@ -29180,11 +29290,11 @@ function resolveDenueSearch(raw) {
     }
   }
   const byLabel = [...INEGI_DENUE_CATEGORIES, ...GOOGLE_PLACE_CATEGORIES].find(
-    (item) => fold(item.label) === compact
+    (item) => fold2(item.label) === compact
   );
   if (byLabel) {
     const mapped = INEGI_DENUE_CATEGORIES.find((item) => item.label === byLabel.label) ?? INEGI_DENUE_CATEGORIES.find(
-      (item) => fold(item.value) === fold(byLabel.value)
+      (item) => fold2(item.value) === fold2(byLabel.value)
     );
     if (mapped) {
       return {
@@ -31353,7 +31463,7 @@ var resolver26 = {
       const userId = input.reporterUserId?.trim() || sessionUser || process.env.PET_AUTOMATION_USER_ID?.trim() || "";
       const animal = await context.sudo().query.Animal.createOne({
         data: {
-          name: input.name.trim() || "Sin nombre",
+          name: knownAnimalName(input.name),
           contactNumber: phone,
           contactNumber2: phone2,
           sex: input.sex?.trim() || "unknown",
@@ -31438,7 +31548,7 @@ var definition27 = `
   resolveAnimalClaim(claimId: ID!, approve: Boolean!, reason: String): AnimalClaimResult!
   cancelAnimalClaim(claimId: ID!): AnimalClaimResult!
 `;
-var CLAIM_QUERY = "id status phone claimant { id } animal { id name slug contactNumber contactNumber2 user { id } organization { id } }";
+var CLAIM_QUERY = "id status phone petName claimant { id } animal { id name slug contactNumber contactNumber2 user { id } organization { id } }";
 async function loadClaim(context, claimId) {
   return await context.sudo().query.AnimalClaim.findOne({
     where: { id: claimId },
@@ -31490,7 +31600,7 @@ var resolver27 = {
       });
       void logActivity(context, {
         type: "animal.claim_rejected",
-        summary: `Rechaz\xF3 la solicitud para el reporte \xAB${animal.name ?? animal.id}\xBB`,
+        summary: `Rechaz\xF3 la solicitud para el reporte \xAB${animal.name || animal.id}\xBB`,
         entityType: "Animal",
         entityId: animal.id,
         metadata: { claimId: claim.id }
@@ -31508,6 +31618,8 @@ var resolver27 = {
         reportedBy: "owner",
         contactNumber,
         contactNumber2,
+        // El reporte no tenía nombre y quien lo reclamó dijo cómo se llama: ya es su nombre.
+        ...!knownAnimalName(animal.name) && knownAnimalName(claim.petName) ? { name: knownAnimalName(claim.petName) } : {},
         // Era la mascota de alguien: deja de estar a nombre del espacio de rescate.
         ...animal.organization?.id ? { organization: { disconnect: true } } : {}
       }
@@ -31550,7 +31662,7 @@ var resolver27 = {
     }
     void logActivity(context, {
       type: "animal.claim_approved",
-      summary: `Pas\xF3 el reporte \xAB${animal.name ?? animal.id}\xBB a nombre de quien lo reclam\xF3`,
+      summary: `Pas\xF3 el reporte \xAB${animal.name || animal.id}\xBB a nombre de quien lo reclam\xF3`,
       entityType: "Animal",
       entityId: animal.id,
       metadata: {
@@ -31736,7 +31848,7 @@ var resolver28 = {
     }
     void logActivity(context, {
       type: alreadyClosed ? "animal.outcome_updated" : "animal.closed",
-      summary: `${alreadyClosed ? "Actualiz\xF3 el cierre de" : "Cerr\xF3"} el reporte \xAB${animal.name ?? animal.id}\xBB`,
+      summary: `${alreadyClosed ? "Actualiz\xF3 el cierre de" : "Cerr\xF3"} el reporte \xAB${animal.name || animal.id}\xBB`,
       entityType: "Animal",
       entityId: animal.id,
       metadata: { outcome: input.outcome, helpedByKadesh, outcomeChannel }
@@ -31774,10 +31886,11 @@ function unwrap(value) {
 async function findReminderCandidates(prisma, automation) {
   const now = Date.now();
   const rows2 = await prisma.$queryRaw`
-    SELECT a.id, a.name, a.slug, a."followUpStage" AS stage, u.id AS "userId", u.name AS "userName",
-           u.email, u."anonymizedAt", u."suspendedAt"
+    SELECT a.id, a.name, a.sex, a.color, t.name AS "typeName", a.slug, a."followUpStage" AS stage,
+           u.id AS "userId", u.name AS "userName", u.email, u."anonymizedAt", u."suspendedAt"
     FROM "Animal" a
     JOIN "User" u ON u.id = a."user"
+    LEFT JOIN "AnimalType" t ON t.id = a."animal_type"
     JOIN LATERAL (
       SELECT l.status FROM "AnimalLog" l
       WHERE l."animal" = a.id
@@ -31843,7 +31956,8 @@ async function remind(context, animal) {
     })
   );
   if (claimed.count !== 1) return false;
-  const name = animal.name?.trim() || "tu reporte";
+  const name = animalSentenceName(animal);
+  const Name = capitalizeFirst(name);
   const elapsed = nextStage === 1 ? "una semana" : "3 semanas";
   const detail = `/animales/${animal.slug || animal.id}`;
   const url = petSiteUrl(detail);
@@ -31852,7 +31966,7 @@ async function remind(context, animal) {
     audience: [animal.userId],
     product: "pet",
     type: NOTIFICATION_TYPE.ANIMAL_FOLLOW_UP,
-    title: `\xBF${name} ya volvi\xF3 a casa?`,
+    title: `\xBF${Name} ya volvi\xF3 a casa?`,
     body: finalNotice ? `Van 3 semanas sin novedades. Cierra el caso si ya se resolvi\xF3 o agrega un registro: si no hay novedades, dejar\xE1 de salir en el mapa.` : `Va una semana sin novedades. Cierra el caso si ya se resolvi\xF3 o agrega un registro si sigues buscando.`,
     entityType: "Animal",
     entityId: animal.id,
@@ -32112,12 +32226,18 @@ function prismaOf5(context) {
   return context.sudo().prisma;
 }
 var SEX_VALUES = /* @__PURE__ */ new Set(["male", "female", "unknown"]);
-var REPORT_FOR_PET_QUERY = "id name slug sex color age physical_description animal_type { id } animal_breed { id } user { id } organization { id name status } pet { id } duplicateOf { id }";
+var REPORT_FOR_PET_QUERY = "id name slug sex color age physical_description animal_type { id name } animal_breed { id } user { id } organization { id name status } pet { id } duplicateOf { id }";
 async function createPetFromReport(context, report, target) {
   const sudo = context.sudo();
   const created = await sudo.query.Pet.createOne({
     data: {
-      name: report.name?.trim() || "Sin nombre",
+      // Sin nombre conocido, la cartilla arranca con la descripción («Perra café»); se puede cambiar.
+      name: animalDisplayName({
+        name: report.name,
+        typeName: report.animal_type?.name,
+        sex: report.sex,
+        color: report.color
+      }),
       sex: report.sex && SEX_VALUES.has(report.sex) ? report.sex : "unknown",
       color: report.color ?? "",
       approximateAge: report.age ?? "",
@@ -39886,7 +40006,10 @@ var nearbyAnimals_default = { typeDefs: typeDefs79, definition: definition76, re
 var typeDefs80 = `
   type AnimalReportDuplicate {
     id: ID!
+    """Nombre real; vac\xEDo si no se sabe."""
     name: String!
+    """Para mostrar: el nombre, o \xABPerra caf\xE9\xBB si no se sabe."""
+    displayName: String!
     slug: String
     url: String!
     score: Int!

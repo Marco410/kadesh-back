@@ -3,6 +3,7 @@ import { PET_OWNER_ROLE, PET_STATUS } from "../../models/Pet/constants";
 import { mxToday } from "../usage/dailyUsageRollup";
 import { copyReportPhotosToPet } from "./petCard";
 import { closeReportAsAdopted } from "./reportLogs";
+import { animalDisplayName } from "./animalName";
 
 /**
  * Mover una mascota de cuenta y crear cartillas desde un reporte. Lo comparten la ficha de rescate
@@ -18,7 +19,7 @@ const SEX_VALUES = new Set(["male", "female", "unknown"]);
 
 /** Lo que se lee del reporte para crear su cartilla. */
 export const REPORT_FOR_PET_QUERY =
-  "id name slug sex color age physical_description animal_type { id } animal_breed { id } user { id } organization { id name status } pet { id } duplicateOf { id }";
+  "id name slug sex color age physical_description animal_type { id name } animal_breed { id } user { id } organization { id name status } pet { id } duplicateOf { id }";
 
 export type ReportForPet = {
   id: string;
@@ -28,7 +29,7 @@ export type ReportForPet = {
   color?: string | null;
   age?: string | null;
   physical_description?: string | null;
-  animal_type?: { id: string } | null;
+  animal_type?: { id: string; name?: string | null } | null;
   animal_breed?: { id: string } | null;
   user?: { id: string } | null;
   organization?: { id: string; name: string; status: string } | null;
@@ -49,7 +50,13 @@ export async function createPetFromReport(
   const sudo = context.sudo();
   const created = (await sudo.query.Pet.createOne({
     data: {
-      name: report.name?.trim() || "Sin nombre",
+      // Sin nombre conocido, la cartilla arranca con la descripción («Perra café»); se puede cambiar.
+      name: animalDisplayName({
+        name: report.name,
+        typeName: report.animal_type?.name,
+        sex: report.sex,
+        color: report.color,
+      }),
       sex: report.sex && SEX_VALUES.has(report.sex) ? report.sex : "unknown",
       color: report.color ?? "",
       approximateAge: report.age ?? "",

@@ -14,9 +14,25 @@ import { animalCreateSideEffectsHook } from "./Animal.hooks";
 import { animalMergeAfterOperation, validateDuplicateOf } from "./Animal.merge";
 import { removeIncompleteOwnReports, validateOwnDuplicate } from "./Animal.ownDuplicates";
 import { normalizeMxPhone } from "../../../utils/pet/phone";
+import { knownAnimalName } from "../../../utils/pet/animalName";
 import { isPlatformAdmin } from "../../../utils/access/tenant";
 
 const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
+
+/**
+ * Siguiente folio de la secuencia que crea Postgres para `folio` (`autoincrement`). Keystone 6.5
+ * exige `db.isNullable: false` para un autoincrement y, con eso, su validación pide el valor en cada
+ * `create` («Animal.folio: missing value») aunque la base lo asignaría sola. Se toma de la misma
+ * secuencia: dos reportes al mismo tiempo nunca reciben el mismo folio.
+ */
+async function nextAnimalFolio(context: KeystoneContext): Promise<number> {
+  const prisma = (context.sudo() as KeystoneContext & { prisma: any }).prisma;
+  const rows = await prisma.$queryRaw`SELECT nextval(pg_get_serial_sequence('"Animal"', 'folio'))::int AS folio`;
+  if (rows instanceof Error) throw rows;
+  const folio = (rows as Array<{ folio: number }>)[0]?.folio;
+  if (!Number.isInteger(folio)) throw new Error("No se pudo asignar el folio del reporte.");
+  return folio;
+}
 
 /**
  * Respuestas del cierre que no son públicas (si Kadesh ayudó, por dónde, la historia): las leen
@@ -49,8 +65,11 @@ function cleanDuplicateCheck(value: unknown) {
 export default list({
   access: animalAccess,
   hooks: {
-    resolveInput: ({ resolvedData, operation, context }) => {
+    resolveInput: async ({ resolvedData, operation, context }) => {
       const data = forceAnimalOwner({ ...resolvedData }, operation, context);
+      if (operation === "create" && data.folio == null) data.folio = await nextAnimalFolio(context);
+      // «Sin nombre», «Desconocido», «No sé»… se guardan vacíos: el nombre se describe al mostrarlo.
+      if (typeof data.name === "string") data.name = knownAnimalName(data.name);
       // `resolvedData` trae todas las llaves (las que no vienen valen `undefined`): con `in` se
       // borraba `duplicateCheck` en cada edición del reporte.
       if (data.duplicateCheck !== undefined) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
@@ -102,7 +121,8 @@ export default list({
     },
   },
   fields: {
-    name: text({ validation: { isRequired: true } }),
+    /** Vacío si no se sabe (la web y los avisos lo describen: «Perra café»). Ver `utils/pet/animalName.ts`. */
+    name: text({ ui: { description: "Vacío si no se sabe su nombre." } }),
     slug: text({
       isIndexed: "unique",
       db: { isNullable: true },
@@ -110,6 +130,23 @@ export default list({
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
         description: "URL amigable. Se genera sola y no cambia si editas el nombre.",
+      },
+    }),
+    /**
+     * Folio corto y público del reporte (KP-01234 en el cartel). Sale de la secuencia de Postgres: al
+     * agregar la columna, los animales que ya existían reciben uno, y en cada `create` lo toma
+     * `nextAnimalFolio`. El QR del cartel apunta a `/f/{folio}` en la web, que redirige a la ficha.
+     * Nadie lo escribe desde la API.
+     */
+    folio: integer({
+      defaultValue: { kind: "autoincrement" },
+      isIndexed: "unique",
+      db: { isNullable: false },
+      access: { create: () => false, update: () => false },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "Folio del cartel (se muestra como KP-01234).",
       },
     }),
     physical_description: text(),

@@ -6,6 +6,9 @@ List de animales del dominio Pet (perdidos, encontrados, adopción, etc.). El sl
 
 - **Acceso** (`Animal.access.ts`): la ficha, sus bitácoras y fotos son públicas para leer. Crear exige sesión; editar y borrar, ser el dueño (`Animal.user`) o admin de plataforma. Un usuario normal siempre queda como dueño de lo que crea. Crear una bitácora o foto exige ser dueño del animal destino (`validateInput`). Lo que hace el servidor con `sudo()` no pasa por estas reglas. Comentarios y favoritos: lectura pública, crear con sesión y siempre a nombre propio, borrar el autor o un admin, editar solo un admin. Vistas: se registran también sin sesión (nunca a nombre de otra persona), nadie las edita y solo un admin las borra; la lectura sigue pública porque `animal_viewsCount` pasa por ese acceso.
 - El `slug` se genera en el create y no se regenera al editar el nombre.
+- `name` puede ir vacío: es «no se sabe su nombre». El `resolveInput` convierte en vacío los textos de relleno («Sin nombre», «Desconocido», «No sé»…, `isUnknownAnimalName`). Para mostrarlo se usa `animalDisplayName` («Perra café») o `animalSentenceName` («esta perra») de `utils/pet/animalName.ts`; la web tiene la misma función en `src/components/animals/animalName.ts`.
+- Al aprobar una solicitud (`resolveAnimalClaim`), si el reporte no tenía nombre y quien reclamó dijo cómo se llama (`AnimalClaim.petName`), ese pasa a ser `Animal.name`.
+- `folio` (entero, único) lo asigna Postgres en orden y nadie lo escribe. La web lo muestra como `KP-01234` en el cartel y su QR apunta a `/f/{folio}`, que redirige a la ficha; no cambia aunque cambie el slug.
 - El primer `AnimalLog` puede enriquecer el slug con status/ciudad; logs posteriores no lo tocan.
 - Al **crear** un Animal con session:
   - **Admin de plataforma** (`Role.ADMIN`) → publica en la Página de Facebook Pet (`FACEBOOK_PET_*`) cuando el slug ya es el del primer log y la portada, si hay fotos, ya está guardada. Si log y fotos vienen en el mismo `create`, publica al terminar ese `create`. Si no hay fotos, publica a los 90 s del primer log. Link: `{PET_FRONTEND_URL}/animales/{slug}`.
@@ -166,3 +169,21 @@ Qué: campos `lastActivityAt`, `followUpStage`, `followUpSentAt` e `inactiveAt` 
 Por qué: sin recordar a la gente que cierre o actualice el caso, el contador de reencuentros no crece y el mapa se llena de casos viejos que ya nadie busca.
 
 Qué no hacer: no borrar casos inactivos ni cerrarlos solos: solo dejan de salir en el mapa y la ficha sigue abierta. No mandar el recordatorio a la cuenta de automatización. No correr el cron antes del backfill: todos los casos se verían recién actualizados y luego, al corregirlos, saldría una ola de recordatorios de golpe (con el backfill también sale, pero topada a 200 por día).
+
+
+### 2026-11-12 — Folio del cartel (`Animal.folio`)
+
+Qué: entero único con `autoincrement`. Al aplicar la migración, Postgres numera también los animales que ya existían, así que no hace falta backfill. En cada `create`, el `resolveInput` de `Animal` toma el siguiente número de la misma secuencia (`nextAnimalFolio`): Keystone 6.5 exige `db.isNullable: false` en un autoincrement y entonces su validación pide el valor (`Animal.folio: missing value`) aunque la base lo pondría sola. Se puede consultar por folio: `animal(where: { folio: 123 })`.
+
+Por qué: el cartel impreso de kadesh-landing (`/cartel/{slug}`) lleva un QR a `/f/{folio}`. Una URL corta da un QR más simple que se escanea mejor en papel, y el folio sirve para que alguien lo dicte por teléfono o lo busque.
+
+Qué no hacer: no reasignar ni reutilizar folios: hay carteles pegados en la calle que apuntan a ellos.
+
+
+### 2026-11-13 — Nombre desconocido vacío en vez de «Sin nombre»
+
+Qué: `Animal.name` deja de ser obligatorio y los textos de relleno se guardan vacíos. Los avisos (seguimiento, solicitudes, coincidencias), el correo de seguimiento, los reportes parecidos (`findAnimalReportDuplicates` ahora devuelve `displayName`) y la cartilla que se crea de un reporte describen al animal («Perra café», «esta perra») en vez de decir «Sin nombre». `AnimalClaim.petName` (opcional): cómo se llama según quien reclama. Backfill: `pnpm animals:backfill-unknown-names`.
+
+Por qué: «Sin nombre» se mostraba como si fuera el nombre en títulos, carteles, cierres y recordatorios («¿Sin nombre volvió a casa?»). Casi siempre el animal sí tiene nombre; quien lo encontró no lo sabe. Cuando aparece la familia, su solicitud trae el nombre real.
+
+Qué no hacer: no volver a guardar un texto de relleno en `name`. No regenerar el slug al poner el nombre real: hay carteles y enlaces compartidos con el slug viejo.
