@@ -13,6 +13,7 @@ import {
   requirePhone,
 } from "../../../../utils/pet/animalReport";
 import { noteAnimalCoverSaved } from "../../../../models/Pet/Animal/scheduleAnimalFacebookPost";
+import { knownAnimalName } from "../../../../utils/pet/animalName";
 
 const TYPE_ALIASES: Record<string, string> = {
   perro: "dog",
@@ -251,7 +252,7 @@ const resolver = {
 
       const animal = (await context.sudo().query.Animal.createOne({
         data: {
-          name: input.name.trim() || "Sin nombre",
+          name: knownAnimalName(input.name),
           contactNumber: phone,
           contactNumber2: phone2,
           sex: input.sex?.trim() || "unknown",

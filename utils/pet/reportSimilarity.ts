@@ -52,7 +52,7 @@ export type SimilarityReason =
 const LOST_STATUSES = ["lost"];
 const STREET_STATUSES = ["found", "rescued", "abandoned"];
 /** Ya no se busca: no cuentan como candidatos. */
-export const CLOSED_STATUSES = new Set(["in_family", "adopted"]);
+export const CLOSED_STATUSES = new Set(["in_family", "adopted", "closed"]);
 
 export type SimilarityKind = "duplicate" | "match";
 

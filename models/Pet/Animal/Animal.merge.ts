@@ -141,7 +141,7 @@ export async function mergeAnimalReport(
 
   void logActivity(context, {
     type: "admin.animal_merged",
-    summary: `Unió el reporte «${duplicate.name ?? duplicateId}» con «${main.name ?? mainId}»`,
+    summary: `Unió el reporte «${duplicate.name || duplicateId}» con «${main.name || mainId}»`,
     entityType: "Animal",
     entityId: duplicateId,
     metadata: { mainId, movedComments: comments?.count ?? 0 },

@@ -9,6 +9,7 @@ import {
   ANIMAL_CLAIM_STATUS,
   MAX_ANIMAL_CLAIMS_PER_DAY,
 } from "./constants";
+import { knownAnimalName } from "../../../../utils/pet/animalName";
 
 type HookArgs = {
   resolvedData: Record<string, any>;
@@ -45,6 +46,8 @@ export async function resolveAnimalClaimInput({ resolvedData, operation, context
     if (animal?.user?.id) data.previousUser = { connect: { id: animal.user.id } };
   }
   if (typeof data.message === "string") data.message = data.message.trim();
+  // «No sé», «Desconocido»… no cuentan como nombre; máximo 60 caracteres.
+  if (typeof data.petName === "string") data.petName = knownAnimalName(data.petName).slice(0, 60);
   if (typeof data.phone === "string") {
     const phone = normalizeMxPhone(data.phone);
     if (phone.ok) data.phone = phone.digits;

@@ -140,6 +140,7 @@ model Animal {
   id                              String                @id @default(cuid())
   name                            String                @default("")
   slug                            String?               @unique
+  folio                           Int                   @unique @default(autoincrement())
   physical_description            String                @default("")
   age                             String                @default("")
   sex                             String?               @default("male")
@@ -169,6 +170,16 @@ model Animal {
   duplicateOf                     Animal?               @relation("Animal_duplicateOf", fields: [duplicateOfId], references: [id])
   duplicateOfId                   String?               @map("duplicateOf")
   duplicateCheck                  Json?
+  outcome                         String?
+  closedAt                        DateTime?
+  helpedByKadesh                  String?
+  outcomeChannel                  String?
+  outcomeStory                    String                @default("")
+  storyConsent                    Boolean               @default(false)
+  lastActivityAt                  DateTime?             @default(now())
+  followUpStage                   Int                   @default(0)
+  followUpSentAt                  DateTime?
+  inactiveAt                      DateTime?
   createdAt                       DateTime?             @default(now())
   from_Animal_duplicateOf         Animal[]              @relation("Animal_duplicateOf")
   from_AnimalClaim_animal         AnimalClaim[]         @relation("AnimalClaim_animal")
@@ -185,6 +196,10 @@ model Animal {
   @@index([facebookPublishedById])
   @@index([petId])
   @@index([duplicateOfId])
+  @@index([outcome])
+  @@index([closedAt])
+  @@index([lastActivityAt])
+  @@index([inactiveAt])
 }
 
 model AnimalBreed {
@@ -209,6 +224,7 @@ model AnimalClaim {
   previousUserId     String?   @map("previousUser")
   message            String    @default("")
   phone              String    @default("")
+  petName            String    @default("")
   evidence_id        String?
   evidence_filesize  Int?
   evidence_width     Int?
