@@ -6,6 +6,7 @@ import AnimalLog from "./Pet/Animal/AnimalLog/AnimalLog";
 import AnimalView from "./Pet/Animal/AnimalView/AnimalView";
 import AnimalComment from "./Pet/Animal/AnimalComment/AnimalComment";
 import AnimalClaim from "./Pet/Animal/AnimalClaim/AnimalClaim";
+import AnimalSighting from "./Pet/Animal/AnimalSighting/AnimalSighting";
 import AdoptionApplication from "./Pet/Animal/AdoptionApplication/AdoptionApplication";
 import User from "./User/User";
 import UserAuthLog from "./User/UserAuthLog/UserAuthLog";
@@ -114,6 +115,7 @@ export default withActivityHooks({
   AnimalFavorite,
   AnimalLog,
   AnimalMultimedia,
+  AnimalSighting,
   AnimalType,
   AnimalView,
   BlogSubscription,

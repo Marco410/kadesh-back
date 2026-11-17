@@ -652,6 +652,7 @@ type Animal {
   user: User
   organization: RescueOrganization
   viewerCanEdit: Boolean!
+  sightings(take: Int): [AnimalSightingPublic!]!
   multimedia(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
   multimediaCount(where: AnimalMultimediaWhereInput! = {}): Int
   logs(where: AnimalLogWhereInput! = {}, orderBy: [AnimalLogOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalLogWhereUniqueInput): [AnimalLog!]
@@ -675,6 +676,21 @@ type Animal {
   followUpSentAt: DateTime
   inactiveAt: DateTime
   createdAt: DateTime
+}
+
+type AnimalSightingPublic {
+  id: ID!
+  seenAt: String
+  lat: String!
+  lng: String!
+  placeLabel: String
+  city: String
+  state: String
+  notes: String
+  createdAt: String
+  hidden: Boolean!
+  contactName: String
+  contactPhone: String
 }
 
 input AnimalWhereUniqueInput {
@@ -1426,6 +1442,115 @@ input AnimalMultimediaCreateInput {
   createdAt: DateTime
 }
 
+type AnimalSighting {
+  id: ID!
+  animal: Animal
+  user: User
+  seenAt: DateTime
+  lat: String
+  lng: String
+  placeLabel: String
+  city: String
+  state: String
+  notes: String
+  contactName: String
+  contactPhone: String
+  hidden: Boolean
+  ip: String
+  createdAt: DateTime
+}
+
+input AnimalSightingWhereUniqueInput {
+  id: ID
+}
+
+input AnimalSightingWhereInput {
+  AND: [AnimalSightingWhereInput!]
+  OR: [AnimalSightingWhereInput!]
+  NOT: [AnimalSightingWhereInput!]
+  id: IDFilter
+  animal: AnimalWhereInput
+  user: UserWhereInput
+  seenAt: DateTimeFilter
+  lat: StringFilter
+  lng: StringFilter
+  placeLabel: StringFilter
+  city: StringFilter
+  state: StringFilter
+  notes: StringFilter
+  contactName: StringFilter
+  contactPhone: StringFilter
+  hidden: BooleanFilter
+  ip: StringFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input DateTimeFilter {
+  equals: DateTime
+  in: [DateTime!]
+  notIn: [DateTime!]
+  lt: DateTime
+  lte: DateTime
+  gt: DateTime
+  gte: DateTime
+  not: DateTimeFilter
+}
+
+input AnimalSightingOrderByInput {
+  id: OrderDirection
+  seenAt: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  placeLabel: OrderDirection
+  city: OrderDirection
+  state: OrderDirection
+  notes: OrderDirection
+  contactName: OrderDirection
+  contactPhone: OrderDirection
+  hidden: OrderDirection
+  ip: OrderDirection
+  createdAt: OrderDirection
+}
+
+input AnimalSightingUpdateInput {
+  animal: AnimalRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  seenAt: DateTime
+  lat: String
+  lng: String
+  placeLabel: String
+  city: String
+  state: String
+  notes: String
+  contactName: String
+  contactPhone: String
+  hidden: Boolean
+  ip: String
+  createdAt: DateTime
+}
+
+input AnimalSightingUpdateArgs {
+  where: AnimalSightingWhereUniqueInput!
+  data: AnimalSightingUpdateInput!
+}
+
+input AnimalSightingCreateInput {
+  animal: AnimalRelateToOneForCreateInput
+  user: UserRelateToOneForCreateInput
+  seenAt: DateTime
+  lat: String
+  lng: String
+  placeLabel: String
+  city: String
+  state: String
+  notes: String
+  contactName: String
+  contactPhone: String
+  hidden: Boolean
+  ip: String
+  createdAt: DateTime
+}
+
 type AnimalType {
   id: ID!
   name: String
@@ -1823,17 +1948,6 @@ input MetaDataDeletionRequestWhereInput {
   requestedAt: DateTimeFilter
   completedAt: DateTimeNullableFilter
   notes: StringNullableFilter
-}
-
-input DateTimeFilter {
-  equals: DateTime
-  in: [DateTime!]
-  notIn: [DateTime!]
-  lt: DateTime
-  lte: DateTime
-  gt: DateTime
-  gte: DateTime
-  not: DateTimeFilter
 }
 
 input MetaDataDeletionRequestOrderByInput {
@@ -10910,6 +11024,12 @@ type Mutation {
   updateAnimalMultimedias(data: [AnimalMultimediaUpdateArgs!]!): [AnimalMultimedia]
   deleteAnimalMultimedia(where: AnimalMultimediaWhereUniqueInput!): AnimalMultimedia
   deleteAnimalMultimedias(where: [AnimalMultimediaWhereUniqueInput!]!): [AnimalMultimedia]
+  createAnimalSighting(data: AnimalSightingCreateInput!): AnimalSighting
+  createAnimalSightings(data: [AnimalSightingCreateInput!]!): [AnimalSighting]
+  updateAnimalSighting(where: AnimalSightingWhereUniqueInput!, data: AnimalSightingUpdateInput!): AnimalSighting
+  updateAnimalSightings(data: [AnimalSightingUpdateArgs!]!): [AnimalSighting]
+  deleteAnimalSighting(where: AnimalSightingWhereUniqueInput!): AnimalSighting
+  deleteAnimalSightings(where: [AnimalSightingWhereUniqueInput!]!): [AnimalSighting]
   createAnimalType(data: AnimalTypeCreateInput!): AnimalType
   createAnimalTypes(data: [AnimalTypeCreateInput!]!): [AnimalType]
   updateAnimalType(where: AnimalTypeWhereUniqueInput!, data: AnimalTypeUpdateInput!): AnimalType
@@ -11506,6 +11626,8 @@ type Mutation {
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
+  reportAnimalSighting(input: ReportAnimalSightingInput!): AnimalSightingResult!
+  setAnimalSightingHidden(id: ID!, hidden: Boolean!): AnimalSightingResult!
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
 
@@ -11606,6 +11728,9 @@ type Query {
   animalMultimedia(where: AnimalMultimediaWhereUniqueInput!): AnimalMultimedia
   animalMultimedias(where: AnimalMultimediaWhereInput! = {}, orderBy: [AnimalMultimediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalMultimediaWhereUniqueInput): [AnimalMultimedia!]
   animalMultimediasCount(where: AnimalMultimediaWhereInput! = {}): Int
+  animalSighting(where: AnimalSightingWhereUniqueInput!): AnimalSighting
+  animalSightings(where: AnimalSightingWhereInput! = {}, orderBy: [AnimalSightingOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalSightingWhereUniqueInput): [AnimalSighting!]
+  animalSightingsCount(where: AnimalSightingWhereInput! = {}): Int
   animalType(where: AnimalTypeWhereUniqueInput!): AnimalType
   animalTypes(where: AnimalTypeWhereInput! = {}, orderBy: [AnimalTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalTypeWhereUniqueInput): [AnimalType!]
   animalTypesCount(where: AnimalTypeWhereInput! = {}): Int
@@ -12629,6 +12754,35 @@ type CloseAnimalReportResult {
   message: String!
   animalSlug: String
   status: String
+}
+
+input ReportAnimalSightingInput {
+  animalId: ID!
+  lat: String!
+  lng: String!
+  placeLabel: String
+  city: String
+  state: String
+
+  """
+  ISO. Por defecto, ahora. No puede ser futuro ni de hace más de 30 días.
+  """
+  seenAt: String
+  notes: String
+  contactName: String
+  contactPhone: String
+  turnstileToken: String
+
+  """
+  Campo trampa: la web lo deja vacío y oculto. Si llega lleno, se finge éxito.
+  """
+  website: String
+}
+
+type AnimalSightingResult {
+  success: Boolean!
+  message: String!
+  sightingId: ID
 }
 
 type SendAnimalFollowUpsResult {
