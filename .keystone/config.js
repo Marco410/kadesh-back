@@ -40864,6 +40864,12 @@ async function searchPlacesByLocation(lat, lng, type, radius, context) {
   })();
   return { googleResults: results.length, created };
 }
+function isPetPlacesGoogleSyncEnabled() {
+  const flag = (process.env.PET_PLACES_GOOGLE_SYNC ?? "").trim().toLowerCase();
+  if (flag === "true") return true;
+  if (flag === "false") return false;
+  return (process.env.ENVIROMENT ?? "").trim().toUpperCase() !== "DEV";
+}
 function areaKey(type, lat, lng) {
   const cellLat = Math.round(lat / GOOGLE_AREA_CELL_DEG) * GOOGLE_AREA_CELL_DEG;
   const cellLng = Math.round(lng / GOOGLE_AREA_CELL_DEG) * GOOGLE_AREA_CELL_DEG;
@@ -40871,6 +40877,7 @@ function areaKey(type, lat, lng) {
 }
 var inFlightAreaSearches = /* @__PURE__ */ new Map();
 async function ensureAreaSearchedOnGoogle(context, { lat, lng, type, radiusKm }) {
+  if (!isPetPlacesGoogleSyncEnabled()) return false;
   const key = areaKey(type, lat, lng);
   const radius = Math.min(radiusKm, GOOGLE_MAX_RADIUS_KM);
   const inFlight = inFlightAreaSearches.get(key);
