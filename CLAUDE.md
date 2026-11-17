@@ -88,6 +88,7 @@ Dato de Keystone 6.5 que explica casi todos los N+1 de este repo: las relaciones
 | Caché de `petLandingStats` | 1 h | `graphql/customs/queries/petLandingStats.ts` |
 | Lista de IPs bloqueadas | se relee cada 60 s | `utils/security/blockedIps.ts` |
 | Búsquedas de área de Google | 180 días | `utils/helpers/nearby_petplaces.ts` |
+| Sync de PetPlaces con Google | apagado con `ENVIROMENT=DEV`, encendido en el resto; `PET_PLACES_GOOGLE_SYNC=true/false` lo fuerza | `isPetPlacesGoogleSyncEnabled` en `utils/helpers/nearby_petplaces.ts` |
 | Vistas de evento repetidas | 30 min | `models/Pet/PetEvent/constants.ts` |
 | Errores y vistas de admin repetidos | 10 min | `utils/activity/appErrorsPlugin.ts`, `graphql/customs/mutations/activity/trackEvents.ts` |
 | Subida de archivos / cuerpo JSON | 200 MB / 15 MB | `keystone.ts` |

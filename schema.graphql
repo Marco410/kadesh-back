@@ -11992,6 +11992,7 @@ type Query {
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
+  getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   StripePaymentMethods(email: String!): StripePaymentMethodsType
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
@@ -13306,6 +13307,16 @@ type NearbyAnimalUserProfileImage {
   url: String
 }
 
+"""«Lo vi» de las últimas 72 h, para el mapa (sin contacto)."""
+type NearbyAnimalSighting {
+  id: ID!
+  lat: String!
+  lng: String!
+  seenAt: String
+  placeLabel: String
+  city: String
+}
+
 type NearbyAnimal {
   id: ID!
   slug: String
@@ -13324,12 +13335,50 @@ type NearbyAnimal {
   user: NearbyAnimalUser
   multimedia: [AnimalMultimediaImage]
   createdAt: String
+
+  """
+  Hasta 3 avistamientos visibles de las últimas 72 h (solo perdidos y abandonados), el más reciente primero.
+  """
+  recentSightings: [NearbyAnimalSighting!]
 }
 
 type NearbyAnimalsResult {
   success: Boolean!
   message: String!
   animals: [NearbyAnimal!]
+  total: Int!
+}
+
+"""
+Un pin del mapa: lo que pinta el pin y su ventanita, sin autor y con una sola foto.
+"""
+type NearbyAnimalPin {
+  id: ID!
+  slug: String
+  name: String
+  sex: String
+  status: String
+  lat: String
+  lng: String
+  distance: Float
+  typeName: String
+  breedName: String
+  address: String
+  city: String
+  state: String
+  country: String
+  createdAt: String
+  coverUrl: String
+  recentSightings: [NearbyAnimalSighting!]
+}
+
+type NearbyAnimalPinsResult {
+  success: Boolean!
+  animals: [NearbyAnimalPin!]!
+
+  """
+  Total del filtro; si pasa de los pines devueltos, el mapa no los muestra todos.
+  """
   total: Int!
 }
 
