@@ -234,7 +234,7 @@ Qué no hacer: no publicar una historia sin `storyConsent`. No exponer el contac
 ### 2026-11-17 — Canal de WhatsApp de Kadesh Pet («Copiar para el canal»)
 
 Qué:
-- Consulta de admin `adminAnimalChannelPost(id)`: el texto para pegar en el canal (`buildAnimalChannelMessage` en `Animal.facebookPost.ts`), el enlace corto `/f/{folio}`, la imagen de historia del cartel y el enlace `/canal`. El texto es el del post de Facebook con la ciudad y el estado arriba, sin hashtags y con el enlace corto al final.
+- Consulta de admin `adminAnimalChannelPost(id)`: el texto para pegar en el canal (`buildAnimalChannelMessage` en `Animal.facebookPost.ts`), el enlace corto `/f/{folio}`, la imagen de historia del cartel y el enlace `/canal`. El texto es el del post de Facebook con la ciudad y el estado arriba, sin hashtags y con el enlace a la ficha al final. No usa `/f/{folio}`: la vista previa de WhatsApp no sigue redirecciones y salía sin foto ni título.
 - El correo «Tu reporte ya está publicado» invita a seguir el canal (`links.channel`, `petSiteUrl("/canal")`).
 
 Por qué: la API oficial de WhatsApp no publica en Canales. Un admin copia el texto desde Operaciones y lo pega en el canal con la imagen de historia; publicar toma unos 20 segundos por caso. Mandarlo por plantillas a toda una ciudad serían mensajes de marketing cobrados uno por uno.
