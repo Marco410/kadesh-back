@@ -12039,6 +12039,7 @@ type Query {
   marketInsight(companyId: ID!, state: String, municipality: String, activity: String, geographicCode: String): MarketInsightResult!
   adminAnimals(search: String, animalTypeId: ID, reportedBy: String, creator: String, facebook: String, status: String, take: Int, skip: Int): AdminAnimalsResult!
   adminAnimalDetail(id: ID!): AdminAnimalDetail
+  adminAnimalChannelPost(id: ID!): AdminAnimalChannelPost
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
   adminNotificationLog(product: String, type: String, channel: String, result: String, search: String, entityId: String, days: Int, take: Int, skip: Int): AdminNotificationLog!
@@ -14652,6 +14653,13 @@ type AdminAnimalDetail {
   favoritesList: [AdminAnimalFavorite!]!
   viewStats: AdminAnimalViews!
   facebookPublishedBy: AdminPersonRef
+}
+
+type AdminAnimalChannelPost {
+  text: String!
+  shortUrl: String!
+  storyImageUrl: String
+  channelUrl: String!
 }
 
 type AdminPetTopAnimal {

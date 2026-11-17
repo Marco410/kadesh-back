@@ -31,6 +31,7 @@ import adminDemandGaps from "./admin/adminDemandGaps";
 import adminAcquisition from "./admin/adminAcquisition";
 import adminSalesVelocity from "./admin/adminSalesVelocity";
 import adminAnimals from "./admin/adminAnimals";
+import adminAnimalChannelPost from "./admin/adminAnimalChannelPost";
 import adminPet from "./admin/adminPet";
 import adminNotifications from "./admin/adminNotifications";
 import companyAnalytics from "./analytics/companyAnalytics";
@@ -72,6 +73,7 @@ const customQuery = {
     ${adminAcquisition.typeDefs}
     ${adminSalesVelocity.typeDefs}
     ${adminAnimals.typeDefs}
+    ${adminAnimalChannelPost.typeDefs}
     ${adminPet.typeDefs}
     ${adminNotifications.typeDefs}
     ${companyAnalytics.typeDefs}
@@ -114,6 +116,7 @@ const customQuery = {
     ${adminAcquisition.definition}
     ${adminSalesVelocity.definition}
     ${adminAnimals.definition}
+    ${adminAnimalChannelPost.definition}
     ${adminPet.definition}
     ${adminNotifications.definition}
     ${companyAnalytics.definition}
@@ -156,6 +159,7 @@ const customQuery = {
     ...adminAcquisition.resolver,
     ...adminSalesVelocity.resolver,
     ...adminAnimals.resolver,
+    ...adminAnimalChannelPost.resolver,
     ...adminPet.resolver,
     ...adminNotifications.resolver,
     ...companyAnalytics.resolver,

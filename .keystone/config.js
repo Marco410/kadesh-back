@@ -3387,7 +3387,7 @@ ${links.report}`;
       1,
       "Comp\xE1rtelo",
       `M\xE1ndalo a tus grupos de vecinos, de mascotas y a tus contactos. Este es su enlace:<br><a href="${escapeHtml(links.report)}" target="_blank" rel="noopener noreferrer" style="color:${color};word-break:break-all;">${escapeHtml(links.report)}</a>`,
-      `${emailTextLink("Compartir por WhatsApp", whatsappShare)}<br>${emailTextLink("Compartir en Facebook", facebookShare)}`
+      `${emailTextLink("Compartir por WhatsApp", whatsappShare)}<br>${emailTextLink("Compartir en Facebook", facebookShare)}<br>${emailTextLink("Seguir el canal de WhatsApp de Kadesh Pet", links.channel)}`
     ),
     animalNextStepRow(
       2,
@@ -3910,7 +3910,7 @@ async function sendAdminSecurityAlertEmail({
 
 // models/Pet/Animal/Animal.facebookPost.ts
 var FACEBOOK_POST_QUERY = `
-  id name slug physical_description age color size sex
+  id name slug folio physical_description age color size sex
   animal_type { name }
   animal_breed { breed }
   logs(orderBy: [{ date_status: desc }, { createdAt: desc }]) {
@@ -4121,6 +4121,17 @@ async function loadAnimalFacebookMessage(context, animalId) {
   });
   if (!animal) return null;
   return { slug: animal.slug ?? null, message: buildAnimalFacebookMessage(animal) };
+}
+function buildAnimalChannelMessage(animal, link, now = /* @__PURE__ */ new Date()) {
+  const latest = animal.logs?.[0] ?? null;
+  const area = [clean(latest?.city), clean(latest?.state)].filter((part) => part && !/^sin especificar$/i.test(part)).join(", ");
+  const blocks = buildAnimalFacebookMessage(animal, now).split("\n\n");
+  if (blocks.length > 1 && blocks[blocks.length - 1].trim().startsWith("#")) blocks.pop();
+  const lines = [];
+  if (area) lines.push(`\u{1F4CD} *${area}*`, "");
+  lines.push(blocks.join("\n\n"));
+  lines.push("", `\u{1F517} ${link}`);
+  return lines.join("\n");
 }
 
 // models/Notification/constants.ts
@@ -6090,6 +6101,7 @@ function buildAnimalPublishedEmailInput(animal) {
       alerts: petSiteUrl("/notificaciones/alertas"),
       notificationSettings: petSiteUrl("/notificaciones/ajustes"),
       myReports: petSiteUrl("/perfil?tab=animals"),
+      channel: petSiteUrl("/canal"),
       promote: PROMOTABLE_STATUSES.has(status) ? petSiteUrl(`${detail}?accion=${ANIMAL_DETAIL_ACTION.promote}`) : null
     },
     zoneAlert: owner.petAlertsEnabled ? { city: clean2(owner.alertCity), radiusKm: owner.alertRadiusKm ?? null } : null,
@@ -46989,8 +47001,38 @@ var resolver105 = {
 };
 var adminAnimals_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
 
-// graphql/customs/queries/admin/adminPet.ts
+// graphql/customs/queries/admin/adminAnimalChannelPost.ts
 var typeDefs109 = `
+  type AdminAnimalChannelPost {
+    text: String!
+    shortUrl: String!
+    storyImageUrl: String
+    channelUrl: String!
+  }
+`;
+var definition106 = `adminAnimalChannelPost(id: ID!): AdminAnimalChannelPost`;
+var resolver106 = {
+  adminAnimalChannelPost: async (_root, { id }, context) => {
+    assertPlatformAdmin(context);
+    const animal = await context.sudo().query.Animal.findOne({
+      where: { id },
+      query: FACEBOOK_POST_QUERY
+    });
+    if (!animal) return null;
+    const key = animal.slug || animal.id;
+    const shortUrl = animal.folio ? petSiteUrl(`/f/${animal.folio}`) : petPublicUrl(key);
+    return {
+      text: buildAnimalChannelMessage(animal, shortUrl),
+      shortUrl,
+      storyImageUrl: animal.slug ? petSiteUrl(`/cartel/${animal.slug}/historia`) : null,
+      channelUrl: petSiteUrl("/canal")
+    };
+  }
+};
+var adminAnimalChannelPost_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
+
+// graphql/customs/queries/admin/adminPet.ts
+var typeDefs110 = `
   type AdminPetTopAnimal {
     id: ID!
     name: String!
@@ -47088,7 +47130,7 @@ var typeDefs109 = `
     points: [AdminPetSeriesPoint!]!
   }
 `;
-var definition106 = `
+var definition107 = `
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
 `;
@@ -47397,7 +47439,7 @@ async function topViewedAnimals(context, prisma, since) {
     ];
   });
 }
-var resolver106 = {
+var resolver107 = {
   adminPetSummary: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47568,10 +47610,10 @@ var resolver106 = {
     return { metric, granularity, breakdown, from, to: lastBucket, total, points };
   }
 };
-var adminPet_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
+var adminPet_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
 
 // graphql/customs/queries/admin/adminNotifications.ts
-var typeDefs110 = `
+var typeDefs111 = `
   type AdminNotificationRow {
     id: ID!
     createdAt: String
@@ -47664,7 +47706,7 @@ var typeDefs110 = `
     maxPerDay: Int!
   }
 `;
-var definition107 = `
+var definition108 = `
   adminNotificationLog(
     product: String
     type: String
@@ -47747,7 +47789,7 @@ var USER_SELECT = {
   whatsappNotifications: true,
   whatsappMutedTypes: true
 };
-var resolver107 = {
+var resolver108 = {
   adminNotificationLog: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47928,13 +47970,13 @@ var resolver107 = {
     };
   }
 };
-var adminNotifications = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
+var adminNotifications = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
 var adminNotifications_default = adminNotifications;
 
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql14 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs111 = `
+var typeDefs112 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -48010,13 +48052,13 @@ var typeDefs111 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition108 = `
+var definition109 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
 var fail13 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver108 = {
+var resolver109 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -48099,12 +48141,12 @@ var resolver108 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
+var companyAnalytics_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache = null;
-var typeDefs112 = `
+var typeDefs113 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -48114,7 +48156,7 @@ var typeDefs112 = `
     updatedAt: String!
   }
 `;
-var definition109 = `landingStats: LandingStats!`;
+var definition110 = `landingStats: LandingStats!`;
 function unwrap3(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -48140,7 +48182,7 @@ async function computeLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver109 = {
+var resolver110 = {
   landingStats: async (_root, _args, context) => {
     if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
     const value = await computeLandingStats(context);
@@ -48148,13 +48190,13 @@ var resolver109 = {
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
+var landingStats_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES2 = ["in_family", "adopted"];
 var cache2 = null;
-var typeDefs113 = `
+var typeDefs114 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
@@ -48170,7 +48212,7 @@ var typeDefs113 = `
     updatedAt: String!
   }
 `;
-var definition110 = `petLandingStats: PetLandingStats!`;
+var definition111 = `petLandingStats: PetLandingStats!`;
 function unwrap4(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -48237,7 +48279,7 @@ async function computePetLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver110 = {
+var resolver111 = {
   petLandingStats: async (_root, _args, context) => {
     if (cache2 && Date.now() - cache2.at < CACHE_MS2) return cache2.value;
     const value = await computePetLandingStats(context);
@@ -48245,14 +48287,14 @@ var resolver110 = {
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
+var petLandingStats_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
 
 // graphql/customs/queries/petReunionStories.ts
 var CACHE_MS3 = 10 * 60 * 1e3;
 var DEFAULT_TAKE = 6;
 var MAX_TAKE = 12;
 var STORY_MAX = 280;
-var typeDefs114 = `
+var typeDefs115 = `
   type PetReunionStory {
     id: ID!
     slug: String
@@ -48268,7 +48310,7 @@ var typeDefs114 = `
     coverUrl: String
   }
 `;
-var definition111 = `petReunionStories(take: Int): [PetReunionStory!]!`;
+var definition112 = `petReunionStories(take: Int): [PetReunionStory!]!`;
 var cache3 = null;
 function publicStoryText(raw) {
   const clean5 = raw.replace(/https?:\/\/\S+|www\.\S+/gi, "").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "").replace(/\+?\(?\d[\d\s().-]{6,}\d/g, "").replace(/\s+/g, " ").trim();
@@ -48312,7 +48354,7 @@ async function loadStories(context, take) {
     coverUrl: covers.get(row.id) ?? null
   }));
 }
-var resolver111 = {
+var resolver112 = {
   petReunionStories: async (_root, args, context) => {
     const take = Math.min(Math.max(1, Math.floor(args.take ?? DEFAULT_TAKE)), MAX_TAKE);
     const now = Date.now();
@@ -48327,13 +48369,13 @@ var resolver111 = {
     }
   }
 };
-var petReunionStories_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
+var petReunionStories_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
 
 // graphql/customs/queries/petEvents.ts
 var MAX_TAKE2 = 48;
 var DAY_MS11 = 24 * 60 * 60 * 1e3;
 var MAX_DATE = /* @__PURE__ */ new Date("9999-12-31T00:00:00.000Z");
-var typeDefs115 = `
+var typeDefs116 = `
   input PetEventsFeedInput {
     "Clave INEGI (16) o slug (michoacan)"
     state: String
@@ -48394,7 +48436,7 @@ var typeDefs115 = `
     sendAt: String
   }
 `;
-var definition112 = `
+var definition113 = `
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
@@ -48407,7 +48449,7 @@ function validDate(value, fallback) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
-var resolver112 = {
+var resolver113 = {
   /**
    * Eventos publicados para la sección /eventos, la portada y la app: los próximos (por su próxima
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
@@ -48532,11 +48574,11 @@ var resolver112 = {
     };
   }
 };
-var petEvents_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
+var petEvents_default = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
 
 // graphql/customs/queries/rescueAllies.ts
 var MAX_TAKE3 = 300;
-var typeDefs116 = `
+var typeDefs117 = `
   type RescueAlly {
     id: ID!
     name: String!
@@ -48555,8 +48597,8 @@ var typeDefs116 = `
     allies: [RescueAlly!]!
   }
 `;
-var definition113 = `rescueAllies(take: Int): RescueAlliesResult!`;
-var resolver113 = {
+var definition114 = `rescueAllies(take: Int): RescueAlliesResult!`;
+var resolver114 = {
   rescueAllies: async (_root, { take }, context) => {
     const limit = Math.min(Math.max(Number(take) || MAX_TAKE3, 1), MAX_TAKE3);
     const rows2 = await context.sudo().query.RescueOrganization.findMany({
@@ -48594,7 +48636,7 @@ var resolver113 = {
     return { total: allies.length, allies: allies.slice(0, limit) };
   }
 };
-var rescueAllies_default = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
+var rescueAllies_default = { typeDefs: typeDefs117, definition: definition114, resolver: resolver114 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -48629,6 +48671,7 @@ var customQuery = {
     ${adminAcquisition_default.typeDefs}
     ${adminSalesVelocity_default.typeDefs}
     ${adminAnimals_default.typeDefs}
+    ${adminAnimalChannelPost_default.typeDefs}
     ${adminPet_default.typeDefs}
     ${adminNotifications_default.typeDefs}
     ${companyAnalytics_default.typeDefs}
@@ -48671,6 +48714,7 @@ var customQuery = {
     ${adminAcquisition_default.definition}
     ${adminSalesVelocity_default.definition}
     ${adminAnimals_default.definition}
+    ${adminAnimalChannelPost_default.definition}
     ${adminPet_default.definition}
     ${adminNotifications_default.definition}
     ${companyAnalytics_default.definition}
@@ -48713,6 +48757,7 @@ var customQuery = {
     ...adminAcquisition_default.resolver,
     ...adminSalesVelocity_default.resolver,
     ...adminAnimals_default.resolver,
+    ...adminAnimalChannelPost_default.resolver,
     ...adminPet_default.resolver,
     ...adminNotifications_default.resolver,
     ...companyAnalytics_default.resolver,
