@@ -47022,7 +47022,7 @@ var resolver106 = {
     const key = animal.slug || animal.id;
     const shortUrl = animal.folio ? petSiteUrl(`/f/${animal.folio}`) : petPublicUrl(key);
     return {
-      text: buildAnimalChannelMessage(animal, shortUrl),
+      text: buildAnimalChannelMessage(animal, petPublicUrl(key)),
       shortUrl,
       storyImageUrl: animal.slug ? petSiteUrl(`/cartel/${animal.slug}/historia`) : null,
       channelUrl: petSiteUrl("/canal")

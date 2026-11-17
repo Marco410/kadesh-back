@@ -312,7 +312,8 @@ export async function loadAnimalFacebookMessage(
  * el canal). Es el mismo del post de Facebook con tres cambios:
  * - arriba, la ciudad y el estado, para que quien sigue el canal vea de un vistazo si le toca;
  * - sin hashtags (en WhatsApp no sirven);
- * - abajo, el enlace corto `/f/{folio}` (el «¿Lo has visto? Entra al enlace…» ya viene del post).
+ * - abajo, el enlace a la ficha (el «¿Lo has visto? Entra al enlace…» ya viene del post). Va la
+ *   ficha completa y no `/f/{folio}`: la vista previa de WhatsApp no sigue redirecciones.
  */
 
 export function buildAnimalChannelMessage(animal: AnimalPostData, link: string, now = new Date()): string {

@@ -13,7 +13,9 @@ import { assertPlatformAdmin } from "./shared";
  * publica en Canales, así que un admin copia el texto y lo pega en el canal de Kadesh Pet con la
  * imagen de historia del cartel. Solo admin de plataforma.
  *
- * - `text`: el post (ver `buildAnimalChannelMessage`), con el enlace corto `/f/{folio}`.
+ * - `text`: el post (ver `buildAnimalChannelMessage`), con el enlace a la ficha (no el corto: la
+ *   vista previa de WhatsApp no sigue redirecciones).
+ * - `shortUrl`: `/f/{folio}`, para dictarlo o escribirlo a mano.
  * - `storyImageUrl`: la imagen 1080 × 1920 del cartel (`/cartel/{slug}/historia` en la web).
  * - `channelUrl`: `/canal` en la web, que redirige al canal que toque.
  */
@@ -39,8 +41,10 @@ const resolver = {
 
     const key = animal.slug || animal.id;
     const shortUrl = animal.folio ? petSiteUrl(`/f/${animal.folio}`) : petPublicUrl(key);
+    // En el texto va la ficha completa y no `/f/{folio}`: WhatsApp no sigue la redirección del
+    // enlace corto al armar la vista previa y solo mostraba «pet.kadesh.com.mx», sin foto ni título.
     return {
-      text: buildAnimalChannelMessage(animal, shortUrl),
+      text: buildAnimalChannelMessage(animal, petPublicUrl(key)),
       shortUrl,
       storyImageUrl: animal.slug ? petSiteUrl(`/cartel/${animal.slug}/historia`) : null,
       channelUrl: petSiteUrl("/canal"),
