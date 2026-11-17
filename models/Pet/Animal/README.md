@@ -220,3 +220,12 @@ Después, solo para la página devuelta, se piden las fotos, los autores y los �
 Por qué: pedir 10 costaba lo mismo que pedir 500, y lo llamaban `/animales`, la portada y las alertas de zona en cada visita. Comparado contra la versión vieja con 400 reportes de prueba: mismos totales, mismos animales y mismas distancias en 8 combinaciones de filtros. El orden solo cambia entre empates de distancia redondeada.
 
 Qué no hacer: no volver a cargar todos los animales para filtrar en Node. No pedir fotos, autores ni avistamientos antes de paginar. No subir `MAX_PINS`: si una zona se acerca a 1000, hay que agrupar en el servidor.
+
+
+### 2026-11-17 — Reencuentros en la portada (`petReunionStories`)
+
+Qué: consulta pública `petReunionStories(take)`, con tope de 12 y caché de 10 min en memoria. Devuelve casos cerrados con hogar (`HOME_OUTCOMES`) con `storyConsent` y `outcomeStory` no vacío, del cierre más reciente al más viejo. Cada uno trae nombre o descripción, desenlace, fecha de cierre, ciudad, foto de portada y la historia. La historia sale recortada a 280 caracteres y sin teléfonos, correos ni enlaces (`publicStoryText`). `getAnimalCoverUrls` pasó a `utils/pet/animalCovers.ts` (la usan los pines del mapa y esta consulta).
+
+Por qué: la portada muestra historias reales de reencuentro justo después de los reportes, como prueba de que funciona.
+
+Qué no hacer: no publicar una historia sin `storyConsent`. No exponer el contacto ni el autor. Para retirar una historia, apagar `storyConsent` o vaciar `outcomeStory` en el Admin UI.
