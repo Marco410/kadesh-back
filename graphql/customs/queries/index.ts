@@ -36,6 +36,7 @@ import adminNotifications from "./admin/adminNotifications";
 import companyAnalytics from "./analytics/companyAnalytics";
 import landingStats from "./landingStats";
 import petLandingStats from "./petLandingStats";
+import petReunionStories from "./petReunionStories";
 import petEvents from "./petEvents";
 import rescueAllies from "./rescueAllies";
 
@@ -76,6 +77,7 @@ const customQuery = {
     ${companyAnalytics.typeDefs}
     ${landingStats.typeDefs}
     ${petLandingStats.typeDefs}
+    ${petReunionStories.typeDefs}
     ${rescueAllies.typeDefs}
     ${petEvents.typeDefs}
   `,
@@ -117,6 +119,7 @@ const customQuery = {
     ${companyAnalytics.definition}
     ${landingStats.definition}
     ${petLandingStats.definition}
+    ${petReunionStories.definition}
     ${petEvents.definition}
     ${rescueAllies.definition}
   `,
@@ -158,6 +161,7 @@ const customQuery = {
     ...companyAnalytics.resolver,
     ...landingStats.resolver,
     ...petLandingStats.resolver,
+    ...petReunionStories.resolver,
     ...petEvents.resolver,
     ...rescueAllies.resolver,
   },

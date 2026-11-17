@@ -40219,6 +40219,33 @@ async function queryNearbyAnimals(prisma, filters, page) {
   };
 }
 
+// utils/pet/animalCovers.ts
+async function getAnimalCoverUrls(ids, context) {
+  const covers = /* @__PURE__ */ new Map();
+  if (ids.length === 0) return covers;
+  const prisma = context.sudo().prisma;
+  const firsts = await prisma.$queryRaw`
+    SELECT DISTINCT ON (m."animal") m.id
+    FROM "AnimalMultimedia" m
+    WHERE m."animal" = ANY(${ids}::text[])
+    ORDER BY m."animal", m."order" ASC, m."createdAt" ASC NULLS LAST
+  `;
+  if (firsts instanceof Error) {
+    console.error("[animalCovers]", firsts);
+    return covers;
+  }
+  const mediaIds = firsts.map((row) => row.id);
+  if (mediaIds.length === 0) return covers;
+  const media = await context.sudo().query.AnimalMultimedia.findMany({
+    where: { id: { in: mediaIds } },
+    query: "image { url } animal { id }"
+  });
+  for (const item of media) {
+    if (item.animal?.id && item.image?.url) covers.set(item.animal.id, item.image.url);
+  }
+  return covers;
+}
+
 // graphql/customs/queries/nearbyAnimals.ts
 var MAX_LIST_LIMIT = 500;
 var MAX_PINS = 1e3;
@@ -40403,30 +40430,6 @@ async function getMultimedia(ids, context) {
   for (const list101 of byAnimal.values()) list101.sort((a, b) => a.order - b.order);
   return byAnimal;
 }
-async function getCoverUrls(ids, context) {
-  const covers = /* @__PURE__ */ new Map();
-  if (ids.length === 0) return covers;
-  const firsts = await prismaOf13(context).$queryRaw`
-    SELECT DISTINCT ON (m."animal") m.id
-    FROM "AnimalMultimedia" m
-    WHERE m."animal" = ANY(${ids}::text[])
-    ORDER BY m."animal", m."order" ASC, m."createdAt" ASC NULLS LAST
-  `;
-  if (firsts instanceof Error) {
-    console.error("[nearbyAnimals] portadas:", firsts);
-    return covers;
-  }
-  const mediaIds = firsts.map((row) => row.id);
-  if (mediaIds.length === 0) return covers;
-  const media = await context.sudo().query.AnimalMultimedia.findMany({
-    where: { id: { in: mediaIds } },
-    query: "image { url } animal { id }"
-  });
-  for (const item of media) {
-    if (item.animal?.id && item.image?.url) covers.set(item.animal.id, item.image.url);
-  }
-  return covers;
-}
 async function getAuthors(ids, context) {
   const byAnimal = /* @__PURE__ */ new Map();
   if (ids.length === 0) return byAnimal;
@@ -40493,7 +40496,7 @@ var resolver77 = {
   getNearbyAnimalPins: async (_root, { input }, context) => {
     const { rows: rows2, total } = await queryNearbyAnimals(prismaOf13(context), filtersOf(input), { limit: MAX_PINS, skip: 0 });
     const ids = rows2.map((row) => row.id);
-    const [covers, sightings] = await Promise.all([getCoverUrls(ids, context), getRecentSightings(rows2, context)]);
+    const [covers, sightings] = await Promise.all([getAnimalCoverUrls(ids, context), getRecentSightings(rows2, context)]);
     return {
       success: true,
       total,
@@ -48244,11 +48247,93 @@ var resolver110 = {
 };
 var petLandingStats_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
 
+// graphql/customs/queries/petReunionStories.ts
+var CACHE_MS3 = 10 * 60 * 1e3;
+var DEFAULT_TAKE = 6;
+var MAX_TAKE = 12;
+var STORY_MAX = 280;
+var typeDefs114 = `
+  type PetReunionStory {
+    id: ID!
+    slug: String
+    "Nombre, o la descripci\xF3n (\xABPerra caf\xE9\xBB) si no se sabe."
+    displayName: String!
+    "reunited | adopted | other_home"
+    outcome: String!
+    closedAt: String
+    "Recortada a 280 caracteres, sin tel\xE9fonos, correos ni enlaces."
+    story: String!
+    city: String
+    state: String
+    coverUrl: String
+  }
+`;
+var definition111 = `petReunionStories(take: Int): [PetReunionStory!]!`;
+var cache3 = null;
+function publicStoryText(raw) {
+  const clean5 = raw.replace(/https?:\/\/\S+|www\.\S+/gi, "").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "").replace(/\+?\(?\d[\d\s().-]{6,}\d/g, "").replace(/\s+/g, " ").trim();
+  if (clean5.length <= STORY_MAX) return clean5;
+  const cut = clean5.slice(0, STORY_MAX - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > STORY_MAX * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[.,;:\s]+$/, "")}\u2026`;
+}
+async function loadStories(context, take) {
+  const prisma = context.sudo().prisma;
+  const rows2 = await prisma.$queryRaw`
+    SELECT a.id, a.slug, a.name, a.sex, a.color, t.name AS "typeName", a.outcome, a."closedAt",
+           a."outcomeStory" AS story, last.city, last.state
+    FROM "Animal" a
+    LEFT JOIN "AnimalType" t ON t.id = a."animal_type"
+    LEFT JOIN LATERAL (
+      SELECT l.city, l.state FROM "AnimalLog" l
+      WHERE l."animal" = a.id
+      ORDER BY l."date_status" DESC NULLS LAST, l."createdAt" DESC NULLS LAST
+      LIMIT 1
+    ) last ON true
+    WHERE a.outcome = ANY(${HOME_OUTCOMES}::text[])
+      AND a."storyConsent" = true
+      AND btrim(a."outcomeStory") <> ''
+      AND a."duplicateOf" IS NULL
+    ORDER BY a."closedAt" DESC NULLS LAST
+    LIMIT ${take}::int
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  const list101 = rows2.map((row) => ({ row, story: publicStoryText(row.story ?? "") })).filter(({ story }) => story.length >= 10);
+  const covers = await getAnimalCoverUrls(list101.map(({ row }) => row.id), context);
+  return list101.map(({ row, story }) => ({
+    id: row.id,
+    slug: row.slug,
+    displayName: animalDisplayName({ name: row.name, typeName: row.typeName, sex: row.sex, color: row.color }),
+    outcome: row.outcome,
+    closedAt: row.closedAt ? new Date(row.closedAt).toISOString() : null,
+    story,
+    city: row.city || null,
+    state: row.state || null,
+    coverUrl: covers.get(row.id) ?? null
+  }));
+}
+var resolver111 = {
+  petReunionStories: async (_root, args, context) => {
+    const take = Math.min(Math.max(1, Math.floor(args.take ?? DEFAULT_TAKE)), MAX_TAKE);
+    const now = Date.now();
+    if (cache3 && cache3.take === take && now - cache3.at < CACHE_MS3) return cache3.value;
+    try {
+      const value = await loadStories(context, take);
+      cache3 = { take, value, at: now };
+      return value;
+    } catch (error) {
+      console.error("[petReunionStories]", error);
+      return cache3?.value ?? [];
+    }
+  }
+};
+var petReunionStories_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
+
 // graphql/customs/queries/petEvents.ts
-var MAX_TAKE = 48;
+var MAX_TAKE2 = 48;
 var DAY_MS11 = 24 * 60 * 60 * 1e3;
 var MAX_DATE = /* @__PURE__ */ new Date("9999-12-31T00:00:00.000Z");
-var typeDefs114 = `
+var typeDefs115 = `
   input PetEventsFeedInput {
     "Clave INEGI (16) o slug (michoacan)"
     state: String
@@ -48309,7 +48394,7 @@ var typeDefs114 = `
     sendAt: String
   }
 `;
-var definition111 = `
+var definition112 = `
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
@@ -48322,7 +48407,7 @@ function validDate(value, fallback) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
-var resolver111 = {
+var resolver112 = {
   /**
    * Eventos publicados para la sección /eventos, la portada y la app: los próximos (por su próxima
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
@@ -48330,7 +48415,7 @@ var resolver111 = {
   petEventsFeed: async (_root, { input }, context) => {
     const prisma = prismaOf14(context);
     const now = /* @__PURE__ */ new Date();
-    const take = Math.min(Math.max(Number(input.take) || 12, 1), MAX_TAKE);
+    const take = Math.min(Math.max(Number(input.take) || 12, 1), MAX_TAKE2);
     const skip = Math.max(Number(input.skip) || 0, 0);
     const stateText = (input.state ?? "").trim();
     const stateCode = stateBySlug(stateText)?.code ?? normalizeStateCode(stateText) ?? (stateText ? "--" : "");
@@ -48447,11 +48532,11 @@ var resolver111 = {
     };
   }
 };
-var petEvents_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
+var petEvents_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
 
 // graphql/customs/queries/rescueAllies.ts
-var MAX_TAKE2 = 300;
-var typeDefs115 = `
+var MAX_TAKE3 = 300;
+var typeDefs116 = `
   type RescueAlly {
     id: ID!
     name: String!
@@ -48470,14 +48555,14 @@ var typeDefs115 = `
     allies: [RescueAlly!]!
   }
 `;
-var definition112 = `rescueAllies(take: Int): RescueAlliesResult!`;
-var resolver112 = {
+var definition113 = `rescueAllies(take: Int): RescueAlliesResult!`;
+var resolver113 = {
   rescueAllies: async (_root, { take }, context) => {
-    const limit = Math.min(Math.max(Number(take) || MAX_TAKE2, 1), MAX_TAKE2);
+    const limit = Math.min(Math.max(Number(take) || MAX_TAKE3, 1), MAX_TAKE3);
     const rows2 = await context.sudo().query.RescueOrganization.findMany({
       where: { isAlly: { equals: true }, status: { equals: RESCUE_ORG_STATUS.VERIFIED } },
       query: "id name slug type city state allySince allyOrder logo { url }",
-      take: MAX_TAKE2
+      take: MAX_TAKE3
     });
     const impact = await rescueImpactByOrg(
       context,
@@ -48509,7 +48594,7 @@ var resolver112 = {
     return { total: allies.length, allies: allies.slice(0, limit) };
   }
 };
-var rescueAllies_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
+var rescueAllies_default = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -48549,6 +48634,7 @@ var customQuery = {
     ${companyAnalytics_default.typeDefs}
     ${landingStats_default.typeDefs}
     ${petLandingStats_default.typeDefs}
+    ${petReunionStories_default.typeDefs}
     ${rescueAllies_default.typeDefs}
     ${petEvents_default.typeDefs}
   `,
@@ -48590,6 +48676,7 @@ var customQuery = {
     ${companyAnalytics_default.definition}
     ${landingStats_default.definition}
     ${petLandingStats_default.definition}
+    ${petReunionStories_default.definition}
     ${petEvents_default.definition}
     ${rescueAllies_default.definition}
   `,
@@ -48631,6 +48718,7 @@ var customQuery = {
     ...companyAnalytics_default.resolver,
     ...landingStats_default.resolver,
     ...petLandingStats_default.resolver,
+    ...petReunionStories_default.resolver,
     ...petEvents_default.resolver,
     ...rescueAllies_default.resolver
   }
