@@ -331,6 +331,8 @@ export type AnimalPublishedEmailInput = {
     alerts: string;
     notificationSettings: string;
     myReports: string;
+    /** Canal de WhatsApp de Kadesh Pet (`/canal` en la web, que redirige al canal que toque). */
+    channel: string;
     /** Solo perdidos y encontrados. */
     promote: string | null;
   };
@@ -462,7 +464,7 @@ export function buildAnimalPublishedEmailHtml(input: AnimalPublishedEmailInput):
       1,
       "Compártelo",
       `Mándalo a tus grupos de vecinos, de mascotas y a tus contactos. Este es su enlace:<br><a href="${escapeHtml(links.report)}" target="_blank" rel="noopener noreferrer" style="color:${color};word-break:break-all;">${escapeHtml(links.report)}</a>`,
-      `${emailTextLink("Compartir por WhatsApp", whatsappShare)}<br>${emailTextLink("Compartir en Facebook", facebookShare)}`,
+      `${emailTextLink("Compartir por WhatsApp", whatsappShare)}<br>${emailTextLink("Compartir en Facebook", facebookShare)}<br>${emailTextLink("Seguir el canal de WhatsApp de Kadesh Pet", links.channel)}`,
     ),
     animalNextStepRow(
       2,

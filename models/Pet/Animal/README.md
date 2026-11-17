@@ -229,3 +229,14 @@ Qué: consulta pública `petReunionStories(take)`, con tope de 12 y caché de 10
 Por qué: la portada muestra historias reales de reencuentro justo después de los reportes, como prueba de que funciona.
 
 Qué no hacer: no publicar una historia sin `storyConsent`. No exponer el contacto ni el autor. Para retirar una historia, apagar `storyConsent` o vaciar `outcomeStory` en el Admin UI.
+
+
+### 2026-11-17 — Canal de WhatsApp de Kadesh Pet («Copiar para el canal»)
+
+Qué:
+- Consulta de admin `adminAnimalChannelPost(id)`: el texto para pegar en el canal (`buildAnimalChannelMessage` en `Animal.facebookPost.ts`), el enlace corto `/f/{folio}`, la imagen de historia del cartel y el enlace `/canal`. El texto es el del post de Facebook con la ciudad y el estado arriba, sin hashtags y con el enlace corto al final.
+- El correo «Tu reporte ya está publicado» invita a seguir el canal (`links.channel`, `petSiteUrl("/canal")`).
+
+Por qué: la API oficial de WhatsApp no publica en Canales. Un admin copia el texto desde Operaciones y lo pega en el canal con la imagen de historia; publicar toma unos 20 segundos por caso. Mandarlo por plantillas a toda una ciudad serían mensajes de marketing cobrados uno por uno.
+
+Qué no hacer: no poner el enlace de WhatsApp del canal en el back ni en correos: va siempre `pet.kadesh.com.mx/canal`, que redirige (los canales viven en `kadesh-landing/src/core/whatsappChannels.ts`). No agregar hashtags al texto del canal.

@@ -9,7 +9,7 @@ import { foldText, isGenericName } from "../../../utils/pet/reportSimilarity";
  */
 
 export const FACEBOOK_POST_QUERY = `
-  id name slug physical_description age color size sex
+  id name slug folio physical_description age color size sex
   animal_type { name }
   animal_breed { breed }
   logs(orderBy: [{ date_status: desc }, { createdAt: desc }]) {
@@ -305,4 +305,28 @@ export async function loadAnimalFacebookMessage(
   })) as (AnimalPostData & { slug?: string | null }) | null;
   if (!animal) return null;
   return { slug: animal.slug ?? null, message: buildAnimalFacebookMessage(animal) };
+}
+
+/**
+ * Texto para el canal de WhatsApp de Kadesh Pet (lo copia un admin desde Operaciones y lo pega en
+ * el canal). Es el mismo del post de Facebook con tres cambios:
+ * - arriba, la ciudad y el estado, para que quien sigue el canal vea de un vistazo si le toca;
+ * - sin hashtags (en WhatsApp no sirven);
+ * - abajo, el enlace corto `/f/{folio}` (el «¿Lo has visto? Entra al enlace…» ya viene del post).
+ */
+
+export function buildAnimalChannelMessage(animal: AnimalPostData, link: string, now = new Date()): string {
+  const latest = animal.logs?.[0] ?? null;
+  const area = [clean(latest?.city), clean(latest?.state)]
+    .filter((part) => part && !/^sin especificar$/i.test(part))
+    .join(", ");
+  // El post de Facebook termina con el párrafo de hashtags: aquí no va.
+  const blocks = buildAnimalFacebookMessage(animal, now).split("\n\n");
+  if (blocks.length > 1 && blocks[blocks.length - 1].trim().startsWith("#")) blocks.pop();
+
+  const lines: string[] = [];
+  if (area) lines.push(`📍 *${area}*`, "");
+  lines.push(blocks.join("\n\n"));
+  lines.push("", `🔗 ${link}`);
+  return lines.join("\n");
 }
