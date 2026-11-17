@@ -72,6 +72,23 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     windowMs: HOUR,
   },
   {
+    // «Lo vi» se manda sin cuenta. Varias personas pueden compartir IP (datos móviles), por eso no es más bajo.
+    key: "animal_sighting_ip",
+    label: "Avistamientos («Lo vi») por IP",
+    fields: ["reportAnimalSighting"],
+    scope: "ip",
+    limit: 10,
+    windowMs: HOUR,
+  },
+  {
+    key: "animal_sighting_ip_day",
+    label: "Avistamientos («Lo vi») por IP al día",
+    fields: ["reportAnimalSighting"],
+    scope: "ip",
+    limit: 30,
+    windowMs: DAY,
+  },
+  {
     key: "pet_event_user",
     label: "Eventos publicados por persona",
     fields: ["submitPetEvent"],

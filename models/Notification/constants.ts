@@ -25,6 +25,8 @@ export const NOTIFICATION_TYPE = {
   ANIMAL_DUPLICATE_REPORTED: "animal.duplicate_reported",
   /** Un reporte perdido se parece a uno encontrado (o al revés): podría ser el mismo animal. */
   ANIMAL_POSSIBLE_MATCH: "animal.possible_match",
+  /** Alguien (con o sin cuenta) avisó que vio al animal («Lo vi»). Va a quien atiende el reporte. */
+  ANIMAL_SIGHTED: "animal.sighted",
   /** Alguien dice que el animal de un reporte es suyo. Va a quien lo reportó (o a los admins). */
   ANIMAL_CLAIM_REQUESTED: "animal.claim_requested",
   /** Quien reportó aceptó la solicitud: el reporte ya es de quien lo pidió. */

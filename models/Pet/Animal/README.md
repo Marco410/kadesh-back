@@ -187,3 +187,12 @@ Qué: `Animal.name` deja de ser obligatorio y los textos de relleno se guardan v
 Por qué: «Sin nombre» se mostraba como si fuera el nombre en títulos, carteles, cierres y recordatorios («¿Sin nombre volvió a casa?»). Casi siempre el animal sí tiene nombre; quien lo encontró no lo sabe. Cuando aparece la familia, su solicitud trae el nombre real.
 
 Qué no hacer: no volver a guardar un texto de relleno en `name`. No regenerar el slug al poner el nombre real: hay carteles y enlaces compartidos con el slug viejo.
+
+
+### 2026-11-13 — «Lo vi»: avistamientos sin cuenta (`AnimalSighting`)
+
+Qué: lista `AnimalSighting` (lugar, hora en que lo vieron, nota y, opcional, nombre y teléfono de quien avisa), la mutación pública `reportAnimalSighting`, `setAnimalSightingHidden` para quien atiende el reporte y el campo virtual `Animal.sightings(take)` que lee la ficha. Solo se aceptan en casos `lost` o `abandoned`. Se avisa con el tipo `animal.sighted` (plantilla `kadesh_pet_avistamiento`). Contra abuso: límites por IP (`animal_sighting_ip`, 10 por hora y 30 por día), la misma IP no repite el mismo animal en 10 minutos, campo trampa `website` y Cloudflare Turnstile si existe `TURNSTILE_SECRET_KEY` (sin la variable, apagado).
+
+Por qué: quien ve un cartel o un post casi nunca tiene cuenta, y pedirle registrarse para decir «lo vi en tal esquina» hace que no avise. El aviso tiene que llegar en minutos a quien busca.
+
+Qué no hacer: no pedir `sightings` en listas (es una consulta por animal). No dar `contactName`/`contactPhone` ni `ip` a quien no atiende el reporte. No convertir un avistamiento en bitácora del caso por sí solo: no lo escribió quien lo atiende, y movería el pin y reiniciaría los recordatorios de seguimiento. Lo decide quien atiende el reporte con «Agregar registro».

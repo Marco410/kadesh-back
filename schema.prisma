@@ -186,6 +186,7 @@ model Animal {
   from_AdoptionApplication_animal AdoptionApplication[] @relation("AdoptionApplication_animal")
   from_AnimalComment_animal       AnimalComment[]       @relation("AnimalComment_animal")
   from_AnimalFavorite_animal      AnimalFavorite[]      @relation("AnimalFavorite_animal")
+  from_AnimalSighting_animal      AnimalSighting[]      @relation("AnimalSighting_animal")
   from_Pet_lostReport             Pet[]                 @relation("Pet_lostReport")
   from_Pet_publicReport           Pet[]                 @relation("Pet_publicReport")
 
@@ -331,6 +332,29 @@ model AnimalMultimedia {
   createdAt       DateTime? @default(now())
 
   @@index([animalId])
+}
+
+model AnimalSighting {
+  id           String    @id @default(cuid())
+  animal       Animal?   @relation("AnimalSighting_animal", fields: [animalId], references: [id])
+  animalId     String?   @map("animal")
+  user         User?     @relation("AnimalSighting_user", fields: [userId], references: [id])
+  userId       String?   @map("user")
+  seenAt       DateTime
+  lat          String    @default("")
+  lng          String    @default("")
+  placeLabel   String    @default("")
+  city         String    @default("")
+  state        String    @default("")
+  notes        String    @default("")
+  contactName  String    @default("")
+  contactPhone String    @default("")
+  hidden       Boolean   @default(false)
+  ip           String    @default("")
+  createdAt    DateTime? @default(now())
+
+  @@index([animalId])
+  @@index([userId])
 }
 
 model AnimalType {
@@ -2255,6 +2279,7 @@ model User {
   from_AdoptionApplication_decidedBy       AdoptionApplication[]      @relation("AdoptionApplication_decidedBy")
   from_AnimalComment_user                  AnimalComment[]            @relation("AnimalComment_user")
   from_AnimalFavorite_user                 AnimalFavorite[]           @relation("AnimalFavorite_user")
+  from_AnimalSighting_user                 AnimalSighting[]           @relation("AnimalSighting_user")
   from_AnimalView_user                     AnimalView[]               @relation("AnimalView_user")
   from_Cart_user                           Cart[]                     @relation("Cart_user")
   from_Order_user                          Order[]                    @relation("Order_user")

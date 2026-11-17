@@ -2,6 +2,7 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import { NOTIFICATION_TYPE } from "../../models/Notification/constants";
 import { petPublicUrl } from "../pet/animalReport";
 import { isGenericName } from "../pet/reportSimilarity";
+import { animalSentenceName, capitalizeFirst } from "../pet/animalName";
 import { notify } from "./notify";
 import { RESCUE_ANIMAL_MANAGER_ROLES } from "../../models/Pet/RescueOrganization/constants";
 import { rescueStaffIds } from "../../models/Pet/RescueOrganization/RescueOrganization.access";
@@ -237,5 +238,87 @@ export async function notifyAnimalMerged(
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar del reporte unido:", input.main.id, error);
+  }
+}
+
+const MX_TIME_ZONE = "America/Mexico_City";
+
+function mxDayKey(date: Date) {
+  return date.toLocaleDateString("en-CA", { timeZone: MX_TIME_ZONE });
+}
+
+/** «hoy a las 7:40 p.m.», «ayer a las 9:00 a.m.» o «el 3 de nov. a las 6:15 p.m.» (hora del centro). */
+export function sightingWhenText(seenAt: Date, now = new Date()): string {
+  const time = seenAt.toLocaleTimeString("es-MX", { timeZone: MX_TIME_ZONE, hour: "numeric", minute: "2-digit" });
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  if (mxDayKey(seenAt) === mxDayKey(now)) return `hoy a las ${time}`;
+  if (mxDayKey(seenAt) === mxDayKey(yesterday)) return `ayer a las ${time}`;
+  const day = seenAt.toLocaleDateString("es-MX", { timeZone: MX_TIME_ZONE, day: "numeric", month: "short" });
+  return `el ${day} a las ${time}`;
+}
+
+type SightingInput = {
+  sightingId: string;
+  animalId: string;
+  /** Quien avisó, si tenía sesión (no se le avisa a sí mismo). */
+  reporterId: string | null;
+  seenAt: Date;
+  place: string;
+  notes: string;
+};
+
+/**
+ * «Lo vi»: avisa a quien atiende el reporte (autor y equipo de su espacio de rescate). Si es de la
+ * automatización, a los admins: un avistamiento sí es algo que alguien tiene que ver.
+ */
+export async function notifyAnimalSighted(context: KeystoneContext, input: SightingInput): Promise<void> {
+  try {
+    const animal = (await context.sudo().query.Animal.findOne({
+      where: { id: input.animalId },
+      query: "id name slug sex color user { id } organization { id } animal_type { name } animal_breed { animal_type { name } }",
+    })) as {
+      id: string;
+      name?: string | null;
+      slug?: string | null;
+      sex?: string | null;
+      color?: string | null;
+      user?: { id: string } | null;
+      organization?: { id: string } | null;
+      animal_type?: { name?: string | null } | null;
+      animal_breed?: { animal_type?: { name?: string | null } | null } | null;
+    } | null;
+    if (!animal) return;
+
+    const audience = await reportAudienceWithTeam(context, animal);
+    const recipients = Array.isArray(audience) ? audience.filter((id) => id !== input.reporterId) : audience;
+    if (Array.isArray(recipients) && recipients.length === 0) return;
+
+    const name = animalSentenceName({
+      name: animal.name,
+      typeName: animal.animal_type?.name ?? animal.animal_breed?.animal_type?.name ?? null,
+      sex: animal.sex,
+      color: animal.color,
+    });
+    const when = sightingWhenText(input.seenAt);
+    const where = input.place.trim();
+    const placeAndTime = where ? `${where}, ${when}` : capitalizeFirst(when);
+    const note = input.notes.trim() ? ` «${excerpt(input.notes)}»` : "";
+    const url = reportUrl(animal, "#avistamientos");
+
+    await notify(context, {
+      audience: recipients,
+      product: "pet",
+      type: NOTIFICATION_TYPE.ANIMAL_SIGHTED,
+      title: `Alguien vio a ${name}`,
+      body: `${placeAndTime}.${note}`,
+      entityType: "Animal",
+      entityId: animal.id,
+      url,
+      metadata: { slug: animal.slug ?? null, sightingId: input.sightingId },
+      // kadesh_pet_avistamiento: Alguien vio a {{1}}: {{2}}. Revisa dónde en Kadesh Pet: {{3}}
+      templateValues: { animalName: name, place: placeAndTime, url },
+    });
+  } catch (error) {
+    console.error("[alerts] No se pudo avisar del avistamiento:", input.sightingId, error);
   }
 }
