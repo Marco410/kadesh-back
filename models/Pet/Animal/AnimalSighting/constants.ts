@@ -20,3 +20,7 @@ export const SIGHTING_DEDUPE_MINUTES = 10;
 /** Cuántos avistamientos lee la ficha (los más recientes). */
 export const SIGHTINGS_DEFAULT_TAKE = 20;
 export const SIGHTINGS_MAX_TAKE = 50;
+
+/** En el mapa de `/animales` (`getNearbyAnimals`): avistamientos de las últimas 72 h, hasta 3 por animal. */
+export const MAP_SIGHTING_HOURS = 72;
+export const MAP_SIGHTINGS_PER_ANIMAL = 3;
