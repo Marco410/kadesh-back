@@ -154,6 +154,7 @@ export function buildAnimalPublishedEmailInput(
       alerts: petSiteUrl("/notificaciones/alertas"),
       notificationSettings: petSiteUrl("/notificaciones/ajustes"),
       myReports: petSiteUrl("/perfil?tab=animals"),
+      channel: petSiteUrl("/canal"),
       promote: PROMOTABLE_STATUSES.has(status)
         ? petSiteUrl(`${detail}?accion=${ANIMAL_DETAIL_ACTION.promote}`)
         : null,
