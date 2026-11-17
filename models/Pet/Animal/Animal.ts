@@ -16,6 +16,7 @@ import { removeIncompleteOwnReports, validateOwnDuplicate } from "./Animal.ownDu
 import { normalizeMxPhone } from "../../../utils/pet/phone";
 import { knownAnimalName } from "../../../utils/pet/animalName";
 import { isPlatformAdmin } from "../../../utils/access/tenant";
+import { animalSightingsField } from "./AnimalSighting/AnimalSighting.field";
 
 const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
 
@@ -206,6 +207,8 @@ export default list({
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } },
     }),
+    /** «Lo vi» de la ficha. Una consulta por animal: solo para el detalle, nunca en listas. */
+    sightings: animalSightingsField,
     multimedia: relationship({
       ref: "AnimalMultimedia.animal",
       many: true,

@@ -54,6 +54,7 @@ Sin plantilla de WhatsApp por ahora: solo campana y push.
 | `animal.claim_approved` / `animal.claim_rejected` | se respondió la solicitud, o se rechazó por aprobar otra o por unir el reporte | quien la pidió |
 | `animal.merged` | un admin unió un reporte repetido con el principal (`Animal.duplicateOf`) | quien hizo el repetido |
 | `animal.follow_up` | un caso abierto lleva 1 o 3 semanas sin registros (cron `sendAnimalFollowUps`); también sale por correo | quien atiende el reporte (nunca la automatización) |
+| `animal.sighted` | alguien, con o sin cuenta, avisó que vio al animal («Lo vi», `reportAnimalSighting`) | quien atiende el reporte; si es de la automatización, los admins |
 
 ## Recordatorios de la cartilla (`pet.reminder_due`)
 
@@ -76,6 +77,7 @@ Además de la campana, `notify` manda el aviso por WhatsApp desde el número de 
 | `animal.nearby` | `kadesh_pet_animal_cerca` | estado (perdido/encontrado), animal y lugar, enlace |
 | `animal.possible_match` | `kadesh_pet_coincidencia` | resumen, enlace |
 | `animal.follow_up` | `kadesh_pet_seguimiento` | animal, tiempo sin novedades, enlace a la ficha |
+| `animal.sighted` | `kadesh_pet_avistamiento` | animal, dónde y cuándo lo vieron, enlace a la ficha |
 | `animal.claim_requested` | `kadesh_pet_reclamo_solicitado` | quién lo pide, animal, enlace |
 | `animal.claim_approved` | `kadesh_pet_reclamo_aceptado` | animal, enlace |
 | `animal.claim_rejected` | `kadesh_pet_reclamo_rechazado` | animal, motivo, enlace |

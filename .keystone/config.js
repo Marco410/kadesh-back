@@ -41,7 +41,7 @@ var envName = process.env.KADESH_ENV || "dev";
 dotenv.config({ path: path.resolve(process.cwd(), "config", `.env.${envName}`) });
 
 // models/Pet/Animal/Animal.ts
-var import_core = require("@keystone-6/core");
+var import_core2 = require("@keystone-6/core");
 
 // models/ActivityEvent/constants.ts
 var ACTIVITY_CATEGORY = {
@@ -604,9 +604,9 @@ function sessionPermissions(session2) {
 function hasPermission(session2, key, legacyFallback) {
   if (!session2?.data) return false;
   if (hasRole(session2, ["admin" /* ADMIN */, "admin_company" /* ADMIN_COMPANY */])) return true;
-  const list100 = sessionPermissions(session2);
-  if (list100 == null) return legacyFallback();
-  return list100.includes(key);
+  const list101 = sessionPermissions(session2);
+  if (list101 == null) return legacyFallback();
+  return list101.includes(key);
 }
 
 // utils/access/tenant.ts
@@ -687,8 +687,8 @@ function header(req, name) {
   return firstHeader(req?.headers?.[name])?.trim() || void 0;
 }
 function cleanIp(value) {
-  const clean4 = (value ?? "").trim().replace(/^::ffff:/, "").slice(0, MAX_IP);
-  return clean4 || null;
+  const clean5 = (value ?? "").trim().replace(/^::ffff:/, "").slice(0, MAX_IP);
+  return clean5 || null;
 }
 function requestIp(req) {
   if (!req) return null;
@@ -783,15 +783,15 @@ function scrubValue(value, depth) {
 }
 function scrubMetadata(metadata) {
   if (!metadata) return null;
-  const clean4 = scrubValue(metadata, 0);
+  const clean5 = scrubValue(metadata, 0);
   try {
-    if (JSON.stringify(clean4).length > MAX_METADATA_BYTES) {
-      return { truncated: true, keys: Object.keys(clean4).slice(0, MAX_ARRAY) };
+    if (JSON.stringify(clean5).length > MAX_METADATA_BYTES) {
+      return { truncated: true, keys: Object.keys(clean5).slice(0, MAX_ARRAY) };
     }
   } catch {
     return null;
   }
-  return clean4;
+  return clean5;
 }
 function resolveSource(context, companyId) {
   const session2 = context.session;
@@ -812,9 +812,9 @@ function warnOnce(type, error) {
     error instanceof Error ? error.message : error
   );
 }
-function truncate(text86, max) {
-  if (!text86) return null;
-  return text86.length > max ? `${text86.slice(0, max - 1)}\u2026` : text86;
+function truncate(text87, max) {
+  if (!text87) return null;
+  return text87.length > max ? `${text87.slice(0, max - 1)}\u2026` : text87;
 }
 async function logActivity(context, input) {
   try {
@@ -914,8 +914,8 @@ function changedFieldNames(before, after, ignore = /* @__PURE__ */ new Set()) {
   return [...names];
 }
 function idsOf(value) {
-  const list100 = Array.isArray(value) ? value : value ? [value] : [];
-  return list100.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
+  const list101 = Array.isArray(value) ? value : value ? [value] : [];
+  return list101.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
 }
 function relationInput(value) {
   if (!value || typeof value !== "object") return null;
@@ -930,8 +930,8 @@ function relationInput(value) {
 }
 function fullName(person) {
   if (!person) return null;
-  const text86 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
-  return text86 || null;
+  const text87 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
+  return text87 || null;
 }
 async function leadName(context, leadId) {
   if (!leadId) return null;
@@ -972,8 +972,8 @@ async function columnNames(context, ids) {
 function log(context, input) {
   return logActivity(context, input);
 }
-function quoted(text86, fallback) {
-  return text86 ? `"${text86}"` : fallback;
+function quoted(text87, fallback) {
+  return text87 ? `"${text87}"` : fallback;
 }
 async function logCardMove(args, entityType, label) {
   const { originalItem: before, item: after, context } = args;
@@ -1996,7 +1996,7 @@ async function logContactForm({ operation, item, context }) {
 }
 
 // models/Pet/Animal/Animal.ts
-var import_fields = require("@keystone-6/core/fields");
+var import_fields2 = require("@keystone-6/core/fields");
 
 // models/Pet/Animal/Animal.outcome.ts
 var ANIMAL_OUTCOME = {
@@ -2936,8 +2936,8 @@ function formsFor(typeName) {
   return FORMS[ALIASES[key] ?? key] ?? DEFAULT_FORMS;
 }
 function shortColor(color) {
-  const clean4 = (color ?? "").replace(/\s+/g, " ").trim().toLowerCase();
-  return clean4 && clean4.length <= 24 ? clean4 : "";
+  const clean5 = (color ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  return clean5 && clean5.length <= 24 ? clean5 : "";
 }
 function animalDisplayName(animal) {
   const known = knownAnimalName(animal.name);
@@ -2953,8 +2953,8 @@ function animalSentenceName(animal) {
   const forms = formsFor(animal.typeName);
   return animal.sex === "female" ? forms.thisF : forms.thisM;
 }
-function capitalizeFirst(text86) {
-  return text86 ? text86.charAt(0).toUpperCase() + text86.slice(1) : text86;
+function capitalizeFirst(text87) {
+  return text87 ? text87.charAt(0).toUpperCase() + text87.slice(1) : text87;
 }
 
 // utils/helpers/emailLayout.ts
@@ -3020,9 +3020,9 @@ function emailCallout(brand, html) {
     </tr>
   </table>`;
 }
-function emailPill(brand, text86) {
+function emailPill(brand, text87) {
   const { color, soft } = EMAIL_BRANDS[brand];
-  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text86)}</span>`;
+  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text87)}</span>`;
 }
 function emailParagraph(html) {
   return `<p style="margin:0 0 16px 0;font-family:${FONT};font-size:16px;line-height:1.7;color:${EMAIL_TEXT.body};">${html}</p>`;
@@ -3793,10 +3793,10 @@ function matchesAudience(audience, hasCompany) {
 async function resolveBroadcastRecipients(params) {
   const { context, audience, emails } = params;
   if (audience === "custom") {
-    const list100 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
+    const list101 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
     const seen2 = /* @__PURE__ */ new Set();
     const recipients2 = [];
-    for (const email of list100) {
+    for (const email of list101) {
       const key = email.toLowerCase();
       if (seen2.has(key)) continue;
       seen2.add(key);
@@ -4023,8 +4023,8 @@ function statusPlaceDateLabels(status, sex) {
     date: copy?.dateLabel?.(sex) ?? "Fecha"
   };
 }
-function capitalize(text86) {
-  return text86 ? text86[0].toUpperCase() + text86.slice(1) : text86;
+function capitalize(text87) {
+  return text87 ? text87[0].toUpperCase() + text87.slice(1) : text87;
 }
 function clean(value) {
   return (value ?? "").replace(/\s+/g, " ").trim();
@@ -4060,8 +4060,8 @@ function dateOf(value, now = /* @__PURE__ */ new Date()) {
   const sameYear = date.getFullYear() === now.getFullYear();
   return (sameYear ? DATE_FORMAT : DATE_FORMAT_YEAR).format(date).replace(",", "");
 }
-function hashtagOf(text86) {
-  const words = clean(text86).split(/[^\p{L}\p{N}]+/u).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
+function hashtagOf(text87) {
+  const words = clean(text87).split(/[^\p{L}\p{N}]+/u).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
   return words.join("");
 }
 var DEFAULT_NOTES = /^sin informaci[oó]n adicional\.?$/i;
@@ -4143,6 +4143,8 @@ var NOTIFICATION_TYPE = {
   ANIMAL_DUPLICATE_REPORTED: "animal.duplicate_reported",
   /** Un reporte perdido se parece a uno encontrado (o al revés): podría ser el mismo animal. */
   ANIMAL_POSSIBLE_MATCH: "animal.possible_match",
+  /** Alguien (con o sin cuenta) avisó que vio al animal («Lo vi»). Va a quien atiende el reporte. */
+  ANIMAL_SIGHTED: "animal.sighted",
   /** Alguien dice que el animal de un reporte es suyo. Va a quien lo reportó (o a los admins). */
   ANIMAL_CLAIM_REQUESTED: "animal.claim_requested",
   /** Quien reportó aceptó la solicitud: el reporte ya es de quien lo pidió. */
@@ -4245,8 +4247,8 @@ async function run(label, work) {
   }
 }
 function deliveryDetail(value) {
-  const text86 = (value instanceof Error ? value.message : String(value ?? "")).replace(/\s+/g, " ").trim();
-  return text86.length > DETAIL_MAX ? `${text86.slice(0, DETAIL_MAX - 1)}\u2026` : text86;
+  const text87 = (value instanceof Error ? value.message : String(value ?? "")).replace(/\s+/g, " ").trim();
+  return text87.length > DETAIL_MAX ? `${text87.slice(0, DETAIL_MAX - 1)}\u2026` : text87;
 }
 async function recordDelivery(prisma, ids, data) {
   const unique = [...new Set(ids.filter(Boolean))];
@@ -4684,7 +4686,7 @@ async function sendWhatsAppTemplateMessage({
             components: [
               {
                 type: "body",
-                parameters: bodyParams.map((text86) => ({ type: "text", text: text86 }))
+                parameters: bodyParams.map((text87) => ({ type: "text", text: text87 }))
               }
             ]
           } : {}
@@ -5009,6 +5011,11 @@ var WHATSAPP_TEMPLATES = {
     audience: "pet",
     params: (v) => [v.summary, v.url]
   },
+  [NOTIFICATION_TYPE.ANIMAL_SIGHTED]: {
+    name: "kadesh_pet_avistamiento",
+    audience: "pet",
+    params: (v) => [v.animalName, v.place, v.url]
+  },
   [NOTIFICATION_TYPE.ANIMAL_CLAIM_REQUESTED]: {
     name: "kadesh_pet_reclamo_solicitado",
     audience: "pet",
@@ -5071,9 +5078,9 @@ function logPlatformWhatsappStatus() {
   );
 }
 function templateParam(value) {
-  const clean4 = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
-  if (!clean4) return PARAM_FALLBACK;
-  return clean4.length > PARAM_MAX_LENGTH ? `${clean4.slice(0, PARAM_MAX_LENGTH - 1)}\u2026` : clean4;
+  const clean5 = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (!clean5) return PARAM_FALLBACK;
+  return clean5.length > PARAM_MAX_LENGTH ? `${clean5.slice(0, PARAM_MAX_LENGTH - 1)}\u2026` : clean5;
 }
 function toWhatsappNumber(raw) {
   if (!raw) return null;
@@ -5684,9 +5691,9 @@ async function reportAudienceWithTeam(context, animal) {
   if (!staff.length) return base;
   return [.../* @__PURE__ */ new Set([...Array.isArray(base) ? base : [], ...staff])];
 }
-function excerpt(text86) {
-  const clean4 = text86.replace(/\s+/g, " ").trim();
-  return clean4.length > EXCERPT_MAX ? `${clean4.slice(0, EXCERPT_MAX - 1)}\u2026` : clean4;
+function excerpt(text87) {
+  const clean5 = text87.replace(/\s+/g, " ").trim();
+  return clean5.length > EXCERPT_MAX ? `${clean5.slice(0, EXCERPT_MAX - 1)}\u2026` : clean5;
 }
 function firstName(name) {
   return name?.trim().split(/\s+/)[0] || "Alguien";
@@ -5714,19 +5721,19 @@ async function notifyAnimalComment(context, input) {
     const author = input.authorId ? await sudo.query.User.findOne({ where: { id: input.authorId }, query: "name" }) : null;
     const who = firstName(author?.name);
     const name = animalName(animal.name);
-    const text86 = excerpt(input.comment);
+    const text87 = excerpt(input.comment);
     const lost = (animal.logs?.[0]?.status ?? "") === "lost";
     let type = NOTIFICATION_TYPE.ANIMAL_COMMENTED;
     let title = name ? `${who} coment\xF3 en el reporte de ${name}` : `${who} coment\xF3 en tu reporte`;
-    let body = text86;
+    let body = text87;
     if (input.kind === "duplicate_report") {
       type = NOTIFICATION_TYPE.ANIMAL_DUPLICATE_REPORTED;
       title = name ? `Alguien m\xE1s report\xF3 a ${name}` : "Alguien m\xE1s report\xF3 al mismo animal";
-      body = `${who} iba a publicar el mismo reporte y dej\xF3 esto: \xAB${text86}\xBB`;
+      body = `${who} iba a publicar el mismo reporte y dej\xF3 esto: \xAB${text87}\xBB`;
     } else if (input.kind === "possible_match") {
       type = NOTIFICATION_TYPE.ANIMAL_POSSIBLE_MATCH;
       title = lost ? `Podr\xEDan haber encontrado a ${name ?? "tu mascota"}` : `Alguien podr\xEDa ser la familia de ${name ?? "el animal que reportaste"}`;
-      body = `${who} cree que es el mismo animal: \xAB${text86}\xBB`;
+      body = `${who} cree que es el mismo animal: \xAB${text87}\xBB`;
     }
     const url = reportUrl(animal, "#comentarios");
     await notify(context, {
@@ -5744,7 +5751,7 @@ async function notifyAnimalComment(context, input) {
       templateValues: {
         authorName: who,
         animalName: name ?? "tu mascota",
-        comment: text86,
+        comment: text87,
         summary: `${title}. ${who} cree que es el mismo animal`,
         url
       }
@@ -5818,6 +5825,56 @@ async function notifyAnimalMerged(context, input) {
     });
   } catch (error) {
     console.error("[alerts] No se pudo avisar del reporte unido:", input.main.id, error);
+  }
+}
+var MX_TIME_ZONE = "America/Mexico_City";
+function mxDayKey(date) {
+  return date.toLocaleDateString("en-CA", { timeZone: MX_TIME_ZONE });
+}
+function sightingWhenText(seenAt, now = /* @__PURE__ */ new Date()) {
+  const time = seenAt.toLocaleTimeString("es-MX", { timeZone: MX_TIME_ZONE, hour: "numeric", minute: "2-digit" });
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1e3);
+  if (mxDayKey(seenAt) === mxDayKey(now)) return `hoy a las ${time}`;
+  if (mxDayKey(seenAt) === mxDayKey(yesterday)) return `ayer a las ${time}`;
+  const day = seenAt.toLocaleDateString("es-MX", { timeZone: MX_TIME_ZONE, day: "numeric", month: "short" });
+  return `el ${day} a las ${time}`;
+}
+async function notifyAnimalSighted(context, input) {
+  try {
+    const animal = await context.sudo().query.Animal.findOne({
+      where: { id: input.animalId },
+      query: "id name slug sex color user { id } organization { id } animal_type { name } animal_breed { animal_type { name } }"
+    });
+    if (!animal) return;
+    const audience = await reportAudienceWithTeam(context, animal);
+    const recipients = Array.isArray(audience) ? audience.filter((id) => id !== input.reporterId) : audience;
+    if (Array.isArray(recipients) && recipients.length === 0) return;
+    const name = animalSentenceName({
+      name: animal.name,
+      typeName: animal.animal_type?.name ?? animal.animal_breed?.animal_type?.name ?? null,
+      sex: animal.sex,
+      color: animal.color
+    });
+    const when = sightingWhenText(input.seenAt);
+    const where = input.place.trim();
+    const placeAndTime = where ? `${where}, ${when}` : capitalizeFirst(when);
+    const note = input.notes.trim() ? ` \xAB${excerpt(input.notes)}\xBB` : "";
+    const url = reportUrl(animal, "#avistamientos");
+    await notify(context, {
+      audience: recipients,
+      product: "pet",
+      type: NOTIFICATION_TYPE.ANIMAL_SIGHTED,
+      title: `Alguien vio a ${name}`,
+      body: `${placeAndTime}.${note}`,
+      entityType: "Animal",
+      entityId: animal.id,
+      url,
+      metadata: { slug: animal.slug ?? null, sightingId: input.sightingId },
+      // kadesh_pet_avistamiento: Alguien vio a {{1}}: {{2}}. Revisa dónde en Kadesh Pet: {{3}}
+      templateValues: { animalName: name, place: placeAndTime, url }
+    });
+  } catch (error) {
+    console.error("[alerts] No se pudo avisar del avistamiento:", input.sightingId, error);
   }
 }
 
@@ -6658,6 +6715,91 @@ async function removeIncompleteOwnReports({
   }
 }
 
+// models/Pet/Animal/AnimalSighting/AnimalSighting.field.ts
+var import_core = require("@keystone-6/core");
+var import_fields = require("@keystone-6/core/fields");
+
+// models/Pet/Animal/AnimalSighting/constants.ts
+var SIGHTING_STATUSES = ["lost", "abandoned"];
+var SIGHTING_NOTES_MAX = 500;
+var SIGHTING_NAME_MAX = 60;
+var SIGHTING_PHONE_MAX = 20;
+var SIGHTING_PLACE_MAX = 200;
+var SIGHTING_MAX_AGE_DAYS = 30;
+var SIGHTING_DEDUPE_MINUTES = 10;
+var SIGHTINGS_DEFAULT_TAKE = 20;
+var SIGHTINGS_MAX_TAKE = 50;
+
+// models/Pet/Animal/AnimalSighting/AnimalSighting.field.ts
+var AnimalSightingPublic = import_core.graphql.object()({
+  name: "AnimalSightingPublic",
+  fields: {
+    id: import_core.graphql.field({ type: import_core.graphql.nonNull(import_core.graphql.ID) }),
+    seenAt: import_core.graphql.field({ type: import_core.graphql.String }),
+    lat: import_core.graphql.field({ type: import_core.graphql.nonNull(import_core.graphql.String) }),
+    lng: import_core.graphql.field({ type: import_core.graphql.nonNull(import_core.graphql.String) }),
+    placeLabel: import_core.graphql.field({ type: import_core.graphql.String }),
+    city: import_core.graphql.field({ type: import_core.graphql.String }),
+    state: import_core.graphql.field({ type: import_core.graphql.String }),
+    notes: import_core.graphql.field({ type: import_core.graphql.String }),
+    createdAt: import_core.graphql.field({ type: import_core.graphql.String }),
+    /** Solo `true` para quien atiende el reporte (al público no le llegan los ocultos). */
+    hidden: import_core.graphql.field({ type: import_core.graphql.nonNull(import_core.graphql.Boolean) }),
+    /** Solo para quien atiende el reporte; al público le llega null. */
+    contactName: import_core.graphql.field({ type: import_core.graphql.String }),
+    contactPhone: import_core.graphql.field({ type: import_core.graphql.String })
+  }
+});
+function iso(value) {
+  return value ? value.toISOString() : null;
+}
+var animalSightingsField = (0, import_fields.virtual)({
+  field: import_core.graphql.field({
+    type: import_core.graphql.nonNull(import_core.graphql.list(import_core.graphql.nonNull(AnimalSightingPublic))),
+    args: { take: import_core.graphql.arg({ type: import_core.graphql.Int }) },
+    async resolve(item, args, context) {
+      const take = Math.min(Math.max(1, args.take ?? SIGHTINGS_DEFAULT_TAKE), SIGHTINGS_MAX_TAKE);
+      const canSeePrivate = isPlatformAdmin(context.session) || await canEditAnimalAs(context, item, getSessionUserId(context.session));
+      const prisma = context.sudo().prisma;
+      const rows2 = await prisma.animalSighting.findMany({
+        where: { animalId: item.id, ...canSeePrivate ? {} : { hidden: false } },
+        orderBy: [{ seenAt: "desc" }],
+        take,
+        select: {
+          id: true,
+          seenAt: true,
+          lat: true,
+          lng: true,
+          placeLabel: true,
+          city: true,
+          state: true,
+          notes: true,
+          contactName: true,
+          contactPhone: true,
+          hidden: true,
+          createdAt: true
+        }
+      });
+      if (rows2 instanceof Error) throw rows2;
+      return rows2.map((row) => ({
+        id: row.id,
+        seenAt: iso(row.seenAt),
+        lat: row.lat,
+        lng: row.lng,
+        placeLabel: row.placeLabel || null,
+        city: row.city || null,
+        state: row.state || null,
+        notes: row.notes || null,
+        createdAt: iso(row.createdAt),
+        hidden: canSeePrivate ? row.hidden : false,
+        contactName: canSeePrivate ? row.contactName || null : null,
+        contactPhone: canSeePrivate ? row.contactPhone || null : null
+      }));
+    }
+  }),
+  ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
+});
+
 // models/Pet/Animal/Animal.ts
 var adminOnly2 = ({ session: session2 }) => isPlatformAdmin(session2);
 async function nextAnimalFolio(context) {
@@ -6683,7 +6825,7 @@ function cleanDuplicateCheck(value) {
   if (!candidates.length) return null;
   return { candidates, dismissedAt: (/* @__PURE__ */ new Date()).toISOString() };
 }
-var Animal_default = (0, import_core.list)({
+var Animal_default = (0, import_core2.list)({
   access: animalAccess,
   hooks: {
     resolveInput: async ({ resolvedData, operation, context }) => {
@@ -6736,8 +6878,8 @@ var Animal_default = (0, import_core.list)({
   },
   fields: {
     /** Vacío si no se sabe (la web y los avisos lo describen: «Perra café»). Ver `utils/pet/animalName.ts`. */
-    name: (0, import_fields.text)({ ui: { description: "Vac\xEDo si no se sabe su nombre." } }),
-    slug: (0, import_fields.text)({
+    name: (0, import_fields2.text)({ ui: { description: "Vac\xEDo si no se sabe su nombre." } }),
+    slug: (0, import_fields2.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -6752,7 +6894,7 @@ var Animal_default = (0, import_core.list)({
      * `nextAnimalFolio`. El QR del cartel apunta a `/f/{folio}` en la web, que redirige a la ficha.
      * Nadie lo escribe desde la API.
      */
-    folio: (0, import_fields.integer)({
+    folio: (0, import_fields2.integer)({
       defaultValue: { kind: "autoincrement" },
       isIndexed: "unique",
       db: { isNullable: false },
@@ -6763,22 +6905,22 @@ var Animal_default = (0, import_core.list)({
         description: "Folio del cartel (se muestra como KP-01234)."
       }
     }),
-    physical_description: (0, import_fields.text)(),
-    age: (0, import_fields.text)(),
-    sex: (0, import_fields.select)({
+    physical_description: (0, import_fields2.text)(),
+    age: (0, import_fields2.text)(),
+    sex: (0, import_fields2.select)({
       options: ANIMAL_SEX_OPTIONS,
       defaultValue: "male"
     }),
-    color: (0, import_fields.text)(),
-    size: (0, import_fields.text)(),
-    contactNumber: (0, import_fields.text)(),
-    contactNumber2: (0, import_fields.text)({
+    color: (0, import_fields2.text)(),
+    size: (0, import_fields2.text)(),
+    contactNumber: (0, import_fields2.text)(),
+    contactNumber2: (0, import_fields2.text)({
       ui: { description: "Segundo tel\xE9fono, opcional." }
     }),
-    sourceUrl: (0, import_fields.text)({
+    sourceUrl: (0, import_fields2.text)({
       ui: { description: "Enlace de la publicaci\xF3n original, por ejemplo de Facebook." }
     }),
-    reportedBy: (0, import_fields.select)({
+    reportedBy: (0, import_fields2.select)({
       options: [
         { label: "Due\xF1o", value: "owner" },
         { label: "Voluntario", value: "volunteer" }
@@ -6788,15 +6930,15 @@ var Animal_default = (0, import_core.list)({
         description: "owner publica su mascota. volunteer reporta por alguien m\xE1s."
       }
     }),
-    animal_type: (0, import_fields.relationship)({
+    animal_type: (0, import_fields2.relationship)({
       ref: "AnimalType",
       many: false
     }),
-    animal_breed: (0, import_fields.relationship)({
+    animal_breed: (0, import_fields2.relationship)({
       ref: "AnimalBreed",
       many: false
     }),
-    user: (0, import_fields.relationship)({
+    user: (0, import_fields2.relationship)({
       ref: "User",
       many: false
     }),
@@ -6804,15 +6946,15 @@ var Animal_default = (0, import_core.list)({
      * Espacio de rescate a cuyo nombre se publica. `user` sigue siendo quien lo publicó. Leerlo
      * pasa por el acceso de `RescueOrganization`: el público solo ve las verificadas (null si no).
      */
-    organization: (0, import_fields.relationship)({
+    organization: (0, import_fields2.relationship)({
       ref: "RescueOrganization.animals",
       many: false,
       ui: { description: "Espacio de rescate a cuyo nombre se public\xF3 (opcional)" }
     }),
     /** ¿Quien consulta puede editar este reporte? (autor, equipo de su organización o admin). */
-    viewerCanEdit: (0, import_fields.virtual)({
-      field: import_core.graphql.field({
-        type: import_core.graphql.nonNull(import_core.graphql.Boolean),
+    viewerCanEdit: (0, import_fields2.virtual)({
+      field: import_core2.graphql.field({
+        type: import_core2.graphql.nonNull(import_core2.graphql.Boolean),
         async resolve(item, _args, context) {
           if (isPlatformAdmin(context.session)) return true;
           return canEditAnimalAs(context, item, getSessionUserId(context.session));
@@ -6820,27 +6962,29 @@ var Animal_default = (0, import_core.list)({
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
-    multimedia: (0, import_fields.relationship)({
+    /** «Lo vi» de la ficha. Una consulta por animal: solo para el detalle, nunca en listas. */
+    sightings: animalSightingsField,
+    multimedia: (0, import_fields2.relationship)({
       ref: "AnimalMultimedia.animal",
       many: true
     }),
-    logs: (0, import_fields.relationship)({
+    logs: (0, import_fields2.relationship)({
       ref: "AnimalLog.animal",
       many: true
     }),
-    animal_views: (0, import_fields.relationship)({
+    animal_views: (0, import_fields2.relationship)({
       ref: "AnimalView.animal",
       many: true
     }),
     /** Registro de la publicación en la Página de Facebook de Pet (automática o desde Operaciones). */
-    facebookPostId: (0, import_fields.text)({
+    facebookPostId: (0, import_fields2.text)({
       ui: { itemView: { fieldMode: "read" }, description: "Id del post en la P\xE1gina de Facebook de Pet" }
     }),
-    facebookPublishedAt: (0, import_fields.timestamp)({
+    facebookPublishedAt: (0, import_fields2.timestamp)({
       db: { isNullable: true },
       ui: { itemView: { fieldMode: "read" } }
     }),
-    facebookPublishedBy: (0, import_fields.relationship)({
+    facebookPublishedBy: (0, import_fields2.relationship)({
       ref: "User",
       many: false,
       ui: { itemView: { fieldMode: "read" }, description: "Qui\xE9n lo public\xF3 en Facebook" }
@@ -6849,7 +6993,7 @@ var Animal_default = (0, import_core.list)({
      * Mascota de la cartilla que originó el reporte (`markPetAsLost`). Solo la escriben un admin y
      * las mutaciones de la cartilla; leerla pasa por el acceso de `Pet` (null si no eres dueño).
      */
-    pet: (0, import_fields.relationship)({
+    pet: (0, import_fields2.relationship)({
       ref: "Pet",
       many: false,
       access: {
@@ -6862,14 +7006,14 @@ var Animal_default = (0, import_core.list)({
      * Reporte repetido de otro (el principal). Solo un admin lo pone: al guardarlo, los comentarios
      * y favoritos pasan al principal, la ficha redirige ahí y deja de salir en listados.
      */
-    duplicateOf: (0, import_fields.relationship)({
+    duplicateOf: (0, import_fields2.relationship)({
       ref: "Animal",
       many: false,
       access: { create: adminOnly2, update: adminOnly2 },
       ui: { description: "Si es un reporte repetido, el reporte principal del mismo animal." }
     }),
     /** Parecidos que la persona vio y descartó al publicar. Pista para que un admin decida si unirlos. */
-    duplicateCheck: (0, import_fields.json)({
+    duplicateCheck: (0, import_fields2.json)({
       access: { read: adminOnly2, update: adminOnly2 },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -6878,50 +7022,50 @@ var Animal_default = (0, import_core.list)({
       }
     }),
     /** Cómo terminó el caso (ver `Animal.outcome.ts`). Null mientras sigue abierto. */
-    outcome: (0, import_fields.select)({
+    outcome: (0, import_fields2.select)({
       options: ANIMAL_OUTCOME_OPTIONS,
       db: { isNullable: true },
       isIndexed: true,
       access: outcomeFieldAccess,
       ui: { description: "C\xF3mo termin\xF3 el caso. Lo llena \xABCerrar caso\xBB o la \xFAltima bit\xE1cora." }
     }),
-    closedAt: (0, import_fields.timestamp)({
+    closedAt: (0, import_fields2.timestamp)({
       db: { isNullable: true },
       isIndexed: true,
       access: outcomeFieldAccess,
       ui: { description: "Cu\xE1ndo se cerr\xF3 el caso." }
     }),
     /** Null = no respondió (cierres por bitácora o anteriores a la pregunta). */
-    helpedByKadesh: (0, import_fields.select)({
+    helpedByKadesh: (0, import_fields2.select)({
       options: HELPED_BY_KADESH_OPTIONS,
       db: { isNullable: true },
       access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
       ui: { description: "\xBFKadesh ayud\xF3 a resolverlo? Lo responde quien cierra el caso." }
     }),
-    outcomeChannel: (0, import_fields.select)({
+    outcomeChannel: (0, import_fields2.select)({
       options: OUTCOME_CHANNEL_OPTIONS,
       db: { isNullable: true },
       access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
       ui: { description: "Por d\xF3nde ayud\xF3 Kadesh." }
     }),
-    outcomeStory: (0, import_fields.text)({
+    outcomeStory: (0, import_fields2.text)({
       access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
       ui: { displayMode: "textarea", description: "Lo que cont\xF3 quien cerr\xF3 el caso." }
     }),
-    storyConsent: (0, import_fields.checkbox)({
+    storyConsent: (0, import_fields2.checkbox)({
       defaultValue: false,
       access: { ...outcomeFieldAccess, read: outcomeAnswersRead },
       ui: { description: "Acept\xF3 que su historia se publique en Kadesh." }
     }),
     /** Seguimiento de casos abiertos (ver `Animal.followUp.ts`). Lo mantienen la bitácora y el cron. */
-    lastActivityAt: (0, import_fields.timestamp)({
+    lastActivityAt: (0, import_fields2.timestamp)({
       defaultValue: { kind: "now" },
       db: { isNullable: true },
       isIndexed: true,
       access: outcomeFieldAccess,
       ui: { createView: { fieldMode: "hidden" }, description: "\xDAltimo registro del caso." }
     }),
-    followUpStage: (0, import_fields.integer)({
+    followUpStage: (0, import_fields2.integer)({
       defaultValue: 0,
       validation: { isRequired: true, min: 0, max: 2 },
       access: { ...outcomeFieldAccess, read: adminOnly2 },
@@ -6930,12 +7074,12 @@ var Animal_default = (0, import_core.list)({
         description: "Recordatorios de seguimiento enviados: 0 ninguno, 1 a la semana, 2 a las 3 semanas."
       }
     }),
-    followUpSentAt: (0, import_fields.timestamp)({
+    followUpSentAt: (0, import_fields2.timestamp)({
       db: { isNullable: true },
       access: { ...outcomeFieldAccess, read: adminOnly2 },
       ui: { createView: { fieldMode: "hidden" }, description: "Cu\xE1ndo sali\xF3 el \xFAltimo recordatorio." }
     }),
-    inactiveAt: (0, import_fields.timestamp)({
+    inactiveAt: (0, import_fields2.timestamp)({
       db: { isNullable: true },
       isIndexed: true,
       access: outcomeFieldAccess,
@@ -6944,7 +7088,7 @@ var Animal_default = (0, import_core.list)({
         description: "El caso dej\xF3 de salir en el mapa por no tener novedades. Un registro nuevo lo reactiva."
       }
     }),
-    createdAt: (0, import_fields.timestamp)({
+    createdAt: (0, import_fields2.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -6957,22 +7101,22 @@ var Animal_default = (0, import_core.list)({
 });
 
 // models/Pet/Animal/AnimalType/AnimalType.ts
-var import_core2 = require("@keystone-6/core");
-var import_fields2 = require("@keystone-6/core/fields");
-var AnimalType_default = (0, import_core2.list)({
+var import_core3 = require("@keystone-6/core");
+var import_fields3 = require("@keystone-6/core/fields");
+var AnimalType_default = (0, import_core3.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    name: (0, import_fields2.select)({
+    name: (0, import_fields3.select)({
       defaultValue: "dog" /* DOG */,
       options: ANIMAL_TYPE_OPTIONS,
       isIndexed: "unique",
       validation: { isRequired: true }
     }),
-    animal_breed: (0, import_fields2.relationship)({
+    animal_breed: (0, import_fields3.relationship)({
       ref: "AnimalBreed.animal_type",
       many: true
     }),
-    order: (0, import_fields2.integer)()
+    order: (0, import_fields3.integer)()
   },
   ui: {
     labelField: "name"
@@ -6980,49 +7124,24 @@ var AnimalType_default = (0, import_core2.list)({
 });
 
 // models/Pet/Animal/AnimalMultimedia/AnimalMultimedia.ts
-var import_core3 = require("@keystone-6/core");
-var import_fields3 = require("@keystone-6/core/fields");
-var AnimalMultimedia_default = (0, import_core3.list)({
+var import_core4 = require("@keystone-6/core");
+var import_fields4 = require("@keystone-6/core/fields");
+var AnimalMultimedia_default = (0, import_core4.list)({
   access: animalChildAccess,
   hooks: { ...animalMultimediaFacebookHook, validateInput: validateAnimalChildOwner },
   fields: {
-    image: (0, import_fields3.image)({
+    image: (0, import_fields4.image)({
       storage: "s3_animals"
     }),
-    animal: (0, import_fields3.relationship)({
+    animal: (0, import_fields4.relationship)({
       ref: "Animal.multimedia"
     }),
-    order: (0, import_fields3.integer)({
+    order: (0, import_fields4.integer)({
       defaultValue: 1,
       validation: { isRequired: true },
       ui: {
         description: "1 es la portada de la ficha. 2, 3\u2026 el resto."
       }
-    }),
-    createdAt: (0, import_fields3.timestamp)({
-      defaultValue: {
-        kind: "now"
-      }
-    })
-  }
-});
-
-// models/Pet/Animal/AnimalFavorite/AnimalFavorite.ts
-var import_core4 = require("@keystone-6/core");
-var import_fields4 = require("@keystone-6/core/fields");
-var AnimalFavorite_default = (0, import_core4.list)({
-  access: animalUserRowAccess,
-  hooks: {
-    resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
-  },
-  fields: {
-    animal: (0, import_fields4.relationship)({
-      ref: "Animal",
-      many: false
-    }),
-    user: (0, import_fields4.relationship)({
-      ref: "User",
-      many: false
     }),
     createdAt: (0, import_fields4.timestamp)({
       defaultValue: {
@@ -7032,9 +7151,34 @@ var AnimalFavorite_default = (0, import_core4.list)({
   }
 });
 
-// models/Pet/Animal/AnimalLog/AnimalLog.ts
+// models/Pet/Animal/AnimalFavorite/AnimalFavorite.ts
 var import_core5 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
+var AnimalFavorite_default = (0, import_core5.list)({
+  access: animalUserRowAccess,
+  hooks: {
+    resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
+  },
+  fields: {
+    animal: (0, import_fields5.relationship)({
+      ref: "Animal",
+      many: false
+    }),
+    user: (0, import_fields5.relationship)({
+      ref: "User",
+      many: false
+    }),
+    createdAt: (0, import_fields5.timestamp)({
+      defaultValue: {
+        kind: "now"
+      }
+    })
+  }
+});
+
+// models/Pet/Animal/AnimalLog/AnimalLog.ts
+var import_core6 = require("@keystone-6/core");
+var import_fields6 = require("@keystone-6/core/fields");
 
 // models/Pet/Animal/Animal.followUp.ts
 var DAY_MS3 = 24 * 60 * 60 * 1e3;
@@ -7066,7 +7210,7 @@ async function touchAnimalActivity({
 }
 
 // models/Pet/Animal/AnimalLog/AnimalLog.ts
-var AnimalLog_default = (0, import_core5.list)({
+var AnimalLog_default = (0, import_core6.list)({
   access: animalChildAccess,
   hooks: {
     validateInput: validateAnimalChildOwner,
@@ -7102,45 +7246,45 @@ var AnimalLog_default = (0, import_core5.list)({
     }
   },
   fields: {
-    animal: (0, import_fields5.relationship)({
+    animal: (0, import_fields6.relationship)({
       ref: "Animal.logs"
     }),
-    status: (0, import_fields5.select)({
+    status: (0, import_fields6.select)({
       defaultValue: "Registrado",
       options: ANIMAL_LOGS_OPTIONS
     }),
     // Could be a different date when lost
-    date_status: (0, import_fields5.timestamp)({
+    date_status: (0, import_fields6.timestamp)({
       defaultValue: {
         kind: "now"
       }
     }),
-    notes: (0, import_fields5.text)({
+    notes: (0, import_fields6.text)({
       ui: { displayMode: "textarea" }
     }),
-    lat: (0, import_fields5.text)(),
-    lng: (0, import_fields5.text)(),
-    address: (0, import_fields5.text)(),
-    city: (0, import_fields5.text)(),
-    state: (0, import_fields5.text)(),
-    country: (0, import_fields5.text)(),
-    neighborhood: (0, import_fields5.text)({
+    lat: (0, import_fields6.text)(),
+    lng: (0, import_fields6.text)(),
+    address: (0, import_fields6.text)(),
+    city: (0, import_fields6.text)(),
+    state: (0, import_fields6.text)(),
+    country: (0, import_fields6.text)(),
+    neighborhood: (0, import_fields6.text)({
       ui: {
         description: "Colonia que resolvi\xF3 el mapa. No se usa en el t\xEDtulo ni en el slug."
       }
     }),
-    postalCode: (0, import_fields5.text)({
+    postalCode: (0, import_fields6.text)({
       ui: {
         description: "C\xF3digo postal del mapa. No define el municipio."
       }
     }),
-    placeLabel: (0, import_fields5.text)({
+    placeLabel: (0, import_fields6.text)({
       ui: {
         description: "Lugar que escribi\xF3 quien reporta. Es el que sale en el t\xEDtulo y el slug."
       }
     }),
-    last_seen: (0, import_fields5.checkbox)(),
-    createdAt: (0, import_fields5.timestamp)({
+    last_seen: (0, import_fields6.checkbox)(),
+    createdAt: (0, import_fields6.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -7149,23 +7293,23 @@ var AnimalLog_default = (0, import_core5.list)({
 });
 
 // models/Pet/Animal/AnimalView/AnimalView.ts
-var import_core6 = require("@keystone-6/core");
-var import_fields6 = require("@keystone-6/core/fields");
-var AnimalView_default = (0, import_core6.list)({
+var import_core7 = require("@keystone-6/core");
+var import_fields7 = require("@keystone-6/core/fields");
+var AnimalView_default = (0, import_core7.list)({
   access: animalViewAccess,
   hooks: {
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    user: (0, import_fields6.relationship)({
+    user: (0, import_fields7.relationship)({
       ref: "User",
       many: false
     }),
-    animal: (0, import_fields6.relationship)({
+    animal: (0, import_fields7.relationship)({
       ref: "Animal.animal_views",
       many: false
     }),
-    createdAt: (0, import_fields6.timestamp)({
+    createdAt: (0, import_fields7.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -7178,9 +7322,9 @@ var AnimalView_default = (0, import_core6.list)({
 });
 
 // models/Pet/Animal/AnimalComment/AnimalComment.ts
-var import_core7 = require("@keystone-6/core");
-var import_fields7 = require("@keystone-6/core/fields");
-var AnimalComment_default = (0, import_core7.list)({
+var import_core8 = require("@keystone-6/core");
+var import_fields8 = require("@keystone-6/core/fields");
+var AnimalComment_default = (0, import_core8.list)({
   access: animalUserRowAccess,
   hooks: {
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context),
@@ -7197,7 +7341,7 @@ var AnimalComment_default = (0, import_core7.list)({
     }
   },
   fields: {
-    comment: (0, import_fields7.text)({
+    comment: (0, import_fields8.text)({
       validation: { isRequired: true },
       ui: { displayMode: "textarea" }
     }),
@@ -7205,20 +7349,20 @@ var AnimalComment_default = (0, import_core7.list)({
      * `duplicate_report`: quien iba a publicar el mismo animal comentó aquí en vez de duplicarlo.
      * `possible_match`: alguien con un reporte del otro lado (perdido/encontrado) cree que es el mismo.
      */
-    kind: (0, import_fields7.select)({
+    kind: (0, import_fields8.select)({
       options: ANIMAL_COMMENT_KIND_OPTIONS,
       defaultValue: ANIMAL_COMMENT_KIND.COMMENT,
       validation: { isRequired: true }
     }),
-    animal: (0, import_fields7.relationship)({
+    animal: (0, import_fields8.relationship)({
       ref: "Animal",
       many: false
     }),
-    user: (0, import_fields7.relationship)({
+    user: (0, import_fields8.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields7.timestamp)({
+    createdAt: (0, import_fields8.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -7227,8 +7371,8 @@ var AnimalComment_default = (0, import_core7.list)({
 });
 
 // models/Pet/Animal/AnimalClaim/AnimalClaim.ts
-var import_core8 = require("@keystone-6/core");
-var import_fields8 = require("@keystone-6/core/fields");
+var import_core9 = require("@keystone-6/core");
+var import_fields9 = require("@keystone-6/core/fields");
 
 // models/Pet/Animal/AnimalClaim/AnimalClaim.access.ts
 var signedIn2 = ({ session: session2 }) => isSignedIn(session2);
@@ -7344,7 +7488,7 @@ async function animalClaimAfterOperation({
 }
 
 // models/Pet/Animal/AnimalClaim/AnimalClaim.ts
-var AnimalClaim_default = (0, import_core8.list)({
+var AnimalClaim_default = (0, import_core9.list)({
   access: animalClaimAccess,
   hooks: {
     resolveInput: resolveAnimalClaimInput,
@@ -7358,62 +7502,62 @@ var AnimalClaim_default = (0, import_core8.list)({
     }
   },
   fields: {
-    animal: (0, import_fields8.relationship)({
+    animal: (0, import_fields9.relationship)({
       ref: "Animal",
       many: false
     }),
-    claimant: (0, import_fields8.relationship)({
+    claimant: (0, import_fields9.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Quien dice que es su mascota." }
     }),
     /** Nombre de quien reclama: quien atiende el reporte no puede leer su `User`. */
-    claimantName: (0, import_fields8.text)({
+    claimantName: (0, import_fields9.text)({
       access: adminWriteOnly,
       ui: { itemView: { fieldMode: "read" } }
     }),
-    previousUser: (0, import_fields8.relationship)({
+    previousUser: (0, import_fields9.relationship)({
       ref: "User",
       many: false,
       access: adminWriteOnly,
       ui: { description: "Quien atend\xEDa el reporte cuando lleg\xF3 la solicitud." }
     }),
-    message: (0, import_fields8.text)({
+    message: (0, import_fields9.text)({
       validation: { isRequired: true },
       ui: { displayMode: "textarea" }
     }),
-    phone: (0, import_fields8.text)({
+    phone: (0, import_fields9.text)({
       ui: { description: "Tel\xE9fono de quien reclama. Pasa al reporte si se aprueba." }
     }),
     /**
      * Cómo se llama su mascota, según quien reclama (opcional). Ayuda a quien atiende el reporte a
      * decidir y, si se aprueba y el reporte no tenía nombre, pasa a `Animal.name`.
      */
-    petName: (0, import_fields8.text)({
+    petName: (0, import_fields9.text)({
       ui: { description: "Nombre de la mascota seg\xFAn quien reclama. Si se aprueba y el reporte no ten\xEDa nombre, se usa." }
     }),
-    evidence: (0, import_fields8.image)({
+    evidence: (0, import_fields9.image)({
       storage: "s3_animals"
     }),
-    status: (0, import_fields8.select)({
+    status: (0, import_fields9.select)({
       options: ANIMAL_CLAIM_STATUS_OPTIONS,
       defaultValue: ANIMAL_CLAIM_STATUS.PENDING,
       validation: { isRequired: true },
       access: adminWriteOnly
     }),
-    rejectReason: (0, import_fields8.text)({
+    rejectReason: (0, import_fields9.text)({
       access: adminWriteOnly
     }),
-    resolvedBy: (0, import_fields8.relationship)({
+    resolvedBy: (0, import_fields9.relationship)({
       ref: "User",
       many: false,
       access: adminWriteOnly
     }),
-    resolvedAt: (0, import_fields8.timestamp)({
+    resolvedAt: (0, import_fields9.timestamp)({
       db: { isNullable: true },
       access: adminWriteOnly
     }),
-    createdAt: (0, import_fields8.timestamp)({
+    createdAt: (0, import_fields9.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -7425,9 +7569,43 @@ var AnimalClaim_default = (0, import_core8.list)({
   }
 });
 
+// models/Pet/Animal/AnimalSighting/AnimalSighting.ts
+var import_core10 = require("@keystone-6/core");
+var import_fields10 = require("@keystone-6/core/fields");
+var adminOnly4 = ({ session: session2 }) => isPlatformAdmin(session2);
+var AnimalSighting_default = (0, import_core10.list)({
+  access: {
+    operation: { query: adminOnly4, create: adminOnly4, update: adminOnly4, delete: adminOnly4 }
+  },
+  ui: {
+    listView: { initialColumns: ["animal", "seenAt", "placeLabel", "hidden", "createdAt"] }
+  },
+  fields: {
+    animal: (0, import_fields10.relationship)({ ref: "Animal", many: false }),
+    /** Si quien avisó tenía sesión. */
+    user: (0, import_fields10.relationship)({ ref: "User", many: false }),
+    seenAt: (0, import_fields10.timestamp)({ validation: { isRequired: true } }),
+    lat: (0, import_fields10.text)({ validation: { isRequired: true } }),
+    lng: (0, import_fields10.text)({ validation: { isRequired: true } }),
+    /** Lo que resolvió el mapa (calle, colonia). */
+    placeLabel: (0, import_fields10.text)(),
+    city: (0, import_fields10.text)(),
+    state: (0, import_fields10.text)(),
+    notes: (0, import_fields10.text)({ ui: { displayMode: "textarea" } }),
+    /** Opcional, para que la familia le pueda escribir. Solo lo ve quien atiende el reporte. */
+    contactName: (0, import_fields10.text)(),
+    contactPhone: (0, import_fields10.text)(),
+    /** Quien atiende el reporte (o un admin) lo ocultó: ya no sale en la ficha pública. */
+    hidden: (0, import_fields10.checkbox)({ defaultValue: false }),
+    /** Para frenar abuso y revisar en Operaciones. No sale en la ficha. */
+    ip: (0, import_fields10.text)({ ui: { itemView: { fieldMode: "read" } } }),
+    createdAt: (0, import_fields10.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
 // models/Pet/Animal/AdoptionApplication/AdoptionApplication.ts
-var import_core9 = require("@keystone-6/core");
-var import_fields9 = require("@keystone-6/core/fields");
+var import_core11 = require("@keystone-6/core");
+var import_fields11 = require("@keystone-6/core/fields");
 
 // models/Pet/Animal/AdoptionApplication/constants.ts
 var ADOPTION_APPLICATION_STATUS = {
@@ -7479,7 +7657,7 @@ var ADOPTION_APPLICATION_LIMITS = {
 
 // models/Pet/Animal/AdoptionApplication/AdoptionApplication.ts
 var signedIn3 = ({ session: session2 }) => isSignedIn(session2);
-var adminOnly4 = ({ session: session2 }) => isPlatformAdmin(session2);
+var adminOnly5 = ({ session: session2 }) => isPlatformAdmin(session2);
 function involvedWhere2({ session: session2 }) {
   if (isPlatformAdmin(session2)) return true;
   const userId = getSessionUserId(session2);
@@ -7489,10 +7667,10 @@ function involvedWhere2({ session: session2 }) {
   };
 }
 var access = {
-  operation: { query: signedIn3, create: adminOnly4, update: adminOnly4, delete: adminOnly4 },
+  operation: { query: signedIn3, create: adminOnly5, update: adminOnly5, delete: adminOnly5 },
   filter: { query: involvedWhere2 }
 };
-var AdoptionApplication_default = (0, import_core9.list)({
+var AdoptionApplication_default = (0, import_core11.list)({
   access,
   ui: {
     listView: {
@@ -7501,33 +7679,33 @@ var AdoptionApplication_default = (0, import_core9.list)({
     }
   },
   fields: {
-    animal: (0, import_fields9.relationship)({ ref: "Animal", many: false }),
-    applicant: (0, import_fields9.relationship)({ ref: "User", many: false }),
-    applicantName: (0, import_fields9.text)(),
-    applicantEmail: (0, import_fields9.text)(),
-    phone: (0, import_fields9.text)(),
-    message: (0, import_fields9.text)({ ui: { displayMode: "textarea" } }),
+    animal: (0, import_fields11.relationship)({ ref: "Animal", many: false }),
+    applicant: (0, import_fields11.relationship)({ ref: "User", many: false }),
+    applicantName: (0, import_fields11.text)(),
+    applicantEmail: (0, import_fields11.text)(),
+    phone: (0, import_fields11.text)(),
+    message: (0, import_fields11.text)({ ui: { displayMode: "textarea" } }),
     /**
      * Cuestionario: `housing`, `housingOwnership`, `petsAllowed`, `hasYard`, `hasChildren`,
      * `otherPets`, `hoursAlone`, `experience`, `commitSterilization`, `acceptsFollowUp`.
      */
-    answers: (0, import_fields9.json)(),
-    status: (0, import_fields9.select)({
+    answers: (0, import_fields11.json)(),
+    status: (0, import_fields11.select)({
       options: ADOPTION_APPLICATION_STATUS_OPTIONS,
       defaultValue: ADOPTION_APPLICATION_STATUS.SUBMITTED,
       validation: { isRequired: true }
     }),
     /** Mensaje de quien revisa al aprobar o rechazar. Lo ve quien envió la solicitud. */
-    decisionNote: (0, import_fields9.text)({ ui: { displayMode: "textarea" } }),
-    decidedBy: (0, import_fields9.relationship)({ ref: "User", many: false }),
-    decidedAt: (0, import_fields9.timestamp)({ db: { isNullable: true } }),
+    decisionNote: (0, import_fields11.text)({ ui: { displayMode: "textarea" } }),
+    decidedBy: (0, import_fields11.relationship)({ ref: "User", many: false }),
+    decidedAt: (0, import_fields11.timestamp)({ db: { isNullable: true } }),
     /** La cartilla que recibió el adoptante al completarse. */
-    pet: (0, import_fields9.relationship)({ ref: "Pet", many: false }),
-    createdAt: (0, import_fields9.timestamp)({
+    pet: (0, import_fields11.relationship)({ ref: "Pet", many: false }),
+    createdAt: (0, import_fields11.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields9.timestamp)({
+    updatedAt: (0, import_fields11.timestamp)({
       defaultValue: { kind: "now" },
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
@@ -7536,8 +7714,8 @@ var AdoptionApplication_default = (0, import_core9.list)({
 });
 
 // models/User/User.ts
-var import_core10 = require("@keystone-6/core");
-var import_fields10 = require("@keystone-6/core/fields");
+var import_core12 = require("@keystone-6/core");
+var import_fields12 = require("@keystone-6/core/fields");
 
 // utils/intregrations/stripe.ts
 var Stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -7998,9 +8176,9 @@ for (const state of MEXICO_STATES) {
 }
 var BY_CODE = new Map(MEXICO_STATES.map((state) => [state.code, state]));
 var BY_SLUG = new Map(MEXICO_STATES.map((state) => [state.slug, state]));
-function normalizeStateCode(text86) {
-  if (!text86?.trim()) return null;
-  const key = plain2(text86);
+function normalizeStateCode(text87) {
+  if (!text87?.trim()) return null;
+  const key = plain2(text87);
   if (BY_CODE.has(key.padStart(2, "0")) && /^\d{1,2}$/.test(key)) return key.padStart(2, "0");
   const direct = BY_KEY.get(key);
   if (direct) return direct.code;
@@ -8016,9 +8194,9 @@ function stateBySlug(slug) {
 function timeZoneForState(code) {
   return stateByCode(code)?.timeZone ?? DEFAULT_TIME_ZONE;
 }
-function cityKey(text86) {
-  if (!text86?.trim()) return null;
-  const key = plain2(text86).replace(/^municipio de\s+/, "").replace(/\s+/g, "-");
+function cityKey(text87) {
+  if (!text87?.trim()) return null;
+  const key = plain2(text87).replace(/^municipio de\s+/, "").replace(/\s+/g, "-");
   return key || null;
 }
 
@@ -8216,7 +8394,7 @@ async function resolveInput(args) {
     item: args.item
   });
 }
-var User_default = (0, import_core10.list)({
+var User_default = (0, import_core12.list)({
   access: User_access_default,
   hooks: {
     resolveInput,
@@ -8245,40 +8423,40 @@ var User_default = (0, import_core10.list)({
     }
   },
   fields: {
-    name: (0, import_fields10.text)({ validation: { isRequired: true } }),
-    lastName: (0, import_fields10.text)(),
-    secondLastName: (0, import_fields10.text)({
+    name: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    lastName: (0, import_fields12.text)(),
+    secondLastName: (0, import_fields12.text)({
       db: { isNullable: true }
     }),
-    username: (0, import_fields10.text)({
+    username: (0, import_fields12.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       hooks: userNameHook
     }),
-    referralCode: (0, import_fields10.text)({
+    referralCode: (0, import_fields12.text)({
       isIndexed: "unique",
       validation: { isRequired: true, length: { min: 6, max: 6 } },
       ui: {
         description: "C\xF3digo de referido (K + 5 caracteres alfanum\xE9ricos)"
       }
     }),
-    email: (0, import_fields10.text)({
+    email: (0, import_fields12.text)({
       isIndexed: "unique",
       hooks: emailHooks
     }),
-    businessEmail: (0, import_fields10.text)({
+    businessEmail: (0, import_fields12.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de la empresa"
       }
     }),
-    businessPhone: (0, import_fields10.text)({
+    businessPhone: (0, import_fields12.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de la empresa"
       }
     }),
-    password: (0, import_fields10.password)({
+    password: (0, import_fields12.password)({
       validation: { isRequired: false },
       ui: {
         createView: {
@@ -8286,9 +8464,9 @@ var User_default = (0, import_core10.list)({
         }
       }
     }),
-    phone: (0, import_fields10.text)(),
+    phone: (0, import_fields12.text)(),
     /** Opt-in para recibir las notificaciones de la campana también por WhatsApp (al `phone`). */
-    whatsappNotifications: (0, import_fields10.checkbox)({
+    whatsappNotifications: (0, import_fields12.checkbox)({
       defaultValue: false,
       ui: {
         description: "Recibir avisos de Kadesh por WhatsApp (al tel\xE9fono). Se activa solo al dar el rol admin."
@@ -8298,7 +8476,7 @@ var User_default = (0, import_core10.list)({
      * Tipos de aviso que la persona NO quiere por WhatsApp (los demás le llegan con
      * `whatsappNotifications`). Lista de `NOTIFICATION_TYPE`; vacío = todos. Ver whatsappPrefs.ts.
      */
-    whatsappMutedTypes: (0, import_fields10.json)({
+    whatsappMutedTypes: (0, import_fields12.json)({
       defaultValue: [],
       access: userPetAlertsFieldAccess,
       hooks: whatsappMutedTypesHooks,
@@ -8307,7 +8485,7 @@ var User_default = (0, import_core10.list)({
         createView: { fieldMode: "hidden" }
       }
     }),
-    roles: (0, import_fields10.relationship)({
+    roles: (0, import_fields12.relationship)({
       ref: "Role.users",
       many: true,
       access: userRolesFieldAccess
@@ -8316,7 +8494,7 @@ var User_default = (0, import_core10.list)({
      * Permisos por módulo/acción del panel SaaS (`inicio.ver`, `clientes.editar`, …).
      * `null` / ausente = usuario legado (rige el rol). Array (aunque vacío) = lista explícita.
      */
-    permissions: (0, import_fields10.json)({
+    permissions: (0, import_fields12.json)({
       defaultValue: null,
       access: userPermissionsFieldAccess,
       ui: {
@@ -8324,13 +8502,13 @@ var User_default = (0, import_core10.list)({
         createView: { fieldMode: "edit" }
       }
     }),
-    referredBy: (0, import_fields10.relationship)({
+    referredBy: (0, import_fields12.relationship)({
       ref: "User.referrals",
       ui: {
         description: "Usuario que refiri\xF3 a este usuario"
       }
     }),
-    referrals: (0, import_fields10.relationship)({
+    referrals: (0, import_fields12.relationship)({
       ref: "User.referredBy",
       many: true,
       ui: {
@@ -8338,126 +8516,126 @@ var User_default = (0, import_core10.list)({
       }
     }),
     /** Company (SaaS tenant) this user belongs to; 1 company : N users */
-    company: (0, import_fields10.relationship)({
+    company: (0, import_fields12.relationship)({
       ref: "SaasCompany.users",
       many: false,
       access: userCompanyFieldAccess,
       ui: { description: "Company/organization this user belongs to" }
     }),
-    workspaces: (0, import_fields10.relationship)({
+    workspaces: (0, import_fields12.relationship)({
       ref: "SaasWorkspace.members",
       many: true,
       ui: { description: "Workspaces (\xE1reas) a los que pertenece" }
     }),
-    pet_places: (0, import_fields10.relationship)({
+    pet_places: (0, import_fields12.relationship)({
       ref: "PetPlace.user",
       many: true,
       ui: { description: "Cl\xEDnicas que este usuario reclam\xF3" }
     }),
-    clinic_patients_of: (0, import_fields10.relationship)({
+    clinic_patients_of: (0, import_fields12.relationship)({
       ref: "PetPlace.patients",
       many: true,
       ui: { description: "Cl\xEDnicas donde figura como paciente" }
     }),
-    requested_pet_place_services: (0, import_fields10.relationship)({
+    requested_pet_place_services: (0, import_fields12.relationship)({
       ref: "PetPlaceService.requestedBy",
       many: true,
       ui: { description: "Servicios de cat\xE1logo que este usuario pidi\xF3" }
     }),
-    my_appointments: (0, import_fields10.relationship)({
+    my_appointments: (0, import_fields12.relationship)({
       ref: "PetPlaceAppointment.customer",
       many: true,
       ui: { description: "Citas reservadas por este usuario" }
     }),
-    blog_subscriptions: (0, import_fields10.relationship)({
+    blog_subscriptions: (0, import_fields12.relationship)({
       ref: "BlogSubscription.user",
       many: true
     }),
-    businessLeadsAssigned: (0, import_fields10.relationship)({
+    businessLeadsAssigned: (0, import_fields12.relationship)({
       ref: "TechBusinessLead.salesPerson",
       many: true
     }),
-    salesActivities: (0, import_fields10.relationship)({
+    salesActivities: (0, import_fields12.relationship)({
       ref: "TechSalesActivity.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
-    createdBySalesActivities: (0, import_fields10.relationship)({
+    createdBySalesActivities: (0, import_fields12.relationship)({
       ref: "TechSalesActivity.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasksResponsible: (0, import_fields10.relationship)({
+    tasksResponsible: (0, import_fields12.relationship)({
       ref: "TechTask.responsible",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace asignadas" }
     }),
-    createdByTasks: (0, import_fields10.relationship)({
+    createdByTasks: (0, import_fields12.relationship)({
       ref: "TechTask.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
-    followUpTasks: (0, import_fields10.relationship)({
+    followUpTasks: (0, import_fields12.relationship)({
       ref: "TechFollowUpTask.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
-    createdByFollowUpTasks: (0, import_fields10.relationship)({
+    createdByFollowUpTasks: (0, import_fields12.relationship)({
       ref: "TechFollowUpTask.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields10.relationship)({
+    proposals: (0, import_fields12.relationship)({
       ref: "TechProposal.assignedSeller",
       many: true,
       ui: { hideCreate: true }
     }),
-    createdByProposals: (0, import_fields10.relationship)({
+    createdByProposals: (0, import_fields12.relationship)({
       ref: "TechProposal.createdBy",
       many: true,
       ui: { hideCreate: true }
     }),
-    projectsResponsible: (0, import_fields10.relationship)({
+    projectsResponsible: (0, import_fields12.relationship)({
       ref: "SaasProject.responsible",
       many: true,
       ui: { description: "Proyectos donde es responsable" }
     }),
-    leadSyncLogs: (0, import_fields10.relationship)({
+    leadSyncLogs: (0, import_fields12.relationship)({
       ref: "TechLeadSyncLog.user",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads (mapa)" }
     }),
-    inegiSyncLogs: (0, import_fields10.relationship)({
+    inegiSyncLogs: (0, import_fields12.relationship)({
       ref: "TechInegiSyncLog.user",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n del cat\xE1logo INEGI" }
     }),
-    aiCallLogs: (0, import_fields10.relationship)({
+    aiCallLogs: (0, import_fields12.relationship)({
       ref: "TechAiCallLog.user",
       many: true,
       ui: { description: "Llamadas a IA disparadas por este usuario" }
     }),
-    googleCalendarAccounts: (0, import_fields10.relationship)({
+    googleCalendarAccounts: (0, import_fields12.relationship)({
       ref: "GoogleCalendarAccount.user",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar personales de este usuario" }
     }),
-    connectedGoogleCalendarAccounts: (0, import_fields10.relationship)({
+    connectedGoogleCalendarAccounts: (0, import_fields12.relationship)({
       ref: "GoogleCalendarAccount.connectedByUser",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar que este usuario autoriz\xF3" }
     }),
-    createdCalendarEvents: (0, import_fields10.relationship)({
+    createdCalendarEvents: (0, import_fields12.relationship)({
       ref: "TechCalendarEvent.createdBy",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario de este usuario" }
     }),
-    whatsappMessagesSent: (0, import_fields10.relationship)({
+    whatsappMessagesSent: (0, import_fields12.relationship)({
       ref: "TechWhatsAppMessage.sentBy",
       many: true,
       ui: { hideCreate: true, description: "Mensajes de WhatsApp enviados por este usuario" }
     }),
-    whatsappMessagesAsTeamMember: (0, import_fields10.relationship)({
+    whatsappMessagesAsTeamMember: (0, import_fields12.relationship)({
       ref: "TechWhatsAppMessage.teamMember",
       many: true,
       ui: {
@@ -8465,7 +8643,7 @@ var User_default = (0, import_core10.list)({
         description: "Chat interno de WhatsApp de la empresa con este usuario"
       }
     }),
-    whatsappInternalChatsStarted: (0, import_fields10.relationship)({
+    whatsappInternalChatsStarted: (0, import_fields12.relationship)({
       ref: "TechWhatsAppMessage.internalInitiator",
       many: true,
       ui: {
@@ -8473,22 +8651,22 @@ var User_default = (0, import_core10.list)({
         description: "Chats internos de WhatsApp que este usuario abri\xF3"
       }
     }),
-    aiInsights: (0, import_fields10.relationship)({
+    aiInsights: (0, import_fields12.relationship)({
       ref: "TechAiInsight.salesPerson",
       many: true,
       ui: { description: "Insights de IA de este vendedor (digest diario)" }
     }),
-    saasSubscriptionLogs: (0, import_fields10.relationship)({
+    saasSubscriptionLogs: (0, import_fields12.relationship)({
       ref: "SaasSubscriptionLog.user",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n SaaS" }
     }),
-    authLogs: (0, import_fields10.relationship)({
+    authLogs: (0, import_fields12.relationship)({
       ref: "UserAuthLog.user",
       many: true,
       ui: { description: "Registro de login / registro (contrase\xF1a, Google, registerUser)" }
     }),
-    quotationsCreated: (0, import_fields10.relationship)({
+    quotationsCreated: (0, import_fields12.relationship)({
       ref: "SaasQuotation.createdBy",
       many: true,
       ui: {
@@ -8496,7 +8674,7 @@ var User_default = (0, import_core10.list)({
         description: "Cotizaciones creadas por este usuario"
       }
     }),
-    quotationsAssignedSeller: (0, import_fields10.relationship)({
+    quotationsAssignedSeller: (0, import_fields12.relationship)({
       ref: "SaasQuotation.assignedSeller",
       many: true,
       ui: {
@@ -8504,11 +8682,11 @@ var User_default = (0, import_core10.list)({
         description: "Cotizaciones donde act\xFAa como vendedor asignado"
       }
     }),
-    profileImage: (0, import_fields10.image)({ storage: "s3_profile" }),
-    birthday: (0, import_fields10.calendarDay)(),
-    age: (0, import_fields10.virtual)({
-      field: import_core10.graphql.field({
-        type: import_core10.graphql.String,
+    profileImage: (0, import_fields12.image)({ storage: "s3_profile" }),
+    birthday: (0, import_fields12.calendarDay)(),
+    age: (0, import_fields12.virtual)({
+      field: import_core12.graphql.field({
+        type: import_core12.graphql.String,
         async resolve(item) {
           if (item?.birthday) {
             const today = /* @__PURE__ */ new Date();
@@ -8524,9 +8702,9 @@ var User_default = (0, import_core10.list)({
         }
       })
     }),
-    smsRegistrationId: (0, import_fields10.text)(),
-    verified: (0, import_fields10.checkbox)(),
-    product: (0, import_fields10.select)({
+    smsRegistrationId: (0, import_fields12.text)(),
+    verified: (0, import_fields12.checkbox)(),
+    product: (0, import_fields12.select)({
       options: SINGLE_PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -8536,31 +8714,31 @@ var User_default = (0, import_core10.list)({
         description: "Producto en el que se registr\xF3 (Pet o SaaS). Define la marca de sus correos y su suscripci\xF3n al blog."
       }
     }),
-    userTest: (0, import_fields10.checkbox)(),
-    salesPersonVerified: (0, import_fields10.checkbox)(),
-    salesComission: (0, import_fields10.integer)({
+    userTest: (0, import_fields12.checkbox)(),
+    salesPersonVerified: (0, import_fields12.checkbox)(),
+    salesComission: (0, import_fields12.integer)({
       ui: { description: "Comisi\xF3n de ventas (en porcentaje)" },
       defaultValue: 10
     }),
-    bank: (0, import_fields10.text)({
+    bank: (0, import_fields12.text)({
       access: userSecretFieldAccess,
       ui: { description: "Nombre del banco" }
     }),
-    clabe: (0, import_fields10.text)({
+    clabe: (0, import_fields12.text)({
       db: { isNullable: true },
       access: userSecretFieldAccess,
       ui: {
         listView: { fieldMode: "hidden" }
       }
     }),
-    cardNumber: (0, import_fields10.text)({
+    cardNumber: (0, import_fields12.text)({
       db: { isNullable: true },
       access: userSecretFieldAccess,
       ui: {
         listView: { fieldMode: "hidden" }
       }
     }),
-    stripeCustomerId: (0, import_fields10.text)({
+    stripeCustomerId: (0, import_fields12.text)({
       db: { isNullable: true },
       access: userStripeFieldAccess,
       ui: {
@@ -8571,22 +8749,22 @@ var User_default = (0, import_core10.list)({
       }
     }),
     /** SaaS payment methods (Stripe cards) saved by this user */
-    saasPaymentMethods: (0, import_fields10.relationship)({
+    saasPaymentMethods: (0, import_fields12.relationship)({
       ref: "SaasPaymentMethod.user",
       many: true,
       ui: { description: "Saved payment methods (Stripe)" }
     }),
     /** SaaS payments (subscriptions, one-time) made by this user */
-    saasPayments: (0, import_fields10.relationship)({
+    saasPayments: (0, import_fields12.relationship)({
       ref: "SaasPayment.user",
       many: true,
       ui: { description: "Payments made by this user (SaaS)" }
     }),
-    techStatusBusinessLeads: (0, import_fields10.relationship)({
+    techStatusBusinessLeads: (0, import_fields12.relationship)({
       ref: "TechStatusBusinessLead.salesPerson",
       many: true
     }),
-    createdAt: (0, import_fields10.timestamp)({
+    createdAt: (0, import_fields12.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -8595,14 +8773,14 @@ var User_default = (0, import_core10.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    lastLoginAt: (0, import_fields10.timestamp)({
+    lastLoginAt: (0, import_fields12.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    onboardingState: (0, import_fields10.json)({
+    onboardingState: (0, import_fields12.json)({
       defaultValue: {},
       access: userOnboardingFieldAccess,
       ui: {
@@ -8612,55 +8790,55 @@ var User_default = (0, import_core10.list)({
     }),
     // Alertas de Kadesh Pet: avisos (campana + push) de mascotas perdidas o encontradas cerca.
     // Las edita la propia persona desde la app. Ver utils/notifications/nearbyAnimalAlerts.ts.
-    petAlertsEnabled: (0, import_fields10.checkbox)({
+    petAlertsEnabled: (0, import_fields12.checkbox)({
       defaultValue: false,
       access: userPetAlertsFieldAccess,
       ui: { description: "Recibe alertas de mascotas perdidas o encontradas cerca de su zona" }
     }),
-    alertLat: (0, import_fields10.float)({
+    alertLat: (0, import_fields12.float)({
       db: { isNullable: true },
       validation: { min: -90, max: 90 },
       access: userPetAlertsFieldAccess,
       ui: { description: "Centro de la zona de alertas (latitud)" }
     }),
-    alertLng: (0, import_fields10.float)({
+    alertLng: (0, import_fields12.float)({
       db: { isNullable: true },
       validation: { min: -180, max: 180 },
       access: userPetAlertsFieldAccess,
       ui: { description: "Centro de la zona de alertas (longitud)" }
     }),
-    alertRadiusKm: (0, import_fields10.integer)({
+    alertRadiusKm: (0, import_fields12.integer)({
       defaultValue: 5,
       validation: { min: 1, max: 50 },
       access: userPetAlertsFieldAccess,
       ui: { description: "Radio de la zona de alertas, en km (1\u201350)" }
     }),
     // Avisos de eventos (campañas, jornadas) en la misma zona. Ver utils/notifications/eventAlerts.ts.
-    eventAlertsEnabled: (0, import_fields10.checkbox)({
+    eventAlertsEnabled: (0, import_fields12.checkbox)({
       defaultValue: true,
       access: userPetAlertsFieldAccess,
       ui: { description: "Recibe avisos de eventos (campa\xF1as, jornadas) en su zona, municipio o estado" }
     }),
     // Los calcula el servidor desde alertLat/alertLng (models/User/alertRegion.ts).
-    alertCity: (0, import_fields10.text)({
+    alertCity: (0, import_fields12.text)({
       db: { isNullable: true },
       access: userAlertRegionFieldAccess,
       ui: { description: "Municipio del centro de la zona de alertas", itemView: { fieldMode: "read" } }
     }),
-    alertCityKey: (0, import_fields10.text)({
+    alertCityKey: (0, import_fields12.text)({
       db: { isNullable: true },
       isIndexed: true,
       access: userAlertRegionFieldAccess,
       ui: { itemView: { fieldMode: "read" }, listView: { fieldMode: "hidden" } }
     }),
-    alertStateCode: (0, import_fields10.text)({
+    alertStateCode: (0, import_fields12.text)({
       db: { isNullable: true },
       isIndexed: true,
       access: userAlertRegionFieldAccess,
       ui: { description: "Clave INEGI del estado del centro (01\u201332)", itemView: { fieldMode: "read" } }
     }),
     // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
-    suspendedAt: (0, import_fields10.timestamp)({
+    suspendedAt: (0, import_fields12.timestamp)({
       db: { isNullable: true },
       access: userAccountControlFieldAccess,
       ui: {
@@ -8669,7 +8847,7 @@ var User_default = (0, import_core10.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    suspendedReason: (0, import_fields10.text)({
+    suspendedReason: (0, import_fields12.text)({
       db: { isNullable: true },
       access: userAccountControlFieldAccess,
       ui: {
@@ -8678,7 +8856,7 @@ var User_default = (0, import_core10.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    sessionVersion: (0, import_fields10.integer)({
+    sessionVersion: (0, import_fields12.integer)({
       defaultValue: 0,
       access: userAccountControlFieldAccess,
       ui: {
@@ -8687,7 +8865,7 @@ var User_default = (0, import_core10.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    anonymizedAt: (0, import_fields10.timestamp)({
+    anonymizedAt: (0, import_fields12.timestamp)({
       db: { isNullable: true },
       access: userAccountControlFieldAccess,
       ui: {
@@ -8697,7 +8875,7 @@ var User_default = (0, import_core10.list)({
       }
     }),
     // De dónde llegó al registrarse (UTM, dominio que refirió, página de entrada). Ver utils/analytics/attribution.ts.
-    signupAttribution: (0, import_fields10.json)({
+    signupAttribution: (0, import_fields12.json)({
       access: userAccountControlFieldAccess,
       ui: {
         description: "Primer contacto antes de registrarse: UTM, sitio que refiri\xF3 y p\xE1gina de entrada",
@@ -8709,8 +8887,8 @@ var User_default = (0, import_core10.list)({
 });
 
 // models/User/UserAuthLog/UserAuthLog.ts
-var import_core11 = require("@keystone-6/core");
-var import_fields11 = require("@keystone-6/core/fields");
+var import_core13 = require("@keystone-6/core");
+var import_fields13 = require("@keystone-6/core/fields");
 
 // models/User/UserAuthLog/UserAuthLog.access.ts
 var userAuthLogAccess = {
@@ -8758,7 +8936,7 @@ var USER_AUTH_LOG_STEP = {
 };
 
 // models/User/UserAuthLog/UserAuthLog.ts
-var UserAuthLog_default = (0, import_core11.list)({
+var UserAuthLog_default = (0, import_core13.list)({
   access: userAuthLogAccess,
   ui: {
     listView: {
@@ -8774,12 +8952,12 @@ var UserAuthLog_default = (0, import_core11.list)({
     }
   },
   fields: {
-    user: (0, import_fields11.relationship)({
+    user: (0, import_fields13.relationship)({
       ref: "User.authLogs",
       many: false,
       ui: { description: "Usuario afectado (vac\xEDo si fall\xF3 antes de crear cuenta)" }
     }),
-    source: (0, import_fields11.select)({
+    source: (0, import_fields13.select)({
       type: "string",
       options: [
         { label: "registerUser", value: USER_AUTH_LOG_SOURCE.REGISTER_USER },
@@ -8791,36 +8969,36 @@ var UserAuthLog_default = (0, import_core11.list)({
       ],
       ui: { description: "Mutaci\xF3n / flujo" }
     }),
-    step: (0, import_fields11.text)({
+    step: (0, import_fields13.text)({
       isIndexed: true,
       ui: { description: "C\xF3digo de resultado (USER_AUTH_LOG_STEP)" }
     }),
-    success: (0, import_fields11.checkbox)({
+    success: (0, import_fields13.checkbox)({
       defaultValue: false
     }),
-    message: (0, import_fields11.text)({
+    message: (0, import_fields13.text)({
       ui: { displayMode: "textarea", description: "Mensaje o error (sin datos sensibles)" }
     }),
-    emailMasked: (0, import_fields11.text)({
+    emailMasked: (0, import_fields13.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    responseSnapshot: (0, import_fields11.json)({
+    responseSnapshot: (0, import_fields13.json)({
       ui: { description: "Payload devuelto o metadatos (sin tokens)" }
     }),
-    durationMs: (0, import_fields11.integer)({
+    durationMs: (0, import_fields13.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    ip: (0, import_fields11.text)({
+    ip: (0, import_fields13.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "IP de la petici\xF3n (ver CLIENT_IP_HEADER en utils/activity/requestMeta.ts)" }
     }),
-    userAgent: (0, import_fields11.text)({
+    userAgent: (0, import_fields13.text)({
       db: { isNullable: true },
       ui: { description: "Navegador o cliente del intento" }
     }),
-    createdAt: (0, import_fields11.timestamp)({
+    createdAt: (0, import_fields13.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del evento" }
     })
@@ -8828,8 +9006,8 @@ var UserAuthLog_default = (0, import_core11.list)({
 });
 
 // models/User/UserActivityDay/UserActivityDay.ts
-var import_core12 = require("@keystone-6/core");
-var import_fields12 = require("@keystone-6/core/fields");
+var import_core14 = require("@keystone-6/core");
+var import_fields14 = require("@keystone-6/core/fields");
 
 // models/User/UserActivityDay/UserActivityDay.access.ts
 var userActivityDayAccess = {
@@ -8847,7 +9025,7 @@ var userActivityDayAccess = {
 };
 
 // models/User/UserActivityDay/UserActivityDay.ts
-var UserActivityDay_default = (0, import_core12.list)({
+var UserActivityDay_default = (0, import_core14.list)({
   access: userActivityDayAccess,
   ui: {
     hideCreate: true,
@@ -8857,34 +9035,34 @@ var UserActivityDay_default = (0, import_core12.list)({
     }
   },
   fields: {
-    key: (0, import_fields12.text)({
+    key: (0, import_fields14.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "userId:YYYY-MM-DD (permite sumar sin duplicar el d\xEDa)" }
     }),
-    user: (0, import_fields12.relationship)({ ref: "User", many: false }),
-    company: (0, import_fields12.relationship)({
+    user: (0, import_fields14.relationship)({ ref: "User", many: false }),
+    company: (0, import_fields14.relationship)({
       ref: "SaasCompany",
       many: false,
       ui: { description: "Empresa de la persona ese d\xEDa" }
     }),
-    day: (0, import_fields12.calendarDay)({
+    day: (0, import_fields14.calendarDay)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "D\xEDa en hora de CDMX" }
     }),
-    minutes: (0, import_fields12.integer)({
+    minutes: (0, import_fields14.integer)({
       defaultValue: 0,
       ui: { description: "Minutos con el panel abierto y la pesta\xF1a visible" }
     }),
-    firstSeenAt: (0, import_fields12.timestamp)({ db: { isNullable: true } }),
-    lastSeenAt: (0, import_fields12.timestamp)({ db: { isNullable: true }, isIndexed: true })
+    firstSeenAt: (0, import_fields14.timestamp)({ db: { isNullable: true } }),
+    lastSeenAt: (0, import_fields14.timestamp)({ db: { isNullable: true }, isIndexed: true })
   }
 });
 
 // models/ActivityEvent/ActivityEvent.ts
-var import_core13 = require("@keystone-6/core");
-var import_fields13 = require("@keystone-6/core/fields");
+var import_core15 = require("@keystone-6/core");
+var import_fields15 = require("@keystone-6/core/fields");
 
 // models/ActivityEvent/ActivityEvent.access.ts
 var activityEventAccess = {
@@ -8902,7 +9080,7 @@ var activityEventAccess = {
 };
 
 // models/ActivityEvent/ActivityEvent.ts
-var ActivityEvent_default = (0, import_core13.list)({
+var ActivityEvent_default = (0, import_core15.list)({
   access: activityEventAccess,
   ui: {
     hideCreate: true,
@@ -8912,86 +9090,86 @@ var ActivityEvent_default = (0, import_core13.list)({
     }
   },
   fields: {
-    type: (0, import_fields13.text)({
+    type: (0, import_fields15.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "Tipo de evento (ver models/ActivityEvent/constants.ts), p. ej. lead.status_changed" }
     }),
-    category: (0, import_fields13.select)({
+    category: (0, import_fields15.select)({
       type: "string",
       options: [...ACTIVITY_CATEGORY_OPTIONS],
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "Sale del prefijo del tipo; coincide con los filtros del feed de Operaciones" }
     }),
-    actor: (0, import_fields13.relationship)({
+    actor: (0, import_fields15.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Qui\xE9n lo hizo (vac\xEDo si fue el sistema o un webhook)" }
     }),
-    company: (0, import_fields13.relationship)({
+    company: (0, import_fields15.relationship)({
       ref: "SaasCompany",
       many: false,
       ui: { description: "Empresa a la que pertenece el dato afectado" }
     }),
-    workspace: (0, import_fields13.relationship)({
+    workspace: (0, import_fields15.relationship)({
       ref: "SaasWorkspace",
       many: false,
       ui: { description: "Espacio de trabajo, si aplica" }
     }),
-    entityType: (0, import_fields13.text)({
+    entityType: (0, import_fields15.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "List afectada (TechBusinessLead, SaasQuotation\u2026)" }
     }),
-    entityId: (0, import_fields13.text)({
+    entityId: (0, import_fields15.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Id del item afectado" }
     }),
-    summary: (0, import_fields13.text)({
+    summary: (0, import_fields15.text)({
       ui: { displayMode: "textarea", description: "Texto legible en espa\xF1ol" }
     }),
-    metadata: (0, import_fields13.json)({
+    metadata: (0, import_fields15.json)({
       ui: {
         description: "Cambios {campo: [antes, despu\xE9s]}, conteos, montos. Nunca contrase\xF1as, tokens, prompts ni cuerpos de mensajes"
       }
     }),
-    source: (0, import_fields13.select)({
+    source: (0, import_fields15.select)({
       type: "string",
       options: [...ACTIVITY_SOURCE_OPTIONS],
       isIndexed: true,
       ui: { description: "panel, admin de Kadesh, webhook o sistema" }
     }),
-    success: (0, import_fields13.checkbox)({ defaultValue: true }),
-    errorMessage: (0, import_fields13.text)({
+    success: (0, import_fields15.checkbox)({ defaultValue: true }),
+    errorMessage: (0, import_fields15.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     }),
-    ip: (0, import_fields13.text)({
+    ip: (0, import_fields15.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "IP de la petici\xF3n (ver CLIENT_IP_HEADER en utils/activity/requestMeta.ts)" }
     }),
-    userAgent: (0, import_fields13.text)({
+    userAgent: (0, import_fields15.text)({
       db: { isNullable: true },
       ui: { description: "Navegador o cliente que hizo la petici\xF3n" }
     }),
-    app: (0, import_fields13.text)({
+    app: (0, import_fields15.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "App que hizo la petici\xF3n: pet-web, business-web o pet-mobile (ACTIVITY_APP)" }
     }),
-    page: (0, import_fields13.text)({
+    page: (0, import_fields15.text)({
       db: { isNullable: true },
       ui: { description: "Pantalla en la que estaba la persona (ruta y solo tab/vista/clinic/pet)" }
     }),
-    fingerprint: (0, import_fields13.text)({
+    fingerprint: (0, import_fields15.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Huella de los errores app.* para agruparlos en la bandeja de Errores" }
     }),
-    createdAt: (0, import_fields13.timestamp)({
+    createdAt: (0, import_fields15.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       ui: { description: "Cu\xE1ndo ocurri\xF3" }
@@ -9000,8 +9178,8 @@ var ActivityEvent_default = (0, import_core13.list)({
 });
 
 // models/ErrorIssue/ErrorIssue.ts
-var import_core14 = require("@keystone-6/core");
-var import_fields14 = require("@keystone-6/core/fields");
+var import_core16 = require("@keystone-6/core");
+var import_fields16 = require("@keystone-6/core/fields");
 
 // models/ErrorIssue/constants.ts
 var ERROR_ISSUE_STATUS = {
@@ -9019,7 +9197,7 @@ var ERROR_ISSUE_STATUS_VALUES = new Set(
 );
 
 // models/ErrorIssue/ErrorIssue.ts
-var ErrorIssue_default = (0, import_core14.list)({
+var ErrorIssue_default = (0, import_core16.list)({
   access: adminOnlyAccess,
   ui: {
     listView: {
@@ -9028,12 +9206,12 @@ var ErrorIssue_default = (0, import_core14.list)({
     }
   },
   fields: {
-    fingerprint: (0, import_fields14.text)({
+    fingerprint: (0, import_fields16.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "ActivityEvent.fingerprint del error" }
     }),
-    status: (0, import_fields14.select)({
+    status: (0, import_fields16.select)({
       type: "string",
       options: [...ERROR_ISSUE_STATUS_OPTIONS],
       defaultValue: ERROR_ISSUE_STATUS.OPEN,
@@ -9041,27 +9219,27 @@ var ErrorIssue_default = (0, import_core14.list)({
       isIndexed: true,
       ui: { displayMode: "segmented-control" }
     }),
-    note: (0, import_fields14.text)({
+    note: (0, import_fields16.text)({
       ui: { displayMode: "textarea", description: "Qu\xE9 se hizo o por qu\xE9 se ignora" }
     }),
-    resolvedAt: (0, import_fields14.timestamp)({
+    resolvedAt: (0, import_fields16.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo se marc\xF3 resuelto (si vuelve a pasar despu\xE9s, se reabre)" }
     }),
-    resolvedBy: (0, import_fields14.relationship)({
+    resolvedBy: (0, import_fields16.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Qui\xE9n cambi\xF3 el estado" }
     }),
-    createdAt: (0, import_fields14.timestamp)({ defaultValue: { kind: "now" } }),
-    updatedAt: (0, import_fields14.timestamp)({ db: { updatedAt: true } })
+    createdAt: (0, import_fields16.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields16.timestamp)({ db: { updatedAt: true } })
   }
 });
 
 // models/Security/BlockedIp/BlockedIp.ts
-var import_core15 = require("@keystone-6/core");
-var import_fields15 = require("@keystone-6/core/fields");
-var BlockedIp_default = (0, import_core15.list)({
+var import_core17 = require("@keystone-6/core");
+var import_fields17 = require("@keystone-6/core/fields");
+var BlockedIp_default = (0, import_core17.list)({
   access: adminOnlyAccess,
   ui: {
     listView: {
@@ -9070,34 +9248,34 @@ var BlockedIp_default = (0, import_core15.list)({
     }
   },
   fields: {
-    ip: (0, import_fields15.text)({
+    ip: (0, import_fields17.text)({
       isIndexed: "unique",
       validation: { isRequired: true }
     }),
-    reason: (0, import_fields15.text)({
+    reason: (0, import_fields17.text)({
       ui: { displayMode: "textarea", description: "Por qu\xE9 se bloque\xF3 (abuso, spam, fuerza bruta\u2026)" }
     }),
-    expiresAt: (0, import_fields15.timestamp)({
+    expiresAt: (0, import_fields17.timestamp)({
       db: { isNullable: true },
       ui: { description: "Hasta cu\xE1ndo. Vac\xEDo = indefinido." }
     }),
-    createdBy: (0, import_fields15.relationship)({
+    createdBy: (0, import_fields17.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Admin que la bloque\xF3" }
     }),
-    createdAt: (0, import_fields15.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true })
+    createdAt: (0, import_fields17.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true })
   }
 });
 
 // models/Pet/Animal/AnimalBreed/AnimalBreed.ts
-var import_core16 = require("@keystone-6/core");
-var import_fields16 = require("@keystone-6/core/fields");
-var AnimalBreed_default = (0, import_core16.list)({
+var import_core18 = require("@keystone-6/core");
+var import_fields18 = require("@keystone-6/core/fields");
+var AnimalBreed_default = (0, import_core18.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    breed: (0, import_fields16.text)(),
-    animal_type: (0, import_fields16.relationship)({
+    breed: (0, import_fields18.text)(),
+    animal_type: (0, import_fields18.relationship)({
       ref: "AnimalType.animal_breed"
     })
   },
@@ -9107,8 +9285,8 @@ var AnimalBreed_default = (0, import_core16.list)({
 });
 
 // models/Pet/Pet.ts
-var import_core17 = require("@keystone-6/core");
-var import_fields17 = require("@keystone-6/core/fields");
+var import_core19 = require("@keystone-6/core");
+var import_fields19 = require("@keystone-6/core/fields");
 
 // models/Pet/constants.ts
 var PET_STATUS = {
@@ -9195,7 +9373,7 @@ var PET_REMINDER_MAX_DAYS_BEFORE = 60;
 
 // models/Pet/Pet.access.ts
 var signedIn4 = ({ session: session2 }) => isSignedIn(session2);
-var adminOnly5 = ({ session: session2 }) => isPlatformAdmin(session2);
+var adminOnly6 = ({ session: session2 }) => isPlatformAdmin(session2);
 function ownedPetFilter(userId, principalOnly = false) {
   return {
     owners: {
@@ -9271,7 +9449,7 @@ var petHealthRecordAttachmentAccess = {
   filter: { query: editableAttachmentWhere, update: editableAttachmentWhere, delete: editableAttachmentWhere }
 };
 var petOwnerAccess = {
-  operation: { query: signedIn4, create: adminOnly5, update: adminOnly5, delete: signedIn4 },
+  operation: { query: signedIn4, create: adminOnly6, update: adminOnly6, delete: signedIn4 },
   filter: { query: ownedChildWhere, delete: petOwnerDeleteWhere }
 };
 async function findPetOwnerRole(context, petId, userId) {
@@ -9595,12 +9773,12 @@ function resolveRescuePetInput({ operation, resolvedData }) {
 }
 async function validateRescuePet({ operation, item, resolvedData, context, addValidationError }) {
   if (!resolvedData || isSudoContext(context) || isPlatformAdmin(context.session)) return;
-  const fail13 = (message) => addValidationError?.(message);
+  const fail14 = (message) => addValidationError?.(message);
   const userId = getSessionUserId(context.session);
   const organizationId = (operation === "create" ? resolvedData.organization?.connect?.id : item?.organizationId) ?? null;
   if (!organizationId) {
     if (resolvedData.stage || resolvedData.intakeDate || resolvedData.fosterMember?.connect) {
-      fail13("La etapa, la fecha de llegada y el hogar temporal son solo para fichas de un espacio de rescate.");
+      fail14("La etapa, la fecha de llegada y el hogar temporal son solo para fichas de un espacio de rescate.");
     }
     return;
   }
@@ -9612,16 +9790,16 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
       query: "status"
     });
     if (!isEditor) {
-      fail13("Solo admin, coordinaci\xF3n o voluntariado del espacio pueden crear fichas a su nombre.");
+      fail14("Solo admin, coordinaci\xF3n o voluntariado del espacio pueden crear fichas a su nombre.");
     } else if (!org?.status || !RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) {
-      fail13("Este espacio de rescate no est\xE1 activo.");
+      fail14("Este espacio de rescate no est\xE1 activo.");
     }
   } else if ((resolvedData.stage !== void 0 || resolvedData.intakeDate !== void 0) && !isEditor) {
-    fail13("La etapa y la fecha de llegada las cambia el equipo del espacio.");
+    fail14("La etapa y la fecha de llegada las cambia el equipo del espacio.");
   }
   if (resolvedData.fosterMember !== void 0) {
     if (!role || !RESCUE_ANIMAL_MANAGER_ROLES.includes(role)) {
-      fail13("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
+      fail14("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
       return;
     }
     const memberId = resolvedData.fosterMember?.connect?.id;
@@ -9630,7 +9808,7 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
         where: { id: memberId },
         query: "organization { id }"
       });
-      if (member?.organization?.id !== organizationId) fail13("Elige a alguien del equipo del espacio.");
+      if (member?.organization?.id !== organizationId) fail14("Elige a alguien del equipo del espacio.");
     }
   }
 }
@@ -9685,7 +9863,7 @@ var adminWriteOnly2 = {
   create: ({ session: session2 }) => isPlatformAdmin(session2),
   update: ({ session: session2 }) => isPlatformAdmin(session2)
 };
-var Pet_default = (0, import_core17.list)({
+var Pet_default = (0, import_core19.list)({
   access: petAccess,
   hooks: petHooks,
   ui: {
@@ -9694,16 +9872,16 @@ var Pet_default = (0, import_core17.list)({
     }
   },
   fields: {
-    name: (0, import_fields17.text)({ validation: { isRequired: true } }),
-    birthday: (0, import_fields17.calendarDay)({
+    name: (0, import_fields19.text)({ validation: { isRequired: true } }),
+    birthday: (0, import_fields19.calendarDay)({
       ui: { description: "Fecha de nacimiento. Si no se sabe, usa la edad aproximada." }
     }),
-    approximateAge: (0, import_fields17.text)({
+    approximateAge: (0, import_fields19.text)({
       ui: { description: 'Edad aproximada cuando no se sabe la fecha, p. ej. "2 a\xF1os".' }
     }),
-    age: (0, import_fields17.virtual)({
-      field: import_core17.graphql.field({
-        type: import_core17.graphql.String,
+    age: (0, import_fields19.virtual)({
+      field: import_core19.graphql.field({
+        type: import_core19.graphql.String,
         async resolve(item) {
           if (item?.birthday) {
             const today = /* @__PURE__ */ new Date();
@@ -9719,59 +9897,59 @@ var Pet_default = (0, import_core17.list)({
         }
       })
     }),
-    animal_type: (0, import_fields17.relationship)({
+    animal_type: (0, import_fields19.relationship)({
       ref: "AnimalType",
       many: false,
       ui: { description: "Especie" }
     }),
-    animal_breed: (0, import_fields17.relationship)({
+    animal_breed: (0, import_fields19.relationship)({
       ref: "AnimalBreed",
       many: false,
       ui: { description: "Raza" }
     }),
-    sex: (0, import_fields17.select)({
+    sex: (0, import_fields19.select)({
       options: ANIMAL_SEX_OPTIONS,
       defaultValue: "unknown"
     }),
-    color: (0, import_fields17.text)(),
-    distinctiveMarks: (0, import_fields17.text)({
+    color: (0, import_fields19.text)(),
+    distinctiveMarks: (0, import_fields19.text)({
       ui: { displayMode: "textarea", description: "Se\xF1as particulares: manchas, cicatrices, collar\u2026" }
     }),
-    weightKg: (0, import_fields17.decimal)({
+    weightKg: (0, import_fields19.decimal)({
       precision: 6,
       scale: 2,
       ui: { description: "Peso en kg" }
     }),
-    sterilized: (0, import_fields17.select)({
+    sterilized: (0, import_fields19.select)({
       options: PET_STERILIZED_OPTIONS,
       defaultValue: "unknown"
     }),
-    microchipNumber: (0, import_fields17.text)(),
-    multimedia: (0, import_fields17.relationship)({
+    microchipNumber: (0, import_fields19.text)(),
+    multimedia: (0, import_fields19.relationship)({
       ref: "PetMultimedia.pet",
       many: true
     }),
-    owners: (0, import_fields17.relationship)({
+    owners: (0, import_fields19.relationship)({
       ref: "PetOwner.pet",
       many: true,
       access: adminWriteOnly2,
       ui: { description: "Due\xF1os. El principal se crea solo al registrar la mascota." }
     }),
-    healthRecords: (0, import_fields17.relationship)({
+    healthRecords: (0, import_fields19.relationship)({
       ref: "PetHealthRecord.pet",
       many: true
     }),
-    reminders: (0, import_fields17.relationship)({
+    reminders: (0, import_fields19.relationship)({
       ref: "PetReminder.pet",
       many: true
     }),
-    status: (0, import_fields17.select)({
+    status: (0, import_fields19.select)({
       options: PET_STATUS_OPTIONS,
       defaultValue: PET_STATUS.ACTIVE,
       validation: { isRequired: true },
       ui: { description: '"Perdida" solo se pone y se quita con Marcar como perdida / Ya regres\xF3 a casa.' }
     }),
-    lostReport: (0, import_fields17.relationship)({
+    lostReport: (0, import_fields19.relationship)({
       ref: "Animal",
       many: false,
       access: adminWriteOnly2,
@@ -9782,38 +9960,38 @@ var Pet_default = (0, import_core17.list)({
      * (si eres del equipo, ver Pet.hooks.ts); cambiarla después solo lo hacen un admin y las
      * mutaciones de rescate (`completeRescueAdoption` la quita).
      */
-    organization: (0, import_fields17.relationship)({
+    organization: (0, import_fields19.relationship)({
       ref: "RescueOrganization.pets",
       many: false,
       access: { update: adminWriteOnly2.update },
       ui: { description: "Espacio de rescate que tiene al animal (ficha interna)" }
     }),
-    stage: (0, import_fields17.select)({
+    stage: (0, import_fields19.select)({
       options: PET_RESCUE_STAGE_OPTIONS,
       db: { isNullable: true },
       ui: { description: "Etapa en el espacio de rescate (solo fichas de un espacio)" }
     }),
-    intakeDate: (0, import_fields17.calendarDay)({ ui: { description: "Lleg\xF3 al espacio de rescate" } }),
+    intakeDate: (0, import_fields19.calendarDay)({ ui: { description: "Lleg\xF3 al espacio de rescate" } }),
     /** Persona del equipo que lo tiene en su hogar temporal: ella ve y edita solo estas fichas. */
-    fosterMember: (0, import_fields17.relationship)({
+    fosterMember: (0, import_fields19.relationship)({
       ref: "RescueOrganizationMember",
       many: false,
       ui: { description: "Hogar temporal asignado (alguien del equipo del espacio)" }
     }),
     /** Reporte público del animal: del que se creó la ficha o el que se publicó desde ella. */
-    publicReport: (0, import_fields17.relationship)({
+    publicReport: (0, import_fields19.relationship)({
       ref: "Animal",
       many: false,
       access: adminWriteOnly2,
       ui: { description: "Reporte p\xFAblico ligado (convertAnimalToPet / publishRescuePet)" }
     }),
-    adoptedFromOrganization: (0, import_fields17.relationship)({
+    adoptedFromOrganization: (0, import_fields19.relationship)({
       ref: "RescueOrganization",
       many: false,
       access: adminWriteOnly2,
       ui: { description: "Espacio de rescate del que se adopt\xF3 (lo llena completeRescueAdoption)" }
     }),
-    adoptedAt: (0, import_fields17.timestamp)({
+    adoptedAt: (0, import_fields19.timestamp)({
       access: adminWriteOnly2,
       ui: { itemView: { fieldMode: "read" } }
     }),
@@ -9821,9 +9999,9 @@ var Pet_default = (0, import_core17.list)({
      * Con qué rol entra quien consulta: `principal` / `family` (dueños) o su rol en el equipo del
      * espacio. El front decide con esto qué botones mostrar; los permisos los aplica el acceso.
      */
-    viewerRole: (0, import_fields17.virtual)({
-      field: import_core17.graphql.field({
-        type: import_core17.graphql.String,
+    viewerRole: (0, import_fields19.virtual)({
+      field: import_core19.graphql.field({
+        type: import_core19.graphql.String,
         async resolve(item, _args, context) {
           const userId = getSessionUserId(context.session);
           if (!userId || !item?.id) return null;
@@ -9835,7 +10013,7 @@ var Pet_default = (0, import_core17.list)({
         }
       })
     }),
-    createdAt: (0, import_fields17.timestamp)({
+    createdAt: (0, import_fields19.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -9844,7 +10022,7 @@ var Pet_default = (0, import_core17.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields17.timestamp)({
+    updatedAt: (0, import_fields19.timestamp)({
       defaultValue: { kind: "now" },
       db: { updatedAt: true },
       ui: {
@@ -9856,26 +10034,26 @@ var Pet_default = (0, import_core17.list)({
 });
 
 // models/Pet/PetMultimedia/PetMultimedia.ts
-var import_core18 = require("@keystone-6/core");
-var import_fields18 = require("@keystone-6/core/fields");
-var PetMultimedia_default = (0, import_core18.list)({
+var import_core20 = require("@keystone-6/core");
+var import_fields20 = require("@keystone-6/core/fields");
+var PetMultimedia_default = (0, import_core20.list)({
   access: petChildAccess,
   hooks: { validateInput: validatePetChildOwner },
   fields: {
-    image: (0, import_fields18.image)({
+    image: (0, import_fields20.image)({
       storage: "s3_pets"
     }),
-    pet: (0, import_fields18.relationship)({
+    pet: (0, import_fields20.relationship)({
       ref: "Pet.multimedia"
     }),
-    order: (0, import_fields18.integer)({
+    order: (0, import_fields20.integer)({
       defaultValue: 1,
       validation: { isRequired: true },
       ui: {
         description: "1 es la foto principal. 2, 3\u2026 el resto."
       }
     }),
-    createdAt: (0, import_fields18.timestamp)({
+    createdAt: (0, import_fields20.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -9884,8 +10062,8 @@ var PetMultimedia_default = (0, import_core18.list)({
 });
 
 // models/Pet/PetOwner/PetOwner.ts
-var import_core19 = require("@keystone-6/core");
-var import_fields19 = require("@keystone-6/core/fields");
+var import_core21 = require("@keystone-6/core");
+var import_fields21 = require("@keystone-6/core/fields");
 async function validatePetOwner({
   operation,
   resolvedData,
@@ -9915,22 +10093,22 @@ async function validatePetOwner({
     addValidationError("La mascota ya tiene un due\xF1o principal.");
   }
 }
-var PetOwner_default = (0, import_core19.list)({
+var PetOwner_default = (0, import_core21.list)({
   access: petOwnerAccess,
   hooks: { validateInput: validatePetOwner },
   ui: {
     listView: { initialColumns: ["pet", "user", "role", "createdAt"] }
   },
   fields: {
-    pet: (0, import_fields19.relationship)({
+    pet: (0, import_fields21.relationship)({
       ref: "Pet.owners",
       many: false
     }),
-    user: (0, import_fields19.relationship)({
+    user: (0, import_fields21.relationship)({
       ref: "User",
       many: false
     }),
-    role: (0, import_fields19.select)({
+    role: (0, import_fields21.select)({
       options: PET_OWNER_ROLE_OPTIONS,
       defaultValue: PET_OWNER_ROLE.FAMILY,
       validation: { isRequired: true }
@@ -9939,9 +10117,9 @@ var PetOwner_default = (0, import_core19.list)({
      * Solo el nombre de la persona, para que la familia vea quién más es dueño sin poder leer su
      * `User` (correo y teléfono siguen bajo el acceso de `User`).
      */
-    userName: (0, import_fields19.virtual)({
-      field: import_core19.graphql.field({
-        type: import_core19.graphql.String,
+    userName: (0, import_fields21.virtual)({
+      field: import_core21.graphql.field({
+        type: import_core21.graphql.String,
         async resolve(item, _args, context) {
           if (!item?.userId) return "";
           const user = await context.sudo().query.User.findOne({
@@ -9952,7 +10130,7 @@ var PetOwner_default = (0, import_core19.list)({
         }
       })
     }),
-    createdAt: (0, import_fields19.timestamp)({
+    createdAt: (0, import_fields21.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -9963,15 +10141,15 @@ var PetOwner_default = (0, import_core19.list)({
 });
 
 // models/Pet/HealthRecord/PetHealthRecord.ts
-var import_core20 = require("@keystone-6/core");
-var import_fields20 = require("@keystone-6/core/fields");
+var import_core22 = require("@keystone-6/core");
+var import_fields22 = require("@keystone-6/core/fields");
 
 // models/Pet/HealthRecord/PetHealthRecord.hooks.ts
 function toYmd(value) {
   if (!value) return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
-  const text86 = String(value).trim();
-  return text86 ? text86.slice(0, 10) : null;
+  const text87 = String(value).trim();
+  return text87 ? text87.slice(0, 10) : null;
 }
 function resolveCreatedBy({ operation, resolvedData, context }) {
   const data = { ...resolvedData };
@@ -10076,7 +10254,7 @@ var adminWriteOnly3 = {
   create: ({ session: session2 }) => isPlatformAdmin(session2),
   update: ({ session: session2 }) => isPlatformAdmin(session2)
 };
-var PetHealthRecord_default = (0, import_core20.list)({
+var PetHealthRecord_default = (0, import_core22.list)({
   access: petChildAccess,
   hooks: petHealthRecordHooks,
   ui: {
@@ -10085,58 +10263,58 @@ var PetHealthRecord_default = (0, import_core20.list)({
     }
   },
   fields: {
-    pet: (0, import_fields20.relationship)({
+    pet: (0, import_fields22.relationship)({
       ref: "Pet.healthRecords",
       many: false
     }),
-    type: (0, import_fields20.select)({
+    type: (0, import_fields22.select)({
       options: PET_HEALTH_RECORD_TYPE_OPTIONS,
       defaultValue: "vaccine",
       validation: { isRequired: true }
     }),
-    name: (0, import_fields20.text)({
+    name: (0, import_fields22.text)({
       validation: { isRequired: true },
       ui: { description: 'Ej. "Rabia", "S\xE9xtuple", "Revisi\xF3n general".' }
     }),
-    appliedDate: (0, import_fields20.calendarDay)({ validation: { isRequired: true } }),
-    nextDueDate: (0, import_fields20.calendarDay)({
+    appliedDate: (0, import_fields22.calendarDay)({ validation: { isRequired: true } }),
+    nextDueDate: (0, import_fields22.calendarDay)({
       ui: { description: "Pr\xF3xima aplicaci\xF3n o revisi\xF3n. Crea un recordatorio." }
     }),
-    veterinary: (0, import_fields20.relationship)({
+    veterinary: (0, import_fields22.relationship)({
       ref: "PetPlace",
       many: false,
       ui: { description: "Veterinaria donde se aplic\xF3 (opcional)." }
     }),
-    notes: (0, import_fields20.text)({ ui: { displayMode: "textarea" } }),
-    attachments: (0, import_fields20.relationship)({
+    notes: (0, import_fields22.text)({ ui: { displayMode: "textarea" } }),
+    attachments: (0, import_fields22.relationship)({
       ref: "PetHealthRecordAttachment.healthRecord",
       many: true
     }),
-    verifiedByVet: (0, import_fields20.checkbox)({
+    verifiedByVet: (0, import_fields22.checkbox)({
       defaultValue: false,
       access: adminWriteOnly3,
       ui: { description: "Fase 3: la veterinaria confirma el registro. Sin l\xF3gica todav\xEDa." }
     }),
-    createdBy: (0, import_fields20.relationship)({
+    createdBy: (0, import_fields22.relationship)({
       ref: "User",
       many: false,
       access: adminWriteOnly3,
       ui: { itemView: { fieldMode: "read" } }
     }),
-    reminder: (0, import_fields20.relationship)({
+    reminder: (0, import_fields22.relationship)({
       ref: "PetReminder.healthRecord",
       many: false,
       access: adminWriteOnly3,
       ui: { description: "Recordatorio autom\xE1tico de la pr\xF3xima fecha." }
     }),
-    createdAt: (0, import_fields20.timestamp)({
+    createdAt: (0, import_fields22.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields20.timestamp)({
+    updatedAt: (0, import_fields22.timestamp)({
       defaultValue: { kind: "now" },
       db: { updatedAt: true },
       ui: {
@@ -10148,19 +10326,19 @@ var PetHealthRecord_default = (0, import_core20.list)({
 });
 
 // models/Pet/HealthRecord/PetHealthRecordAttachment/PetHealthRecordAttachment.ts
-var import_core21 = require("@keystone-6/core");
-var import_fields21 = require("@keystone-6/core/fields");
-var PetHealthRecordAttachment_default = (0, import_core21.list)({
+var import_core23 = require("@keystone-6/core");
+var import_fields23 = require("@keystone-6/core/fields");
+var PetHealthRecordAttachment_default = (0, import_core23.list)({
   access: petHealthRecordAttachmentAccess,
   hooks: { validateInput: validateHealthRecordAttachmentOwner },
   fields: {
-    image: (0, import_fields21.image)({
+    image: (0, import_fields23.image)({
       storage: "s3_pets"
     }),
-    healthRecord: (0, import_fields21.relationship)({
+    healthRecord: (0, import_fields23.relationship)({
       ref: "PetHealthRecord.attachments"
     }),
-    createdAt: (0, import_fields21.timestamp)({
+    createdAt: (0, import_fields23.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -10169,8 +10347,8 @@ var PetHealthRecordAttachment_default = (0, import_core21.list)({
 });
 
 // models/Pet/Reminder/PetReminder.ts
-var import_core22 = require("@keystone-6/core");
-var import_fields22 = require("@keystone-6/core/fields");
+var import_core24 = require("@keystone-6/core");
+var import_fields24 = require("@keystone-6/core/fields");
 
 // models/Pet/Reminder/PetReminder.hooks.ts
 function resetWhenDueDateChanges({ operation, item, resolvedData = {} }) {
@@ -10216,7 +10394,7 @@ var petReminderHooks = {
 };
 
 // models/Pet/Reminder/PetReminder.ts
-var PetReminder_default = (0, import_core22.list)({
+var PetReminder_default = (0, import_core24.list)({
   access: petChildAccess,
   hooks: petReminderHooks,
   ui: {
@@ -10225,34 +10403,34 @@ var PetReminder_default = (0, import_core22.list)({
     }
   },
   fields: {
-    pet: (0, import_fields22.relationship)({
+    pet: (0, import_fields24.relationship)({
       ref: "Pet.reminders",
       many: false
     }),
-    healthRecord: (0, import_fields22.relationship)({
+    healthRecord: (0, import_fields24.relationship)({
       ref: "PetHealthRecord.reminder",
       many: false,
       db: { foreignKey: true },
       ui: { description: "Registro que lo gener\xF3 (se crea solo con su pr\xF3xima fecha)." }
     }),
-    title: (0, import_fields22.text)({ validation: { isRequired: true } }),
-    dueDate: (0, import_fields22.calendarDay)({ validation: { isRequired: true } }),
-    notifyDaysBefore: (0, import_fields22.integer)({
+    title: (0, import_fields24.text)({ validation: { isRequired: true } }),
+    dueDate: (0, import_fields24.calendarDay)({ validation: { isRequired: true } }),
+    notifyDaysBefore: (0, import_fields24.integer)({
       defaultValue: PET_REMINDER_DEFAULT_DAYS_BEFORE,
       validation: { isRequired: true, min: 0, max: PET_REMINDER_MAX_DAYS_BEFORE },
       ui: { description: "Cu\xE1ntos d\xEDas antes de la fecha se avisa." }
     }),
-    channels: (0, import_fields22.multiselect)({
+    channels: (0, import_fields24.multiselect)({
       type: "string",
       options: PET_REMINDER_CHANNEL_OPTIONS,
       defaultValue: PET_REMINDER_DEFAULT_CHANNELS
     }),
-    status: (0, import_fields22.select)({
+    status: (0, import_fields24.select)({
       options: PET_REMINDER_STATUS_OPTIONS,
       defaultValue: PET_REMINDER_STATUS.PENDING,
       validation: { isRequired: true }
     }),
-    sentAt: (0, import_fields22.timestamp)({
+    sentAt: (0, import_fields24.timestamp)({
       db: { isNullable: true },
       access: {
         create: ({ session: session2 }) => isPlatformAdmin(session2),
@@ -10260,14 +10438,14 @@ var PetReminder_default = (0, import_core22.list)({
       },
       ui: { itemView: { fieldMode: "read" } }
     }),
-    createdAt: (0, import_fields22.timestamp)({
+    createdAt: (0, import_fields24.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields22.timestamp)({
+    updatedAt: (0, import_fields24.timestamp)({
       defaultValue: { kind: "now" },
       db: { updatedAt: true },
       ui: {
@@ -10279,16 +10457,16 @@ var PetReminder_default = (0, import_core22.list)({
 });
 
 // models/Pet/PetPlace/PetPlace.ts
-var import_core24 = require("@keystone-6/core");
-var import_fields24 = require("@keystone-6/core/fields");
+var import_core26 = require("@keystone-6/core");
+var import_fields26 = require("@keystone-6/core/fields");
 
 // models/Pet/Schedule/Schedule.ts
-var import_core23 = require("@keystone-6/core");
-var import_fields23 = require("@keystone-6/core/fields");
-var Schedule_default = (0, import_core23.list)({
+var import_core25 = require("@keystone-6/core");
+var import_fields25 = require("@keystone-6/core/fields");
+var Schedule_default = (0, import_core25.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    day: (0, import_fields23.select)({
+    day: (0, import_fields25.select)({
       options: [
         "Domingo" /* DOM */,
         "Lunes" /* LUN */,
@@ -10300,12 +10478,12 @@ var Schedule_default = (0, import_core23.list)({
       ],
       validation: { isRequired: true }
     }),
-    timeIni: (0, import_fields23.integer)({ validation: { isRequired: true } }),
-    timeEnd: (0, import_fields23.integer)({ validation: { isRequired: true } }),
-    pet_place: (0, import_fields23.relationship)({
+    timeIni: (0, import_fields25.integer)({ validation: { isRequired: true } }),
+    timeEnd: (0, import_fields25.integer)({ validation: { isRequired: true } }),
+    pet_place: (0, import_fields25.relationship)({
       ref: "PetPlace.pet_place_schedules"
     }),
-    createdAt: (0, import_fields23.timestamp)({
+    createdAt: (0, import_fields25.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -10567,7 +10745,7 @@ var pipelineOptions = Object.values(PIPELINE_STATUS).map((value) => ({
   label: value,
   value
 }));
-var PetPlace_default = (0, import_core24.list)({
+var PetPlace_default = (0, import_core26.list)({
   access: petPlaceAccess,
   ui: {
     listView: {
@@ -10582,8 +10760,8 @@ var PetPlace_default = (0, import_core24.list)({
     resolveInput: petPlaceResolveInput
   },
   fields: {
-    name: (0, import_fields24.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields24.text)({
+    name: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields26.text)({
       ...adminCreateOnly,
       isIndexed: "unique",
       db: { isNullable: true },
@@ -10593,69 +10771,69 @@ var PetPlace_default = (0, import_core24.list)({
         description: "URL amigable. Se genera sola (nombre + municipio) y no cambia si editas el nombre."
       }
     }),
-    description: (0, import_fields24.text)({ validation: { isRequired: true } }),
-    phone: (0, import_fields24.text)(),
-    whatsapp: (0, import_fields24.text)({
+    description: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    phone: (0, import_fields26.text)(),
+    whatsapp: (0, import_fields26.text)({
       ui: { description: "WhatsApp de la cl\xEDnica (solo d\xEDgitos, con lada)" }
     }),
-    website: (0, import_fields24.text)(),
-    email: (0, import_fields24.text)({
+    website: (0, import_fields26.text)(),
+    email: (0, import_fields26.text)({
       ui: { description: "Correo p\xFAblico de la cl\xEDnica" }
     }),
-    emergencies: (0, import_fields24.checkbox)({
+    emergencies: (0, import_fields26.checkbox)({
       defaultValue: false,
       ui: { description: "Atiende urgencias 24/7" }
     }),
-    parking: (0, import_fields24.checkbox)({
+    parking: (0, import_fields26.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene estacionamiento" }
     }),
-    appointmentRequired: (0, import_fields24.checkbox)({
+    appointmentRequired: (0, import_fields26.checkbox)({
       defaultValue: false,
       ui: { description: "Atiende solo con cita" }
     }),
-    street: (0, import_fields24.text)(),
-    municipality: (0, import_fields24.text)(),
-    state: (0, import_fields24.text)(),
-    country: (0, import_fields24.text)(),
-    cp: (0, import_fields24.text)(),
-    lat: (0, import_fields24.text)(),
-    lng: (0, import_fields24.text)(),
-    views: (0, import_fields24.integer)({ ...adminCreateOnly }),
-    types: (0, import_fields24.relationship)({
+    street: (0, import_fields26.text)(),
+    municipality: (0, import_fields26.text)(),
+    state: (0, import_fields26.text)(),
+    country: (0, import_fields26.text)(),
+    cp: (0, import_fields26.text)(),
+    lat: (0, import_fields26.text)(),
+    lng: (0, import_fields26.text)(),
+    views: (0, import_fields26.integer)({ ...adminCreateOnly }),
+    types: (0, import_fields26.relationship)({
       ref: "PetPlaceType",
       many: true
     }),
-    services: (0, import_fields24.relationship)({
+    services: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "PetPlaceService",
       many: true
     }),
-    requested_services: (0, import_fields24.relationship)({
+    requested_services: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "PetPlaceService.requestedFor",
       many: true,
       ui: { description: "Servicios que esta cl\xEDnica pidi\xF3 al cat\xE1logo" }
     }),
-    patients: (0, import_fields24.relationship)({
+    patients: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "User.clinic_patients_of",
       many: true,
       ui: { description: "Pacientes dados de alta por esta cl\xEDnica" }
     }),
-    user: (0, import_fields24.relationship)({
+    user: (0, import_fields26.relationship)({
       ref: "User.pet_places",
       many: false,
       ui: { description: "Due\xF1o o solicitante de la ficha" }
     }),
-    verified: (0, import_fields24.checkbox)({
+    verified: (0, import_fields26.checkbox)({
       ...adminCreateOnly,
       defaultValue: false,
       ui: {
         description: "Marca cuando un admin ya valid\xF3 que la cl\xEDnica es de este usuario"
       }
     }),
-    verifiedAt: (0, import_fields24.timestamp)({
+    verifiedAt: (0, import_fields26.timestamp)({
       ...adminCreateOnly,
       db: { isNullable: true },
       ui: {
@@ -10663,17 +10841,17 @@ var PetPlace_default = (0, import_core24.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    claimStatus: (0, import_fields24.select)({
+    claimStatus: (0, import_fields26.select)({
       options: PET_PLACE_CLAIM_STATUS_OPTIONS,
       defaultValue: PET_PLACE_CLAIM_STATUS.UNCLAIMED,
       ui: { displayMode: "segmented-control" }
     }),
-    claimRole: (0, import_fields24.select)({
+    claimRole: (0, import_fields26.select)({
       ...ownerPrivateField,
       options: PET_PLACE_CLAIM_ROLE_OPTIONS,
       ui: { description: "Rol declarado al reclamar" }
     }),
-    pipelineStatus: (0, import_fields24.select)({
+    pipelineStatus: (0, import_fields26.select)({
       ...adminInternalField,
       type: "string",
       options: pipelineOptions,
@@ -10683,18 +10861,18 @@ var PetPlace_default = (0, import_core24.list)({
         description: "Estatus comercial interno (solo admin). No lo ve el due\xF1o de la ficha."
       }
     }),
-    claimPhone: (0, import_fields24.text)({
+    claimPhone: (0, import_fields26.text)({
       ...ownerPrivateField,
       ui: { description: "Tel\xE9fono que dej\xF3 en la solicitud" }
     }),
-    claimNotes: (0, import_fields24.text)({
+    claimNotes: (0, import_fields26.text)({
       ...ownerPrivateField,
       ui: {
         displayMode: "textarea",
         description: "C\xF3mo comprueba que es suya (c\xE9dula, RFC, etc.)"
       }
     }),
-    claimedAt: (0, import_fields24.timestamp)({
+    claimedAt: (0, import_fields26.timestamp)({
       ...ownerPrivateField,
       db: { isNullable: true },
       ui: {
@@ -10702,9 +10880,9 @@ var PetPlace_default = (0, import_core24.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    isOpen: (0, import_fields24.virtual)({
-      field: import_core24.graphql.field({
-        type: import_core24.graphql.Boolean,
+    isOpen: (0, import_fields26.virtual)({
+      field: import_core26.graphql.field({
+        type: import_core26.graphql.Boolean,
         async resolve(item, args, context) {
           const today = /* @__PURE__ */ new Date();
           const schedules = await context.query.Schedule.findMany({
@@ -10732,34 +10910,34 @@ var PetPlace_default = (0, import_core24.list)({
         }
       })
     }),
-    pet_place_social_media: (0, import_fields24.relationship)({
+    pet_place_social_media: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "SocialMedia.pet_place",
       many: true
     }),
-    pet_place_likes: (0, import_fields24.relationship)({
+    pet_place_likes: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "PetPlaceLike.pet_place",
       many: true
     }),
-    pet_place_schedules: (0, import_fields24.relationship)({
+    pet_place_schedules: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "Schedule.pet_place",
       many: true
     }),
-    pet_place_appointments: (0, import_fields24.relationship)({
+    pet_place_appointments: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "PetPlaceAppointment.pet_place",
       many: true
     }),
-    pet_place_reviews: (0, import_fields24.relationship)({
+    pet_place_reviews: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "Review.pet_place",
       many: true
     }),
-    reviewsCount: (0, import_fields24.virtual)({
-      field: import_core24.graphql.field({
-        type: import_core24.graphql.Int,
+    reviewsCount: (0, import_fields26.virtual)({
+      field: import_core26.graphql.field({
+        type: import_core26.graphql.Int,
         async resolve(item, args, context) {
           const reviews = await context.query.Review.findMany({
             where: {
@@ -10775,9 +10953,9 @@ var PetPlace_default = (0, import_core24.list)({
         }
       })
     }),
-    averageRating: (0, import_fields24.virtual)({
-      field: import_core24.graphql.field({
-        type: import_core24.graphql.Float,
+    averageRating: (0, import_fields26.virtual)({
+      field: import_core26.graphql.field({
+        type: import_core26.graphql.Float,
         async resolve(item, args, context) {
           const reviews = await context.query.Review.findMany({
             where: {
@@ -10800,20 +10978,20 @@ var PetPlace_default = (0, import_core24.list)({
         }
       })
     }),
-    pet_place_ads: (0, import_fields24.relationship)({
+    pet_place_ads: (0, import_fields26.relationship)({
       ...adminCreateOnly,
       ref: "Ad.pet_place",
       many: true
     }),
-    address: (0, import_fields24.text)(),
-    google_place_id: (0, import_fields24.text)({
+    address: (0, import_fields26.text)(),
+    google_place_id: (0, import_fields26.text)({
       ...adminCreateOnly,
       isIndexed: "unique",
       db: { isNullable: true },
       validation: { isRequired: false }
     }),
-    google_opening_hours: (0, import_fields24.text)({ ...adminCreateOnly }),
-    createdAt: (0, import_fields24.timestamp)({
+    google_opening_hours: (0, import_fields26.text)({ ...adminCreateOnly }),
+    createdAt: (0, import_fields26.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -10826,8 +11004,8 @@ var PetPlace_default = (0, import_core24.list)({
 });
 
 // models/Pet/RescueOrganization/RescueOrganization.ts
-var import_core25 = require("@keystone-6/core");
-var import_fields25 = require("@keystone-6/core/fields");
+var import_core27 = require("@keystone-6/core");
+var import_fields27 = require("@keystone-6/core/fields");
 
 // models/Pet/RescueOrganization/impact.ts
 var HOME_STATUSES = ["adopted", "in_family"];
@@ -10986,9 +11164,9 @@ function sessionKey(session2) {
   return `${session2.startsAt.getTime()}-${session2.endsAt.getTime()}`;
 }
 function normalizeSessions(raw, { existing = [], now = /* @__PURE__ */ new Date() } = {}) {
-  const list100 = Array.isArray(raw) ? raw : [];
-  if (list100.length === 0) return { ok: false, message: "Agrega al menos una fecha." };
-  if (list100.length > PET_EVENT_LIMITS.MAX_SESSIONS) {
+  const list101 = Array.isArray(raw) ? raw : [];
+  if (list101.length === 0) return { ok: false, message: "Agrega al menos una fecha." };
+  if (list101.length > PET_EVENT_LIMITS.MAX_SESSIONS) {
     return { ok: false, message: `Un evento puede tener hasta ${PET_EVENT_LIMITS.MAX_SESSIONS} fechas.` };
   }
   const existingKeys = new Set(existing.map(sessionKey));
@@ -10996,7 +11174,7 @@ function normalizeSessions(raw, { existing = [], now = /* @__PURE__ */ new Date(
   maxStart.setMonth(maxStart.getMonth() + PET_EVENT_LIMITS.MAX_MONTHS_AHEAD);
   const sessions = [];
   const seen = /* @__PURE__ */ new Set();
-  for (const item of list100) {
+  for (const item of list101) {
     const startsAt = new Date(item?.startsAt);
     const endsAt = new Date(item?.endsAt);
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
@@ -11082,39 +11260,39 @@ async function normalizePetEventInput(context, input, {
   existingSessions = [],
   now = /* @__PURE__ */ new Date()
 }) {
-  const fail13 = (message) => ({ ok: false, message });
+  const fail14 = (message) => ({ ok: false, message });
   const title = clean3(input.title, PET_EVENT_LIMITS.TITLE_MAX);
-  if (title.length < PET_EVENT_LIMITS.TITLE_MIN) return fail13("Escribe un t\xEDtulo de al menos 5 letras.");
+  if (title.length < PET_EVENT_LIMITS.TITLE_MIN) return fail14("Escribe un t\xEDtulo de al menos 5 letras.");
   const category = (input.category ?? "").trim();
-  if (!CATEGORY_VALUES.has(category)) return fail13("Elige el tipo de evento.");
+  if (!CATEGORY_VALUES.has(category)) return fail14("Elige el tipo de evento.");
   const species = [...new Set((input.species ?? []).filter((value) => SPECIES_VALUES.has(value)))];
   const description = cleanMultiline(input.description, PET_EVENT_LIMITS.DESCRIPTION_MAX);
   if (description.length < PET_EVENT_LIMITS.DESCRIPTION_MIN) {
-    return fail13("Cuenta un poco m\xE1s del evento (al menos 20 letras).");
+    return fail14("Cuenta un poco m\xE1s del evento (al menos 20 letras).");
   }
   const requirements = cleanMultiline(input.requirements, PET_EVENT_LIMITS.REQUIREMENTS_MAX);
   const organizerName = clean3(input.organizerName, PET_EVENT_LIMITS.ORGANIZER_MAX);
   const contactPhone = optionalPhone2(input.contactPhone, "Tel\xE9fono de contacto");
-  if (!contactPhone.ok) return fail13(contactPhone.message);
+  if (!contactPhone.ok) return fail14(contactPhone.message);
   const registrationWhatsapp = optionalPhone2(input.registrationWhatsapp, "WhatsApp de registro");
-  if (!registrationWhatsapp.ok) return fail13(registrationWhatsapp.message);
+  if (!registrationWhatsapp.ok) return fail14(registrationWhatsapp.message);
   const registrationUrl = optionalUrl(input.registrationUrl);
-  if (!registrationUrl.ok) return fail13(registrationUrl.message);
+  if (!registrationUrl.ok) return fail14(registrationUrl.message);
   const social = {};
   for (const field of Object.keys(PET_EVENT_SOCIAL_NETWORKS)) {
     const result5 = normalizeSocialUrl(field, input[field]);
-    if (!result5.ok) return fail13(result5.message);
+    if (!result5.ok) return fail14(result5.message);
     social[field] = result5.url;
   }
   const websiteUrl = optionalUrl(input.websiteUrl, "El link del sitio web");
-  if (!websiteUrl.ok) return fail13(websiteUrl.message);
+  if (!websiteUrl.ok) return fail14(websiteUrl.message);
   const lat = Number(input.lat);
   const lng = Number(input.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 && lng === 0) {
-    return fail13("Marca en el mapa d\xF3nde ser\xE1 el evento.");
+    return fail14("Marca en el mapa d\xF3nde ser\xE1 el evento.");
   }
   if (lat < MX_BOUNDS.minLat || lat > MX_BOUNDS.maxLat || lng < MX_BOUNDS.minLng || lng > MX_BOUNDS.maxLng) {
-    return fail13("Por ahora solo publicamos eventos en M\xE9xico.");
+    return fail14("Por ahora solo publicamos eventos en M\xE9xico.");
   }
   let city = clean3(input.city, 120);
   let stateText = clean3(input.state, 120);
@@ -11131,16 +11309,16 @@ async function normalizePetEventInput(context, input, {
   }
   const stateCode = normalizeStateCode(stateText);
   if (!stateCode) {
-    return fail13("No pudimos reconocer el estado del lugar. Mueve un poco el pin o intenta de nuevo.");
+    return fail14("No pudimos reconocer el estado del lugar. Mueve un poco el pin o intenta de nuevo.");
   }
   const placeLabel = clean3(input.placeLabel, PET_EVENT_LIMITS.PLACE_LABEL_MAX);
   const scope = (input.scope ?? "").trim();
-  if (!SCOPE_VALUES.has(scope)) return fail13("Elige a qui\xE9n va dirigido el evento.");
+  if (!SCOPE_VALUES.has(scope)) return fail14("Elige a qui\xE9n va dirigido el evento.");
   if (scope === PET_EVENT_SCOPE.NATIONAL && !isAdmin) {
-    return fail13("El alcance nacional solo lo asigna el equipo de Kadesh. Elige estado, municipio o zona.");
+    return fail14("El alcance nacional solo lo asigna el equipo de Kadesh. Elige estado, municipio o zona.");
   }
   if (scope === PET_EVENT_SCOPE.CITY && !cityKey(city)) {
-    return fail13("No pudimos reconocer el municipio. Elige el alcance por estado o por zona.");
+    return fail14("No pudimos reconocer el municipio. Elige el alcance por estado o por zona.");
   }
   const reachInput = optionalInt(input.reachKm);
   const reachKm = scope === PET_EVENT_SCOPE.ZONE ? PET_EVENT_REACH_KM_OPTIONS.includes(reachInput ?? -1) ? reachInput : DEFAULT_PET_EVENT_REACH_KM : DEFAULT_PET_EVENT_REACH_KM;
@@ -11150,16 +11328,16 @@ async function normalizePetEventInput(context, input, {
   if (!isFree) {
     price = optionalInt(input.price);
     if (price !== null && (price < 1 || price > PET_EVENT_LIMITS.PRICE_MAX)) {
-      return fail13("Revisa el costo: debe ser un n\xFAmero de pesos v\xE1lido.");
+      return fail14("Revisa el costo: debe ser un n\xFAmero de pesos v\xE1lido.");
     }
-    if (price === null && !priceNote) return fail13("Escribe el costo o explica la cuota (p. ej. \xABdonativo voluntario\xBB).");
+    if (price === null && !priceNote) return fail14("Escribe el costo o explica la cuota (p. ej. \xABdonativo voluntario\xBB).");
   }
   const capacity = optionalInt(input.capacity);
   if (capacity !== null && (capacity < 1 || capacity > PET_EVENT_LIMITS.CAPACITY_MAX)) {
-    return fail13("El cupo debe ser de al menos 1 lugar.");
+    return fail14("El cupo debe ser de al menos 1 lugar.");
   }
   const sessions = normalizeSessions(input.sessions, { existing: existingSessions, now });
-  if (!sessions.ok) return fail13(sessions.message);
+  if (!sessions.ok) return fail14(sessions.message);
   let petPlace = null;
   const petPlaceId = (input.petPlaceId ?? "").trim();
   if (petPlaceId) {
@@ -11168,7 +11346,7 @@ async function normalizePetEventInput(context, input, {
       query: "id claimStatus user { id }"
     });
     const owns = place && place.user?.id === userId && place.claimStatus === PET_PLACE_CLAIM_STATUS.VERIFIED;
-    if (!place || !isAdmin && !owns) return fail13("Solo puedes ligar una veterinaria verificada que sea tuya.");
+    if (!place || !isAdmin && !owns) return fail14("Solo puedes ligar una veterinaria verificada que sea tuya.");
     petPlace = { connect: { id: place.id } };
   }
   const state = stateByCode(stateCode);
@@ -11307,8 +11485,8 @@ function normalizeRescueOrgProfile(data) {
   if (has("city")) next.city = cleanLine(next.city, RESCUE_ORG_LIMITS.CITY_MAX);
   if (has("state")) next.state = cleanLine(next.state, RESCUE_ORG_LIMITS.CITY_MAX);
   if (has("species") && next.species !== null) {
-    const list100 = Array.isArray(next.species) ? next.species : [];
-    next.species = [...new Set(list100.filter((value) => SPECIES_VALUES2.has(String(value))))];
+    const list101 = Array.isArray(next.species) ? next.species : [];
+    next.species = [...new Set(list101.filter((value) => SPECIES_VALUES2.has(String(value))))];
   }
   if (has("whatsapp") && next.whatsapp !== null) {
     const raw = String(next.whatsapp).trim();
@@ -11377,8 +11555,8 @@ async function resolveRescueOrgInput({ operation, resolvedData, item, context })
   if (operation === "create" && !data.slug) {
     data.slug = await uniqueRescueSlug(context, buildRescueSlug(String(data.name ?? ""), data.city ?? null));
   } else if (typeof data.slug === "string") {
-    const clean4 = data.slug.trim().toLowerCase();
-    data.slug = clean4 ? await uniqueRescueSlug(context, clean4, item?.id ? String(item.id) : void 0) : item?.slug;
+    const clean5 = data.slug.trim().toLowerCase();
+    data.slug = clean5 ? await uniqueRescueSlug(context, clean5, item?.id ? String(item.id) : void 0) : item?.slug;
   }
   const statusChanged = data.status !== void 0;
   if (statusChanged && data.status === RESCUE_ORG_STATUS.VERIFIED && !item?.verifiedAt && !data.verifiedAt) {
@@ -11451,9 +11629,9 @@ function impactOf(item, context) {
   return pending;
 }
 function impactField(key, description) {
-  return (0, import_fields25.virtual)({
-    field: import_core25.graphql.field({
-      type: import_core25.graphql.nonNull(import_core25.graphql.Int),
+  return (0, import_fields27.virtual)({
+    field: import_core27.graphql.field({
+      type: import_core27.graphql.nonNull(import_core27.graphql.Int),
       async resolve(item, _args, context) {
         return (await impactOf(item, context))[key];
       }
@@ -11461,7 +11639,7 @@ function impactField(key, description) {
     ui: { description, listView: { fieldMode: "hidden" } }
   });
 }
-var RescueOrganization_default = (0, import_core25.list)({
+var RescueOrganization_default = (0, import_core27.list)({
   access: rescueOrganizationAccess,
   hooks: {
     resolveInput: resolveRescueOrgInput,
@@ -11476,42 +11654,42 @@ var RescueOrganization_default = (0, import_core25.list)({
     }
   },
   fields: {
-    name: (0, import_fields25.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields25.text)({
+    name: (0, import_fields27.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields27.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       access: rescueAdminWriteField,
       ui: { description: "URL del perfil (/organizaciones/<slug>). Se genera sola al crearla." }
     }),
-    type: (0, import_fields25.select)({
+    type: (0, import_fields27.select)({
       type: "string",
       options: RESCUE_ORG_TYPE_OPTIONS,
       defaultValue: RESCUE_ORG_TYPE.INDEPENDENT,
       validation: { isRequired: true }
     }),
-    description: (0, import_fields25.text)({ ui: { displayMode: "textarea" } }),
-    logo: (0, import_fields25.image)({ storage: "s3_rescue" }),
-    cover: (0, import_fields25.image)({ storage: "s3_rescue" }),
-    city: (0, import_fields25.text)(),
-    state: (0, import_fields25.text)(),
-    species: (0, import_fields25.multiselect)({
+    description: (0, import_fields27.text)({ ui: { displayMode: "textarea" } }),
+    logo: (0, import_fields27.image)({ storage: "s3_rescue" }),
+    cover: (0, import_fields27.image)({ storage: "s3_rescue" }),
+    city: (0, import_fields27.text)(),
+    state: (0, import_fields27.text)(),
+    species: (0, import_fields27.multiselect)({
       type: "string",
       // Los mismos tipos que un reporte (`AnimalType`), para que coincidan con sus animales.
       options: ANIMAL_TYPE_OPTIONS,
       defaultValue: [],
       ui: { description: "Qu\xE9 animales rescata (vac\xEDo = cualquiera)" }
     }),
-    capacity: (0, import_fields25.integer)({ ui: { description: "Cu\xE1ntos animales puede tener a la vez (opcional)" } }),
-    whatsapp: (0, import_fields25.text)({ ui: { description: "Contacto p\xFAblico, 10 d\xEDgitos" } }),
-    email: (0, import_fields25.text)(),
-    websiteUrl: (0, import_fields25.text)(),
-    facebookUrl: (0, import_fields25.text)(),
-    instagramUrl: (0, import_fields25.text)(),
-    tiktokUrl: (0, import_fields25.text)(),
-    donationUrl: (0, import_fields25.text)({ ui: { description: "Link para donar (PayPal, Mercado Pago, etc.)" } }),
-    donationInfo: (0, import_fields25.text)({ ui: { displayMode: "textarea", description: "Datos para donar que la organizaci\xF3n quiere mostrar" } }),
-    needs: (0, import_fields25.text)({ ui: { displayMode: "textarea", description: "Lo que necesita: croquetas, medicinas, cobijas\u2026" } }),
-    status: (0, import_fields25.select)({
+    capacity: (0, import_fields27.integer)({ ui: { description: "Cu\xE1ntos animales puede tener a la vez (opcional)" } }),
+    whatsapp: (0, import_fields27.text)({ ui: { description: "Contacto p\xFAblico, 10 d\xEDgitos" } }),
+    email: (0, import_fields27.text)(),
+    websiteUrl: (0, import_fields27.text)(),
+    facebookUrl: (0, import_fields27.text)(),
+    instagramUrl: (0, import_fields27.text)(),
+    tiktokUrl: (0, import_fields27.text)(),
+    donationUrl: (0, import_fields27.text)({ ui: { description: "Link para donar (PayPal, Mercado Pago, etc.)" } }),
+    donationInfo: (0, import_fields27.text)({ ui: { displayMode: "textarea", description: "Datos para donar que la organizaci\xF3n quiere mostrar" } }),
+    needs: (0, import_fields27.text)({ ui: { displayMode: "textarea", description: "Lo que necesita: croquetas, medicinas, cobijas\u2026" } }),
+    status: (0, import_fields27.select)({
       type: "string",
       options: RESCUE_ORG_STATUS_OPTIONS,
       defaultValue: RESCUE_ORG_STATUS.PENDING,
@@ -11520,47 +11698,47 @@ var RescueOrganization_default = (0, import_core25.list)({
       access: rescueAdminWriteField,
       ui: { description: "En revisi\xF3n hasta validarla por WhatsApp. Solo las verificadas son p\xFAblicas." }
     }),
-    statusNote: (0, import_fields25.text)({
+    statusNote: (0, import_fields27.text)({
       access: rescueAdminWriteField,
       ui: { displayMode: "textarea", description: "Motivo del rechazo o suspensi\xF3n (lo ve su equipo)" }
     }),
-    verifiedAt: (0, import_fields25.timestamp)({
+    verifiedAt: (0, import_fields27.timestamp)({
       db: { isNullable: true },
       access: rescueAdminWriteField,
       ui: { itemView: { fieldMode: "read" } }
     }),
-    isAlly: (0, import_fields25.checkbox)({
+    isAlly: (0, import_fields27.checkbox)({
       defaultValue: false,
       access: rescueAdminWriteField,
       ui: { description: "Aliado KADESH: sale en la portada y en /aliados. Solo organizaciones verificadas." }
     }),
-    allySince: (0, import_fields25.timestamp)({
+    allySince: (0, import_fields27.timestamp)({
       db: { isNullable: true },
       access: rescueAdminWriteField,
       ui: { itemView: { fieldMode: "read" } }
     }),
-    allyOrder: (0, import_fields25.integer)({
+    allyOrder: (0, import_fields27.integer)({
       access: rescueAdminWriteField,
       ui: { description: "Orden manual en la portada (1 primero). Vac\xEDo = por impacto." }
     }),
-    adminNotes: (0, import_fields25.text)({
+    adminNotes: (0, import_fields27.text)({
       access: rescueAdminReadField,
       ui: { displayMode: "textarea", description: "Notas internas del equipo de Kadesh" }
     }),
-    createdBy: (0, import_fields25.relationship)({
+    createdBy: (0, import_fields27.relationship)({
       ref: "User",
       many: false,
       access: rescueAdminReadField,
       ui: { description: "Qui\xE9n activ\xF3 el espacio" }
     }),
-    members: (0, import_fields25.relationship)({ ref: "RescueOrganizationMember.organization", many: true }),
-    animals: (0, import_fields25.relationship)({
+    members: (0, import_fields27.relationship)({ ref: "RescueOrganizationMember.organization", many: true }),
+    animals: (0, import_fields27.relationship)({
       ref: "Animal.organization",
       many: true,
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
     }),
     /** Fichas internas (cartillas) de sus animales. Leerlas pasa por el acceso de `Pet`. */
-    pets: (0, import_fields25.relationship)({
+    pets: (0, import_fields27.relationship)({
       ref: "Pet.organization",
       many: true,
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
@@ -11569,9 +11747,9 @@ var RescueOrganization_default = (0, import_core25.list)({
     adoptedCount: impactField("adopted", "Animales que ya tienen hogar"),
     inAdoptionCount: impactField("inAdoption", "Animales en adopci\xF3n ahora"),
     /** Rol de quien consulta en la organización (`admin`, `coordinator`…), o null. */
-    viewerRole: (0, import_fields25.virtual)({
-      field: import_core25.graphql.field({
-        type: import_core25.graphql.String,
+    viewerRole: (0, import_fields27.virtual)({
+      field: import_core27.graphql.field({
+        type: import_core27.graphql.String,
         async resolve(item, _args, context) {
           const userId = getSessionUserId(context.session);
           if (!userId || !item?.id) return null;
@@ -11580,11 +11758,11 @@ var RescueOrganization_default = (0, import_core25.list)({
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
-    createdAt: (0, import_fields25.timestamp)({
+    createdAt: (0, import_fields27.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields25.timestamp)({
+    updatedAt: (0, import_fields27.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
     })
@@ -11592,8 +11770,8 @@ var RescueOrganization_default = (0, import_core25.list)({
 });
 
 // models/Pet/RescueOrganization/RescueOrganizationMember/RescueOrganizationMember.ts
-var import_core26 = require("@keystone-6/core");
-var import_fields26 = require("@keystone-6/core/fields");
+var import_core28 = require("@keystone-6/core");
+var import_fields28 = require("@keystone-6/core/fields");
 async function validateMember({
   operation,
   resolvedData,
@@ -11624,25 +11802,25 @@ async function loadUser(context, userId) {
     query: "name lastName email"
   });
 }
-var RescueOrganizationMember_default = (0, import_core26.list)({
+var RescueOrganizationMember_default = (0, import_core28.list)({
   access: rescueOrganizationMemberAccess,
   hooks: { validateInput: validateMember },
   ui: {
     listView: { initialColumns: ["organization", "user", "role", "createdAt"] }
   },
   fields: {
-    organization: (0, import_fields26.relationship)({ ref: "RescueOrganization.members", many: false }),
-    user: (0, import_fields26.relationship)({ ref: "User", many: false }),
-    role: (0, import_fields26.select)({
+    organization: (0, import_fields28.relationship)({ ref: "RescueOrganization.members", many: false }),
+    user: (0, import_fields28.relationship)({ ref: "User", many: false }),
+    role: (0, import_fields28.select)({
       type: "string",
       options: RESCUE_MEMBER_ROLE_OPTIONS,
       defaultValue: RESCUE_MEMBER_ROLE.VOLUNTEER,
       validation: { isRequired: true }
     }),
     /** Solo el nombre: el equipo se ve entre sí sin poder leer el `User` de los demás. */
-    userName: (0, import_fields26.virtual)({
-      field: import_core26.graphql.field({
-        type: import_core26.graphql.String,
+    userName: (0, import_fields28.virtual)({
+      field: import_core28.graphql.field({
+        type: import_core28.graphql.String,
         async resolve(item, _args, context) {
           const user = await loadUser(context, item?.userId);
           return [user?.name, user?.lastName].filter(Boolean).join(" ");
@@ -11650,9 +11828,9 @@ var RescueOrganizationMember_default = (0, import_core26.list)({
       })
     }),
     /** El correo, solo para quien administra el equipo (admin o coordinador) o un admin de plataforma. */
-    userEmail: (0, import_fields26.virtual)({
-      field: import_core26.graphql.field({
-        type: import_core26.graphql.String,
+    userEmail: (0, import_fields28.virtual)({
+      field: import_core28.graphql.field({
+        type: import_core28.graphql.String,
         async resolve(item, _args, context) {
           if (!item?.userId || !item?.organizationId) return null;
           if (!isPlatformAdmin(context.session)) {
@@ -11668,16 +11846,16 @@ var RescueOrganizationMember_default = (0, import_core26.list)({
       })
     }),
     /** ¿Esta fila es de quien consulta? */
-    isViewer: (0, import_fields26.virtual)({
-      field: import_core26.graphql.field({
-        type: import_core26.graphql.nonNull(import_core26.graphql.Boolean),
+    isViewer: (0, import_fields28.virtual)({
+      field: import_core28.graphql.field({
+        type: import_core28.graphql.nonNull(import_core28.graphql.Boolean),
         resolve(item, _args, context) {
           const viewerId = getSessionUserId(context.session);
           return Boolean(viewerId && item?.userId === viewerId);
         }
       })
     }),
-    createdAt: (0, import_fields26.timestamp)({
+    createdAt: (0, import_fields28.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
     })
@@ -11685,8 +11863,8 @@ var RescueOrganizationMember_default = (0, import_core26.list)({
 });
 
 // models/Pet/PetTransfer/PetTransfer.ts
-var import_core27 = require("@keystone-6/core");
-var import_fields27 = require("@keystone-6/core/fields");
+var import_core29 = require("@keystone-6/core");
+var import_fields29 = require("@keystone-6/core/fields");
 
 // models/Pet/PetTransfer/constants.ts
 var PET_TRANSFER_STATUS = {
@@ -11706,7 +11884,7 @@ var PET_TRANSFER_MESSAGE_MAX = 300;
 
 // models/Pet/PetTransfer/PetTransfer.ts
 var signedIn5 = ({ session: session2 }) => isSignedIn(session2);
-var adminOnly6 = ({ session: session2 }) => isPlatformAdmin(session2);
+var adminOnly7 = ({ session: session2 }) => isPlatformAdmin(session2);
 function giverWhere({ session: session2 }) {
   if (isPlatformAdmin(session2)) return true;
   const userId = getSessionUserId(session2);
@@ -11720,10 +11898,10 @@ function giverWhere({ session: session2 }) {
   };
 }
 var access2 = {
-  operation: { query: signedIn5, create: adminOnly6, update: adminOnly6, delete: adminOnly6 },
+  operation: { query: signedIn5, create: adminOnly7, update: adminOnly7, delete: adminOnly7 },
   filter: { query: giverWhere }
 };
-var PetTransfer_default = (0, import_core27.list)({
+var PetTransfer_default = (0, import_core29.list)({
   access: access2,
   ui: {
     listView: {
@@ -11732,35 +11910,35 @@ var PetTransfer_default = (0, import_core27.list)({
     }
   },
   fields: {
-    pet: (0, import_fields27.relationship)({ ref: "Pet", many: false }),
-    code: (0, import_fields27.text)({
+    pet: (0, import_fields29.relationship)({ ref: "Pet", many: false }),
+    code: (0, import_fields29.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "\xAB7KQ2-M9XA\xBB. Se guarda sin guion y en may\xFAsculas." }
     }),
-    status: (0, import_fields27.select)({
+    status: (0, import_fields29.select)({
       options: PET_TRANSFER_STATUS_OPTIONS,
       defaultValue: PET_TRANSFER_STATUS.PENDING,
       validation: { isRequired: true }
     }),
-    expiresAt: (0, import_fields27.timestamp)({ validation: { isRequired: true } }),
+    expiresAt: (0, import_fields29.timestamp)({ validation: { isRequired: true } }),
     /** Mensaje opcional de quien da la mascota («Le encanta el parque…»). Lo ve quien la recibe. */
-    message: (0, import_fields27.text)({ ui: { displayMode: "textarea" } }),
+    message: (0, import_fields29.text)({ ui: { displayMode: "textarea" } }),
     /** Si era ficha de un espacio de rescate al generar el código. */
-    fromOrganization: (0, import_fields27.relationship)({ ref: "RescueOrganization", many: false }),
-    createdBy: (0, import_fields27.relationship)({ ref: "User", many: false }),
-    redeemedBy: (0, import_fields27.relationship)({ ref: "User", many: false }),
-    redeemedAt: (0, import_fields27.timestamp)({ db: { isNullable: true } }),
+    fromOrganization: (0, import_fields29.relationship)({ ref: "RescueOrganization", many: false }),
+    createdBy: (0, import_fields29.relationship)({ ref: "User", many: false }),
+    redeemedBy: (0, import_fields29.relationship)({ ref: "User", many: false }),
+    redeemedAt: (0, import_fields29.timestamp)({ db: { isNullable: true } }),
     /** Vencido: sigue `pending` pero ya pasó `expiresAt`. */
-    isExpired: (0, import_fields27.virtual)({
-      field: import_core27.graphql.field({
-        type: import_core27.graphql.Boolean,
+    isExpired: (0, import_fields29.virtual)({
+      field: import_core29.graphql.field({
+        type: import_core29.graphql.Boolean,
         resolve(item) {
           return item?.status === PET_TRANSFER_STATUS.PENDING && Boolean(item?.expiresAt) && new Date(item.expiresAt).getTime() < Date.now();
         }
       })
     }),
-    createdAt: (0, import_fields27.timestamp)({
+    createdAt: (0, import_fields29.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
     })
@@ -11768,8 +11946,8 @@ var PetTransfer_default = (0, import_core27.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
-var import_core28 = require("@keystone-6/core");
-var import_fields28 = require("@keystone-6/core/fields");
+var import_core30 = require("@keystone-6/core");
+var import_fields30 = require("@keystone-6/core/fields");
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.access.ts
 function visibleWhere(session2) {
@@ -11985,7 +12163,7 @@ var petPlaceAppointmentPetValidateInput = async ({
 };
 
 // models/Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment.ts
-var PetPlaceAppointment_default = (0, import_core28.list)({
+var PetPlaceAppointment_default = (0, import_core30.list)({
   access: petPlaceAppointmentAccess,
   ui: {
     listView: {
@@ -12008,66 +12186,66 @@ var PetPlaceAppointment_default = (0, import_core28.list)({
     afterOperation: petPlaceAppointmentEmailHook.afterOperation
   },
   fields: {
-    pet_place: (0, import_fields28.relationship)({
+    pet_place: (0, import_fields30.relationship)({
       ref: "PetPlace.pet_place_appointments",
       many: false,
       ui: { description: "Negocio (veterinaria, refugio, hotel, etc.)" }
     }),
-    customer: (0, import_fields28.relationship)({
+    customer: (0, import_fields30.relationship)({
       ref: "User.my_appointments",
       many: false,
       ui: { description: "Usuario que reserv\xF3 la cita" }
     }),
-    service: (0, import_fields28.relationship)({
+    service: (0, import_fields30.relationship)({
       ref: "PetPlaceService",
       many: false,
       ui: { description: "Servicio del cat\xE1logo (opcional)" }
     }),
-    startsAt: (0, import_fields28.timestamp)({
+    startsAt: (0, import_fields30.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Inicio de la cita / check-in" }
     }),
-    endsAt: (0, import_fields28.timestamp)({
+    endsAt: (0, import_fields30.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Fin de la cita / check-out" }
     }),
-    status: (0, import_fields28.select)({
+    status: (0, import_fields30.select)({
       type: "string",
       options: PET_PLACE_APPOINTMENT_STATUS_OPTIONS,
       defaultValue: PET_PLACE_APPOINTMENT_STATUS.PENDING,
       validation: { isRequired: true },
       ui: { displayMode: "segmented-control" }
     }),
-    pet: (0, import_fields28.relationship)({
+    pet: (0, import_fields30.relationship)({
       ref: "Pet",
       many: false,
       ui: {
         description: "Mascota de la cartilla (opcional). Si viene, llena petName/petSpecies vac\xEDos."
       }
     }),
-    petName: (0, import_fields28.text)({
+    petName: (0, import_fields30.text)({
       ui: { description: "Nombre de la mascota" }
     }),
-    petSpecies: (0, import_fields28.text)({
+    petSpecies: (0, import_fields30.text)({
       ui: { description: "Especie/raza (texto libre, ej. Perro - Labrador)" }
     }),
-    notes: (0, import_fields28.text)({
+    notes: (0, import_fields30.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas del cliente (motivo de la visita, indicaciones)"
       }
     }),
-    ownerNotes: (0, import_fields28.text)({
+    ownerNotes: (0, import_fields30.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas internas del negocio (no visibles para el cliente)"
       }
     }),
-    cancelReason: (0, import_fields28.text)({
+    cancelReason: (0, import_fields30.text)({
       db: { isNullable: true },
       ui: { description: "Motivo de cancelaci\xF3n" }
     }),
-    createdAt: (0, import_fields28.timestamp)({
+    createdAt: (0, import_fields30.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -12078,23 +12256,23 @@ var PetPlaceAppointment_default = (0, import_core28.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts
-var import_core29 = require("@keystone-6/core");
-var import_fields29 = require("@keystone-6/core/fields");
-var PetPlaceLike_default = (0, import_core29.list)({
+var import_core31 = require("@keystone-6/core");
+var import_fields31 = require("@keystone-6/core/fields");
+var PetPlaceLike_default = (0, import_core31.list)({
   access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    user: (0, import_fields29.relationship)({
+    user: (0, import_fields31.relationship)({
       ref: "User",
       many: false
     }),
-    pet_place: (0, import_fields29.relationship)({
+    pet_place: (0, import_fields31.relationship)({
       ref: "PetPlace.pet_place_likes"
     }),
-    createdAt: (0, import_fields29.timestamp)({
+    createdAt: (0, import_fields31.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -12103,8 +12281,8 @@ var PetPlaceLike_default = (0, import_core29.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
-var import_core30 = require("@keystone-6/core");
-var import_fields30 = require("@keystone-6/core/fields");
+var import_core32 = require("@keystone-6/core");
+var import_fields32 = require("@keystone-6/core/fields");
 
 // models/Pet/PetPlace/PetPlaceService/status.ts
 var PET_PLACE_SERVICE_STATUS = {
@@ -12193,7 +12371,7 @@ var petPlaceServiceHooks = {
 };
 
 // models/Pet/PetPlace/PetPlaceService/PetPlaceService.ts
-var PetPlaceService_default = (0, import_core30.list)({
+var PetPlaceService_default = (0, import_core32.list)({
   access: petPlaceServiceAccess,
   ui: {
     listView: {
@@ -12205,16 +12383,16 @@ var PetPlaceService_default = (0, import_core30.list)({
     afterOperation: petPlaceServiceHooks.afterOperation
   },
   fields: {
-    name: (0, import_fields30.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields30.text)({ isIndexed: "unique" }),
-    description: (0, import_fields30.text)({ ui: { displayMode: "textarea" } }),
-    active: (0, import_fields30.checkbox)({
+    name: (0, import_fields32.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields32.text)({ isIndexed: "unique" }),
+    description: (0, import_fields32.text)({ ui: { displayMode: "textarea" } }),
+    active: (0, import_fields32.checkbox)({
       defaultValue: true,
       ui: {
         description: "Visible en el cat\xE1logo y en fichas. Solo si est\xE1 aprobado."
       }
     }),
-    status: (0, import_fields30.select)({
+    status: (0, import_fields32.select)({
       type: "string",
       options: PET_PLACE_SERVICE_STATUS_OPTIONS,
       defaultValue: PET_PLACE_SERVICE_STATUS.APPROVED,
@@ -12224,17 +12402,17 @@ var PetPlaceService_default = (0, import_core30.list)({
         description: "Pendiente = lo pidi\xF3 un due\xF1o. Aprobado = sale en el cat\xE1logo. Rechazado = no sale."
       }
     }),
-    requestedBy: (0, import_fields30.relationship)({
+    requestedBy: (0, import_fields32.relationship)({
       ref: "User.requested_pet_place_services",
       many: false,
       ui: { description: "Due\xF1o que pidi\xF3 este servicio" }
     }),
-    requestedFor: (0, import_fields30.relationship)({
+    requestedFor: (0, import_fields32.relationship)({
       ref: "PetPlace.requested_services",
       many: false,
       ui: { description: "Cl\xEDnica que lo pidi\xF3; al aprobar se conecta a sus servicios" }
     }),
-    createdAt: (0, import_fields30.timestamp)({
+    createdAt: (0, import_fields32.timestamp)({
       defaultValue: {
         kind: "now"
       }
@@ -12243,9 +12421,9 @@ var PetPlaceService_default = (0, import_core30.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceSearchArea/PetPlaceSearchArea.ts
-var import_core31 = require("@keystone-6/core");
-var import_fields31 = require("@keystone-6/core/fields");
-var PetPlaceSearchArea_default = (0, import_core31.list)({
+var import_core33 = require("@keystone-6/core");
+var import_fields33 = require("@keystone-6/core/fields");
+var PetPlaceSearchArea_default = (0, import_core33.list)({
   access: {
     operation: {
       query: ({ session: session2 }) => isPlatformAdmin(session2),
@@ -12262,23 +12440,23 @@ var PetPlaceSearchArea_default = (0, import_core31.list)({
     }
   },
   fields: {
-    key: (0, import_fields31.text)({
+    key: (0, import_fields33.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "tipo:lat:lng de la celda (ej. veterinary:19.70:-101.10)" }
     }),
-    type: (0, import_fields31.text)(),
-    lat: (0, import_fields31.float)(),
-    lng: (0, import_fields31.float)(),
-    radiusKm: (0, import_fields31.float)(),
-    googleResults: (0, import_fields31.integer)({ defaultValue: 0 }),
-    searchedAt: (0, import_fields31.timestamp)({ defaultValue: { kind: "now" } })
+    type: (0, import_fields33.text)(),
+    lat: (0, import_fields33.float)(),
+    lng: (0, import_fields33.float)(),
+    radiusKm: (0, import_fields33.float)(),
+    googleResults: (0, import_fields33.integer)({ defaultValue: 0 }),
+    searchedAt: (0, import_fields33.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
 // models/Pet/PetEvent/PetEvent.ts
-var import_core32 = require("@keystone-6/core");
-var import_fields32 = require("@keystone-6/core/fields");
+var import_core34 = require("@keystone-6/core");
+var import_fields34 = require("@keystone-6/core/fields");
 
 // models/Pet/PetEvent/PetEvent.access.ts
 function visiblePetEventWhere({ session: session2 }) {
@@ -12366,7 +12544,7 @@ async function nextSession(context, eventId) {
   });
   return row instanceof Error ? null : row;
 }
-var PetEvent_default = (0, import_core32.list)({
+var PetEvent_default = (0, import_core34.list)({
   access: petEventAccess,
   ui: {
     labelField: "title",
@@ -12397,80 +12575,80 @@ var PetEvent_default = (0, import_core32.list)({
     }
   },
   fields: {
-    title: (0, import_fields32.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields32.text)({ isIndexed: "unique", db: { isNullable: true } }),
-    category: (0, import_fields32.select)({
+    title: (0, import_fields34.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields34.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    category: (0, import_fields34.select)({
       type: "string",
       options: PET_EVENT_CATEGORY_OPTIONS.map(({ label, value }) => ({ label, value })),
       validation: { isRequired: true },
       isIndexed: true
     }),
-    species: (0, import_fields32.multiselect)({
+    species: (0, import_fields34.multiselect)({
       type: "string",
       options: PET_EVENT_SPECIES_OPTIONS,
       defaultValue: [],
       ui: { description: "Para qu\xE9 animales es (vac\xEDo = cualquiera)" }
     }),
-    description: (0, import_fields32.text)({ ui: { displayMode: "textarea" } }),
-    requirements: (0, import_fields32.text)({
+    description: (0, import_fields34.text)({ ui: { displayMode: "textarea" } }),
+    requirements: (0, import_fields34.text)({
       ui: { displayMode: "textarea", description: "Requisitos: ayuno, edad m\xEDnima, llevar correa\u2026" }
     }),
-    organizerName: (0, import_fields32.text)({ ui: { description: "Qui\xE9n organiza (asociaci\xF3n, veterinaria, municipio\u2026)" } }),
-    contactPhone: (0, import_fields32.text)({ ui: { description: "10 d\xEDgitos" } }),
-    petPlace: (0, import_fields32.relationship)({
+    organizerName: (0, import_fields34.text)({ ui: { description: "Qui\xE9n organiza (asociaci\xF3n, veterinaria, municipio\u2026)" } }),
+    contactPhone: (0, import_fields34.text)({ ui: { description: "10 d\xEDgitos" } }),
+    petPlace: (0, import_fields34.relationship)({
       ref: "PetPlace",
       ui: { description: "Veterinaria verificada que organiza (opcional)" }
     }),
-    user: (0, import_fields32.relationship)({ ref: "User", ui: { description: "Quien lo public\xF3" } }),
+    user: (0, import_fields34.relationship)({ ref: "User", ui: { description: "Quien lo public\xF3" } }),
     // Ubicación (llenada desde el pin; municipio y estado con Nominatim si faltan)
-    lat: (0, import_fields32.float)({ validation: { isRequired: true, min: -90, max: 90 } }),
-    lng: (0, import_fields32.float)({ validation: { isRequired: true, min: -180, max: 180 } }),
-    placeLabel: (0, import_fields32.text)({ ui: { description: "Nombre del lugar: \xABExplanada del Jard\xEDn Morelos\xBB" } }),
-    address: (0, import_fields32.text)(),
-    neighborhood: (0, import_fields32.text)(),
-    city: (0, import_fields32.text)(),
-    cityKey: (0, import_fields32.text)({ isIndexed: true, db: { isNullable: true }, ui: { itemView: { fieldMode: "read" } } }),
-    state: (0, import_fields32.text)(),
-    stateCode: (0, import_fields32.text)({
+    lat: (0, import_fields34.float)({ validation: { isRequired: true, min: -90, max: 90 } }),
+    lng: (0, import_fields34.float)({ validation: { isRequired: true, min: -180, max: 180 } }),
+    placeLabel: (0, import_fields34.text)({ ui: { description: "Nombre del lugar: \xABExplanada del Jard\xEDn Morelos\xBB" } }),
+    address: (0, import_fields34.text)(),
+    neighborhood: (0, import_fields34.text)(),
+    city: (0, import_fields34.text)(),
+    cityKey: (0, import_fields34.text)({ isIndexed: true, db: { isNullable: true }, ui: { itemView: { fieldMode: "read" } } }),
+    state: (0, import_fields34.text)(),
+    stateCode: (0, import_fields34.text)({
       isIndexed: true,
       db: { isNullable: true },
       ui: { description: "Clave INEGI del estado (01\u201332)", itemView: { fieldMode: "read" } }
     }),
-    timeZone: (0, import_fields32.text)({ defaultValue: "America/Mexico_City", ui: { itemView: { fieldMode: "read" } } }),
+    timeZone: (0, import_fields34.text)({ defaultValue: "America/Mexico_City", ui: { itemView: { fieldMode: "read" } } }),
     // Alcance
-    scope: (0, import_fields32.select)({
+    scope: (0, import_fields34.select)({
       type: "string",
       options: PET_EVENT_SCOPE_OPTIONS,
       defaultValue: PET_EVENT_SCOPE.ZONE,
       validation: { isRequired: true },
       ui: { displayMode: "segmented-control" }
     }),
-    reachKm: (0, import_fields32.integer)({
+    reachKm: (0, import_fields34.integer)({
       defaultValue: DEFAULT_PET_EVENT_REACH_KM,
       validation: { min: 1, max: 100 },
       ui: { description: "Solo con alcance \xABZona\xBB: radio en km alrededor del punto" }
     }),
     // Costo, cupo y registro
-    isFree: (0, import_fields32.checkbox)({ defaultValue: true }),
-    price: (0, import_fields32.integer)({ db: { isNullable: true }, validation: { min: 0 }, ui: { description: "Pesos MXN" } }),
-    priceNote: (0, import_fields32.text)({ ui: { description: "\xABCuota de recuperaci\xF3n\xBB, \xABDonativo voluntario\xBB\u2026" } }),
-    capacity: (0, import_fields32.integer)({ db: { isNullable: true }, validation: { min: 1 }, ui: { description: "Lugares (vac\xEDo = sin cupo)" } }),
-    registrationUrl: (0, import_fields32.text)(),
-    registrationWhatsapp: (0, import_fields32.text)({ ui: { description: "10 d\xEDgitos" } }),
+    isFree: (0, import_fields34.checkbox)({ defaultValue: true }),
+    price: (0, import_fields34.integer)({ db: { isNullable: true }, validation: { min: 0 }, ui: { description: "Pesos MXN" } }),
+    priceNote: (0, import_fields34.text)({ ui: { description: "\xABCuota de recuperaci\xF3n\xBB, \xABDonativo voluntario\xBB\u2026" } }),
+    capacity: (0, import_fields34.integer)({ db: { isNullable: true }, validation: { min: 1 }, ui: { description: "Lugares (vac\xEDo = sin cupo)" } }),
+    registrationUrl: (0, import_fields34.text)(),
+    registrationWhatsapp: (0, import_fields34.text)({ ui: { description: "10 d\xEDgitos" } }),
     // Redes del evento o de quien lo organiza (links completos; ver normalizeSocialUrl)
-    facebookUrl: (0, import_fields32.text)({ ui: { description: "P\xE1gina o evento de Facebook" } }),
-    instagramUrl: (0, import_fields32.text)({ ui: { description: "Perfil de Instagram" } }),
-    tiktokUrl: (0, import_fields32.text)({ ui: { description: "Perfil de TikTok" } }),
-    xUrl: (0, import_fields32.text)({ ui: { description: "Perfil de X (Twitter)" } }),
-    websiteUrl: (0, import_fields32.text)({ ui: { description: "Sitio web" } }),
+    facebookUrl: (0, import_fields34.text)({ ui: { description: "P\xE1gina o evento de Facebook" } }),
+    instagramUrl: (0, import_fields34.text)({ ui: { description: "Perfil de Instagram" } }),
+    tiktokUrl: (0, import_fields34.text)({ ui: { description: "Perfil de TikTok" } }),
+    xUrl: (0, import_fields34.text)({ ui: { description: "Perfil de X (Twitter)" } }),
+    websiteUrl: (0, import_fields34.text)({ ui: { description: "Sitio web" } }),
     // Fechas (las recalculan los hooks de PetEventSession)
-    sessions: (0, import_fields32.relationship)({ ref: "PetEventSession.event", many: true }),
-    firstStartsAt: (0, import_fields32.timestamp)({ db: { isNullable: true }, isIndexed: true, ui: { itemView: { fieldMode: "read" } } }),
-    lastEndsAt: (0, import_fields32.timestamp)({ db: { isNullable: true }, isIndexed: true, ui: { itemView: { fieldMode: "read" } } }),
-    multimedia: (0, import_fields32.relationship)({ ref: "PetEventMultimedia.event", many: true }),
-    interests: (0, import_fields32.relationship)({ ref: "PetEventInterest.event", many: true }),
+    sessions: (0, import_fields34.relationship)({ ref: "PetEventSession.event", many: true }),
+    firstStartsAt: (0, import_fields34.timestamp)({ db: { isNullable: true }, isIndexed: true, ui: { itemView: { fieldMode: "read" } } }),
+    lastEndsAt: (0, import_fields34.timestamp)({ db: { isNullable: true }, isIndexed: true, ui: { itemView: { fieldMode: "read" } } }),
+    multimedia: (0, import_fields34.relationship)({ ref: "PetEventMultimedia.event", many: true }),
+    interests: (0, import_fields34.relationship)({ ref: "PetEventInterest.event", many: true }),
     // Revisión
-    status: (0, import_fields32.select)({
+    status: (0, import_fields34.select)({
       type: "string",
       options: PET_EVENT_STATUS_OPTIONS,
       defaultValue: PET_EVENT_STATUS.PENDING,
@@ -12478,26 +12656,26 @@ var PetEvent_default = (0, import_core32.list)({
       isIndexed: true,
       ui: { displayMode: "segmented-control" }
     }),
-    reviewNote: (0, import_fields32.text)({ ui: { description: "Motivo del rechazo (lo ve quien lo public\xF3)" } }),
-    reviewedAt: (0, import_fields32.timestamp)({ db: { isNullable: true } }),
-    reviewedBy: (0, import_fields32.relationship)({ ref: "User" }),
-    approvedAt: (0, import_fields32.timestamp)({
+    reviewNote: (0, import_fields34.text)({ ui: { description: "Motivo del rechazo (lo ve quien lo public\xF3)" } }),
+    reviewedAt: (0, import_fields34.timestamp)({ db: { isNullable: true } }),
+    reviewedBy: (0, import_fields34.relationship)({ ref: "User" }),
+    approvedAt: (0, import_fields34.timestamp)({
       db: { isNullable: true },
       ui: { description: "Primera vez que se public\xF3. Un cancelado con fecha sigue visible." }
     }),
-    pendingChangeNotice: (0, import_fields32.checkbox)({
+    pendingChangeNotice: (0, import_fields34.checkbox)({
       defaultValue: false,
       ui: { description: "Cambi\xF3 fechas o lugar: al aprobar se avisa a quienes les interesa" }
     }),
-    zoneAlertsSentAt: (0, import_fields32.timestamp)({
+    zoneAlertsSentAt: (0, import_fields34.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo se avis\xF3 a la zona (una sola vez)" }
     }),
-    zoneAlertsCount: (0, import_fields32.integer)({ defaultValue: 0, ui: { description: "A cu\xE1ntas personas se avis\xF3" } }),
-    cancelledAt: (0, import_fields32.timestamp)({ db: { isNullable: true } }),
-    cancelReason: (0, import_fields32.text)(),
+    zoneAlertsCount: (0, import_fields34.integer)({ defaultValue: 0, ui: { description: "A cu\xE1ntas personas se avis\xF3" } }),
+    cancelledAt: (0, import_fields34.timestamp)({ db: { isNullable: true } }),
+    cancelReason: (0, import_fields34.text)(),
     // Lo suma `recordPetEventView` con SQL directo: un update de Prisma movería `updatedAt` en cada vista.
-    viewsCount: (0, import_fields32.integer)({
+    viewsCount: (0, import_fields34.integer)({
       defaultValue: 0,
       db: { isNullable: false },
       ui: {
@@ -12507,9 +12685,9 @@ var PetEvent_default = (0, import_core32.list)({
       }
     }),
     // Calculados
-    nextStartsAt: (0, import_fields32.virtual)({
-      field: import_core32.graphql.field({
-        type: import_core32.graphql.String,
+    nextStartsAt: (0, import_fields34.virtual)({
+      field: import_core34.graphql.field({
+        type: import_core34.graphql.String,
         async resolve(item, _args, context) {
           const session2 = await nextSession(context, item.id);
           return session2 ? session2.startsAt.toISOString() : null;
@@ -12517,9 +12695,9 @@ var PetEvent_default = (0, import_core32.list)({
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
-    nextEndsAt: (0, import_fields32.virtual)({
-      field: import_core32.graphql.field({
-        type: import_core32.graphql.String,
+    nextEndsAt: (0, import_fields34.virtual)({
+      field: import_core34.graphql.field({
+        type: import_core34.graphql.String,
         async resolve(item, _args, context) {
           const session2 = await nextSession(context, item.id);
           return session2 ? session2.endsAt.toISOString() : null;
@@ -12527,23 +12705,23 @@ var PetEvent_default = (0, import_core32.list)({
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
-    interestedCount: (0, import_fields32.virtual)({
-      field: import_core32.graphql.field({
-        type: import_core32.graphql.Int,
+    interestedCount: (0, import_fields34.virtual)({
+      field: import_core34.graphql.field({
+        type: import_core34.graphql.Int,
         resolve: (item, _args, context) => countInterests(context, item.id, PET_EVENT_INTEREST_KIND.INTERESTED)
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
-    goingCount: (0, import_fields32.virtual)({
-      field: import_core32.graphql.field({
-        type: import_core32.graphql.Int,
+    goingCount: (0, import_fields34.virtual)({
+      field: import_core34.graphql.field({
+        type: import_core34.graphql.Int,
         resolve: (item, _args, context) => countInterests(context, item.id, PET_EVENT_INTEREST_KIND.GOING)
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
-    isFull: (0, import_fields32.virtual)({
-      field: import_core32.graphql.field({
-        type: import_core32.graphql.Boolean,
+    isFull: (0, import_fields34.virtual)({
+      field: import_core34.graphql.field({
+        type: import_core34.graphql.Boolean,
         async resolve(item, _args, context) {
           if (!item.capacity) return false;
           return await countInterests(context, item.id, PET_EVENT_INTEREST_KIND.GOING) >= item.capacity;
@@ -12552,9 +12730,9 @@ var PetEvent_default = (0, import_core32.list)({
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
     /** "interested", "going" o null para la persona de la sesión. */
-    myInterest: (0, import_fields32.virtual)({
-      field: import_core32.graphql.field({
-        type: import_core32.graphql.String,
+    myInterest: (0, import_fields34.virtual)({
+      field: import_core34.graphql.field({
+        type: import_core34.graphql.String,
         async resolve(item, _args, context) {
           const userId = getSessionUserId(context.session);
           if (!userId) return null;
@@ -12567,15 +12745,15 @@ var PetEvent_default = (0, import_core32.list)({
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
-    createdAt: (0, import_fields32.timestamp)({ defaultValue: { kind: "now" } }),
-    updatedAt: (0, import_fields32.timestamp)({ db: { updatedAt: true } })
+    createdAt: (0, import_fields34.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields34.timestamp)({ db: { updatedAt: true } })
   }
 });
 
 // models/Pet/PetEvent/PetEventSession/PetEventSession.ts
-var import_core33 = require("@keystone-6/core");
-var import_fields33 = require("@keystone-6/core/fields");
-var PetEventSession_default = (0, import_core33.list)({
+var import_core35 = require("@keystone-6/core");
+var import_fields35 = require("@keystone-6/core/fields");
+var PetEventSession_default = (0, import_core35.list)({
   access: petEventSessionAccess,
   ui: {
     listView: { initialColumns: ["event", "startsAt", "endsAt"] }
@@ -12593,16 +12771,16 @@ var PetEventSession_default = (0, import_core33.list)({
     }
   },
   fields: {
-    event: (0, import_fields33.relationship)({ ref: "PetEvent.sessions" }),
-    startsAt: (0, import_fields33.timestamp)({ validation: { isRequired: true }, isIndexed: true }),
-    endsAt: (0, import_fields33.timestamp)({ validation: { isRequired: true }, isIndexed: true })
+    event: (0, import_fields35.relationship)({ ref: "PetEvent.sessions" }),
+    startsAt: (0, import_fields35.timestamp)({ validation: { isRequired: true }, isIndexed: true }),
+    endsAt: (0, import_fields35.timestamp)({ validation: { isRequired: true }, isIndexed: true })
   }
 });
 
 // models/Pet/PetEvent/PetEventMultimedia/PetEventMultimedia.ts
-var import_core34 = require("@keystone-6/core");
-var import_fields34 = require("@keystone-6/core/fields");
-var PetEventMultimedia_default = (0, import_core34.list)({
+var import_core36 = require("@keystone-6/core");
+var import_fields36 = require("@keystone-6/core/fields");
+var PetEventMultimedia_default = (0, import_core36.list)({
   access: petEventMultimediaAccess,
   hooks: {
     validateInput: validatePetEventMultimedia,
@@ -12623,62 +12801,62 @@ var PetEventMultimedia_default = (0, import_core34.list)({
     }
   },
   fields: {
-    image: (0, import_fields34.image)({ storage: "s3_events" }),
-    event: (0, import_fields34.relationship)({ ref: "PetEvent.multimedia" }),
-    order: (0, import_fields34.integer)({
+    image: (0, import_fields36.image)({ storage: "s3_events" }),
+    event: (0, import_fields36.relationship)({ ref: "PetEvent.multimedia" }),
+    order: (0, import_fields36.integer)({
       defaultValue: 1,
       validation: { isRequired: true },
       ui: { description: "1 es la portada. 2, 3\u2026 el resto." }
     }),
-    createdAt: (0, import_fields34.timestamp)({ defaultValue: { kind: "now" } })
+    createdAt: (0, import_fields36.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
 // models/Pet/PetEvent/PetEventInterest/PetEventInterest.ts
-var import_core35 = require("@keystone-6/core");
-var import_fields35 = require("@keystone-6/core/fields");
-var PetEventInterest_default = (0, import_core35.list)({
+var import_core37 = require("@keystone-6/core");
+var import_fields37 = require("@keystone-6/core/fields");
+var PetEventInterest_default = (0, import_core37.list)({
   access: petEventInterestAccess,
   ui: {
     listView: { initialColumns: ["event", "user", "kind", "createdAt"] }
   },
   fields: {
-    key: (0, import_fields35.text)({
+    key: (0, import_fields37.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "<userId>:<eventId>", itemView: { fieldMode: "read" } }
     }),
-    event: (0, import_fields35.relationship)({ ref: "PetEvent.interests" }),
-    user: (0, import_fields35.relationship)({ ref: "User" }),
-    kind: (0, import_fields35.select)({
+    event: (0, import_fields37.relationship)({ ref: "PetEvent.interests" }),
+    user: (0, import_fields37.relationship)({ ref: "User" }),
+    kind: (0, import_fields37.select)({
       type: "string",
       options: PET_EVENT_INTEREST_KIND_OPTIONS,
       defaultValue: PET_EVENT_INTEREST_KIND.INTERESTED,
       validation: { isRequired: true },
       isIndexed: true
     }),
-    lastRemindedSessionId: (0, import_fields35.text)({ db: { isNullable: true }, ui: { itemView: { fieldMode: "read" } } }),
-    createdAt: (0, import_fields35.timestamp)({ defaultValue: { kind: "now" } })
+    lastRemindedSessionId: (0, import_fields37.text)({ db: { isNullable: true }, ui: { itemView: { fieldMode: "read" } } }),
+    createdAt: (0, import_fields37.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
 // models/Pet/SocialMedia/SocialMedia.ts
-var import_core36 = require("@keystone-6/core");
-var import_fields36 = require("@keystone-6/core/fields");
-var SocialMedia_default = (0, import_core36.list)({
+var import_core38 = require("@keystone-6/core");
+var import_fields38 = require("@keystone-6/core/fields");
+var SocialMedia_default = (0, import_core38.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    social_media: (0, import_fields36.select)({
+    social_media: (0, import_fields38.select)({
       options: ["Facebook", "Instagram", "X", "LinkedIn", "TikTok"],
       validation: { isRequired: true }
     }),
-    link: (0, import_fields36.text)({
+    link: (0, import_fields38.text)({
       validation: { isRequired: true }
     }),
-    pet_place: (0, import_fields36.relationship)({
+    pet_place: (0, import_fields38.relationship)({
       ref: "PetPlace.pet_place_social_media"
     }),
-    createdAt: (0, import_fields36.timestamp)({
+    createdAt: (0, import_fields38.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -12691,8 +12869,8 @@ var SocialMedia_default = (0, import_core36.list)({
 });
 
 // models/SystemRelease/SystemRelease.ts
-var import_core37 = require("@keystone-6/core");
-var import_fields37 = require("@keystone-6/core/fields");
+var import_core39 = require("@keystone-6/core");
+var import_fields39 = require("@keystone-6/core/fields");
 
 // models/SystemRelease/systemRelease.access.ts
 var systemReleaseAccess = {
@@ -12850,7 +13028,7 @@ var systemReleaseEmailHook = {
 };
 
 // models/SystemRelease/SystemRelease.ts
-var SystemRelease_default = (0, import_core37.list)({
+var SystemRelease_default = (0, import_core39.list)({
   access: systemReleaseAccess,
   hooks: {
     afterOperation: systemReleaseEmailHook.afterOperation
@@ -12869,12 +13047,12 @@ var SystemRelease_default = (0, import_core37.list)({
     }
   },
   fields: {
-    version: (0, import_fields37.text)({
+    version: (0, import_fields39.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Versi\xF3n semver o etiqueta (ej. 1.4.0)" }
     }),
-    product: (0, import_fields37.select)({
+    product: (0, import_fields39.select)({
       options: SYSTEM_RELEASE_PRODUCT_OPTIONS,
       validation: { isRequired: true },
       ui: {
@@ -12882,28 +13060,28 @@ var SystemRelease_default = (0, import_core37.list)({
         description: "Pet, SaaS o ambas apps"
       }
     }),
-    title: (0, import_fields37.text)({
+    title: (0, import_fields39.text)({
       ui: { description: "T\xEDtulo corto del release (opcional)" }
     }),
-    body: (0, import_fields37.text)({
+    body: (0, import_fields39.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas de cambio (texto o markdown seg\xFAn el front)"
       }
     }),
-    releasedAt: (0, import_fields37.timestamp)({
+    releasedAt: (0, import_fields39.timestamp)({
       validation: { isRequired: true },
       ui: { description: "Fecha en que aplica / se publica el release" }
     }),
-    isPublished: (0, import_fields37.checkbox)({
+    isPublished: (0, import_fields39.checkbox)({
       defaultValue: false,
       ui: { description: "Si est\xE1 desmarcado, solo admins lo ven en listados" }
     }),
-    notifyByEmail: (0, import_fields37.checkbox)({
+    notifyByEmail: (0, import_fields39.checkbox)({
       defaultValue: true,
       ui: { description: "Al publicarse, mandar correo a las personas del producto (una sola vez)" }
     }),
-    emailedAt: (0, import_fields37.timestamp)({
+    emailedAt: (0, import_fields39.timestamp)({
       db: { isNullable: true },
       ui: {
         description: "Cu\xE1ndo se mand\xF3 el correo de esta novedad (lo pone el servidor)",
@@ -12911,7 +13089,7 @@ var SystemRelease_default = (0, import_core37.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    createdAt: (0, import_fields37.timestamp)({
+    createdAt: (0, import_fields39.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -12922,8 +13100,8 @@ var SystemRelease_default = (0, import_core37.list)({
 });
 
 // models/Pet/Review/Review.ts
-var import_core38 = require("@keystone-6/core");
-var import_fields38 = require("@keystone-6/core/fields");
+var import_core40 = require("@keystone-6/core");
+var import_fields40 = require("@keystone-6/core/fields");
 
 // models/Pet/Review/Review.hooks.ts
 var CLIENT_BLOCKED_FIELDS = ["google_user", "google_user_photo", "product"];
@@ -12934,9 +13112,9 @@ function reviewResolveInput({
 }) {
   const next = forceSessionUser(resolvedData, operation, context);
   if (operation !== "create" || !isClientNonAdmin(context)) return next;
-  const clean4 = { ...next };
-  for (const field of CLIENT_BLOCKED_FIELDS) delete clean4[field];
-  return clean4;
+  const clean5 = { ...next };
+  for (const field of CLIENT_BLOCKED_FIELDS) delete clean5[field];
+  return clean5;
 }
 function reviewValidateInput({
   operation,
@@ -12955,7 +13133,7 @@ function reviewValidateInput({
 }
 
 // models/Pet/Review/Review.ts
-var Review_default = (0, import_core38.list)({
+var Review_default = (0, import_core40.list)({
   access: userRowAccess,
   hooks: {
     resolveInput: reviewResolveInput,
@@ -12966,88 +13144,20 @@ var Review_default = (0, import_core38.list)({
     }
   },
   fields: {
-    rating: (0, import_fields38.integer)(),
-    review: (0, import_fields38.text)(),
-    pet_place: (0, import_fields38.relationship)({
+    rating: (0, import_fields40.integer)(),
+    review: (0, import_fields40.text)(),
+    pet_place: (0, import_fields40.relationship)({
       ref: "PetPlace.pet_place_reviews"
     }),
-    product: (0, import_fields38.relationship)({
+    product: (0, import_fields40.relationship)({
       ref: "Product.product_reviews"
     }),
-    user: (0, import_fields38.relationship)({
-      ref: "User",
-      many: false
-    }),
-    google_user: (0, import_fields38.text)(),
-    google_user_photo: (0, import_fields38.text)(),
-    createdAt: (0, import_fields38.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Pet/Store/Product/Product.ts
-var import_core39 = require("@keystone-6/core");
-var import_fields39 = require("@keystone-6/core/fields");
-var Product_default = (0, import_core39.list)({
-  access: adminOnlyAccess,
-  fields: {
-    name: (0, import_fields39.text)({ validation: { isRequired: true } }),
-    price: (0, import_fields39.integer)({ validation: { isRequired: true } }),
-    description: (0, import_fields39.text)({ validation: { isRequired: true } }),
-    category: (0, import_fields39.select)({
-      validation: { isRequired: true },
-      options: PRODUCT_CATEGORIES
-    }),
-    brand: (0, import_fields39.select)({
-      validation: { isRequired: true },
-      options: BRANDS
-    }),
-    type: (0, import_fields39.select)({
-      validation: { isRequired: true },
-      options: ANIMAL_TYPE_OPTIONS
-    }),
-    product_reviews: (0, import_fields39.relationship)({
-      ref: "Review.product",
-      many: true
-    }),
-    product_ads: (0, import_fields39.relationship)({
-      ref: "Ad.product",
-      many: true
-    }),
-    createdAt: (0, import_fields39.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Pet/Store/WishList/WishList.ts
-var import_core40 = require("@keystone-6/core");
-var import_fields40 = require("@keystone-6/core/fields");
-var WishList_default = (0, import_core40.list)({
-  access: adminOnlyAccess,
-  fields: {
-    name: (0, import_fields40.text)({ validation: { isRequired: true } }),
     user: (0, import_fields40.relationship)({
       ref: "User",
       many: false
     }),
-    product: (0, import_fields40.relationship)({
-      ref: "Product",
-      many: true
-    }),
+    google_user: (0, import_fields40.text)(),
+    google_user_photo: (0, import_fields40.text)(),
     createdAt: (0, import_fields40.timestamp)({
       defaultValue: {
         kind: "now"
@@ -13060,19 +13170,33 @@ var WishList_default = (0, import_core40.list)({
   }
 });
 
-// models/Pet/Store/Cart/Cart.ts
+// models/Pet/Store/Product/Product.ts
 var import_core41 = require("@keystone-6/core");
 var import_fields41 = require("@keystone-6/core/fields");
-var Cart_default = (0, import_core41.list)({
+var Product_default = (0, import_core41.list)({
   access: adminOnlyAccess,
   fields: {
     name: (0, import_fields41.text)({ validation: { isRequired: true } }),
-    user: (0, import_fields41.relationship)({
-      ref: "User",
-      many: false
+    price: (0, import_fields41.integer)({ validation: { isRequired: true } }),
+    description: (0, import_fields41.text)({ validation: { isRequired: true } }),
+    category: (0, import_fields41.select)({
+      validation: { isRequired: true },
+      options: PRODUCT_CATEGORIES
     }),
-    product: (0, import_fields41.relationship)({
-      ref: "Product",
+    brand: (0, import_fields41.select)({
+      validation: { isRequired: true },
+      options: BRANDS
+    }),
+    type: (0, import_fields41.select)({
+      validation: { isRequired: true },
+      options: ANIMAL_TYPE_OPTIONS
+    }),
+    product_reviews: (0, import_fields41.relationship)({
+      ref: "Review.product",
+      many: true
+    }),
+    product_ads: (0, import_fields41.relationship)({
+      ref: "Ad.product",
       many: true
     }),
     createdAt: (0, import_fields41.timestamp)({
@@ -13087,25 +13211,20 @@ var Cart_default = (0, import_core41.list)({
   }
 });
 
-// models/Pet/Store/Order/Order.ts
+// models/Pet/Store/WishList/WishList.ts
 var import_core42 = require("@keystone-6/core");
 var import_fields42 = require("@keystone-6/core/fields");
-var Order_default = (0, import_core42.list)({
+var WishList_default = (0, import_core42.list)({
   access: adminOnlyAccess,
   fields: {
-    total: (0, import_fields42.integer)(),
-    status: (0, import_fields42.select)({ validation: { isRequired: true }, options: ORDER_STATUS }),
-    cart: (0, import_fields42.relationship)({
-      ref: "Cart",
-      many: false
-    }),
+    name: (0, import_fields42.text)({ validation: { isRequired: true } }),
     user: (0, import_fields42.relationship)({
       ref: "User",
       many: false
     }),
-    payment: (0, import_fields42.relationship)({
-      ref: "Payment.order_payment",
-      many: false
+    product: (0, import_fields42.relationship)({
+      ref: "Product",
+      many: true
     }),
     createdAt: (0, import_fields42.timestamp)({
       defaultValue: {
@@ -13119,23 +13238,82 @@ var Order_default = (0, import_core42.list)({
   }
 });
 
-// models/Pet/Store/Payment/Payment.ts
-var import_fields43 = require("@keystone-6/core/fields");
+// models/Pet/Store/Cart/Cart.ts
 var import_core43 = require("@keystone-6/core");
-var Payment_default = (0, import_core43.list)({
+var import_fields43 = require("@keystone-6/core/fields");
+var Cart_default = (0, import_core43.list)({
   access: adminOnlyAccess,
   fields: {
-    order_payment: (0, import_fields43.relationship)({
+    name: (0, import_fields43.text)({ validation: { isRequired: true } }),
+    user: (0, import_fields43.relationship)({
+      ref: "User",
+      many: false
+    }),
+    product: (0, import_fields43.relationship)({
+      ref: "Product",
+      many: true
+    }),
+    createdAt: (0, import_fields43.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Pet/Store/Order/Order.ts
+var import_core44 = require("@keystone-6/core");
+var import_fields44 = require("@keystone-6/core/fields");
+var Order_default = (0, import_core44.list)({
+  access: adminOnlyAccess,
+  fields: {
+    total: (0, import_fields44.integer)(),
+    status: (0, import_fields44.select)({ validation: { isRequired: true }, options: ORDER_STATUS }),
+    cart: (0, import_fields44.relationship)({
+      ref: "Cart",
+      many: false
+    }),
+    user: (0, import_fields44.relationship)({
+      ref: "User",
+      many: false
+    }),
+    payment: (0, import_fields44.relationship)({
+      ref: "Payment.order_payment",
+      many: false
+    }),
+    createdAt: (0, import_fields44.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Pet/Store/Payment/Payment.ts
+var import_fields45 = require("@keystone-6/core/fields");
+var import_core45 = require("@keystone-6/core");
+var Payment_default = (0, import_core45.list)({
+  access: adminOnlyAccess,
+  fields: {
+    order_payment: (0, import_fields45.relationship)({
       ref: "Order.payment"
     }),
-    paymentMethod: (0, import_fields43.relationship)({
+    paymentMethod: (0, import_fields45.relationship)({
       ref: "PaymentMethod.payment"
     }),
-    amount: (0, import_fields43.decimal)({
+    amount: (0, import_fields45.decimal)({
       scale: 6,
       defaultValue: "0.000000"
     }),
-    status: (0, import_fields43.select)({
+    status: (0, import_fields45.select)({
       type: "enum",
       validation: {
         isRequired: true
@@ -13150,14 +13328,14 @@ var Payment_default = (0, import_core43.list)({
         { label: "Devuelto", value: "refunded" }
       ]
     }),
-    processorStripeChargeId: (0, import_fields43.text)(),
-    stripeErrorMessage: (0, import_fields43.text)({
+    processorStripeChargeId: (0, import_fields45.text)(),
+    stripeErrorMessage: (0, import_fields45.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    processorRefundId: (0, import_fields43.text)(),
-    createdAt: (0, import_fields43.timestamp)({
+    processorRefundId: (0, import_fields45.text)(),
+    createdAt: (0, import_fields45.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -13166,7 +13344,7 @@ var Payment_default = (0, import_core43.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields43.timestamp)({
+    updatedAt: (0, import_fields45.timestamp)({
       defaultValue: { kind: "now" },
       db: { updatedAt: true }
     })
@@ -13174,31 +13352,31 @@ var Payment_default = (0, import_core43.list)({
 });
 
 // models/Pet/Store/PaymentMethod/PaymentMethod.ts
-var import_fields44 = require("@keystone-6/core/fields");
-var import_core44 = require("@keystone-6/core");
-var PaymentMethod_default = (0, import_core44.list)({
+var import_fields46 = require("@keystone-6/core/fields");
+var import_core46 = require("@keystone-6/core");
+var PaymentMethod_default = (0, import_core46.list)({
   access: adminOnlyAccess,
   fields: {
-    user: (0, import_fields44.relationship)({
+    user: (0, import_fields46.relationship)({
       ref: "User"
     }),
-    cardType: (0, import_fields44.text)(),
-    isDefault: (0, import_fields44.checkbox)(),
-    lastFourDigits: (0, import_fields44.text)(),
-    expMonth: (0, import_fields44.text)(),
-    expYear: (0, import_fields44.text)(),
-    stripeProcessorId: (0, import_fields44.text)(),
-    address: (0, import_fields44.text)(),
-    postalCode: (0, import_fields44.text)(),
-    ownerName: (0, import_fields44.text)(),
-    country: (0, import_fields44.text)(),
+    cardType: (0, import_fields46.text)(),
+    isDefault: (0, import_fields46.checkbox)(),
+    lastFourDigits: (0, import_fields46.text)(),
+    expMonth: (0, import_fields46.text)(),
+    expYear: (0, import_fields46.text)(),
+    stripeProcessorId: (0, import_fields46.text)(),
+    address: (0, import_fields46.text)(),
+    postalCode: (0, import_fields46.text)(),
+    ownerName: (0, import_fields46.text)(),
+    country: (0, import_fields46.text)(),
     // Two-letter country code (ISO 3166-1 alpha-2).
-    payment: (0, import_fields44.relationship)({
+    payment: (0, import_fields46.relationship)({
       ref: "Payment.paymentMethod",
       many: true
     }),
-    type: (0, import_fields44.select)({ options: PAYMENT_TYPES }),
-    createdAt: (0, import_fields44.timestamp)({
+    type: (0, import_fields46.select)({ options: PAYMENT_TYPES }),
+    createdAt: (0, import_fields46.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -13207,7 +13385,7 @@ var PaymentMethod_default = (0, import_core44.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields44.timestamp)({
+    updatedAt: (0, import_fields46.timestamp)({
       defaultValue: { kind: "now" },
       db: { updatedAt: true }
     })
@@ -13215,8 +13393,8 @@ var PaymentMethod_default = (0, import_core44.list)({
 });
 
 // models/TokenNotification/TokenNotification.ts
-var import_fields45 = require("@keystone-6/core/fields");
-var import_core45 = require("@keystone-6/core");
+var import_fields47 = require("@keystone-6/core/fields");
+var import_core47 = require("@keystone-6/core");
 
 // models/TokenNotification/constants.ts
 var PUSH_PLATFORM = {
@@ -13229,34 +13407,34 @@ var PUSH_PLATFORM_OPTIONS = [
 ];
 
 // models/TokenNotification/TokenNotification.ts
-var adminOnly7 = ({ session: session2 }) => isPlatformAdmin(session2);
-var TokenNotification_default = (0, import_core45.list)({
+var adminOnly8 = ({ session: session2 }) => isPlatformAdmin(session2);
+var TokenNotification_default = (0, import_core47.list)({
   access: {
     operation: {
-      query: adminOnly7,
-      create: adminOnly7,
-      update: adminOnly7,
-      delete: adminOnly7
+      query: adminOnly8,
+      create: adminOnly8,
+      update: adminOnly8,
+      delete: adminOnly8
     }
   },
   fields: {
-    token: (0, import_fields45.text)({
+    token: (0, import_fields47.text)({
       isIndexed: true,
       ui: {
         displayMode: "textarea"
       }
     }),
-    user: (0, import_fields45.relationship)({
+    user: (0, import_fields47.relationship)({
       ref: "User",
       many: false
     }),
-    platform: (0, import_fields45.select)({
+    platform: (0, import_fields47.select)({
       type: "string",
       options: PUSH_PLATFORM_OPTIONS,
       db: { isNullable: true }
     }),
-    deviceId: (0, import_fields45.text)({ db: { isNullable: true } }),
-    lastSeenAt: (0, import_fields45.timestamp)({
+    deviceId: (0, import_fields47.text)({ db: { isNullable: true } }),
+    lastSeenAt: (0, import_fields47.timestamp)({
       db: { isNullable: true },
       ui: { itemView: { fieldMode: "read" } }
     })
@@ -13264,8 +13442,8 @@ var TokenNotification_default = (0, import_core45.list)({
 });
 
 // models/Notification/Notification.ts
-var import_core46 = require("@keystone-6/core");
-var import_fields46 = require("@keystone-6/core/fields");
+var import_core48 = require("@keystone-6/core");
+var import_fields48 = require("@keystone-6/core/fields");
 
 // models/Notification/Notification.access.ts
 var signedIn6 = ({ session: session2 }) => isSignedIn(session2);
@@ -13299,7 +13477,7 @@ var deliveryField = {
 };
 
 // models/Notification/Notification.ts
-var Notification_default = (0, import_core46.list)({
+var Notification_default = (0, import_core48.list)({
   access: notificationAccess,
   ui: {
     listView: {
@@ -13308,63 +13486,63 @@ var Notification_default = (0, import_core46.list)({
     }
   },
   fields: {
-    recipient: (0, import_fields46.relationship)({
+    recipient: (0, import_fields48.relationship)({
       ref: "User",
       many: false,
       access: readOnlyField,
       ui: { description: "Qui\xE9n la recibe" }
     }),
-    product: (0, import_fields46.select)({
+    product: (0, import_fields48.select)({
       type: "string",
       options: NOTIFICATION_PRODUCT_OPTIONS,
       defaultValue: NOTIFICATION_PRODUCT.SAAS,
       isIndexed: true,
       access: readOnlyField
     }),
-    type: (0, import_fields46.text)({
+    type: (0, import_fields48.text)({
       isIndexed: true,
       access: readOnlyField,
       ui: { description: "animal.created, petplace.service_requested, \u2026" }
     }),
-    title: (0, import_fields46.text)({ validation: { isRequired: true }, access: readOnlyField }),
-    body: (0, import_fields46.text)({ access: readOnlyField, ui: { displayMode: "textarea" } }),
-    entityType: (0, import_fields46.text)({ access: readOnlyField }),
-    entityId: (0, import_fields46.text)({ access: readOnlyField }),
+    title: (0, import_fields48.text)({ validation: { isRequired: true }, access: readOnlyField }),
+    body: (0, import_fields48.text)({ access: readOnlyField, ui: { displayMode: "textarea" } }),
+    entityType: (0, import_fields48.text)({ access: readOnlyField }),
+    entityId: (0, import_fields48.text)({ access: readOnlyField }),
     /** Ruta o URL a la que lleva el clic (p. ej. la pestaña de Operaciones o la ficha pública). */
-    url: (0, import_fields46.text)({ access: readOnlyField }),
-    metadata: (0, import_fields46.json)({ access: readOnlyField }),
-    readAt: (0, import_fields46.timestamp)({ db: { isNullable: true } }),
+    url: (0, import_fields48.text)({ access: readOnlyField }),
+    metadata: (0, import_fields48.json)({ access: readOnlyField }),
+    readAt: (0, import_fields48.timestamp)({ db: { isNullable: true } }),
     // ── A dónde se fue (solo admin la lee; la escribe el servidor). Ver README.md "Entrega".
-    pushStatus: (0, import_fields46.select)({
+    pushStatus: (0, import_fields48.select)({
       type: "string",
       options: PUSH_DELIVERY_OPTIONS,
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "Push a la app. Vac\xEDo = no aplica (solo Kadesh Pet)." }
     }),
-    pushDevices: (0, import_fields46.integer)({
+    pushDevices: (0, import_fields48.integer)({
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "Dispositivos a los que se intent\xF3 mandar el push" }
     }),
-    whatsappStatus: (0, import_fields46.select)({
+    whatsappStatus: (0, import_fields48.select)({
       type: "string",
       options: WHATSAPP_DELIVERY_OPTIONS,
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "WhatsApp. Vac\xEDo = el tipo no tiene plantilla." }
     }),
-    whatsappDetail: (0, import_fields46.text)({
+    whatsappDetail: (0, import_fields48.text)({
       access: deliveryField,
       ui: { description: "Por qu\xE9 no se mand\xF3 (sin_optin, sin_telefono\u2026) o el error de Meta" }
     }),
-    whatsappMessageId: (0, import_fields46.text)({
+    whatsappMessageId: (0, import_fields48.text)({
       isIndexed: true,
       access: deliveryField,
       ui: { description: "wamid de Meta: con \xE9l el webhook actualiza entregado / le\xEDdo / fall\xF3" }
     }),
-    whatsappUpdatedAt: (0, import_fields46.timestamp)({ db: { isNullable: true }, access: deliveryField }),
-    createdAt: (0, import_fields46.timestamp)({
+    whatsappUpdatedAt: (0, import_fields48.timestamp)({ db: { isNullable: true }, access: deliveryField }),
+    createdAt: (0, import_fields48.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       access: readOnlyField
@@ -13373,43 +13551,43 @@ var Notification_default = (0, import_core46.list)({
 });
 
 // models/Pet/Ad/Ad.ts
-var import_core47 = require("@keystone-6/core");
-var import_fields47 = require("@keystone-6/core/fields");
-var Ad_default = (0, import_core47.list)({
+var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
+var Ad_default = (0, import_core49.list)({
   access: adminOnlyAccess,
   fields: {
-    title: (0, import_fields47.text)(),
-    description: (0, import_fields47.text)({
+    title: (0, import_fields49.text)(),
+    description: (0, import_fields49.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    active: (0, import_fields47.checkbox)(),
-    start_date: (0, import_fields47.calendarDay)(),
-    end_date: (0, import_fields47.calendarDay)(),
-    price: (0, import_fields47.integer)(),
-    status: (0, import_fields47.select)({
+    active: (0, import_fields49.checkbox)(),
+    start_date: (0, import_fields49.calendarDay)(),
+    end_date: (0, import_fields49.calendarDay)(),
+    price: (0, import_fields49.integer)(),
+    status: (0, import_fields49.select)({
       options: STATUS_AD
     }),
-    type: (0, import_fields47.select)({
+    type: (0, import_fields49.select)({
       options: TYPES_AD
     }),
-    lat: (0, import_fields47.text)(),
-    lng: (0, import_fields47.text)(),
-    image: (0, import_fields47.image)({
+    lat: (0, import_fields49.text)(),
+    lng: (0, import_fields49.text)(),
+    image: (0, import_fields49.image)({
       storage: "s3_ads"
     }),
-    pet_place: (0, import_fields47.relationship)({
+    pet_place: (0, import_fields49.relationship)({
       ref: "PetPlace.pet_place_ads"
     }),
-    product: (0, import_fields47.relationship)({
+    product: (0, import_fields49.relationship)({
       ref: "Product.product_ads"
     }),
-    user: (0, import_fields47.relationship)({
+    user: (0, import_fields49.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields47.timestamp)({
+    createdAt: (0, import_fields49.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -13422,8 +13600,8 @@ var Ad_default = (0, import_core47.list)({
 });
 
 // models/Blog/Post/Post.ts
-var import_core49 = require("@keystone-6/core");
-var import_fields49 = require("@keystone-6/core/fields");
+var import_core51 = require("@keystone-6/core");
+var import_fields51 = require("@keystone-6/core/fields");
 
 // models/Blog/Post/Post.access.ts
 var postAccess = {
@@ -13440,27 +13618,27 @@ var postAccess = {
 };
 
 // models/Blog/Post/Post.authorProfile.ts
-var import_core48 = require("@keystone-6/core");
-var import_fields48 = require("@keystone-6/core/fields");
-var PostAuthorImage = import_core48.graphql.object()({
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
+var PostAuthorImage = import_core50.graphql.object()({
   name: "PostAuthorImage",
   fields: {
-    url: import_core48.graphql.field({ type: import_core48.graphql.nonNull(import_core48.graphql.String) })
+    url: import_core50.graphql.field({ type: import_core50.graphql.nonNull(import_core50.graphql.String) })
   }
 });
-var PostAuthorProfile = import_core48.graphql.object()({
+var PostAuthorProfile = import_core50.graphql.object()({
   name: "PostAuthorProfile",
   fields: {
-    name: import_core48.graphql.field({ type: import_core48.graphql.String }),
-    lastName: import_core48.graphql.field({ type: import_core48.graphql.String }),
-    username: import_core48.graphql.field({ type: import_core48.graphql.String }),
-    verified: import_core48.graphql.field({ type: import_core48.graphql.Boolean }),
-    createdAt: import_core48.graphql.field({ type: import_core48.graphql.String }),
-    profileImage: import_core48.graphql.field({ type: PostAuthorImage })
+    name: import_core50.graphql.field({ type: import_core50.graphql.String }),
+    lastName: import_core50.graphql.field({ type: import_core50.graphql.String }),
+    username: import_core50.graphql.field({ type: import_core50.graphql.String }),
+    verified: import_core50.graphql.field({ type: import_core50.graphql.Boolean }),
+    createdAt: import_core50.graphql.field({ type: import_core50.graphql.String }),
+    profileImage: import_core50.graphql.field({ type: PostAuthorImage })
   }
 });
-var postAuthorProfileField = (0, import_fields48.virtual)({
-  field: import_core48.graphql.field({
+var postAuthorProfileField = (0, import_fields50.virtual)({
+  field: import_core50.graphql.field({
     type: PostAuthorProfile,
     async resolve(item, _args, context) {
       if (!item?.authorId) return null;
@@ -13713,7 +13891,7 @@ var postPublishSideEffectsHook = {
 
 // models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
-var Post_default = (0, import_core49.list)({
+var Post_default = (0, import_core51.list)({
   access: postAccess,
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
@@ -13726,7 +13904,7 @@ var Post_default = (0, import_core49.list)({
     }
   },
   fields: {
-    product: (0, import_fields49.select)({
+    product: (0, import_fields51.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -13736,8 +13914,8 @@ var Post_default = (0, import_core49.list)({
         description: "Pet, SaaS o ambas apps. Su categor\xEDa debe ser del mismo producto."
       }
     }),
-    title: (0, import_fields49.text)({ validation: { isRequired: true } }),
-    url: (0, import_fields49.text)({
+    title: (0, import_fields51.text)({ validation: { isRequired: true } }),
+    url: (0, import_fields51.text)({
       isIndexed: "unique",
       hooks: postUrlHook,
       ui: {
@@ -13750,21 +13928,21 @@ var Post_default = (0, import_core49.list)({
       dividers: true,
       links: true
     }),
-    excerpt: (0, import_fields49.text)({
+    excerpt: (0, import_fields51.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    image: (0, import_fields49.image)({
+    image: (0, import_fields51.image)({
       storage: "s3_posts"
     }),
-    published: (0, import_fields49.checkbox)({
+    published: (0, import_fields51.checkbox)({
       defaultValue: false,
       ui: {
         description: 'Marca esto y deja "Published at" vac\xEDo para publicar de inmediato, o ponle una fecha futura para programarlo.'
       }
     }),
-    publishedAt: (0, import_fields49.timestamp)({
+    publishedAt: (0, import_fields51.timestamp)({
       ui: {
         createView: { fieldMode: "edit" },
         itemView: { fieldMode: "edit" },
@@ -13772,14 +13950,14 @@ var Post_default = (0, import_core49.list)({
       }
     }),
     /** Cuándo se mandó el correo de "nuevo post". No editable: evita reenvíos en guardados posteriores. */
-    publishedNotifiedAt: (0, import_fields49.timestamp)({
+    publishedNotifiedAt: (0, import_fields51.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
     /** Cuándo se publicó en la Página de Facebook. Editable: vaciarlo fuerza un reintento. */
-    publishedToFacebookAt: (0, import_fields49.timestamp)({
+    publishedToFacebookAt: (0, import_fields51.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "edit" },
@@ -13790,7 +13968,7 @@ var Post_default = (0, import_core49.list)({
      * Tarea de ClickUp que originó el post. Único para no duplicar si el webhook reintenta.
      * Vacío cuando el post se creó en el Admin.
      */
-    clickupTaskId: (0, import_fields49.text)({
+    clickupTaskId: (0, import_fields51.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
@@ -13799,37 +13977,37 @@ var Post_default = (0, import_core49.list)({
         description: "Id de la tarea de ClickUp. Lo llena el webhook al aprobar una publicaci\xF3n."
       }
     }),
-    category: (0, import_fields49.relationship)({
+    category: (0, import_fields51.relationship)({
       ref: "Category.posts",
       many: false
     }),
-    tags: (0, import_fields49.relationship)({
+    tags: (0, import_fields51.relationship)({
       ref: "Tag.posts",
       many: true
     }),
-    author: (0, import_fields49.relationship)({
+    author: (0, import_fields51.relationship)({
       ref: "User",
       many: false
     }),
     /** Datos públicos del autor para el blog: a un visitante `author` le llega `null`. */
     authorProfile: postAuthorProfileField,
-    comments: (0, import_fields49.relationship)({
+    comments: (0, import_fields51.relationship)({
       ref: "PostComment.post",
       many: true
     }),
-    post_likes: (0, import_fields49.relationship)({
+    post_likes: (0, import_fields51.relationship)({
       ref: "PostLike.post",
       many: true
     }),
-    post_favorites: (0, import_fields49.relationship)({
+    post_favorites: (0, import_fields51.relationship)({
       ref: "PostFavorite.post",
       many: true
     }),
-    post_views: (0, import_fields49.relationship)({
+    post_views: (0, import_fields51.relationship)({
       ref: "PostView.post",
       many: true
     }),
-    createdAt: (0, import_fields49.timestamp)({
+    createdAt: (0, import_fields51.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -13838,7 +14016,7 @@ var Post_default = (0, import_core49.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields49.timestamp)({
+    updatedAt: (0, import_fields51.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -13854,28 +14032,28 @@ var Post_default = (0, import_core49.list)({
 });
 
 // models/Blog/Post/PostComment/PostComment.ts
-var import_core50 = require("@keystone-6/core");
-var import_fields50 = require("@keystone-6/core/fields");
-var PostComment_default = (0, import_core50.list)({
+var import_core52 = require("@keystone-6/core");
+var import_fields52 = require("@keystone-6/core/fields");
+var PostComment_default = (0, import_core52.list)({
   access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    comment: (0, import_fields50.text)({
+    comment: (0, import_fields52.text)({
       validation: { isRequired: true },
       ui: { displayMode: "textarea" }
     }),
-    post: (0, import_fields50.relationship)({
+    post: (0, import_fields52.relationship)({
       ref: "Post.comments",
       many: false
     }),
-    user: (0, import_fields50.relationship)({
+    user: (0, import_fields52.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields50.timestamp)({
+    createdAt: (0, import_fields52.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -13884,7 +14062,7 @@ var PostComment_default = (0, import_core50.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields50.timestamp)({
+    updatedAt: (0, import_fields52.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -13900,70 +14078,10 @@ var PostComment_default = (0, import_core50.list)({
 });
 
 // models/Blog/Post/PostLike/PostLike.ts
-var import_core51 = require("@keystone-6/core");
-var import_fields51 = require("@keystone-6/core/fields");
-var PostLike_default = (0, import_core51.list)({
-  access: userRowAccess,
-  hooks: {
-    // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
-    resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
-  },
-  fields: {
-    user: (0, import_fields51.relationship)({
-      ref: "User",
-      many: false
-    }),
-    post: (0, import_fields51.relationship)({
-      ref: "Post.post_likes",
-      many: false
-    }),
-    createdAt: (0, import_fields51.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Blog/Post/PostFavorite/PostFavorite.ts
-var import_core52 = require("@keystone-6/core");
-var import_fields52 = require("@keystone-6/core/fields");
-var PostFavorite_default = (0, import_core52.list)({
-  access: userRowAccess,
-  hooks: {
-    // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
-    resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
-  },
-  fields: {
-    user: (0, import_fields52.relationship)({
-      ref: "User",
-      many: false
-    }),
-    post: (0, import_fields52.relationship)({
-      ref: "Post.post_favorites",
-      many: false
-    }),
-    createdAt: (0, import_fields52.timestamp)({
-      defaultValue: {
-        kind: "now"
-      },
-      ui: {
-        createView: { fieldMode: "hidden" },
-        itemView: { fieldMode: "read" }
-      }
-    })
-  }
-});
-
-// models/Blog/Post/PostView/PostView.ts
 var import_core53 = require("@keystone-6/core");
 var import_fields53 = require("@keystone-6/core/fields");
-var PostView_default = (0, import_core53.list)({
-  access: viewRowAccess,
+var PostLike_default = (0, import_core53.list)({
+  access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
@@ -13974,7 +14092,7 @@ var PostView_default = (0, import_core53.list)({
       many: false
     }),
     post: (0, import_fields53.relationship)({
-      ref: "Post.post_views",
+      ref: "Post.post_likes",
       many: false
     }),
     createdAt: (0, import_fields53.timestamp)({
@@ -13989,19 +14107,23 @@ var PostView_default = (0, import_core53.list)({
   }
 });
 
-// models/Blog/Tag/Tag.ts
+// models/Blog/Post/PostFavorite/PostFavorite.ts
 var import_core54 = require("@keystone-6/core");
 var import_fields54 = require("@keystone-6/core/fields");
-var Tag_default = (0, import_core54.list)({
-  access: publicReadAdminWriteAccess,
+var PostFavorite_default = (0, import_core54.list)({
+  access: userRowAccess,
+  hooks: {
+    // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
+    resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
+  },
   fields: {
-    name: (0, import_fields54.text)({
-      validation: { isRequired: true },
-      isIndexed: "unique"
+    user: (0, import_fields54.relationship)({
+      ref: "User",
+      many: false
     }),
-    posts: (0, import_fields54.relationship)({
-      ref: "Post.tags",
-      many: true
+    post: (0, import_fields54.relationship)({
+      ref: "Post.post_favorites",
+      many: false
     }),
     createdAt: (0, import_fields54.timestamp)({
       defaultValue: {
@@ -14015,14 +14137,70 @@ var Tag_default = (0, import_core54.list)({
   }
 });
 
-// models/Blog/Category/Category.ts
+// models/Blog/Post/PostView/PostView.ts
 var import_core55 = require("@keystone-6/core");
 var import_fields55 = require("@keystone-6/core/fields");
+var PostView_default = (0, import_core55.list)({
+  access: viewRowAccess,
+  hooks: {
+    // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
+    resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
+  },
+  fields: {
+    user: (0, import_fields55.relationship)({
+      ref: "User",
+      many: false
+    }),
+    post: (0, import_fields55.relationship)({
+      ref: "Post.post_views",
+      many: false
+    }),
+    createdAt: (0, import_fields55.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Tag/Tag.ts
+var import_core56 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
+var Tag_default = (0, import_core56.list)({
+  access: publicReadAdminWriteAccess,
+  fields: {
+    name: (0, import_fields56.text)({
+      validation: { isRequired: true },
+      isIndexed: "unique"
+    }),
+    posts: (0, import_fields56.relationship)({
+      ref: "Post.tags",
+      many: true
+    }),
+    createdAt: (0, import_fields56.timestamp)({
+      defaultValue: {
+        kind: "now"
+      },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    })
+  }
+});
+
+// models/Blog/Category/Category.ts
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text86) {
+function sanitizeUrl2(text87) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text86.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text87.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -14059,13 +14237,13 @@ async function checkCategoryUrl(name, currentCategoryId, context) {
 }
 
 // models/Blog/Category/Category.ts
-var Category_default = (0, import_core55.list)({
+var Category_default = (0, import_core57.list)({
   access: publicReadAdminWriteAccess,
   ui: {
     listView: { initialColumns: ["name", "product", "url"] }
   },
   fields: {
-    product: (0, import_fields55.select)({
+    product: (0, import_fields57.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -14075,13 +14253,13 @@ var Category_default = (0, import_core55.list)({
         description: "Pet, SaaS o ambas apps. Define d\xF3nde aparece la categor\xEDa."
       }
     }),
-    name: (0, import_fields55.text)({
+    name: (0, import_fields57.text)({
       isIndexed: "unique",
       ui: {
         description: "Nombre visible. La direcci\xF3n se arma sola y no conviene cambiarla si ya hay art\xEDculos."
       }
     }),
-    url: (0, import_fields55.text)({
+    url: (0, import_fields57.text)({
       isIndexed: "unique",
       hooks: categoryUrlHook,
       ui: {
@@ -14089,14 +14267,14 @@ var Category_default = (0, import_core55.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    image: (0, import_fields55.image)({
+    image: (0, import_fields57.image)({
       storage: "s3_categories"
     }),
-    posts: (0, import_fields55.relationship)({
+    posts: (0, import_fields57.relationship)({
       ref: "Post.category",
       many: true
     }),
-    createdAt: (0, import_fields55.timestamp)({
+    createdAt: (0, import_fields57.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14109,8 +14287,8 @@ var Category_default = (0, import_core55.list)({
 });
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var import_core56 = require("@keystone-6/core");
-var import_fields56 = require("@keystone-6/core/fields");
+var import_core58 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
 
 // models/Blog/BlogSubscription/BlogSubscription.hooks.ts
 function normalizeEmail(email) {
@@ -14184,7 +14362,7 @@ var blogSubscriptionHooks = {
 };
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var BlogSubscription_default = (0, import_core56.list)({
+var BlogSubscription_default = (0, import_core58.list)({
   // Cualquiera se suscribe; solo el admin lee la lista. La baja va por `unsubscribeBlog` (sudo).
   access: anonymousCreateAccess,
   hooks: {
@@ -14193,14 +14371,14 @@ var BlogSubscription_default = (0, import_core56.list)({
     afterOperation: blogSubscriptionHooks.afterOperation
   },
   fields: {
-    email: (0, import_fields56.text)({
+    email: (0, import_fields58.text)({
       // No es único: la unicidad es (email, product), ver BlogSubscription.hooks.ts
       isIndexed: true,
       ui: {
         displayMode: "input"
       }
     }),
-    product: (0, import_fields56.select)({
+    product: (0, import_fields58.select)({
       options: SINGLE_PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -14210,20 +14388,20 @@ var BlogSubscription_default = (0, import_core56.list)({
         description: "Blog al que est\xE1 suscrito: Pet o SaaS"
       }
     }),
-    user: (0, import_fields56.relationship)({
+    user: (0, import_fields58.relationship)({
       ref: "User.blog_subscriptions",
       many: false,
       ui: {
         displayMode: "select"
       }
     }),
-    active: (0, import_fields56.checkbox)({
+    active: (0, import_fields58.checkbox)({
       defaultValue: true,
       ui: {
         description: "Si est\xE1 activo, recibir\xE1 notificaciones de nuevos posts"
       }
     }),
-    createdAt: (0, import_fields56.timestamp)({
+    createdAt: (0, import_fields58.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14242,8 +14420,8 @@ var BlogSubscription_default = (0, import_core56.list)({
 });
 
 // models/Role/Role.ts
-var import_core57 = require("@keystone-6/core");
-var import_fields57 = require("@keystone-6/core/fields");
+var import_core59 = require("@keystone-6/core");
+var import_fields59 = require("@keystone-6/core/fields");
 
 // models/Role/Role.access.ts
 var roleAccess = {
@@ -14266,19 +14444,19 @@ var roleUsersFieldAccess = {
 };
 
 // models/Role/Role.ts
-var Role_default = (0, import_core57.list)({
+var Role_default = (0, import_core59.list)({
   access: roleAccess,
   fields: {
-    name: (0, import_fields57.select)({
+    name: (0, import_fields59.select)({
       options: ROLES,
       isIndexed: "unique"
     }),
-    users: (0, import_fields57.relationship)({
+    users: (0, import_fields59.relationship)({
       ref: "User.roles",
       many: true,
       access: roleUsersFieldAccess
     }),
-    createdAt: (0, import_fields57.timestamp)({
+    createdAt: (0, import_fields59.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14291,8 +14469,8 @@ var Role_default = (0, import_core57.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceType/PetPlaceType.ts
-var import_core58 = require("@keystone-6/core");
-var import_fields58 = require("@keystone-6/core/fields");
+var import_core60 = require("@keystone-6/core");
+var import_fields60 = require("@keystone-6/core/fields");
 var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
   label: type.label,
   value: type.value
@@ -14315,22 +14493,22 @@ var pluralHook = {
     return resolvedData.plural || item?.plural;
   }
 };
-var PetPlaceType_default = (0, import_core58.list)({
+var PetPlaceType_default = (0, import_core60.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    value: (0, import_fields58.select)({
+    value: (0, import_fields60.select)({
       validation: { isRequired: true },
       isIndexed: "unique",
       options: PET_PLACE_TYPE_OPTIONS
     }),
-    label: (0, import_fields58.text)({
+    label: (0, import_fields60.text)({
       isIndexed: "unique",
       hooks: labelHook,
       ui: {
         itemView: { fieldMode: "read" }
       }
     }),
-    plural: (0, import_fields58.text)({
+    plural: (0, import_fields60.text)({
       hooks: pluralHook,
       ui: {
         itemView: { fieldMode: "read" }
@@ -14343,15 +14521,15 @@ var PetPlaceType_default = (0, import_core58.list)({
 });
 
 // models/ContactForm/ContactForm.ts
-var import_core59 = require("@keystone-6/core");
-var import_fields59 = require("@keystone-6/core/fields");
+var import_core61 = require("@keystone-6/core");
+var import_fields61 = require("@keystone-6/core/fields");
 var CONTACT_FORM_STATUS_OPTIONS = [
   { label: "Nuevo", value: "new" },
   { label: "Le\xEDdo", value: "read" },
   { label: "En proceso", value: "in_progress" },
   { label: "Resuelto", value: "resolved" }
 ];
-var ContactForm_default = (0, import_core59.list)({
+var ContactForm_default = (0, import_core61.list)({
   // Cualquiera escribe; solo el admin lee los mensajes (nombre, correo y teléfono de quien escribe).
   access: anonymousCreateAccess,
   hooks: {
@@ -14362,44 +14540,44 @@ var ContactForm_default = (0, import_core59.list)({
     }
   },
   fields: {
-    name: (0, import_fields59.text)({
+    name: (0, import_fields61.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    email: (0, import_fields59.text)({
+    email: (0, import_fields61.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    phone: (0, import_fields59.text)({
+    phone: (0, import_fields61.text)({
       validation: { isRequired: false },
       ui: {
         displayMode: "input"
       }
     }),
-    subject: (0, import_fields59.text)({
+    subject: (0, import_fields61.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    message: (0, import_fields59.text)({
+    message: (0, import_fields61.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea"
       }
     }),
-    status: (0, import_fields59.select)({
+    status: (0, import_fields61.select)({
       options: CONTACT_FORM_STATUS_OPTIONS,
       defaultValue: "new",
       ui: {
         displayMode: "select"
       }
     }),
-    createdAt: (0, import_fields59.timestamp)({
+    createdAt: (0, import_fields61.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14418,8 +14596,8 @@ var ContactForm_default = (0, import_core59.list)({
 });
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var import_core60 = require("@keystone-6/core");
-var import_fields60 = require("@keystone-6/core/fields");
+var import_core62 = require("@keystone-6/core");
+var import_fields62 = require("@keystone-6/core/fields");
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.access.ts
 var metaDataDeletionRequestAccess = {
@@ -14444,7 +14622,7 @@ var META_DATA_DELETION_STATUS_OPTIONS = [
 ];
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var MetaDataDeletionRequest_default = (0, import_core60.list)({
+var MetaDataDeletionRequest_default = (0, import_core62.list)({
   access: metaDataDeletionRequestAccess,
   ui: {
     label: "Eliminaci\xF3n de datos (Meta)",
@@ -14453,21 +14631,21 @@ var MetaDataDeletionRequest_default = (0, import_core60.list)({
     }
   },
   fields: {
-    metaUserId: (0, import_fields60.text)({
+    metaUserId: (0, import_fields62.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "App-scoped user id que Meta manda en el signed_request (user_id)."
       }
     }),
-    confirmationCode: (0, import_fields60.text)({
+    confirmationCode: (0, import_fields62.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "C\xF3digo p\xFAblico para consultar el estado. No es un dato de Meta."
       }
     }),
-    status: (0, import_fields60.select)({
+    status: (0, import_fields62.select)({
       type: "string",
       options: META_DATA_DELETION_STATUS_OPTIONS,
       defaultValue: "pending" /* PENDING */,
@@ -14475,16 +14653,16 @@ var MetaDataDeletionRequest_default = (0, import_core60.list)({
       isIndexed: true,
       ui: { displayMode: "select" }
     }),
-    requestedAt: (0, import_fields60.timestamp)({
+    requestedAt: (0, import_fields62.timestamp)({
       validation: { isRequired: true },
       defaultValue: { kind: "now" },
       ui: { description: "Cu\xE1ndo lleg\xF3 el callback de Meta." }
     }),
-    completedAt: (0, import_fields60.timestamp)({
+    completedAt: (0, import_fields62.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo se marc\xF3 completed. Vac\xEDo si sigue pending o failed." }
     }),
-    notes: (0, import_fields60.text)({
+    notes: (0, import_fields62.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
@@ -14495,8 +14673,8 @@ var MetaDataDeletionRequest_default = (0, import_core60.list)({
 });
 
 // models/Saas/Tech/BusinessLead/TechBusinessLead.ts
-var import_core61 = require("@keystone-6/core");
-var import_fields61 = require("@keystone-6/core/fields");
+var import_core63 = require("@keystone-6/core");
+var import_fields63 = require("@keystone-6/core/fields");
 
 // utils/access/leadScopedFilter.ts
 function leadInCompany(companyId) {
@@ -14596,8 +14774,8 @@ function stripTenantFromClient(resolvedData, key) {
 }
 function connectIds(connect) {
   if (!connect) return [];
-  const list100 = Array.isArray(connect) ? connect : [connect];
-  return list100.map((item) => {
+  const list101 = Array.isArray(connect) ? connect : [connect];
+  return list101.map((item) => {
     if (typeof item === "string") return item;
     if (item && typeof item === "object" && "id" in item) {
       return String(item.id);
@@ -14647,7 +14825,7 @@ var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechBusinessLead_default = (0, import_core61.list)({
+var TechBusinessLead_default = (0, import_core63.list)({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
@@ -14662,13 +14840,13 @@ var TechBusinessLead_default = (0, import_core61.list)({
     }
   },
   fields: {
-    businessName: (0, import_fields61.text)({
+    businessName: (0, import_fields63.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
     // businessName en minúsculas y sin acentos, para buscar con `contains`. Lo llena el hook
     // del list; nadie lo escribe por la API ni desde la Admin UI.
-    businessNameSearch: (0, import_fields61.text)({
+    businessNameSearch: (0, import_fields63.text)({
       graphql: { omit: { create: true, update: true } },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -14677,91 +14855,91 @@ var TechBusinessLead_default = (0, import_core61.list)({
         description: "Nombre normalizado para b\xFAsqueda (se calcula solo)"
       }
     }),
-    category: (0, import_fields61.text)({ isIndexed: true }),
-    phone: (0, import_fields61.text)(),
-    email: (0, import_fields61.text)(),
-    address: (0, import_fields61.text)(),
-    city: (0, import_fields61.text)({ isIndexed: true }),
-    state: (0, import_fields61.text)({ isIndexed: true }),
-    country: (0, import_fields61.text)({ isIndexed: true }),
-    rating: (0, import_fields61.float)(),
-    lat: (0, import_fields61.float)(),
-    lng: (0, import_fields61.float)(),
-    reviewCount: (0, import_fields61.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
-    hasWebsite: (0, import_fields61.checkbox)({
+    category: (0, import_fields63.text)({ isIndexed: true }),
+    phone: (0, import_fields63.text)(),
+    email: (0, import_fields63.text)(),
+    address: (0, import_fields63.text)(),
+    city: (0, import_fields63.text)({ isIndexed: true }),
+    state: (0, import_fields63.text)({ isIndexed: true }),
+    country: (0, import_fields63.text)({ isIndexed: true }),
+    rating: (0, import_fields63.float)(),
+    lat: (0, import_fields63.float)(),
+    lng: (0, import_fields63.float)(),
+    reviewCount: (0, import_fields63.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
+    hasWebsite: (0, import_fields63.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene sitio web" }
     }),
-    websiteUrl: (0, import_fields61.text)(),
-    source: (0, import_fields61.select)({
+    websiteUrl: (0, import_fields63.text)(),
+    source: (0, import_fields63.select)({
       type: "string",
       options: sourceOptions,
       defaultValue: "Google Maps",
       ui: { description: "Fuente del lead" }
     }),
-    status: (0, import_fields61.relationship)({
+    status: (0, import_fields63.relationship)({
       ref: "TechStatusBusinessLead.businessLead",
       many: true,
       ui: { description: "Estado y datos variables del lead" }
     }),
-    instagram: (0, import_fields61.text)({ ui: { description: "Usuario o URL de Instagram" } }),
-    facebook: (0, import_fields61.text)({ ui: { description: "URL de Facebook" } }),
-    xTwitter: (0, import_fields61.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
-    tiktok: (0, import_fields61.text)({ ui: { description: "Usuario o URL de TikTok" } }),
+    instagram: (0, import_fields63.text)({ ui: { description: "Usuario o URL de Instagram" } }),
+    facebook: (0, import_fields63.text)({ ui: { description: "URL de Facebook" } }),
+    xTwitter: (0, import_fields63.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
+    tiktok: (0, import_fields63.text)({ ui: { description: "Usuario o URL de TikTok" } }),
     // Reseñas de Google (máx. 5 positivas) para uso en prompt de IA
-    topReview1: (0, import_fields61.text)({
+    topReview1: (0, import_fields63.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 1 (Google)" }
     }),
-    topReview2: (0, import_fields61.text)({
+    topReview2: (0, import_fields63.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 2 (Google)" }
     }),
-    topReview3: (0, import_fields61.text)({
+    topReview3: (0, import_fields63.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 3 (Google)" }
     }),
-    topReview4: (0, import_fields61.text)({
+    topReview4: (0, import_fields63.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 4 (Google)" }
     }),
-    topReview5: (0, import_fields61.text)({
+    topReview5: (0, import_fields63.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 5 (Google)" }
     }),
     // Prompt listo para copiar y usar en vibe coding / IA (info del negocio + reseñas)
-    websitePromptContent: (0, import_fields61.text)({
+    websitePromptContent: (0, import_fields63.text)({
       ui: {
         displayMode: "textarea",
         description: "Prompt listo para IA: crear sitio web con la info del negocio y las 5 rese\xF1as positivas de Google. Copiar y pegar en tu herramienta de vibe coding."
       }
     }),
     // Relaciones inversas
-    activities: (0, import_fields61.relationship)({
+    activities: (0, import_fields63.relationship)({
       ref: "TechSalesActivity.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields61.relationship)({
+    tasks: (0, import_fields63.relationship)({
       ref: "TechTask.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace ligadas al lead" }
     }),
-    proposals: (0, import_fields61.relationship)({
+    proposals: (0, import_fields63.relationship)({
       ref: "TechProposal.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    projects: (0, import_fields61.relationship)({
+    projects: (0, import_fields63.relationship)({
       ref: "SaasProject.businessLead",
       many: true,
       ui: { description: "Proyectos creados tras venta cerrada (cliente)" }
     }),
-    followUpTasks: (0, import_fields61.relationship)({
+    followUpTasks: (0, import_fields63.relationship)({
       ref: "TechFollowUpTask.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    googleMapsUrl: (0, import_fields61.text)({
+    googleMapsUrl: (0, import_fields63.text)({
       ui: { description: "URL de Google Maps del negocio" }
     }),
     // Para importación desde Google (opcional)
-    googlePlaceId: (0, import_fields61.text)({
+    googlePlaceId: (0, import_fields63.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -14769,41 +14947,41 @@ var TechBusinessLead_default = (0, import_core61.list)({
         listView: { fieldMode: "hidden" }
       }
     }),
-    sourceEstablishment: (0, import_fields61.relationship)({
+    sourceEstablishment: (0, import_fields63.relationship)({
       ref: "TechInegiEstablishment.promotedLeads",
       many: false,
       ui: {
         description: "Establecimiento DENUE del que se promovi\xF3 este lead"
       }
     }),
-    salesPerson: (0, import_fields61.relationship)({
+    salesPerson: (0, import_fields63.relationship)({
       ref: "User.businessLeadsAssigned",
       many: true,
       ui: { description: "Vendedor asignado" }
     }),
-    saasCompany: (0, import_fields61.relationship)({
+    saasCompany: (0, import_fields63.relationship)({
       ref: "SaasCompany.leads",
       many: true,
       ui: { description: "Empresa a la que pertenece el lead" }
     }),
-    quotations: (0, import_fields61.relationship)({
+    quotations: (0, import_fields63.relationship)({
       ref: "SaasQuotation.lead",
       many: true,
       ui: { description: "Cotizaciones ligadas a este lead" }
     }),
-    whatsappMessages: (0, import_fields61.relationship)({
+    whatsappMessages: (0, import_fields63.relationship)({
       ref: "TechWhatsAppMessage.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Historial de WhatsApp con este lead" }
     }),
-    createdAt: (0, import_fields61.timestamp)({
+    createdAt: (0, import_fields63.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields61.timestamp)({
+    updatedAt: (0, import_fields63.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -14814,8 +14992,8 @@ var TechBusinessLead_default = (0, import_core61.list)({
 });
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
-var import_core62 = require("@keystone-6/core");
-var import_fields62 = require("@keystone-6/core/fields");
+var import_core64 = require("@keystone-6/core");
+var import_fields64 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
 var statusBusinessLeadAccess = {
@@ -14905,7 +15083,7 @@ var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechStatusBusinessLead_default = (0, import_core62.list)({
+var TechStatusBusinessLead_default = (0, import_core64.list)({
   access: statusBusinessLeadAccess,
   db: {
     extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@unique([businessLeadId, saasCompanyId])\n}")
@@ -14929,38 +15107,38 @@ var TechStatusBusinessLead_default = (0, import_core62.list)({
     }
   },
   fields: {
-    businessLead: (0, import_fields62.relationship)({
+    businessLead: (0, import_fields64.relationship)({
       ref: "TechBusinessLead.status",
       many: false,
       ui: { description: "Lead de negocio asociado" }
     }),
-    opportunityLevel: (0, import_fields62.select)({
+    opportunityLevel: (0, import_fields64.select)({
       type: "string",
       options: opportunityOptions,
       defaultValue: "Media",
       isIndexed: true,
       ui: { description: "Nivel de oportunidad" }
     }),
-    pipelineStatus: (0, import_fields62.select)({
+    pipelineStatus: (0, import_fields64.select)({
       type: "string",
       options: pipelineOptions2,
       defaultValue: PIPELINE_STATUS.DETECTADO,
       isIndexed: true,
       ui: { description: "Estado en el pipeline" }
     }),
-    estimatedValue: (0, import_fields62.float)({
+    estimatedValue: (0, import_fields64.float)({
       ui: { description: "Valor estimado del proyecto" }
     }),
-    productOffered: (0, import_fields62.text)({
+    productOffered: (0, import_fields64.text)({
       ui: { description: "Producto ofrecido (web, e-commerce, etc.)" }
     }),
-    firstContactDate: (0, import_fields62.calendarDay)({
+    firstContactDate: (0, import_fields64.calendarDay)({
       ui: { description: "Fecha primer contacto" }
     }),
     /** Virtual: next follow-up date from the latest FollowUpTask with status Pendiente or Pospuesto */
-    nextFollowUpDate: (0, import_fields62.virtual)({
-      field: import_core62.graphql.field({
-        type: import_core62.graphql.String,
+    nextFollowUpDate: (0, import_fields64.virtual)({
+      field: import_core64.graphql.field({
+        type: import_core64.graphql.String,
         async resolve(item, _args, context) {
           let businessLeadId = item.businessLeadId;
           if (businessLeadId == null) {
@@ -14988,7 +15166,7 @@ var TechStatusBusinessLead_default = (0, import_core62.list)({
       }),
       ui: { description: "Pr\xF3xima fecha de seguimiento (del \xFAltimo FollowUpTask Pendiente o Pospuesto)" }
     }),
-    saasCompany: (0, import_fields62.relationship)({
+    saasCompany: (0, import_fields64.relationship)({
       ref: "SaasCompany.techStatusBusinessLeads",
       many: false,
       ui: { description: "Empresa a la que pertenece el lead" }
@@ -14998,20 +15176,20 @@ var TechStatusBusinessLead_default = (0, import_core62.list)({
      * datos históricos; el hook la ignora en escrituras. El vendedor asignado es
      * `TechBusinessLead.salesPerson`.
      */
-    salesPerson: (0, import_fields62.relationship)({
+    salesPerson: (0, import_fields64.relationship)({
       ref: "User.techStatusBusinessLeads",
       many: false,
       ui: { description: "Deprecado: el vendedor asignado vive en el lead (TechBusinessLead.salesPerson)" }
     }),
-    notes: (0, import_fields62.text)({
+    notes: (0, import_fields64.text)({
       ui: { displayMode: "textarea", description: "Notas generales" }
     })
   }
 });
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
-var import_core63 = require("@keystone-6/core");
-var import_fields63 = require("@keystone-6/core/fields");
+var import_core65 = require("@keystone-6/core");
+var import_fields65 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.access.ts
 var techLeadStageChangeAccess = {
@@ -15030,7 +15208,7 @@ var techLeadStageChangeAccess = {
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
 var pipelineOptions3 = Object.values(PIPELINE_STATUS).map((value) => ({ label: value, value }));
-var TechLeadStageChange_default = (0, import_core63.list)({
+var TechLeadStageChange_default = (0, import_core65.list)({
   access: techLeadStageChangeAccess,
   ui: {
     hideCreate: true,
@@ -15040,32 +15218,32 @@ var TechLeadStageChange_default = (0, import_core63.list)({
     }
   },
   fields: {
-    company: (0, import_fields63.relationship)({ ref: "SaasCompany", many: false }),
-    businessLead: (0, import_fields63.relationship)({ ref: "TechBusinessLead", many: false }),
-    statusId: (0, import_fields63.text)({
+    company: (0, import_fields65.relationship)({ ref: "SaasCompany", many: false }),
+    businessLead: (0, import_fields65.relationship)({ ref: "TechBusinessLead", many: false }),
+    statusId: (0, import_fields65.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "TechStatusBusinessLead (estatus del lead en esa empresa)" }
     }),
-    fromStatus: (0, import_fields63.select)({
+    fromStatus: (0, import_fields65.select)({
       type: "string",
       options: pipelineOptions3,
       db: { isNullable: true },
       ui: { description: "Etapa anterior (vac\xEDa si es la primera)" }
     }),
-    toStatus: (0, import_fields63.select)({
+    toStatus: (0, import_fields65.select)({
       type: "string",
       options: pipelineOptions3,
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "Etapa nueva" }
     }),
-    changedBy: (0, import_fields63.relationship)({ ref: "User", many: false }),
-    source: (0, import_fields63.text)({
+    changedBy: (0, import_fields65.relationship)({ ref: "User", many: false }),
+    source: (0, import_fields65.text)({
       db: { isNullable: true },
       ui: { description: "web (una persona), system (servidor) o backfill (recuperado de ActivityEvent)" }
     }),
-    changedAt: (0, import_fields63.timestamp)({
+    changedAt: (0, import_fields65.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       validation: { isRequired: true }
@@ -15074,8 +15252,8 @@ var TechLeadStageChange_default = (0, import_core63.list)({
 });
 
 // models/Saas/Tech/FollowUpTask/TechFollowUpTask.ts
-var import_core64 = require("@keystone-6/core");
-var import_fields64 = require("@keystone-6/core/fields");
+var import_core66 = require("@keystone-6/core");
+var import_fields66 = require("@keystone-6/core/fields");
 
 // utils/access/crmWorkspaceScopedFilter.ts
 var getCompanyId = (session2) => session2?.data?.company?.id;
@@ -15429,7 +15607,7 @@ var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechFollowUpTask_default = (0, import_core64.list)({
+var TechFollowUpTask_default = (0, import_core66.list)({
   access: followUpTaskAccess,
   hooks: followUpTaskHooks,
   ui: {
@@ -15444,62 +15622,62 @@ var TechFollowUpTask_default = (0, import_core64.list)({
     }
   },
   fields: {
-    scheduledDate: (0, import_fields64.calendarDay)({
+    scheduledDate: (0, import_fields66.calendarDay)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Fecha programada" }
     }),
-    status: (0, import_fields64.select)({
+    status: (0, import_fields66.select)({
       type: "string",
       options: statusOptions,
       defaultValue: FOLLOW_UP_TASK_STATUS.PENDIENTE,
       isIndexed: true
     }),
-    priority: (0, import_fields64.select)({
+    priority: (0, import_fields66.select)({
       type: "string",
       options: priorityOptions,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    businessLead: (0, import_fields64.relationship)({
+    businessLead: (0, import_fields66.relationship)({
       ref: "TechBusinessLead.followUpTasks",
       many: false
     }),
-    assignedSeller: (0, import_fields64.relationship)({
+    assignedSeller: (0, import_fields66.relationship)({
       ref: "User.followUpTasks",
       many: false
     }),
-    createdBy: (0, import_fields64.relationship)({
+    createdBy: (0, import_fields66.relationship)({
       ref: "User.createdByFollowUpTasks",
       many: false
     }),
-    workspace: (0, import_fields64.relationship)({
+    workspace: (0, import_fields66.relationship)({
       ref: "SaasWorkspace.followUpTasks",
       many: false,
       ui: { description: "Workspace a la que pertenece la tarea" }
     }),
-    statusCrm: (0, import_fields64.relationship)({
+    statusCrm: (0, import_fields66.relationship)({
       ref: "SaasWorkspaceCrmStatus.followUpTasks",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo tarea)" }
     }),
-    calendarEvent: (0, import_fields64.relationship)({
+    calendarEvent: (0, import_fields66.relationship)({
       ref: "TechCalendarEvent.followUpTask",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    notes: (0, import_fields64.text)({ ui: { displayMode: "textarea" } }),
-    hiddenInWorkspace: (0, import_fields64.checkbox)({
+    notes: (0, import_fields66.text)({ ui: { displayMode: "textarea" } }),
+    hiddenInWorkspace: (0, import_fields66.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields64.timestamp)({
+    createdAt: (0, import_fields66.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields64.timestamp)({
+    updatedAt: (0, import_fields66.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -15510,8 +15688,8 @@ var TechFollowUpTask_default = (0, import_core64.list)({
 });
 
 // models/Saas/Tech/Proposal/TechProposal.ts
-var import_core65 = require("@keystone-6/core");
-var import_fields65 = require("@keystone-6/core/fields");
+var import_core67 = require("@keystone-6/core");
+var import_fields67 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Proposal/TechProposal.access.ts
 var getCompanyId3 = (session2) => session2?.data?.company?.id;
@@ -15591,7 +15769,7 @@ var statusOptions2 = Object.entries(PROPOSAL_STATUS).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechProposal_default = (0, import_core65.list)({
+var TechProposal_default = (0, import_core67.list)({
   access: proposalAccess,
   hooks: proposalHooks,
   ui: {
@@ -15600,81 +15778,81 @@ var TechProposal_default = (0, import_core65.list)({
     }
   },
   fields: {
-    sentDate: (0, import_fields65.calendarDay)({
+    sentDate: (0, import_fields67.calendarDay)({
       validation: { isRequired: true },
       ui: { description: "Fecha env\xEDo" }
     }),
-    amount: (0, import_fields65.float)({ ui: { description: "Monto" } }),
-    status: (0, import_fields65.select)({
+    amount: (0, import_fields67.float)({ ui: { description: "Monto" } }),
+    status: (0, import_fields67.select)({
       type: "string",
       options: statusOptions2,
       defaultValue: PROPOSAL_STATUS.ENVIADA,
       isIndexed: true
     }),
-    fileOrUrl: (0, import_fields65.text)({
+    fileOrUrl: (0, import_fields67.text)({
       ui: { description: "URL o referencia al archivo de la propuesta" }
     }),
-    approved: (0, import_fields65.checkbox)({
+    approved: (0, import_fields67.checkbox)({
       defaultValue: false,
       ui: { description: "Aprobado por administrador" }
     }),
-    paid: (0, import_fields65.checkbox)({
+    paid: (0, import_fields67.checkbox)({
       defaultValue: false,
       ui: { description: "Pagado" }
     }),
-    product: (0, import_fields65.text)({
+    product: (0, import_fields67.text)({
       ui: { description: "Producto o servicio principal cotizado" }
     }),
-    notes: (0, import_fields65.text)({
+    notes: (0, import_fields67.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas adicionales o condiciones de la propuesta"
       }
     }),
-    businessLead: (0, import_fields65.relationship)({
+    businessLead: (0, import_fields67.relationship)({
       ref: "TechBusinessLead.proposals",
       many: false
     }),
-    assignedSeller: (0, import_fields65.relationship)({
+    assignedSeller: (0, import_fields67.relationship)({
       ref: "User.proposals",
       many: false
     }),
-    createdBy: (0, import_fields65.relationship)({
+    createdBy: (0, import_fields67.relationship)({
       ref: "User.createdByProposals",
       many: false
     }),
-    workspace: (0, import_fields65.relationship)({
+    workspace: (0, import_fields67.relationship)({
       ref: "SaasWorkspace.proposals",
       many: false,
       ui: { description: "Workspace a la que pertenece la propuesta" }
     }),
-    statusCrm: (0, import_fields65.relationship)({
+    statusCrm: (0, import_fields67.relationship)({
       ref: "SaasWorkspaceCrmStatus.proposals",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo propuesta)" }
     }),
-    calendarEvent: (0, import_fields65.relationship)({
+    calendarEvent: (0, import_fields67.relationship)({
       ref: "TechCalendarEvent.proposal",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo propuestas nuevas)" }
     }),
-    project: (0, import_fields65.relationship)({
+    project: (0, import_fields67.relationship)({
       ref: "SaasProject.proposal",
       many: false,
       ui: { description: "Proyecto creado a partir de esta propuesta" }
     }),
-    hiddenInWorkspace: (0, import_fields65.checkbox)({
+    hiddenInWorkspace: (0, import_fields67.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields65.timestamp)({
+    createdAt: (0, import_fields67.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields65.timestamp)({
+    updatedAt: (0, import_fields67.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -15685,8 +15863,8 @@ var TechProposal_default = (0, import_core65.list)({
 });
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.ts
-var import_core66 = require("@keystone-6/core");
-var import_fields66 = require("@keystone-6/core/fields");
+var import_core68 = require("@keystone-6/core");
+var import_fields68 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.access.ts
 var getCompanyId4 = (session2) => session2?.data?.company?.id;
@@ -15734,7 +15912,7 @@ var priorityOptions2 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechSalesActivity_default = (0, import_core66.list)({
+var TechSalesActivity_default = (0, import_core68.list)({
   access: salesActivityAccess,
   hooks: salesActivityHooks,
   ui: {
@@ -15751,63 +15929,63 @@ var TechSalesActivity_default = (0, import_core66.list)({
     }
   },
   fields: {
-    title: (0, import_fields66.text)({
+    title: (0, import_fields68.text)({
       ui: { description: "T\xEDtulo de la actividad" }
     }),
-    type: (0, import_fields66.select)({
+    type: (0, import_fields68.select)({
       type: "string",
       options: activityTypeOptions,
       validation: { isRequired: true },
       isIndexed: true
     }),
-    activityDate: (0, import_fields66.timestamp)({
+    activityDate: (0, import_fields68.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    dueDate: (0, import_fields66.calendarDay)({
+    dueDate: (0, import_fields68.calendarDay)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Deadline for this activity" }
     }),
-    priority: (0, import_fields66.select)({
+    priority: (0, import_fields68.select)({
       type: "string",
       options: priorityOptions2,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields66.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
-    comments: (0, import_fields66.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields66.relationship)({
+    result: (0, import_fields68.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
+    comments: (0, import_fields68.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields68.relationship)({
       ref: "TechBusinessLead.activities",
       many: false
     }),
-    assignedSeller: (0, import_fields66.relationship)({
+    assignedSeller: (0, import_fields68.relationship)({
       ref: "User.salesActivities",
       many: false
     }),
-    createdBy: (0, import_fields66.relationship)({
+    createdBy: (0, import_fields68.relationship)({
       ref: "User.createdBySalesActivities",
       many: false
     }),
-    workspace: (0, import_fields66.relationship)({
+    workspace: (0, import_fields68.relationship)({
       ref: "SaasWorkspace.salesActivities",
       many: false,
       ui: { description: "Workspace a la que pertenece la actividad" }
     }),
-    statusCrm: (0, import_fields66.relationship)({
+    statusCrm: (0, import_fields68.relationship)({
       ref: "SaasWorkspaceCrmStatus.salesActivities",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo actividad)" }
     }),
-    calendarEvent: (0, import_fields66.relationship)({
+    calendarEvent: (0, import_fields68.relationship)({
       ref: "TechCalendarEvent.salesActivity",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo actividades nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields66.checkbox)({
+    hiddenInWorkspace: (0, import_fields68.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields66.timestamp)({
+    createdAt: (0, import_fields68.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -15818,8 +15996,8 @@ var TechSalesActivity_default = (0, import_core66.list)({
 });
 
 // models/Saas/Tech/Task/TechTask.ts
-var import_core67 = require("@keystone-6/core");
-var import_fields67 = require("@keystone-6/core/fields");
+var import_core69 = require("@keystone-6/core");
+var import_fields69 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Task/TechTask.access.ts
 var getCompanyId5 = (session2) => session2?.data?.company?.id;
@@ -15861,7 +16039,7 @@ var priorityOptions3 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechTask_default = (0, import_core67.list)({
+var TechTask_default = (0, import_core69.list)({
   access: techTaskAccess,
   hooks: techTaskHooks,
   ui: {
@@ -15878,62 +16056,62 @@ var TechTask_default = (0, import_core67.list)({
     }
   },
   fields: {
-    title: (0, import_fields67.text)({
+    title: (0, import_fields69.text)({
       ui: { description: "T\xEDtulo de la tarea" }
     }),
-    startDate: (0, import_fields67.timestamp)({
+    startDate: (0, import_fields69.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true },
       ui: { description: "Fecha de la tarea (programada o realizada)" }
     }),
-    dueDate: (0, import_fields67.timestamp)({
+    dueDate: (0, import_fields69.timestamp)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Fecha l\xEDmite de la tarea" }
     }),
-    priority: (0, import_fields67.select)({
+    priority: (0, import_fields69.select)({
       type: "string",
       options: priorityOptions3,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields67.text)({
+    result: (0, import_fields69.text)({
       ui: { description: "Resultado o cierre de la tarea" }
     }),
-    comments: (0, import_fields67.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields67.relationship)({
+    comments: (0, import_fields69.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields69.relationship)({
       ref: "TechBusinessLead.tasks",
       many: false
     }),
-    responsible: (0, import_fields67.relationship)({
+    responsible: (0, import_fields69.relationship)({
       ref: "User.tasksResponsible",
       many: false
     }),
-    workspace: (0, import_fields67.relationship)({
+    workspace: (0, import_fields69.relationship)({
       ref: "SaasWorkspace.tasks",
       many: false,
       ui: { description: "Workspace al que pertenece esta tarea" }
     }),
-    statusCrm: (0, import_fields67.relationship)({
+    statusCrm: (0, import_fields69.relationship)({
       ref: "SaasWorkspaceCrmStatus.tasks",
       many: false,
       ui: {
         description: "Estado CRM din\xE1mico (workspace + tipo de tarea)"
       }
     }),
-    createdBy: (0, import_fields67.relationship)({
+    createdBy: (0, import_fields69.relationship)({
       ref: "User.createdByTasks",
       many: false
     }),
-    calendarEvent: (0, import_fields67.relationship)({
+    calendarEvent: (0, import_fields69.relationship)({
       ref: "TechCalendarEvent.task",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields67.checkbox)({
+    hiddenInWorkspace: (0, import_fields69.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields67.timestamp)({
+    createdAt: (0, import_fields69.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -15944,8 +16122,8 @@ var TechTask_default = (0, import_core67.list)({
 });
 
 // models/Saas/Tech/TechFiles/TechFiles.ts
-var import_core68 = require("@keystone-6/core");
-var import_fields68 = require("@keystone-6/core/fields");
+var import_core70 = require("@keystone-6/core");
+var import_fields70 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/TechFiles/TechFiles.access.ts
 function canUploadFiles(session2) {
@@ -16001,7 +16179,7 @@ var CATEGORY_OPTIONS = [
   { label: "Speech / Guion", value: "speech_script" },
   { label: "Otro", value: "other" }
 ];
-var TechFiles_default = (0, import_core68.list)({
+var TechFiles_default = (0, import_core70.list)({
   access: techFilesAccess,
   hooks: {
     resolveInput: async ({ resolvedData, context, operation }) => {
@@ -16024,18 +16202,18 @@ var TechFiles_default = (0, import_core68.list)({
     }
   },
   fields: {
-    title: (0, import_fields68.text)({
+    title: (0, import_fields70.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del archivo o recurso" }
     }),
-    description: (0, import_fields68.text)({
+    description: (0, import_fields70.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n opcional del contenido"
       }
     }),
-    category: (0, import_fields68.select)({
+    category: (0, import_fields70.select)({
       type: "string",
       options: [...CATEGORY_OPTIONS],
       defaultValue: "otro",
@@ -16044,27 +16222,27 @@ var TechFiles_default = (0, import_core68.list)({
         description: "Tipo de material (proceso, t\xE9cnica, cierre, speech, etc.)"
       }
     }),
-    file: (0, import_fields68.file)({
+    file: (0, import_fields70.file)({
       storage: "s3_tech_files",
       ui: { description: "Archivo (PDF, DOC, etc.)" }
     }),
-    company: (0, import_fields68.relationship)({
+    company: (0, import_fields70.relationship)({
       ref: "SaasCompany.techFiles",
       many: false
     }),
-    aiInsights: (0, import_fields68.relationship)({
+    aiInsights: (0, import_fields70.relationship)({
       ref: "TechAiInsight.relatedFile",
       many: true,
       ui: { description: "An\xE1lisis de IA ligados a este archivo" }
     }),
-    createdAt: (0, import_fields68.timestamp)({
+    createdAt: (0, import_fields70.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields68.timestamp)({
+    updatedAt: (0, import_fields70.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16075,8 +16253,8 @@ var TechFiles_default = (0, import_core68.list)({
 });
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var import_core69 = require("@keystone-6/core");
-var import_fields69 = require("@keystone-6/core/fields");
+var import_core71 = require("@keystone-6/core");
+var import_fields71 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
 var getCompanyId6 = (session2) => session2?.data?.company?.id;
@@ -16102,7 +16280,7 @@ var techLeadSyncLogAccess = {
 };
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var TechLeadSyncLog_default = (0, import_core69.list)({
+var TechLeadSyncLog_default = (0, import_core71.list)({
   access: techLeadSyncLogAccess,
   ui: {
     listView: {
@@ -16119,63 +16297,63 @@ var TechLeadSyncLog_default = (0, import_core69.list)({
     }
   },
   fields: {
-    user: (0, import_fields69.relationship)({
+    user: (0, import_fields71.relationship)({
       ref: "User.leadSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 la sincronizaci\xF3n" }
     }),
-    company: (0, import_fields69.relationship)({
+    company: (0, import_fields71.relationship)({
       ref: "SaasCompany.leadSyncLogs",
       many: false,
       ui: { description: "Empresa" }
     }),
-    success: (0, import_fields69.checkbox)({
+    success: (0, import_fields71.checkbox)({
       defaultValue: false,
       ui: { description: "Si la operaci\xF3n fue exitosa" }
     }),
-    message: (0, import_fields69.text)({
+    message: (0, import_fields71.text)({
       ui: { description: "Mensaje de resultado" }
     }),
-    created: (0, import_fields69.integer)({
+    created: (0, import_fields71.integer)({
       defaultValue: 0,
       ui: { description: "Leads creados desde Google" }
     }),
-    alreadyInDb: (0, import_fields69.integer)({
+    alreadyInDb: (0, import_fields71.integer)({
       defaultValue: 0,
       ui: { description: "Leads ya en BD asignados a la company" }
     }),
-    skippedLowRating: (0, import_fields69.integer)({
+    skippedLowRating: (0, import_fields71.integer)({
       defaultValue: 0,
       ui: { description: "Leads omitidos por rating/rese\xF1as bajas" }
     }),
-    syncedLeadsCount: (0, import_fields69.integer)({
+    syncedLeadsCount: (0, import_fields71.integer)({
       defaultValue: 0,
       ui: { description: "Total de leads asignados en esta ejecuci\xF3n" }
     }),
-    syncedCount: (0, import_fields69.integer)({
+    syncedCount: (0, import_fields71.integer)({
       db: { isNullable: true },
       ui: { description: "Cuota usada este mes (total)" }
     }),
-    leadLimit: (0, import_fields69.integer)({
+    leadLimit: (0, import_fields71.integer)({
       db: { isNullable: true },
       ui: { description: "L\xEDmite de leads del plan" }
     }),
-    lat: (0, import_fields69.float)({
+    lat: (0, import_fields71.float)({
       db: { isNullable: true },
       ui: { description: "Latitud del centro de b\xFAsqueda" }
     }),
-    lng: (0, import_fields69.float)({
+    lng: (0, import_fields71.float)({
       db: { isNullable: true },
       ui: { description: "Longitud del centro de b\xFAsqueda" }
     }),
-    radius: (0, import_fields69.float)({
+    radius: (0, import_fields71.float)({
       db: { isNullable: true },
       ui: { description: "Radio de b\xFAsqueda (km)" }
     }),
-    category: (0, import_fields69.text)({
+    category: (0, import_fields71.text)({
       ui: { description: "Categor\xEDa buscada" }
     }),
-    createdAt: (0, import_fields69.timestamp)({
+    createdAt: (0, import_fields71.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Fecha y hora de la ejecuci\xF3n" }
     })
@@ -16183,8 +16361,8 @@ var TechLeadSyncLog_default = (0, import_core69.list)({
 });
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var import_core70 = require("@keystone-6/core");
-var import_fields70 = require("@keystone-6/core/fields");
+var import_core72 = require("@keystone-6/core");
+var import_fields72 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.access.ts
 var techAiCallLogAccess = {
@@ -16264,7 +16442,7 @@ var MANAGED_GEMINI_FALLBACK = [
 var AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var TechAiCallLog_default = (0, import_core70.list)({
+var TechAiCallLog_default = (0, import_core72.list)({
   access: techAiCallLogAccess,
   ui: {
     listView: {
@@ -16283,40 +16461,40 @@ var TechAiCallLog_default = (0, import_core70.list)({
     }
   },
   fields: {
-    user: (0, import_fields70.relationship)({
+    user: (0, import_fields72.relationship)({
       ref: "User.aiCallLogs",
       many: false,
       ui: { description: "Usuario que dispar\xF3 la llamada" }
     }),
-    company: (0, import_fields70.relationship)({
+    company: (0, import_fields72.relationship)({
       ref: "SaasCompany.aiCallLogs",
       many: false,
       ui: { description: "Empresa due\xF1a de Kadesh Urim AI" }
     }),
-    feature: (0, import_fields70.text)({
+    feature: (0, import_fields72.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: {
         description: "Origen de la llamada (connection_test, daily_digest, monthly_narrative, file_analysis)"
       }
     }),
-    billingMode: (0, import_fields70.select)({
+    billingMode: (0, import_fields72.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       db: { isNullable: true },
       ui: { description: "byok o managed al momento de la llamada" }
     }),
-    provider: (0, import_fields70.select)({
+    provider: (0, import_fields72.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
       ui: { description: "Proveedor usado" }
     }),
-    model: (0, import_fields70.text)({
+    model: (0, import_fields72.text)({
       db: { isNullable: true },
       ui: { description: "Modelo usado" }
     }),
-    featurePrompt: (0, import_fields70.text)({
+    featurePrompt: (0, import_fields72.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -16324,7 +16502,7 @@ var TechAiCallLog_default = (0, import_core70.list)({
         description: "Instrucci\xF3n de la feature (parte del system prompt)"
       }
     }),
-    systemPrompt: (0, import_fields70.text)({
+    systemPrompt: (0, import_fields72.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -16332,7 +16510,7 @@ var TechAiCallLog_default = (0, import_core70.list)({
         description: "System prompt completo enviado al proveedor (Cerebro + feature)"
       }
     }),
-    userPrompt: (0, import_fields70.text)({
+    userPrompt: (0, import_fields72.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -16340,7 +16518,7 @@ var TechAiCallLog_default = (0, import_core70.list)({
         description: "Prompt de usuario enviado al proveedor"
       }
     }),
-    response: (0, import_fields70.text)({
+    response: (0, import_fields72.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -16348,44 +16526,44 @@ var TechAiCallLog_default = (0, import_core70.list)({
         description: "Texto que devolvi\xF3 la IA"
       }
     }),
-    inputTokens: (0, import_fields70.integer)({
+    inputTokens: (0, import_fields72.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de entrada reportados por el proveedor" }
     }),
-    outputTokens: (0, import_fields70.integer)({
+    outputTokens: (0, import_fields72.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de salida reportados por el proveedor" }
     }),
-    billableTokens: (0, import_fields70.integer)({
+    billableTokens: (0, import_fields72.integer)({
       defaultValue: 0,
       ui: {
         description: "Tokens equivalentes: input + output \xD7 5"
       }
     }),
-    creditsCharged: (0, import_fields70.integer)({
+    creditsCharged: (0, import_fields72.integer)({
       defaultValue: 0,
       ui: { description: "Cr\xE9ditos debitados de la bolsa de la empresa" }
     }),
-    billed: (0, import_fields70.checkbox)({
+    billed: (0, import_fields72.checkbox)({
       defaultValue: false,
       ui: { description: "Si esta llamada deb\xEDa cobrar cr\xE9ditos (managed y no ping)" }
     }),
-    success: (0, import_fields70.checkbox)({
+    success: (0, import_fields72.checkbox)({
       defaultValue: false,
       ui: { description: "Si el proveedor respondi\xF3 y se devolvi\xF3 texto" }
     }),
-    errorMessage: (0, import_fields70.text)({
+    errorMessage: (0, import_fields72.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Error si la llamada fall\xF3 (sin API keys)"
       }
     }),
-    durationMs: (0, import_fields70.integer)({
+    durationMs: (0, import_fields72.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n total de callCompanyAi en ms" }
     }),
-    createdAt: (0, import_fields70.timestamp)({
+    createdAt: (0, import_fields72.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento de la llamada" }
     })
@@ -16393,8 +16571,8 @@ var TechAiCallLog_default = (0, import_core70.list)({
 });
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var import_core71 = require("@keystone-6/core");
-var import_fields71 = require("@keystone-6/core/fields");
+var import_core73 = require("@keystone-6/core");
+var import_fields73 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiInsight/TechAiInsight.access.ts
 var getCompanyId7 = (session2) => session2?.data?.company?.id;
@@ -16445,7 +16623,7 @@ var AI_INSIGHT_KIND_OPTIONS = [
 ];
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var TechAiInsight_default = (0, import_core71.list)({
+var TechAiInsight_default = (0, import_core73.list)({
   access: techAiInsightAccess,
   ui: {
     listView: {
@@ -16459,47 +16637,47 @@ var TechAiInsight_default = (0, import_core71.list)({
     }
   },
   fields: {
-    company: (0, import_fields71.relationship)({
+    company: (0, import_fields73.relationship)({
       ref: "SaasCompany.aiInsights",
       many: false,
       ui: { description: "Empresa due\xF1a del insight" }
     }),
-    salesPerson: (0, import_fields71.relationship)({
+    salesPerson: (0, import_fields73.relationship)({
       ref: "User.aiInsights",
       many: false,
       ui: {
         description: "Vendedor due\xF1o del insight. Vac\xEDo = insight de empresa (admin / alcance global)"
       }
     }),
-    kind: (0, import_fields71.select)({
+    kind: (0, import_fields73.select)({
       type: "string",
       options: [...AI_INSIGHT_KIND_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Tipo de insight (digest, narrativa, archivo)" }
     }),
-    referenceKey: (0, import_fields71.text)({
+    referenceKey: (0, import_fields73.text)({
       isIndexed: true,
       ui: {
         description: 'Clave de cach\xE9: "YYYY-MM-DD", "YYYY-MM" o id de archivo'
       }
     }),
-    content: (0, import_fields71.text)({
+    content: (0, import_fields73.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Texto legible del insight"
       }
     }),
-    structuredData: (0, import_fields71.json)({
+    structuredData: (0, import_fields73.json)({
       ui: { description: "JSON de acciones / estructura (p. ej. 3 pasos)" }
     }),
-    relatedFile: (0, import_fields71.relationship)({
+    relatedFile: (0, import_fields73.relationship)({
       ref: "TechFile.aiInsights",
       many: false,
       ui: { description: "Archivo analizado (Fase 4)" }
     }),
-    generatedAt: (0, import_fields71.timestamp)({
+    generatedAt: (0, import_fields73.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento en que se gener\xF3 o regener\xF3" }
     })
@@ -16507,8 +16685,8 @@ var TechAiInsight_default = (0, import_core71.list)({
 });
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var import_core72 = require("@keystone-6/core");
-var import_fields72 = require("@keystone-6/core/fields");
+var import_core74 = require("@keystone-6/core");
+var import_fields74 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/access.ts
 var inegiCatalogAccess = {
@@ -16529,7 +16707,7 @@ var inegiSyncLogAccess = {
 };
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var TechInegiEconomicActivity_default = (0, import_core72.list)({
+var TechInegiEconomicActivity_default = (0, import_core74.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -16538,17 +16716,17 @@ var TechInegiEconomicActivity_default = (0, import_core72.list)({
     }
   },
   fields: {
-    scianCode: (0, import_fields72.text)({
+    scianCode: (0, import_fields74.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "C\xF3digo SCIAN (o clave sint\xE9tica si la API no lo trae)" }
     }),
-    name: (0, import_fields72.text)({
+    name: (0, import_fields74.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre de la clase de actividad econ\xF3mica" }
     }),
-    establishments: (0, import_fields72.relationship)({
+    establishments: (0, import_fields74.relationship)({
       ref: "TechInegiEstablishment.economicActivity",
       many: true,
       ui: { hideCreate: true }
@@ -16557,9 +16735,9 @@ var TechInegiEconomicActivity_default = (0, import_core72.list)({
 });
 
 // models/Saas/Tech/Inegi/Establishment/TechInegiEstablishment.ts
-var import_core73 = require("@keystone-6/core");
-var import_fields73 = require("@keystone-6/core/fields");
-var TechInegiEstablishment_default = (0, import_core73.list)({
+var import_core75 = require("@keystone-6/core");
+var import_fields75 = require("@keystone-6/core/fields");
+var TechInegiEstablishment_default = (0, import_core75.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -16568,47 +16746,47 @@ var TechInegiEstablishment_default = (0, import_core73.list)({
     }
   },
   fields: {
-    clee: (0, import_fields73.text)({
+    clee: (0, import_fields75.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Clave \xFAnica INEGI (CLEE)" }
     }),
-    name: (0, import_fields73.text)({
+    name: (0, import_fields75.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    legalName: (0, import_fields73.text)({
+    legalName: (0, import_fields75.text)({
       ui: { description: "Raz\xF3n social" }
     }),
-    employeeStratum: (0, import_fields73.text)({
+    employeeStratum: (0, import_fields75.text)({
       ui: { description: "Estrato de personal ocupado (tal cual DENUE)" }
     }),
-    economicActivity: (0, import_fields73.relationship)({
+    economicActivity: (0, import_fields75.relationship)({
       ref: "TechInegiEconomicActivity.establishments",
       many: false,
       ui: { description: "Giro SCIAN" }
     }),
-    street: (0, import_fields73.text)(),
-    exteriorNumber: (0, import_fields73.text)(),
-    interiorNumber: (0, import_fields73.text)(),
-    neighborhood: (0, import_fields73.text)(),
-    postalCode: (0, import_fields73.text)(),
-    locality: (0, import_fields73.text)(),
-    municipality: (0, import_fields73.text)({ isIndexed: true }),
-    state: (0, import_fields73.text)({ isIndexed: true }),
-    phone: (0, import_fields73.text)(),
-    email: (0, import_fields73.text)(),
-    website: (0, import_fields73.text)(),
-    lat: (0, import_fields73.float)({ db: { isNullable: true } }),
-    lng: (0, import_fields73.float)({ db: { isNullable: true } }),
-    rawPayload: (0, import_fields73.json)({
+    street: (0, import_fields75.text)(),
+    exteriorNumber: (0, import_fields75.text)(),
+    interiorNumber: (0, import_fields75.text)(),
+    neighborhood: (0, import_fields75.text)(),
+    postalCode: (0, import_fields75.text)(),
+    locality: (0, import_fields75.text)(),
+    municipality: (0, import_fields75.text)({ isIndexed: true }),
+    state: (0, import_fields75.text)({ isIndexed: true }),
+    phone: (0, import_fields75.text)(),
+    email: (0, import_fields75.text)(),
+    website: (0, import_fields75.text)(),
+    lat: (0, import_fields75.float)({ db: { isNullable: true } }),
+    lng: (0, import_fields75.float)({ db: { isNullable: true } }),
+    rawPayload: (0, import_fields75.json)({
       ui: { description: "Respuesta cruda de INEGI (API o fila CSV)" }
     }),
-    lastSyncedAt: (0, import_fields73.timestamp)({
+    lastSyncedAt: (0, import_fields75.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima vez que se actualiz\xF3 desde INEGI" }
     }),
-    promotedLeads: (0, import_fields73.relationship)({
+    promotedLeads: (0, import_fields75.relationship)({
       ref: "TechBusinessLead.sourceEstablishment",
       many: true,
       ui: { hideCreate: true, description: "Leads CRM promovidos desde este establecimiento" }
@@ -16617,8 +16795,8 @@ var TechInegiEstablishment_default = (0, import_core73.list)({
 });
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var import_core74 = require("@keystone-6/core");
-var import_fields74 = require("@keystone-6/core/fields");
+var import_core76 = require("@keystone-6/core");
+var import_fields76 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/constants.ts
 var INEGI_SYNC_SOURCE = {
@@ -16652,7 +16830,7 @@ var INEGI_GEO_BOUNDARY_LEVEL_OPTIONS = [
 var INEGI_LIVE_SYNC_CAP = 250;
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var TechInegiGeoBoundary_default = (0, import_core74.list)({
+var TechInegiGeoBoundary_default = (0, import_core76.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -16661,38 +16839,38 @@ var TechInegiGeoBoundary_default = (0, import_core74.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields74.text)({
+    cacheKey: (0, import_fields76.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "level:geoCode" }
     }),
-    level: (0, import_fields74.select)({
+    level: (0, import_fields76.select)({
       type: "string",
       options: [...INEGI_GEO_BOUNDARY_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geoCode: (0, import_fields74.text)({
+    geoCode: (0, import_fields76.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    name: (0, import_fields74.text)({
+    name: (0, import_fields76.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    parentCode: (0, import_fields74.text)({
+    parentCode: (0, import_fields76.text)({
       db: { isNullable: true },
       ui: { description: "CVE_ENT para municipio; CVEGEO municipal para localidad" }
     }),
-    geometry: (0, import_fields74.json)({
+    geometry: (0, import_fields76.json)({
       ui: { description: "GeoJSON geometry (sin PostGIS)" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/Indicator/TechInegiIndicator.ts
-var import_core75 = require("@keystone-6/core");
-var import_fields75 = require("@keystone-6/core/fields");
-var TechInegiIndicator_default = (0, import_core75.list)({
+var import_core77 = require("@keystone-6/core");
+var import_fields77 = require("@keystone-6/core/fields");
+var TechInegiIndicator_default = (0, import_core77.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "indicatorName",
@@ -16707,46 +16885,46 @@ var TechInegiIndicator_default = (0, import_core75.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields75.text)({
+    cacheKey: (0, import_fields77.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "indicatorId:geographicCode:period"
       }
     }),
-    indicatorId: (0, import_fields75.text)({
+    indicatorId: (0, import_fields77.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    indicatorName: (0, import_fields75.text)({
+    indicatorName: (0, import_fields77.text)({
       validation: { isRequired: true }
     }),
-    geographicLevel: (0, import_fields75.select)({
+    geographicLevel: (0, import_fields77.select)({
       type: "string",
       options: [...INEGI_GEOGRAPHIC_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geographicCode: (0, import_fields75.text)({
+    geographicCode: (0, import_fields77.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "00 nacional, 2 d\xEDgitos estado, 5 d\xEDgitos municipio" }
     }),
-    period: (0, import_fields75.text)({
+    period: (0, import_fields77.text)({
       validation: { isRequired: true },
       ui: { description: "TIME_PERIOD de BIE (p. ej. 2020)" }
     }),
-    value: (0, import_fields75.float)({ db: { isNullable: true } }),
-    unit: (0, import_fields75.text)(),
-    fetchedAt: (0, import_fields75.timestamp)({
+    value: (0, import_fields77.float)({ db: { isNullable: true } }),
+    unit: (0, import_fields77.text)(),
+    fetchedAt: (0, import_fields77.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/SyncLog/TechInegiSyncLog.ts
-var import_core76 = require("@keystone-6/core");
-var import_fields76 = require("@keystone-6/core/fields");
-var TechInegiSyncLog_default = (0, import_core76.list)({
+var import_core78 = require("@keystone-6/core");
+var import_fields78 = require("@keystone-6/core/fields");
+var TechInegiSyncLog_default = (0, import_core78.list)({
   access: inegiSyncLogAccess,
   ui: {
     listView: {
@@ -16763,49 +16941,49 @@ var TechInegiSyncLog_default = (0, import_core76.list)({
     }
   },
   fields: {
-    user: (0, import_fields76.relationship)({
+    user: (0, import_fields78.relationship)({
       ref: "User.inegiSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 el sync (vac\xEDo en scripts)" }
     }),
-    success: (0, import_fields76.checkbox)({
+    success: (0, import_fields78.checkbox)({
       defaultValue: false
     }),
-    message: (0, import_fields76.text)(),
-    created: (0, import_fields76.integer)({
+    message: (0, import_fields78.text)(),
+    created: (0, import_fields78.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos nuevos" }
     }),
-    updated: (0, import_fields76.integer)({
+    updated: (0, import_fields78.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos actualizados" }
     }),
-    alreadyInDb: (0, import_fields76.integer)({
+    alreadyInDb: (0, import_fields78.integer)({
       defaultValue: 0,
       ui: { description: "Ya exist\xEDan y no cambiaron (o se reencontraron)" }
     }),
-    totalFetched: (0, import_fields76.integer)({
+    totalFetched: (0, import_fields78.integer)({
       defaultValue: 0,
       ui: { description: "Filas recibidas de INEGI en esta corrida" }
     }),
-    sourceMethod: (0, import_fields76.select)({
+    sourceMethod: (0, import_fields78.select)({
       type: "string",
       options: [...INEGI_SYNC_SOURCE_OPTIONS],
       validation: { isRequired: true },
       defaultValue: "api"
     }),
-    searchParams: (0, import_fields76.json)({
+    searchParams: (0, import_fields78.json)({
       ui: { description: "Par\xE1metros de b\xFAsqueda o ruta del archivo" }
     }),
-    createdAt: (0, import_fields76.timestamp)({
+    createdAt: (0, import_fields78.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var import_core77 = require("@keystone-6/core");
-var import_fields77 = require("@keystone-6/core/fields");
+var import_core79 = require("@keystone-6/core");
+var import_fields79 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
 var saasCompanyAccess = {
@@ -16979,7 +17157,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core77.list)({
+var SaasCompany_default = (0, import_core79.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -16998,147 +17176,147 @@ var SaasCompany_default = (0, import_core77.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields77.text)({
+    name: (0, import_fields79.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields77.relationship)({
+    users: (0, import_fields79.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    workspaces: (0, import_fields77.relationship)({
+    workspaces: (0, import_fields79.relationship)({
       ref: "SaasWorkspace.company",
       many: true,
       ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields77.json)({
+    allowedGooglePlaceCategories: (0, import_fields79.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields77.relationship)({
+    leads: (0, import_fields79.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields77.relationship)({
+    plan: (0, import_fields79.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields77.calendarDay)({
+    subscriptionStartedAt: (0, import_fields79.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields77.relationship)({
+    subscriptions: (0, import_fields79.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields77.relationship)({
+    techStatusBusinessLeads: (0, import_fields79.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields77.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields79.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (legacy quota tracking)" }
     }),
     /** Cumulative purchased bonus credits (permanent monthly top-up) */
-    purchasedBonusCredits: (0, import_fields77.integer)({
+    purchasedBonusCredits: (0, import_fields79.integer)({
       defaultValue: 0,
       ui: {
         description: "Total extra credits purchased; added to the monthly allowance each period"
       }
     }),
-    creditPeriods: (0, import_fields77.relationship)({
+    creditPeriods: (0, import_fields79.relationship)({
       ref: "SaasCompanyCreditPeriod.company",
       many: true,
       ui: { description: "Monthly credit periods for this company" }
     }),
-    creditLedgerEntries: (0, import_fields77.relationship)({
+    creditLedgerEntries: (0, import_fields79.relationship)({
       ref: "SaasCompanyCreditLedger.company",
       many: true,
       ui: { description: "Credit grant/consume ledger for this company" }
     }),
-    techFiles: (0, import_fields77.relationship)({
+    techFiles: (0, import_fields79.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields77.relationship)({
+    projects: (0, import_fields79.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    leadSyncLogs: (0, import_fields77.relationship)({
+    leadSyncLogs: (0, import_fields79.relationship)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
-    aiCallLogs: (0, import_fields77.relationship)({
+    aiCallLogs: (0, import_fields79.relationship)({
       ref: "TechAiCallLog.company",
       many: true,
       ui: { description: "Historial de llamadas a IA (prompts, tokens, cr\xE9ditos)" }
     }),
-    aiInsights: (0, import_fields77.relationship)({
+    aiInsights: (0, import_fields79.relationship)({
       ref: "TechAiInsight.company",
       many: true,
       ui: { description: "Insights de IA (digest diario, narrativa, archivos)" }
     }),
-    saasSubscriptionLogs: (0, import_fields77.relationship)({
+    saasSubscriptionLogs: (0, import_fields79.relationship)({
       ref: "SaasSubscriptionLog.company",
       many: true,
       ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
-    quotations: (0, import_fields77.relationship)({
+    quotations: (0, import_fields79.relationship)({
       ref: "SaasQuotation.company",
       many: true,
       ui: { description: "Cotizaciones de la empresa" }
     }),
-    logo: (0, import_fields77.file)({
+    logo: (0, import_fields79.file)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    onboardingMainOffer: (0, import_fields77.text)({
+    onboardingMainOffer: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    onboardingIdealCustomer: (0, import_fields77.text)({
+    onboardingIdealCustomer: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    onboardingAvgTicketValue: (0, import_fields77.text)({
+    onboardingAvgTicketValue: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    onboardingSalesPain: (0, import_fields77.text)({
+    onboardingSalesPain: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
       }
     }),
-    aiBillingMode: (0, import_fields77.select)({
+    aiBillingMode: (0, import_fields79.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       defaultValue: AI_BILLING_MODE.BYOK,
@@ -17146,7 +17324,7 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "C\xF3mo paga la empresa la IA: API key propia (BYOK) o cr\xE9ditos administrados por Kadesh"
       }
     }),
-    aiProvider: (0, import_fields77.select)({
+    aiProvider: (0, import_fields79.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
@@ -17154,13 +17332,13 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "Proveedor de IA en modalidad BYOK (Claude, OpenAI o Gemini)"
       }
     }),
-    aiModel: (0, import_fields77.text)({
+    aiModel: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         description: "Override opcional del modelo. Vac\xEDo = default del proveedor."
       }
     }),
-    aiApiKeyEncrypted: (0, import_fields77.text)({
+    aiApiKeyEncrypted: (0, import_fields79.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -17174,42 +17352,42 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "API key cifrada (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    aiApiKeyPreview: (0, import_fields77.text)({
+    aiApiKeyPreview: (0, import_fields79.text)({
       db: { isNullable: true },
       access: aiApiKeyPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)"
       }
     }),
-    aiKeyUpdatedAt: (0, import_fields77.timestamp)({
+    aiKeyUpdatedAt: (0, import_fields79.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se guard\xF3 o borr\xF3 la API key de IA"
       }
     }),
-    whatsappPhoneNumberId: (0, import_fields77.text)({
+    whatsappPhoneNumberId: (0, import_fields79.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "Phone Number ID de WhatsApp Cloud API (Meta). \xDAnico por empresa: se usa para enrutar el webhook entrante."
       }
     }),
-    whatsappBusinessAccountId: (0, import_fields77.text)({
+    whatsappBusinessAccountId: (0, import_fields79.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "WhatsApp Business Account ID (WABA). \xDAnico por empresa: se usa para enrutar el webhook de estado de plantillas."
       }
     }),
-    whatsappDisplayPhoneNumber: (0, import_fields77.text)({
+    whatsappDisplayPhoneNumber: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "N\xFAmero mostrado por Meta (se llena al probar la conexi\xF3n)"
       }
     }),
-    whatsappAccessTokenEncrypted: (0, import_fields77.text)({
+    whatsappAccessTokenEncrypted: (0, import_fields79.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -17223,7 +17401,7 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "Access token cifrado (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    whatsappAppSecretEncrypted: (0, import_fields77.text)({
+    whatsappAppSecretEncrypted: (0, import_fields79.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -17237,28 +17415,28 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "App Secret de la App de Meta de esta empresa, cifrado. Verifica la firma del webhook entrante."
       }
     }),
-    whatsappTokenPreview: (0, import_fields77.text)({
+    whatsappTokenPreview: (0, import_fields79.text)({
       db: { isNullable: true },
       access: whatsappTokenPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada del access token (ej. EAAxyz...wXyz)"
       }
     }),
-    whatsappConnectedAt: (0, import_fields77.timestamp)({
+    whatsappConnectedAt: (0, import_fields79.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se conect\xF3 o desconect\xF3 WhatsApp"
       }
     }),
-    whatsappAppId: (0, import_fields77.text)({
+    whatsappAppId: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "App ID de la App de Meta de esta empresa (para configurar su webhook por API)"
       }
     }),
-    whatsappWebhookConfiguredAt: (0, import_fields77.timestamp)({
+    whatsappWebhookConfiguredAt: (0, import_fields79.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17266,7 +17444,7 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "Cu\xE1ndo Kadesh dej\xF3 configurado el webhook de su App por API (no implica que ya lleguen mensajes)"
       }
     }),
-    whatsappLastWebhookAt: (0, import_fields77.timestamp)({
+    whatsappLastWebhookAt: (0, import_fields79.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17274,22 +17452,22 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "\xDAltimo evento real de mensajes recibido con firma v\xE1lida. Vac\xEDo = nunca ha llegado uno (\xBFApp sin publicar en modo Live?)"
       }
     }),
-    googleCalendarAccounts: (0, import_fields77.relationship)({
+    googleCalendarAccounts: (0, import_fields79.relationship)({
       ref: "GoogleCalendarAccount.company",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar compartidas por la empresa" }
     }),
-    calendarEvents: (0, import_fields77.relationship)({
+    calendarEvents: (0, import_fields79.relationship)({
       ref: "TechCalendarEvent.company",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario de la empresa" }
     }),
-    whatsappMessages: (0, import_fields77.relationship)({
+    whatsappMessages: (0, import_fields79.relationship)({
       ref: "TechWhatsAppMessage.company",
       many: true,
       ui: { description: "Historial de mensajes de WhatsApp de esta empresa" }
     }),
-    whatsappTemplateName: (0, import_fields77.text)({
+    whatsappTemplateName: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17297,14 +17475,14 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "Nombre de la plantilla creada autom\xE1ticamente para iniciar conversaciones"
       }
     }),
-    whatsappTemplateLanguage: (0, import_fields77.text)({
+    whatsappTemplateLanguage: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    whatsappTemplateStatus: (0, import_fields77.select)({
+    whatsappTemplateStatus: (0, import_fields79.select)({
       type: "string",
       options: [
         { label: "Ninguna", value: "none" },
@@ -17317,41 +17495,41 @@ var SaasCompany_default = (0, import_core77.list)({
         description: "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexi\xF3n, y se actualiza v\xEDa webhook cuando Meta la revisa o reley\xE9ndolo de Meta en cada prueba de conexi\xF3n (por si el webhook no est\xE1 configurado)."
       }
     }),
-    termsQuotation: (0, import_fields77.text)({
+    termsQuotation: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
       }
     }),
-    colorPrimary: (0, import_fields77.text)({
+    colorPrimary: (0, import_fields79.text)({
       db: { isNullable: true },
       defaultValue: "#F7945E",
       ui: {
         description: "Color primario de la empresa"
       }
     }),
-    colorSecondary: (0, import_fields77.text)({
+    colorSecondary: (0, import_fields79.text)({
       db: { isNullable: true },
       defaultValue: "#E07C3A",
       ui: {
         description: "Color secundario de la empresa"
       }
     }),
-    contactEmail: (0, import_fields77.text)({
+    contactEmail: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de contacto de la empresa"
       }
     }),
-    contactPhone: (0, import_fields77.text)({
+    contactPhone: (0, import_fields79.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
     // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
-    suspendedAt: (0, import_fields77.timestamp)({
+    suspendedAt: (0, import_fields79.timestamp)({
       db: { isNullable: true },
       access: saasCompanyAccountControlFieldAccess,
       ui: {
@@ -17360,7 +17538,7 @@ var SaasCompany_default = (0, import_core77.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    suspendedReason: (0, import_fields77.text)({
+    suspendedReason: (0, import_fields79.text)({
       db: { isNullable: true },
       access: saasCompanyAccountControlFieldAccess,
       ui: {
@@ -17369,7 +17547,7 @@ var SaasCompany_default = (0, import_core77.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    accountManager: (0, import_fields77.relationship)({
+    accountManager: (0, import_fields79.relationship)({
       ref: "User",
       many: false,
       access: saasCompanyAccountControlFieldAccess,
@@ -17379,14 +17557,14 @@ var SaasCompany_default = (0, import_core77.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    createdAt: (0, import_fields77.timestamp)({
+    createdAt: (0, import_fields79.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields77.timestamp)({
+    updatedAt: (0, import_fields79.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17397,8 +17575,8 @@ var SaasCompany_default = (0, import_core77.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core78 = require("@keystone-6/core");
-var import_fields78 = require("@keystone-6/core/fields");
+var import_core80 = require("@keystone-6/core");
+var import_fields80 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -17428,7 +17606,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core78.list)({
+var SaasPlan_default = (0, import_core80.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -17446,42 +17624,42 @@ var SaasPlan_default = (0, import_core78.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields78.text)({
+    name: (0, import_fields80.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields78.float)({
+    cost: (0, import_fields80.float)({
       ui: { description: "Plan cost per billing period" }
     }),
-    costOld: (0, import_fields78.float)({
+    costOld: (0, import_fields80.float)({
       ui: { description: "Plan cost original" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
-    referralUpfrontCommissionPct: (0, import_fields78.float)({
+    referralUpfrontCommissionPct: (0, import_fields80.float)({
       ui: {
         description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
       }
     }),
     /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
-    referralRecurringCommissionPct: (0, import_fields78.float)({
+    referralRecurringCommissionPct: (0, import_fields80.float)({
       ui: {
         description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
       }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields78.select)({
+    frequency: (0, import_fields80.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields78.text)({
+    currency: (0, import_fields80.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields78.integer)({
+    leadLimit: (0, import_fields80.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -17492,28 +17670,28 @@ var SaasPlan_default = (0, import_core78.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields78.json)({
+    planFeatures: (0, import_fields80.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields78.relationship)({
+    saasPayments: (0, import_fields80.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields78.checkbox)({
+    active: (0, import_fields80.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields78.checkbox)({
+    bestSeller: (0, import_fields80.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields78.text)({
+    stripePriceId: (0, import_fields80.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -17521,36 +17699,36 @@ var SaasPlan_default = (0, import_core78.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields78.text)({
+    stripeProductId: (0, import_fields80.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
     /** Companies currently on this plan */
-    companies: (0, import_fields78.relationship)({
+    companies: (0, import_fields80.relationship)({
       ref: "SaasCompany.plan",
       many: true,
       ui: { description: "Companies on this plan" }
     }),
-    subscriptions: (0, import_fields78.relationship)({
+    subscriptions: (0, import_fields80.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
-    saasSubscriptionLogs: (0, import_fields78.relationship)({
+    saasSubscriptionLogs: (0, import_fields80.relationship)({
       ref: "SaasSubscriptionLog.plan",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
     }),
-    createdAt: (0, import_fields78.timestamp)({
+    createdAt: (0, import_fields80.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields78.timestamp)({
+    updatedAt: (0, import_fields80.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17561,8 +17739,8 @@ var SaasPlan_default = (0, import_core78.list)({
 });
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var import_core79 = require("@keystone-6/core");
-var import_fields79 = require("@keystone-6/core/fields");
+var import_core81 = require("@keystone-6/core");
+var import_fields81 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCredit/SaasCredit.access.ts
 var saasCreditAccess = {
@@ -17580,7 +17758,7 @@ var saasCreditAccess = {
 };
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var SaasCredit_default = (0, import_core79.list)({
+var SaasCredit_default = (0, import_core81.list)({
   access: saasCreditAccess,
   ui: {
     listView: {
@@ -17598,51 +17776,51 @@ var SaasCredit_default = (0, import_core79.list)({
   },
   fields: {
     /** Internal key for upsert/seed (e.g. "Recarga Básica") */
-    slug: (0, import_fields79.text)({
+    slug: (0, import_fields81.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
     }),
     /** Package display name shown in the app */
-    name: (0, import_fields79.text)({
+    name: (0, import_fields81.text)({
       validation: { isRequired: true },
       ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
     }),
     /** One-time price amount (in package currency) */
-    cost: (0, import_fields79.float)({
+    cost: (0, import_fields81.float)({
       ui: { description: "One-time package cost" }
     }),
-    costOld: (0, import_fields79.float)({
+    costOld: (0, import_fields81.float)({
       ui: { description: "Original price for strikethrough discount display" }
     }),
     /** Payment frequency (one-time for credit top-ups) */
-    frequency: (0, import_fields79.select)({
+    frequency: (0, import_fields81.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       defaultValue: "once",
       ui: { description: "Payment frequency (once for credit packages)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields79.text)({
+    currency: (0, import_fields81.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
     /** Number of extra credits added on purchase (leads sync or managed AI) */
-    creditsToAdd: (0, import_fields79.integer)({
+    creditsToAdd: (0, import_fields81.integer)({
       validation: { isRequired: true },
       ui: { description: "Credits added to the company on successful purchase" }
     }),
     /** Shown in app and available for purchase */
-    active: (0, import_fields79.checkbox)({
+    active: (0, import_fields81.checkbox)({
       defaultValue: true,
       ui: { description: "Package enabled in app (visible for purchase)" }
     }),
-    bestSeller: (0, import_fields79.checkbox)({
+    bestSeller: (0, import_fields81.checkbox)({
       defaultValue: false,
       ui: { description: "Highlight this package as best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
-    stripePriceId: (0, import_fields79.text)({
+    stripePriceId: (0, import_fields81.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -17650,20 +17828,20 @@ var SaasCredit_default = (0, import_core79.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields79.text)({
+    stripeProductId: (0, import_fields81.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
-    createdAt: (0, import_fields79.timestamp)({
+    createdAt: (0, import_fields81.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields79.timestamp)({
+    updatedAt: (0, import_fields81.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17674,8 +17852,8 @@ var SaasCredit_default = (0, import_core79.list)({
 });
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var import_core80 = require("@keystone-6/core");
-var import_fields80 = require("@keystone-6/core/fields");
+var import_core82 = require("@keystone-6/core");
+var import_fields82 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
 var getCompanyId8 = (session2) => session2?.data?.company?.id;
@@ -17701,7 +17879,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
 };
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core80.list)({
+var SaasCompanyMonthlyLeadSync_default = (0, import_core82.list)({
   access: saasCompanyMonthlyLeadSyncAccess,
   ui: {
     listView: {
@@ -17709,30 +17887,30 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core80.list)({
     }
   },
   fields: {
-    company: (0, import_fields80.relationship)({
+    company: (0, import_fields82.relationship)({
       ref: "SaasCompany.monthlyLeadSyncRecords",
       many: false
     }),
-    year: (0, import_fields80.integer)({
+    year: (0, import_fields82.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the sync period" }
     }),
-    month: (0, import_fields80.integer)({
+    month: (0, import_fields82.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the sync period (1-12)" }
     }),
     /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields80.integer)({
+    syncedCount: (0, import_fields82.integer)({
       defaultValue: 0,
       ui: { description: "Number of leads synced this month (for quota tracking)" }
     }),
-    createdAt: (0, import_fields80.timestamp)({
+    createdAt: (0, import_fields82.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields80.timestamp)({
+    updatedAt: (0, import_fields82.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -17740,8 +17918,8 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core80.list)({
 });
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var import_core81 = require("@keystone-6/core");
-var import_fields81 = require("@keystone-6/core/fields");
+var import_core83 = require("@keystone-6/core");
+var import_fields83 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
 var getCompanyId9 = (session2) => session2?.data?.company?.id;
@@ -17765,7 +17943,7 @@ var companyCreditPeriodAccess = {
 };
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var SaasCompanyCreditPeriod_default = (0, import_core81.list)({
+var SaasCompanyCreditPeriod_default = (0, import_core83.list)({
   access: companyCreditPeriodAccess,
   ui: {
     listView: {
@@ -17781,60 +17959,60 @@ var SaasCompanyCreditPeriod_default = (0, import_core81.list)({
     }
   },
   fields: {
-    company: (0, import_fields81.relationship)({
+    company: (0, import_fields83.relationship)({
       ref: "SaasCompany.creditPeriods",
       many: false,
       ui: { description: "Company that owns this credit period" }
     }),
-    subscription: (0, import_fields81.relationship)({
+    subscription: (0, import_fields83.relationship)({
       ref: "SaasCompanySubscription.creditPeriods",
       many: false,
       ui: { description: "Active subscription when this period was created" }
     }),
-    periodKey: (0, import_fields81.text)({
+    periodKey: (0, import_fields83.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: {
         description: "Unique key: companyId:year:month"
       }
     }),
-    year: (0, import_fields81.integer)({
+    year: (0, import_fields83.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the credit period" }
     }),
-    month: (0, import_fields81.integer)({
+    month: (0, import_fields83.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the credit period (1-12)" }
     }),
-    planAllowance: (0, import_fields81.integer)({
+    planAllowance: (0, import_fields83.integer)({
       defaultValue: 0,
       ui: { description: "Monthly lead allowance from the active plan" }
     }),
-    bonusAllowance: (0, import_fields81.integer)({
+    bonusAllowance: (0, import_fields83.integer)({
       defaultValue: 0,
       ui: {
         description: "Extra purchased credits added to the monthly allowance for this period"
       }
     }),
-    used: (0, import_fields81.integer)({
+    used: (0, import_fields83.integer)({
       defaultValue: 0,
       ui: { description: "Credits consumed in this period" }
     }),
-    ledgerEntries: (0, import_fields81.relationship)({
+    ledgerEntries: (0, import_fields83.relationship)({
       ref: "SaasCompanyCreditLedger.period",
       many: true,
       ui: { description: "Ledger movements for this period" }
     }),
-    createdAt: (0, import_fields81.timestamp)({
+    createdAt: (0, import_fields83.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields81.timestamp)({
+    updatedAt: (0, import_fields83.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17845,8 +18023,8 @@ var SaasCompanyCreditPeriod_default = (0, import_core81.list)({
 });
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var import_core82 = require("@keystone-6/core");
-var import_fields82 = require("@keystone-6/core/fields");
+var import_core84 = require("@keystone-6/core");
+var import_fields84 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
 var getCompanyId10 = (session2) => session2?.data?.company?.id;
@@ -17870,7 +18048,7 @@ var companyCreditLedgerAccess = {
 };
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var SaasCompanyCreditLedger_default = (0, import_core82.list)({
+var SaasCompanyCreditLedger_default = (0, import_core84.list)({
   access: companyCreditLedgerAccess,
   ui: {
     listView: {
@@ -17886,49 +18064,49 @@ var SaasCompanyCreditLedger_default = (0, import_core82.list)({
     }
   },
   fields: {
-    company: (0, import_fields82.relationship)({
+    company: (0, import_fields84.relationship)({
       ref: "SaasCompany.creditLedgerEntries",
       many: false,
       ui: { description: "Company this ledger entry belongs to" }
     }),
-    period: (0, import_fields82.relationship)({
+    period: (0, import_fields84.relationship)({
       ref: "SaasCompanyCreditPeriod.ledgerEntries",
       many: false,
       ui: { description: "Credit period this entry affects" }
     }),
-    type: (0, import_fields82.select)({
+    type: (0, import_fields84.select)({
       type: "string",
       options: [...COMPANY_CREDIT_LEDGER_TYPE_OPTIONS],
       validation: { isRequired: true },
       ui: { description: "Type of credit movement" }
     }),
-    amount: (0, import_fields82.integer)({
+    amount: (0, import_fields84.integer)({
       validation: { isRequired: true },
       ui: {
         description: "Signed amount: positive = grant, negative = consume"
       }
     }),
-    balanceAfter: (0, import_fields82.integer)({
+    balanceAfter: (0, import_fields84.integer)({
       ui: { description: "Remaining credits after this movement" }
     }),
-    referenceType: (0, import_fields82.text)({
+    referenceType: (0, import_fields84.text)({
       db: { isNullable: true },
       ui: {
         description: "Reference entity type (subscription, payment, admin, company, sync, ai)"
       }
     }),
-    referenceId: (0, import_fields82.text)({
+    referenceId: (0, import_fields84.text)({
       db: { isNullable: true },
       ui: { description: "Reference entity ID" }
     }),
-    notes: (0, import_fields82.text)({
+    notes: (0, import_fields84.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
-    metadata: (0, import_fields82.json)({
+    metadata: (0, import_fields84.json)({
       ui: { description: "Optional extra context for this movement" }
     }),
-    createdAt: (0, import_fields82.timestamp)({
+    createdAt: (0, import_fields84.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17939,8 +18117,8 @@ var SaasCompanyCreditLedger_default = (0, import_core82.list)({
 });
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.ts
-var import_core83 = require("@keystone-6/core");
-var import_fields83 = require("@keystone-6/core/fields");
+var import_core85 = require("@keystone-6/core");
+var import_fields85 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.access.ts
 var saasCompanyNoteAccess = {
@@ -17958,7 +18136,7 @@ var saasCompanyNoteAccess = {
 };
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.ts
-var SaasCompanyNote_default = (0, import_core83.list)({
+var SaasCompanyNote_default = (0, import_core85.list)({
   access: saasCompanyNoteAccess,
   hooks: {
     resolveInput: {
@@ -17975,32 +18153,32 @@ var SaasCompanyNote_default = (0, import_core83.list)({
     }
   },
   fields: {
-    company: (0, import_fields83.relationship)({
+    company: (0, import_fields85.relationship)({
       ref: "SaasCompany",
       many: false,
       ui: { description: "Empresa de la nota" }
     }),
-    author: (0, import_fields83.relationship)({
+    author: (0, import_fields85.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Qui\xE9n la escribi\xF3 (lo pone el servidor)", createView: { fieldMode: "hidden" } }
     }),
-    body: (0, import_fields83.text)({
+    body: (0, import_fields85.text)({
       validation: { isRequired: true, length: { max: 4e3 } },
       ui: { displayMode: "textarea" }
     }),
-    pinned: (0, import_fields83.checkbox)({
+    pinned: (0, import_fields85.checkbox)({
       defaultValue: false,
       ui: { description: "Fijada arriba en el 360" }
     }),
-    createdAt: (0, import_fields83.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
-    updatedAt: (0, import_fields83.timestamp)({ db: { updatedAt: true } })
+    createdAt: (0, import_fields85.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
+    updatedAt: (0, import_fields85.timestamp)({ db: { updatedAt: true } })
   }
 });
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
-var import_core84 = require("@keystone-6/core");
-var import_fields84 = require("@keystone-6/core/fields");
+var import_core86 = require("@keystone-6/core");
+var import_fields86 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.access.ts
 var saasCompanyDailyUsageAccess = {
@@ -18018,8 +18196,8 @@ var saasCompanyDailyUsageAccess = {
 };
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
-var count = (description) => (0, import_fields84.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
-var SaasCompanyDailyUsage_default = (0, import_core84.list)({
+var count = (description) => (0, import_fields86.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
+var SaasCompanyDailyUsage_default = (0, import_core86.list)({
   access: saasCompanyDailyUsageAccess,
   ui: {
     hideCreate: true,
@@ -18029,13 +18207,13 @@ var SaasCompanyDailyUsage_default = (0, import_core84.list)({
     }
   },
   fields: {
-    key: (0, import_fields84.text)({
+    key: (0, import_fields86.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "companyId:YYYY-MM-DD" }
     }),
-    company: (0, import_fields84.relationship)({ ref: "SaasCompany", many: false }),
-    day: (0, import_fields84.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
+    company: (0, import_fields86.relationship)({ ref: "SaasCompany", many: false }),
+    day: (0, import_fields86.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
     activeUsers: count("Personas con el panel abierto"),
     activeMinutes: count("Minutos con el panel abierto (todo el equipo)"),
     logins: count("Inicios de sesi\xF3n correctos"),
@@ -18052,13 +18230,13 @@ var SaasCompanyDailyUsage_default = (0, import_core84.list)({
     quotationsAccepted: count("Cotizaciones aceptadas"),
     whatsappSent: count("WhatsApp enviados"),
     whatsappReceived: count("WhatsApp recibidos"),
-    computedAt: (0, import_fields84.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
+    computedAt: (0, import_fields86.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
   }
 });
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var import_core85 = require("@keystone-6/core");
-var import_fields85 = require("@keystone-6/core/fields");
+var import_core87 = require("@keystone-6/core");
+var import_fields87 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
 var getCompanyId11 = (session2) => session2?.data?.company?.id;
@@ -18084,7 +18262,7 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core85.list)({
+var SaasCompanySubscription_default = (0, import_core87.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -18102,102 +18280,102 @@ var SaasCompanySubscription_default = (0, import_core85.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields85.relationship)({
+    company: (0, import_fields87.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields85.text)({
+    planName: (0, import_fields87.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields85.float)({
+    planCost: (0, import_fields87.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields85.text)({
+    planFrequency: (0, import_fields87.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields85.integer)({
+    planLeadLimit: (0, import_fields87.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
-    newCreditsAdded: (0, import_fields85.integer)({
+    newCreditsAdded: (0, import_fields87.integer)({
       defaultValue: 0,
       ui: { description: "Extra credits purchased and added to this subscription" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields85.text)({
+    planStripePriceId: (0, import_fields87.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields85.text)({
+    planCurrency: (0, import_fields87.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields85.json)({
+    planFeatures: (0, import_fields87.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields85.select)({
+    status: (0, import_fields87.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields85.calendarDay)({
+    activatedAt: (0, import_fields87.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields85.calendarDay)({
+    currentPeriodEnd: (0, import_fields87.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields85.text)({
+    stripeSubscriptionId: (0, import_fields87.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields85.text)({
+    stripeCustomerId: (0, import_fields87.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields85.relationship)({
+    saasPayments: (0, import_fields87.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
-    creditPeriods: (0, import_fields85.relationship)({
+    creditPeriods: (0, import_fields87.relationship)({
       ref: "SaasCompanyCreditPeriod.subscription",
       many: true,
       ui: { description: "Credit periods linked to this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields85.relationship)({
+    plan: (0, import_fields87.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    saasSubscriptionLogs: (0, import_fields85.relationship)({
+    saasSubscriptionLogs: (0, import_fields87.relationship)({
       ref: "SaasSubscriptionLog.createdSubscription",
       many: true,
       ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
     }),
-    createdAt: (0, import_fields85.timestamp)({
+    createdAt: (0, import_fields87.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields85.timestamp)({
+    updatedAt: (0, import_fields87.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18208,8 +18386,8 @@ var SaasCompanySubscription_default = (0, import_core85.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core86 = require("@keystone-6/core");
-var import_fields86 = require("@keystone-6/core/fields");
+var import_core88 = require("@keystone-6/core");
+var import_fields88 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
 function paymentMethodFilter(session2) {
@@ -18235,7 +18413,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core86.list)({
+var SaasPaymentMethod_default = (0, import_core88.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -18250,61 +18428,61 @@ var SaasPaymentMethod_default = (0, import_core86.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields86.relationship)({
+    user: (0, import_fields88.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields86.text)({
+    cardType: (0, import_fields88.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields86.text)({
+    lastFourDigits: (0, import_fields88.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields86.text)({
+    expMonth: (0, import_fields88.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields86.text)({
+    expYear: (0, import_fields88.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields86.text)({
+    stripeProcessorId: (0, import_fields88.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields86.text)({
+    stripePaymentMethodId: (0, import_fields88.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields86.text)({
+    address: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields86.text)({
+    postalCode: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields86.text)({
+    ownerName: (0, import_fields88.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields86.text)({
+    country: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields86.relationship)({
+    saasPayments: (0, import_fields88.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields86.timestamp)({
+    createdAt: (0, import_fields88.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields86.timestamp)({
+    updatedAt: (0, import_fields88.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -18312,8 +18490,8 @@ var SaasPaymentMethod_default = (0, import_core86.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core87 = require("@keystone-6/core");
-var import_fields87 = require("@keystone-6/core/fields");
+var import_core89 = require("@keystone-6/core");
+var import_fields89 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
 function paymentFilter(session2) {
@@ -18339,7 +18517,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core87.list)({
+var SaasPayment_default = (0, import_core89.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -18357,30 +18535,30 @@ var SaasPayment_default = (0, import_core87.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields87.relationship)({
+    user: (0, import_fields89.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields87.text)({
+    paymentMethodType: (0, import_fields89.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields87.relationship)({
+    paymentMethod: (0, import_fields89.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields87.decimal)({
+    amount: (0, import_fields89.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields87.select)({
+    status: (0, import_fields89.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -18393,38 +18571,38 @@ var SaasPayment_default = (0, import_core87.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields87.text)({
+    processorStripeChargeId: (0, import_fields89.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields87.text)({
+    stripeErrorMessage: (0, import_fields89.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields87.text)({
+    notes: (0, import_fields89.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields87.relationship)({
+    plan: (0, import_fields89.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields87.relationship)({
+    subscription: (0, import_fields89.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields87.timestamp)({
+    createdAt: (0, import_fields89.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields87.timestamp)({
+    updatedAt: (0, import_fields89.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -18432,8 +18610,8 @@ var SaasPayment_default = (0, import_core87.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core88 = require("@keystone-6/core");
-var import_fields88 = require("@keystone-6/core/fields");
+var import_core90 = require("@keystone-6/core");
+var import_fields90 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
 var getCompanyId12 = (session2) => session2?.data?.company?.id;
@@ -18477,7 +18655,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core88.list)({
+var SaasProject_default = (0, import_core90.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -18492,78 +18670,78 @@ var SaasProject_default = (0, import_core88.list)({
     }
   },
   fields: {
-    name: (0, import_fields88.text)({
+    name: (0, import_fields90.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields88.text)({
+    serviceType: (0, import_fields90.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields88.relationship)({
+    responsible: (0, import_fields90.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields88.calendarDay)({
+    startDate: (0, import_fields90.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields88.calendarDay)({
+    estimatedEndDate: (0, import_fields90.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields88.text)({
+    description: (0, import_fields90.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields88.select)({
+    status: (0, import_fields90.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields88.text)({
+    urlData: (0, import_fields90.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields88.relationship)({
+    company: (0, import_fields90.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields88.relationship)({
+    businessLead: (0, import_fields90.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields88.relationship)({
+    proposal: (0, import_fields90.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields88.relationship)({
+    quotations: (0, import_fields90.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields88.timestamp)({
+    createdAt: (0, import_fields90.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields88.timestamp)({
+    updatedAt: (0, import_fields90.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18574,8 +18752,8 @@ var SaasProject_default = (0, import_core88.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core89 = require("@keystone-6/core");
-var import_fields89 = require("@keystone-6/core/fields");
+var import_core91 = require("@keystone-6/core");
+var import_fields91 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
 var getCompanyId13 = (session2) => session2?.data?.company?.id;
@@ -18678,7 +18856,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core89.list)({
+var SaasQuotation_default = (0, import_core91.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -18696,117 +18874,117 @@ var SaasQuotation_default = (0, import_core89.list)({
     }
   },
   fields: {
-    company: (0, import_fields89.relationship)({
+    company: (0, import_fields91.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields89.relationship)({
+    lead: (0, import_fields91.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields89.relationship)({
+    project: (0, import_fields91.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields89.text)({
+    quotationNumber: (0, import_fields91.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields89.select)({
+    status: (0, import_fields91.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields89.text)({
+    currency: (0, import_fields91.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields89.float)({
+    exchangeRate: (0, import_fields91.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields89.float)({
+    subtotal: (0, import_fields91.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields89.float)({
+    discountTotal: (0, import_fields91.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields89.float)({
+    taxTotal: (0, import_fields91.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields89.float)({
+    total: (0, import_fields91.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields89.calendarDay)({
+    validUntil: (0, import_fields91.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields89.timestamp)({
+    sentAt: (0, import_fields91.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields89.timestamp)({
+    acceptedAt: (0, import_fields91.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields89.text)({
+    notes: (0, import_fields91.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields89.text)({
+    terms: (0, import_fields91.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields89.relationship)({
+    createdBy: (0, import_fields91.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields89.relationship)({
+    assignedSeller: (0, import_fields91.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields89.text)({
+    pdfFileOrUrl: (0, import_fields91.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields89.relationship)({
+    quotationProducts: (0, import_fields91.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields89.checkbox)({
+    showDiscount: (0, import_fields91.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields89.checkbox)({
+    showNotes: (0, import_fields91.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields89.timestamp)({
+    createdAt: (0, import_fields91.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields89.timestamp)({
+    updatedAt: (0, import_fields91.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18817,8 +18995,8 @@ var SaasQuotation_default = (0, import_core89.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core90 = require("@keystone-6/core");
-var import_fields90 = require("@keystone-6/core/fields");
+var import_core92 = require("@keystone-6/core");
+var import_fields92 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
 var getCompanyId14 = (session2) => session2?.data?.company?.id;
@@ -19008,7 +19186,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core90.list)({
+var SaasQuotationProduct_default = (0, import_core92.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -19017,60 +19195,60 @@ var SaasQuotationProduct_default = (0, import_core90.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields90.relationship)({
+    quotation: (0, import_fields92.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields90.text)({
+    description: (0, import_fields92.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields90.float)({
+    quantity: (0, import_fields92.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields90.float)({
+    unitPrice: (0, import_fields92.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields90.select)({
+    discountType: (0, import_fields92.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields90.float)({
+    discountValue: (0, import_fields92.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields90.float)({
+    taxRate: (0, import_fields92.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields90.float)({
+    lineSubtotal: (0, import_fields92.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields90.float)({
+    lineTotal: (0, import_fields92.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields90.timestamp)({
+    createdAt: (0, import_fields92.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields90.timestamp)({
+    updatedAt: (0, import_fields92.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19081,8 +19259,8 @@ var SaasQuotationProduct_default = (0, import_core90.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core91 = require("@keystone-6/core");
-var import_fields91 = require("@keystone-6/core/fields");
+var import_core93 = require("@keystone-6/core");
+var import_fields93 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
 var getCompanyId15 = (session2) => session2?.data?.company?.id;
@@ -19124,7 +19302,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core91.list)({
+var SaasReferralCommission_default = (0, import_core93.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -19143,27 +19321,27 @@ var SaasReferralCommission_default = (0, import_core91.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields91.relationship)({
+    referrer: (0, import_fields93.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields91.relationship)({
+    referredUser: (0, import_fields93.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields91.relationship)({
+    company: (0, import_fields93.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields91.relationship)({
+    subscription: (0, import_fields93.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields91.relationship)({
+    plan: (0, import_fields93.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields91.select)({
+    type: (0, import_fields93.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -19171,30 +19349,30 @@ var SaasReferralCommission_default = (0, import_core91.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields91.float)({
+    percentage: (0, import_fields93.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields91.float)({
+    amount: (0, import_fields93.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields91.text)({
+    currency: (0, import_fields93.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields91.float)({
+    periodIndex: (0, import_fields93.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields91.calendarDay)({
+    periodStart: (0, import_fields93.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields91.calendarDay)({
+    periodEnd: (0, import_fields93.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields91.select)({
+    status: (0, import_fields93.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -19205,18 +19383,18 @@ var SaasReferralCommission_default = (0, import_core91.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields91.text)({
+    notes: (0, import_fields93.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields91.timestamp)({
+    createdAt: (0, import_fields93.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields91.timestamp)({
+    updatedAt: (0, import_fields93.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19227,8 +19405,8 @@ var SaasReferralCommission_default = (0, import_core91.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core92 = require("@keystone-6/core");
-var import_fields92 = require("@keystone-6/core/fields");
+var import_core94 = require("@keystone-6/core");
+var import_fields94 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
 var getCompanyId16 = (session2) => session2?.data?.company?.id;
@@ -19254,7 +19432,7 @@ var saasSubscriptionLogAccess = {
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core92.list)({
+var SaasSubscriptionLog_default = (0, import_core94.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -19269,71 +19447,71 @@ var SaasSubscriptionLog_default = (0, import_core92.list)({
     }
   },
   fields: {
-    user: (0, import_fields92.relationship)({
+    user: (0, import_fields94.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields92.relationship)({
+    company: (0, import_fields94.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields92.relationship)({
+    plan: (0, import_fields94.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields92.relationship)({
+    createdSubscription: (0, import_fields94.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields92.checkbox)({
+    success: (0, import_fields94.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields92.text)({
+    step: (0, import_fields94.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields92.text)({
+    message: (0, import_fields94.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields92.json)({
+    responseSnapshot: (0, import_fields94.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields92.text)({
+    emailMasked: (0, import_fields94.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields92.text)({
+    planIdRequested: (0, import_fields94.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields92.text)({
+    totalSubmitted: (0, import_fields94.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields92.text)({
+    paymentMethodIdSubmitted: (0, import_fields94.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields92.text)({
+    paymentTypeSubmitted: (0, import_fields94.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields92.integer)({
+    durationMs: (0, import_fields94.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields92.text)({
+    stripeCustomerId: (0, import_fields94.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields92.text)({
+    stripeSubscriptionId: (0, import_fields94.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields92.timestamp)({
+    createdAt: (0, import_fields94.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
     })
@@ -19341,8 +19519,8 @@ var SaasSubscriptionLog_default = (0, import_core92.list)({
 });
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var import_core93 = require("@keystone-6/core");
-var import_fields93 = require("@keystone-6/core/fields");
+var import_core95 = require("@keystone-6/core");
+var import_fields95 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId17 = (session2) => session2?.data?.company?.id;
@@ -19450,7 +19628,7 @@ var saasWorkspaceSeedCrmStatusesHook = {
 };
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var SaasWorkspace_default = (0, import_core93.list)({
+var SaasWorkspace_default = (0, import_core95.list)({
   access: saasWorkspaceAccess,
   hooks: {
     afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
@@ -19461,63 +19639,63 @@ var SaasWorkspace_default = (0, import_core93.list)({
     }
   },
   fields: {
-    name: (0, import_fields93.text)({
+    name: (0, import_fields95.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
     }),
-    showActivities: (0, import_fields93.checkbox)({
+    showActivities: (0, import_fields95.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar actividades de CRM en este workspace" }
     }),
-    showProposals: (0, import_fields93.checkbox)({
+    showProposals: (0, import_fields95.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar propuestas de CRM en este workspace" }
     }),
-    showFollowUpTasks: (0, import_fields93.checkbox)({
+    showFollowUpTasks: (0, import_fields95.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
     }),
-    showTasks: (0, import_fields93.checkbox)({
+    showTasks: (0, import_fields95.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de workspace en este workspace" }
     }),
-    company: (0, import_fields93.relationship)({
+    company: (0, import_fields95.relationship)({
       ref: "SaasCompany.workspaces",
       many: false,
       ui: { description: "Empresa (tenant) a la que pertenece" }
     }),
-    members: (0, import_fields93.relationship)({
+    members: (0, import_fields95.relationship)({
       ref: "User.workspaces",
       many: true,
       ui: { description: "Usuarios con acceso a este workspace" }
     }),
-    salesActivities: (0, import_fields93.relationship)({
+    salesActivities: (0, import_fields95.relationship)({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" }
     }),
-    tasks: (0, import_fields93.relationship)({
+    tasks: (0, import_fields95.relationship)({
       ref: "TechTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
     }),
-    proposals: (0, import_fields93.relationship)({
+    proposals: (0, import_fields95.relationship)({
       ref: "TechProposal.workspace",
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
-    calendarEvents: (0, import_fields93.relationship)({
+    calendarEvents: (0, import_fields95.relationship)({
       ref: "TechCalendarEvent.workspace",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario del workspace" }
     }),
-    followUpTasks: (0, import_fields93.relationship)({
+    followUpTasks: (0, import_fields95.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
     }),
-    crmStatuses: (0, import_fields93.relationship)({
+    crmStatuses: (0, import_fields95.relationship)({
       ref: "SaasWorkspaceCrmStatus.workspace",
       many: true,
       ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
@@ -19526,8 +19704,8 @@ var SaasWorkspace_default = (0, import_core93.list)({
 });
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var import_core94 = require("@keystone-6/core");
-var import_fields94 = require("@keystone-6/core/fields");
+var import_core96 = require("@keystone-6/core");
+var import_fields96 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
 var getCompanyId18 = (session2) => session2?.data?.company?.id;
@@ -19772,7 +19950,7 @@ var saasWorkspaceCrmStatusHooks = {
 };
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var SaasWorkspaceCrmStatus_default = (0, import_core94.list)({
+var SaasWorkspaceCrmStatus_default = (0, import_core96.list)({
   access: saasWorkspaceCrmStatusAccess,
   hooks: saasWorkspaceCrmStatusHooks,
   ui: {
@@ -19781,58 +19959,58 @@ var SaasWorkspaceCrmStatus_default = (0, import_core94.list)({
     }
   },
   fields: {
-    workspace: (0, import_fields94.relationship)({
+    workspace: (0, import_fields96.relationship)({
       ref: "SaasWorkspace.crmStatuses",
       many: false,
       ui: { description: "Workspace al que pertenece este estado" }
     }),
-    name: (0, import_fields94.text)({
+    name: (0, import_fields96.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre visible (p. ej. Kanban)" }
     }),
-    color: (0, import_fields94.text)({
+    color: (0, import_fields96.text)({
       validation: { isRequired: true },
       ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
     }),
-    key: (0, import_fields94.text)({
+    key: (0, import_fields96.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
       }
     }),
-    order: (0, import_fields94.integer)({
+    order: (0, import_fields96.integer)({
       defaultValue: 0,
       isIndexed: true,
       ui: { description: "Orden en la UI (menor primero)" }
     }),
-    isDefault: (0, import_fields94.checkbox)({
+    isDefault: (0, import_fields96.checkbox)({
       defaultValue: false,
       ui: {
         description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
       }
     }),
-    isArchived: (0, import_fields94.checkbox)({
+    isArchived: (0, import_fields96.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en selectores sin borrar historial" }
     }),
-    followUpTasks: (0, import_fields94.relationship)({
+    followUpTasks: (0, import_fields96.relationship)({
       ref: "TechFollowUpTask.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields94.relationship)({
+    proposals: (0, import_fields96.relationship)({
       ref: "TechProposal.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    salesActivities: (0, import_fields94.relationship)({
+    salesActivities: (0, import_fields96.relationship)({
       ref: "TechSalesActivity.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields94.relationship)({
+    tasks: (0, import_fields96.relationship)({
       ref: "TechTask.statusCrm",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
@@ -19841,8 +20019,8 @@ var SaasWorkspaceCrmStatus_default = (0, import_core94.list)({
 });
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var import_core95 = require("@keystone-6/core");
-var import_fields95 = require("@keystone-6/core/fields");
+var import_core97 = require("@keystone-6/core");
+var import_fields97 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.access.ts
 var techWhatsAppMessageAccess = {
@@ -19859,7 +20037,7 @@ var techWhatsAppMessageAccess = {
 };
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var TechWhatsAppMessage_default = (0, import_core95.list)({
+var TechWhatsAppMessage_default = (0, import_core97.list)({
   access: techWhatsAppMessageAccess,
   ui: {
     listView: {
@@ -19874,12 +20052,12 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
     }
   },
   fields: {
-    company: (0, import_fields95.relationship)({
+    company: (0, import_fields97.relationship)({
       ref: "SaasCompany.whatsappMessages",
       many: false,
       ui: { description: "Empresa due\xF1a del n\xFAmero de WhatsApp" }
     }),
-    businessLead: (0, import_fields95.relationship)({
+    businessLead: (0, import_fields97.relationship)({
       ref: "TechBusinessLead.whatsappMessages",
       many: false,
       ui: { description: "Lead asociado (vac\xEDo si no matche\xF3 ning\xFAn tel\xE9fono conocido)" }
@@ -19887,7 +20065,7 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
     /** Conversación interna con alguien del equipo (vendedor) en vez de con un lead. Un
      * mensaje tiene `businessLead` O `teamMember`; si no tiene ninguno, no se pudo matchear
      * el teléfono y solo lo ven los admins de la empresa. */
-    teamMember: (0, import_fields95.relationship)({
+    teamMember: (0, import_fields97.relationship)({
       ref: "User.whatsappMessagesAsTeamMember",
       many: false,
       ui: {
@@ -19896,14 +20074,14 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
     }),
     /** Quién abrió el chat interno. Junto con `teamMember` define quién puede verlo
      * (ver whatsappMessageScopedWhere): solo esas dos personas, además de los admins. */
-    internalInitiator: (0, import_fields95.relationship)({
+    internalInitiator: (0, import_fields97.relationship)({
       ref: "User.whatsappInternalChatsStarted",
       many: false,
       ui: {
         description: "Qui\xE9n abri\xF3 la conversaci\xF3n interna. Con teamMember define qui\xE9n la puede ver."
       }
     }),
-    direction: (0, import_fields95.select)({
+    direction: (0, import_fields97.select)({
       type: "string",
       options: [
         { label: "Entrante", value: "inbound" },
@@ -19913,7 +20091,7 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    source: (0, import_fields95.select)({
+    source: (0, import_fields97.select)({
       type: "string",
       options: [
         { label: "Cloud API", value: "api" },
@@ -19923,21 +20101,21 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
       isIndexed: true,
       ui: { description: "Si lleg\xF3 en vivo por la Cloud API o se import\xF3 de un .txt exportado" }
     }),
-    senderLabel: (0, import_fields95.text)({
+    senderLabel: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         description: "Nombre del remitente: en un .txt importado, tal cual ven\xEDa (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribi\xF3."
       }
     }),
-    waMessageId: (0, import_fields95.text)({
+    waMessageId: (0, import_fields97.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: { description: "ID de Meta. Usado para no duplicar reintentos del webhook." }
     }),
-    fromPhone: (0, import_fields95.text)({ db: { isNullable: true } }),
-    toPhone: (0, import_fields95.text)({ db: { isNullable: true } }),
-    body: (0, import_fields95.text)({ ui: { displayMode: "textarea" } }),
-    messageKind: (0, import_fields95.select)({
+    fromPhone: (0, import_fields97.text)({ db: { isNullable: true } }),
+    toPhone: (0, import_fields97.text)({ db: { isNullable: true } }),
+    body: (0, import_fields97.text)({ ui: { displayMode: "textarea" } }),
+    messageKind: (0, import_fields97.select)({
       type: "string",
       options: [
         { label: "Texto", value: "text" },
@@ -19945,7 +20123,7 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
       ],
       defaultValue: "text"
     }),
-    mediaKey: (0, import_fields95.text)({
+    mediaKey: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19953,7 +20131,7 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
         description: "Key del archivo en R2 (no la URL \u2014 se firma al vuelo, ver mediaUrl)"
       }
     }),
-    mediaType: (0, import_fields95.select)({
+    mediaType: (0, import_fields97.select)({
       type: "string",
       options: [
         { label: "Imagen", value: "image" },
@@ -19961,8 +20139,8 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
       ],
       db: { isNullable: true }
     }),
-    mediaFileName: (0, import_fields95.text)({ db: { isNullable: true } }),
-    status: (0, import_fields95.select)({
+    mediaFileName: (0, import_fields97.text)({ db: { isNullable: true } }),
+    status: (0, import_fields97.select)({
       type: "string",
       options: [
         { label: "Enviado", value: "sent" },
@@ -19971,16 +20149,16 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
       ],
       defaultValue: "sent"
     }),
-    sentBy: (0, import_fields95.relationship)({
+    sentBy: (0, import_fields97.relationship)({
       ref: "User.whatsappMessagesSent",
       many: false,
       ui: { description: "Usuario que mand\xF3 el mensaje (solo salientes)" }
     }),
-    errorMessage: (0, import_fields95.text)({
+    errorMessage: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si el env\xEDo fall\xF3" }
     }),
-    createdAt: (0, import_fields95.timestamp)({
+    createdAt: (0, import_fields97.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del mensaje" }
     })
@@ -19988,8 +20166,8 @@ var TechWhatsAppMessage_default = (0, import_core95.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.ts
-var import_core96 = require("@keystone-6/core");
-var import_fields96 = require("@keystone-6/core/fields");
+var import_core98 = require("@keystone-6/core");
+var import_fields98 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.access.ts
 function googleCalendarAccountVisibleWhere(session2) {
@@ -20042,7 +20220,7 @@ var hiddenTokenAccess = {
   create: () => false,
   update: () => false
 };
-var GoogleCalendarAccount_default = (0, import_core96.list)({
+var GoogleCalendarAccount_default = (0, import_core98.list)({
   access: googleCalendarAccountAccess,
   hooks: googleCalendarAccountHooks,
   ui: {
@@ -20059,7 +20237,7 @@ var GoogleCalendarAccount_default = (0, import_core96.list)({
     }
   },
   fields: {
-    scopeType: (0, import_fields96.select)({
+    scopeType: (0, import_fields98.select)({
       type: "string",
       options: [...GOOGLE_CALENDAR_SCOPE_TYPE_OPTIONS],
       defaultValue: "personal" /* PERSONAL */,
@@ -20067,27 +20245,27 @@ var GoogleCalendarAccount_default = (0, import_core96.list)({
       isIndexed: true,
       ui: { description: "Personal (de un usuario) o compartida por toda la empresa" }
     }),
-    user: (0, import_fields96.relationship)({
+    user: (0, import_fields98.relationship)({
       ref: "User.googleCalendarAccounts",
       many: false,
       ui: { description: "Due\xF1o de la cuenta (solo si es personal)" }
     }),
-    company: (0, import_fields96.relationship)({
+    company: (0, import_fields98.relationship)({
       ref: "SaasCompany.googleCalendarAccounts",
       many: false,
       ui: { description: "Empresa due\xF1a de la cuenta (solo si es compartida)" }
     }),
-    connectedByUser: (0, import_fields96.relationship)({
+    connectedByUser: (0, import_fields98.relationship)({
       ref: "User.connectedGoogleCalendarAccounts",
       many: false,
       ui: { description: "Qui\xE9n autoriz\xF3 la conexi\xF3n en Google (auditor\xEDa)" }
     }),
-    googleAccountEmail: (0, import_fields96.text)({
+    googleAccountEmail: (0, import_fields98.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Correo de la cuenta de Google conectada" }
     }),
-    accessTokenEncrypted: (0, import_fields96.text)({
+    accessTokenEncrypted: (0, import_fields98.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -20097,7 +20275,7 @@ var GoogleCalendarAccount_default = (0, import_core96.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    refreshTokenEncrypted: (0, import_fields96.text)({
+    refreshTokenEncrypted: (0, import_fields98.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -20107,39 +20285,39 @@ var GoogleCalendarAccount_default = (0, import_core96.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    tokenExpiresAt: (0, import_fields96.timestamp)({
+    tokenExpiresAt: (0, import_fields98.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo expira el access token actual" }
     }),
-    scope: (0, import_fields96.text)({
+    scope: (0, import_fields98.text)({
       db: { isNullable: true },
       ui: { description: "Scopes de Google otorgados" }
     }),
-    isActive: (0, import_fields96.checkbox)({
+    isActive: (0, import_fields98.checkbox)({
       defaultValue: true,
       ui: {
         description: "false si Google revoc\xF3 el acceso: el usuario debe reconectar la cuenta"
       }
     }),
-    lastSyncedAt: (0, import_fields96.timestamp)({
+    lastSyncedAt: (0, import_fields98.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima lectura exitosa desde Google" }
     }),
-    lastSyncError: (0, import_fields96.text)({
+    lastSyncError: (0, import_fields98.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "\xDAltimo error al hablar con Google" }
     }),
-    calendars: (0, import_fields96.relationship)({
+    calendars: (0, import_fields98.relationship)({
       ref: "GoogleCalendarSelection.account",
       many: true,
       ui: { hideCreate: true, description: "Calendarios de esta cuenta" }
     }),
-    syncLogs: (0, import_fields96.relationship)({
+    syncLogs: (0, import_fields98.relationship)({
       ref: "TechGoogleCalendarSyncLog.account",
       many: true,
       ui: { hideCreate: true, description: "Historial de llamadas a Google" }
     }),
-    createdAt: (0, import_fields96.timestamp)({
+    createdAt: (0, import_fields98.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -20150,8 +20328,8 @@ var GoogleCalendarAccount_default = (0, import_core96.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var import_core97 = require("@keystone-6/core");
-var import_fields97 = require("@keystone-6/core/fields");
+var import_core99 = require("@keystone-6/core");
+var import_fields99 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.access.ts
 var googleCalendarSelectionAccess = {
@@ -20171,7 +20349,7 @@ var googleCalendarSelectionAccess = {
 };
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var GoogleCalendarSelection_default = (0, import_core97.list)({
+var GoogleCalendarSelection_default = (0, import_core99.list)({
   access: googleCalendarSelectionAccess,
   ui: {
     labelField: "calendarName",
@@ -20180,52 +20358,52 @@ var GoogleCalendarSelection_default = (0, import_core97.list)({
     }
   },
   fields: {
-    account: (0, import_fields97.relationship)({
+    account: (0, import_fields99.relationship)({
       ref: "GoogleCalendarAccount.calendars",
       many: false,
       ui: { description: "Cuenta de Google a la que pertenece este calendario" }
     }),
-    googleCalendarId: (0, import_fields97.text)({
+    googleCalendarId: (0, import_fields99.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "calendarId en Google (el principal suele ser el correo)" }
     }),
-    calendarName: (0, import_fields97.text)({
+    calendarName: (0, import_fields99.text)({
       validation: { isRequired: true },
       ui: { description: "Nombre visible del calendario" }
     }),
-    isPrimary: (0, import_fields97.checkbox)({ defaultValue: false }),
-    isSelected: (0, import_fields97.checkbox)({
+    isPrimary: (0, import_fields99.checkbox)({ defaultValue: false }),
+    isSelected: (0, import_fields99.checkbox)({
       defaultValue: false,
       ui: {
         description: "Si est\xE1 marcado, se ve en el calendario unificado y recibe los eventos creados en Kadesh"
       }
     }),
-    colorHex: (0, import_fields97.text)({ db: { isNullable: true } }),
+    colorHex: (0, import_fields99.text)({ db: { isNullable: true } }),
     // Qué registros del CRM se envían a este calendario (los eventos creados a mano eligen
     // sus calendarios destino uno a uno en `TechCalendarEvent.googleTargets`).
-    pushActivities: (0, import_fields97.checkbox)({
+    pushActivities: (0, import_fields99.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar actividades de venta nuevas a este calendario" }
     }),
-    pushProposals: (0, import_fields97.checkbox)({
+    pushProposals: (0, import_fields99.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar propuestas nuevas a este calendario" }
     }),
-    pushFollowUps: (0, import_fields97.checkbox)({
+    pushFollowUps: (0, import_fields99.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas de seguimiento nuevas a este calendario" }
     }),
-    pushTasks: (0, import_fields97.checkbox)({
+    pushTasks: (0, import_fields99.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas nuevas a este calendario" }
     }),
-    targetedEvents: (0, import_fields97.relationship)({
+    targetedEvents: (0, import_fields99.relationship)({
       ref: "TechCalendarEvent.googleTargets",
       many: true,
       ui: { hideCreate: true, description: "Eventos creados a mano que eligieron este calendario" }
     }),
-    eventLinks: (0, import_fields97.relationship)({
+    eventLinks: (0, import_fields99.relationship)({
       ref: "TechCalendarEventGoogleLink.calendarSelection",
       many: true,
       ui: { hideCreate: true, description: "Eventos de Kadesh enviados a este calendario" }
@@ -20234,8 +20412,8 @@ var GoogleCalendarSelection_default = (0, import_core97.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var import_core98 = require("@keystone-6/core");
-var import_fields98 = require("@keystone-6/core/fields");
+var import_core100 = require("@keystone-6/core");
+var import_fields100 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.access.ts
 function calendarEventScopedWhere(session2) {
@@ -20656,8 +20834,8 @@ var PUSH_FLAG_BY_SOURCE = {
 };
 var SELECTION_TARGET_QUERY = `id googleCalendarId account { ${ACCOUNT_TOKEN_QUERY} }`;
 var DAY_MS5 = 24 * 60 * 60 * 1e3;
-function toDateOnly(iso) {
-  return new Date(iso).toISOString().slice(0, 10);
+function toDateOnly(iso2) {
+  return new Date(iso2).toISOString().slice(0, 10);
 }
 function buildGoogleEventBody(event) {
   const base = {
@@ -20977,7 +21155,7 @@ var techCalendarEventHooks = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var TechCalendarEvent_default = (0, import_core98.list)({
+var TechCalendarEvent_default = (0, import_core100.list)({
   access: techCalendarEventAccess,
   hooks: techCalendarEventHooks,
   ui: {
@@ -20987,27 +21165,27 @@ var TechCalendarEvent_default = (0, import_core98.list)({
     }
   },
   fields: {
-    title: (0, import_fields98.text)({ validation: { isRequired: true } }),
-    description: (0, import_fields98.text)({
+    title: (0, import_fields100.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields100.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     }),
-    startAt: (0, import_fields98.timestamp)({
+    startAt: (0, import_fields100.timestamp)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Inicio. En eventos de d\xEDa completo se usa la fecha en UTC (00:00Z)"
       }
     }),
-    endAt: (0, import_fields98.timestamp)({
+    endAt: (0, import_fields100.timestamp)({
       db: { isNullable: true },
       ui: {
         description: "Fin (opcional). Sin fin, el evento dura 60 min; en d\xEDa completo, es el \xFAltimo d\xEDa incluido"
       }
     }),
-    allDay: (0, import_fields98.checkbox)({ defaultValue: false }),
-    location: (0, import_fields98.text)({ db: { isNullable: true } }),
-    sourceType: (0, import_fields98.select)({
+    allDay: (0, import_fields100.checkbox)({ defaultValue: false }),
+    location: (0, import_fields100.text)({ db: { isNullable: true } }),
+    sourceType: (0, import_fields100.select)({
       type: "string",
       options: [...CALENDAR_EVENT_SOURCE_OPTIONS],
       defaultValue: "native" /* NATIVE */,
@@ -21015,46 +21193,46 @@ var TechCalendarEvent_default = (0, import_core98.list)({
       isIndexed: true,
       ui: { description: "Creado a mano o generado desde un registro del CRM" }
     }),
-    salesActivity: (0, import_fields98.relationship)({
+    salesActivity: (0, import_fields100.relationship)({
       ref: "TechSalesActivity.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    followUpTask: (0, import_fields98.relationship)({
+    followUpTask: (0, import_fields100.relationship)({
       ref: "TechFollowUpTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    task: (0, import_fields98.relationship)({
+    task: (0, import_fields100.relationship)({
       ref: "TechTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    proposal: (0, import_fields98.relationship)({
+    proposal: (0, import_fields100.relationship)({
       ref: "TechProposal.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    createdBy: (0, import_fields98.relationship)({
+    createdBy: (0, import_fields100.relationship)({
       ref: "User.createdCalendarEvents",
       many: false,
       ui: { description: "Usuario due\xF1o del evento (su cuenta personal recibe el push)" }
     }),
-    company: (0, import_fields98.relationship)({
+    company: (0, import_fields100.relationship)({
       ref: "SaasCompany.calendarEvents",
       many: false,
       ui: { description: "Empresa (su cuenta compartida recibe el push)" }
     }),
-    workspace: (0, import_fields98.relationship)({
+    workspace: (0, import_fields100.relationship)({
       ref: "SaasWorkspace.calendarEvents",
       many: false,
       ui: { description: "Workspace del CRM, si aplica" }
     }),
-    googleTargets: (0, import_fields98.relationship)({
+    googleTargets: (0, import_fields100.relationship)({
       ref: "GoogleCalendarSelection.targetedEvents",
       many: true,
       ui: {
@@ -21062,19 +21240,19 @@ var TechCalendarEvent_default = (0, import_core98.list)({
         description: "Calendarios de Google elegidos al crear el evento (solo eventos nativos; los del CRM siguen la configuraci\xF3n de cada calendario)"
       }
     }),
-    googleLinks: (0, import_fields98.relationship)({
+    googleLinks: (0, import_fields100.relationship)({
       ref: "TechCalendarEventGoogleLink.event",
       many: true,
       ui: { hideCreate: true, description: "Copias de este evento en Google Calendar" }
     }),
-    createdAt: (0, import_fields98.timestamp)({
+    createdAt: (0, import_fields100.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields98.timestamp)({
+    updatedAt: (0, import_fields100.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -21085,8 +21263,8 @@ var TechCalendarEvent_default = (0, import_core98.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var import_core99 = require("@keystone-6/core");
-var import_fields99 = require("@keystone-6/core/fields");
+var import_core101 = require("@keystone-6/core");
+var import_fields101 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.access.ts
 var techCalendarEventGoogleLinkAccess = {
@@ -21106,7 +21284,7 @@ var techCalendarEventGoogleLinkAccess = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var TechCalendarEventGoogleLink_default = (0, import_core99.list)({
+var TechCalendarEventGoogleLink_default = (0, import_core101.list)({
   access: techCalendarEventGoogleLinkAccess,
   ui: {
     listView: {
@@ -21119,26 +21297,26 @@ var TechCalendarEventGoogleLink_default = (0, import_core99.list)({
     }
   },
   fields: {
-    event: (0, import_fields99.relationship)({
+    event: (0, import_fields101.relationship)({
       ref: "TechCalendarEvent.googleLinks",
       many: false
     }),
-    calendarSelection: (0, import_fields99.relationship)({
+    calendarSelection: (0, import_fields101.relationship)({
       ref: "GoogleCalendarSelection.eventLinks",
       many: false
     }),
-    googleEventId: (0, import_fields99.text)({
+    googleEventId: (0, import_fields101.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "id del evento en Google (se llena tras el push exitoso)" }
     }),
-    lastPushedAt: (0, import_fields99.timestamp)({ db: { isNullable: true } }),
-    lastPushStatus: (0, import_fields99.select)({
+    lastPushedAt: (0, import_fields101.timestamp)({ db: { isNullable: true } }),
+    lastPushStatus: (0, import_fields101.select)({
       type: "string",
       options: [...GOOGLE_LINK_STATUS_OPTIONS],
       defaultValue: "pending" /* PENDING */
     }),
-    lastPushError: (0, import_fields99.text)({
+    lastPushError: (0, import_fields101.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     })
@@ -21146,8 +21324,8 @@ var TechCalendarEventGoogleLink_default = (0, import_core99.list)({
 });
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var import_core100 = require("@keystone-6/core");
-var import_fields100 = require("@keystone-6/core/fields");
+var import_core102 = require("@keystone-6/core");
+var import_fields102 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.access.ts
 var techGoogleCalendarSyncLogAccess = {
@@ -21169,7 +21347,7 @@ var techGoogleCalendarSyncLogAccess = {
 };
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var TechGoogleCalendarSyncLog_default = (0, import_core100.list)({
+var TechGoogleCalendarSyncLog_default = (0, import_core102.list)({
   access: techGoogleCalendarSyncLogAccess,
   ui: {
     listView: {
@@ -21184,29 +21362,29 @@ var TechGoogleCalendarSyncLog_default = (0, import_core100.list)({
     }
   },
   fields: {
-    account: (0, import_fields100.relationship)({
+    account: (0, import_fields102.relationship)({
       ref: "GoogleCalendarAccount.syncLogs",
       many: false
     }),
-    direction: (0, import_fields100.select)({
+    direction: (0, import_fields102.select)({
       type: "string",
       options: [...GOOGLE_SYNC_DIRECTION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    operation: (0, import_fields100.select)({
+    operation: (0, import_fields102.select)({
       type: "string",
       options: [...GOOGLE_SYNC_OPERATION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    success: (0, import_fields100.checkbox)({ defaultValue: false }),
-    errorMessage: (0, import_fields100.text)({
+    success: (0, import_fields102.checkbox)({ defaultValue: false }),
+    errorMessage: (0, import_fields102.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si la llamada fall\xF3 (sin tokens)" }
     }),
-    durationMs: (0, import_fields100.integer)({ db: { isNullable: true } }),
-    createdAt: (0, import_fields100.timestamp)({ defaultValue: { kind: "now" } })
+    durationMs: (0, import_fields102.integer)({ db: { isNullable: true } }),
+    createdAt: (0, import_fields102.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
@@ -21225,6 +21403,7 @@ var schema_default = withActivityHooks({
   AnimalFavorite: AnimalFavorite_default,
   AnimalLog: AnimalLog_default,
   AnimalMultimedia: AnimalMultimedia_default,
+  AnimalSighting: AnimalSighting_default,
   AnimalType: AnimalType_default,
   AnimalView: AnimalView_default,
   BlogSubscription: BlogSubscription_default,
@@ -21314,7 +21493,7 @@ var schema_default = withActivityHooks({
 });
 
 // keystone.ts
-var import_core101 = require("@keystone-6/core");
+var import_core103 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto4 = require("crypto");
@@ -21660,6 +21839,23 @@ var RATE_LIMIT_RULES = [
     scope: "ip",
     limit: 20,
     windowMs: HOUR
+  },
+  {
+    // «Lo vi» se manda sin cuenta. Varias personas pueden compartir IP (datos móviles), por eso no es más bajo.
+    key: "animal_sighting_ip",
+    label: "Avistamientos (\xABLo vi\xBB) por IP",
+    fields: ["reportAnimalSighting"],
+    scope: "ip",
+    limit: 10,
+    windowMs: HOUR
+  },
+  {
+    key: "animal_sighting_ip_day",
+    label: "Avistamientos (\xABLo vi\xBB) por IP al d\xEDa",
+    fields: ["reportAnimalSighting"],
+    scope: "ip",
+    limit: 30,
+    windowMs: DAY
   },
   {
     key: "pet_event_user",
@@ -22027,13 +22223,13 @@ async function provisionSignupCompany(context, userId, companyName) {
 var UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
 var MAX_TEXT = 200;
 var MAX_PATH2 = 300;
-function text83(value, max = MAX_TEXT) {
+function text84(value, max = MAX_TEXT) {
   if (typeof value !== "string") return void 0;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : void 0;
 }
 function hostOf(value) {
-  const raw = text83(value, 500);
+  const raw = text84(value, 500);
   if (!raw) return void 0;
   try {
     return new URL(raw.includes("://") ? raw : `https://${raw}`).hostname.toLowerCase() || void 0;
@@ -22042,7 +22238,7 @@ function hostOf(value) {
   }
 }
 function pathOf(value) {
-  const raw = text83(value, MAX_PATH2);
+  const raw = text84(value, MAX_PATH2);
   if (!raw || !raw.startsWith("/")) return void 0;
   return raw.split(/[?#]/)[0] || void 0;
 }
@@ -22051,14 +22247,14 @@ function cleanAttribution(input) {
   const source = input;
   const out = {};
   for (const key of UTM_KEYS) {
-    const value = text83(source[key]);
+    const value = text84(source[key]);
     if (value) out[key] = value.toLowerCase();
   }
   const referrer = hostOf(source.referrer);
   if (referrer) out.referrer = referrer;
   const landingPath = pathOf(source.landingPath);
   if (landingPath) out.landingPath = landingPath;
-  const firstSeen = text83(source.firstSeenAt, 40);
+  const firstSeen = text84(source.firstSeenAt, 40);
   if (firstSeen && !Number.isNaN(new Date(firstSeen).getTime())) out.firstSeenAt = firstSeen;
   return Object.keys(out).length ? out : null;
 }
@@ -22132,7 +22328,7 @@ var resolver = {
   }, context) => {
     const startedAt = Date.now();
     const isSaas = product === PRODUCT.SAAS;
-    const fail13 = async (message, email, userId) => {
+    const fail14 = async (message, email, userId) => {
       await writeUserAuthLog(context, {
         startedAt,
         source: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
@@ -22150,7 +22346,7 @@ var resolver = {
     };
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
-      return fail13("Token de Google inv\xE1lido o expirado", "");
+      return fail14("Token de Google inv\xE1lido o expirado", "");
     }
     let user = await context.sudo().query.User.findOne({
       where: { email: payload.email },
@@ -22175,7 +22371,7 @@ var resolver = {
         if (isSaas) {
           const signupRoleIds = await findSignupRoleIds(context);
           if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
-            return fail13(
+            return fail14(
               "No se pudieron asignar los roles de empresa. Contacta a soporte.",
               payload.email
             );
@@ -22200,14 +22396,14 @@ var resolver = {
           await provisionSignupCompany(context, user.id, baseName);
         }
       } catch (err) {
-        return fail13(
+        return fail14(
           err instanceof Error ? err.message : "Error al crear usuario",
           payload.email
         );
       }
     }
     if (await loginBlockedReason(context, user.id)) {
-      return fail13(SUSPENDED_MESSAGE, payload.email, user.id);
+      return fail14(SUSPENDED_MESSAGE, payload.email, user.id);
     }
     user = await context.sudo().query.User.updateOne({
       where: { id: user.id },
@@ -22215,14 +22411,14 @@ var resolver = {
       query: USER_QUERY
     });
     if (!context.sessionStrategy) {
-      return fail13("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail14("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     const sessionToken = await context.sessionStrategy.start({
       data: { listKey: "User", itemId: user.id },
       context
     });
     if (typeof sessionToken !== "string" || sessionToken.length === 0) {
-      return fail13("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail14("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     await writeUserAuthLog(context, {
       startedAt,
@@ -22795,8 +22991,8 @@ var importPetPlace_default = {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text86 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text86}`;
+  const text87 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text87}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -23952,8 +24148,8 @@ async function getPlaceDetails3(placeId, apiKey2) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text86 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text86}`;
+  const text87 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text87}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -25734,14 +25930,14 @@ function trimOrEmpty(value, max) {
   return (value ?? "").trim().slice(0, max);
 }
 function parseCustomEmails(raw) {
-  const list100 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
-  if (list100.length === 0) {
+  const list101 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
+  if (list101.length === 0) {
     return {
       emails: [],
       error: "Agrega al menos un correo para el env\xEDo a usuarios espec\xEDficos."
     };
   }
-  if (list100.length > MAX_CUSTOM_RECIPIENTS) {
+  if (list101.length > MAX_CUSTOM_RECIPIENTS) {
     return {
       emails: [],
       error: `M\xE1ximo ${MAX_CUSTOM_RECIPIENTS} correos por env\xEDo a usuarios espec\xEDficos.`
@@ -25749,7 +25945,7 @@ function parseCustomEmails(raw) {
   }
   const seen = /* @__PURE__ */ new Set();
   const emails = [];
-  for (const email of list100) {
+  for (const email of list101) {
     if (!EMAIL_REGEX2.test(email)) {
       return { emails: [], error: `Correo inv\xE1lido: ${email}` };
     }
@@ -25934,11 +26130,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text86) {
-  return text86.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text87) {
+  return text87.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text86) {
-  const cleaned = stripSpoofedDelimiters(text86 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text87) {
+  const cleaned = stripSpoofedDelimiters(text87 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -25978,9 +26174,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text86) {
-  if (!text86) return 0;
-  return Math.max(1, Math.ceil(text86.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text87) {
+  if (!text87) return 0;
+  return Math.max(1, Math.ceil(text87.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -26014,15 +26210,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text86 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text86) {
+  const text87 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text87) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text86,
+    text: text87,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text86)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text87)
     }
   };
 }
@@ -26067,15 +26263,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text86 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text86) {
+  const text87 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text87) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text86,
+    text: text87,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text86)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text87)
     }
   };
 }
@@ -26112,15 +26308,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text86 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text86) {
+  const text87 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text87) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text86,
+    text: text87,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text86)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text87)
     }
   };
 }
@@ -26798,8 +26994,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text86) {
-  const stripped = text86.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text87) {
+  const stripped = text87.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -27319,11 +27515,11 @@ async function saveMarketInsight(context, params) {
     query: INSIGHT_QUERY2
   });
 }
-function parseMarketInsight(text86) {
-  const match = text86.match(/\{[\s\S]*\}/);
+function parseMarketInsight(text87) {
+  const match = text87.match(/\{[\s\S]*\}/);
   if (!match) {
     return {
-      summary: text86.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      summary: text87.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
       actions: []
     };
   }
@@ -27334,12 +27530,12 @@ function parseMarketInsight(text86) {
       detail: String(item.detail ?? "").trim()
     })).filter((item) => item.title && item.detail).slice(0, 3);
     return {
-      summary: String(parsed.summary ?? "").trim() || text86.trim().slice(0, 800),
+      summary: String(parsed.summary ?? "").trim() || text87.trim().slice(0, 800),
       actions
     };
   } catch {
     return {
-      summary: text86.trim().slice(0, 800),
+      summary: text87.trim().slice(0, 800),
       actions: []
     };
   }
@@ -27879,8 +28075,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text86) {
-  const stripped = text86.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text87) {
+  const stripped = text87.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -27890,8 +28086,8 @@ function parseJsonObject(text86) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text86, company) {
-  const parsed = parseJsonObject(text86);
+function parseCompanyBriefPillars(text87, company) {
+  const parsed = parseJsonObject(text87);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -28211,33 +28407,33 @@ function encodeDenueCondition(value, fallback) {
   const words = parts.length ? parts : [fallback];
   return words.map((word) => encodeURIComponent(word)).join(",");
 }
-function isDenueEmptyBody(text86) {
-  const trimmed = text86.trim().toLowerCase();
+function isDenueEmptyBody(text87) {
+  const trimmed = text87.trim().toLowerCase();
   if (!trimmed) return true;
   return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
 }
 async function parseDenueList(res) {
-  const text86 = await res.text();
-  if (isDenueEmptyBody(text86)) {
+  const text87 = await res.text();
+  if (isDenueEmptyBody(text87)) {
     console.log("[INEGI DENUE] empty body treated as no results", {
       status: res.status,
-      preview: text86.slice(0, 120)
+      preview: text87.slice(0, 120)
     });
     return [];
   }
   if (!res.ok) {
     console.error("[INEGI DENUE] HTTP error body", {
       status: res.status,
-      preview: text86.slice(0, 200)
+      preview: text87.slice(0, 200)
     });
-    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text86.slice(0, 200)}`);
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text87.slice(0, 200)}`);
   }
   let data;
   try {
-    data = JSON.parse(text86);
+    data = JSON.parse(text87);
   } catch {
     throw new Error(
-      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text86.slice(0, 200)}`
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text87.slice(0, 200)}`
     );
   }
   if (!Array.isArray(data)) {
@@ -28336,17 +28532,17 @@ async function getIndicator(indicatorId, geographicArea, recent = true, source =
   const area = geographicArea.trim() || "00";
   const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
   const res = await inegiFetch(url);
-  const text86 = await res.text();
+  const text87 = await res.text();
   if (!res.ok) {
     throw new Error(
-      `INEGI Indicadores HTTP ${res.status}: ${text86.slice(0, 200)}`
+      `INEGI Indicadores HTTP ${res.status}: ${text87.slice(0, 200)}`
     );
   }
   try {
-    return JSON.parse(text86);
+    return JSON.parse(text87);
   } catch {
     throw new Error(
-      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text86.slice(0, 200)}`
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text87.slice(0, 200)}`
     );
   }
 }
@@ -31863,10 +32059,208 @@ var resolver28 = {
 };
 var closeAnimalReport_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 
+// utils/security/turnstile.ts
+var VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+var TIMEOUT_MS = 5e3;
+async function verifyTurnstile(token, ip) {
+  const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
+  if (!secret) return true;
+  const response = token?.trim();
+  if (!response) return false;
+  const body = new URLSearchParams({ secret, response });
+  if (ip) body.set("remoteip", ip);
+  try {
+    const res = await fetch(VERIFY_URL, {
+      method: "POST",
+      body,
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+    if (!res.ok) {
+      console.error("[turnstile] HTTP", res.status);
+      return false;
+    }
+    const data = await res.json();
+    if (!data.success) console.warn("[turnstile] rechazado:", data["error-codes"]?.join(", "));
+    return data.success === true;
+  } catch (error) {
+    console.error("[turnstile] No se pudo verificar:", error);
+    return false;
+  }
+}
+
+// graphql/customs/mutations/pet/animalSightings.ts
+var typeDefs32 = `
+  input ReportAnimalSightingInput {
+    animalId: ID!
+    lat: String!
+    lng: String!
+    placeLabel: String
+    city: String
+    state: String
+    "ISO. Por defecto, ahora. No puede ser futuro ni de hace m\xE1s de 30 d\xEDas."
+    seenAt: String
+    notes: String
+    contactName: String
+    contactPhone: String
+    turnstileToken: String
+    "Campo trampa: la web lo deja vac\xEDo y oculto. Si llega lleno, se finge \xE9xito."
+    website: String
+  }
+
+  type AnimalSightingResult {
+    success: Boolean!
+    message: String!
+    sightingId: ID
+  }
+`;
+var definition29 = `
+  reportAnimalSighting(input: ReportAnimalSightingInput!): AnimalSightingResult!
+  setAnimalSightingHidden(id: ID!, hidden: Boolean!): AnimalSightingResult!
+`;
+var DAY_MS6 = 24 * 60 * 60 * 1e3;
+var FUTURE_SKEW_MS = 5 * 60 * 1e3;
+function fail6(message) {
+  return { success: false, message, sightingId: null };
+}
+function clean4(value, max) {
+  return (value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+}
+function cleanNotes(value) {
+  return (value ?? "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, SIGHTING_NOTES_MAX);
+}
+function coordinate(value, min, max) {
+  const num = Number.parseFloat(value);
+  return Number.isFinite(num) && num >= min && num <= max ? num : null;
+}
+var resolver29 = {
+  reportAnimalSighting: async (_root, { input }, context) => {
+    if (input.website?.trim()) {
+      return { success: true, message: "\xA1Gracias! Ya le avisamos a quien lo busca.", sightingId: null };
+    }
+    const ip = requestIp(context.req);
+    if (!await verifyTurnstile(input.turnstileToken, ip)) {
+      return fail6("No pudimos verificar que no eres un robot. Recarga la p\xE1gina e intenta de nuevo.");
+    }
+    const lat = coordinate(input.lat, -90, 90);
+    const lng = coordinate(input.lng, -180, 180);
+    if (lat === null || lng === null) return fail6("Marca en el mapa d\xF3nde lo viste.");
+    const now = Date.now();
+    let seenAt = new Date(now);
+    if (input.seenAt) {
+      const parsed = new Date(input.seenAt);
+      if (Number.isNaN(parsed.getTime())) return fail6("La fecha no es v\xE1lida.");
+      if (parsed.getTime() > now + FUTURE_SKEW_MS) return fail6("La hora no puede ser posterior a ahora.");
+      if (parsed.getTime() < now - SIGHTING_MAX_AGE_DAYS * DAY_MS6) {
+        return fail6(`Solo se pueden avisar avistamientos de los \xFAltimos ${SIGHTING_MAX_AGE_DAYS} d\xEDas.`);
+      }
+      seenAt = parsed.getTime() > now ? new Date(now) : parsed;
+    }
+    let contactPhone = "";
+    if (input.contactPhone?.trim()) {
+      const phone = normalizeMxPhone(input.contactPhone.slice(0, SIGHTING_PHONE_MAX));
+      if (!phone.ok) return fail6("Revisa tu tel\xE9fono: debe tener 10 d\xEDgitos.");
+      contactPhone = phone.digits;
+    }
+    const sudo = context.sudo();
+    try {
+      const animal = await sudo.query.Animal.findOne({
+        where: { id: input.animalId },
+        query: "id name slug duplicateOf { id }"
+      });
+      if (!animal) return fail6("No encontramos este reporte.");
+      const animalId = animal.duplicateOf?.id ?? animal.id;
+      const last = await lastReportLog(context, animalId);
+      if (!last?.status || !SIGHTING_STATUSES.includes(last.status)) {
+        return fail6("Este caso ya no est\xE1 buscando al animal. Gracias por avisar.");
+      }
+      const prisma = sudo.prisma;
+      if (ip) {
+        const recent = await prisma.animalSighting.count({
+          where: { animalId, ip, createdAt: { gte: new Date(now - SIGHTING_DEDUPE_MINUTES * 60 * 1e3) } }
+        });
+        if (recent instanceof Error) throw recent;
+        if (recent > 0) return fail6("Ya recibimos tu aviso. Si lo vuelves a ver, av\xEDsanos en unos minutos.");
+      }
+      let city = clean4(input.city, 120);
+      let state = clean4(input.state, 120);
+      if (!city) {
+        const place = await fillCityFromCoordinates({ city, state, lat: String(lat), lng: String(lng) });
+        city = place.city;
+        if (!state) state = place.state;
+      }
+      const placeLabel = clean4(input.placeLabel, SIGHTING_PLACE_MAX);
+      const notes = cleanNotes(input.notes);
+      const userId = getSessionUserId(context.session);
+      const created = await sudo.db.AnimalSighting.createOne({
+        data: {
+          animal: { connect: { id: animalId } },
+          ...userId ? { user: { connect: { id: userId } } } : {},
+          seenAt: seenAt.toISOString(),
+          lat: String(lat),
+          lng: String(lng),
+          placeLabel,
+          city,
+          state,
+          notes,
+          contactName: clean4(input.contactName, SIGHTING_NAME_MAX),
+          contactPhone,
+          ip: ip ?? ""
+        }
+      });
+      void logActivity(context, {
+        type: "animal.sighted",
+        summary: `Avis\xF3 que vio a \xAB${animal.name || animalId}\xBB`,
+        entityType: "Animal",
+        entityId: animalId,
+        metadata: { sightingId: created.id, city, anonymous: !userId }
+      });
+      void notifyAnimalSighted(context, {
+        sightingId: created.id,
+        animalId,
+        reporterId: userId,
+        seenAt,
+        place: placeLabel || [city, state].filter(Boolean).join(", "),
+        notes
+      });
+      return { success: true, message: "\xA1Gracias! Ya le avisamos a quien lo busca.", sightingId: created.id };
+    } catch (error) {
+      console.error("[reportAnimalSighting]", error);
+      return fail6("No pudimos guardar tu aviso. Intenta de nuevo en un momento.");
+    }
+  },
+  /** Quien atiende el reporte (o un admin) oculta o vuelve a mostrar un avistamiento. */
+  setAnimalSightingHidden: async (_root, { id, hidden }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return fail6("Inicia sesi\xF3n para hacer esto.");
+    const sudo = context.sudo();
+    try {
+      const prisma = sudo.prisma;
+      const sighting = await prisma.animalSighting.findUnique({
+        where: { id },
+        select: { id: true, animal: { select: { id: true, userId: true, organizationId: true } } }
+      });
+      if (sighting instanceof Error) throw sighting;
+      if (!sighting?.animal) return fail6("No encontramos ese avistamiento.");
+      const allowed = isPlatformAdmin(context.session) || await canEditAnimalAs(context, sighting.animal, userId);
+      if (!allowed) return fail6("Solo quien atiende el reporte puede hacer esto.");
+      await sudo.db.AnimalSighting.updateOne({ where: { id }, data: { hidden } });
+      return {
+        success: true,
+        message: hidden ? "Ocultamos el avistamiento." : "El avistamiento se ve de nuevo.",
+        sightingId: id
+      };
+    } catch (error) {
+      console.error("[setAnimalSightingHidden]", error);
+      return fail6("No pudimos guardar el cambio. Intenta de nuevo.");
+    }
+  }
+};
+var animalSightings_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+
 // graphql/customs/mutations/pet/sendAnimalFollowUps.ts
 var MAX_REMINDERS_PER_RUN = 200;
 var MAX_INACTIVE_PER_RUN = 500;
-var typeDefs32 = `
+var typeDefs33 = `
   type SendAnimalFollowUpsResult {
     success: Boolean!
     message: String!
@@ -31875,7 +32269,7 @@ var typeDefs32 = `
     failed: Int!
   }
 `;
-var definition29 = `
+var definition30 = `
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
 `;
 var empty2 = { reminded: 0, inactivated: 0, failed: 0 };
@@ -31991,7 +32385,7 @@ async function remind(context, animal) {
   }
   return true;
 }
-var resolver29 = {
+var resolver30 = {
   sendAnimalFollowUps: async (_root, { secret }, context) => {
     const expected = process.env.CRON_SECRET?.trim();
     if (!expected || secret !== expected) {
@@ -32030,7 +32424,7 @@ var resolver29 = {
     }
   }
 };
-var sendAnimalFollowUps_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var sendAnimalFollowUps_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
 var import_graphql6 = require("graphql");
@@ -32313,7 +32707,7 @@ async function transferPetToOwner(context, pet, newOwnerId, { reportNote } = {})
 }
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
-var typeDefs33 = `
+var typeDefs34 = `
   input AdoptionApplicationInput {
     phone: String!
     "Por qu\xE9 quiere adoptarlo (20 a 1000 caracteres)"
@@ -32346,7 +32740,7 @@ var typeDefs33 = `
     petId: ID
   }
 `;
-var definition30 = `
+var definition31 = `
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
   "Solo quien la envi\xF3 y solo mientras siga \xABEnviada\xBB (submitted)."
   editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
@@ -32414,8 +32808,8 @@ function validateInput(input) {
   if (!Number.isInteger(hours) || hours < 0 || hours > ADOPTION_APPLICATION_LIMITS.HOURS_ALONE_MAX) {
     return { ok: false, message: "Escribe cu\xE1ntas horas al d\xEDa estar\xEDa solo (0 a 24)." };
   }
-  for (const text86 of [input.otherPets, input.experience]) {
-    if ((text86 ?? "").trim().length > ADOPTION_APPLICATION_LIMITS.TEXT_MAX) {
+  for (const text87 of [input.otherPets, input.experience]) {
+    if ((text87 ?? "").trim().length > ADOPTION_APPLICATION_LIMITS.TEXT_MAX) {
       return { ok: false, message: `Cada respuesta puede tener hasta ${ADOPTION_APPLICATION_LIMITS.TEXT_MAX} caracteres.` };
     }
   }
@@ -32452,19 +32846,19 @@ var REVIEW_COPY = {
     body: note || "Gracias por querer adoptar. Hay m\xE1s animales esperando un hogar en KADESH."
   })
 };
-var resolver30 = {
+var resolver31 = {
   submitAdoptionApplication: async (_root, { animalId, input }, context) => {
-    const fail13 = (message) => ({ success: false, message, application: null });
+    const fail14 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail13("Inicia sesi\xF3n para enviar tu solicitud.");
+      if (!userId) return fail14("Inicia sesi\xF3n para enviar tu solicitud.");
       const sudo = context.sudo();
       const animal = await sudo.query.Animal.findOne({ where: { id: animalId }, query: ANIMAL_FIELDS });
-      if (!animal) return fail13("No encontramos ese animal.");
-      if (animal.duplicateOf) return fail13("Este reporte se uni\xF3 a otro: solicita desde el reporte principal.");
+      if (!animal) return fail14("No encontramos ese animal.");
+      if (animal.duplicateOf) return fail14("Este reporte se uni\xF3 a otro: solicita desde el reporte principal.");
       const last = await lastReportLog(context, animal.id);
-      if (last?.status !== "in_adoption") return fail13(`${animalLabel(animal)} ya no est\xE1 en adopci\xF3n.`);
-      if (await canReview(context, animal, userId)) return fail13("Es un animal que t\xFA (o tu equipo) publicaste.");
+      if (last?.status !== "in_adoption") return fail14(`${animalLabel(animal)} ya no est\xE1 en adopci\xF3n.`);
+      if (await canReview(context, animal, userId)) return fail14("Es un animal que t\xFA (o tu equipo) publicaste.");
       const open = await sudo.query.AdoptionApplication.count({
         where: {
           animal: { id: { equals: animal.id } },
@@ -32472,9 +32866,9 @@ var resolver30 = {
           status: { in: ADOPTION_APPLICATION_ACTIVE_STATUSES }
         }
       });
-      if (open > 0) return fail13(`Ya enviaste una solicitud para ${animalLabel(animal)}. Te avisaremos cuando respondan.`);
+      if (open > 0) return fail14(`Ya enviaste una solicitud para ${animalLabel(animal)}. Te avisaremos cuando respondan.`);
       const checked = validateInput(input);
-      if (!checked.ok) return fail13(checked.message);
+      if (!checked.ok) return fail14(checked.message);
       const applicant = await sudo.query.User.findOne({
         where: { id: userId },
         query: "name lastName email"
@@ -32519,30 +32913,30 @@ var resolver30 = {
       };
     } catch (error) {
       console.error("[submitAdoptionApplication]", error);
-      return fail13(errorMessage(error, "No pudimos enviar tu solicitud. Intenta de nuevo."));
+      return fail14(errorMessage(error, "No pudimos enviar tu solicitud. Intenta de nuevo."));
     }
   },
   reviewAdoptionApplication: async (_root, { applicationId, status, note }, context) => {
-    const fail13 = (message) => ({ success: false, message, application: null });
+    const fail14 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail13("Inicia sesi\xF3n para continuar.");
-      if (!ADOPTION_APPLICATION_REVIEW_STATUSES.includes(status)) return fail13("Elige qu\xE9 hacer con la solicitud.");
+      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
+      if (!ADOPTION_APPLICATION_REVIEW_STATUSES.includes(status)) return fail14("Elige qu\xE9 hacer con la solicitud.");
       const application = await loadApplication(context, applicationId);
       const animal = application.animal;
-      if (!await canReview(context, animal, userId)) return fail13("Solo quien atiende a este animal revisa sus solicitudes.");
-      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail13("Esta solicitud ya est\xE1 cerrada.");
-      if (application.status === status) return fail13("La solicitud ya est\xE1 as\xED.");
-      const clean4 = (note ?? "").trim();
-      if (clean4.length > ADOPTION_APPLICATION_LIMITS.NOTE_MAX) {
-        return fail13(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
+      if (!await canReview(context, animal, userId)) return fail14("Solo quien atiende a este animal revisa sus solicitudes.");
+      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail14("Esta solicitud ya est\xE1 cerrada.");
+      if (application.status === status) return fail14("La solicitud ya est\xE1 as\xED.");
+      const clean5 = (note ?? "").trim();
+      if (clean5.length > ADOPTION_APPLICATION_LIMITS.NOTE_MAX) {
+        return fail14(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
       }
       const updated = await prismaOf6(context).adoptionApplication.update({
         where: { id: application.id },
         data: {
           status,
           // `text` de Keystone: cadena vacía, no null.
-          decisionNote: status === ADOPTION_APPLICATION_STATUS.IN_REVIEW ? "" : clean4,
+          decisionNote: status === ADOPTION_APPLICATION_STATUS.IN_REVIEW ? "" : clean5,
           decidedById: userId,
           decidedAt: /* @__PURE__ */ new Date()
         }
@@ -32550,7 +32944,7 @@ var resolver30 = {
       if (updated instanceof Error) throw updated;
       const name = animalLabel(animal);
       if (application.applicant?.id) {
-        const copy = REVIEW_COPY[status](name, clean4);
+        const copy = REVIEW_COPY[status](name, clean5);
         void notify(context, {
           audience: [application.applicant.id],
           product: "pet",
@@ -32577,24 +32971,24 @@ var resolver30 = {
       };
     } catch (error) {
       console.error("[reviewAdoptionApplication]", error);
-      return fail13(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
+      return fail14(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
     }
   },
   editAdoptionApplication: async (_root, { applicationId, input }, context) => {
-    const fail13 = (message) => ({ success: false, message, application: null });
+    const fail14 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
       const application = await loadApplication(context, applicationId);
-      if (!userId || application.applicant?.id !== userId) return fail13("Solo quien envi\xF3 la solicitud puede editarla.");
+      if (!userId || application.applicant?.id !== userId) return fail14("Solo quien envi\xF3 la solicitud puede editarla.");
       const animal = application.animal;
       const name = animalLabel(animal);
       if (application.status !== ADOPTION_APPLICATION_STATUS.SUBMITTED) {
-        return fail13(
+        return fail14(
           ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status) ? `Quien cuida a ${name} ya la est\xE1 revisando, as\xED que ya no se puede editar. Si algo cambi\xF3, cu\xE9ntaselo cuando te contacte.` : "Esta solicitud ya est\xE1 cerrada."
         );
       }
       const checked = validateInput(input);
-      if (!checked.ok) return fail13(checked.message);
+      if (!checked.ok) return fail14(checked.message);
       const updated = await prismaOf6(context).adoptionApplication.update({
         where: { id: application.id },
         data: { phone: checked.phone, message: input.message.trim(), answers: answersFrom(input) }
@@ -32625,16 +33019,16 @@ var resolver30 = {
       };
     } catch (error) {
       console.error("[editAdoptionApplication]", error);
-      return fail13(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
+      return fail14(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
     }
   },
   withdrawAdoptionApplication: async (_root, { applicationId }, context) => {
-    const fail13 = (message) => ({ success: false, message, application: null });
+    const fail14 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
       const application = await loadApplication(context, applicationId);
-      if (!userId || application.applicant?.id !== userId) return fail13("Solo quien envi\xF3 la solicitud puede retirarla.");
-      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail13("Esta solicitud ya est\xE1 cerrada.");
+      if (!userId || application.applicant?.id !== userId) return fail14("Solo quien envi\xF3 la solicitud puede retirarla.");
+      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail14("Esta solicitud ya est\xE1 cerrada.");
       const updated = await prismaOf6(context).adoptionApplication.update({
         where: { id: application.id },
         data: { status: ADOPTION_APPLICATION_STATUS.WITHDRAWN, decidedAt: /* @__PURE__ */ new Date() }
@@ -32653,40 +33047,40 @@ var resolver30 = {
       };
     } catch (error) {
       console.error("[withdrawAdoptionApplication]", error);
-      return fail13(errorMessage(error, "No pudimos retirar la solicitud. Intenta de nuevo."));
+      return fail14(errorMessage(error, "No pudimos retirar la solicitud. Intenta de nuevo."));
     }
   },
   completeAdoptionApplication: async (_root, { applicationId }, context) => {
-    const fail13 = (message) => ({ success: false, message, petId: null });
+    const fail14 = (message) => ({ success: false, message, petId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail13("Inicia sesi\xF3n para continuar.");
+      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
       const application = await loadApplication(context, applicationId);
       const animalRow = application.animal;
-      if (application.status !== ADOPTION_APPLICATION_STATUS.APPROVED) return fail13("Primero aprueba la solicitud.");
+      if (application.status !== ADOPTION_APPLICATION_STATUS.APPROVED) return fail14("Primero aprueba la solicitud.");
       if (!await canComplete(context, animalRow, userId)) {
-        return fail13(
+        return fail14(
           animalRow.organization ? "La adopci\xF3n la completan admin y coordinaci\xF3n del espacio." : "La adopci\xF3n la completa quien public\xF3 al animal."
         );
       }
       const adopterId = application.applicant?.id;
-      if (!adopterId) return fail13("La cuenta de quien pidi\xF3 adoptarlo ya no existe.");
+      if (!adopterId) return fail14("La cuenta de quien pidi\xF3 adoptarlo ya no existe.");
       const report = await context.sudo().query.Animal.findOne({
         where: { id: animalRow.id },
         query: REPORT_FOR_PET_QUERY
       });
-      if (!report) return fail13("No encontramos ese animal.");
+      if (!report) return fail14("No encontramos ese animal.");
       const name = animalLabel(report);
       const giverName = report.organization?.name ?? null;
       const reportNote = giverName ? `Adoptado con ${giverName} en KADESH.` : "Adoptado con KADESH.";
       let petId;
       if (report.pet) {
         const pet = await loadTransferablePet(context, report.pet.id);
-        if (!pet) return fail13("No encontramos su cartilla.");
+        if (!pet) return fail14("No encontramos su cartilla.");
         if (pet.organizationId) {
-          if (pet.organizationId !== report.organization?.id) return fail13("Su ficha es de otro espacio de rescate.");
+          if (pet.organizationId !== report.organization?.id) return fail14("Su ficha es de otro espacio de rescate.");
         } else if (!report.user?.id || await findPetOwnerRole(context, pet.id, report.user.id) !== PET_OWNER_ROLE.PRINCIPAL) {
-          return fail13("Este animal tiene la cartilla de otra persona: p\xEDdele que te la pase con un c\xF3digo.");
+          return fail14("Este animal tiene la cartilla de otra persona: p\xEDdele que te la pase con un c\xF3digo.");
         }
         await transferPetToOwner(context, pet, adopterId);
         await cancelPendingTransfers(context, pet.id);
@@ -32721,15 +33115,15 @@ var resolver30 = {
       };
     } catch (error) {
       console.error("[completeAdoptionApplication]", error);
-      return fail13(errorMessage(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
+      return fail14(errorMessage(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
     }
   }
 };
-var adoptionApplications_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var adoptionApplications_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // graphql/customs/mutations/pet/card/markPetAsLost.ts
 var import_graphql7 = require("graphql");
-var typeDefs34 = `
+var typeDefs35 = `
   input PetLastSeenLocationInput {
     lat: String!
     lng: String!
@@ -32743,10 +33137,10 @@ var typeDefs34 = `
     url: String!
   }
 `;
-var definition31 = `
+var definition32 = `
   markPetAsLost(petId: ID!, lastSeenLocation: PetLastSeenLocationInput!, lastSeenDate: String!, notes: String, contactPhone: String): MarkPetAsLostResult!
 `;
-var resolver31 = {
+var resolver32 = {
   /**
    * Crea el reporte de perdida con los datos y fotos de la mascota, la marca `lost` y liga los dos.
    * El reporte sale por `createAnimalReport` (mismo slug, ciudad, validaciones, alerta de zona y
@@ -32826,21 +33220,21 @@ var resolver31 = {
     }
   }
 };
-var markPetAsLost_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var markPetAsLost_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // graphql/customs/mutations/pet/card/markPetAsFound.ts
 var import_graphql8 = require("graphql");
 var BACK_HOME_STATUS = "in_family";
-var typeDefs35 = `
+var typeDefs36 = `
   type MarkPetAsFoundResult {
     petId: ID!
     reportId: ID
   }
 `;
-var definition32 = `
+var definition33 = `
   markPetAsFound(petId: ID!): MarkPetAsFoundResult!
 `;
-var resolver32 = {
+var resolver33 = {
   /** La mascota vuelve a `active` y su reporte se cierra con una bitácora "En familia". */
   markPetAsFound: async (_root, { petId }, context) => {
     try {
@@ -32897,22 +33291,22 @@ var resolver32 = {
     }
   }
 };
-var markPetAsFound_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var markPetAsFound_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/pet/card/addPetFamilyMember.ts
 var import_graphql9 = require("graphql");
 var PET_FAMILY_USER_NOT_FOUND = "PET_FAMILY_USER_NOT_FOUND";
-var typeDefs36 = `
+var typeDefs37 = `
   type PetFamilyMemberResult {
     id: ID!
     role: String!
     userName: String!
   }
 `;
-var definition33 = `
+var definition34 = `
   addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
 `;
-var resolver33 = {
+var resolver34 = {
   /**
    * El dueño principal agrega a un familiar por correo: nadie puede leer el `id` de otro `User`,
    * así que la búsqueda va con sudo y solo devuelve el nombre.
@@ -32920,11 +33314,11 @@ var resolver33 = {
   addPetFamilyMember: async (_root, { petId, email }, context) => {
     try {
       await requirePetOwner(context, petId, { principal: true });
-      const clean4 = (email ?? "").trim().toLowerCase();
-      if (!clean4) throw new import_graphql9.GraphQLError("Escribe el correo de la persona.");
+      const clean5 = (email ?? "").trim().toLowerCase();
+      if (!clean5) throw new import_graphql9.GraphQLError("Escribe el correo de la persona.");
       const sudo = context.sudo();
       const [user] = await sudo.query.User.findMany({
-        where: { email: { equals: clean4, mode: "insensitive" } },
+        where: { email: { equals: clean5, mode: "insensitive" } },
         query: "id",
         take: 1
       });
@@ -32953,13 +33347,13 @@ var resolver33 = {
     }
   }
 };
-var addPetFamilyMember_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var addPetFamilyMember_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // graphql/customs/mutations/pet/card/registerPetFamilyMember.ts
 var import_graphql10 = require("graphql");
 var EMAIL_PATTERN3 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 var MIN_PASSWORD_LENGTH = 8;
-var typeDefs37 = `
+var typeDefs38 = `
   input RegisterPetFamilyMemberInput {
     name: String!
     lastName: String
@@ -32975,13 +33369,13 @@ var typeDefs37 = `
     createdAccount: Boolean!
   }
 `;
-var definition34 = `
+var definition35 = `
   registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
 `;
 function displayName(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver34 = {
+var resolver35 = {
   /**
    * El dueño principal registra a un familiar que aún no tiene cuenta: crea la cuenta con la
    * contraseña que él elige, lo agrega como `family` y le manda un correo que le dice que esa
@@ -33062,7 +33456,7 @@ var resolver34 = {
     }
   }
 };
-var registerPetFamilyMember_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var registerPetFamilyMember_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // utils/pet/petReminders.ts
 function reminderUrl(reminder) {
@@ -33222,7 +33616,7 @@ async function sendReminderNotification(context, reminder) {
 
 // graphql/customs/mutations/pet/card/sendDuePetReminders.ts
 var MAX_PER_RUN = 500;
-var typeDefs38 = `
+var typeDefs39 = `
   type SendDuePetRemindersResult {
     success: Boolean!
     message: String!
@@ -33231,11 +33625,11 @@ var typeDefs38 = `
     failed: Int!
   }
 `;
-var definition35 = `
+var definition36 = `
   sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
 `;
 var empty3 = { processed: 0, sent: 0, failed: 0 };
-var resolver35 = {
+var resolver36 = {
   /**
    * Manda los `PetReminder` pendientes cuya fecha de aviso (`dueDate - notifyDaysBefore`) ya llegó
    * (hoy en CDMX o antes). La llama un cron diario (.github/workflows/send-pet-reminders.yml) con
@@ -33301,12 +33695,12 @@ var resolver35 = {
     }
   }
 };
-var sendDuePetReminders_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var sendDuePetReminders_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/mutations/pet/card/petTransfer.ts
 var import_crypto5 = require("crypto");
 var import_graphql11 = require("graphql");
-var typeDefs39 = `
+var typeDefs40 = `
   type PetTransferCodeResult {
     success: Boolean!
     message: String!
@@ -33334,7 +33728,7 @@ var typeDefs39 = `
     petId: ID
   }
 `;
-var definition36 = `
+var definition37 = `
   createPetTransferCode(petId: ID!, message: String): PetTransferCodeResult!
   cancelPetTransferCode(transferId: ID!): PetTransferCodeResult!
   previewPetTransferCode(code: String!): PetTransferPreview!
@@ -33414,19 +33808,19 @@ async function loadRedeemable(context, rawCode, userId) {
 function displayName2(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver36 = {
+var resolver37 = {
   createPetTransferCode: async (_root, { petId, message }, context) => {
-    const fail13 = (text86) => ({ success: false, message: text86, transfer: null });
+    const fail14 = (text87) => ({ success: false, message: text87, transfer: null });
     try {
       const { userId, pet, organization } = await requireGiver(context, petId);
       if (pet.status !== PET_STATUS.ACTIVE) {
-        return fail13(
+        return fail14(
           pet.status === PET_STATUS.LOST ? "Primero cierra su reporte de perdida con \xABYa regres\xF3 a casa\xBB." : "Solo se traspasa una mascota activa."
         );
       }
       const note = (message ?? "").trim();
       if (note.length > PET_TRANSFER_MESSAGE_MAX) {
-        return fail13(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
+        return fail14(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
       }
       await cancelPendingTransfers(context, pet.id);
       const prisma = prismaOf7(context);
@@ -33436,7 +33830,7 @@ var resolver36 = {
         const taken = await prisma.petTransfer.findUnique({ where: { code: candidate }, select: { id: true } });
         if (!taken) code = candidate;
       }
-      if (!code) return fail13("No pudimos generar el c\xF3digo. Intenta de nuevo.");
+      if (!code) return fail14("No pudimos generar el c\xF3digo. Intenta de nuevo.");
       const created = await prisma.petTransfer.create({
         data: {
           petId: pet.id,
@@ -33464,18 +33858,18 @@ var resolver36 = {
       };
     } catch (error) {
       console.error("[createPetTransferCode]", error);
-      return fail13(errorMessage2(error, "No pudimos generar el c\xF3digo. Intenta de nuevo."));
+      return fail14(errorMessage2(error, "No pudimos generar el c\xF3digo. Intenta de nuevo."));
     }
   },
   cancelPetTransferCode: async (_root, { transferId }, context) => {
-    const fail13 = (text86) => ({ success: false, message: text86, transfer: null });
+    const fail14 = (text87) => ({ success: false, message: text87, transfer: null });
     try {
       const prisma = prismaOf7(context);
       const transfer = await prisma.petTransfer.findUnique({ where: { id: transferId } });
-      if (!transfer?.petId) return fail13("No encontramos ese c\xF3digo.");
+      if (!transfer?.petId) return fail14("No encontramos ese c\xF3digo.");
       const userId = getSessionUserId(context.session);
       if (transfer.createdById !== userId) await requireGiver(context, transfer.petId);
-      if (transfer.status !== PET_TRANSFER_STATUS.PENDING) return fail13("Ese c\xF3digo ya no est\xE1 activo.");
+      if (transfer.status !== PET_TRANSFER_STATUS.PENDING) return fail14("Ese c\xF3digo ya no est\xE1 activo.");
       const updated = await prisma.petTransfer.update({
         where: { id: transfer.id },
         data: { status: PET_TRANSFER_STATUS.CANCELLED }
@@ -33495,7 +33889,7 @@ var resolver36 = {
       };
     } catch (error) {
       console.error("[cancelPetTransferCode]", error);
-      return fail13(errorMessage2(error, "No pudimos cancelar el c\xF3digo. Intenta de nuevo."));
+      return fail14(errorMessage2(error, "No pudimos cancelar el c\xF3digo. Intenta de nuevo."));
     }
   },
   previewPetTransferCode: async (_root, { code }, context) => {
@@ -33544,12 +33938,12 @@ var resolver36 = {
     }
   },
   redeemPetTransferCode: async (_root, { code }, context) => {
-    const fail13 = (text86) => ({ success: false, message: text86, petId: null });
+    const fail14 = (text87) => ({ success: false, message: text87, petId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail13("Inicia sesi\xF3n para recibir a la mascota.");
+      if (!userId) return fail14("Inicia sesi\xF3n para recibir a la mascota.");
       const found = await loadRedeemable(context, code, userId);
-      if (!found.ok) return fail13(found.message);
+      if (!found.ok) return fail14(found.message);
       const { transfer } = found;
       const prisma = prismaOf7(context);
       const claimed = await prisma.petTransfer.updateMany({
@@ -33557,7 +33951,7 @@ var resolver36 = {
         data: { status: PET_TRANSFER_STATUS.REDEEMED, redeemedById: userId, redeemedAt: /* @__PURE__ */ new Date() }
       });
       if (claimed instanceof Error) throw claimed;
-      if (claimed.count !== 1) return fail13("Ese c\xF3digo ya se us\xF3.");
+      if (claimed.count !== 1) return fail14("Ese c\xF3digo ya se us\xF3.");
       const pet = await loadTransferablePet(context, transfer.petId);
       const organization = transfer.fromOrganizationId ? await context.sudo().query.RescueOrganization.findOne({
         where: { id: transfer.fromOrganizationId },
@@ -33613,11 +34007,11 @@ var resolver36 = {
       return { success: true, message: `${pet.name} ya est\xE1 en tu cartilla.`, petId: pet.id };
     } catch (error) {
       console.error("[redeemPetTransferCode]", error);
-      return fail13(errorMessage2(error, "No pudimos recibir a la mascota. Intenta de nuevo."));
+      return fail14(errorMessage2(error, "No pudimos recibir a la mascota. Intenta de nuevo."));
     }
   }
 };
-var petTransfer_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var petTransfer_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // graphql/customs/mutations/pet/card/index.ts
 var petCardMutations = {
@@ -33649,7 +34043,7 @@ var petCardMutations = {
 var card_default = petCardMutations;
 
 // utils/notifications/eventAlerts.ts
-var DAY_MS6 = 24 * 60 * 60 * 1e3;
+var DAY_MS7 = 24 * 60 * 60 * 1e3;
 function prismaOf8(context) {
   return context.sudo().prisma;
 }
@@ -33687,7 +34081,7 @@ function dayKey(date, timeZone) {
 function relativeEventDay(date, timeZone, now = /* @__PURE__ */ new Date()) {
   const key = dayKey(date, timeZone);
   if (key === dayKey(now, timeZone)) return "Hoy";
-  if (key === dayKey(new Date(now.getTime() + DAY_MS6), timeZone)) return "Ma\xF1ana";
+  if (key === dayKey(new Date(now.getTime() + DAY_MS7), timeZone)) return "Ma\xF1ana";
   return null;
 }
 function eventPlaceText(event) {
@@ -33702,7 +34096,7 @@ function eventPriceText(event) {
 }
 function isWithinAlertLead(startsAt, now = /* @__PURE__ */ new Date()) {
   if (!startsAt) return false;
-  return startsAt.getTime() - now.getTime() <= PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS6;
+  return startsAt.getTime() - now.getTime() <= PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS7;
 }
 async function loadPetEventForNotice(context, eventId, now = /* @__PURE__ */ new Date()) {
   try {
@@ -33754,7 +34148,7 @@ async function loadPetEventForNotice(context, eventId, now = /* @__PURE__ */ new
 }
 async function findEventAlertCandidates(context, event) {
   const prisma = prismaOf8(context);
-  const since = new Date(Date.now() - DAY_MS6);
+  const since = new Date(Date.now() - DAY_MS7);
   const zoneReach = event.scope === PET_EVENT_SCOPE.ZONE ? Math.max(0, Math.round(event.reachKm || 0)) : 0;
   const rows2 = await prisma.$queryRaw`
     SELECT u.id,
@@ -33989,11 +34383,11 @@ async function sendZoneAlertsIfDue(context, eventId, now = /* @__PURE__ */ new D
 }
 
 // graphql/customs/mutations/pet/events/submitPetEvent.ts
-var typeDefs40 = ``;
-var definition37 = `
+var typeDefs41 = ``;
+var definition38 = `
   submitPetEvent(input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver37 = {
+var resolver38 = {
   /**
    * Publica un evento con sus fechas. Si no lo manda un admin queda «En revisión» y se avisa a los
    * admins; un admin lo publica directo (y avisa a la zona si la fecha está cerca). Las fotos se
@@ -34051,7 +34445,7 @@ var resolver37 = {
     }
   }
 };
-var submitPetEvent_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var submitPetEvent_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // utils/seo/indexNow.ts
 var DEFAULT_KEY = "6973631b0c498ed8f41a79e2d4c9211f";
@@ -34106,11 +34500,11 @@ async function submitPetEventToIndexNow(context, eventId) {
 }
 
 // graphql/customs/mutations/pet/events/updateMyPetEvent.ts
-var typeDefs41 = ``;
-var definition38 = `
+var typeDefs42 = ``;
+var definition39 = `
   updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver38 = {
+var resolver39 = {
   /**
    * Edita un evento propio (el formulario completo, con todas sus fechas). Si quien edita no es
    * admin y el evento estaba publicado o rechazado, vuelve a «En revisión». Si cambiaron las fechas
@@ -34219,14 +34613,14 @@ var resolver38 = {
     }
   }
 };
-var updateMyPetEvent_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var updateMyPetEvent_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // graphql/customs/mutations/pet/events/cancelPetEvent.ts
-var typeDefs42 = ``;
-var definition39 = `
+var typeDefs43 = ``;
+var definition40 = `
   cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
 `;
-var resolver39 = {
+var resolver40 = {
   /**
    * Cancela un evento (quien lo publicó o un admin). Si llegó a publicarse, la ficha sigue visible
    * con el aviso de cancelado y se avisa a quienes marcaron «Me interesa» o «Asistiré».
@@ -34273,10 +34667,10 @@ var resolver39 = {
     }
   }
 };
-var cancelPetEvent_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var cancelPetEvent_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/mutations/pet/events/setPetEventInterest.ts
-var typeDefs43 = `
+var typeDefs44 = `
   type PetEventInterestResult {
     success: Boolean!
     message: String!
@@ -34287,7 +34681,7 @@ var typeDefs43 = `
     isFull: Boolean!
   }
 `;
-var definition40 = `
+var definition41 = `
   setPetEventInterest(eventId: ID!, kind: String): PetEventInterestResult!
 `;
 var KINDS = new Set(Object.values(PET_EVENT_INTEREST_KIND));
@@ -34303,7 +34697,7 @@ async function counts(prisma, eventId, capacity) {
     isFull: capacity ? goingCount >= capacity : false
   };
 }
-var resolver40 = {
+var resolver41 = {
   /**
    * «Me interesa» (`interested`), «Asistiré» (`going`) o quitarlo (`kind: null`). Con cupo,
    * «Asistiré» se cierra cuando ya hay tantas personas como lugares; «Me interesa» siempre se puede.
@@ -34367,7 +34761,7 @@ var resolver40 = {
     }
   }
 };
-var setPetEventInterest_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var setPetEventInterest_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // utils/security/knownCrawlers.ts
 var import_net = require("net");
@@ -34433,14 +34827,14 @@ function isKnownCrawlerRequest(req) {
 }
 
 // graphql/customs/mutations/pet/events/recordPetEventView.ts
-var typeDefs44 = `
+var typeDefs45 = `
   type PetEventViewResult {
     "Si esta visita sum\xF3. No suman quien lo public\xF3, los admins, los bots ni repetir en 30 min."
     counted: Boolean!
     viewsCount: Int!
   }
 `;
-var definition41 = `
+var definition42 = `
   recordPetEventView(eventId: ID!): PetEventViewResult!
 `;
 var firstVisit = createDeduper(PET_EVENT_VIEW_DEDUPE_MS);
@@ -34453,7 +34847,7 @@ function isPublic(event) {
   if (event.status === PET_EVENT_STATUS.APPROVED) return true;
   return event.status === PET_EVENT_STATUS.CANCELLED && Boolean(event.approvedAt);
 }
-var resolver41 = {
+var resolver42 = {
   /**
    * La web la llama una vez al abrir la ficha y muestra el total que devuelve. Nunca falla hacia
    * afuera: si algo sale mal responde `counted: false` y la ficha se queda con el número que tenía.
@@ -34484,14 +34878,14 @@ var resolver41 = {
     }
   }
 };
-var recordPetEventView_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var recordPetEventView_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/pet/events/reviewPetEvent.ts
-var typeDefs45 = ``;
-var definition42 = `
+var typeDefs46 = ``;
+var definition43 = `
   reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
 `;
-var resolver42 = {
+var resolver43 = {
   /**
    * Operaciones → Kadesh Pet → Eventos. Aprobar publica el evento, avisa a quien lo publicó y, si
    * su próxima fecha está a 14 días o menos, a la zona (si no, el cron avisa cuando falten 14).
@@ -34587,14 +34981,14 @@ var resolver42 = {
     }
   }
 };
-var reviewPetEvent_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var reviewPetEvent_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/pet/events/sendPetEventNotifications.ts
 var MAX_REMINDERS_PER_RUN2 = 500;
 var MAX_ZONE_EVENTS_PER_RUN = 50;
 var HOUR_MS = 60 * 60 * 1e3;
-var DAY_MS7 = 24 * HOUR_MS;
-var typeDefs46 = `
+var DAY_MS8 = 24 * HOUR_MS;
+var typeDefs47 = `
   type SendPetEventNotificationsResult {
     success: Boolean!
     message: String!
@@ -34606,7 +35000,7 @@ var typeDefs46 = `
     zoneRecipients: Int!
   }
 `;
-var definition43 = `
+var definition44 = `
   sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
 `;
 async function sendReminders(context, now) {
@@ -34670,7 +35064,7 @@ async function sendReminders(context, now) {
 }
 async function sendDueZoneAlerts(context, now) {
   const prisma = prismaOf9(context);
-  const leadUntil = new Date(now.getTime() + PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS7);
+  const leadUntil = new Date(now.getTime() + PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS8);
   const rows2 = await prisma.$queryRaw`
     SELECT e.id
     FROM "PetEvent" e
@@ -34694,7 +35088,7 @@ async function sendDueZoneAlerts(context, now) {
   }
   return { events, recipients };
 }
-var resolver43 = {
+var resolver44 = {
   /**
    * La llama cada hora .github/workflows/send-pet-event-notifications.yml con `CRON_SECRET`:
    * (a) recordatorios de fechas que empiezan en las próximas 24 h, una vez por fecha y persona;
@@ -34725,13 +35119,13 @@ var resolver43 = {
     }
   }
 };
-var sendPetEventNotifications_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var sendPetEventNotifications_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/mutations/pet/events/backfillAlertRegions.ts
 var NOMINATIM_GAP_MS = 1100;
 var DEFAULT_LIMIT = 40;
 var MAX_LIMIT = 100;
-var typeDefs47 = `
+var typeDefs48 = `
   type BackfillAlertRegionsResult {
     success: Boolean!
     message: String!
@@ -34740,11 +35134,11 @@ var typeDefs47 = `
     remaining: Int!
   }
 `;
-var definition44 = `
+var definition45 = `
   backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
 `;
 var sleep2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-var resolver44 = {
+var resolver45 = {
   /**
    * Una vez, después de desplegar los eventos: llena `alertCity` / `alertStateCode` de quienes ya
    * tenían zona de alertas (desde ahora se llenan solos al guardar la zona). Solo admins. Se corre
@@ -34793,7 +35187,7 @@ var resolver44 = {
     }
   }
 };
-var backfillAlertRegions_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var backfillAlertRegions_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // graphql/customs/mutations/pet/events/index.ts
 var petEventMutations = {
@@ -34832,15 +35226,15 @@ var petEventMutations = {
 var events_default = petEventMutations;
 
 // graphql/customs/mutations/pet/rescue/activateRescueOrganization.ts
-var typeDefs48 = ``;
-var definition45 = `
+var typeDefs49 = ``;
+var definition46 = `
   activateRescueOrganization(input: RescueOrganizationCreateInput!): RescueOrganizationResult!
 `;
 var TYPE_LABEL2 = Object.fromEntries(RESCUE_ORG_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 function failure2(message) {
   return { success: false, message, organization: null };
 }
-var resolver45 = {
+var resolver46 = {
   /**
    * Activa un espacio de rescate: crea la organización «En revisión» con quien llama como admin y
    * avisa a los admins de Kadesh para validarla por WhatsApp. El logo y la portada se suben
@@ -34918,7 +35312,7 @@ var resolver45 = {
     }
   }
 };
-var activateRescueOrganization_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var activateRescueOrganization_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
 var import_graphql12 = require("graphql");
@@ -34978,8 +35372,8 @@ async function countRescueAdmins(context, organizationId) {
 }
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
-var typeDefs49 = ``;
-var definition46 = `
+var typeDefs50 = ``;
+var definition47 = `
   addRescueOrganizationMember(organizationId: ID!, email: String!, role: String!): RescueMemberResult!
   setRescueOrganizationMemberRole(memberId: ID!, role: String!): RescueMemberResult!
   removeRescueOrganizationMember(memberId: ID!): RescueMemberResult!
@@ -34998,13 +35392,13 @@ async function loadMember(context, memberId) {
     query: "id role user { id } organization { id name }"
   });
 }
-var resolver46 = {
+var resolver47 = {
   addRescueOrganizationMember: async (_root, { organizationId, email, role }, context) => {
     try {
       const { organization } = await requireRescueRole(context, organizationId, [RESCUE_MEMBER_ROLE.ADMIN]);
       if (!RESCUE_MEMBER_ROLE_VALUES.has(role)) return failure3("Elige un rol para esta persona.");
-      const clean4 = (email ?? "").trim().toLowerCase();
-      if (!clean4) return failure3("Escribe el correo de la persona.");
+      const clean5 = (email ?? "").trim().toLowerCase();
+      if (!clean5) return failure3("Escribe el correo de la persona.");
       const sudo = context.sudo();
       const total = await sudo.query.RescueOrganizationMember.count({
         where: { organization: { id: { equals: organizationId } } }
@@ -35013,7 +35407,7 @@ var resolver46 = {
         return failure3(`Un espacio puede tener hasta ${RESCUE_ORG_LIMITS.MAX_MEMBERS} personas en su equipo.`);
       }
       const [user] = await sudo.query.User.findMany({
-        where: { email: { equals: clean4, mode: "insensitive" } },
+        where: { email: { equals: clean5, mode: "insensitive" } },
         query: "id name lastName",
         take: 1
       });
@@ -35134,7 +35528,7 @@ var resolver46 = {
     }
   }
 };
-var rescueMembers_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var rescueMembers_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // graphql/customs/mutations/pet/rescue/rescuePets.ts
 var import_graphql13 = require("graphql");
@@ -35144,7 +35538,7 @@ var STATUS_LABEL2 = {
   rescued: "Rescatado"
 };
 var RESCUE_ADOPTER_NOT_FOUND = "RESCUE_ADOPTER_NOT_FOUND";
-var typeDefs50 = `
+var typeDefs51 = `
   type RescuePetResult {
     success: Boolean!
     message: String!
@@ -35172,7 +35566,7 @@ var typeDefs50 = `
     adopterName: String
   }
 `;
-var definition47 = `
+var definition48 = `
   convertAnimalToPet(animalId: ID!, organizationId: ID): RescuePetResult!
   "status: in_adoption | rescued. location es obligatoria si la ficha a\xFAn no tiene reporte."
   publishRescuePet(petId: ID!, status: String!, location: PetLastSeenLocationInput, notes: String): PublishRescuePetResult!
@@ -35194,35 +35588,35 @@ async function loadRescuePet(context, petId) {
   if (!pet.organization) throw new import_graphql13.GraphQLError("Esta mascota no es ficha de un espacio de rescate.");
   return pet;
 }
-var resolver47 = {
+var resolver48 = {
   convertAnimalToPet: async (_root, { animalId, organizationId }, context) => {
-    const fail13 = (message) => ({ success: false, message, petId: null, organizationId: null });
+    const fail14 = (message) => ({ success: false, message, petId: null, organizationId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail13("Inicia sesi\xF3n para continuar.");
+      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
       const animal = await context.sudo().query.Animal.findOne({
         where: { id: animalId },
         query: REPORT_FOR_PET_QUERY
       });
-      if (!animal) return fail13("No encontramos ese reporte.");
-      if (animal.duplicateOf) return fail13("Este reporte est\xE1 unido a otro: hazlo desde el reporte principal.");
-      if (animal.pet) return fail13("Este animal ya tiene cartilla.");
+      if (!animal) return fail14("No encontramos ese reporte.");
+      if (animal.duplicateOf) return fail14("Este reporte est\xE1 unido a otro: hazlo desde el reporte principal.");
+      if (animal.pet) return fail14("Este animal ya tiene cartilla.");
       const canEdit = isPlatformAdmin(context.session) || await canEditAnimalAs(
         context,
         { userId: animal.user?.id ?? null, organizationId: animal.organization?.id ?? null },
         userId
       );
-      if (!canEdit) return fail13("Solo quien public\xF3 el reporte (o el equipo de su espacio) puede hacer esto.");
+      if (!canEdit) return fail14("Solo quien public\xF3 el reporte (o el equipo de su espacio) puede hacer esto.");
       let organization = null;
       if (organizationId) {
         const { organization: org } = await requireRescueRole(context, organizationId, RESCUE_ANIMAL_EDITOR_ROLES);
-        if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail13("Este espacio de rescate no est\xE1 activo.");
+        if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail14("Este espacio de rescate no est\xE1 activo.");
         if (animal.organization && animal.organization.id !== org.id) {
-          return fail13("Este reporte es de otro espacio de rescate.");
+          return fail14("Este reporte es de otro espacio de rescate.");
         }
         organization = org;
       } else if (animal.organization) {
-        return fail13("Este reporte es de un espacio de rescate: crea su ficha desde el panel del espacio.");
+        return fail14("Este reporte es de un espacio de rescate: crea su ficha desde el panel del espacio.");
       }
       const last = await lastReportLog(context, animal.id);
       const petId = organization ? await createPetFromReport(context, animal, {
@@ -35258,11 +35652,11 @@ var resolver47 = {
       return { success: true, message: `${name} ya est\xE1 en tu cartilla.`, petId, organizationId: null };
     } catch (error) {
       console.error("[convertAnimalToPet]", error);
-      return fail13(errorMessage4(error, "No pudimos crear la cartilla. Intenta de nuevo."));
+      return fail14(errorMessage4(error, "No pudimos crear la cartilla. Intenta de nuevo."));
     }
   },
   publishRescuePet: async (_root, args, context) => {
-    const fail13 = (message) => ({
+    const fail14 = (message) => ({
       success: false,
       message,
       reportId: null,
@@ -35272,14 +35666,14 @@ var resolver47 = {
     });
     try {
       if (!PUBLISHABLE_STATUSES.includes(args.status)) {
-        return fail13("Elige si lo publicas en adopci\xF3n o como rescatado.");
+        return fail14("Elige si lo publicas en adopci\xF3n o como rescatado.");
       }
       const status = args.status;
       const pet = await loadRescuePet(context, args.petId);
       const org = pet.organization;
       const { userId } = await requireRescueRole(context, org.id, RESCUE_ANIMAL_EDITOR_ROLES);
-      if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail13("Este espacio de rescate no est\xE1 activo.");
-      if (pet.status !== PET_STATUS.ACTIVE) return fail13("Solo se publica una ficha activa.");
+      if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail14("Este espacio de rescate no est\xE1 activo.");
+      if (pet.status !== PET_STATUS.ACTIVE) return fail14("Solo se publica una ficha activa.");
       const notes = args.notes?.trim() ?? "";
       const prisma = prismaOf10(context);
       let reportId;
@@ -35289,11 +35683,11 @@ var resolver47 = {
         reportId = pet.publicReport.id;
         slug = pet.publicReport.slug || pet.publicReport.id;
         const last = await lastReportLog(context, reportId);
-        if (last?.status === status) return fail13(`Ya est\xE1 publicado como \xAB${STATUS_LABEL2[status]}\xBB.`);
+        if (last?.status === status) return fail14(`Ya est\xE1 publicado como \xAB${STATUS_LABEL2[status]}\xBB.`);
         await addReportLog(context, reportId, status, notes, last, args.location);
       } else {
-        if (!args.location?.lat || !args.location?.lng) return fail13("Marca en el mapa d\xF3nde est\xE1 el animal.");
-        if (!pet.animal_type?.id) return fail13("Elige la especie en la ficha antes de publicarla.");
+        if (!args.location?.lat || !args.location?.lng) return fail14("Marca en el mapa d\xF3nde est\xE1 el animal.");
+        if (!pet.animal_type?.id) return fail14("Elige la especie en la ficha antes de publicarla.");
         let phone = org.whatsapp?.trim() || "";
         if (!phone) {
           const user = await context.sudo().query.User.findOne({
@@ -35302,7 +35696,7 @@ var resolver47 = {
           });
           phone = user?.phone?.trim() || "";
         }
-        if (!phone) return fail13("Agrega el WhatsApp del espacio en su perfil p\xFAblico para publicar.");
+        if (!phone) return fail14("Agrega el WhatsApp del espacio en su perfil p\xFAblico para publicar.");
         const report = await createAnimalReport_default.resolver.createAnimalReport(
           null,
           {
@@ -35363,11 +35757,11 @@ var resolver47 = {
       };
     } catch (error) {
       console.error("[publishRescuePet]", error);
-      return fail13(errorMessage4(error, "No pudimos publicar la ficha. Intenta de nuevo."));
+      return fail14(errorMessage4(error, "No pudimos publicar la ficha. Intenta de nuevo."));
     }
   },
   completeRescueAdoption: async (_root, { petId, email }, context) => {
-    const fail13 = (message, code = null) => ({
+    const fail14 = (message, code = null) => ({
       success: false,
       message,
       code,
@@ -35378,22 +35772,22 @@ var resolver47 = {
       const pet = await loadRescuePet(context, petId);
       const org = pet.organization;
       await requireRescueRole(context, org.id, RESCUE_ANIMAL_MANAGER_ROLES);
-      if (pet.status !== PET_STATUS.ACTIVE) return fail13("Solo se adopta una ficha activa.");
-      const clean4 = (email ?? "").trim().toLowerCase();
-      if (!clean4) return fail13("Escribe el correo de quien adopta.");
+      if (pet.status !== PET_STATUS.ACTIVE) return fail14("Solo se adopta una ficha activa.");
+      const clean5 = (email ?? "").trim().toLowerCase();
+      if (!clean5) return fail14("Escribe el correo de quien adopta.");
       const [adopter] = await context.sudo().query.User.findMany({
-        where: { email: { equals: clean4, mode: "insensitive" } },
+        where: { email: { equals: clean5, mode: "insensitive" } },
         query: "id name lastName",
         take: 1
       });
       if (!adopter) {
-        return fail13(
+        return fail14(
           "No encontramos una cuenta de KADESH con ese correo. P\xEDdele que se registre (es gratis) y vuelve a intentarlo.",
           RESCUE_ADOPTER_NOT_FOUND
         );
       }
       const transferable = await loadTransferablePet(context, pet.id);
-      if (!transferable) return fail13("No encontramos esta ficha.");
+      if (!transferable) return fail14("No encontramos esta ficha.");
       await transferPetToOwner(context, transferable, adopter.id, {
         reportNote: `Adoptado con ${org.name} en KADESH.`
       });
@@ -35433,11 +35827,11 @@ var resolver47 = {
       };
     } catch (error) {
       console.error("[completeRescueAdoption]", error);
-      return fail13(errorMessage4(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
+      return fail14(errorMessage4(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
     }
   }
 };
-var rescuePets_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var rescuePets_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/mutations/pet/rescue/index.ts
 var rescueMutations = {
@@ -35461,7 +35855,7 @@ var rescueMutations = {
 var rescue_default = rescueMutations;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs51 = `
+var typeDefs52 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -35471,10 +35865,10 @@ var typeDefs51 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition48 = `
+var definition49 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver48 = {
+var resolver49 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -35525,10 +35919,10 @@ var resolver48 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var unsubscribeBlog_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs52 = `
+var typeDefs53 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -35539,10 +35933,10 @@ var typeDefs52 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition49 = `
+var definition50 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver49 = {
+var resolver50 = {
   /**
    * Pensada para un cron externo, no para un usuario logueado: se autoriza con `CRON_SECRET`, no
    * con sesión/rol. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -35591,10 +35985,10 @@ var resolver49 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var publishScheduledPosts_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs53 = `
+var typeDefs54 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -35605,7 +35999,7 @@ var typeDefs53 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition50 = `
+var definition51 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -35614,7 +36008,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver50 = {
+var resolver51 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -35682,7 +36076,7 @@ var resolver50 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -35777,7 +36171,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs54 = `
+var typeDefs55 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -35801,7 +36195,7 @@ var typeDefs54 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition51 = `
+var definition52 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -35817,7 +36211,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver51 = {
+var resolver52 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -35921,7 +36315,7 @@ var resolver51 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // utils/whatsapp/templateStatus.ts
 var TEMPLATE_STATUS_MAP = {
@@ -36055,7 +36449,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs55 = `
+var typeDefs56 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -36069,10 +36463,10 @@ var typeDefs55 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition52 = `
+var definition53 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver52 = {
+var resolver53 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -36117,7 +36511,7 @@ var resolver52 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -36255,7 +36649,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs56 = `
+var typeDefs57 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -36266,10 +36660,10 @@ var typeDefs56 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition53 = `
+var definition54 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver53 = {
+var resolver54 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -36330,7 +36724,7 @@ var resolver53 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -36371,8 +36765,8 @@ function detectDateOrder(lines, now = Date.now()) {
   if (lines.some((l) => l.d2 > 12)) return "mdy";
   return orderPenalty(lines, "mdy", now) < orderPenalty(lines, "dmy", now) ? "mdy" : "dmy";
 }
-function parseWhatsAppChatExport(text86) {
-  const lines = text86.split(/\r?\n/);
+function parseWhatsAppChatExport(text87) {
+  const lines = text87.split(/\r?\n/);
   const raw = [];
   for (const rawLine of lines) {
     const line = rawLine.replace(/^‎/, "");
@@ -36419,7 +36813,7 @@ function distinctSenders(messages) {
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs57 = `
+var typeDefs58 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -36436,7 +36830,7 @@ var typeDefs57 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition54 = `
+var definition55 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -36447,7 +36841,7 @@ var definition54 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver54 = {
+var resolver55 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -36533,10 +36927,10 @@ var resolver54 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs58 = `
+var typeDefs59 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -36546,7 +36940,7 @@ var typeDefs58 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition55 = `
+var definition56 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -36558,7 +36952,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver55 = {
+var resolver56 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -36664,7 +37058,7 @@ var resolver55 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
 var import_crypto6 = __toESM(require("crypto"));
@@ -36713,7 +37107,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs59 = `
+var typeDefs60 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -36724,7 +37118,7 @@ var typeDefs59 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition56 = `
+var definition57 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -36737,7 +37131,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver56 = {
+var resolver57 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -36821,10 +37215,10 @@ var resolver56 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs60 = `
+var typeDefs61 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -36834,13 +37228,13 @@ var typeDefs60 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition57 = `
+var definition58 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver57 = {
+var resolver58 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -36897,10 +37291,10 @@ var resolver57 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs61 = `
+var typeDefs62 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -36911,13 +37305,13 @@ var typeDefs61 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition58 = `
+var definition59 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver58 = {
+var resolver59 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -36954,7 +37348,7 @@ var resolver58 = {
     return toResult10(true, "Conversaci\xF3n enlazada al cliente", count2);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -36967,7 +37361,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs62 = `
+var typeDefs63 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -37003,10 +37397,10 @@ var typeDefs62 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition59 = `
+var definition60 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
-function fail6(message, detail = null) {
+function fail7(message, detail = null) {
   return {
     success: false,
     message,
@@ -37020,7 +37414,7 @@ function fail6(message, detail = null) {
     templateError: null
   };
 }
-var resolver59 = {
+var resolver60 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -37030,53 +37424,53 @@ var resolver59 = {
   discoverWhatsappAccount: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
-      return fail6(denyCompanyWhatsappAccessMessage(session2));
+      return fail7(denyCompanyWhatsappAccessMessage(session2));
     }
     const appId = input.appId.trim();
     const appSecret = input.appSecret.trim();
     const accessToken = input.accessToken.trim();
     if (!appId || !appSecret || !accessToken) {
-      return fail6("Faltan datos: pega el App ID, el App Secret y el token.");
+      return fail7("Faltan datos: pega el App ID, el App Secret y el token.");
     }
     const existing = await context.sudo().query.SaasCompany.findOne({
       where: { id: input.companyId },
       query: "id whatsappBusinessAccountId whatsappPhoneNumberId"
     });
-    if (!existing) return fail6("No se encontr\xF3 la empresa");
+    if (!existing) return fail7("No se encontr\xF3 la empresa");
     let wabaIds;
     try {
       const info = await debugWhatsAppToken({ appId, appSecret, accessToken });
       if (!info.isValid) {
-        return fail6(
+        return fail7(
           "El token no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema.",
           info.invalidReason
         );
       }
       if (info.appId && info.appId !== appId) {
-        return fail6(
+        return fail7(
           `Ese token es de otra App de Meta (ID ${info.appId}), no de la App con ID ${appId}. Genera el token desde la misma App.`
         );
       }
       if (info.expiresAt !== 0 && info.expiresAt * 1e3 - Date.now() < MIN_TOKEN_LIFETIME_MS) {
-        return fail6(
+        return fail7(
           "Ese token es temporal y va a dejar de funcionar pronto. Genera uno permanente (sin fecha de expiraci\xF3n) con un usuario del sistema."
         );
       }
       const missing = REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
       if (missing.length > 0) {
-        return fail6(
+        return fail7(
           `Al token le falta el permiso: ${missing.join(" y ")}. Genera uno nuevo con los dos permisos (whatsapp_business_messaging y whatsapp_business_management).`
         );
       }
       if (info.wabaIds.length === 0) {
-        return fail6(
+        return fail7(
           "El token no da acceso a ninguna cuenta de WhatsApp Business. Al generarlo, asigna la cuenta de WhatsApp Business al usuario del sistema."
         );
       }
       wabaIds = info.wabaIds;
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail6(f.message, f.detail);
+      return fail7(f.message, f.detail);
     }
     const options = [];
     let firstListError = null;
@@ -37091,9 +37485,9 @@ var resolver59 = {
     if (options.length === 0) {
       if (firstListError) {
         const f = friendlyWhatsappError(firstListError);
-        return fail6(f.message, f.detail);
+        return fail7(f.message, f.detail);
       }
-      return fail6(
+      return fail7(
         "Encontramos tu cuenta de WhatsApp Business pero no tiene ning\xFAn n\xFAmero. Agrega uno en WhatsApp \u2192 Configuraci\xF3n de la API y vuelve a intentar."
       );
     }
@@ -37101,12 +37495,12 @@ var resolver59 = {
     let chosen;
     if (wantedId) {
       chosen = options.find((o) => o.id === wantedId);
-      if (!chosen) return fail6("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
+      if (!chosen) return fail7("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
     } else if (options.length === 1) {
       chosen = options[0];
     } else {
       return {
-        ...fail6("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
+        ...fail7("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
         success: true,
         needsSelection: true,
         phoneOptions: options
@@ -37124,7 +37518,7 @@ var resolver59 = {
       take: 1
     });
     if (clash.length > 0) {
-      return fail6("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
+      return fail7("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
     }
     const changedAccount = existing.whatsappBusinessAccountId !== chosen.wabaId || existing.whatsappPhoneNumberId !== chosen.id;
     try {
@@ -37149,7 +37543,7 @@ var resolver59 = {
       });
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail6(f.message, f.detail);
+      return fail7(f.message, f.detail);
     }
     let webhookConfigured = false;
     let webhookError = null;
@@ -37194,7 +37588,7 @@ var resolver59 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 
 // utils/googleCalendar/state.ts
 var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
@@ -37261,7 +37655,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs63 = `
+var typeDefs64 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -37272,27 +37666,27 @@ var typeDefs63 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition60 = `
+var definition61 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
-var fail7 = (message) => ({ success: false, message, url: null });
-var resolver60 = {
+var fail8 = (message) => ({ success: false, message, url: null });
+var resolver61 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail7(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail8(denyGoogleCalendarAccessMessage(session2));
     if (scopeType !== "personal" /* PERSONAL */ && scopeType !== "company" /* COMPANY */) {
-      return fail7("Tipo de cuenta inv\xE1lido (personal o company)");
+      return fail8("Tipo de cuenta inv\xE1lido (personal o company)");
     }
     const targetCompanyId = isPlatformAdmin(session2) && companyId || getSessionCompanyId(session2);
-    if (!targetCompanyId) return fail7("Tu usuario no tiene una empresa asignada");
+    if (!targetCompanyId) return fail8("Tu usuario no tiene una empresa asignada");
     if (!canConnectGoogleCalendar(session2, scopeType, targetCompanyId)) {
-      return fail7(
+      return fail8(
         scopeType === "company" /* COMPANY */ ? "Solo el administrador de la empresa puede conectar la cuenta compartida" : denyGoogleCalendarAccessMessage(session2)
       );
     }
     if (!await companyHasCalendarFeature(context, targetCompanyId)) {
-      return fail7(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail8(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const state = signGoogleCalendarState({
@@ -37302,11 +37696,11 @@ var resolver60 = {
       });
       return { success: true, message: null, url: buildGoogleAuthUrl(state) };
     } catch (err) {
-      return fail7(friendlyGoogleCalendarError(err));
+      return fail8(friendlyGoogleCalendarError(err));
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -37361,7 +37755,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs64 = `
+var typeDefs65 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -37374,37 +37768,37 @@ var typeDefs64 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition61 = `
+var definition62 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
-var fail8 = (message) => ({
+var fail9 = (message) => ({
   success: false,
   message,
   accountId: null,
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver61 = {
+var resolver62 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail8(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail9(denyGoogleCalendarAccessMessage(session2));
     const payload = verifyGoogleCalendarState(state);
     if (!payload || payload.uid !== userId) {
-      return fail8("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
+      return fail9("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
     }
     const { cid: companyId, st: scopeType } = payload;
     if (!canConnectGoogleCalendar(session2, scopeType, companyId)) {
-      return fail8(denyGoogleCalendarAccessMessage(session2));
+      return fail9(denyGoogleCalendarAccessMessage(session2));
     }
     if (!await companyHasCalendarFeature(context, companyId)) {
-      return fail8(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail9(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const tokens = await exchangeCodeForTokens(code);
       const calendars = await listCalendarList(tokens.accessToken);
       const email = calendars.find((c) => c.primary)?.id;
-      if (!email) return fail8("No se pudo identificar la cuenta de Google conectada");
+      if (!email) return fail9("No se pudo identificar la cuenta de Google conectada");
       const sudo = context.sudo();
       const ownerWhere = scopeType === "personal" /* PERSONAL */ ? { user: { id: { equals: userId } } } : { company: { id: { equals: companyId } } };
       const [existing] = await sudo.query.GoogleCalendarAccount.findMany({
@@ -37418,7 +37812,7 @@ var resolver61 = {
       });
       const refreshToken = tokens.refreshToken ?? (existing?.refreshTokenEncrypted ? decrypt(existing.refreshTokenEncrypted) : null);
       if (!refreshToken) {
-        return fail8(
+        return fail9(
           "Google no entreg\xF3 acceso permanente. Revoca el acceso de Kadesh en tu cuenta de Google y vuelve a conectar."
         );
       }
@@ -37469,14 +37863,14 @@ var resolver61 = {
       };
     } catch (err) {
       console.error("connectGoogleCalendarAccount:", err);
-      return fail8(friendlyGoogleCalendarError(err));
+      return fail9(friendlyGoogleCalendarError(err));
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs65 = `
+var typeDefs66 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -37486,10 +37880,10 @@ var typeDefs65 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition62 = `
+var definition63 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver62 = {
+var resolver63 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -37525,10 +37919,10 @@ var resolver62 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs66 = `
+var typeDefs67 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -37539,10 +37933,10 @@ var typeDefs66 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition63 = `
+var definition64 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver63 = {
+var resolver64 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -37588,10 +37982,10 @@ var resolver63 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs67 = `
+var typeDefs68 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -37603,10 +37997,10 @@ var typeDefs67 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition64 = `
+var definition65 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver64 = {
+var resolver65 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -37640,10 +38034,10 @@ var resolver64 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs68 = `
+var typeDefs69 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -37665,11 +38059,11 @@ var typeDefs68 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition65 = `
+var definition66 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
-var fail9 = (message) => ({
+var fail10 = (message) => ({
   success: false,
   message,
   selectionId: null,
@@ -37678,19 +38072,19 @@ var fail9 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver65 = {
+var resolver66 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
       query: `id account { ${ACCOUNT_SCOPE_QUERY} }`
     });
-    if (!selection?.account) return fail9("Calendario no encontrado");
+    if (!selection?.account) return fail10("Calendario no encontrado");
     if (!canManageGoogleCalendarAccount(context.session, selection.account)) {
-      return fail9(denyGoogleCalendarAccessMessage(context.session));
+      return fail10(denyGoogleCalendarAccessMessage(context.session));
     }
     const companyId = accountCompanyId(selection.account);
     if (companyId && !await companyHasCalendarFeature(context, companyId)) {
-      return fail9(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail10(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     const data = {};
     for (const flag of FLAGS) {
@@ -37713,10 +38107,10 @@ var resolver65 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // graphql/customs/mutations/activity/trackEvents.ts
-var typeDefs69 = `
+var typeDefs70 = `
   input TrackEventInput {
     """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, app.client_error (tambi\xE9n sin sesi\xF3n), admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
     type: String!
@@ -37739,7 +38133,7 @@ var typeDefs69 = `
     trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
   }
 `;
-var definition66 = `
+var definition67 = `
   trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
 `;
 var MAX_EVENTS = 50;
@@ -37758,7 +38152,7 @@ var MX_DAY2 = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit"
 });
-function text84(value, max = MAX_TEXT2) {
+function text85(value, max = MAX_TEXT2) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : null;
@@ -37782,9 +38176,9 @@ function clientTime(value) {
   return at;
 }
 function summaryFor(type, meta, label) {
-  const section = text84(meta.section) ?? text84(meta.tab) ?? "una secci\xF3n";
-  const feature = text84(meta.feature) ?? text84(meta.featureKey) ?? "un m\xF3dulo";
-  const tour = text84(meta.tour) ?? text84(meta.tourId) ?? "";
+  const section = text85(meta.section) ?? text85(meta.tab) ?? "una secci\xF3n";
+  const feature = text85(meta.feature) ?? text85(meta.featureKey) ?? "un m\xF3dulo";
+  const tour = text85(meta.tour) ?? text85(meta.tourId) ?? "";
   switch (type) {
     case ACTIVITY_EVENT.UI_SECTION_VIEWED:
       return `Abri\xF3 ${section}`;
@@ -37829,9 +38223,9 @@ function clientErrorSummary(kind, operation, page) {
 async function logClientError(context, input, userId) {
   if (isKnownCrawlerRequest(context.req)) return;
   const metadata = flatMetadata(input.metadata);
-  const message = text84(metadata.message) ?? "Error desconocido";
-  const kind = text84(metadata.kind, 20) ?? "network";
-  const operation = text84(metadata.operation, 80);
+  const message = text85(metadata.message) ?? "Error desconocido";
+  const kind = text85(metadata.kind, 20) ?? "network";
+  const operation = text85(metadata.operation, 80);
   const page = cleanPage(metadata.page) ?? requestPage(context.req);
   const who = userId ?? `ip:${requestIp(context.req) ?? "?"}`;
   if (!clientErrorIsNew(`${who}|${kind}|${operation ?? ""}|${message}`)) return;
@@ -37848,11 +38242,11 @@ async function logClientError(context, input, userId) {
     occurredAt: clientTime(input.occurredAt)
   });
 }
-async function trackAnonymous(context, list100) {
+async function trackAnonymous(context, list101) {
   const ip = requestIp(context.req) ?? "?";
   let accepted = 0;
-  for (const input of list100.slice(0, ANONYMOUS_MAX_EVENTS)) {
-    const type = text84(input?.type, 60);
+  for (const input of list101.slice(0, ANONYMOUS_MAX_EVENTS)) {
+    const type = text85(input?.type, 60);
     if (!type || !ANONYMOUS_CLIENT_EVENT_TYPES.has(type)) continue;
     if (!anonymousErrorsPerIp.hit(ip).ok) break;
     try {
@@ -37865,7 +38259,7 @@ async function trackAnonymous(context, list100) {
       );
     }
   }
-  return { accepted, rejected: list100.length - accepted };
+  return { accepted, rejected: list101.length - accepted };
 }
 async function recordHeartbeat(context, userId, companyId) {
   const prisma = context.sudo().prisma;
@@ -37947,20 +38341,20 @@ async function recentlyViewed(context, actorId, type, companyId, entityId) {
   });
   return Boolean(found);
 }
-var resolver66 = {
+var resolver67 = {
   trackEvents: async (_root, { events }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    const list100 = Array.isArray(events) ? events : [];
-    if (getImpersonation(context.session)) return { accepted: 0, rejected: list100.length };
-    if (!userId) return trackAnonymous(context, list100);
+    const list101 = Array.isArray(events) ? events : [];
+    if (getImpersonation(context.session)) return { accepted: 0, rejected: list101.length };
+    if (!userId) return trackAnonymous(context, list101);
     const companyId = getSessionCompanyId(session2);
     const admin = isPlatformAdmin(session2);
-    const batch = list100.slice(0, MAX_EVENTS);
+    const batch = list101.slice(0, MAX_EVENTS);
     let accepted = 0;
     let heartbeatDone = false;
     for (const input of batch) {
-      const type = text84(input?.type, 60);
+      const type = text85(input?.type, 60);
       if (!type) continue;
       try {
         if (type === HEARTBEAT_EVENT) {
@@ -37981,8 +38375,8 @@ var resolver66 = {
           await logActivity(context, {
             type,
             summary: summaryFor(type, metadata, null),
-            entityType: text84(input.entityType, 60),
-            entityId: text84(input.entityId, 60),
+            entityType: text85(input.entityType, 60),
+            entityId: text85(input.entityId, 60),
             metadata,
             source: ACTIVITY_SOURCE.WEB,
             occurredAt
@@ -37991,7 +38385,7 @@ var resolver66 = {
           continue;
         }
         if (CLIENT_ADMIN_EVENT_TYPES.has(type) && admin) {
-          const entityId = text84(input.entityId, 60);
+          const entityId = text85(input.entityId, 60);
           const target = await adminViewLabel(context, type, input);
           if (await recentlyViewed(context, userId, type, target.companyId, entityId)) {
             accepted += 1;
@@ -38001,7 +38395,7 @@ var resolver66 = {
             type,
             summary: summaryFor(type, metadata, target.label),
             companyId: target.companyId,
-            entityType: text84(input.entityType, 60),
+            entityType: text85(input.entityType, 60),
             entityId,
             metadata,
             source: ACTIVITY_SOURCE.ADMIN,
@@ -38016,13 +38410,13 @@ var resolver66 = {
         );
       }
     }
-    return { accepted, rejected: list100.length - accepted };
+    return { accepted, rejected: list101.length - accepted };
   }
 };
-var trackEvents_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+var trackEvents_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
 
 // graphql/customs/mutations/admin/companyOps.ts
-var typeDefs70 = `
+var typeDefs71 = `
   type AdminOpsActionResult {
     success: Boolean!
     message: String!
@@ -38033,7 +38427,7 @@ var typeDefs70 = `
     adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
   }
 `;
-var definition67 = `
+var definition68 = `
   adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
   adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
 `;
@@ -38067,7 +38461,7 @@ var REVIVABLE_STATUSES = /* @__PURE__ */ new Set([
   SUBSCRIPTION_STATUS.UNPAID,
   SUBSCRIPTION_STATUS.CANCELLED
 ]);
-var resolver67 = {
+var resolver68 = {
   /**
    * Mueve el fin de la prueba gratuita (`currentPeriodEnd` de la suscripción vigente).
    * `days` suma desde hoy o desde el fin actual (lo que sea más tarde); `until` fija la fecha.
@@ -38177,7 +38571,7 @@ var resolver67 = {
     return result(true, to ? `Ahora la cuenta es de ${to}.` : "La cuenta qued\xF3 sin due\xF1o.");
   }
 };
-var companyOps_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+var companyOps_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
 
 // graphql/customs/queries/admin/shared.ts
 var adminSharedTypeDefs = `
@@ -38213,9 +38607,9 @@ function assertPlatformAdmin(context) {
 function adminPrisma(context) {
   return context.sudo().prisma;
 }
-var DAY_MS8 = 24 * 60 * 60 * 1e3;
+var DAY_MS9 = 24 * 60 * 60 * 1e3;
 function daysAgo2(days, from = /* @__PURE__ */ new Date()) {
-  return new Date(from.getTime() - days * DAY_MS8);
+  return new Date(from.getTime() - days * DAY_MS9);
 }
 function toIso(value) {
   if (!value) return null;
@@ -38223,8 +38617,8 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 function toYmd2(value) {
-  const iso = toIso(value);
-  return iso ? iso.slice(0, 10) : null;
+  const iso2 = toIso(value);
+  return iso2 ? iso2.slice(0, 10) : null;
 }
 var MX_DAY4 = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Mexico_City",
@@ -38308,7 +38702,7 @@ function trialEndDate(sub) {
   if (!sub || sub.status !== SUBSCRIPTION_STATUS.TRIALING) return null;
   if (sub.currentPeriodEnd) return new Date(sub.currentPeriodEnd);
   if (!sub.activatedAt) return null;
-  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS8);
+  return new Date(new Date(sub.activatedAt).getTime() + TRIAL_DAYS_FREE_PLAN * DAY_MS9);
 }
 function monthlyAmount(cost, frequency) {
   if (!cost || cost <= 0) return 0;
@@ -38418,7 +38812,7 @@ function latestDate(...dates) {
 }
 
 // graphql/customs/mutations/admin/accountControl.ts
-var typeDefs71 = `
+var typeDefs72 = `
   type AdminControlResult {
     success: Boolean!
     message: String!
@@ -38445,7 +38839,7 @@ var typeDefs71 = `
     adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
   }
 `;
-var definition68 = `
+var definition69 = `
   adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
@@ -38478,8 +38872,8 @@ function fullName2(person) {
   return [person.name, person.lastName].filter(Boolean).join(" ").trim() || person.email || "una persona";
 }
 function cleanReason(reason) {
-  const text86 = reason?.trim() ?? "";
-  return text86.length >= MIN_REASON ? text86.slice(0, MAX_REASON) : null;
+  const text87 = reason?.trim() ?? "";
+  return text87.length >= MIN_REASON ? text87.slice(0, MAX_REASON) : null;
 }
 function maskTail(value) {
   if (!value) return null;
@@ -38492,7 +38886,7 @@ function adminIdOf(context) {
 }
 var NOT_ADMIN = result2(false, "Solo un administrador de Kadesh puede hacer esto.");
 var REASON_REQUIRED = result2(false, `Escribe el motivo (m\xEDnimo ${MIN_REASON} letras).`);
-var resolver68 = {
+var resolver69 = {
   /** Nadie del equipo puede entrar mientras la empresa esté suspendida; al suspender se cierran sus sesiones. */
   adminSetCompanySuspension: async (_root, { companyId, suspended, reason }, context) => {
     if (!adminIdOf(context)) return NOT_ADMIN;
@@ -38953,7 +39347,7 @@ var resolver68 = {
     }
     const short = userId.slice(-8);
     const name = [user.name, user.lastName, user.secondLastName].filter(Boolean).join(" ").trim();
-    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text86) => Boolean(text86 && text86.length >= 4));
+    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text87) => Boolean(text87 && text87.length >= 4));
     await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
@@ -39034,23 +39428,23 @@ var resolver68 = {
     return result2(true, "Cuenta anonimizada: se borraron sus datos personales y ya no puede entrar.");
   }
 };
-var accountControl_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+var accountControl_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
 
 // graphql/customs/mutations/admin/animals.ts
-var typeDefs72 = `
+var typeDefs73 = `
   type Mutation {
     adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
     adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   }
 `;
-var definition69 = `
+var definition70 = `
   adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
 `;
 function deny() {
   return { success: false, message: "Solo un administrador de Kadesh puede hacer esto." };
 }
-var resolver69 = {
+var resolver70 = {
   /**
    * Publica el animal en la Página de Facebook de Pet. Si ya se publicó, no lo repite salvo
    * `force` (volver a publicar a propósito). Sirve para los que subieron usuarios (no se
@@ -39094,10 +39488,10 @@ var resolver69 = {
     };
   }
 };
-var animals_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+var animals_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
 
 // graphql/customs/mutations/admin/zoneAlerts.ts
-var typeDefs73 = `
+var typeDefs74 = `
   type Mutation {
     adminUpdateZoneAlerts(
       userId: ID!
@@ -39109,7 +39503,7 @@ var typeDefs73 = `
     ): AdminOpsActionResult!
   }
 `;
-var definition70 = `
+var definition71 = `
   adminUpdateZoneAlerts(
     userId: ID!
     enabled: Boolean
@@ -39122,7 +39516,7 @@ var definition70 = `
 function result3(success, message) {
   return { success, message };
 }
-var resolver70 = {
+var resolver71 = {
   adminUpdateZoneAlerts: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) return result3(false, "Solo un administrador de Kadesh puede hacer esto.");
     const prisma = context.sudo().prisma;
@@ -39192,17 +39586,17 @@ var resolver70 = {
     return result3(true, changes.length ? `Listo: ${changes.join(", ")}.` : "Guardado.");
   }
 };
-var adminZoneAlerts = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+var adminZoneAlerts = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
 var zoneAlerts_default = adminZoneAlerts;
 
 // graphql/customs/mutations/admin/errorIssues.ts
-var typeDefs74 = `
+var typeDefs75 = `
   type Mutation {
     """status: open | resolved | ignored"""
     adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
   }
 `;
-var definition71 = `
+var definition72 = `
   adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
 `;
 var STATUS_LABELS2 = {
@@ -39214,7 +39608,7 @@ var MAX_NOTE = 2e3;
 function result4(success, message) {
   return { success, message };
 }
-var resolver71 = {
+var resolver72 = {
   adminSetErrorIssueStatus: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return result4(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -39258,10 +39652,10 @@ var resolver71 = {
     return result4(true, "Listo.");
   }
 };
-var errorIssues_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+var errorIssues_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
 // graphql/customs/mutations/admin/security.ts
-var typeDefs75 = `
+var typeDefs76 = `
   type AdminBlockIpResult {
     success: Boolean!
     message: String!
@@ -39275,7 +39669,7 @@ var typeDefs75 = `
     adminUnblockIp(ip: String!): AdminOpsActionResult!
   }
 `;
-var definition72 = `
+var definition73 = `
   adminBlockIp(ip: String!, reason: String, days: Int, force: Boolean): AdminBlockIpResult!
   adminUnblockIp(ip: String!): AdminOpsActionResult!
 `;
@@ -39306,7 +39700,7 @@ async function usedByAdmin(prisma, ip) {
   ]);
   return Boolean(event || auth);
 }
-var resolver72 = {
+var resolver73 = {
   adminBlockIp: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return blockResult(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -39368,10 +39762,10 @@ var resolver72 = {
     return { success: true, message: "IP desbloqueada." };
   }
 };
-var security_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
+var security_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
 
 // graphql/customs/mutations/rollupDailyUsage.ts
-var typeDefs76 = `
+var typeDefs77 = `
   type RollupDailyUsageDay {
     day: String!
     companies: Int!
@@ -39387,11 +39781,11 @@ var typeDefs76 = `
     rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   }
 `;
-var definition73 = `
+var definition74 = `
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
 `;
 var MAX_DAYS2 = 62;
-var resolver73 = {
+var resolver74 = {
   /**
    * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). Se autoriza con
    * `CRON_SECRET`. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -39425,18 +39819,18 @@ var resolver73 = {
     }
   }
 };
-var rollupDailyUsage_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+var rollupDailyUsage_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/mutations/notifications/markAllNotificationsRead.ts
-var typeDefs77 = `
+var typeDefs78 = `
   type Mutation {
     markAllNotificationsRead(product: String): Int!
   }
 `;
-var definition74 = `
+var definition75 = `
   markAllNotificationsRead(product: String): Int!
 `;
-var resolver74 = {
+var resolver75 = {
   /**
    * Marca como leídas todas las notificaciones no leídas de quien tiene la sesión (opcionalmente
    * solo las de un producto: "pet" | "saas"). Devuelve cuántas cambió. Marcar una sola se hace
@@ -39458,16 +39852,16 @@ var resolver74 = {
     return result5?.count ?? 0;
   }
 };
-var markAllNotificationsRead_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
+var markAllNotificationsRead_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
 
 // graphql/customs/mutations/notifications/pushTokens.ts
-var typeDefs78 = `
+var typeDefs79 = `
   type Mutation {
     registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
     unregisterPushToken(token: String!): Boolean!
   }
 `;
-var definition75 = `
+var definition76 = `
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
   unregisterPushToken(token: String!): Boolean!
 `;
@@ -39480,7 +39874,7 @@ function unwrap2(value) {
   if (value instanceof Error) throw value;
   return value;
 }
-var resolver75 = {
+var resolver76 = {
   /**
    * Guarda (o actualiza) el token push de este dispositivo para quien tiene la sesión. Un token es
    * de un solo dispositivo: si estaba con otra cuenta (cambio de sesión en el mismo teléfono), pasa
@@ -39532,7 +39926,7 @@ var resolver75 = {
     return result5.count > 0;
   }
 };
-var pushTokens_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
+var pushTokens_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -39563,6 +39957,7 @@ var customMutation = {
     ${createAnimalReport_default.typeDefs}
     ${animalClaims_default.typeDefs}
     ${closeAnimalReport_default.typeDefs}
+    ${animalSightings_default.typeDefs}
     ${sendAnimalFollowUps_default.typeDefs}
     ${adoptionApplications_default.typeDefs}
     ${card_default.typeDefs}
@@ -39624,6 +40019,7 @@ var customMutation = {
     ${createAnimalReport_default.definition}
     ${animalClaims_default.definition}
     ${closeAnimalReport_default.definition}
+    ${animalSightings_default.definition}
     ${sendAnimalFollowUps_default.definition}
     ${adoptionApplications_default.definition}
     ${card_default.definition}
@@ -39685,6 +40081,7 @@ var customMutation = {
     ...createAnimalReport_default.resolver,
     ...animalClaims_default.resolver,
     ...closeAnimalReport_default.resolver,
+    ...animalSightings_default.resolver,
     ...sendAnimalFollowUps_default.resolver,
     ...adoptionApplications_default.resolver,
     ...card_default.resolver,
@@ -39728,7 +40125,7 @@ var customMutation = {
 var mutations_default = customMutation;
 
 // graphql/customs/queries/nearbyAnimals.ts
-var typeDefs79 = `
+var typeDefs80 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -39787,7 +40184,7 @@ var typeDefs79 = `
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   }
 `;
-var definition76 = `
+var definition77 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
 `;
 function formatDate(dateString) {
@@ -39837,7 +40234,7 @@ async function getLatestAnimalLogs(animalIds, context) {
   }
   return latestLogsMap;
 }
-var resolver76 = {
+var resolver77 = {
   getNearbyAnimals: async (root, {
     input
   }, context) => {
@@ -40000,10 +40397,10 @@ var resolver76 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
+var nearbyAnimals_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs80 = `
+var typeDefs81 = `
   type AnimalReportDuplicate {
     id: ID!
     """Nombre real; vac\xEDo si no se sabe."""
@@ -40027,7 +40424,7 @@ var typeDefs80 = `
     isMine: Boolean!
   }
 `;
-var definition77 = `
+var definition78 = `
   findAnimalReportDuplicates(
     phone: String
     phone2: String
@@ -40051,7 +40448,7 @@ function cleanPhone(raw) {
   const normalized = normalizeMxPhone(value);
   return normalized.ok ? normalized.digits : value;
 }
-var resolver77 = {
+var resolver78 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     const sessionUserId = getSessionUserId(context.session);
     if (!isSignedIn(context.session) && !sessionUserId) {
@@ -40079,7 +40476,7 @@ var resolver77 = {
     }));
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -40454,7 +40851,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs81 = `
+var typeDefs82 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -40514,10 +40911,10 @@ var typeDefs81 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition78 = `
+var definition79 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver78 = {
+var resolver79 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -40597,10 +40994,10 @@ var resolver78 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs82 = `
+var typeDefs83 = `
   type StripeCard {
     brand: String
     country: String
@@ -40634,10 +41031,10 @@ var typeDefs82 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition79 = `
+var definition80 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver79 = {
+var resolver80 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -40673,10 +41070,10 @@ var resolver79 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
+var stripePaymentMethods_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs83 = `
+var typeDefs84 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -40714,7 +41111,7 @@ var typeDefs83 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition80 = `
+var definition81 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -40723,7 +41120,7 @@ var INTERVAL_BY_FREQUENCY = {
   [PLAN_FREQUENCY.ANNUAL]: "year",
   [PLAN_FREQUENCY.ONCE]: null
 };
-function fail10(message) {
+function fail11(message) {
   return { success: false, message, allMatch: false, fields: [] };
 }
 function toMinorUnits(amount) {
@@ -40734,19 +41131,19 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver80 = {
+var resolver81 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
-      return fail10("Solo operaciones puede verificar planes con Stripe.");
+      return fail11("Solo operaciones puede verificar planes con Stripe.");
     }
     const plan = await context.sudo().query.SaasPlan.findOne({
       where: { id: input.planId },
       query: "id name cost currency frequency stripePriceId stripeProductId active"
     });
-    if (!plan) return fail10("No encontramos ese plan.");
+    if (!plan) return fail11("No encontramos ese plan.");
     const priceId = (input.stripePriceId ?? plan.stripePriceId ?? "").trim();
     if (!priceId) {
-      return fail10(
+      return fail11(
         "Este plan no tiene un precio de Stripe ligado. Pega el ID del precio para poder verificarlo."
       );
     }
@@ -40759,7 +41156,7 @@ var resolver80 = {
       price = await stripe_default.prices.retrieve(priceId, { expand: ["product"] });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      return fail10(`Stripe no reconoci\xF3 ese precio: ${message}`);
+      return fail11(`Stripe no reconoci\xF3 ese precio: ${message}`);
     }
     const product = price.product && typeof price.product === "object" ? price.product : null;
     const stripeProductId = product?.id ?? (typeof price.product === "string" ? price.product : null);
@@ -40835,7 +41232,7 @@ var resolver80 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
+var stripePlanCheck_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -40973,7 +41370,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs84 = `
+var typeDefs85 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -41001,10 +41398,10 @@ var typeDefs84 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition81 = `
+var definition82 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver81 = {
+var resolver82 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -41122,11 +41519,11 @@ var resolver81 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
+var subscriptionStatus_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs85 = `
+var typeDefs86 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -41138,10 +41535,10 @@ var typeDefs85 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition82 = `
+var definition83 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver82 = {
+var resolver83 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -41174,10 +41571,10 @@ var resolver82 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs86 = `
+var typeDefs87 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -41189,10 +41586,10 @@ var typeDefs86 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition83 = `
+var definition84 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver83 = {
+var resolver84 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -41214,11 +41611,11 @@ var resolver83 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs87 = `
+var typeDefs88 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -41247,14 +41644,14 @@ var typeDefs87 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition84 = `
+var definition85 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver84 = {
+var resolver85 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -41310,11 +41707,11 @@ var resolver84 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+var whatsappConversations_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs88 = `
+var typeDefs89 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -41326,10 +41723,10 @@ var typeDefs88 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition85 = `
+var definition86 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver85 = {
+var resolver86 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -41370,10 +41767,10 @@ var resolver85 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs89 = `
+var typeDefs90 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -41391,10 +41788,10 @@ var typeDefs89 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition86 = `
+var definition87 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver86 = {
+var resolver87 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -41420,10 +41817,10 @@ var resolver86 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs90 = `
+var typeDefs91 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -41449,13 +41846,13 @@ var typeDefs90 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition87 = `
+var definition88 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
-function fail11(message) {
+function fail12(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver87 = {
+var resolver88 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -41470,23 +41867,23 @@ var resolver87 = {
         context
       );
       if (!target && !resolvedCompanyId) {
-        return fail11(error ?? "No se pudo resolver la conversaci\xF3n");
+        return fail12(error ?? "No se pudo resolver la conversaci\xF3n");
       }
       if (target) {
         resolvedCompanyId = resolvedCompanyId ?? target.companyId;
         recipientName = target.displayName;
       }
     }
-    if (!resolvedCompanyId) return fail11("Falta indicar la empresa o la conversaci\xF3n");
+    if (!resolvedCompanyId) return fail12("Falta indicar la empresa o la conversaci\xF3n");
     if (!canUseCompanyWhatsapp(context.session, resolvedCompanyId)) {
-      return fail11("No tienes acceso al WhatsApp de esta empresa");
+      return fail12("No tienes acceso al WhatsApp de esta empresa");
     }
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: resolvedCompanyId },
       query: "id name whatsappBusinessAccountId whatsappAccessTokenEncrypted"
     });
     if (!company?.whatsappBusinessAccountId || !company?.whatsappAccessTokenEncrypted) {
-      return fail11("WhatsApp no est\xE1 conectado para esta empresa");
+      return fail12("WhatsApp no est\xE1 conectado para esta empresa");
     }
     try {
       const templates = await listWhatsAppTemplates({
@@ -41506,17 +41903,17 @@ var resolver87 = {
         `[whatsapp] No se pudieron listar las plantillas de la empresa ${resolvedCompanyId}:`,
         err
       );
-      return fail11(
+      return fail12(
         err instanceof Error ? err.message.replace(/^\[whatsapp\] Graph API error[^:]*:\s*/, "") : "No se pudieron leer las plantillas de Meta"
       );
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs91 = `
+var typeDefs92 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -41544,25 +41941,25 @@ var typeDefs91 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition88 = `
+var definition89 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver88 = {
+var resolver89 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
     timeMax
   }, context) => {
-    const fail13 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail13(denyGoogleCalendarAccessMessage(context.session));
+    const fail14 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail14(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail13(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail14(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail13("Rango de fechas inv\xE1lido");
+      return fail14("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -41579,7 +41976,7 @@ var resolver88 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail13(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail14(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -41599,7 +41996,7 @@ var resolver88 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
 
 // utils/analytics/health.ts
 var HEALTH_WINDOW_DAYS = 28;
@@ -41857,7 +42254,7 @@ async function loadCompanyHealth(prisma, companyIds) {
     for (const company of companies) {
       const t = totals.get(company.id);
       const seenAt = lastSeen.get(company.id) ?? null;
-      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS8)) : HEALTH_WINDOW_DAYS;
+      const ageDays = company.createdAt ? Math.max(0, Math.floor((now - new Date(company.createdAt).getTime()) / DAY_MS9)) : HEALTH_WINDOW_DAYS;
       const result5 = scoreHealth({
         ageDays,
         teamSize: teamSize.get(company.id) ?? 0,
@@ -41876,7 +42273,7 @@ async function loadCompanyHealth(prisma, companyIds) {
         creditsExhaustedDay: exhaustedDay.get(company.id) ?? null,
         purchaseIntent: intentCount.get(company.id) ?? 0,
         paymentFailures: failures.get(company.id) ?? 0,
-        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS8) : null
+        daysSinceSeen: seenAt ? Math.floor((now - new Date(seenAt).getTime()) / DAY_MS9) : null
       });
       byCompany.set(company.id, {
         ...result5,
@@ -41899,7 +42296,7 @@ var LIVE_STATUSES = [
   SUBSCRIPTION_STATUS.UNPAID
 ];
 var SORTS = ["risk", "best", "drop", "name"];
-var typeDefs92 = `
+var typeDefs93 = `
   input AdminHealthInput {
     search: String
     """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
@@ -41981,7 +42378,7 @@ var typeDefs92 = `
     adminHealth(input: AdminHealthInput): AdminHealthResult!
   }
 `;
-var definition89 = `
+var definition90 = `
   adminHealth(input: AdminHealthInput): AdminHealthResult!
 `;
 function healthBrief(health) {
@@ -42000,7 +42397,7 @@ function matchesStatus(status, filter) {
   if (filter === "none") return !status;
   return status === filter;
 }
-var resolver89 = {
+var resolver90 = {
   adminHealth: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -42101,12 +42498,12 @@ var resolver89 = {
     };
   }
 };
-var adminHealth_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
+var adminHealth_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
 
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
 var SORTS2 = ["recent", "name", "activity", "health"];
-var typeDefs93 = `
+var typeDefs94 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
@@ -42161,7 +42558,7 @@ var typeDefs93 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition90 = `
+var definition91 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
 function pickOwner(users) {
@@ -42170,7 +42567,7 @@ function pickOwner(users) {
   );
   return admin ?? users[0] ?? null;
 }
-var resolver90 = {
+var resolver91 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -42307,14 +42704,14 @@ var resolver90 = {
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
+var adminCompanies_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
 var APP_ERRORS_THRESHOLD = 3;
-var typeDefs94 = `
+var typeDefs95 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -42357,7 +42754,7 @@ var typeDefs94 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition91 = `
+var definition92 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -42368,12 +42765,12 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver91 = {
+var resolver92 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
     const now = /* @__PURE__ */ new Date();
-    const since24h = new Date(now.getTime() - DAY_MS8);
+    const since24h = new Date(now.getTime() - DAY_MS9);
     const since7d = daysAgo2(7, now);
     const sinceInactive = daysAgo2(INACTIVE_DAYS, now);
     const { year, month } = currentPeriod();
@@ -42436,7 +42833,7 @@ var resolver91 = {
             severity: "high",
             at: toIso(trialEnd)
           });
-        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS8) {
+        } else if (msLeft <= TRIAL_SOON_DAYS * DAY_MS9) {
           trialsEndingSoon += 1;
           attention.push({
             companyId: company.id,
@@ -42675,14 +43072,14 @@ var resolver91 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
+var adminOpsSummary_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs95 = `
+var typeDefs96 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -42789,7 +43186,7 @@ var typeDefs95 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition92 = `
+var definition93 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows2, key) {
@@ -42927,7 +43324,7 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver92 = {
+var resolver93 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -43167,7 +43564,7 @@ var resolver92 = {
     }
     const creditsByDay = [];
     for (let i = windowDays - 1; i >= 0; i -= 1) {
-      const day = toMxDay(new Date(now.getTime() - i * DAY_MS8));
+      const day = toMxDay(new Date(now.getTime() - i * DAY_MS9));
       creditsByDay.push({ date: day, value: byDay.get(day) ?? 0 });
     }
     const whatsappDirections = new Map(
@@ -43258,10 +43655,10 @@ var resolver92 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
+var adminCompanyInsights_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
 
 // graphql/customs/queries/admin/adminCompanyTrends.ts
-var typeDefs96 = `
+var typeDefs97 = `
   type AdminUsageWeek {
     """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
     weekStart: String!
@@ -43302,7 +43699,7 @@ var typeDefs96 = `
     adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   }
 `;
-var definition93 = `
+var definition94 = `
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
 `;
 var WEEK_FIELDS = [
@@ -43334,7 +43731,7 @@ function median(values2) {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
-var resolver93 = {
+var resolver94 = {
   adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -43414,7 +43811,7 @@ var resolver93 = {
     }, EMPTY2);
   }
 };
-var adminCompanyTrends_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
+var adminCompanyTrends_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -43434,7 +43831,7 @@ var FEED_TYPES = [
   "security"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs97 = `
+var typeDefs98 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -43486,7 +43883,7 @@ var typeDefs97 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition94 = `
+var definition95 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -43555,8 +43952,8 @@ function money2(amount, currency) {
   }
 }
 function joinDetail(parts) {
-  const text86 = parts.filter(Boolean).join(" \xB7 ");
-  return text86 || null;
+  const text87 = parts.filter(Boolean).join(" \xB7 ");
+  return text87 || null;
 }
 function personSearch(q) {
   return {
@@ -44350,7 +44747,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver94 = {
+var resolver95 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -44394,10 +44791,10 @@ var resolver94 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
+var adminActivityFeed_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
 
 // graphql/customs/queries/admin/adminErrorIssues.ts
-var typeDefs98 = `
+var typeDefs99 = `
   input AdminErrorIssuesInput {
     """pet-web | business-web | pet-mobile"""
     app: String
@@ -44457,13 +44854,13 @@ var typeDefs98 = `
     adminOpenErrorIssuesCount: Int!
   }
 `;
-var definition95 = `
+var definition96 = `
   adminErrorIssues(input: AdminErrorIssuesInput): AdminErrorIssuesResult!
   adminOpenErrorIssuesCount: Int!
 `;
 var MAX_GROUPS = 300;
 var TOP_USER_AGENTS = 5;
-function text85(value) {
+function text86(value) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 function effectiveStatus(issue, lastSeen) {
@@ -44520,7 +44917,7 @@ async function countOpenErrorIssues(prisma, since) {
     (group) => effectiveStatus(issues.get(group.fingerprint), group.lastSeen).status === ERROR_ISSUE_STATUS.OPEN
   ).length;
 }
-var resolver95 = {
+var resolver96 = {
   adminErrorIssues: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44569,26 +44966,26 @@ var resolver95 = {
     const userAgents = /* @__PURE__ */ new Map();
     for (const row of uaGroups) {
       if (!row.userAgent) continue;
-      const list100 = userAgents.get(row.fingerprint) ?? [];
-      list100.push({ key: row.userAgent, count: row._count._all });
-      userAgents.set(row.fingerprint, list100);
+      const list101 = userAgents.get(row.fingerprint) ?? [];
+      list101.push({ key: row.userAgent, count: row._count._all });
+      userAgents.set(row.fingerprint, list101);
     }
     const all = groups.map((group) => {
       const sample = sampleBy.get(group.fingerprint) ?? {};
       const metadata = sample.metadata && typeof sample.metadata === "object" ? sample.metadata : {};
       const issue = issues.get(group.fingerprint);
       const { status, reopened } = effectiveStatus(issue, group.lastSeen);
-      const legacyKind = text85(metadata.kind);
-      const opType = text85(metadata.opType) ?? (legacyKind === "query" || legacyKind === "mutation" ? legacyKind : null);
+      const legacyKind = text86(metadata.kind);
+      const opType = text86(metadata.opType) ?? (legacyKind === "query" || legacyKind === "mutation" ? legacyKind : null);
       return {
         fingerprint: group.fingerprint,
         type: sample.type ?? "app.error",
         title: sample.summary || "Error",
         message: sample.errorMessage ?? null,
-        operation: text85(metadata.operation),
+        operation: text86(metadata.operation),
         kind: legacyKind && legacyKind !== opType ? legacyKind : null,
         opType,
-        code: text85(metadata.code),
+        code: text86(metadata.code),
         app: sample.app ?? null,
         apps: apps.get(group.fingerprint) ?? [],
         page: sample.page ?? null,
@@ -44619,10 +45016,10 @@ var resolver95 = {
     return countOpenErrorIssues(adminPrisma(context), daysAgo2(1));
   }
 };
-var adminErrorIssues_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
+var adminErrorIssues_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
 
 // graphql/customs/queries/admin/adminPersonDevices.ts
-var typeDefs99 = `
+var typeDefs100 = `
   type AdminPersonDevice {
     ip: String
     userAgent: String
@@ -44661,7 +45058,7 @@ var typeDefs99 = `
     adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
   }
 `;
-var definition96 = `
+var definition97 = `
   adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
 `;
 var CROWDED_IP_ACCOUNTS = 15;
@@ -44691,7 +45088,7 @@ function mergeDevices(target, rows2, source) {
     current.sources.add(source);
   }
 }
-var resolver96 = {
+var resolver97 = {
   adminPersonDevices: async (_root, { userId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44782,10 +45179,10 @@ function toDeviceOutput(device) {
     sources: [...device.sources]
   };
 }
-var adminPersonDevices_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
+var adminPersonDevices_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
 
 // graphql/customs/queries/admin/adminSecurity.ts
-var typeDefs100 = `
+var typeDefs101 = `
   type AdminRateLimitHit {
     ip: String
     rule: String!
@@ -44827,7 +45224,7 @@ var typeDefs100 = `
     adminBlockedIps: [AdminBlockedIp!]!
   }
 `;
-var definition97 = `
+var definition98 = `
   adminSecuritySummary(days: Int): AdminSecuritySummary!
   adminBlockedIps: [AdminBlockedIp!]!
 `;
@@ -44838,7 +45235,7 @@ var SIGNUP_STEPS = [
   USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP,
   USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP
 ];
-var resolver97 = {
+var resolver98 = {
   adminSecuritySummary: async (_root, { days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44933,7 +45330,7 @@ var resolver97 = {
     }));
   }
 };
-var adminSecurity_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
+var adminSecurity_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
 
 // graphql/customs/queries/admin/milestones.ts
 function earliest(map, companyId, at) {
@@ -45039,7 +45436,7 @@ async function loadCompanyMilestones(prisma, companyIds) {
 }
 
 // graphql/customs/queries/admin/adminActivationFunnel.ts
-var typeDefs101 = `
+var typeDefs102 = `
   input AdminActivationInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -45078,7 +45475,7 @@ var typeDefs101 = `
     adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
   }
 `;
-var definition98 = `
+var definition99 = `
   adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
 `;
 var STEPS = [
@@ -45096,7 +45493,7 @@ function median2(values2) {
   return Math.round(value * 10) / 10;
 }
 var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
-var resolver98 = {
+var resolver99 = {
   adminActivationFunnel: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45134,7 +45531,7 @@ var resolver98 = {
           if (!at) continue;
           reached += 1;
           if (company.createdAt) {
-            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS8));
+            elapsed.push(Math.max(0, (at.getTime() - new Date(company.createdAt).getTime()) / DAY_MS9));
           }
         }
         return {
@@ -45168,10 +45565,10 @@ var resolver98 = {
     };
   }
 };
-var adminActivationFunnel_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
+var adminActivationFunnel_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
 
 // graphql/customs/queries/admin/adminCohorts.ts
-var typeDefs102 = `
+var typeDefs103 = `
   input AdminCohortsInput {
     """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
     months: Int
@@ -45193,7 +45590,7 @@ var typeDefs102 = `
     adminCohorts(input: AdminCohortsInput): AdminCohorts!
   }
 `;
-var definition99 = `
+var definition100 = `
   adminCohorts(input: AdminCohortsInput): AdminCohorts!
 `;
 function shiftMonth(month, offset) {
@@ -45206,7 +45603,7 @@ function monthsBetween(from, to) {
   const [ty, tm] = to.split("-").map(Number);
   return (ty - fy) * 12 + (tm - fm);
 }
-var resolver99 = {
+var resolver100 = {
   adminCohorts: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45276,7 +45673,7 @@ var resolver99 = {
     return { rows: rows2 };
   }
 };
-var adminCohorts_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
+var adminCohorts_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
 
 // graphql/customs/queries/admin/adminEngagement.ts
 var MAU_DAYS = 30;
@@ -45289,7 +45686,7 @@ var MODULES = [
   { key: "whatsapp", field: "whatsappSent" },
   { key: "ai", field: "aiCalls" }
 ];
-var typeDefs103 = `
+var typeDefs104 = `
   input AdminEngagementInput {
     """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
     days: Int
@@ -45343,11 +45740,11 @@ var typeDefs103 = `
     adminEngagement(input: AdminEngagementInput): AdminEngagement!
   }
 `;
-var definition100 = `
+var definition101 = `
   adminEngagement(input: AdminEngagementInput): AdminEngagement!
 `;
 var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
-var resolver100 = {
+var resolver101 = {
   adminEngagement: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45478,12 +45875,12 @@ var resolver100 = {
     };
   }
 };
-var adminEngagement_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
+var adminEngagement_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
 
 // graphql/customs/queries/admin/adminDemandGaps.ts
 var ZONE_STEP = 0.1;
 var LIST_LIMIT = 25;
-var typeDefs104 = `
+var typeDefs105 = `
   input AdminDemandGapsInput {
     """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -45538,7 +45935,7 @@ var typeDefs104 = `
     adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   }
 `;
-var definition101 = `
+var definition102 = `
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
 `;
 function emptyBucket() {
@@ -45555,7 +45952,7 @@ var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
 var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
 var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
 var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
-var resolver101 = {
+var resolver102 = {
   adminDemandGaps: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45639,12 +46036,12 @@ var resolver101 = {
     };
   }
 };
-var adminDemandGaps_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
+var adminDemandGaps_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
 
 // graphql/customs/queries/admin/adminAcquisition.ts
 var LIST_LIMIT2 = 10;
 var REFERRAL = "Referido";
-var typeDefs105 = `
+var typeDefs106 = `
   input AdminAcquisitionInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -45675,7 +46072,7 @@ var typeDefs105 = `
     adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   }
 `;
-var definition102 = `
+var definition103 = `
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
 `;
 function bump2(map, key, activated, paid) {
@@ -45689,7 +46086,7 @@ var sortRows = (map, limit) => {
   const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
   return limit ? rows2.slice(0, limit) : rows2;
 };
-var resolver102 = {
+var resolver103 = {
   adminAcquisition: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -45736,10 +46133,10 @@ var resolver102 = {
     };
   }
 };
-var adminAcquisition_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
+var adminAcquisition_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
 
 // utils/analytics/salesVelocity.ts
-var DAY_MS9 = 24 * 60 * 60 * 1e3;
+var DAY_MS10 = 24 * 60 * 60 * 1e3;
 var P = PIPELINE_STATUS;
 var RANK = {
   [P.DETECTADO]: 1,
@@ -45759,7 +46156,7 @@ var LOST = /* @__PURE__ */ new Set([P.PROPUESTA_RECHAZADA, P.CERRADO_PERDIDO, P.
 var CONTACT_RANK = 3;
 var STALLED_DAYS = 14;
 var LOOKBACK_DAYS = 180;
-var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS9;
+var WHATSAPP_REPLY_WINDOW_MS = 7 * DAY_MS10;
 var emptyGroup = () => ({
   entered: 0,
   contacted: 0,
@@ -45804,9 +46201,9 @@ async function rows(read, fallback) {
 async function computeSalesVelocity(prisma, options) {
   const { days, companyWhere } = options;
   const now = Date.now();
-  const since = new Date(now - days * DAY_MS9);
+  const since = new Date(now - days * DAY_MS10);
   const sinceMs = since.getTime();
-  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS9);
+  const lookback = new Date(now - (days + LOOKBACK_DAYS) * DAY_MS10);
   const sellerScope = options.salesPersonId ?? null;
   const needStatuses = Boolean(options.bySeller || sellerScope);
   const [allChanges, firstChange, activities, allMessages, statuses] = await Promise.all([
@@ -45873,16 +46270,16 @@ async function computeSalesVelocity(prisma, options) {
   const messages = ownLeadIds ? allMessages.filter((m) => ownLeadIds.has(m.businessLeadId)) : allMessages;
   const byStatus = /* @__PURE__ */ new Map();
   for (const change of changes) {
-    const list100 = byStatus.get(change.statusId) ?? [];
-    list100.push(change);
-    byStatus.set(change.statusId, list100);
+    const list101 = byStatus.get(change.statusId) ?? [];
+    list101.push(change);
+    byStatus.set(change.statusId, list101);
   }
   const contactKey = (company, lead) => `${company}|${lead}`;
   const contactTimes = /* @__PURE__ */ new Map();
   const addContact = (key, at) => {
-    const list100 = contactTimes.get(key) ?? [];
-    list100.push(new Date(at).getTime());
-    contactTimes.set(key, list100);
+    const list101 = contactTimes.get(key) ?? [];
+    list101.push(new Date(at).getTime());
+    contactTimes.set(key, list101);
   };
   for (const activity of activities) {
     const company = activity.workspace?.companyId ?? activity.createdBy?.companyId ?? null;
@@ -45901,19 +46298,19 @@ async function computeSalesVelocity(prisma, options) {
   const companies = /* @__PURE__ */ new Map();
   const sellers = /* @__PURE__ */ new Map();
   const groupsFor = (companyId, statusId) => {
-    const list100 = [total];
+    const list101 = [total];
     if (companyId) {
       const group = companies.get(companyId) ?? emptyGroup();
       companies.set(companyId, group);
-      list100.push(group);
+      list101.push(group);
     }
     if (needStatuses) {
       const seller = sellerOf.get(statusId) ?? "";
       const group = sellers.get(seller) ?? emptyGroup();
       sellers.set(seller, group);
-      list100.push(group);
+      list101.push(group);
     }
-    return list100;
+    return list101;
   };
   const wonStatusIds = [];
   const stalledDeals = [];
@@ -45936,7 +46333,7 @@ async function computeSalesVelocity(prisma, options) {
           wonStatusIds.push(statusId);
           for (const group of groups) group.won += 1;
           if (entry) {
-            const cycle = (at - entry.changedAt.getTime()) / DAY_MS9;
+            const cycle = (at - entry.changedAt.getTime()) / DAY_MS10;
             cycles.push(cycle);
             for (const group of groups) group.cycles.push(cycle);
           }
@@ -45946,11 +46343,11 @@ async function computeSalesVelocity(prisma, options) {
         }
       }
       if (next && next.changedAt.getTime() >= sinceMs) {
-        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS9);
+        stageOf(change.toStatus).durations.push((next.changedAt.getTime() - at) / DAY_MS10);
       }
     });
     const idle = now - last.changedAt.getTime();
-    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS9) {
+    if (isOpen(last.toStatus) && (RANK[last.toStatus] ?? 0) >= CONTACT_RANK && idle >= STALLED_DAYS * DAY_MS10) {
       stageOf(last.toStatus).stalled += 1;
       for (const group of groups) group.stalled += 1;
       stalledDeals.push({
@@ -45960,7 +46357,7 @@ async function computeSalesVelocity(prisma, options) {
         salesPersonId: sellerOf.get(statusId) || null,
         stage: last.toStatus,
         since: last.changedAt,
-        days: Math.floor(idle / DAY_MS9)
+        days: Math.floor(idle / DAY_MS10)
       });
     }
     if (entry && entry.changedAt.getTime() >= sinceMs) {
@@ -45985,9 +46382,9 @@ async function computeSalesVelocity(prisma, options) {
   const conversations = /* @__PURE__ */ new Map();
   for (const message of messages) {
     const key = contactKey(message.companyId, message.businessLeadId);
-    const list100 = conversations.get(key) ?? [];
-    list100.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
-    conversations.set(key, list100);
+    const list101 = conversations.get(key) ?? [];
+    list101.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
+    conversations.set(key, list101);
   }
   let whatsappInbound = 0;
   let whatsappAnswered = 0;
@@ -45995,22 +46392,22 @@ async function computeSalesVelocity(prisma, options) {
   let whatsappConversations = 0;
   let whatsappReplied = 0;
   const responseMinutes = [];
-  for (const list100 of conversations.values()) {
-    list100.forEach((message, index) => {
-      if (message.direction !== "in" || list100[index - 1]?.direction === "in") return;
+  for (const list101 of conversations.values()) {
+    list101.forEach((message, index) => {
+      if (message.direction !== "in" || list101[index - 1]?.direction === "in") return;
       whatsappInbound += 1;
-      const reply = list100.slice(index + 1).find((m) => m.direction === "out");
+      const reply = list101.slice(index + 1).find((m) => m.direction === "out");
       if (!reply) return;
       whatsappAnswered += 1;
       const minutes = (reply.at - message.at) / 6e4;
       responseMinutes.push(minutes);
       if (minutes <= 60) whatsappAnsweredWithin1h += 1;
     });
-    const firstOut = list100.findIndex((m) => m.direction === "out");
-    if (firstOut >= 0 && (firstOut === 0 || list100[firstOut - 1].direction === "out")) {
+    const firstOut = list101.findIndex((m) => m.direction === "out");
+    if (firstOut >= 0 && (firstOut === 0 || list101[firstOut - 1].direction === "out")) {
       whatsappConversations += 1;
-      const start = list100[firstOut].at;
-      if (list100.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
+      const start = list101[firstOut].at;
+      if (list101.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
         whatsappReplied += 1;
       }
     }
@@ -46064,7 +46461,7 @@ async function computeSalesVelocity(prisma, options) {
 
 // graphql/customs/queries/admin/adminSalesVelocity.ts
 var COMPANY_LIMIT = 25;
-var typeDefs106 = `
+var typeDefs107 = `
   input AdminSalesVelocityInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -46136,10 +46533,10 @@ var typeDefs106 = `
     adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   }
 `;
-var definition103 = `
+var definition104 = `
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
 `;
-var resolver103 = {
+var resolver104 = {
   adminSalesVelocity: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46163,10 +46560,10 @@ var resolver103 = {
     return { ...totals, dataSince: toIso(dataSince), companies };
   }
 };
-var adminSalesVelocity_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
+var adminSalesVelocity_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
 
 // graphql/customs/queries/admin/adminAnimals.ts
-var typeDefs107 = `
+var typeDefs108 = `
   type AdminAnimalRow {
     id: ID!
     name: String!
@@ -46249,7 +46646,7 @@ var typeDefs107 = `
     facebookPublishedBy: AdminPersonRef
   }
 `;
-var definition104 = `
+var definition105 = `
   adminAnimals(
     search: String
     animalTypeId: ID
@@ -46356,7 +46753,7 @@ function toRow(raw, counts2) {
     facebookPublishedAt: toIso(raw.facebookPublishedAt)
   };
 }
-var resolver104 = {
+var resolver105 = {
   adminAnimals: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
@@ -46458,10 +46855,10 @@ var resolver104 = {
     };
   }
 };
-var adminAnimals_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
+var adminAnimals_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
 
 // graphql/customs/queries/admin/adminPet.ts
-var typeDefs108 = `
+var typeDefs109 = `
   type AdminPetTopAnimal {
     id: ID!
     name: String!
@@ -46559,7 +46956,7 @@ var typeDefs108 = `
     points: [AdminPetSeriesPoint!]!
   }
 `;
-var definition105 = `
+var definition106 = `
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
 `;
@@ -46620,12 +47017,12 @@ function mxDayStartUtc(ymd) {
   return (/* @__PURE__ */ new Date(`${ymd}T00:00:00.000-06:00`)).toISOString().slice(0, 23).replace("T", " ");
 }
 function oneOf(value, allowed, fallback, label) {
-  const clean4 = value?.trim();
-  if (!clean4) return fallback;
-  if (!allowed.includes(clean4)) {
-    throw new Error(`Valor no v\xE1lido para ${label}: ${clean4}.`);
+  const clean5 = value?.trim();
+  if (!clean5) return fallback;
+  if (!allowed.includes(clean5)) {
+    throw new Error(`Valor no v\xE1lido para ${label}: ${clean5}.`);
   }
-  return clean4;
+  return clean5;
 }
 async function adminUserIds(prisma) {
   const rows2 = await prisma.user.findMany({
@@ -46868,7 +47265,7 @@ async function topViewedAnimals(context, prisma, since) {
     ];
   });
 }
-var resolver105 = {
+var resolver106 = {
   adminPetSummary: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47039,10 +47436,10 @@ var resolver105 = {
     return { metric, granularity, breakdown, from, to: lastBucket, total, points };
   }
 };
-var adminPet_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
+var adminPet_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
 
 // graphql/customs/queries/admin/adminNotifications.ts
-var typeDefs109 = `
+var typeDefs110 = `
   type AdminNotificationRow {
     id: ID!
     createdAt: String
@@ -47135,7 +47532,7 @@ var typeDefs109 = `
     maxPerDay: Int!
   }
 `;
-var definition106 = `
+var definition107 = `
   adminNotificationLog(
     product: String
     type: String
@@ -47218,7 +47615,7 @@ var USER_SELECT = {
   whatsappNotifications: true,
   whatsappMutedTypes: true
 };
-var resolver106 = {
+var resolver107 = {
   adminNotificationLog: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47399,13 +47796,13 @@ var resolver106 = {
     };
   }
 };
-var adminNotifications = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
+var adminNotifications = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
 var adminNotifications_default = adminNotifications;
 
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql14 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs110 = `
+var typeDefs111 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -47481,24 +47878,24 @@ var typeDefs110 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition107 = `
+var definition108 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
-var fail12 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
+var fail13 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver107 = {
+var resolver108 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
     const companyId = getSessionCompanyId(session2);
-    if (!userId) throw fail12("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
-    if (!companyId) throw fail12("Tu cuenta no tiene empresa.", "NO_COMPANY");
+    if (!userId) throw fail13("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
+    if (!companyId) throw fail13("Tu cuenta no tiene empresa.", "NO_COMPANY");
     if (!hasPermission(session2, PERMISSION_KEYS.ANALITICA_VER, () => true)) {
-      throw fail12("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
+      throw fail13("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
     }
     if (!isPlatformAdmin(session2) && !await companyHasPlanFeature(context, companyId, PLAN_FEATURE.ANALYTICS)) {
-      throw fail12("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
+      throw fail13("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
     }
     const seesTeam = hasPermission(
       session2,
@@ -47570,12 +47967,12 @@ var resolver107 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
+var companyAnalytics_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache = null;
-var typeDefs111 = `
+var typeDefs112 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -47585,7 +47982,7 @@ var typeDefs111 = `
     updatedAt: String!
   }
 `;
-var definition108 = `landingStats: LandingStats!`;
+var definition109 = `landingStats: LandingStats!`;
 function unwrap3(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -47611,7 +48008,7 @@ async function computeLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver108 = {
+var resolver109 = {
   landingStats: async (_root, _args, context) => {
     if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
     const value = await computeLandingStats(context);
@@ -47619,13 +48016,13 @@ var resolver108 = {
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
+var landingStats_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES2 = ["in_family", "adopted"];
 var cache2 = null;
-var typeDefs112 = `
+var typeDefs113 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
@@ -47641,7 +48038,7 @@ var typeDefs112 = `
     updatedAt: String!
   }
 `;
-var definition109 = `petLandingStats: PetLandingStats!`;
+var definition110 = `petLandingStats: PetLandingStats!`;
 function unwrap4(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -47708,7 +48105,7 @@ async function computePetLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver109 = {
+var resolver110 = {
   petLandingStats: async (_root, _args, context) => {
     if (cache2 && Date.now() - cache2.at < CACHE_MS2) return cache2.value;
     const value = await computePetLandingStats(context);
@@ -47716,13 +48113,13 @@ var resolver109 = {
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
+var petLandingStats_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
 
 // graphql/customs/queries/petEvents.ts
 var MAX_TAKE = 48;
-var DAY_MS10 = 24 * 60 * 60 * 1e3;
+var DAY_MS11 = 24 * 60 * 60 * 1e3;
 var MAX_DATE = /* @__PURE__ */ new Date("9999-12-31T00:00:00.000Z");
-var typeDefs113 = `
+var typeDefs114 = `
   input PetEventsFeedInput {
     "Clave INEGI (16) o slug (michoacan)"
     state: String
@@ -47783,7 +48180,7 @@ var typeDefs113 = `
     sendAt: String
   }
 `;
-var definition110 = `
+var definition111 = `
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
@@ -47796,7 +48193,7 @@ function validDate(value, fallback) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
-var resolver110 = {
+var resolver111 = {
   /**
    * Eventos publicados para la sección /eventos, la portada y la app: los próximos (por su próxima
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
@@ -47863,17 +48260,17 @@ var resolver110 = {
           LIMIT ${take}::int OFFSET ${skip}::int
         `;
     if (rows2 instanceof Error) throw rows2;
-    const list100 = rows2;
-    if (list100.length === 0) return { total: 0, items: [] };
-    const events = await context.db.PetEvent.findMany({ where: { id: { in: list100.map((row) => row.id) } } });
+    const list101 = rows2;
+    if (list101.length === 0) return { total: 0, items: [] };
+    const events = await context.db.PetEvent.findMany({ where: { id: { in: list101.map((row) => row.id) } } });
     const byId = new Map(events.map((event) => [event.id, event]));
-    const items = list100.filter((row) => byId.has(row.id)).map((row) => ({
+    const items = list101.filter((row) => byId.has(row.id)).map((row) => ({
       event: byId.get(row.id),
       nextStartsAt: row.nextStartsAt ? new Date(row.nextStartsAt).toISOString() : null,
       nextEndsAt: row.nextEndsAt ? new Date(row.nextEndsAt).toISOString() : null,
       distanceKm: row.km === null || row.km === void 0 ? null : Math.round(Number(row.km) * 10) / 10
     }));
-    return { total: Number(list100[0].total) || items.length, items };
+    return { total: Number(list101[0].total) || items.length, items };
   },
   /** Estados y municipios con eventos próximos publicados (para los filtros de /eventos). */
   petEventFacets: async (_root, _args, context) => {
@@ -47917,15 +48314,15 @@ var resolver110 = {
       candidates: candidates.length,
       alreadySent: Boolean(event.zoneAlertsSentAt),
       sendNow,
-      sendAt: !sendNow && event.next ? new Date(event.next.startsAt.getTime() - PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS10).toISOString() : null
+      sendAt: !sendNow && event.next ? new Date(event.next.startsAt.getTime() - PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS11).toISOString() : null
     };
   }
 };
-var petEvents_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
+var petEvents_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
 
 // graphql/customs/queries/rescueAllies.ts
 var MAX_TAKE2 = 300;
-var typeDefs114 = `
+var typeDefs115 = `
   type RescueAlly {
     id: ID!
     name: String!
@@ -47944,8 +48341,8 @@ var typeDefs114 = `
     allies: [RescueAlly!]!
   }
 `;
-var definition111 = `rescueAllies(take: Int): RescueAlliesResult!`;
-var resolver111 = {
+var definition112 = `rescueAllies(take: Int): RescueAlliesResult!`;
+var resolver112 = {
   rescueAllies: async (_root, { take }, context) => {
     const limit = Math.min(Math.max(Number(take) || MAX_TAKE2, 1), MAX_TAKE2);
     const rows2 = await context.sudo().query.RescueOrganization.findMany({
@@ -47983,7 +48380,7 @@ var resolver111 = {
     return { total: allies.length, allies: allies.slice(0, limit) };
   }
 };
-var rescueAllies_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
+var rescueAllies_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -48569,8 +48966,8 @@ function apiToken() {
   const value = process.env.CLICKUP_API_TOKEN?.trim();
   return value || void 0;
 }
-function clip(text86, max = 300) {
-  const trimmed = text86.replace(/\s+/g, " ").trim();
+function clip(text87, max = 300) {
+  const trimmed = text87.replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -48633,10 +49030,10 @@ async function getTaskComments(taskId) {
   if (!Array.isArray(comments)) return [];
   return comments.filter(isComment);
 }
-async function commentTask(taskId, text86) {
+async function commentTask(taskId, text87) {
   await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
     method: "POST",
-    body: { comment_text: text86, notify_all: false }
+    body: { comment_text: text87, notify_all: false }
   });
 }
 async function downloadClickUpFile(url, maxBytes) {
@@ -48688,11 +49085,11 @@ function apiKey() {
   const value = process.env.PIXABAY_API_KEY?.trim();
   return value || void 0;
 }
-function redact(text86) {
-  return text86.replace(/key=[^&\s]+/gi, "key=***");
+function redact(text87) {
+  return text87.replace(/key=[^&\s]+/gi, "key=***");
 }
-function clip2(text86, max = 200) {
-  const trimmed = redact(text86).replace(/\s+/g, " ").trim();
+function clip2(text87, max = 200) {
+  const trimmed = redact(text87).replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -48981,8 +49378,8 @@ function readLink(input, start, bold) {
   const label = input.slice(start + 1, labelEnd);
   const href = input.slice(labelEnd + 2, hrefEnd).trim();
   if (!label || !href || label.includes("[") || label.includes("]")) return null;
-  const text86 = bold ? { text: label, bold: true } : { text: label };
-  return { node: { type: "link", href, children: [text86] }, next: hrefEnd + 1 };
+  const text87 = bold ? { text: label, bold: true } : { text: label };
+  return { node: { type: "link", href, children: [text87] }, next: hrefEnd + 1 };
 }
 function parseInlines(input, bold = false) {
   const nodes = [];
@@ -49027,33 +49424,33 @@ function boldOnlyInner(line) {
   if (!inner.trim() || inner.includes("**")) return null;
   return inner.trim();
 }
-function listItem(text86) {
+function listItem(text87) {
   return {
     type: "list-item",
-    children: [{ type: "list-item-content", children: padInlines(parseInlines(text86.trim())) }]
+    children: [{ type: "list-item-content", children: padInlines(parseInlines(text87.trim())) }]
   };
 }
 function markdownToDocument(markdown) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks = [];
   let paragraphLines = [];
-  let list100 = null;
+  let list101 = null;
   const flushParagraph = () => {
-    const text86 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
+    const text87 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
     paragraphLines = [];
-    if (!text86) return;
-    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text86)) });
+    if (!text87) return;
+    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text87)) });
   };
   const flushList = () => {
-    if (!list100 || list100.items.length === 0) {
-      list100 = null;
+    if (!list101 || list101.items.length === 0) {
+      list101 = null;
       return;
     }
     blocks.push({
-      type: list100.ordered ? "ordered-list" : "unordered-list",
-      children: list100.items
+      type: list101.ordered ? "ordered-list" : "unordered-list",
+      children: list101.items
     });
-    list100 = null;
+    list101 = null;
   };
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -49067,11 +49464,11 @@ function markdownToDocument(markdown) {
     if (unordered || ordered) {
       flushParagraph();
       const orderedItem = Boolean(ordered);
-      if (!list100 || list100.ordered !== orderedItem) {
+      if (!list101 || list101.ordered !== orderedItem) {
         flushList();
-        list100 = { ordered: orderedItem, items: [] };
+        list101 = { ordered: orderedItem, items: [] };
       }
-      list100.items.push(listItem((unordered ?? ordered)[1]));
+      list101.items.push(listItem((unordered ?? ordered)[1]));
       continue;
     }
     const heading = boldOnlyInner(line);
@@ -49094,10 +49491,10 @@ function inlineToText(nodes) {
 function excerptFromDocument(nodes, max = EXCERPT_MAX2) {
   for (const node of nodes) {
     if (node.type !== "paragraph") continue;
-    const text86 = inlineToText(node.children).replace(/\s+/g, " ").trim();
-    if (!text86) continue;
-    if (text86.length <= max) return text86;
-    const slice = text86.slice(0, max);
+    const text87 = inlineToText(node.children).replace(/\s+/g, " ").trim();
+    if (!text87) continue;
+    if (text87.length <= max) return text87;
+    const slice = text87.slice(0, max);
     const lastSpace = slice.lastIndexOf(" ");
     if (lastSpace <= 0) return slice.trimEnd();
     return slice.slice(0, lastSpace).trimEnd();
@@ -49279,10 +49676,10 @@ function isApprovedStatusUpdate(payload) {
 }
 function commentForError(err) {
   const message = err instanceof Error ? err.message : "";
-  const text86 = message.replace(/^\[clickup\]\s*/, "").trim();
-  if (!text86) return "No se pudo programar el post.";
-  if (text86.length <= 500) return text86;
-  return `${text86.slice(0, 500)}\u2026`;
+  const text87 = message.replace(/^\[clickup\]\s*/, "").trim();
+  if (!text87) return "No se pudo programar el post.";
+  if (text87.length <= 500) return text87;
+  return `${text87.slice(0, 500)}\u2026`;
 }
 async function handleClickUpWebhook(req, res, context) {
   try {
@@ -49664,11 +50061,11 @@ async function handleSubscriptionChange(context, event) {
 async function invoiceIdForPaymentIntent(paymentIntentId) {
   if (!paymentIntentId) return null;
   try {
-    const list100 = await stripe_default.invoicePayments.list({
+    const list101 = await stripe_default.invoicePayments.list({
       payment: { type: "payment_intent", payment_intent: paymentIntentId },
       limit: 1
     });
-    return str(list100?.data?.[0]?.invoice);
+    return str(list101?.data?.[0]?.invoice);
   } catch {
     return null;
   }
@@ -49927,7 +50324,7 @@ var storage = {
   }
 };
 var keystone_default = withSessionGuards(withAuth(
-  (0, import_core101.config)({
+  (0, import_core103.config)({
     db: {
       provider: "postgresql",
       // Sin connection_limit, Prisma abre núcleos × 2 + 1 conexiones y en Railway cuenta los
