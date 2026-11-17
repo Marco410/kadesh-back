@@ -376,6 +376,18 @@ export async function searchPlacesByLocation(
   return { googleResults: results.length, created };
 }
 
+/**
+ * Whether nearby searches may call Google Places to create missing PetPlaces (paid calls).
+ * PET_PLACES_GOOGLE_SYNC=true|false decides explicitly; when unset it is off with
+ * ENVIROMENT=DEV and on everywhere else.
+ */
+export function isPetPlacesGoogleSyncEnabled(): boolean {
+  const flag = (process.env.PET_PLACES_GOOGLE_SYNC ?? "").trim().toLowerCase();
+  if (flag === "true") return true;
+  if (flag === "false") return false;
+  return (process.env.ENVIROMENT ?? "").trim().toUpperCase() !== "DEV";
+}
+
 function areaKey(type: string, lat: number, lng: number) {
   const cellLat = Math.round(lat / GOOGLE_AREA_CELL_DEG) * GOOGLE_AREA_CELL_DEG;
   const cellLng = Math.round(lng / GOOGLE_AREA_CELL_DEG) * GOOGLE_AREA_CELL_DEG;
@@ -393,6 +405,8 @@ export async function ensureAreaSearchedOnGoogle(
   context: KeystoneContext,
   { lat, lng, type, radiusKm }: { lat: number; lng: number; type: string; radiusKm: number },
 ): Promise<boolean> {
+  if (!isPetPlacesGoogleSyncEnabled()) return false;
+
   const key = areaKey(type, lat, lng);
   const radius = Math.min(radiusKm, GOOGLE_MAX_RADIUS_KM);
 

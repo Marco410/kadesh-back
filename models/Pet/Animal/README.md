@@ -196,3 +196,27 @@ Qué: lista `AnimalSighting` (lugar, hora en que lo vieron, nota y, opcional, no
 Por qué: quien ve un cartel o un post casi nunca tiene cuenta, y pedirle registrarse para decir «lo vi en tal esquina» hace que no avise. El aviso tiene que llegar en minutos a quien busca.
 
 Qué no hacer: no pedir `sightings` en listas (es una consulta por animal). No dar `contactName`/`contactPhone` ni `ip` a quien no atiende el reporte. No convertir un avistamiento en bitácora del caso por sí solo: no lo escribió quien lo atiende, y movería el pin y reiniciaría los recordatorios de seguimiento. Lo decide quien atiende el reporte con «Agregar registro».
+
+
+### 2026-11-17 — «Lo vi» en el mapa: `NearbyAnimal.recentSightings`
+
+Qué: `getNearbyAnimals` devuelve en cada animal perdido o abandonado de la página hasta 3 avistamientos visibles de las últimas 72 h (`MAP_SIGHTING_HOURS`, `MAP_SIGHTINGS_PER_ANIMAL`), sin contacto. Sale de una sola consulta con `animalId in [...]` después de paginar, no una por animal.
+
+Por qué: el pin del reporte se queda en el último lugar que registró la familia. Los avisos recientes dicen hacia dónde se movió el animal, y el mapa es donde la gente busca.
+
+Qué no hacer: no pedir los avistamientos antes de paginar (serían los de todos los animales). No incluir `contactName`/`contactPhone` ni los ocultos.
+
+
+### 2026-11-17 — `getNearbyAnimals` en SQL y `getNearbyAnimalPins` para el mapa
+
+Qué: `getNearbyAnimals` ya no trae todos los animales y sus bitácoras a memoria. `utils/pet/nearbyAnimalsSql.ts` hace todo en una consulta:
+- toma la última bitácora con `LATERAL`;
+- filtra por estado, tipo, raza y texto de lugar;
+- recorta por un recuadro de lat/lng antes de calcular la distancia (haversine en km);
+- pagina con `LIMIT`/`OFFSET` y saca el total con `COUNT(*) OVER()`.
+
+Después, solo para la página devuelta, se piden las fotos, los autores y los «Lo vi» (una consulta cada uno). `limit` tiene tope de 500. Nueva `getNearbyAnimalPins` para el mapa: hasta 1000 pines del filtro (ignora `limit`/`skip`), con una sola foto de portada (`DISTINCT ON` y luego Keystone, para firmar la URL) y sin autor. `lat`/`lng` en `null` ahora cuentan como «sin ubicación».
+
+Por qué: pedir 10 costaba lo mismo que pedir 500, y lo llamaban `/animales`, la portada y las alertas de zona en cada visita. Comparado contra la versión vieja con 400 reportes de prueba: mismos totales, mismos animales y mismas distancias en 8 combinaciones de filtros. El orden solo cambia entre empates de distancia redondeada.
+
+Qué no hacer: no volver a cargar todos los animales para filtrar en Node. No pedir fotos, autores ni avistamientos antes de paginar. No subir `MAX_PINS`: si una zona se acerca a 1000, hay que agrupar en el servidor.

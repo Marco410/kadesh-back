@@ -5533,8 +5533,8 @@ async function findSimilarReports(context, input) {
   }
   const lat = Number(input.lat);
   const lng = Number(input.lng);
-  const hasPoint = input.lat != null && input.lng != null && Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
-  if (hasPoint && typeId) {
+  const hasPoint2 = input.lat != null && input.lng != null && Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
+  if (hasPoint2 && typeId) {
     (await animalIdsNear(context, { lat, lng, typeId, since })).forEach((id) => ids.add(id));
   }
   if (input.excludeAnimalId) ids.delete(input.excludeAnimalId);
@@ -5556,7 +5556,7 @@ async function findSimilarReports(context, input) {
     if (!sameSource && lastActivity != null && now - lastActivity > windowDaysFor(latest?.status) * DAY_MS) {
       continue;
     }
-    const distanceKm = hasPoint ? minDistanceKm(lat, lng, logs) : null;
+    const distanceKm = hasPoint2 ? minDistanceKm(lat, lng, logs) : null;
     const { score, reasons } = scoreCandidate(
       {
         name: input.name,
@@ -6729,6 +6729,8 @@ var SIGHTING_MAX_AGE_DAYS = 30;
 var SIGHTING_DEDUPE_MINUTES = 10;
 var SIGHTINGS_DEFAULT_TAKE = 20;
 var SIGHTINGS_MAX_TAKE = 50;
+var MAP_SIGHTING_HOURS = 72;
+var MAP_SIGHTINGS_PER_ANIMAL = 3;
 
 // models/Pet/Animal/AnimalSighting/AnimalSighting.field.ts
 var AnimalSightingPublic = import_core.graphql.object()({
@@ -28822,9 +28824,9 @@ async function logSync(context, userId, input, result5) {
   }
 }
 async function fetchRows(input, cap) {
-  const hasPoint = typeof input.lat === "number" && typeof input.lng === "number";
+  const hasPoint2 = typeof input.lat === "number" && typeof input.lng === "number";
   const stateCode = input.stateCode?.trim();
-  if (hasPoint) {
+  if (hasPoint2) {
     return searchByLocation({
       lat: input.lat,
       lng: input.lng,
@@ -39535,8 +39537,8 @@ var resolver71 = {
     });
     if (!user || user instanceof Error) return result3(false, "No encontramos a esa persona.");
     const data = {};
-    const hasPoint = args.lat != null || args.lng != null;
-    if (hasPoint) {
+    const hasPoint2 = args.lat != null || args.lng != null;
+    if (hasPoint2) {
       const lat = Number(args.lat);
       const lng = Number(args.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
@@ -39566,7 +39568,7 @@ var resolver71 = {
     if ("petAlertsEnabled" in data && data.petAlertsEnabled !== user.petAlertsEnabled) {
       changes.push(data.petAlertsEnabled ? "encendi\xF3 sus alertas" : "apag\xF3 sus alertas");
     }
-    if (hasPoint) changes.push("movi\xF3 su zona");
+    if (hasPoint2) changes.push("movi\xF3 su zona");
     if ("alertRadiusKm" in data && data.alertRadiusKm !== user.alertRadiusKm) changes.push(`radio a ${data.alertRadiusKm} km`);
     if (args.disableWhatsapp && user.whatsappNotifications) changes.push("apag\xF3 su WhatsApp");
     void logActivity(context, {
@@ -40124,7 +40126,102 @@ var customMutation = {
 };
 var mutations_default = customMutation;
 
+// utils/pet/nearbyAnimalsSql.ts
+var import_client4 = require("@prisma/client");
+var EARTH_KM = 6371;
+var KM_PER_DEGREE = 111.32;
+var COORD_PATTERN = "^-?[0-9]+([.][0-9]+)?$";
+function hasPoint(filters) {
+  return typeof filters.lat === "number" && typeof filters.lng === "number" && Number.isFinite(filters.lat) && Number.isFinite(filters.lng);
+}
+function escapeLike(text87) {
+  return text87.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+async function queryNearbyAnimals(prisma, filters, page) {
+  const point = hasPoint(filters) ? filters : null;
+  const radius = Math.max(0.1, filters.radius ?? 10);
+  const animalFilters = [];
+  if (filters.animalType) animalFilters.push(import_client4.Prisma.sql`AND a."animal_type" = ${filters.animalType}`);
+  if (filters.breed) animalFilters.push(import_client4.Prisma.sql`AND a."animal_breed" = ${filters.breed}`);
+  const scopedFilters = [];
+  if (filters.status) scopedFilters.push(import_client4.Prisma.sql`AND status = ${filters.status}`);
+  const location = filters.location?.trim();
+  if (location) {
+    const like = `%${escapeLike(location)}%`;
+    scopedFilters.push(
+      import_client4.Prisma.sql`AND (city ILIKE ${like} OR state ILIKE ${like} OR country ILIKE ${like} OR address ILIKE ${like})`
+    );
+  }
+  let distance = import_client4.Prisma.sql`NULL::float8`;
+  let order = import_client4.Prisma.sql`"createdAt" DESC NULLS LAST, id`;
+  if (point) {
+    const latDelta = radius / KM_PER_DEGREE;
+    const lngDelta = radius / (KM_PER_DEGREE * Math.max(0.01, Math.cos(point.lat * Math.PI / 180)));
+    scopedFilters.push(
+      import_client4.Prisma.sql`AND lat_n BETWEEN ${point.lat - latDelta} AND ${point.lat + latDelta}
+                 AND lng_n BETWEEN ${point.lng - lngDelta} AND ${point.lng + lngDelta}`
+    );
+    distance = import_client4.Prisma.sql`(${EARTH_KM} * 2 * asin(sqrt(
+      power(sin(radians(lat_n - ${point.lat}) / 2), 2) +
+      cos(radians(${point.lat})) * cos(radians(lat_n)) * power(sin(radians(lng_n - ${point.lng}) / 2), 2)
+    )))`;
+    order = import_client4.Prisma.sql`distance ASC, id`;
+  }
+  const radiusFilter = point ? import_client4.Prisma.sql`WHERE distance <= ${radius}` : import_client4.Prisma.empty;
+  const rows2 = await prisma.$queryRaw`
+    WITH base AS (
+      SELECT a.id, a.slug, a.name, a.sex, a."createdAt",
+             t.id AS "typeId", t.name AS "typeName", b.id AS "breedId", b.breed AS "breedName",
+             last.status, last.lat, last.lng, last.address, last.city, last.state, last.country,
+             last."placeLabel",
+             CASE WHEN last.lat ~ ${COORD_PATTERN} AND last.lng ~ ${COORD_PATTERN}
+                  THEN last.lat::float8 END AS lat_n,
+             CASE WHEN last.lat ~ ${COORD_PATTERN} AND last.lng ~ ${COORD_PATTERN}
+                  THEN last.lng::float8 END AS lng_n
+      FROM "Animal" a
+      JOIN LATERAL (
+        SELECT l.status, l.lat, l.lng, l.address, l.city, l.state, l.country, l."placeLabel"
+        FROM "AnimalLog" l
+        WHERE l."animal" = a.id
+        ORDER BY l."createdAt" DESC NULLS LAST
+        LIMIT 1
+      ) last ON true
+      LEFT JOIN "AnimalType" t ON t.id = a."animal_type"
+      LEFT JOIN "AnimalBreed" b ON b.id = a."animal_breed"
+      WHERE a."duplicateOf" IS NULL AND a."inactiveAt" IS NULL
+      ${import_client4.Prisma.join(animalFilters.length ? animalFilters : [import_client4.Prisma.empty], " ")}
+    ),
+    scoped AS (
+      SELECT *, ${distance} AS distance
+      FROM base
+      WHERE TRUE ${import_client4.Prisma.join(scopedFilters.length ? scopedFilters : [import_client4.Prisma.empty], " ")}
+    )
+    SELECT id, slug, name, sex, "createdAt", "typeId", "typeName", "breedId", "breedName",
+           status, lat, lng, address, city, state, country, "placeLabel", distance,
+           COUNT(*) OVER()::int AS total
+    FROM scoped
+    ${radiusFilter}
+    ORDER BY ${order}
+    LIMIT ${page.limit}::int OFFSET ${page.skip}::int
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  const list101 = rows2;
+  let total = list101[0]?.total ?? 0;
+  if (list101.length === 0 && page.skip > 0) {
+    total = (await queryNearbyAnimals(prisma, filters, { limit: 1, skip: 0 })).total;
+  }
+  return {
+    rows: list101.map(({ total: _total, ...row }) => ({
+      ...row,
+      distance: row.distance == null ? null : Math.round(Number(row.distance) * 100) / 100
+    })),
+    total
+  };
+}
+
 // graphql/customs/queries/nearbyAnimals.ts
+var MAX_LIST_LIMIT = 500;
+var MAX_PINS = 1e3;
 var typeDefs80 = `
   type AnimalMultimediaImage {
     id: ID!
@@ -40139,6 +40236,16 @@ var typeDefs80 = `
 
   type NearbyAnimalUserProfileImage {
     url: String
+  }
+
+  "\xABLo vi\xBB de las \xFAltimas 72 h, para el mapa (sin contacto)."
+  type NearbyAnimalSighting {
+    id: ID!
+    lat: String!
+    lng: String!
+    seenAt: String
+    placeLabel: String
+    city: String
   }
 
   type NearbyAnimal {
@@ -40159,12 +40266,42 @@ var typeDefs80 = `
     user: NearbyAnimalUser
     multimedia: [AnimalMultimediaImage]
     createdAt: String
+    "Hasta 3 avistamientos visibles de las \xFAltimas 72 h (solo perdidos y abandonados), el m\xE1s reciente primero."
+    recentSightings: [NearbyAnimalSighting!]
   }
 
   type NearbyAnimalsResult {
     success: Boolean!
     message: String!
     animals: [NearbyAnimal!]
+    total: Int!
+  }
+
+  "Un pin del mapa: lo que pinta el pin y su ventanita, sin autor y con una sola foto."
+  type NearbyAnimalPin {
+    id: ID!
+    slug: String
+    name: String
+    sex: String
+    status: String
+    lat: String
+    lng: String
+    distance: Float
+    typeName: String
+    breedName: String
+    address: String
+    city: String
+    state: String
+    country: String
+    createdAt: String
+    coverUrl: String
+    recentSightings: [NearbyAnimalSighting!]
+  }
+
+  type NearbyAnimalPinsResult {
+    success: Boolean!
+    animals: [NearbyAnimalPin!]!
+    "Total del filtro; si pasa de los pines devueltos, el mapa no los muestra todos."
     total: Int!
   }
 
@@ -40182,218 +40319,203 @@ var typeDefs80 = `
 
   type Query {
     getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
+    getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
   }
 `;
 var definition77 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
+  getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
 `;
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const year = date.getFullYear();
-  let hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
+function formatDate(date) {
+  if (!date) return null;
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return null;
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  const year = value.getFullYear();
+  let hours = value.getHours();
+  const minutes = String(value.getMinutes()).padStart(2, "0");
+  const seconds = String(value.getSeconds()).padStart(2, "0");
   const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  hours = hours ? hours : 12;
-  const hoursStr = String(hours).padStart(2, "0");
-  return `${month}/${day}/${year}, ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+  hours = hours % 12 || 12;
+  return `${month}/${day}/${year}, ${String(hours).padStart(2, "0")}:${minutes}:${seconds} ${ampm}`;
 }
-async function getLatestAnimalLogs(animalIds, context) {
-  if (animalIds.length === 0) {
-    return /* @__PURE__ */ new Map();
-  }
-  const logs = await context.sudo().query.AnimalLog.findMany({
-    where: { animal: { id: { in: animalIds } } },
-    orderBy: { createdAt: "desc" },
-    query: `
-      id
-      status
-      lat
-      lng
-      address
-      city
-      state
-      country
-      createdAt
-      animal {
-        id
-      }
-    `
+function prismaOf13(context) {
+  return context.sudo().prisma;
+}
+function filtersOf(input) {
+  return {
+    lat: input.lat,
+    lng: input.lng,
+    radius: input.radius ?? 10,
+    animalType: input.animalType,
+    breed: input.breed,
+    status: input.status,
+    location: input.location
+  };
+}
+async function getRecentSightings(rows2, context) {
+  const ids = rows2.filter((row) => SIGHTING_STATUSES.includes(row.status)).map((row) => row.id);
+  const byAnimal = /* @__PURE__ */ new Map();
+  if (ids.length === 0) return byAnimal;
+  const since = new Date(Date.now() - MAP_SIGHTING_HOURS * 60 * 60 * 1e3);
+  const sightings = await prismaOf13(context).animalSighting.findMany({
+    where: { animalId: { in: ids }, hidden: false, seenAt: { gte: since } },
+    orderBy: [{ seenAt: "desc" }],
+    // Tope duro: ningún animal pasa de 3 en el mapa.
+    take: ids.length * MAP_SIGHTINGS_PER_ANIMAL * 4,
+    select: { id: true, animalId: true, lat: true, lng: true, seenAt: true, placeLabel: true, city: true }
   });
-  const latestLogsMap = /* @__PURE__ */ new Map();
-  const seenAnimals = /* @__PURE__ */ new Set();
-  for (const log2 of logs) {
-    const animalId = log2.animal?.id;
-    if (animalId && !seenAnimals.has(animalId)) {
-      latestLogsMap.set(animalId, log2);
-      seenAnimals.add(animalId);
-    }
+  if (sightings instanceof Error) {
+    console.error("[nearbyAnimals] avistamientos:", sightings);
+    return byAnimal;
   }
-  return latestLogsMap;
+  for (const row of sightings) {
+    const list101 = byAnimal.get(row.animalId) ?? [];
+    if (list101.length >= MAP_SIGHTINGS_PER_ANIMAL) continue;
+    list101.push({
+      id: row.id,
+      lat: row.lat,
+      lng: row.lng,
+      seenAt: row.seenAt ? new Date(row.seenAt).toISOString() : null,
+      placeLabel: row.placeLabel || null,
+      city: row.city || null
+    });
+    byAnimal.set(row.animalId, list101);
+  }
+  return byAnimal;
+}
+async function getMultimedia(ids, context) {
+  const byAnimal = /* @__PURE__ */ new Map();
+  if (ids.length === 0) return byAnimal;
+  const media = await context.sudo().query.AnimalMultimedia.findMany({
+    where: { animal: { id: { in: ids } } },
+    orderBy: [{ order: "asc" }],
+    query: "id order image { url } animal { id }"
+  });
+  for (const item of media) {
+    const animalId = item.animal?.id;
+    if (!animalId) continue;
+    const list101 = byAnimal.get(animalId) ?? [];
+    list101.push({ id: item.id, url: item.image?.url ?? null, order: item.order ?? 1e4 });
+    byAnimal.set(animalId, list101);
+  }
+  for (const list101 of byAnimal.values()) list101.sort((a, b) => a.order - b.order);
+  return byAnimal;
+}
+async function getCoverUrls(ids, context) {
+  const covers = /* @__PURE__ */ new Map();
+  if (ids.length === 0) return covers;
+  const firsts = await prismaOf13(context).$queryRaw`
+    SELECT DISTINCT ON (m."animal") m.id
+    FROM "AnimalMultimedia" m
+    WHERE m."animal" = ANY(${ids}::text[])
+    ORDER BY m."animal", m."order" ASC, m."createdAt" ASC NULLS LAST
+  `;
+  if (firsts instanceof Error) {
+    console.error("[nearbyAnimals] portadas:", firsts);
+    return covers;
+  }
+  const mediaIds = firsts.map((row) => row.id);
+  if (mediaIds.length === 0) return covers;
+  const media = await context.sudo().query.AnimalMultimedia.findMany({
+    where: { id: { in: mediaIds } },
+    query: "image { url } animal { id }"
+  });
+  for (const item of media) {
+    if (item.animal?.id && item.image?.url) covers.set(item.animal.id, item.image.url);
+  }
+  return covers;
+}
+async function getAuthors(ids, context) {
+  const byAnimal = /* @__PURE__ */ new Map();
+  if (ids.length === 0) return byAnimal;
+  const animals = await context.sudo().query.Animal.findMany({
+    where: { id: { in: ids } },
+    query: "id user { name profileImage { url } }"
+  });
+  for (const animal of animals) {
+    if (!animal.user) continue;
+    byAnimal.set(animal.id, {
+      name: animal.user.name ?? null,
+      profileImage: animal.user.profileImage ? { url: animal.user.profileImage.url ?? null } : null
+    });
+  }
+  return byAnimal;
+}
+function clampInt2(value, fallback, max) {
+  const num = Math.floor(Number(value ?? fallback));
+  if (!Number.isFinite(num) || num < 0) return fallback;
+  return Math.min(num, max);
 }
 var resolver77 = {
-  getNearbyAnimals: async (root, {
-    input
-  }, context) => {
-    const {
-      lat,
-      lng,
-      limit = 10,
-      skip = 0,
-      radius = 10,
-      animalType,
-      status,
-      breed,
-      location
-    } = input;
-    const animalWhere = { duplicateOf: null, inactiveAt: null };
-    if (animalType) {
-      animalWhere.animal_type = { id: { equals: animalType } };
-    }
-    if (breed) {
-      animalWhere.animal_breed = { id: { equals: breed } };
-    }
-    const animals = await context.sudo().query.Animal.findMany({
-      where: animalWhere,
-      query: `
-        id
-        slug
-        name
-        sex
-        animal_type {
-          id
-          name
-        }
-        animal_breed {
-          id
-          breed
-        }
-        user {
-          name
-          profileImage {
-            url
-          }
-        }
-        createdAt
-      `
-    });
-    const animalIds = animals.map((a) => a.id);
-    const latestLogsMap = await getLatestAnimalLogs(animalIds, context);
-    const processedAnimals = [];
-    for (const animal of animals) {
-      const latestLog = latestLogsMap.get(animal.id);
-      if (!latestLog) {
-        continue;
-      }
-      if (status && latestLog.status !== status) {
-        continue;
-      }
-      if (location) {
-        const searchTerm = location.toLowerCase();
-        const cityMatch = latestLog.city?.toLowerCase().includes(searchTerm) || false;
-        const stateMatch = latestLog.state?.toLowerCase().includes(searchTerm) || false;
-        const countryMatch = latestLog.country?.toLowerCase().includes(searchTerm) || false;
-        const addressMatch = latestLog.address?.toLowerCase().includes(searchTerm) || false;
-        if (!cityMatch && !stateMatch && !countryMatch && !addressMatch) {
-          continue;
-        }
-      }
-      let distance = null;
-      if (lat !== void 0 && lng !== void 0 && latestLog.lat && latestLog.lng) {
-        const logLat = parseFloat(latestLog.lat);
-        const logLng = parseFloat(latestLog.lng);
-        if (!isNaN(logLat) && !isNaN(logLng)) {
-          distance = haversineDistance(lat, lng, logLat, logLng);
-        }
-      }
-      if (lat !== void 0 && lng !== void 0) {
-        if (distance === null || distance > radius) {
-          continue;
-        }
-      }
-      const userObj = animal.user ? {
-        name: animal.user.name,
-        profileImage: animal.user.profileImage ? {
-          url: animal.user.profileImage.url
-        } : null
-      } : null;
-      processedAnimals.push({
-        ...animal,
-        user: userObj,
-        createdAt: formatDate(animal.createdAt),
-        distance,
-        status: latestLog.status,
-        lat: latestLog.lat,
-        lng: latestLog.lng,
-        address: latestLog.address,
-        city: latestLog.city,
-        state: latestLog.state,
-        country: latestLog.country
-      });
-    }
-    if (lat !== void 0 && lng !== void 0) {
-      processedAnimals.sort((a, b) => {
-        if (a.distance === null) return 1;
-        if (b.distance === null) return -1;
-        return a.distance - b.distance;
-      });
-    } else {
-      processedAnimals.sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return dateB - dateA;
-      });
-    }
-    const total = processedAnimals.length;
-    const paginatedAnimals = processedAnimals.slice(skip, skip + limit);
-    const paginatedAnimalIds = paginatedAnimals.map((a) => a.id);
-    const multimediaData = await context.sudo().query.AnimalMultimedia.findMany({
-      where: { animal: { id: { in: paginatedAnimalIds } } },
-      orderBy: [{ order: "asc" }],
-      query: `
-        id
-        order
-        image {
-          id
-          url
-        }
-        animal {
-          id
-        }
-      `
-    });
-    const multimediaByAnimal = /* @__PURE__ */ new Map();
-    for (const media of multimediaData) {
-      const animalId = media.animal?.id;
-      if (animalId) {
-        if (!multimediaByAnimal.has(animalId)) {
-          multimediaByAnimal.set(animalId, []);
-        }
-        const imageObj = media.image ? {
-          id: media.image.id,
-          url: media.image.url
-        } : null;
-        multimediaByAnimal.get(animalId).push({
-          id: media.id,
-          url: imageObj?.url ?? null,
-          order: media.order ?? 1e4
-        });
-      }
-    }
-    const animalsWithMultimedia = paginatedAnimals.map((animal) => ({
-      ...animal,
-      multimedia: (multimediaByAnimal.get(animal.id) || []).sort(
-        (a, b) => (a.order ?? 1e4) - (b.order ?? 1e4)
-      )
+  getNearbyAnimals: async (_root, { input }, context) => {
+    const limit = clampInt2(input.limit, 10, MAX_LIST_LIMIT);
+    const skip = clampInt2(input.skip, 0, Number.MAX_SAFE_INTEGER);
+    const { rows: rows2, total } = await queryNearbyAnimals(prismaOf13(context), filtersOf(input), { limit, skip });
+    const ids = rows2.map((row) => row.id);
+    const [multimedia, authors, sightings] = await Promise.all([
+      getMultimedia(ids, context),
+      getAuthors(ids, context),
+      getRecentSightings(rows2, context)
+    ]);
+    const animals = rows2.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      sex: row.sex,
+      distance: row.distance,
+      status: row.status,
+      lat: row.lat,
+      lng: row.lng,
+      address: row.address,
+      city: row.city,
+      state: row.state,
+      country: row.country,
+      animal_type: row.typeId ? { id: row.typeId, name: row.typeName } : null,
+      animal_breed: row.breedId ? { id: row.breedId, breed: row.breedName } : null,
+      user: authors.get(row.id) ?? null,
+      multimedia: multimedia.get(row.id) ?? [],
+      createdAt: formatDate(row.createdAt),
+      recentSightings: sightings.get(row.id) ?? []
     }));
     return {
       success: true,
-      message: animalsWithMultimedia.length > 0 ? "Animals found" : "No animals found",
-      animals: animalsWithMultimedia,
+      message: animals.length > 0 ? "Animals found" : "No animals found",
+      animals,
       total
+    };
+  },
+  /**
+   * Pines del mapa: todos los del filtro (hasta `MAX_PINS`), ligeros. Ignora `limit` y `skip`
+   * (el input los trae con valor por defecto, 10 y 0, aunque no se manden).
+   */
+  getNearbyAnimalPins: async (_root, { input }, context) => {
+    const { rows: rows2, total } = await queryNearbyAnimals(prismaOf13(context), filtersOf(input), { limit: MAX_PINS, skip: 0 });
+    const ids = rows2.map((row) => row.id);
+    const [covers, sightings] = await Promise.all([getCoverUrls(ids, context), getRecentSightings(rows2, context)]);
+    return {
+      success: true,
+      total,
+      animals: rows2.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        sex: row.sex,
+        status: row.status,
+        lat: row.lat,
+        lng: row.lng,
+        distance: row.distance,
+        typeName: row.typeName,
+        breedName: row.breedName,
+        address: row.address,
+        city: row.city,
+        state: row.state,
+        country: row.country,
+        createdAt: formatDate(row.createdAt),
+        coverUrl: covers.get(row.id) ?? null,
+        recentSightings: sightings.get(row.id) ?? []
+      }))
     };
   }
 };
@@ -40742,6 +40864,12 @@ async function searchPlacesByLocation(lat, lng, type, radius, context) {
   })();
   return { googleResults: results.length, created };
 }
+function isPetPlacesGoogleSyncEnabled() {
+  const flag = (process.env.PET_PLACES_GOOGLE_SYNC ?? "").trim().toLowerCase();
+  if (flag === "true") return true;
+  if (flag === "false") return false;
+  return (process.env.ENVIROMENT ?? "").trim().toUpperCase() !== "DEV";
+}
 function areaKey(type, lat, lng) {
   const cellLat = Math.round(lat / GOOGLE_AREA_CELL_DEG) * GOOGLE_AREA_CELL_DEG;
   const cellLng = Math.round(lng / GOOGLE_AREA_CELL_DEG) * GOOGLE_AREA_CELL_DEG;
@@ -40749,6 +40877,7 @@ function areaKey(type, lat, lng) {
 }
 var inFlightAreaSearches = /* @__PURE__ */ new Map();
 async function ensureAreaSearchedOnGoogle(context, { lat, lng, type, radiusKm }) {
+  if (!isPetPlacesGoogleSyncEnabled()) return false;
   const key = areaKey(type, lat, lng);
   const radius = Math.min(radiusKm, GOOGLE_MAX_RADIUS_KM);
   const inFlight = inFlightAreaSearches.get(key);
@@ -48185,7 +48314,7 @@ var definition111 = `
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
 `;
-function prismaOf13(context) {
+function prismaOf14(context) {
   return context.sudo().prisma;
 }
 function validDate(value, fallback) {
@@ -48199,7 +48328,7 @@ var resolver111 = {
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
    */
   petEventsFeed: async (_root, { input }, context) => {
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     const now = /* @__PURE__ */ new Date();
     const take = Math.min(Math.max(Number(input.take) || 12, 1), MAX_TAKE);
     const skip = Math.max(Number(input.skip) || 0, 0);
@@ -48210,11 +48339,11 @@ var resolver111 = {
     const to = validDate(input.to, MAX_DATE);
     const lat = Number(input.lat);
     const lng = Number(input.lng);
-    const hasPoint = Number.isFinite(lat) && Number.isFinite(lng) && input.lat !== null && input.lng !== null;
-    const radiusKm = hasPoint && Number(input.radiusKm) > 0 ? Number(input.radiusKm) : 0;
-    const byDistance = hasPoint && input.sort === "distance";
-    const pointLat = hasPoint ? lat : 0;
-    const pointLng = hasPoint ? lng : 0;
+    const hasPoint2 = Number.isFinite(lat) && Number.isFinite(lng) && input.lat !== null && input.lng !== null;
+    const radiusKm = hasPoint2 && Number(input.radiusKm) > 0 ? Number(input.radiusKm) : 0;
+    const byDistance = hasPoint2 && input.sort === "distance";
+    const pointLat = hasPoint2 ? lat : 0;
+    const pointLng = hasPoint2 ? lng : 0;
     const rows2 = input.past ? await prisma.$queryRaw`
           SELECT e.id, ls."startsAt" AS "nextStartsAt", ls."endsAt" AS "nextEndsAt", d.km, COUNT(*) OVER()::int AS total
           FROM "PetEvent" e
@@ -48223,7 +48352,7 @@ var resolver111 = {
             WHERE s.event = e.id ORDER BY s."startsAt" DESC LIMIT 1
           ) ls ON true
           CROSS JOIN LATERAL (
-            SELECT CASE WHEN ${hasPoint} THEN 6371 * acos(LEAST(1, GREATEST(-1,
+            SELECT CASE WHEN ${hasPoint2} THEN 6371 * acos(LEAST(1, GREATEST(-1,
               cos(radians(${pointLat}::float8)) * cos(radians(e.lat)) * cos(radians(e.lng) - radians(${pointLng}::float8))
               + sin(radians(${pointLat}::float8)) * sin(radians(e.lat))
             ))) END AS km
@@ -48245,7 +48374,7 @@ var resolver111 = {
             ORDER BY s."startsAt" ASC LIMIT 1
           ) ns ON true
           CROSS JOIN LATERAL (
-            SELECT CASE WHEN ${hasPoint} THEN 6371 * acos(LEAST(1, GREATEST(-1,
+            SELECT CASE WHEN ${hasPoint2} THEN 6371 * acos(LEAST(1, GREATEST(-1,
               cos(radians(${pointLat}::float8)) * cos(radians(e.lat)) * cos(radians(e.lng) - radians(${pointLng}::float8))
               + sin(radians(${pointLat}::float8)) * sin(radians(e.lat))
             ))) END AS km
@@ -48274,7 +48403,7 @@ var resolver111 = {
   },
   /** Estados y municipios con eventos próximos publicados (para los filtros de /eventos). */
   petEventFacets: async (_root, _args, context) => {
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     const rows2 = await prisma.$queryRaw`
       SELECT e."stateCode" AS "stateCode", e."cityKey" AS "cityKey", MIN(e.city) AS city, COUNT(*)::int AS count
       FROM "PetEvent" e
