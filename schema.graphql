@@ -12046,6 +12046,7 @@ type Query {
   adminZoneAlertPreview(lat: Float!, lng: Float!): AdminZonePreview!
   landingStats: LandingStats!
   petLandingStats: PetLandingStats!
+  petReunionStories(take: Int): [PetReunionStory!]!
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
@@ -14943,6 +14944,24 @@ type PetLandingStats {
   rescueOrganizations: Int!
   cities: Int!
   updatedAt: String!
+}
+
+type PetReunionStory {
+  id: ID!
+  slug: String
+
+  """Nombre, o la descripción («Perra café») si no se sabe."""
+  displayName: String!
+
+  """reunited | adopted | other_home"""
+  outcome: String!
+  closedAt: String
+
+  """Recortada a 280 caracteres, sin teléfonos, correos ni enlaces."""
+  story: String!
+  city: String
+  state: String
+  coverUrl: String
 }
 
 type RescueAlly {

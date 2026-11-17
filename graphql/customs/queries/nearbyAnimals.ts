@@ -5,6 +5,7 @@ import {
   SIGHTING_STATUSES,
 } from "../../../models/Pet/Animal/AnimalSighting/constants";
 import { queryNearbyAnimals, type NearbyAnimalRow } from "../../../utils/pet/nearbyAnimalsSql";
+import { getAnimalCoverUrls } from "../../../utils/pet/animalCovers";
 
 /**
  * Reportes cerca de una ubicación (o los más recientes sin ella).
@@ -248,35 +249,6 @@ async function getMultimedia(ids: string[], context: KeystoneContext): Promise<M
   return byAnimal;
 }
 
-/**
- * Una foto de portada por animal (la de menor `order`) para los pines: primero los ids con SQL y
- * luego solo esas fotos por Keystone, que es quien firma la URL.
- */
-async function getCoverUrls(ids: string[], context: KeystoneContext): Promise<Map<string, string>> {
-  const covers = new Map<string, string>();
-  if (ids.length === 0) return covers;
-  const firsts = await prismaOf(context).$queryRaw`
-    SELECT DISTINCT ON (m."animal") m.id
-    FROM "AnimalMultimedia" m
-    WHERE m."animal" = ANY(${ids}::text[])
-    ORDER BY m."animal", m."order" ASC, m."createdAt" ASC NULLS LAST
-  `;
-  if (firsts instanceof Error) {
-    console.error("[nearbyAnimals] portadas:", firsts);
-    return covers;
-  }
-  const mediaIds = (firsts as Array<{ id: string }>).map((row) => row.id);
-  if (mediaIds.length === 0) return covers;
-  const media = (await context.sudo().query.AnimalMultimedia.findMany({
-    where: { id: { in: mediaIds } },
-    query: "image { url } animal { id }",
-  })) as Array<{ image?: { url?: string | null } | null; animal?: { id: string } | null }>;
-  for (const item of media) {
-    if (item.animal?.id && item.image?.url) covers.set(item.animal.id, item.image.url);
-  }
-  return covers;
-}
-
 /** Autor de cada reporte (nombre y foto). Solo para la lista paginada. */
 async function getAuthors(ids: string[], context: KeystoneContext) {
   const byAnimal = new Map<string, { name: string | null; profileImage: { url: string | null } | null }>();
@@ -350,7 +322,7 @@ const resolver = {
   getNearbyAnimalPins: async (_root: unknown, { input }: { input: NearbyAnimalsInput }, context: KeystoneContext) => {
     const { rows, total } = await queryNearbyAnimals(prismaOf(context), filtersOf(input), { limit: MAX_PINS, skip: 0 });
     const ids = rows.map((row) => row.id);
-    const [covers, sightings] = await Promise.all([getCoverUrls(ids, context), getRecentSightings(rows, context)]);
+    const [covers, sightings] = await Promise.all([getAnimalCoverUrls(ids, context), getRecentSightings(rows, context)]);
 
     return {
       success: true,
