@@ -32,10 +32,12 @@ import {
 } from "./User.hooks";
 import { whatsappMutedTypesHooks } from "./whatsappPrefs";
 import { resolveAlertRegion } from "./alertRegion";
+import { notifyPublicProfileChanged } from "../../utils/pet/paws";
 import access, {
   userCompanyFieldAccess,
   userOnboardingFieldAccess,
   userPetAlertsFieldAccess,
+  userPublicProfileFieldAccess,
   userAlertRegionFieldAccess,
   userPermissionsFieldAccess,
   userRolesFieldAccess,
@@ -90,6 +92,13 @@ export default list({
       await userBlogSubscriptionHook.afterOperation(args);
       await userWelcomeEmailHook.afterOperation(args);
       await userBankDetailsNotificationHook.afterOperation(args);
+      // Perfil público encendido o apagado: el ranking deja de (o vuelve a) enlazarlo de inmediato.
+      if (
+        args.operation === "update" &&
+        args.originalItem?.publicProfileEnabled !== args.item?.publicProfileEnabled
+      ) {
+        notifyPublicProfileChanged();
+      }
     },
   },
   ui: {
@@ -477,6 +486,28 @@ export default list({
           "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
         createView: { fieldMode: "hidden" },
       },
+    }),
+    // Perfil público de Kadesh Pet (/u/<username>). Lo arma `publicUserProfile`; ver
+    // graphql/customs/queries/publicProfile.ts. Teléfono y correo solo salen si la persona lo elige.
+    bio: text({
+      validation: { length: { max: 280 } },
+      access: userPublicProfileFieldAccess,
+      ui: { displayMode: "textarea", description: "Biografía corta del perfil público (máx. 280)." },
+    }),
+    publicProfileEnabled: checkbox({
+      defaultValue: true,
+      access: userPublicProfileFieldAccess,
+      ui: { description: "Su perfil público abre y sale como autor de sus reportes. Apagado: nada de eso." },
+    }),
+    showPhoneOnProfile: checkbox({
+      defaultValue: false,
+      access: userPublicProfileFieldAccess,
+      ui: { description: "Muestra su teléfono en el perfil público." },
+    }),
+    showEmailOnProfile: checkbox({
+      defaultValue: false,
+      access: userPublicProfileFieldAccess,
+      ui: { description: "Muestra su correo en el perfil público." },
     }),
     // Alertas de Kadesh Pet: avisos (campana + push) de mascotas perdidas o encontradas cerca.
     // Las edita la propia persona desde la app. Ver utils/notifications/nearbyAnimalAlerts.ts.

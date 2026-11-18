@@ -9,17 +9,20 @@ import {
 } from "../../../models/Pet/Paws/constants";
 import { Role } from "../../../models/Role/constants";
 import { getSessionUserId } from "../../../utils/access/tenant";
-import { pawsEnabled } from "../../../utils/pet/paws";
+import { pawsEnabled, pawsLedgerVersion } from "../../../utils/pet/paws";
+import { getPublicUserCards } from "../../../utils/pet/publicProfile";
 import { mxDayWindow, mxToday } from "../../../utils/usage/dailyUsageRollup";
 
 /**
  * Who helps the most in Kadesh Pet: ranking by paw points, all time or this month (Mexico City).
  *
- * Public. Shows only what the report map already shows about a person: first name and photo.
- * Never the last name, username, contact or account id. People who hid themselves
+ * Public. Shows name and initial of the last name, photo and a link to the public profile (none
+ * of the last two when the person turned their profile off).
+ * Never the full last name, contact or account id. People who hid themselves
  * (`PawAccount.rankingHidden`), staff, and suspended, anonymized or test accounts are left out.
  *
- * Cached in memory 10 min per period: always loads the top 50 and trims to `take`. Two queries on
+ * Cached in memory 10 min per period, or until a balance changes (`pawsLedgerVersion`): always
+ * loads the top 50 and trims to `take`. Two queries on
  * a cold cache (ranking + one batched user lookup). Photo URLs are signed for 1 h, so the cache
  * stays well below that. On failure it serves the previous value.
  */
@@ -41,8 +44,10 @@ const typeDefs = `
 
   type PawLeaderboardEntry {
     rank: Int!
-    "First name only."
+    "First name and initial of the last name («Marco C.»)."
     name: String!
+    "For the /u/<username> link; null when the person turned their public profile off."
+    username: String
     avatarUrl: String
     "Points in the requested period."
     points: Int!
@@ -69,13 +74,15 @@ type CachedEntry = {
   userId: string;
   rank: number;
   name: string;
+  username: string | null;
   avatarUrl: string | null;
   points: number;
   level: PawLevel;
   streakWeeks: number;
 };
 
-const cache = new Map<Period, { value: CachedEntry[]; at: number }>();
+/** `version` = `pawsLedgerVersion()` when it was built: any award or reversal since makes it stale. */
+const cache = new Map<Period, { value: CachedEntry[]; at: number; version: number }>();
 
 /** After someone opts in or out, the next request rebuilds the ranking. */
 export function invalidatePawLeaderboard(): void {
@@ -83,9 +90,36 @@ export function invalidatePawLeaderboard(): void {
 }
 
 /** Position in the cached all-time ranking, without querying. `null` when not in the top 50. */
-export function cachedAllTimeRank(userId: string): number | null {
-  const entry = cache.get("all_time")?.value.find((row) => row.userId === userId);
-  return entry ? entry.rank : null;
+/**
+ * All-time position of one person, in ONE query and without the cache (which may be empty or a
+ * few minutes old): 1 + how many ranked people have more lifetime points. Same exclusions as the
+ * ranking. `null` when the person is not ranked (hidden, staff, no points, …) or below the top 50.
+ */
+export async function allTimeRankOf(context: KeystoneContext, userId: string): Promise<number | null> {
+  try {
+    const rows = await (context.sudo() as KeystoneContext & { prisma: any }).prisma.$queryRaw`
+      WITH ranked AS (
+        SELECT a."user", a."lifetimeEarned"
+        FROM "PawAccount" a
+        JOIN "User" u ON u.id = a."user"
+        WHERE a."rankingHidden" = false AND a."lifetimeEarned" > 0
+          AND u."suspendedAt" IS NULL AND u."anonymizedAt" IS NULL AND u."userTest" = false
+          AND NOT EXISTS (
+            SELECT 1 FROM "_Role_users" ru JOIN "Role" r ON r.id = ru."A"
+            WHERE ru."B" = u.id AND r.name = ${Role.ADMIN}
+          )
+      )
+      SELECT 1 + (SELECT count(*)::int FROM ranked o WHERE o."lifetimeEarned" > me."lifetimeEarned") AS rank
+      FROM ranked me
+      WHERE me."user" = ${userId}
+    `;
+    if (rows instanceof Error) throw rows;
+    const rank = (rows as Array<{ rank: number }>)[0]?.rank ?? null;
+    return rank && rank <= LEADERBOARD_MAX_TAKE ? rank : null;
+  } catch (error) {
+    console.error("[allTimeRankOf]", error);
+    return null;
+  }
 }
 
 function sqlTimestamp(date: Date): string {
@@ -138,20 +172,17 @@ async function loadLeaderboard(context: KeystoneContext, period: Period): Promis
   const rows = await loadRows((sudo as KeystoneContext & { prisma: any }).prisma, period);
   if (rows.length === 0) return [];
 
-  // One batched lookup for names and photos (the photo URL is signed by Keystone).
-  const people = (await sudo.query.User.findMany({
-    where: { id: { in: rows.map((row) => row.userId) } },
-    query: "id name profileImage { url }",
-  })) as Array<{ id: string; name?: string | null; profileImage?: { url?: string | null } | null }>;
-  const byId = new Map(people.map((person) => [person.id, person]));
+  // One batched lookup for names, photos (signed by Keystone) and profile links.
+  const cards = await getPublicUserCards(context, rows.map((row) => row.userId));
 
   return rows.map((row, index) => {
-    const person = byId.get(row.userId);
+    const card = cards.get(row.userId);
     return {
       userId: row.userId,
       rank: index + 1,
-      name: (person?.name ?? "").trim() || "Alguien de Kadesh",
-      avatarUrl: person?.profileImage?.url ?? null,
+      name: card?.displayName ?? "Alguien de Kadesh",
+      username: card?.username ?? null,
+      avatarUrl: card?.avatarUrl ?? null,
       points: Number(row.points),
       level: pawLevelFor(Number(row.lifetimeEarned)),
       streakWeeks: currentStreakWeeks(Number(row.streakWeeks), row.streakWeekStart),
@@ -171,10 +202,11 @@ const resolver = {
     const take = Math.min(Math.max(1, Number.isFinite(requested) ? requested : LEADERBOARD_DEFAULT_TAKE), LEADERBOARD_MAX_TAKE);
 
     const now = Date.now();
+    const version = pawsLedgerVersion();
     let cached = cache.get(period);
-    if (!cached || now - cached.at >= LEADERBOARD_CACHE_MS) {
+    if (!cached || cached.version !== version || now - cached.at >= LEADERBOARD_CACHE_MS) {
       try {
-        cached = { value: await loadLeaderboard(context, period), at: now };
+        cached = { value: await loadLeaderboard(context, period), at: now, version };
         cache.set(period, cached);
       } catch (error) {
         console.error("[pawLeaderboard]", error);

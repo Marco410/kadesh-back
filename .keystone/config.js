@@ -3794,6 +3794,16 @@ function adminNotificationEmailsEnabled() {
 }
 
 // utils/pet/paws.ts
+var pawsVersion = 0;
+function pawsLedgerVersion() {
+  return pawsVersion;
+}
+function bumpPawsVersion() {
+  pawsVersion += 1;
+}
+function notifyPublicProfileChanged() {
+  bumpPawsVersion();
+}
 function pawsEnabled() {
   const value = (process.env.PAWS_ENABLED ?? "").trim().toLowerCase();
   return value === "true" || value === "on" || value === "1";
@@ -3993,6 +4003,7 @@ async function awardPaws(context, input) {
         metadata: { level: level.level, levelKey: level.key, lifetimeEarned }
       });
     }
+    bumpPawsVersion();
     return { amount, balance, lifetimeEarned, streakWeeks: first.streakWeeks, level, leveledUp };
   } catch (error) {
     warnOnce2(`could not award ${input.action}`, error);
@@ -4037,6 +4048,7 @@ async function reversePaws(context, sourceKey) {
       throw rows2;
     }
     const amount = rows2[0]?.amount ?? 0;
+    if (amount) bumpPawsVersion();
     return Math.abs(amount);
   } catch (error) {
     warnOnce2(`could not reverse ${sourceKey}`, error);
@@ -4076,7 +4088,26 @@ async function adjustPaws(context, input) {
   `;
   if (rows2 instanceof Error) throw rows2;
   const row = rows2[0];
+  if (row) bumpPawsVersion();
   return row ?? null;
+}
+async function getPawLevels(context, userIds) {
+  const levels = /* @__PURE__ */ new Map();
+  const ids = [...new Set(userIds.filter((id) => Boolean(id)))];
+  if (ids.length === 0 || !pawsEnabled()) return levels;
+  try {
+    const rows2 = await prismaOf3(context).pawAccount.findMany({
+      where: { userId: { in: ids } },
+      select: { userId: true, lifetimeEarned: true }
+    });
+    if (rows2 instanceof Error) throw rows2;
+    for (const row of rows2) {
+      if (row.userId) levels.set(row.userId, pawLevelFor(row.lifetimeEarned));
+    }
+  } catch (error) {
+    warnOnce2("could not read levels", error);
+  }
+  return levels;
 }
 async function setPawRankingHidden(context, userId, hidden) {
   const rows2 = await prismaOf3(context).$queryRaw`
@@ -9255,6 +9286,11 @@ var userCompanyFieldAccess = {
     return others.length === 0;
   }
 };
+var userPublicProfileFieldAccess = {
+  read: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item),
+  create: () => true,
+  update: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item)
+};
 var userPetAlertsFieldAccess = {
   read: ({ session: session2, item }) => isPlatformAdmin(session2) || isSelf(session2, item),
   create: () => true,
@@ -9316,6 +9352,9 @@ var User_default = (0, import_core12.list)({
       await userBlogSubscriptionHook.afterOperation(args);
       await userWelcomeEmailHook.afterOperation(args);
       await userBankDetailsNotificationHook.afterOperation(args);
+      if (args.operation === "update" && args.originalItem?.publicProfileEnabled !== args.item?.publicProfileEnabled) {
+        notifyPublicProfileChanged();
+      }
     }
   },
   ui: {
@@ -9699,6 +9738,28 @@ var User_default = (0, import_core12.list)({
         description: "Progreso de tutoriales guiados: { [tourId]: { status, at, version } }",
         createView: { fieldMode: "hidden" }
       }
+    }),
+    // Perfil público de Kadesh Pet (/u/<username>). Lo arma `publicUserProfile`; ver
+    // graphql/customs/queries/publicProfile.ts. Teléfono y correo solo salen si la persona lo elige.
+    bio: (0, import_fields12.text)({
+      validation: { length: { max: 280 } },
+      access: userPublicProfileFieldAccess,
+      ui: { displayMode: "textarea", description: "Biograf\xEDa corta del perfil p\xFAblico (m\xE1x. 280)." }
+    }),
+    publicProfileEnabled: (0, import_fields12.checkbox)({
+      defaultValue: true,
+      access: userPublicProfileFieldAccess,
+      ui: { description: "Su perfil p\xFAblico abre y sale como autor de sus reportes. Apagado: nada de eso." }
+    }),
+    showPhoneOnProfile: (0, import_fields12.checkbox)({
+      defaultValue: false,
+      access: userPublicProfileFieldAccess,
+      ui: { description: "Muestra su tel\xE9fono en el perfil p\xFAblico." }
+    }),
+    showEmailOnProfile: (0, import_fields12.checkbox)({
+      defaultValue: false,
+      access: userPublicProfileFieldAccess,
+      ui: { description: "Muestra su correo en el perfil p\xFAblico." }
     }),
     // Alertas de Kadesh Pet: avisos (campana + push) de mascotas perdidas o encontradas cerca.
     // Las edita la propia persona desde la app. Ver utils/notifications/nearbyAnimalAlerts.ts.
@@ -21591,8 +21652,8 @@ var PUSH_FLAG_BY_SOURCE = {
 };
 var SELECTION_TARGET_QUERY = `id googleCalendarId account { ${ACCOUNT_TOKEN_QUERY} }`;
 var DAY_MS5 = 24 * 60 * 60 * 1e3;
-function toDateOnly(iso2) {
-  return new Date(iso2).toISOString().slice(0, 10);
+function toDateOnly(iso3) {
+  return new Date(iso3).toISOString().slice(0, 10);
 }
 function buildGoogleEventBody(event) {
   const base = {
@@ -33033,6 +33094,40 @@ var resolver29 = {
 };
 var animalSightings_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
+// utils/pet/publicProfile.ts
+function publicDisplayName(name, lastName) {
+  const words = `${name ?? ""} ${lastName ?? ""}`.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "Alguien de Kadesh";
+  const first = words[0];
+  const initial = words[1]?.charAt(0).toUpperCase();
+  return initial ? `${first} ${initial}.` : first;
+}
+var PUBLIC_USER_QUERY = "id username name lastName publicProfileEnabled suspendedAt anonymizedAt profileImage { url }";
+function isPublicPerson(row) {
+  return Boolean(row && !row.suspendedAt && !row.anonymizedAt);
+}
+async function getPublicUserCards(context, userIds) {
+  const cards = /* @__PURE__ */ new Map();
+  const ids = [...new Set(userIds.filter((id) => Boolean(id)))];
+  if (ids.length === 0) return cards;
+  const [rows2, levels] = await Promise.all([
+    context.sudo().query.User.findMany({ where: { id: { in: ids } }, query: PUBLIC_USER_QUERY }),
+    getPawLevels(context, ids)
+  ]);
+  const withPaws = pawsEnabled();
+  for (const row of rows2) {
+    if (!isPublicPerson(row)) continue;
+    const open = row.publicProfileEnabled !== false;
+    cards.set(row.id, {
+      username: open ? row.username || null : null,
+      displayName: publicDisplayName(row.name, row.lastName),
+      avatarUrl: open ? row.profileImage?.url ?? null : null,
+      level: withPaws ? levels.get(row.id) ?? pawLevelFor(0) : null
+    });
+  }
+  return cards;
+}
+
 // graphql/customs/queries/pawLeaderboard.ts
 var PAW_LEVEL_TYPE_DEFS = `
   type PawLevelInfo {
@@ -33051,8 +33146,10 @@ var typeDefs33 = `
 
   type PawLeaderboardEntry {
     rank: Int!
-    "First name only."
+    "First name and initial of the last name (\xABMarco C.\xBB)."
     name: String!
+    "For the /u/<username> link; null when the person turned their public profile off."
+    username: String
     avatarUrl: String
     "Points in the requested period."
     points: Int!
@@ -33067,9 +33164,31 @@ var cache = /* @__PURE__ */ new Map();
 function invalidatePawLeaderboard() {
   cache.clear();
 }
-function cachedAllTimeRank(userId) {
-  const entry = cache.get("all_time")?.value.find((row) => row.userId === userId);
-  return entry ? entry.rank : null;
+async function allTimeRankOf(context, userId) {
+  try {
+    const rows2 = await context.sudo().prisma.$queryRaw`
+      WITH ranked AS (
+        SELECT a."user", a."lifetimeEarned"
+        FROM "PawAccount" a
+        JOIN "User" u ON u.id = a."user"
+        WHERE a."rankingHidden" = false AND a."lifetimeEarned" > 0
+          AND u."suspendedAt" IS NULL AND u."anonymizedAt" IS NULL AND u."userTest" = false
+          AND NOT EXISTS (
+            SELECT 1 FROM "_Role_users" ru JOIN "Role" r ON r.id = ru."A"
+            WHERE ru."B" = u.id AND r.name = ${"admin" /* ADMIN */}
+          )
+      )
+      SELECT 1 + (SELECT count(*)::int FROM ranked o WHERE o."lifetimeEarned" > me."lifetimeEarned") AS rank
+      FROM ranked me
+      WHERE me."user" = ${userId}
+    `;
+    if (rows2 instanceof Error) throw rows2;
+    const rank = rows2[0]?.rank ?? null;
+    return rank && rank <= LEADERBOARD_MAX_TAKE ? rank : null;
+  } catch (error) {
+    console.error("[allTimeRankOf]", error);
+    return null;
+  }
 }
 function sqlTimestamp2(date) {
   return date.toISOString().slice(0, 23).replace("T", " ");
@@ -33114,18 +33233,15 @@ async function loadLeaderboard(context, period) {
   const sudo = context.sudo();
   const rows2 = await loadRows(sudo.prisma, period);
   if (rows2.length === 0) return [];
-  const people = await sudo.query.User.findMany({
-    where: { id: { in: rows2.map((row) => row.userId) } },
-    query: "id name profileImage { url }"
-  });
-  const byId = new Map(people.map((person) => [person.id, person]));
+  const cards = await getPublicUserCards(context, rows2.map((row) => row.userId));
   return rows2.map((row, index) => {
-    const person = byId.get(row.userId);
+    const card = cards.get(row.userId);
     return {
       userId: row.userId,
       rank: index + 1,
-      name: (person?.name ?? "").trim() || "Alguien de Kadesh",
-      avatarUrl: person?.profileImage?.url ?? null,
+      name: card?.displayName ?? "Alguien de Kadesh",
+      username: card?.username ?? null,
+      avatarUrl: card?.avatarUrl ?? null,
       points: Number(row.points),
       level: pawLevelFor(Number(row.lifetimeEarned)),
       streakWeeks: currentStreakWeeks(Number(row.streakWeeks), row.streakWeekStart)
@@ -33139,10 +33255,11 @@ var resolver30 = {
     const requested = Math.floor(Number(args.take ?? LEADERBOARD_DEFAULT_TAKE));
     const take = Math.min(Math.max(1, Number.isFinite(requested) ? requested : LEADERBOARD_DEFAULT_TAKE), LEADERBOARD_MAX_TAKE);
     const now = Date.now();
+    const version = pawsLedgerVersion();
     let cached = cache.get(period);
-    if (!cached || now - cached.at >= LEADERBOARD_CACHE_MS) {
+    if (!cached || cached.version !== version || now - cached.at >= LEADERBOARD_CACHE_MS) {
       try {
-        cached = { value: await loadLeaderboard(context, period), at: now };
+        cached = { value: await loadLeaderboard(context, period), at: now, version };
         cache.set(period, cached);
       } catch (error) {
         console.error("[pawLeaderboard]", error);
@@ -39560,8 +39677,8 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 function toYmd2(value) {
-  const iso2 = toIso(value);
-  return iso2 ? iso2.slice(0, 10) : null;
+  const iso3 = toIso(value);
+  return iso3 ? iso3.slice(0, 10) : null;
 }
 var MX_DAY4 = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Mexico_City",
@@ -49647,7 +49764,7 @@ var typeDefs121 = `
     "The streak already counts this week."
     streakActiveThisWeek: Boolean!
     rankingHidden: Boolean!
-    "Position in the all-time ranking when it is inside the top 50 and already cached."
+    "Position in the all-time ranking when it is inside the top 50."
     rank: Int
     history: [PawHistoryEntry!]!
   }
@@ -49719,7 +49836,7 @@ var resolver118 = {
         bestStreakWeeks: account.bestStreakWeeks,
         streakActiveThisWeek: account.streakWeekStart === mxWeekStart(),
         rankingHidden: account.rankingHidden,
-        rank: account.rankingHidden ? null : cachedAllTimeRank(userId),
+        rank: account.rankingHidden ? null : await allTimeRankOf(context, userId),
         history: await loadHistory(context, userId, MY_PAWS_HISTORY_TAKE, 0)
       };
     } catch (error) {
@@ -49741,6 +49858,270 @@ var resolver118 = {
   }
 };
 var myPaws_default = { typeDefs: typeDefs121, definition: definition118, resolver: resolver118 };
+
+// graphql/customs/queries/publicProfile.ts
+var PROFILE_REPORTS_TAKE = 12;
+var PROFILE_EVENTS_TAKE = 6;
+var REPORTS_MAX_TAKE = 24;
+var typeDefs122 = `
+  type PublicUserCard {
+    "For the /u/<username> link; null when the person turned their public profile off."
+    username: String
+    "First name and initial of the last name (\xABMarco C.\xBB)."
+    displayName: String!
+    avatarUrl: String
+    "Null while paws are switched off."
+    level: PawLevelInfo
+  }
+
+  type PublicUserReport {
+    id: ID!
+    slug: String
+    displayName: String!
+    "Latest log status: lost | found | in_adoption | in_family | adopted | \u2026"
+    status: String
+    outcome: String
+    city: String
+    coverUrl: String
+    createdAt: String
+  }
+
+  type PublicUserEvent {
+    id: ID!
+    slug: String
+    title: String!
+    city: String
+    state: String
+    firstStartsAt: String
+    lastEndsAt: String
+  }
+
+  type PublicUserRescueOrg {
+    id: ID!
+    slug: String
+    name: String!
+    city: String
+    state: String
+    logoUrl: String
+    "admin | coordinator | volunteer | foster"
+    role: String
+  }
+
+  type PublicUserClinic {
+    id: ID!
+    slug: String
+    name: String!
+    municipality: String
+    state: String
+  }
+
+  type PublicUserProfile {
+    username: String!
+    displayName: String!
+    avatarUrl: String
+    bio: String
+    "Only when the person chose to show it."
+    phone: String
+    "Only when the person chose to show it."
+    email: String
+    memberSince: String
+    level: PawLevelInfo
+    lifetimeEarned: Int!
+    streakWeeks: Int!
+    "All-time ranking position when in the top 50 and not hidden."
+    rank: Int
+    reportsCount: Int!
+    eventsCount: Int!
+    reports: [PublicUserReport!]!
+    events: [PublicUserEvent!]!
+    rescueOrgs: [PublicUserRescueOrg!]!
+    clinics: [PublicUserClinic!]!
+  }
+`;
+var definition119 = `
+  animalAuthor(animalId: ID!): PublicUserCard
+  publicUserProfile(username: String!): PublicUserProfile
+  publicUserReports(username: String!, take: Int, skip: Int): [PublicUserReport!]!
+`;
+function prismaOf18(context) {
+  return context.sudo().prisma;
+}
+function unwrap5(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+function iso2(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+async function loadProfileUser(context, username) {
+  const clean5 = username.trim().toLowerCase();
+  if (!clean5 || clean5.length > 120) return null;
+  const [row] = await context.sudo().query.User.findMany({
+    where: { username: { equals: clean5 } },
+    query: `${PUBLIC_USER_QUERY} bio phone email showPhoneOnProfile showEmailOnProfile createdAt`,
+    take: 1
+  });
+  if (!isPublicPerson(row) || row.publicProfileEnabled === false) return null;
+  if (row.id === automationUserId()) return null;
+  return row;
+}
+async function loadReports(context, userId, take, skip) {
+  const rows2 = unwrap5(
+    await prismaOf18(context).$queryRaw`
+      SELECT a.id, a.slug, a.name, a.sex, a.color, t.name AS "typeName", a.outcome, a."createdAt",
+             last.status, last.city
+      FROM "Animal" a
+      LEFT JOIN "AnimalType" t ON t.id = a."animal_type"
+      LEFT JOIN LATERAL (
+        SELECT l.status, l.city FROM "AnimalLog" l
+        WHERE l."animal" = a.id
+        ORDER BY l."date_status" DESC NULLS LAST, l."createdAt" DESC NULLS LAST
+        LIMIT 1
+      ) last ON true
+      WHERE a."user" = ${userId} AND a."duplicateOf" IS NULL AND last.status IS NOT NULL
+      ORDER BY a."createdAt" DESC NULLS LAST
+      LIMIT ${take}::int OFFSET ${skip}::int
+    `
+  );
+  const covers = await getAnimalCoverUrls(rows2.map((row) => row.id), context);
+  return rows2.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    displayName: animalDisplayName({ name: row.name, typeName: row.typeName, sex: row.sex, color: row.color }),
+    status: row.status,
+    outcome: row.outcome,
+    city: row.city || null,
+    coverUrl: covers.get(row.id) ?? null,
+    createdAt: iso2(row.createdAt)
+  }));
+}
+async function countReports(context, userId) {
+  const rows2 = unwrap5(
+    await prismaOf18(context).$queryRaw`
+      SELECT count(*)::int AS n FROM "Animal" a
+      WHERE a."user" = ${userId} AND a."duplicateOf" IS NULL
+        AND EXISTS (SELECT 1 FROM "AnimalLog" l WHERE l."animal" = a.id)
+    `
+  );
+  return rows2[0]?.n ?? 0;
+}
+async function loadEvents(context, userId) {
+  const prisma = prismaOf18(context);
+  const where = { userId, status: "approved" };
+  const [rows2, count2] = await Promise.all([
+    prisma.petEvent.findMany({
+      where,
+      orderBy: [{ firstStartsAt: "desc" }],
+      take: PROFILE_EVENTS_TAKE,
+      select: { id: true, slug: true, title: true, city: true, state: true, firstStartsAt: true, lastEndsAt: true }
+    }),
+    prisma.petEvent.count({ where })
+  ]);
+  const events = unwrap5(rows2);
+  return {
+    count: unwrap5(count2),
+    events: events.map((event) => ({
+      ...event,
+      city: event.city || null,
+      state: event.state || null,
+      firstStartsAt: iso2(event.firstStartsAt),
+      lastEndsAt: iso2(event.lastEndsAt)
+    }))
+  };
+}
+async function loadRescueOrgs(context, userId) {
+  const members = await context.sudo().query.RescueOrganizationMember.findMany({
+    where: {
+      user: { id: { equals: userId } },
+      organization: { status: { equals: RESCUE_ORG_STATUS.VERIFIED } }
+    },
+    query: "role organization { id slug name city state logo { url } }",
+    take: 20
+  });
+  return members.filter((member) => member.organization).map((member) => ({
+    id: member.organization.id,
+    slug: member.organization.slug ?? null,
+    name: member.organization.name,
+    city: member.organization.city || null,
+    state: member.organization.state || null,
+    logoUrl: member.organization.logo?.url ?? null,
+    role: member.role ?? null
+  }));
+}
+async function loadClinics(context, userId) {
+  const rows2 = unwrap5(
+    await prismaOf18(context).petPlace.findMany({
+      where: { userId, verified: true },
+      orderBy: [{ name: "asc" }],
+      take: 20,
+      select: { id: true, slug: true, name: true, municipality: true, state: true }
+    })
+  );
+  return rows2.map((row) => ({ ...row, municipality: row.municipality || null, state: row.state || null }));
+}
+var resolver119 = {
+  animalAuthor: async (_root, { animalId }, context) => {
+    try {
+      const animal = unwrap5(
+        await prismaOf18(context).animal.findUnique({ where: { id: animalId }, select: { userId: true } })
+      );
+      const userId = animal?.userId;
+      if (!userId || userId === automationUserId()) return null;
+      const card = (await getPublicUserCards(context, [userId])).get(userId);
+      if (!card?.username) return null;
+      return card;
+    } catch (error) {
+      console.error("[animalAuthor]", error);
+      return null;
+    }
+  },
+  publicUserProfile: async (_root, { username }, context) => {
+    const user = await loadProfileUser(context, username);
+    if (!user) return null;
+    const prisma = prismaOf18(context);
+    const [account, reports, reportsCount, events, rescueOrgs, clinics] = await Promise.all([
+      pawsEnabled() ? prisma.pawAccount.findFirst({
+        where: { userId: user.id },
+        select: { lifetimeEarned: true, streakWeeks: true, streakWeekStart: true, rankingHidden: true }
+      }) : Promise.resolve(null),
+      loadReports(context, user.id, PROFILE_REPORTS_TAKE, 0),
+      countReports(context, user.id),
+      loadEvents(context, user.id),
+      loadRescueOrgs(context, user.id),
+      loadClinics(context, user.id)
+    ]);
+    const paws = unwrap5(account);
+    return {
+      username: user.username,
+      displayName: publicDisplayName(user.name, user.lastName),
+      avatarUrl: user.profileImage?.url ?? null,
+      bio: user.bio?.trim() || null,
+      phone: user.showPhoneOnProfile ? user.phone?.trim() || null : null,
+      email: user.showEmailOnProfile ? user.email?.trim() || null : null,
+      memberSince: iso2(user.createdAt),
+      level: pawsEnabled() ? pawLevelFor(paws?.lifetimeEarned ?? 0) : null,
+      lifetimeEarned: paws?.lifetimeEarned ?? 0,
+      streakWeeks: paws ? currentStreakWeeks(paws.streakWeeks, paws.streakWeekStart) : 0,
+      rank: paws && !paws.rankingHidden ? await allTimeRankOf(context, user.id) : null,
+      reportsCount,
+      eventsCount: events.count,
+      reports,
+      events: events.events,
+      rescueOrgs,
+      clinics
+    };
+  },
+  publicUserReports: async (_root, args, context) => {
+    const user = await loadProfileUser(context, args.username);
+    if (!user) return [];
+    const take = Math.min(Math.max(1, Math.floor(Number(args.take ?? PROFILE_REPORTS_TAKE)) || PROFILE_REPORTS_TAKE), REPORTS_MAX_TAKE);
+    const skip = Math.max(0, Math.floor(Number(args.skip ?? 0)) || 0);
+    return loadReports(context, user.id, take, skip);
+  }
+};
+var publicProfile_default = { typeDefs: typeDefs122, definition: definition119, resolver: resolver119 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -49786,6 +50167,7 @@ var customQuery = {
     ${petEvents_default.typeDefs}
     ${pawLeaderboard_default.typeDefs}
     ${myPaws_default.typeDefs}
+    ${publicProfile_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -49831,6 +50213,7 @@ var customQuery = {
     ${rescueAllies_default.definition}
     ${pawLeaderboard_default.definition}
     ${myPaws_default.definition}
+    ${publicProfile_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -49875,7 +50258,8 @@ var customQuery = {
     ...petEvents_default.resolver,
     ...rescueAllies_default.resolver,
     ...pawLeaderboard_default.resolver,
-    ...myPaws_default.resolver
+    ...myPaws_default.resolver,
+    ...publicProfile_default.resolver
   }
 };
 var queries_default = customQuery;
