@@ -24,6 +24,16 @@ Invariantes:
 
 `PawAccount` y `PawTransaction` (en `Paws/`): puntos por ayudar, niveles, racha semanal y ranking. Solo los escribe `utils/pet/paws.ts`. Reglas, invariantes y decisiones en `Paws/README.md`.
 
+## Perfil público
+
+`/u/<username>` en kadesh-landing. Lo arma `publicUserProfile` (`graphql/customs/queries/publicProfile.ts`): nombre con inicial («Marco C.», `publicDisplayName` en `utils/pet/publicProfile.ts`), foto, nivel de huellitas, biografía, sus reportes (paginados con `publicUserReports`), eventos aprobados, espacios de rescate verificados y clínicas verificadas. `animalAuthor(animalId)` da el autor de un reporte para la ficha.
+
+Invariantes:
+- La persona decide en `User`: `publicProfileEnabled` (encendido por defecto; apagado, el perfil da 404 y sus reportes salen sin autor), `showPhoneOnProfile` y `showEmailOnProfile` (apagados por defecto) y `bio` (máx. 280). Solo ella o un admin los leen y editan (`userPublicProfileFieldAccess`).
+- Nunca el apellido completo, el id de la cuenta ni contacto que no eligió mostrar. La cuenta de automatización, suspendidas y anonimizadas no tienen perfil.
+- Para varias personas a la vez, `getPublicUserCards(userIds)`: dos consultas, nunca una por fila.
+- Encender o apagar el perfil renueva la caché del ranking (`notifyPublicProfileChanged`).
+
 ## Decisiones
 
 ### 2026-10-23 — Cartilla digital sobre la `Pet` existente

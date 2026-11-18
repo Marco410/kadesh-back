@@ -89,3 +89,14 @@ Qué: JSON con el primer contacto antes de registrarse (`utm_*`, dominio del sit
 Por qué: Operaciones → Analítica → Adquisición necesita saber qué canal trae empresas que usan y pagan. Del referrer se guarda solo el dominio y de la página solo la ruta: la URL completa puede traer datos de la persona.
 
 Requiere `yarn migrate`. No lo corre el agente.
+
+
+### 2026-11-18 — Perfil público de Kadesh Pet
+
+Qué: `bio` (texto, máx. 280), `publicProfileEnabled` (por defecto encendido), `showPhoneOnProfile` y `showEmailOnProfile` (por defecto apagados). Los lee y edita la propia persona o un admin (`userPublicProfileFieldAccess`); se cambian desde Mi cuenta → Datos del perfil en kadesh-landing. El público los ve solo a través de `publicUserProfile` y `animalAuthor` (`graphql/customs/queries/publicProfile.ts`), que respetan estas opciones. Detalle en `models/Pet/README.md` («Perfil público»).
+
+Por qué: quien ayuda quiere que se vea, y quien encuentra a un animal quiere saber quién lo reportó. Teléfono y correo quedan apagados porque los reportes ya traen su propio teléfono de contacto.
+
+Qué no hacer: no exponer `username`, apellido completo, teléfono o correo por otra vía; para listas, `getPublicUserCards`.
+
+Requiere `yarn migrate` (cuatro columnas nuevas en `User`). No lo corre el agente.

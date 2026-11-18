@@ -10426,6 +10426,10 @@ type User {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  bio: String
+  publicProfileEnabled: Boolean
+  showPhoneOnProfile: Boolean
+  showEmailOnProfile: Boolean
   petAlertsEnabled: Boolean
   alertLat: Float
   alertLng: Float
@@ -10518,6 +10522,10 @@ input UserWhereInput {
   techStatusBusinessLeads: TechStatusBusinessLeadManyRelationFilter
   createdAt: DateTimeNullableFilter
   lastLoginAt: DateTimeNullableFilter
+  bio: StringFilter
+  publicProfileEnabled: BooleanFilter
+  showPhoneOnProfile: BooleanFilter
+  showEmailOnProfile: BooleanFilter
   petAlertsEnabled: BooleanFilter
   alertLat: FloatNullableFilter
   alertLng: FloatNullableFilter
@@ -10597,6 +10605,10 @@ input UserOrderByInput {
   stripeCustomerId: OrderDirection
   createdAt: OrderDirection
   lastLoginAt: OrderDirection
+  bio: OrderDirection
+  publicProfileEnabled: OrderDirection
+  showPhoneOnProfile: OrderDirection
+  showEmailOnProfile: OrderDirection
   petAlertsEnabled: OrderDirection
   alertLat: OrderDirection
   alertLng: OrderDirection
@@ -10677,6 +10689,10 @@ input UserUpdateInput {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  bio: String
+  publicProfileEnabled: Boolean
+  showPhoneOnProfile: Boolean
+  showEmailOnProfile: Boolean
   petAlertsEnabled: Boolean
   alertLat: Float
   alertLng: Float
@@ -10805,6 +10821,10 @@ input UserCreateInput {
   createdAt: DateTime
   lastLoginAt: DateTime
   onboardingState: JSON
+  bio: String
+  publicProfileEnabled: Boolean
+  showPhoneOnProfile: Boolean
+  showEmailOnProfile: Boolean
   petAlertsEnabled: Boolean
   alertLat: Float
   alertLng: Float
@@ -12168,6 +12188,9 @@ type Query {
   pawLeaderboard(period: String, take: Int): [PawLeaderboardEntry!]!
   myPaws: MyPaws
   myPawHistory(take: Int, skip: Int): [PawHistoryEntry!]!
+  animalAuthor(animalId: ID!): PublicUserCard
+  publicUserProfile(username: String!): PublicUserProfile
+  publicUserReports(username: String!, take: Int, skip: Int): [PublicUserReport!]!
 }
 
 union AuthenticatedItem = User
@@ -15207,8 +15230,13 @@ type PawLevelInfo {
 type PawLeaderboardEntry {
   rank: Int!
 
-  """First name only."""
+  """First name and initial of the last name («Marco C.»)."""
   name: String!
+
+  """
+  For the /u/<username> link; null when the person turned their public profile off.
+  """
+  username: String
   avatarUrl: String
 
   """Points in the requested period."""
@@ -15259,9 +15287,92 @@ type MyPaws {
   streakActiveThisWeek: Boolean!
   rankingHidden: Boolean!
 
-  """
-  Position in the all-time ranking when it is inside the top 50 and already cached.
-  """
+  """Position in the all-time ranking when it is inside the top 50."""
   rank: Int
   history: [PawHistoryEntry!]!
+}
+
+type PublicUserCard {
+  """
+  For the /u/<username> link; null when the person turned their public profile off.
+  """
+  username: String
+
+  """First name and initial of the last name («Marco C.»)."""
+  displayName: String!
+  avatarUrl: String
+
+  """Null while paws are switched off."""
+  level: PawLevelInfo
+}
+
+type PublicUserReport {
+  id: ID!
+  slug: String
+  displayName: String!
+
+  """
+  Latest log status: lost | found | in_adoption | in_family | adopted | …
+  """
+  status: String
+  outcome: String
+  city: String
+  coverUrl: String
+  createdAt: String
+}
+
+type PublicUserEvent {
+  id: ID!
+  slug: String
+  title: String!
+  city: String
+  state: String
+  firstStartsAt: String
+  lastEndsAt: String
+}
+
+type PublicUserRescueOrg {
+  id: ID!
+  slug: String
+  name: String!
+  city: String
+  state: String
+  logoUrl: String
+
+  """admin | coordinator | volunteer | foster"""
+  role: String
+}
+
+type PublicUserClinic {
+  id: ID!
+  slug: String
+  name: String!
+  municipality: String
+  state: String
+}
+
+type PublicUserProfile {
+  username: String!
+  displayName: String!
+  avatarUrl: String
+  bio: String
+
+  """Only when the person chose to show it."""
+  phone: String
+
+  """Only when the person chose to show it."""
+  email: String
+  memberSince: String
+  level: PawLevelInfo
+  lifetimeEarned: Int!
+  streakWeeks: Int!
+
+  """All-time ranking position when in the top 50 and not hidden."""
+  rank: Int
+  reportsCount: Int!
+  eventsCount: Int!
+  reports: [PublicUserReport!]!
+  events: [PublicUserEvent!]!
+  rescueOrgs: [PublicUserRescueOrg!]!
+  clinics: [PublicUserClinic!]!
 }

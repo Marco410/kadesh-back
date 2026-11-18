@@ -158,6 +158,17 @@ export const userCompanyFieldAccess = {
 };
 
 /** Zona y estado de las alertas de Pet: solo la propia persona (o un admin) las ve y las cambia. */
+/**
+ * Perfil público de Kadesh Pet (`bio`, `publicProfileEnabled`, `showPhoneOnProfile`,
+ * `showEmailOnProfile`): los lee y edita la propia persona (o un admin). Lo que ve el público sale
+ * de `publicUserProfile`, que respeta estas opciones.
+ */
+export const userPublicProfileFieldAccess = {
+  read: ({ session, item }: any) => isPlatformAdmin(session) || isSelf(session, item),
+  create: () => true,
+  update: ({ session, item }: any) => isPlatformAdmin(session) || isSelf(session, item),
+};
+
 export const userPetAlertsFieldAccess = {
   read: ({ session, item }: any) =>
     isPlatformAdmin(session) || isSelf(session, item),

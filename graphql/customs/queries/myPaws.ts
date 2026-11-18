@@ -7,7 +7,7 @@ import {
 } from "../../../models/Pet/Paws/constants";
 import { getSessionUserId } from "../../../utils/access/tenant";
 import { pawsEnabled } from "../../../utils/pet/paws";
-import { cachedAllTimeRank } from "./pawLeaderboard";
+import { allTimeRankOf } from "./pawLeaderboard";
 
 /**
  * Paw points of the signed-in person: balance, level, streak and their latest movements.
@@ -47,7 +47,7 @@ const typeDefs = `
     "The streak already counts this week."
     streakActiveThisWeek: Boolean!
     rankingHidden: Boolean!
-    "Position in the all-time ranking when it is inside the top 50 and already cached."
+    "Position in the all-time ranking when it is inside the top 50."
     rank: Int
     history: [PawHistoryEntry!]!
   }
@@ -143,7 +143,7 @@ const resolver = {
         bestStreakWeeks: account.bestStreakWeeks,
         streakActiveThisWeek: account.streakWeekStart === mxWeekStart(),
         rankingHidden: account.rankingHidden,
-        rank: account.rankingHidden ? null : cachedAllTimeRank(userId),
+        rank: account.rankingHidden ? null : await allTimeRankOf(context, userId),
         history: await loadHistory(context, userId, MY_PAWS_HISTORY_TAKE, 0),
       };
     } catch (error) {
