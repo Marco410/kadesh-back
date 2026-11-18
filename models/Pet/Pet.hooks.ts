@@ -2,6 +2,7 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import { getSessionUserId, isPlatformAdmin } from "../../utils/access/tenant";
 import { isSudoContext } from "../../utils/activity/listActivityHooks";
 import { mxToday } from "../../utils/usage/dailyUsageRollup";
+import { pawsOnPetRegistered } from "../../utils/pet/pawsTriggers";
 import { PET_OWNER_ROLE, PET_RESCUE_STAGE, PET_STATUS } from "./constants";
 import { findRescueMemberRole } from "./RescueOrganization/RescueOrganization.access";
 import {
@@ -127,6 +128,8 @@ async function createPrincipalOwner({ operation, item, context }: HookArgs) {
       },
       query: "id",
     });
+    // Huellitas por la primera mascota. Con sudo (adopción, traspaso) la sesión es de quien entrega.
+    if (!isSudoContext(context)) void pawsOnPetRegistered(context, userId, String(item.id));
   } catch (error) {
     console.error("[pet] No se pudo crear el dueño principal:", item.id, error);
   }

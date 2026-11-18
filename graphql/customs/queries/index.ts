@@ -40,6 +40,8 @@ import petLandingStats from "./petLandingStats";
 import petReunionStories from "./petReunionStories";
 import petEvents from "./petEvents";
 import rescueAllies from "./rescueAllies";
+import pawLeaderboard from "./pawLeaderboard";
+import myPaws from "./myPaws";
 
 const customQuery = {
   typeDefs: `
@@ -82,6 +84,8 @@ const customQuery = {
     ${petReunionStories.typeDefs}
     ${rescueAllies.typeDefs}
     ${petEvents.typeDefs}
+    ${pawLeaderboard.typeDefs}
+    ${myPaws.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -125,6 +129,8 @@ const customQuery = {
     ${petReunionStories.definition}
     ${petEvents.definition}
     ${rescueAllies.definition}
+    ${pawLeaderboard.definition}
+    ${myPaws.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -168,6 +174,8 @@ const customQuery = {
     ...petReunionStories.resolver,
     ...petEvents.resolver,
     ...rescueAllies.resolver,
+    ...pawLeaderboard.resolver,
+    ...myPaws.resolver,
   },
 };
 

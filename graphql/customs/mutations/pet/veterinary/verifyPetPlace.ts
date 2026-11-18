@@ -1,6 +1,7 @@
 import { KeystoneContext } from "@keystone-6/core/types";
 import { ACTIVITY_EVENT } from "../../../../../models/ActivityEvent/constants";
 import { logPetPlaceEvent } from "../../../../../utils/pet/petActivity";
+import { pawsOnPlaceVerification } from "../../../../../utils/pet/pawsTriggers";
 import {
   getSessionUserId,
   isPlatformAdmin,
@@ -95,6 +96,7 @@ const resolver = {
         void logPetPlaceEvent(context, ACTIVITY_EVENT.PET_PLACE_VERIFIED, place.id, "Verificó la veterinaria", {
           approved: true,
         });
+        void pawsOnPlaceVerification(context, { placeId: place.id, ownerId: place.user?.id, verified: true });
         return {
           success: true,
           message: "Ficha verificada. El dueño ya puede editarla.",
@@ -115,6 +117,7 @@ const resolver = {
       void logPetPlaceEvent(context, ACTIVITY_EVENT.PET_PLACE_VERIFIED, place.id, "Rechazó el reclamo de", {
         approved: false,
       });
+      void pawsOnPlaceVerification(context, { placeId: place.id, ownerId: place.user?.id, verified: false });
       return {
         success: true,
         message: "Solicitud rechazada. La ficha vuelve a estar disponible.",

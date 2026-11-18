@@ -15,6 +15,7 @@ import {
   watchAnimalForFacebook,
 } from "./scheduleAnimalFacebookPost";
 import { watchAnimalForPublishedEmail } from "./Animal.publishedEmail";
+import { pawsOnReportPublished } from "../../../utils/pet/pawsTriggers";
 
 const EMOJI_RE =
   /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
@@ -455,6 +456,12 @@ export const animalLogSlugAfterOperation = {
         query: "id name slug user { id } animal_type { name } multimedia { id }",
       });
       if (!animal) return;
+      // Huellitas por publicar: el primer registro es cuando el reporte de verdad sale.
+      void pawsOnReportPublished(context, {
+        animalId,
+        ownerId: animal.user?.id ?? null,
+        sessionUserId: (context.session?.data as { id?: string } | undefined)?.id ?? null,
+      });
       // Correo al dueño con su reporte y lo que puede hacer. Sale cuando ya están las fotos.
       watchAnimalForPublishedEmail(animalId, context, {
         coverSeen: Array.isArray(animal.multimedia) && animal.multimedia.length > 0,

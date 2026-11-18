@@ -5,6 +5,7 @@ import { PET_EVENT_LIMITS, PET_EVENT_STATUS } from "../../../../../models/Pet/Pe
 import { getSessionUserId, isPlatformAdmin } from "../../../../../utils/access/tenant";
 import { notifyEventInterested } from "../../../../../utils/notifications/eventAlerts";
 import { submitPetEventToIndexNow } from "../../../../../utils/seo/indexNow";
+import { pawsOnEventUnpublished } from "../../../../../utils/pet/pawsTriggers";
 import { eventForCaller, failure, logPetEventActivity, type PetEventMutationResult, prismaOf } from "./shared";
 
 const typeDefs = ``;
@@ -62,6 +63,8 @@ const resolver = {
       if (event.approvedAt) void submitPetEventToIndexNow(context, id);
 
       const upcoming = !event.lastEndsAt || event.lastEndsAt.getTime() > Date.now();
+      // Cancelado antes de ocurrir: las huellitas del evento se quitan.
+      if (event.approvedAt && upcoming) void pawsOnEventUnpublished(context, id);
       if (event.approvedAt && upcoming) {
         void notifyEventInterested(context, id, {
           type: NOTIFICATION_TYPE.EVENT_CANCELLED,

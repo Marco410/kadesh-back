@@ -8,6 +8,7 @@ import {
 import { userRowAccess } from "../../../utils/access/presets";
 import { reviewResolveInput, reviewValidateInput } from "./Review.hooks";
 import { logReviewActivity } from "../../../utils/pet/petActivity";
+import { pawsOnReview } from "../../../utils/pet/pawsTriggers";
 
 export default list({
   access: userRowAccess,
@@ -17,6 +18,8 @@ export default list({
     // Actividad de Kadesh Pet: reseña nueva o borrada (sin el texto).
     afterOperation: async (args: any) => {
       void logReviewActivity(args);
+      // Huellitas por reseñar un lugar que no es tuyo (y se quitan al borrar la reseña).
+      void pawsOnReview(args);
     },
   },
   fields: {

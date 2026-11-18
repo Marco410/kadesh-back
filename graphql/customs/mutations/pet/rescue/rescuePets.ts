@@ -17,6 +17,7 @@ import { notify } from "../../../../../utils/notifications/notify";
 import { petPublicUrl } from "../../../../../utils/pet/animalReport";
 import { copyPetPhotosToReport, petAgeLabel, petCardUrl } from "../../../../../utils/pet/petCard";
 import { settleApplicationsAfterAdoption } from "../../../../../utils/pet/adoptionApplications";
+import { pawsOnAdoptionCompleted } from "../../../../../utils/pet/pawsTriggers";
 import {
   REPORT_FOR_PET_QUERY,
   cancelPendingTransfers,
@@ -367,6 +368,12 @@ const resolver = {
           petId: pet.id,
         });
       }
+      // Huellitas para quien adoptó.
+      void pawsOnAdoptionCompleted(context, {
+        adopterId: adopter.id,
+        reportId: pet.publicReport?.id ?? null,
+        petId: pet.id,
+      });
 
       const adopterName = displayName(adopter) || "La persona";
       void logActivity(context, {

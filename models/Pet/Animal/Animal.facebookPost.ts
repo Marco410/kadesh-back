@@ -9,7 +9,7 @@ import { foldText, isGenericName } from "../../../utils/pet/reportSimilarity";
  */
 
 export const FACEBOOK_POST_QUERY = `
-  id name slug folio physical_description age color size sex
+  id name slug folio physical_description age color size sex rewardOffered rewardAmount
   animal_type { name }
   animal_breed { breed }
   logs(orderBy: [{ date_status: desc }, { createdAt: desc }]) {
@@ -34,6 +34,8 @@ export type AnimalPostData = {
   color?: string | null;
   size?: string | null;
   sex?: string | null;
+  rewardOffered?: boolean | null;
+  rewardAmount?: number | null;
   animal_type?: { name?: string | null } | null;
   animal_breed?: { breed?: string | null } | null;
   /** Del más reciente al más viejo. */
@@ -233,6 +235,11 @@ function hashtagOf(text: string) {
   return words.join("");
 }
 
+/** 2000 → «$2,000». */
+export function formatPesos(amount: number): string {
+  return `$${Math.round(amount).toLocaleString("en-US")}`;
+}
+
 const DEFAULT_NOTES = /^sin informaci[oó]n adicional\.?$/i;
 export const NO_BREED = /^(sin asignar|no se|no sé|desconocid[ao])$/i;
 
@@ -265,6 +272,12 @@ export function buildAnimalFacebookMessage(animal: AnimalPostData, now = new Dat
   if (clean(animal.color)) facts.push(`🎨 Color: ${clean(animal.color)}`);
   if (clean(animal.size)) facts.push(`📏 Tamaño: ${clean(animal.size)}`);
   if (facts.length) lines.push("", ...facts);
+
+  // Recompensa: solo en perdidos, con el monto si lo pusieron.
+  if (status === "lost" && animal.rewardOffered) {
+    const amount = animal.rewardAmount && animal.rewardAmount > 0 ? `: ${formatPesos(animal.rewardAmount)}` : "";
+    lines.push("", `💰 Se ofrece recompensa${amount}`);
+  }
 
   // Dónde y cuándo: el registro más reciente; si no trae lugar, el primero (donde se reportó).
   const place = placeOf(latest) || placeOf(animal.logs?.[animal.logs.length - 1]);

@@ -1,6 +1,7 @@
 import { graphql, list } from "@keystone-6/core";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { logAnimalActivity } from "../../../utils/pet/petActivity";
+import { pawsOnAnimalChange } from "../../../utils/pet/pawsTriggers";
 import { checkbox, integer, json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
 import {
   ANIMAL_OUTCOME_OPTIONS,
@@ -19,6 +20,9 @@ import { isPlatformAdmin } from "../../../utils/access/tenant";
 import { animalSightingsField } from "./AnimalSighting/AnimalSighting.field";
 
 const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
+
+/** Tope del monto de recompensa (pesos). */
+export const REWARD_MAX_MXN = 1_000_000;
 
 /**
  * Siguiente folio de la secuencia que crea Postgres para `folio` (`autoincrement`). Keystone 6.5
@@ -71,6 +75,8 @@ export default list({
       if (operation === "create" && data.folio == null) data.folio = await nextAnimalFolio(context);
       // «Sin nombre», «Desconocido», «No sé»… se guardan vacíos: el nombre se describe al mostrarlo.
       if (typeof data.name === "string") data.name = knownAnimalName(data.name);
+      // Sin recompensa no queda monto guardado (que no reaparezca al volver a activarla).
+      if (data.rewardOffered === false) data.rewardAmount = null;
       // `resolvedData` trae todas las llaves (las que no vienen valen `undefined`): con `in` se
       // borraba `duplicateCheck` en cada edición del reporte.
       if (data.duplicateCheck !== undefined) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
@@ -110,6 +116,8 @@ export default list({
     afterOperation: async (args) => {
       // Actividad de Kadesh Pet: publicar, editar o borrar el reporte (sin await, no frena).
       void logAnimalActivity(args as any);
+      // Huellitas: cerrar el caso las da; reabrirlo, unirlo a otro o borrarlo las quita.
+      void pawsOnAnimalChange(args as any);
       await animalCreateSideEffectsHook.afterOperation(args);
       await animalMergeAfterOperation(args);
       // Sin await: limpiar el intento anterior a medias no frena la respuesta.
@@ -161,6 +169,18 @@ export default list({
     contactNumber: text(),
     contactNumber2: text({
       ui: { description: "Segundo teléfono, opcional." },
+    }),
+    /**
+     * Recompensa que ofrece la familia (solo tiene sentido en perdidos). El monto es opcional:
+     * sin él se muestra «Se ofrece recompensa». La ficha avisa que nunca se paga por adelantado.
+     */
+    rewardOffered: checkbox({
+      defaultValue: false,
+      ui: { description: "La familia ofrece recompensa." },
+    }),
+    rewardAmount: integer({
+      validation: { min: 1, max: REWARD_MAX_MXN },
+      ui: { description: "Monto en pesos (opcional). Se borra si se quita la recompensa." },
     }),
     sourceUrl: text({
       ui: { description: "Enlace de la publicación original, por ejemplo de Facebook." },

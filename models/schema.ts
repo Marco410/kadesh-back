@@ -26,6 +26,8 @@ import PetPlace from "./Pet/PetPlace/PetPlace";
 import RescueOrganization from "./Pet/RescueOrganization/RescueOrganization";
 import RescueOrganizationMember from "./Pet/RescueOrganization/RescueOrganizationMember/RescueOrganizationMember";
 import PetTransfer from "./Pet/PetTransfer/PetTransfer";
+import PawAccount from "./Pet/Paws/PawAccount";
+import PawTransaction from "./Pet/Paws/PawTransaction";
 import PetPlaceAppointment from "./Pet/PetPlace/PetPlaceAppointment/PetPlaceAppointment";
 import PetPlaceLike from "./Pet/PetPlace/PetPlaceLike/PetPlaceLike";
 import PetPlaceService from "./Pet/PetPlace/PetPlaceService/PetPlaceService";
@@ -124,6 +126,8 @@ export default withActivityHooks({
   ContactForm,
   MetaDataDeletionRequest,
   Order,
+  PawAccount,
+  PawTransaction,
   Payment,
   PaymentMethod,
   Pet,

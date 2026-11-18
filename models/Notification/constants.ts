@@ -75,6 +75,8 @@ export const NOTIFICATION_TYPE = {
   ADOPTION_APPLICATION_UPDATED: "adoption.application_updated",
   /** Alguien recibió la mascota que traspasaste con un código. Va a quien lo generó (o al espacio). */
   PET_TRANSFER_REDEEMED: "pet.transfer_redeemed",
+  /** La persona juntó suficientes huellitas para subir de nivel. Va a ella. */
+  PAWS_LEVEL_UP: "paws.level_up",
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];

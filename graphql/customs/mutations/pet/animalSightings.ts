@@ -6,6 +6,7 @@ import { notifyAnimalSighted } from "../../../../utils/notifications/animalRepor
 import { fillCityFromCoordinates } from "../../../../utils/pet/animalReport";
 import { normalizeMxPhone } from "../../../../utils/pet/phone";
 import { lastReportLog } from "../../../../utils/pet/reportLogs";
+import { pawsOnSightingChanged } from "../../../../utils/pet/pawsTriggers";
 import { verifyTurnstile } from "../../../../utils/security/turnstile";
 import { canEditAnimalAs } from "../../../../models/Pet/Animal/Animal.access";
 import {
@@ -200,6 +201,8 @@ const resolver = {
         place: placeLabel || [city, state].filter(Boolean).join(", "),
         notes,
       });
+      // Huellitas: solo con sesión y en el reporte de otra persona.
+      void pawsOnSightingChanged(context, { userId, animalId, justCreated: true });
 
       return { success: true, message: "¡Gracias! Ya le avisamos a quien lo busca.", sightingId: created.id };
     } catch (error) {
@@ -221,7 +224,7 @@ const resolver = {
       const prisma = (sudo as KeystoneContext & { prisma: any }).prisma;
       const sighting = await prisma.animalSighting.findUnique({
         where: { id },
-        select: { id: true, animal: { select: { id: true, userId: true, organizationId: true } } },
+        select: { id: true, userId: true, animal: { select: { id: true, userId: true, organizationId: true } } },
       });
       if (sighting instanceof Error) throw sighting;
       if (!sighting?.animal) return fail("No encontramos ese avistamiento.");
@@ -229,6 +232,8 @@ const resolver = {
       if (!allowed) return fail("Solo quien atiende el reporte puede hacer esto.");
 
       await sudo.db.AnimalSighting.updateOne({ where: { id }, data: { hidden } });
+      // Huellitas de quien avisó: se quitan si ya no queda ninguno suyo visible en este reporte.
+      void pawsOnSightingChanged(context, { userId: sighting.userId ?? null, animalId: sighting.animal.id });
       return {
         success: true,
         message: hidden ? "Ocultamos el avistamiento." : "El avistamiento se ve de nuevo.",

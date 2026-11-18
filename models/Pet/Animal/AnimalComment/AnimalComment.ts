@@ -4,6 +4,7 @@ import { animalUserRowAccess, forceSessionUser } from "../Animal.access";
 import { notifyAnimalComment } from "../../../../utils/notifications/animalReportAlerts";
 import { ANIMAL_COMMENT_KIND, ANIMAL_COMMENT_KIND_OPTIONS } from "./constants";
 import { logAnimalCommentActivity } from "../../../../utils/pet/petActivity";
+import { pawsOnAnimalComment } from "../../../../utils/pet/pawsTriggers";
 
 export default list({
   access: animalUserRowAccess,
@@ -13,6 +14,8 @@ export default list({
     afterOperation: async ({ operation, item, originalItem, context }) => {
       // Actividad de Kadesh Pet: comentario nuevo o borrado (sin el texto).
       void logAnimalCommentActivity({ operation, item, originalItem, context } as any);
+      // Huellitas por comentar en el reporte de otra persona (y se quitan al borrar el comentario).
+      void pawsOnAnimalComment({ operation, item, originalItem, context } as any);
       if (operation !== "create" || !item?.id) return;
       // Sin await: el aviso no frena el comentario.
       void notifyAnimalComment(context, {
