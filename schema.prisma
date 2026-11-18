@@ -2293,6 +2293,10 @@ model User {
   createdAt                                DateTime?                  @default(now())
   lastLoginAt                              DateTime?
   onboardingState                          Json?                      @default("{}")
+  bio                                      String                     @default("")
+  publicProfileEnabled                     Boolean                    @default(true)
+  showPhoneOnProfile                       Boolean                    @default(false)
+  showEmailOnProfile                       Boolean                    @default(false)
   petAlertsEnabled                         Boolean                    @default(false)
   alertLat                                 Float?
   alertLng                                 Float?

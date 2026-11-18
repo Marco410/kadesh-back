@@ -81,6 +81,26 @@ type AwardParams = {
   metadata: Record<string, unknown> | null;
 };
 
+/**
+ * Goes up whenever a balance changes (award, reversal, admin adjust). `pawLeaderboard` keeps its
+ * 10 min cache only while this number stays the same, so a new award shows in the ranking on the
+ * next read instead of up to 10 min later. Per process, like the cache itself.
+ */
+let pawsVersion = 0;
+
+export function pawsLedgerVersion(): number {
+  return pawsVersion;
+}
+
+function bumpPawsVersion(): void {
+  pawsVersion += 1;
+}
+
+/** Someone turned their public profile on or off: the ranking must stop (or start) linking it. */
+export function notifyPublicProfileChanged(): void {
+  bumpPawsVersion();
+}
+
 export function pawsEnabled(): boolean {
   const value = (process.env.PAWS_ENABLED ?? "").trim().toLowerCase();
   return value === "true" || value === "on" || value === "1";
@@ -310,6 +330,7 @@ export async function awardPaws(
       });
     }
 
+    bumpPawsVersion();
     return { amount, balance, lifetimeEarned, streakWeeks: first.streakWeeks, level, leveledUp };
   } catch (error) {
     warnOnce(`could not award ${input.action}`, error);
@@ -360,6 +381,7 @@ export async function reversePaws(context: KeystoneContext, sourceKey: string): 
       throw rows;
     }
     const amount = (rows as Array<{ amount: number }>)[0]?.amount ?? 0;
+    if (amount) bumpPawsVersion();
     return Math.abs(amount);
   } catch (error) {
     warnOnce(`could not reverse ${sourceKey}`, error);
@@ -415,6 +437,7 @@ export async function adjustPaws(
   `;
   if (rows instanceof Error) throw rows;
   const row = (rows as PawAdjustResult[])[0];
+  if (row) bumpPawsVersion();
   return row ?? null;
 }
 
