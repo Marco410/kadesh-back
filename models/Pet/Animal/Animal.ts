@@ -20,6 +20,9 @@ import { animalSightingsField } from "./AnimalSighting/AnimalSighting.field";
 
 const adminOnly = ({ session }: { session?: unknown }) => isPlatformAdmin(session as any);
 
+/** Tope del monto de recompensa (pesos). */
+export const REWARD_MAX_MXN = 1_000_000;
+
 /**
  * Siguiente folio de la secuencia que crea Postgres para `folio` (`autoincrement`). Keystone 6.5
  * exige `db.isNullable: false` para un autoincrement y, con eso, su validación pide el valor en cada
@@ -71,6 +74,8 @@ export default list({
       if (operation === "create" && data.folio == null) data.folio = await nextAnimalFolio(context);
       // «Sin nombre», «Desconocido», «No sé»… se guardan vacíos: el nombre se describe al mostrarlo.
       if (typeof data.name === "string") data.name = knownAnimalName(data.name);
+      // Sin recompensa no queda monto guardado (que no reaparezca al volver a activarla).
+      if (data.rewardOffered === false) data.rewardAmount = null;
       // `resolvedData` trae todas las llaves (las que no vienen valen `undefined`): con `in` se
       // borraba `duplicateCheck` en cada edición del reporte.
       if (data.duplicateCheck !== undefined) data.duplicateCheck = cleanDuplicateCheck(data.duplicateCheck);
@@ -161,6 +166,18 @@ export default list({
     contactNumber: text(),
     contactNumber2: text({
       ui: { description: "Segundo teléfono, opcional." },
+    }),
+    /**
+     * Recompensa que ofrece la familia (solo tiene sentido en perdidos). El monto es opcional:
+     * sin él se muestra «Se ofrece recompensa». La ficha avisa que nunca se paga por adelantado.
+     */
+    rewardOffered: checkbox({
+      defaultValue: false,
+      ui: { description: "La familia ofrece recompensa." },
+    }),
+    rewardAmount: integer({
+      validation: { min: 1, max: REWARD_MAX_MXN },
+      ui: { description: "Monto en pesos (opcional). Se borra si se quita la recompensa." },
     }),
     sourceUrl: text({
       ui: { description: "Enlace de la publicación original, por ejemplo de Facebook." },

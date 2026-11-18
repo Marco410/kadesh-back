@@ -240,3 +240,12 @@ Qué:
 Por qué: la API oficial de WhatsApp no publica en Canales. Un admin copia el texto desde Operaciones y lo pega en el canal con la imagen de historia; publicar toma unos 20 segundos por caso. Mandarlo por plantillas a toda una ciudad serían mensajes de marketing cobrados uno por uno.
 
 Qué no hacer: no poner el enlace de WhatsApp del canal en el back ni en correos: va siempre `pet.kadesh.com.mx/canal`, que redirige (los canales viven en `kadesh-landing/src/core/whatsappChannels.ts`). No agregar hashtags al texto del canal.
+
+
+### 2026-11-17 — Recompensa en reportes de mascota perdida
+
+Qué: `Animal.rewardOffered` (sí/no, por defecto no) y `Animal.rewardAmount` (pesos, opcional, de 1 a `REWARD_MAX_MXN` = 1,000,000). Si se quita la recompensa, `resolveInput` borra el monto. El post de Facebook y el texto del canal agregan «💰 Se ofrece recompensa: $2,000» (o sin monto) en perdidos. La web la muestra en la ficha (con aviso antiestafa), el cartel y la imagen para historias, solo mientras el caso siga en `lost`.
+
+Por qué: muchas familias ofrecen recompensa y la ponían en las señas o en notas, sin formato y sin advertencia.
+
+Qué no hacer: no mostrarla en otros estados (si el caso cambia, se oculta aunque siga guardada). No quitar el aviso «nunca pagues por adelantado»: la estafa más común a quien perdió una mascota es «la tengo, deposítame». Migración pendiente: `yarn migrate` (dos columnas nuevas en `Animal`).

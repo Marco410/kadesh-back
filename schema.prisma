@@ -148,6 +148,8 @@ model Animal {
   size                            String                @default("")
   contactNumber                   String                @default("")
   contactNumber2                  String                @default("")
+  rewardOffered                   Boolean               @default(false)
+  rewardAmount                    Int?
   sourceUrl                       String                @default("")
   reportedBy                      String?               @default("owner")
   animal_type                     AnimalType?           @relation("Animal_animal_type", fields: [animal_typeId], references: [id])

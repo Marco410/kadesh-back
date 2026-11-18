@@ -645,6 +645,8 @@ type Animal {
   size: String
   contactNumber: String
   contactNumber2: String
+  rewardOffered: Boolean
+  rewardAmount: Int
   sourceUrl: String
   reportedBy: String
   animal_type: AnimalType
@@ -714,6 +716,8 @@ input AnimalWhereInput {
   size: StringFilter
   contactNumber: StringFilter
   contactNumber2: StringFilter
+  rewardOffered: BooleanFilter
+  rewardAmount: IntNullableFilter
   sourceUrl: StringFilter
   reportedBy: StringNullableFilter
   animal_type: AnimalTypeWhereInput
@@ -782,6 +786,8 @@ input AnimalOrderByInput {
   size: OrderDirection
   contactNumber: OrderDirection
   contactNumber2: OrderDirection
+  rewardOffered: OrderDirection
+  rewardAmount: OrderDirection
   sourceUrl: OrderDirection
   reportedBy: OrderDirection
   facebookPostId: OrderDirection
@@ -810,6 +816,8 @@ input AnimalUpdateInput {
   size: String
   contactNumber: String
   contactNumber2: String
+  rewardOffered: Boolean
+  rewardAmount: Int
   sourceUrl: String
   reportedBy: String
   animal_type: AnimalTypeRelateToOneForUpdateInput
@@ -905,6 +913,8 @@ input AnimalCreateInput {
   size: String
   contactNumber: String
   contactNumber2: String
+  rewardOffered: Boolean
+  rewardAmount: Int
   sourceUrl: String
   reportedBy: String
   animal_type: AnimalTypeRelateToOneForCreateInput
