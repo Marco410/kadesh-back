@@ -22,6 +22,7 @@ import { notify } from "../../../../utils/notifications/notify";
 import { settleApplicationsAfterAdoption } from "../../../../utils/pet/adoptionApplications";
 import { petPublicUrl } from "../../../../utils/pet/animalReport";
 import { adoptionApplicationUrl, petCardUrl } from "../../../../utils/pet/petCard";
+import { pawsOnAdoptionCompleted } from "../../../../utils/pet/pawsTriggers";
 import {
   REPORT_FOR_PET_QUERY,
   cancelPendingTransfers,
@@ -525,6 +526,8 @@ const resolver = {
       }
       await closeReportAsAdopted(context, report.id, reportNote);
       await settleApplicationsAfterAdoption(context, { animal: report, adopterId, petId });
+      // Huellitas para quien adoptó.
+      void pawsOnAdoptionCompleted(context, { adopterId, reportId: report.id, petId });
 
       void notify(context, {
         audience: [adopterId],

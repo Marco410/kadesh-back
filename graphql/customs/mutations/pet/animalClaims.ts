@@ -1,4 +1,5 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
+import { pawsOnClaimApproved } from "../../../../utils/pet/pawsTriggers";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { logActivity } from "../../../../utils/activity/logActivity";
 import { logAnimalClaimCancelled } from "../../../../utils/pet/petActivity";
@@ -156,6 +157,12 @@ const resolver = {
       },
     });
     void notifyClaimResolved(context, { claimantId: claim.claimant.id, animal, approved: true });
+    // Huellitas para quien cuidaba el reporte: el reencuentro lo confirmó otra persona.
+    void pawsOnClaimApproved(context, {
+      animalId: animal.id,
+      previousOwnerId: animal.user?.id ?? null,
+      claimantId: claim.claimant.id,
+    });
 
     const others = (await sudo.query.AnimalClaim.findMany({
       where: {

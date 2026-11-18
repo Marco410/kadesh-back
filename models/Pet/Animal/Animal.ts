@@ -1,6 +1,7 @@
 import { graphql, list } from "@keystone-6/core";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { logAnimalActivity } from "../../../utils/pet/petActivity";
+import { pawsOnAnimalChange } from "../../../utils/pet/pawsTriggers";
 import { checkbox, integer, json, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
 import {
   ANIMAL_OUTCOME_OPTIONS,
@@ -115,6 +116,8 @@ export default list({
     afterOperation: async (args) => {
       // Actividad de Kadesh Pet: publicar, editar o borrar el reporte (sin await, no frena).
       void logAnimalActivity(args as any);
+      // Huellitas: cerrar el caso las da; reabrirlo, unirlo a otro o borrarlo las quita.
+      void pawsOnAnimalChange(args as any);
       await animalCreateSideEffectsHook.afterOperation(args);
       await animalMergeAfterOperation(args);
       // Sin await: limpiar el intento anterior a medias no frena la respuesta.

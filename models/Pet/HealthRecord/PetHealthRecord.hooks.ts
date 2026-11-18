@@ -3,6 +3,7 @@ import { getSessionUserId, isPlatformAdmin } from "../../../utils/access/tenant"
 import { isSudoContext } from "../../../utils/activity/listActivityHooks";
 import { validatePetChildOwner } from "../Pet.access";
 import { PET_REMINDER_STATUS, petHealthRecordTypeLabel } from "../constants";
+import { pawsOnHealthRecord } from "../../../utils/pet/pawsTriggers";
 
 /** `calendarDay` llega como "AAAA-MM-DD" o como Date (fila de Prisma). */
 export function toYmd(value: unknown): string | null {
@@ -135,6 +136,10 @@ async function deleteRecordReminder({ operation, item, context }: HookArgs) {
 export const petHealthRecordHooks = {
   resolveInput: resolveCreatedBy,
   validateInput: validateHealthRecord,
-  afterOperation: syncReminderForHealthRecord,
+  afterOperation: async (args: HookArgs) => {
+    // Huellitas por el primer registro de la cartilla (sin await: no frena el guardado).
+    void pawsOnHealthRecord(args);
+    await syncReminderForHealthRecord(args);
+  },
   beforeOperation: deleteRecordReminder,
 };

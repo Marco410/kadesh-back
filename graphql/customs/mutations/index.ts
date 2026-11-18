@@ -25,6 +25,7 @@ import createAnimalReport from "./pet/createAnimalReport";
 import animalClaims from "./pet/animalClaims";
 import closeAnimalReport from "./pet/closeAnimalReport";
 import animalSightings from "./pet/animalSightings";
+import petPaws from "./pet/paws";
 import sendAnimalFollowUps from "./pet/sendAnimalFollowUps";
 import adoptionApplications from "./pet/adoptionApplications";
 import petCardMutations from "./pet/card";
@@ -52,6 +53,7 @@ import trackEvents from "./activity/trackEvents";
 import adminCompanyOps from "./admin/companyOps";
 import adminAccountControl from "./admin/accountControl";
 import adminAnimals from "./admin/animals";
+import adminPaws from "./admin/paws";
 import adminZoneAlerts from "./admin/zoneAlerts";
 import adminErrorIssues from "./admin/errorIssues";
 import adminSecurity from "./admin/security";
@@ -88,6 +90,7 @@ const customMutation = {
     ${animalClaims.typeDefs}
     ${closeAnimalReport.typeDefs}
     ${animalSightings.typeDefs}
+    ${petPaws.typeDefs}
     ${sendAnimalFollowUps.typeDefs}
     ${adoptionApplications.typeDefs}
     ${petCardMutations.typeDefs}
@@ -115,6 +118,7 @@ const customMutation = {
     ${adminCompanyOps.typeDefs}
     ${adminAccountControl.typeDefs}
     ${adminAnimals.typeDefs}
+    ${adminPaws.typeDefs}
     ${adminZoneAlerts.typeDefs}
     ${adminErrorIssues.typeDefs}
     ${adminSecurity.typeDefs}
@@ -150,6 +154,7 @@ const customMutation = {
     ${animalClaims.definition}
     ${closeAnimalReport.definition}
     ${animalSightings.definition}
+    ${petPaws.definition}
     ${sendAnimalFollowUps.definition}
     ${adoptionApplications.definition}
     ${petCardMutations.definition}
@@ -177,6 +182,7 @@ const customMutation = {
     ${adminCompanyOps.definition}
     ${adminAccountControl.definition}
     ${adminAnimals.definition}
+    ${adminPaws.definition}
     ${adminZoneAlerts.definition}
     ${adminErrorIssues.definition}
     ${adminSecurity.definition}
@@ -212,6 +218,7 @@ const customMutation = {
     ...animalClaims.resolver,
     ...closeAnimalReport.resolver,
     ...animalSightings.resolver,
+    ...petPaws.resolver,
     ...sendAnimalFollowUps.resolver,
     ...adoptionApplications.resolver,
     ...petCardMutations.resolver,
@@ -239,6 +246,7 @@ const customMutation = {
     ...adminCompanyOps.resolver,
     ...adminAccountControl.resolver,
     ...adminAnimals.resolver,
+    ...adminPaws.resolver,
     ...adminZoneAlerts.resolver,
     ...adminErrorIssues.resolver,
     ...adminSecurity.resolver,

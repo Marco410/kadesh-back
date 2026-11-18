@@ -2073,6 +2073,101 @@ input PaymentRelateToOneForCreateInput {
   connect: PaymentWhereUniqueInput
 }
 
+type PawAccount {
+  id: ID!
+  user: User
+  balance: Int
+  lifetimeEarned: Int
+  streakWeeks: Int
+  bestStreakWeeks: Int
+  streakWeekStart: String
+  rankingHidden: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PawAccountWhereUniqueInput {
+  id: ID
+}
+
+input PawAccountWhereInput {
+  AND: [PawAccountWhereInput!]
+  OR: [PawAccountWhereInput!]
+  NOT: [PawAccountWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  balance: IntFilter
+  lifetimeEarned: IntFilter
+  streakWeeks: IntFilter
+  bestStreakWeeks: IntFilter
+  streakWeekStart: StringFilter
+  rankingHidden: BooleanFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input PawAccountOrderByInput {
+  id: OrderDirection
+  balance: OrderDirection
+  lifetimeEarned: OrderDirection
+  streakWeeks: OrderDirection
+  bestStreakWeeks: OrderDirection
+  streakWeekStart: OrderDirection
+  rankingHidden: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+type PawTransaction {
+  id: ID!
+  user: User
+  action: String
+  kind: String
+  amount: Int
+  balanceAfter: Int
+  key: String
+  sourceKey: String
+  referenceType: String
+  referenceId: String
+  metadata: JSON
+  createdAt: DateTime
+}
+
+input PawTransactionWhereUniqueInput {
+  id: ID
+  key: String
+}
+
+input PawTransactionWhereInput {
+  AND: [PawTransactionWhereInput!]
+  OR: [PawTransactionWhereInput!]
+  NOT: [PawTransactionWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  action: StringFilter
+  kind: StringFilter
+  amount: IntFilter
+  balanceAfter: IntNullableFilter
+  key: StringFilter
+  sourceKey: StringFilter
+  referenceType: StringFilter
+  referenceId: StringFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input PawTransactionOrderByInput {
+  id: OrderDirection
+  action: OrderDirection
+  kind: OrderDirection
+  amount: OrderDirection
+  balanceAfter: OrderDirection
+  key: OrderDirection
+  sourceKey: OrderDirection
+  referenceType: OrderDirection
+  referenceId: OrderDirection
+  createdAt: OrderDirection
+}
+
 type Payment {
   id: ID!
   order_payment: Order
@@ -11638,6 +11733,7 @@ type Mutation {
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
   reportAnimalSighting(input: ReportAnimalSightingInput!): AnimalSightingResult!
   setAnimalSightingHidden(id: ID!, hidden: Boolean!): AnimalSightingResult!
+  setPawRankingVisibility(hidden: Boolean!): PawRankingVisibilityResult!
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
 
@@ -11676,6 +11772,7 @@ type Mutation {
   """
   publishRescuePet(petId: ID!, status: String!, location: PetLastSeenLocationInput, notes: String): PublishRescuePetResult!
   completeRescueAdoption(petId: ID!, email: String!): CompleteRescueAdoptionResult!
+  adminAdjustPaws(userId: ID!, amount: Int!, reason: String!): AdminOpsActionResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -11765,6 +11862,12 @@ type Query {
   order(where: OrderWhereUniqueInput!): Order
   orders(where: OrderWhereInput! = {}, orderBy: [OrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderWhereUniqueInput): [Order!]
   ordersCount(where: OrderWhereInput! = {}): Int
+  pawAccount(where: PawAccountWhereUniqueInput!): PawAccount
+  pawAccounts(where: PawAccountWhereInput! = {}, orderBy: [PawAccountOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PawAccountWhereUniqueInput): [PawAccount!]
+  pawAccountsCount(where: PawAccountWhereInput! = {}): Int
+  pawTransaction(where: PawTransactionWhereUniqueInput!): PawTransaction
+  pawTransactions(where: PawTransactionWhereInput! = {}, orderBy: [PawTransactionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PawTransactionWhereUniqueInput): [PawTransaction!]
+  pawTransactionsCount(where: PawTransactionWhereInput! = {}): Int
   payment(where: PaymentWhereUniqueInput!): Payment
   payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
   paymentsCount(where: PaymentWhereInput! = {}): Int
@@ -12062,6 +12165,9 @@ type Query {
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
   rescueAllies(take: Int): RescueAlliesResult!
+  pawLeaderboard(period: String, take: Int): [PawLeaderboardEntry!]!
+  myPaws: MyPaws
+  myPawHistory(take: Int, skip: Int): [PawHistoryEntry!]!
 }
 
 union AuthenticatedItem = User
@@ -12796,6 +12902,12 @@ type AnimalSightingResult {
   success: Boolean!
   message: String!
   sightingId: ID
+}
+
+type PawRankingVisibilityResult {
+  success: Boolean!
+  message: String!
+  rankingHidden: Boolean
 }
 
 type SendAnimalFollowUpsResult {
@@ -15076,4 +15188,80 @@ type PetEventAlertPreview {
 
   """ISO 8601: cuándo avisará el cron si no es ahora"""
   sendAt: String
+}
+
+type PawLevelInfo {
+  level: Int!
+
+  """puppy | explorer | guardian | rescuer | hero | legend"""
+  key: String!
+  label: String!
+
+  """Lifetime points where this level starts."""
+  from: Int!
+
+  """Lifetime points where the next level starts; null at the top level."""
+  nextAt: Int
+}
+
+type PawLeaderboardEntry {
+  rank: Int!
+
+  """First name only."""
+  name: String!
+  avatarUrl: String
+
+  """Points in the requested period."""
+  points: Int!
+  level: PawLevelInfo!
+  streakWeeks: Int!
+
+  """The person asking, when signed in."""
+  isMe: Boolean!
+}
+
+type PawHistoryEntry {
+  id: ID!
+
+  """
+  report_published | sighting | case_closed | reunion_helped | adoption_completed | event_approved | comment | review | first_pet | first_health_record | rescue_verified | place_verified | referral | streak_bonus | admin_adjust
+  """
+  action: String!
+
+  """earn | reversal | adjust | spend"""
+  kind: String!
+
+  """Signed: negative when points were taken back or spent."""
+  amount: Int!
+  balanceAfter: Int
+  createdAt: String!
+}
+
+type MyPaws {
+  """False while the feature is switched off: the fronts hide the section."""
+  enabled: Boolean!
+
+  """Spendable points."""
+  balance: Int!
+
+  """Points that count for the level."""
+  lifetimeEarned: Int!
+  level: PawLevelInfo!
+
+  """Points missing for the next level; null at the top level."""
+  toNextLevel: Int
+
+  """Consecutive weeks helping. 0 when the streak expired."""
+  streakWeeks: Int!
+  bestStreakWeeks: Int!
+
+  """The streak already counts this week."""
+  streakActiveThisWeek: Boolean!
+  rankingHidden: Boolean!
+
+  """
+  Position in the all-time ranking when it is inside the top 50 and already cached.
+  """
+  rank: Int
+  history: [PawHistoryEntry!]!
 }

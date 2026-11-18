@@ -3,6 +3,7 @@ import { ACTIVITY_EVENT } from "../../../models/ActivityEvent/constants";
 import { NOTIFICATION_TYPE } from "../../../models/Notification/constants";
 import { logActivity } from "../../../utils/activity/logActivity";
 import { notify } from "../../../utils/notifications/notify";
+import { pawsOnRescueStatusChanged } from "../../../utils/pet/pawsTriggers";
 import { RESCUE_MEMBER_ROLE, RESCUE_ORG_STATUS, RESCUE_ORG_STATUS_OPTIONS } from "./constants";
 import { rescueStaffIds } from "./RescueOrganization.access";
 import { buildRescueSlug, normalizeRescueOrgProfile, uniqueRescueSlug } from "./RescueOrganization.rules";
@@ -81,6 +82,12 @@ export async function afterRescueOrgOperation({ operation, item, originalItem, c
     entityType: "RescueOrganization",
     entityId: String(item.id),
     metadata: { from: before ?? null, to: after },
+  });
+  // Huellitas para quien creó el espacio al verificarse; se quitan si lo rechazan o suspenden.
+  void pawsOnRescueStatusChanged(context, {
+    id: String(item.id),
+    status: String(after),
+    createdById: item.createdById ?? null,
   });
 
   const verified = after === RESCUE_ORG_STATUS.VERIFIED;

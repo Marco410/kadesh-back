@@ -20,6 +20,10 @@ Invariantes:
 
 `PetEvent` (+ `PetEventSession`, `PetEventMultimedia`, `PetEventInterest`): campañas y jornadas que publica la comunidad, con revisión de un admin y avisos por zona. Detalle en `PetEvent/README.md`.
 
+## Huellitas
+
+`PawAccount` y `PawTransaction` (en `Paws/`): puntos por ayudar, niveles, racha semanal y ranking. Solo los escribe `utils/pet/paws.ts`. Reglas, invariantes y decisiones en `Paws/README.md`.
+
 ## Decisiones
 
 ### 2026-10-23 — Cartilla digital sobre la `Pet` existente
@@ -38,4 +42,4 @@ Qué no hacer: no mezclar lists de CRM/créditos aquí.
 
 ## Qué no va aquí
 
-Cuentas y roles (`User`, `Role`). CRM, planes y créditos (`Saas/`).
+Cuentas y roles (`User`, `Role`). CRM, planes y créditos (`Saas/`). Las huellitas sí van aquí: son de la persona en Kadesh Pet, no los créditos de una empresa.

@@ -462,6 +462,45 @@ model Order {
   @@index([userId])
 }
 
+model PawAccount {
+  id              String    @id @default(cuid())
+  user            User?     @relation("PawAccount_user", fields: [userId], references: [id])
+  userId          String?   @map("user")
+  balance         Int       @default(0)
+  lifetimeEarned  Int       @default(0)
+  streakWeeks     Int       @default(0)
+  bestStreakWeeks Int       @default(0)
+  streakWeekStart String    @default("")
+  rankingHidden   Boolean   @default(false)
+  createdAt       DateTime? @default(now())
+  updatedAt       DateTime? @updatedAt
+
+  @@unique([userId])
+  @@index([userId])
+  @@index([lifetimeEarned])
+}
+
+model PawTransaction {
+  id            String    @id @default(cuid())
+  user          User?     @relation("PawTransaction_user", fields: [userId], references: [id])
+  userId        String?   @map("user")
+  action        String
+  kind          String    @default("earn")
+  amount        Int
+  balanceAfter  Int?
+  key           String    @unique @default("")
+  sourceKey     String    @default("")
+  referenceType String    @default("")
+  referenceId   String    @default("")
+  metadata      Json?
+  createdAt     DateTime? @default(now())
+
+  @@index([userId])
+  @@index([sourceKey])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
 model Payment {
   id                      String            @id @default(cuid())
   order_payment           Order?            @relation("Order_payment")
@@ -2285,6 +2324,8 @@ model User {
   from_AnimalView_user                     AnimalView[]               @relation("AnimalView_user")
   from_Cart_user                           Cart[]                     @relation("Cart_user")
   from_Order_user                          Order[]                    @relation("Order_user")
+  from_PawAccount_user                     PawAccount[]               @relation("PawAccount_user")
+  from_PawTransaction_user                 PawTransaction[]           @relation("PawTransaction_user")
   from_PaymentMethod_user                  PaymentMethod[]            @relation("PaymentMethod_user")
   from_PetOwner_user                       PetOwner[]                 @relation("PetOwner_user")
   from_PetHealthRecord_createdBy           PetHealthRecord[]          @relation("PetHealthRecord_createdBy")

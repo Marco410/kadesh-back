@@ -5,6 +5,7 @@ import { PET_EVENT_LIMITS, PET_EVENT_STATUS } from "../../../../../models/Pet/Pe
 import { getSessionUserId, isPlatformAdmin } from "../../../../../utils/access/tenant";
 import { notifyEventInterested, notifyEventOwner } from "../../../../../utils/notifications/eventAlerts";
 import { petSiteUrl } from "../../../../../utils/notifications/whatsapp";
+import { pawsOnEventApproved, pawsOnEventUnpublished } from "../../../../../utils/pet/pawsTriggers";
 import { submitPetEventToIndexNow } from "../../../../../utils/seo/indexNow";
 import {
   eventForCaller,
@@ -83,6 +84,8 @@ const resolver = {
           },
         });
         logPetEventActivity(context, ACTIVITY_EVENT.PET_EVENT_REVIEWED, event, "Aprobó el evento", { approved: true });
+        // Huellitas para quien lo organiza, una sola vez por evento.
+        void pawsOnEventApproved(context, { eventId: id, organizerId: event.userId, reviewerId: adminId });
 
         if (event.userId && event.userId !== adminId) {
           void notifyEventOwner(context, event, {
@@ -125,6 +128,7 @@ const resolver = {
       logPetEventActivity(context, ACTIVITY_EVENT.PET_EVENT_REVIEWED, event, "Rechazó el evento", { approved: false });
       // Si estaba publicado, su ficha deja de ser pública: que los buscadores lo noten pronto.
       if (event.status === PET_EVENT_STATUS.APPROVED) void submitPetEventToIndexNow(context, id);
+      if (event.approvedAt) void pawsOnEventUnpublished(context, id);
       if (event.userId && event.userId !== adminId) {
         void notifyEventOwner(context, event, {
           type: NOTIFICATION_TYPE.EVENT_REJECTED,

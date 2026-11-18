@@ -68,6 +68,7 @@ Las reglas generales están en `~/.claude/CLAUDE.md` ("Rendimiento y costo de in
 - **Límites y deduplicación en memoria**: `createRateLimiter` y `createDeduper` en `utils/security/rateLimit.ts` (se barren solos). No uses un `Map` de módulo sin tope.
 - **Caché de un valor con vigencia**: el patrón de `graphql/customs/queries/landingStats.ts` (`CACHE_MS` + un solo valor guardado).
 - **Tope de `take`**: `clampInt` en `graphql/customs/queries/admin/shared.ts`, o una constante `MAX_TAKE` como en `graphql/customs/queries/petEvents.ts`.
+- **Huellitas (recompensas de Kadesh Pet)**: `awardPaws` / `reversePaws` en `utils/pet/paws.ts` son la única escritura de `PawAccount` y `PawTransaction` (una sentencia SQL atómica por premio); los enganches van en `utils/pet/pawsTriggers.ts`. Para el nivel de muchas personas, `getPawLevels(userIds)` (una consulta). Ver `models/Pet/Paws/README.md`.
 - **Relaciones en lote**: `getLatestAnimalLogs` en `graphql/customs/queries/nearbyAnimals.ts` trae el último log de muchos animales en una consulta; es el modelo a seguir en vez de consultar por fila.
 - **Descargas con tope de tamaño**: `downloadClickUpFile(url, maxBytes)` en `utils/intregrations/clickup.ts` corta el stream al pasar el límite.
 - **URLs firmadas**: `getSignedStorageUrl` en `utils/intregrations/s3Storage.ts`.
@@ -90,10 +91,12 @@ Dato de Keystone 6.5 que explica casi todos los N+1 de este repo: las relaciones
 | Búsquedas de área de Google | 180 días | `utils/helpers/nearby_petplaces.ts` |
 | Sync de PetPlaces con Google | apagado con `ENVIROMENT=DEV`, encendido en el resto; `PET_PLACES_GOOGLE_SYNC=true/false` lo fuerza | `isPetPlacesGoogleSyncEnabled` en `utils/helpers/nearby_petplaces.ts` |
 | Vistas de evento repetidas | 30 min | `models/Pet/PetEvent/constants.ts` |
+| Caché de `pawLeaderboard` | 10 min por periodo | `models/Pet/Paws/constants.ts` (`LEADERBOARD_CACHE_MS`) |
+| Huellitas | tope global 60 al día; topes por acción y niveles en el mismo archivo; apagado sin `PAWS_ENABLED=true` | `models/Pet/Paws/constants.ts`, `utils/pet/paws.ts` |
 | Errores y vistas de admin repetidos | 10 min | `utils/activity/appErrorsPlugin.ts`, `graphql/customs/mutations/activity/trackEvents.ts` |
 | Subida de archivos / cuerpo JSON | 200 MB / 15 MB | `keystone.ts` |
 | Imágenes que descarga el back | 8 MB | `utils/pet/petCard.ts`, `utils/clickup/postImage.ts` |
-| Tope de filas | eventos 48, aliados 300, mensajes de la bandeja 500 | `petEvents.ts`, `rescueAllies.ts`, `whatsapp/whatsappConversations.ts` |
+| Tope de filas | eventos 48, aliados 300, mensajes de la bandeja 500, ranking de huellitas 50, historial de huellitas 50 | `petEvents.ts`, `rescueAllies.ts`, `whatsapp/whatsappConversations.ts`, `pawLeaderboard.ts`, `myPaws.ts` |
 | Crons (GitHub Actions) | cada hora al minuto 5; diario 15:00 UTC; diario 16:00 UTC | `.github/workflows/send-pet-event-notifications.yml`, `send-pet-reminders.yml`, `send-animal-follow-ups.yml` |
 | Seguimiento de casos | recordatorios a 7 y 21 días; inactivo a 45 (sin dueño, 30); topes 200 / 500 por corrida | `models/Pet/Animal/Animal.followUp.ts`, `graphql/customs/mutations/pet/sendAnimalFollowUps.ts` |
 

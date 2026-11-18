@@ -148,6 +148,14 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     alertAlways: true,
   },
   {
+    key: "paw_ranking_user",
+    label: "Cambios de visibilidad en el ranking de huellitas por persona",
+    fields: ["setPawRankingVisibility"],
+    scope: "user",
+    limit: 10,
+    windowMs: HOUR,
+  },
+  {
     key: "comment_user",
     label: "Comentarios por persona",
     fields: ["createAnimalComment", "createPostComment"],
