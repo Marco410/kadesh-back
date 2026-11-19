@@ -360,12 +360,13 @@ model AnimalSighting {
 }
 
 model AnimalType {
-  id                      String        @id @default(cuid())
-  name                    String        @unique @default("dog")
-  animal_breed            AnimalBreed[] @relation("AnimalBreed_animal_type")
-  order                   Int?
-  from_Animal_animal_type Animal[]      @relation("Animal_animal_type")
-  from_Pet_animal_type    Pet[]         @relation("Pet_animal_type")
+  id                            String         @id @default(cuid())
+  name                          String         @unique @default("dog")
+  animal_breed                  AnimalBreed[]  @relation("AnimalBreed_animal_type")
+  order                         Int?
+  from_Animal_animal_type       Animal[]       @relation("Animal_animal_type")
+  from_Pet_animal_type          Pet[]          @relation("Pet_animal_type")
+  from_StoreProduct_animalTypes StoreProduct[] @relation("StoreProduct_animalTypes")
 }
 
 model AnimalView {
@@ -1631,6 +1632,161 @@ model SocialMedia {
   @@index([pet_placeId])
 }
 
+model StoreBrand {
+  id             String         @id @default(cuid())
+  name           String         @default("")
+  slug           String?        @unique
+  logo_id        String?
+  logo_filesize  Int?
+  logo_width     Int?
+  logo_height    Int?
+  logo_extension String?
+  isActive       Boolean        @default(true)
+  products       StoreProduct[] @relation("StoreProduct_brand")
+  createdAt      DateTime?      @default(now())
+}
+
+model StoreCategory {
+  id              String          @id @default(cuid())
+  name            String          @default("")
+  slug            String?         @unique
+  parent          StoreCategory?  @relation("StoreCategory_parent", fields: [parentId], references: [id])
+  parentId        String?         @map("parent")
+  children        StoreCategory[] @relation("StoreCategory_parent")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  order           Int             @default(0)
+  isActive        Boolean         @default(true)
+  products        StoreProduct[]  @relation("StoreProduct_category")
+  createdAt       DateTime?       @default(now())
+
+  @@index([parentId])
+}
+
+model StoreProduct {
+  id                             String                @id @default(cuid())
+  name                           String                @default("")
+  slug                           String?               @unique
+  nameSearch                     String                @default("")
+  shortDescription               String                @default("")
+  description                    String                @default("")
+  source                         String                @default("own")
+  status                         String                @default("draft")
+  isFeatured                     Boolean               @default(false)
+  publishedAt                    DateTime?
+  category                       StoreCategory?        @relation("StoreProduct_category", fields: [categoryId], references: [id])
+  categoryId                     String?               @map("category")
+  brand                          StoreBrand?           @relation("StoreProduct_brand", fields: [brandId], references: [id])
+  brandId                        String?               @map("brand")
+  animalTypes                    AnimalType[]          @relation("StoreProduct_animalTypes")
+  priceCents                     Int?                  @default(0)
+  compareAtPriceCents            Int?
+  inventoryPolicy                String                @default("tracked")
+  stockTotal                     Int?                  @default(0)
+  externalId                     String?
+  externalUrl                    String?
+  affiliateUrl                   String?
+  dropiSupplierId                Int?
+  suggestedPriceCents            Int?
+  externalSyncedAt               DateTime?
+  ratingAverage                  Float?                @default(0)
+  ratingCount                    Int?                  @default(0)
+  salesCount                     Int?                  @default(0)
+  metaTitle                      String                @default("")
+  metaDescription                String                @default("")
+  variants                       StoreProductVariant[] @relation("StoreProductVariant_product")
+  images                         StoreProductImage[]   @relation("StoreProductImage_product")
+  reviews                        StoreProductReview[]  @relation("StoreProductReview_product")
+  createdAt                      DateTime?             @default(now())
+  updatedAt                      DateTime?             @default(now()) @updatedAt
+  from_StoreWishlistItem_product StoreWishlistItem[]   @relation("StoreWishlistItem_product")
+
+  @@unique([source, externalId])
+  @@index([nameSearch])
+  @@index([source])
+  @@index([status])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([status, categoryId])
+  @@index([status, publishedAt])
+}
+
+model StoreProductImage {
+  id              String        @id @default(cuid())
+  product         StoreProduct? @relation("StoreProductImage_product", fields: [productId], references: [id])
+  productId       String?       @map("product")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  externalUrl     String?
+  alt             String        @default("")
+  order           Int           @default(1)
+  createdAt       DateTime?     @default(now())
+
+  @@index([productId])
+}
+
+model StoreProductReview {
+  id               String        @id @default(cuid())
+  key              String        @unique @default("")
+  product          StoreProduct? @relation("StoreProductReview_product", fields: [productId], references: [id])
+  productId        String?       @map("product")
+  user             User?         @relation("StoreProductReview_user", fields: [userId], references: [id])
+  userId           String?       @map("user")
+  rating           Int
+  title            String        @default("")
+  body             String        @default("")
+  status           String        @default("published")
+  verifiedPurchase Boolean       @default(false)
+  adminReply       String        @default("")
+  createdAt        DateTime?     @default(now())
+  updatedAt        DateTime?     @default(now()) @updatedAt
+
+  @@index([productId])
+  @@index([userId])
+  @@index([status])
+  @@index([productId, status, createdAt])
+}
+
+model StoreProductVariant {
+  id                  String        @id @default(cuid())
+  product             StoreProduct? @relation("StoreProductVariant_product", fields: [productId], references: [id])
+  productId           String?       @map("product")
+  title               String        @default("")
+  sku                 String?
+  options             Json?
+  priceCents          Int           @default(0)
+  compareAtPriceCents Int?
+  costCents           Int?
+  stock               Int           @default(0)
+  dropiVariationId    Int?
+  weightGrams         Int?
+  order               Int           @default(1)
+  isActive            Boolean       @default(true)
+  createdAt           DateTime?     @default(now())
+
+  @@index([productId])
+  @@index([sku])
+}
+
+model StoreWishlistItem {
+  id        String        @id @default(cuid())
+  key       String        @unique @default("")
+  user      User?         @relation("StoreWishlistItem_user", fields: [userId], references: [id])
+  userId    String?       @map("user")
+  product   StoreProduct? @relation("StoreWishlistItem_product", fields: [productId], references: [id])
+  productId String?       @map("product")
+  createdAt DateTime?     @default(now())
+
+  @@index([userId])
+  @@index([productId])
+}
+
 model SystemRelease {
   id            String    @id @default(cuid())
   version       String    @default("")
@@ -2351,6 +2507,8 @@ model User {
   from_SaasCompanyNote_author              SaasCompanyNote[]          @relation("SaasCompanyNote_author")
   from_SaasReferralCommission_referrer     SaasReferralCommission[]   @relation("SaasReferralCommission_referrer")
   from_SaasReferralCommission_referredUser SaasReferralCommission[]   @relation("SaasReferralCommission_referredUser")
+  from_StoreProductReview_user             StoreProductReview[]       @relation("StoreProductReview_user")
+  from_StoreWishlistItem_user              StoreWishlistItem[]        @relation("StoreWishlistItem_user")
   from_TechLeadStageChange_changedBy       TechLeadStageChange[]      @relation("TechLeadStageChange_changedBy")
   from_TokenNotification_user              TokenNotification[]        @relation("TokenNotification_user")
   from_UserActivityDay_user                UserActivityDay[]          @relation("UserActivityDay_user")

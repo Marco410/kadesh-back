@@ -27,7 +27,7 @@ Required env vars (see `config/.env.template`): `POSTGRES_DB`, `POSTGRES_USER`, 
 
 **Entry point**: `keystone.ts` builds the Keystone `config()`, wiring together `models/schema.ts` (lists), `auth/auth.ts` (session/auth), and `graphql/extendedSchema.ts` (custom GraphQL). Storage: `my_local_images` (local disk, `/images`) plus `s3_*` backends that target Cloudflare R2 when `S3_ENDPOINT` is set (signed URLs, 1h).
 
-**Models** (`models/`): lists live under `models/Pet/` (KadeshPet), `models/Saas/` (CRM, billing, `Saas/Tech`), or the `models/` root if both products use them (`User`, `Role`). Register every list in `models/schema.ts`. Related sub-lists stay nested, e.g. `models/Pet/Animal/AnimalBreed/AnimalBreed.ts`, `models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts`. Editing `models/schema.ts` or any list's fields changes the generated `schema.prisma` / `schema.graphql`. **Do not create or run Prisma migrations** — tell the human to run `yarn migrate` (or write the SQL under `migrations/` by hand).
+**Models** (`models/`): lists live under `models/Pet/` (KadeshPet), `models/Saas/` (CRM, billing, `Saas/Tech`), or the `models/` root if both products use them (`User`, `Role`). Register every list in `models/schema.ts`. Related sub-lists stay nested, e.g. `models/Pet/Animal/AnimalBreed/AnimalBreed.ts`, `models/Pet/PetPlace/PetPlaceLike/PetPlaceLike.ts`. Editing `models/schema.ts` or any list's fields changes the generated `schema.prisma` / `schema.graphql`. **Do not create or run Prisma migrations, and do not ask the human to run `pnpm migrate`**: in dev, `pnpm dev` syncs the database with the lists when it starts. The human runs `pnpm migrate` only before the PR that goes to prod.
 
 Per-list conventions:
 - `access` is a plain object/function passed to `list({ access, fields })`, usually imported from a colocated `<Name>.access.ts` (see `models/User/User.access.ts`) or a preset from `utils/access/presets.ts` (`adminOnlyAccess`, `publicReadAdminWriteAccess`, `anonymousCreateAccess`, `userRowAccess`, `viewRowAccess`). There is no open-access default anymore: never give a list `() => true` for update/delete.
@@ -70,6 +70,7 @@ Las reglas generales están en `~/.claude/CLAUDE.md` ("Rendimiento y costo de in
 - **Tope de `take`**: `clampInt` en `graphql/customs/queries/admin/shared.ts`, o una constante `MAX_TAKE` como en `graphql/customs/queries/petEvents.ts`.
 - **Autor o persona pública** (nombre con inicial, foto, nivel, enlace al perfil): `getPublicUserCards(userIds)` en `utils/pet/publicProfile.ts`, dos consultas para toda la lista.
 - **Huellitas (recompensas de Kadesh Pet)**: `awardPaws` / `reversePaws` en `utils/pet/paws.ts` son la única escritura de `PawAccount` y `PawTransaction` (una sentencia SQL atómica por premio); los enganches van en `utils/pet/pawsTriggers.ts`. Para el nivel de muchas personas, `getPawLevels(userIds)` (una consulta). Ver `models/Pet/Paws/README.md`.
+- **Tienda de Kadesh Pet**: la forma pública de un producto sale de `toCatalogItem` y las portadas de `loadStoreCovers` (una consulta para toda la página), en `utils/store/catalog.ts`. Las copias guardadas (precio, stock, estrellas) las escriben `recomputeStoreProductTotals` y `recomputeStoreProductRating`. Las lists `Store*` son solo admin en la API generada; lo público va por las consultas `storeCatalog*`. Ver `models/Pet/Store/README.md`.
 - **Relaciones en lote**: `getLatestAnimalLogs` en `graphql/customs/queries/nearbyAnimals.ts` trae el último log de muchos animales en una consulta; es el modelo a seguir en vez de consultar por fila.
 - **Descargas con tope de tamaño**: `downloadClickUpFile(url, maxBytes)` en `utils/intregrations/clickup.ts` corta el stream al pasar el límite.
 - **URLs firmadas**: `getSignedStorageUrl` en `utils/intregrations/s3Storage.ts`.
@@ -95,10 +96,11 @@ Dato de Keystone 6.5 que explica casi todos los N+1 de este repo: las relaciones
 | Perfil público (`publicUserProfile`) | unas 10 consultas por vista sin caché; el landing guarda la página 5 min por persona | `graphql/customs/queries/publicProfile.ts`, kadesh-landing `src/app/u/[username]/page.tsx` |
 | Caché de `pawLeaderboard` | 10 min por periodo, o hasta que cambie un saldo (`pawsLedgerVersion`); el landing la pide cada 5 min | `models/Pet/Paws/constants.ts` (`LEADERBOARD_CACHE_MS`) |
 | Huellitas | tope global 60 al día; topes por acción y niveles en el mismo archivo; apagado sin `PAWS_ENABLED=true` | `models/Pet/Paws/constants.ts`, `utils/pet/paws.ts` |
+| Tienda | apagada sin `STORE_ENABLED=true` (un admin la ve igual); caché de `storeCatalogFacets` 10 min | `utils/store/config.ts`, `models/Pet/Store/constants.ts` (`STORE_FACETS_CACHE_MS`) |
 | Errores y vistas de admin repetidos | 10 min | `utils/activity/appErrorsPlugin.ts`, `graphql/customs/mutations/activity/trackEvents.ts` |
 | Subida de archivos / cuerpo JSON | 200 MB / 15 MB | `keystone.ts` |
 | Imágenes que descarga el back | 8 MB | `utils/pet/petCard.ts`, `utils/clickup/postImage.ts` |
-| Tope de filas | eventos 48, aliados 300, mensajes de la bandeja 500, ranking de huellitas 50, historial de huellitas 50 | `petEvents.ts`, `rescueAllies.ts`, `whatsapp/whatsappConversations.ts`, `pawLeaderboard.ts`, `myPaws.ts` |
+| Tope de filas | eventos 48, aliados 300, mensajes de la bandeja 500, ranking de huellitas 50, historial de huellitas 50, catálogo de la tienda 48, reseñas de producto 20, lista de deseos 500, productos en Operaciones 100 | `petEvents.ts`, `rescueAllies.ts`, `whatsapp/whatsappConversations.ts`, `pawLeaderboard.ts`, `myPaws.ts`, `models/Pet/Store/constants.ts` |
 | Crons (GitHub Actions) | cada hora al minuto 5; diario 15:00 UTC; diario 16:00 UTC | `.github/workflows/send-pet-event-notifications.yml`, `send-pet-reminders.yml`, `send-animal-follow-ups.yml` |
 | Seguimiento de casos | recordatorios a 7 y 21 días; inactivo a 45 (sin dueño, 30); topes 200 / 500 por corrida | `models/Pet/Animal/Animal.followUp.ts`, `graphql/customs/mutations/pet/sendAnimalFollowUps.ts` |
 
@@ -121,7 +123,7 @@ Cada petición con sesión cuesta 3 consultas antes del resolver (`sessionData` 
 - **`getNearbyAnimals`** (`graphql/customs/queries/nearbyAnimals.ts`): trae todos los animales sin `take`, filtra estado, ubicación y distancia en memoria y pagina al final. Crece con la tabla.
 - **Bandeja de WhatsApp** (`graphql/customs/queries/whatsapp/whatsappConversations.ts`): 500 mensajes con `businessLead { salesPerson }` → hasta 500 consultas extra por poll.
 - **`nextFollowUpDate`** (`models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts`): campo virtual con una consulta por fila. No lo pidas en listas largas.
-- **Ninguna lista tiene `graphql.maxTake`**: el front puede pedir miles de leads en una petición.
+- **Solo las lists `Store*` tienen `graphql.maxTake`**: en las demás el front puede pedir miles de leads en una petición.
 - **Índices que faltan**: `TechBusinessLead.createdAt` (es el orden de todas las listas de leads) y `source`; `TechWhatsAppMessage (companyId, createdAt)`.
 - **`adminCompanyInsights`** (`graphql/customs/queries/admin/adminCompanyInsights.ts`): un `count` por vendedor en `Promise.all` y un `take: 5000`. Con el pool en 5 se encolan; si aparece `P2024`, es aquí.
 - **`salesVelocity`** (`utils/analytics/salesVelocity.ts`): carga todos los status de la empresa con su lead.
@@ -151,4 +153,4 @@ En producción: `pg_stat_statements` ordenado por `calls`, la RAM de Postgres y 
 1. Create `models/Pet/<Name>/<Name>.ts`, `models/Saas/<Name>/<Name>.ts`, or `models/<Name>/<Name>.ts` (shared) exporting `list({ access, fields })` from `@keystone-6/core`.
 2. Add access rules (reuse a preset from `utils/access/presets.ts` or write a `<Name>.access.ts` using `hasRole`/`Role`). Never leave update/delete open to anyone.
 3. Register the list in `models/schema.ts`.
-4. Stop. Tell the human to run `yarn migrate` (or write the migration SQL by hand). Never create files under `migrations/` or run migrate commands.
+4. Keep working: `pnpm dev` syncs the dev database on its next start. Never create files under `migrations/` or run migrate commands, and do not ask the human for `pnpm migrate` (they run it before the PR to prod).

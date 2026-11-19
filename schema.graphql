@@ -7888,6 +7888,715 @@ input SocialMediaCreateInput {
   createdAt: DateTime
 }
 
+type StoreBrand {
+  id: ID!
+  name: String
+  slug: String
+  logo: ImageFieldOutput
+  isActive: Boolean
+  products(where: StoreProductWhereInput! = {}, orderBy: [StoreProductOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: StoreProductWhereUniqueInput): [StoreProduct!]
+  productsCount(where: StoreProductWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input StoreBrandWhereUniqueInput {
+  id: ID
+  slug: String
+}
+
+input StoreBrandWhereInput {
+  AND: [StoreBrandWhereInput!]
+  OR: [StoreBrandWhereInput!]
+  NOT: [StoreBrandWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  slug: StringNullableFilter
+  isActive: BooleanFilter
+  products: StoreProductManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input StoreProductManyRelationFilter {
+  every: StoreProductWhereInput
+  some: StoreProductWhereInput
+  none: StoreProductWhereInput
+}
+
+input StoreBrandOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  slug: OrderDirection
+  isActive: OrderDirection
+  createdAt: OrderDirection
+}
+
+input StoreBrandUpdateInput {
+  name: String
+  slug: String
+  logo: ImageFieldInput
+  isActive: Boolean
+  products: StoreProductRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input StoreProductRelateToManyForUpdateInput {
+  disconnect: [StoreProductWhereUniqueInput!]
+  set: [StoreProductWhereUniqueInput!]
+  create: [StoreProductCreateInput!]
+  connect: [StoreProductWhereUniqueInput!]
+}
+
+input StoreBrandUpdateArgs {
+  where: StoreBrandWhereUniqueInput!
+  data: StoreBrandUpdateInput!
+}
+
+input StoreBrandCreateInput {
+  name: String
+  slug: String
+  logo: ImageFieldInput
+  isActive: Boolean
+  products: StoreProductRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input StoreProductRelateToManyForCreateInput {
+  create: [StoreProductCreateInput!]
+  connect: [StoreProductWhereUniqueInput!]
+}
+
+type StoreCategory {
+  id: ID!
+  name: String
+  slug: String
+  parent: StoreCategory
+  children(where: StoreCategoryWhereInput! = {}, orderBy: [StoreCategoryOrderByInput!]! = [], take: Int! = 200, skip: Int! = 0, cursor: StoreCategoryWhereUniqueInput): [StoreCategory!]
+  childrenCount(where: StoreCategoryWhereInput! = {}): Int
+  image: ImageFieldOutput
+  order: Int
+  isActive: Boolean
+  products(where: StoreProductWhereInput! = {}, orderBy: [StoreProductOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: StoreProductWhereUniqueInput): [StoreProduct!]
+  productsCount(where: StoreProductWhereInput! = {}): Int
+  createdAt: DateTime
+}
+
+input StoreCategoryWhereUniqueInput {
+  id: ID
+  slug: String
+}
+
+input StoreCategoryWhereInput {
+  AND: [StoreCategoryWhereInput!]
+  OR: [StoreCategoryWhereInput!]
+  NOT: [StoreCategoryWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  slug: StringNullableFilter
+  parent: StoreCategoryWhereInput
+  children: StoreCategoryManyRelationFilter
+  order: IntFilter
+  isActive: BooleanFilter
+  products: StoreProductManyRelationFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input StoreCategoryManyRelationFilter {
+  every: StoreCategoryWhereInput
+  some: StoreCategoryWhereInput
+  none: StoreCategoryWhereInput
+}
+
+input StoreCategoryOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  slug: OrderDirection
+  order: OrderDirection
+  isActive: OrderDirection
+  createdAt: OrderDirection
+}
+
+input StoreCategoryUpdateInput {
+  name: String
+  slug: String
+  parent: StoreCategoryRelateToOneForUpdateInput
+  children: StoreCategoryRelateToManyForUpdateInput
+  image: ImageFieldInput
+  order: Int
+  isActive: Boolean
+  products: StoreProductRelateToManyForUpdateInput
+  createdAt: DateTime
+}
+
+input StoreCategoryRelateToOneForUpdateInput {
+  create: StoreCategoryCreateInput
+  connect: StoreCategoryWhereUniqueInput
+  disconnect: Boolean
+}
+
+input StoreCategoryRelateToManyForUpdateInput {
+  disconnect: [StoreCategoryWhereUniqueInput!]
+  set: [StoreCategoryWhereUniqueInput!]
+  create: [StoreCategoryCreateInput!]
+  connect: [StoreCategoryWhereUniqueInput!]
+}
+
+input StoreCategoryUpdateArgs {
+  where: StoreCategoryWhereUniqueInput!
+  data: StoreCategoryUpdateInput!
+}
+
+input StoreCategoryCreateInput {
+  name: String
+  slug: String
+  parent: StoreCategoryRelateToOneForCreateInput
+  children: StoreCategoryRelateToManyForCreateInput
+  image: ImageFieldInput
+  order: Int
+  isActive: Boolean
+  products: StoreProductRelateToManyForCreateInput
+  createdAt: DateTime
+}
+
+input StoreCategoryRelateToOneForCreateInput {
+  create: StoreCategoryCreateInput
+  connect: StoreCategoryWhereUniqueInput
+}
+
+input StoreCategoryRelateToManyForCreateInput {
+  create: [StoreCategoryCreateInput!]
+  connect: [StoreCategoryWhereUniqueInput!]
+}
+
+type StoreProduct {
+  id: ID!
+  name: String
+  slug: String
+  nameSearch: String
+  shortDescription: String
+  description: String
+  source: String
+  status: String
+  isFeatured: Boolean
+  publishedAt: DateTime
+  category: StoreCategory
+  brand: StoreBrand
+  animalTypes(where: AnimalTypeWhereInput! = {}, orderBy: [AnimalTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalTypeWhereUniqueInput): [AnimalType!]
+  animalTypesCount(where: AnimalTypeWhereInput! = {}): Int
+  priceCents: Int
+  compareAtPriceCents: Int
+  inventoryPolicy: String
+  stockTotal: Int
+  externalId: String
+  externalUrl: String
+  affiliateUrl: String
+  dropiSupplierId: Int
+  suggestedPriceCents: Int
+  externalSyncedAt: DateTime
+  ratingAverage: Float
+  ratingCount: Int
+  salesCount: Int
+  metaTitle: String
+  metaDescription: String
+  variants(where: StoreProductVariantWhereInput! = {}, orderBy: [StoreProductVariantOrderByInput!]! = [], take: Int! = 200, skip: Int! = 0, cursor: StoreProductVariantWhereUniqueInput): [StoreProductVariant!]
+  variantsCount(where: StoreProductVariantWhereInput! = {}): Int
+  images(where: StoreProductImageWhereInput! = {}, orderBy: [StoreProductImageOrderByInput!]! = [], take: Int! = 200, skip: Int! = 0, cursor: StoreProductImageWhereUniqueInput): [StoreProductImage!]
+  imagesCount(where: StoreProductImageWhereInput! = {}): Int
+  reviews(where: StoreProductReviewWhereInput! = {}, orderBy: [StoreProductReviewOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: StoreProductReviewWhereUniqueInput): [StoreProductReview!]
+  reviewsCount(where: StoreProductReviewWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StoreProductWhereUniqueInput {
+  id: ID
+  slug: String
+}
+
+input StoreProductWhereInput {
+  AND: [StoreProductWhereInput!]
+  OR: [StoreProductWhereInput!]
+  NOT: [StoreProductWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  slug: StringNullableFilter
+  nameSearch: StringFilter
+  shortDescription: StringFilter
+  description: StringFilter
+  source: StringFilter
+  status: StringFilter
+  isFeatured: BooleanFilter
+  publishedAt: DateTimeNullableFilter
+  category: StoreCategoryWhereInput
+  brand: StoreBrandWhereInput
+  animalTypes: AnimalTypeManyRelationFilter
+  priceCents: IntNullableFilter
+  compareAtPriceCents: IntNullableFilter
+  inventoryPolicy: StringFilter
+  stockTotal: IntNullableFilter
+  externalId: StringNullableFilter
+  externalUrl: StringNullableFilter
+  affiliateUrl: StringNullableFilter
+  dropiSupplierId: IntNullableFilter
+  suggestedPriceCents: IntNullableFilter
+  externalSyncedAt: DateTimeNullableFilter
+  ratingAverage: FloatNullableFilter
+  ratingCount: IntNullableFilter
+  salesCount: IntNullableFilter
+  metaTitle: StringFilter
+  metaDescription: StringFilter
+  variants: StoreProductVariantManyRelationFilter
+  images: StoreProductImageManyRelationFilter
+  reviews: StoreProductReviewManyRelationFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input AnimalTypeManyRelationFilter {
+  every: AnimalTypeWhereInput
+  some: AnimalTypeWhereInput
+  none: AnimalTypeWhereInput
+}
+
+input StoreProductVariantManyRelationFilter {
+  every: StoreProductVariantWhereInput
+  some: StoreProductVariantWhereInput
+  none: StoreProductVariantWhereInput
+}
+
+input StoreProductImageManyRelationFilter {
+  every: StoreProductImageWhereInput
+  some: StoreProductImageWhereInput
+  none: StoreProductImageWhereInput
+}
+
+input StoreProductReviewManyRelationFilter {
+  every: StoreProductReviewWhereInput
+  some: StoreProductReviewWhereInput
+  none: StoreProductReviewWhereInput
+}
+
+input StoreProductOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  slug: OrderDirection
+  nameSearch: OrderDirection
+  shortDescription: OrderDirection
+  description: OrderDirection
+  source: OrderDirection
+  status: OrderDirection
+  isFeatured: OrderDirection
+  publishedAt: OrderDirection
+  priceCents: OrderDirection
+  compareAtPriceCents: OrderDirection
+  inventoryPolicy: OrderDirection
+  stockTotal: OrderDirection
+  externalId: OrderDirection
+  externalUrl: OrderDirection
+  affiliateUrl: OrderDirection
+  dropiSupplierId: OrderDirection
+  suggestedPriceCents: OrderDirection
+  externalSyncedAt: OrderDirection
+  ratingAverage: OrderDirection
+  ratingCount: OrderDirection
+  salesCount: OrderDirection
+  metaTitle: OrderDirection
+  metaDescription: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input StoreProductUpdateInput {
+  name: String
+  slug: String
+  nameSearch: String
+  shortDescription: String
+  description: String
+  source: String
+  status: String
+  isFeatured: Boolean
+  publishedAt: DateTime
+  category: StoreCategoryRelateToOneForUpdateInput
+  brand: StoreBrandRelateToOneForUpdateInput
+  animalTypes: AnimalTypeRelateToManyForUpdateInput
+  priceCents: Int
+  compareAtPriceCents: Int
+  inventoryPolicy: String
+  stockTotal: Int
+  externalId: String
+  externalUrl: String
+  affiliateUrl: String
+  dropiSupplierId: Int
+  suggestedPriceCents: Int
+  externalSyncedAt: DateTime
+  ratingAverage: Float
+  ratingCount: Int
+  salesCount: Int
+  metaTitle: String
+  metaDescription: String
+  variants: StoreProductVariantRelateToManyForUpdateInput
+  images: StoreProductImageRelateToManyForUpdateInput
+  reviews: StoreProductReviewRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StoreBrandRelateToOneForUpdateInput {
+  create: StoreBrandCreateInput
+  connect: StoreBrandWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AnimalTypeRelateToManyForUpdateInput {
+  disconnect: [AnimalTypeWhereUniqueInput!]
+  set: [AnimalTypeWhereUniqueInput!]
+  create: [AnimalTypeCreateInput!]
+  connect: [AnimalTypeWhereUniqueInput!]
+}
+
+input StoreProductVariantRelateToManyForUpdateInput {
+  disconnect: [StoreProductVariantWhereUniqueInput!]
+  set: [StoreProductVariantWhereUniqueInput!]
+  create: [StoreProductVariantCreateInput!]
+  connect: [StoreProductVariantWhereUniqueInput!]
+}
+
+input StoreProductImageRelateToManyForUpdateInput {
+  disconnect: [StoreProductImageWhereUniqueInput!]
+  set: [StoreProductImageWhereUniqueInput!]
+  create: [StoreProductImageCreateInput!]
+  connect: [StoreProductImageWhereUniqueInput!]
+}
+
+input StoreProductReviewRelateToManyForUpdateInput {
+  disconnect: [StoreProductReviewWhereUniqueInput!]
+  set: [StoreProductReviewWhereUniqueInput!]
+  connect: [StoreProductReviewWhereUniqueInput!]
+}
+
+input StoreProductUpdateArgs {
+  where: StoreProductWhereUniqueInput!
+  data: StoreProductUpdateInput!
+}
+
+input StoreProductCreateInput {
+  name: String
+  slug: String
+  nameSearch: String
+  shortDescription: String
+  description: String
+  source: String
+  status: String
+  isFeatured: Boolean
+  publishedAt: DateTime
+  category: StoreCategoryRelateToOneForCreateInput
+  brand: StoreBrandRelateToOneForCreateInput
+  animalTypes: AnimalTypeRelateToManyForCreateInput
+  priceCents: Int
+  compareAtPriceCents: Int
+  inventoryPolicy: String
+  stockTotal: Int
+  externalId: String
+  externalUrl: String
+  affiliateUrl: String
+  dropiSupplierId: Int
+  suggestedPriceCents: Int
+  externalSyncedAt: DateTime
+  ratingAverage: Float
+  ratingCount: Int
+  salesCount: Int
+  metaTitle: String
+  metaDescription: String
+  variants: StoreProductVariantRelateToManyForCreateInput
+  images: StoreProductImageRelateToManyForCreateInput
+  reviews: StoreProductReviewRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StoreBrandRelateToOneForCreateInput {
+  create: StoreBrandCreateInput
+  connect: StoreBrandWhereUniqueInput
+}
+
+input AnimalTypeRelateToManyForCreateInput {
+  create: [AnimalTypeCreateInput!]
+  connect: [AnimalTypeWhereUniqueInput!]
+}
+
+input StoreProductVariantRelateToManyForCreateInput {
+  create: [StoreProductVariantCreateInput!]
+  connect: [StoreProductVariantWhereUniqueInput!]
+}
+
+input StoreProductImageRelateToManyForCreateInput {
+  create: [StoreProductImageCreateInput!]
+  connect: [StoreProductImageWhereUniqueInput!]
+}
+
+input StoreProductReviewRelateToManyForCreateInput {
+  connect: [StoreProductReviewWhereUniqueInput!]
+}
+
+type StoreProductImage {
+  id: ID!
+  product: StoreProduct
+  image: ImageFieldOutput
+  externalUrl: String
+  alt: String
+  order: Int
+  createdAt: DateTime
+}
+
+input StoreProductImageWhereUniqueInput {
+  id: ID
+}
+
+input StoreProductImageWhereInput {
+  AND: [StoreProductImageWhereInput!]
+  OR: [StoreProductImageWhereInput!]
+  NOT: [StoreProductImageWhereInput!]
+  id: IDFilter
+  product: StoreProductWhereInput
+  externalUrl: StringNullableFilter
+  alt: StringFilter
+  order: IntFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input StoreProductImageOrderByInput {
+  id: OrderDirection
+  externalUrl: OrderDirection
+  alt: OrderDirection
+  order: OrderDirection
+  createdAt: OrderDirection
+}
+
+input StoreProductImageUpdateInput {
+  product: StoreProductRelateToOneForUpdateInput
+  image: ImageFieldInput
+  externalUrl: String
+  alt: String
+  order: Int
+  createdAt: DateTime
+}
+
+input StoreProductRelateToOneForUpdateInput {
+  create: StoreProductCreateInput
+  connect: StoreProductWhereUniqueInput
+  disconnect: Boolean
+}
+
+input StoreProductImageUpdateArgs {
+  where: StoreProductImageWhereUniqueInput!
+  data: StoreProductImageUpdateInput!
+}
+
+input StoreProductImageCreateInput {
+  product: StoreProductRelateToOneForCreateInput
+  image: ImageFieldInput
+  externalUrl: String
+  alt: String
+  order: Int
+  createdAt: DateTime
+}
+
+input StoreProductRelateToOneForCreateInput {
+  create: StoreProductCreateInput
+  connect: StoreProductWhereUniqueInput
+}
+
+type StoreProductReview {
+  id: ID!
+  key: String
+  product: StoreProduct
+  user: User
+  rating: Int
+  title: String
+  body: String
+  status: String
+  verifiedPurchase: Boolean
+  adminReply: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StoreProductReviewWhereUniqueInput {
+  id: ID
+  key: String
+}
+
+input StoreProductReviewWhereInput {
+  AND: [StoreProductReviewWhereInput!]
+  OR: [StoreProductReviewWhereInput!]
+  NOT: [StoreProductReviewWhereInput!]
+  id: IDFilter
+  key: StringFilter
+  product: StoreProductWhereInput
+  user: UserWhereInput
+  rating: IntFilter
+  title: StringFilter
+  body: StringFilter
+  status: StringFilter
+  verifiedPurchase: BooleanFilter
+  adminReply: StringFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input StoreProductReviewOrderByInput {
+  id: OrderDirection
+  key: OrderDirection
+  rating: OrderDirection
+  title: OrderDirection
+  body: OrderDirection
+  status: OrderDirection
+  verifiedPurchase: OrderDirection
+  adminReply: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input StoreProductReviewUpdateInput {
+  key: String
+  product: StoreProductRelateToOneForUpdateInput
+  user: UserRelateToOneForUpdateInput
+  rating: Int
+  title: String
+  body: String
+  status: String
+  verifiedPurchase: Boolean
+  adminReply: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StoreProductReviewUpdateArgs {
+  where: StoreProductReviewWhereUniqueInput!
+  data: StoreProductReviewUpdateInput!
+}
+
+type StoreProductVariant {
+  id: ID!
+  product: StoreProduct
+  title: String
+  sku: String
+  options: JSON
+  priceCents: Int
+  compareAtPriceCents: Int
+  costCents: Int
+  stock: Int
+  dropiVariationId: Int
+  weightGrams: Int
+  order: Int
+  isActive: Boolean
+  createdAt: DateTime
+}
+
+input StoreProductVariantWhereUniqueInput {
+  id: ID
+}
+
+input StoreProductVariantWhereInput {
+  AND: [StoreProductVariantWhereInput!]
+  OR: [StoreProductVariantWhereInput!]
+  NOT: [StoreProductVariantWhereInput!]
+  id: IDFilter
+  product: StoreProductWhereInput
+  title: StringFilter
+  sku: StringNullableFilter
+  priceCents: IntFilter
+  compareAtPriceCents: IntNullableFilter
+  costCents: IntNullableFilter
+  stock: IntFilter
+  dropiVariationId: IntNullableFilter
+  weightGrams: IntNullableFilter
+  order: IntFilter
+  isActive: BooleanFilter
+  createdAt: DateTimeNullableFilter
+}
+
+input StoreProductVariantOrderByInput {
+  id: OrderDirection
+  title: OrderDirection
+  sku: OrderDirection
+  priceCents: OrderDirection
+  compareAtPriceCents: OrderDirection
+  costCents: OrderDirection
+  stock: OrderDirection
+  dropiVariationId: OrderDirection
+  weightGrams: OrderDirection
+  order: OrderDirection
+  isActive: OrderDirection
+  createdAt: OrderDirection
+}
+
+input StoreProductVariantUpdateInput {
+  product: StoreProductRelateToOneForUpdateInput
+  title: String
+  sku: String
+  options: JSON
+  priceCents: Int
+  compareAtPriceCents: Int
+  costCents: Int
+  stock: Int
+  dropiVariationId: Int
+  weightGrams: Int
+  order: Int
+  isActive: Boolean
+  createdAt: DateTime
+}
+
+input StoreProductVariantUpdateArgs {
+  where: StoreProductVariantWhereUniqueInput!
+  data: StoreProductVariantUpdateInput!
+}
+
+input StoreProductVariantCreateInput {
+  product: StoreProductRelateToOneForCreateInput
+  title: String
+  sku: String
+  options: JSON
+  priceCents: Int
+  compareAtPriceCents: Int
+  costCents: Int
+  stock: Int
+  dropiVariationId: Int
+  weightGrams: Int
+  order: Int
+  isActive: Boolean
+  createdAt: DateTime
+}
+
+type StoreWishlistItem {
+  id: ID!
+  key: String
+  user: User
+  product: StoreProduct
+  createdAt: DateTime
+}
+
+input StoreWishlistItemWhereUniqueInput {
+  id: ID
+  key: String
+}
+
+input StoreWishlistItemWhereInput {
+  AND: [StoreWishlistItemWhereInput!]
+  OR: [StoreWishlistItemWhereInput!]
+  NOT: [StoreWishlistItemWhereInput!]
+  id: IDFilter
+  key: StringFilter
+  user: UserWhereInput
+  product: StoreProductWhereInput
+  createdAt: DateTimeNullableFilter
+}
+
+input StoreWishlistItemOrderByInput {
+  id: OrderDirection
+  key: OrderDirection
+  createdAt: OrderDirection
+}
+
 type SystemRelease {
   id: ID!
   version: String
@@ -11497,6 +12206,42 @@ type Mutation {
   updateSocialMedias(data: [SocialMediaUpdateArgs!]!): [SocialMedia]
   deleteSocialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
   deleteSocialMedias(where: [SocialMediaWhereUniqueInput!]!): [SocialMedia]
+  createStoreBrand(data: StoreBrandCreateInput!): StoreBrand
+  createStoreBrands(data: [StoreBrandCreateInput!]!): [StoreBrand]
+  updateStoreBrand(where: StoreBrandWhereUniqueInput!, data: StoreBrandUpdateInput!): StoreBrand
+  updateStoreBrands(data: [StoreBrandUpdateArgs!]!): [StoreBrand]
+  deleteStoreBrand(where: StoreBrandWhereUniqueInput!): StoreBrand
+  deleteStoreBrands(where: [StoreBrandWhereUniqueInput!]!): [StoreBrand]
+  createStoreCategory(data: StoreCategoryCreateInput!): StoreCategory
+  createStoreCategories(data: [StoreCategoryCreateInput!]!): [StoreCategory]
+  updateStoreCategory(where: StoreCategoryWhereUniqueInput!, data: StoreCategoryUpdateInput!): StoreCategory
+  updateStoreCategories(data: [StoreCategoryUpdateArgs!]!): [StoreCategory]
+  deleteStoreCategory(where: StoreCategoryWhereUniqueInput!): StoreCategory
+  deleteStoreCategories(where: [StoreCategoryWhereUniqueInput!]!): [StoreCategory]
+  createStoreProduct(data: StoreProductCreateInput!): StoreProduct
+  createStoreProducts(data: [StoreProductCreateInput!]!): [StoreProduct]
+  updateStoreProduct(where: StoreProductWhereUniqueInput!, data: StoreProductUpdateInput!): StoreProduct
+  updateStoreProducts(data: [StoreProductUpdateArgs!]!): [StoreProduct]
+  deleteStoreProduct(where: StoreProductWhereUniqueInput!): StoreProduct
+  deleteStoreProducts(where: [StoreProductWhereUniqueInput!]!): [StoreProduct]
+  createStoreProductImage(data: StoreProductImageCreateInput!): StoreProductImage
+  createStoreProductImages(data: [StoreProductImageCreateInput!]!): [StoreProductImage]
+  updateStoreProductImage(where: StoreProductImageWhereUniqueInput!, data: StoreProductImageUpdateInput!): StoreProductImage
+  updateStoreProductImages(data: [StoreProductImageUpdateArgs!]!): [StoreProductImage]
+  deleteStoreProductImage(where: StoreProductImageWhereUniqueInput!): StoreProductImage
+  deleteStoreProductImages(where: [StoreProductImageWhereUniqueInput!]!): [StoreProductImage]
+  updateStoreProductReview(where: StoreProductReviewWhereUniqueInput!, data: StoreProductReviewUpdateInput!): StoreProductReview
+  updateStoreProductReviews(data: [StoreProductReviewUpdateArgs!]!): [StoreProductReview]
+  deleteStoreProductReview(where: StoreProductReviewWhereUniqueInput!): StoreProductReview
+  deleteStoreProductReviews(where: [StoreProductReviewWhereUniqueInput!]!): [StoreProductReview]
+  createStoreProductVariant(data: StoreProductVariantCreateInput!): StoreProductVariant
+  createStoreProductVariants(data: [StoreProductVariantCreateInput!]!): [StoreProductVariant]
+  updateStoreProductVariant(where: StoreProductVariantWhereUniqueInput!, data: StoreProductVariantUpdateInput!): StoreProductVariant
+  updateStoreProductVariants(data: [StoreProductVariantUpdateArgs!]!): [StoreProductVariant]
+  deleteStoreProductVariant(where: StoreProductVariantWhereUniqueInput!): StoreProductVariant
+  deleteStoreProductVariants(where: [StoreProductVariantWhereUniqueInput!]!): [StoreProductVariant]
+  deleteStoreWishlistItem(where: StoreWishlistItemWhereUniqueInput!): StoreWishlistItem
+  deleteStoreWishlistItems(where: [StoreWishlistItemWhereUniqueInput!]!): [StoreWishlistItem]
   createSystemRelease(data: SystemReleaseCreateInput!): SystemRelease
   createSystemReleases(data: [SystemReleaseCreateInput!]!): [SystemRelease]
   updateSystemRelease(where: SystemReleaseWhereUniqueInput!, data: SystemReleaseUpdateInput!): SystemRelease
@@ -11754,6 +12499,9 @@ type Mutation {
   reportAnimalSighting(input: ReportAnimalSightingInput!): AnimalSightingResult!
   setAnimalSightingHidden(id: ID!, hidden: Boolean!): AnimalSightingResult!
   setPawRankingVisibility(hidden: Boolean!): PawRankingVisibilityResult!
+  setStoreWishlist(productId: ID!, saved: Boolean!): StoreWishlistResult!
+  submitStoreProductReview(input: StoreProductReviewInput!): StoreProductReviewResult!
+  deleteMyStoreProductReview(productId: ID!): StoreProductReviewResult!
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
 
@@ -12035,6 +12783,27 @@ type Query {
   socialMedia(where: SocialMediaWhereUniqueInput!): SocialMedia
   socialMedias(where: SocialMediaWhereInput! = {}, orderBy: [SocialMediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SocialMediaWhereUniqueInput): [SocialMedia!]
   socialMediasCount(where: SocialMediaWhereInput! = {}): Int
+  storeBrand(where: StoreBrandWhereUniqueInput!): StoreBrand
+  storeBrands(where: StoreBrandWhereInput! = {}, orderBy: [StoreBrandOrderByInput!]! = [], take: Int! = 200, skip: Int! = 0, cursor: StoreBrandWhereUniqueInput): [StoreBrand!]
+  storeBrandsCount(where: StoreBrandWhereInput! = {}): Int
+  storeCategory(where: StoreCategoryWhereUniqueInput!): StoreCategory
+  storeCategories(where: StoreCategoryWhereInput! = {}, orderBy: [StoreCategoryOrderByInput!]! = [], take: Int! = 200, skip: Int! = 0, cursor: StoreCategoryWhereUniqueInput): [StoreCategory!]
+  storeCategoriesCount(where: StoreCategoryWhereInput! = {}): Int
+  storeProduct(where: StoreProductWhereUniqueInput!): StoreProduct
+  storeProducts(where: StoreProductWhereInput! = {}, orderBy: [StoreProductOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: StoreProductWhereUniqueInput): [StoreProduct!]
+  storeProductsCount(where: StoreProductWhereInput! = {}): Int
+  storeProductImage(where: StoreProductImageWhereUniqueInput!): StoreProductImage
+  storeProductImages(where: StoreProductImageWhereInput! = {}, orderBy: [StoreProductImageOrderByInput!]! = [], take: Int! = 200, skip: Int! = 0, cursor: StoreProductImageWhereUniqueInput): [StoreProductImage!]
+  storeProductImagesCount(where: StoreProductImageWhereInput! = {}): Int
+  storeProductReview(where: StoreProductReviewWhereUniqueInput!): StoreProductReview
+  storeProductReviews(where: StoreProductReviewWhereInput! = {}, orderBy: [StoreProductReviewOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: StoreProductReviewWhereUniqueInput): [StoreProductReview!]
+  storeProductReviewsCount(where: StoreProductReviewWhereInput! = {}): Int
+  storeProductVariant(where: StoreProductVariantWhereUniqueInput!): StoreProductVariant
+  storeProductVariants(where: StoreProductVariantWhereInput! = {}, orderBy: [StoreProductVariantOrderByInput!]! = [], take: Int! = 200, skip: Int! = 0, cursor: StoreProductVariantWhereUniqueInput): [StoreProductVariant!]
+  storeProductVariantsCount(where: StoreProductVariantWhereInput! = {}): Int
+  storeWishlistItem(where: StoreWishlistItemWhereUniqueInput!): StoreWishlistItem
+  storeWishlistItems(where: StoreWishlistItemWhereInput! = {}, orderBy: [StoreWishlistItemOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: StoreWishlistItemWhereUniqueInput): [StoreWishlistItem!]
+  storeWishlistItemsCount(where: StoreWishlistItemWhereInput! = {}): Int
   systemRelease(where: SystemReleaseWhereUniqueInput!): SystemRelease
   systemReleases(where: SystemReleaseWhereInput! = {}, orderBy: [SystemReleaseOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SystemReleaseWhereUniqueInput): [SystemRelease!]
   systemReleasesCount(where: SystemReleaseWhereInput! = {}): Int
@@ -12191,6 +12960,24 @@ type Query {
   animalAuthor(animalId: ID!): PublicUserCard
   publicUserProfile(username: String!): PublicUserProfile
   publicUserReports(username: String!, take: Int, skip: Int): [PublicUserReport!]!
+  storeCatalog(input: StoreCatalogInput): StoreCatalogResult!
+  storeCatalogProduct(slug: String!): StoreCatalogProduct
+  storeCatalogFacets: StoreCatalogFacets!
+  storeCatalogReviews(productId: ID!, take: Int, skip: Int): StoreCatalogReviewsResult!
+  myStoreWishlist(take: Int, skip: Int): StoreCatalogResult!
+  myStoreWishlistIds: [ID!]!
+  adminStoreProducts(
+    search: String
+    source: String
+    status: String
+    categoryId: ID
+    brandId: ID
+
+    """true = tracked products with no stock left"""
+    outOfStock: Boolean
+    take: Int
+    skip: Int
+  ): AdminStoreProductsResult!
 }
 
 union AuthenticatedItem = User
@@ -12931,6 +13718,33 @@ type PawRankingVisibilityResult {
   success: Boolean!
   message: String!
   rankingHidden: Boolean
+}
+
+type StoreWishlistResult {
+  success: Boolean!
+  message: String!
+
+  """Whether the product is saved after this call."""
+  saved: Boolean!
+}
+
+input StoreProductReviewInput {
+  productId: ID!
+
+  """1 to 5"""
+  rating: Int!
+  title: String
+  body: String
+}
+
+type StoreProductReviewResult {
+  success: Boolean!
+  message: String!
+  reviewId: ID
+
+  """Stars of the product after this change."""
+  ratingAverage: Float
+  ratingCount: Int
 }
 
 type SendAnimalFollowUpsResult {
@@ -15375,4 +16189,208 @@ type PublicUserProfile {
   events: [PublicUserEvent!]!
   rescueOrgs: [PublicUserRescueOrg!]!
   clinics: [PublicUserClinic!]!
+}
+
+input StoreCatalogInput {
+  search: String
+  categorySlug: String
+  brandSlug: String
+
+  """AnimalType.name: dog, cat…"""
+  animalType: String
+
+  """kadesh | mercado_libre"""
+  seller: String
+  minPriceCents: Int
+  maxPriceCents: Int
+  onSale: Boolean
+  featured: Boolean
+  inStock: Boolean
+
+  """
+  featured (default) | newest | price_asc | price_desc | rating | best_selling
+  """
+  sort: String
+  take: Int = 24
+  skip: Int = 0
+}
+
+type StoreCatalogRef {
+  slug: String!
+  name: String!
+}
+
+type StoreCatalogItem {
+  id: ID!
+  slug: String!
+  name: String!
+  shortDescription: String
+
+  """
+  kadesh | mercado_libre. Own and dropshipped products are both sold by Kadesh.
+  """
+  seller: String!
+
+  """MXN cents. From the cheapest variant."""
+  priceCents: Int!
+
+  """Previous price, only when it is higher than priceCents."""
+  compareAtPriceCents: Int
+  currency: String!
+  inStock: Boolean!
+
+  """Signed for 1 h: cache pages that show it for less than that."""
+  coverUrl: String
+  coverAlt: String
+  ratingAverage: Float!
+  ratingCount: Int!
+  isFeatured: Boolean!
+  category: StoreCatalogRef
+  brand: StoreCatalogRef
+
+  """Only for seller mercado_libre: the outbound affiliate link."""
+  affiliateUrl: String
+
+  """
+  Only for seller mercado_libre: when the price was last checked (ISO 8601).
+  """
+  priceCheckedAt: String
+}
+
+type StoreCatalogResult {
+  total: Int!
+  items: [StoreCatalogItem!]!
+}
+
+type StoreCatalogImage {
+  url: String!
+  alt: String
+}
+
+type StoreCatalogVariant {
+  id: ID!
+  title: String
+  sku: String
+
+  """Flat object: { Talla: M, Color: Rojo }"""
+  options: JSON
+  priceCents: Int!
+  compareAtPriceCents: Int
+  inStock: Boolean!
+
+  """Units left, only when stock is counted and running low."""
+  stockLeft: Int
+}
+
+type StoreCatalogProduct {
+  item: StoreCatalogItem!
+  description: String
+  metaTitle: String
+  metaDescription: String
+  images: [StoreCatalogImage!]!
+  variants: [StoreCatalogVariant!]!
+
+  """AnimalType.name of each one"""
+  animalTypes: [String!]!
+
+  """Published reviews with 1, 2, 3, 4 and 5 stars, in that order."""
+  ratingBreakdown: [Int!]!
+  related: [StoreCatalogItem!]!
+}
+
+type StoreCatalogFacetCategory {
+  id: ID!
+  slug: String!
+  name: String!
+  parentSlug: String
+  imageUrl: String
+
+  """Active products directly in this category."""
+  count: Int!
+}
+
+type StoreCatalogFacetBrand {
+  id: ID!
+  slug: String!
+  name: String!
+  logoUrl: String
+  count: Int!
+}
+
+type StoreCatalogFacets {
+  enabled: Boolean!
+  total: Int!
+  categories: [StoreCatalogFacetCategory!]!
+  brands: [StoreCatalogFacetBrand!]!
+  minPriceCents: Int!
+  maxPriceCents: Int!
+}
+
+type StoreCatalogReviewAuthor {
+  """First name and initial of the last name."""
+  name: String!
+  username: String
+  avatarUrl: String
+  level: PawLevelInfo
+}
+
+type StoreCatalogReview {
+  id: ID!
+  rating: Int!
+  title: String
+  body: String
+  verifiedPurchase: Boolean!
+  adminReply: String
+
+  """published | hidden (hidden only ever reaches its author, in mine)"""
+  status: String!
+  createdAt: String
+  author: StoreCatalogReviewAuthor
+}
+
+type StoreCatalogReviewsResult {
+  total: Int!
+  items: [StoreCatalogReview!]!
+
+  """The signed-in person's own review of this product, if any."""
+  mine: StoreCatalogReview
+}
+
+type AdminStoreProductRow {
+  id: ID!
+  name: String!
+  slug: String
+
+  """own | dropi | mercado_libre"""
+  source: String!
+
+  """draft | active | paused | archived"""
+  status: String!
+  priceCents: Int!
+  compareAtPriceCents: Int
+
+  """tracked | untracked"""
+  inventoryPolicy: String!
+  stockTotal: Int!
+  variantsCount: Int!
+  ratingAverage: Float!
+  ratingCount: Int!
+  salesCount: Int!
+  isFeatured: Boolean!
+  externalId: String
+  category: String
+  brand: String
+  coverUrl: String
+  createdAt: String
+  updatedAt: String
+}
+
+type AdminStoreProductsResult {
+  total: Int!
+  items: [AdminStoreProductRow!]!
+
+  """
+  Products per status, ignoring the status filter (for the filter chips).
+  """
+  statusCounts: [AdminCount!]!
 }

@@ -172,6 +172,22 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     windowMs: DAY,
   },
   {
+    key: "store_review_user",
+    label: "Reseñas de productos por persona",
+    fields: ["submitStoreProductReview", "deleteMyStoreProductReview"],
+    scope: "user",
+    limit: 20,
+    windowMs: DAY,
+  },
+  {
+    key: "store_wishlist_user",
+    label: "Cambios en la lista de deseos por persona",
+    fields: ["setStoreWishlist"],
+    scope: "user",
+    limit: 120,
+    windowMs: HOUR,
+  },
+  {
     key: "contact_ip",
     label: "Mensajes de contacto por IP",
     fields: ["createContactForm", "createContactForms"],

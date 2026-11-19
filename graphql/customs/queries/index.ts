@@ -43,6 +43,8 @@ import rescueAllies from "./rescueAllies";
 import pawLeaderboard from "./pawLeaderboard";
 import myPaws from "./myPaws";
 import publicProfile from "./publicProfile";
+import storeQueries from "./store";
+import adminStore from "./admin/adminStore";
 
 const customQuery = {
   typeDefs: `
@@ -88,6 +90,8 @@ const customQuery = {
     ${pawLeaderboard.typeDefs}
     ${myPaws.typeDefs}
     ${publicProfile.typeDefs}
+    ${storeQueries.typeDefs}
+    ${adminStore.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -134,6 +138,8 @@ const customQuery = {
     ${pawLeaderboard.definition}
     ${myPaws.definition}
     ${publicProfile.definition}
+    ${storeQueries.definition}
+    ${adminStore.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -180,6 +186,8 @@ const customQuery = {
     ...pawLeaderboard.resolver,
     ...myPaws.resolver,
     ...publicProfile.resolver,
+    ...storeQueries.resolver,
+    ...adminStore.resolver,
   },
 };
 

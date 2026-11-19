@@ -50,6 +50,12 @@ Qué: Animal, PetPlace, tienda, blog, ads y reseñas pasaron a esta carpeta.
 
 Qué no hacer: no mezclar lists de CRM/créditos aquí.
 
+### 2026-11-18 — tienda
+
+Qué: la tienda vive en `Store/` con lists de prefijo `Store`. Ver `Store/README.md`.
+
+Qué no hacer: no usar las lists viejas `Product`, `Cart`, `Order`, `Payment`, `PaymentMethod` ni `WishList`.
+
 ## Qué no va aquí
 
 Cuentas y roles (`User`, `Role`). CRM, planes y créditos (`Saas/`). Las huellitas sí van aquí: son de la persona en Kadesh Pet, no los créditos de una empresa.

@@ -199,6 +199,9 @@ var ACTIVITY_EVENT = {
   PET_PLACE_VERIFIED: "pet.place_verified",
   PET_REVIEW_ADDED: "pet.review_added",
   PET_REVIEW_DELETED: "pet.review_deleted",
+  // Store: a shopper reviewed a product (never the text: ids, length and rating only).
+  PET_STORE_REVIEW_ADDED: "pet.store_review_added",
+  PET_STORE_REVIEW_DELETED: "pet.store_review_deleted",
   // Eventos (campañas, jornadas): publicar, editar, revisar (admin) y cancelar.
   PET_EVENT_SUBMITTED: "pet.event_submitted",
   PET_EVENT_UPDATED: "pet.event_updated",
@@ -604,9 +607,9 @@ function sessionPermissions(session2) {
 function hasPermission(session2, key, legacyFallback) {
   if (!session2?.data) return false;
   if (hasRole(session2, ["admin" /* ADMIN */, "admin_company" /* ADMIN_COMPANY */])) return true;
-  const list103 = sessionPermissions(session2);
-  if (list103 == null) return legacyFallback();
-  return list103.includes(key);
+  const list110 = sessionPermissions(session2);
+  if (list110 == null) return legacyFallback();
+  return list110.includes(key);
 }
 
 // utils/access/tenant.ts
@@ -812,9 +815,9 @@ function warnOnce(type, error) {
     error instanceof Error ? error.message : error
   );
 }
-function truncate(text89, max) {
-  if (!text89) return null;
-  return text89.length > max ? `${text89.slice(0, max - 1)}\u2026` : text89;
+function truncate(text96, max) {
+  if (!text96) return null;
+  return text96.length > max ? `${text96.slice(0, max - 1)}\u2026` : text96;
 }
 async function logActivity(context, input) {
   try {
@@ -914,8 +917,8 @@ function changedFieldNames(before, after, ignore = /* @__PURE__ */ new Set()) {
   return [...names];
 }
 function idsOf(value) {
-  const list103 = Array.isArray(value) ? value : value ? [value] : [];
-  return list103.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
+  const list110 = Array.isArray(value) ? value : value ? [value] : [];
+  return list110.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
 }
 function relationInput(value) {
   if (!value || typeof value !== "object") return null;
@@ -930,8 +933,8 @@ function relationInput(value) {
 }
 function fullName(person) {
   if (!person) return null;
-  const text89 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
-  return text89 || null;
+  const text96 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
+  return text96 || null;
 }
 async function leadName(context, leadId) {
   if (!leadId) return null;
@@ -972,8 +975,8 @@ async function columnNames(context, ids) {
 function log(context, input) {
   return logActivity(context, input);
 }
-function quoted(text89, fallback) {
-  return text89 ? `"${text89}"` : fallback;
+function quoted(text96, fallback) {
+  return text96 ? `"${text96}"` : fallback;
 }
 async function logCardMove(args, entityType, label) {
   const { originalItem: before, item: after, context } = args;
@@ -2754,8 +2757,8 @@ async function run(label, work) {
   }
 }
 function deliveryDetail(value) {
-  const text89 = (value instanceof Error ? value.message : String(value ?? "")).replace(/\s+/g, " ").trim();
-  return text89.length > DETAIL_MAX ? `${text89.slice(0, DETAIL_MAX - 1)}\u2026` : text89;
+  const text96 = (value instanceof Error ? value.message : String(value ?? "")).replace(/\s+/g, " ").trim();
+  return text96.length > DETAIL_MAX ? `${text96.slice(0, DETAIL_MAX - 1)}\u2026` : text96;
 }
 async function recordDelivery(prisma, ids, data) {
   const unique = [...new Set(ids.filter(Boolean))];
@@ -2834,8 +2837,8 @@ async function checkReceipts(context, ticketTokens) {
         body: JSON.stringify({ ids: ids.slice(start, start + 1e3) })
       });
       if (!response.ok) continue;
-      const json17 = await response.json();
-      for (const [id, receipt] of Object.entries(json17.data ?? {})) {
+      const json18 = await response.json();
+      for (const [id, receipt] of Object.entries(json18.data ?? {})) {
         if (receipt.status === "error" && receipt.details?.error === "DeviceNotRegistered") {
           const token = ticketTokens.get(id);
           if (token) dead.push(token);
@@ -2910,8 +2913,8 @@ async function sendPushToUsers(context, userIds, message, notificationIds) {
         console.error("[push] Expo respondi\xF3", response.status, await response.text().catch(() => ""));
         continue;
       }
-      const json17 = await response.json();
-      (json17.data ?? []).forEach((ticket, index) => {
+      const json18 = await response.json();
+      (json18.data ?? []).forEach((ticket, index) => {
         const token = batch[index];
         if (!token) return;
         const push = byUser.get(ownerOf.get(token) ?? "");
@@ -3193,7 +3196,7 @@ async function sendWhatsAppTemplateMessage({
             components: [
               {
                 type: "body",
-                parameters: bodyParams.map((text89) => ({ type: "text", text: text89 }))
+                parameters: bodyParams.map((text96) => ({ type: "text", text: text96 }))
               }
             ]
           } : {}
@@ -3826,8 +3829,8 @@ function warnOnce2(what, error) {
   console.warn(`[paws] ${what}:`, error instanceof Error ? error.message : error);
 }
 function isDuplicateKey(error) {
-  const text89 = error instanceof Error ? `${error.message} ${error.code ?? ""}` : String(error);
-  return /23505|unique constraint|duplicate key/i.test(text89);
+  const text96 = error instanceof Error ? `${error.message} ${error.code ?? ""}` : String(error);
+  return /23505|unique constraint|duplicate key/i.test(text96);
 }
 async function runAward(context, params) {
   const prisma = prismaOf3(context);
@@ -5017,8 +5020,8 @@ function animalSentenceName(animal) {
   const forms = formsFor(animal.typeName);
   return animal.sex === "female" ? forms.thisF : forms.thisM;
 }
-function capitalizeFirst(text89) {
-  return text89 ? text89.charAt(0).toUpperCase() + text89.slice(1) : text89;
+function capitalizeFirst(text96) {
+  return text96 ? text96.charAt(0).toUpperCase() + text96.slice(1) : text96;
 }
 
 // utils/helpers/emailLayout.ts
@@ -5084,9 +5087,9 @@ function emailCallout(brand, html) {
     </tr>
   </table>`;
 }
-function emailPill(brand, text89) {
+function emailPill(brand, text96) {
   const { color, soft } = EMAIL_BRANDS[brand];
-  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text89)}</span>`;
+  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text96)}</span>`;
 }
 function emailParagraph(html) {
   return `<p style="margin:0 0 16px 0;font-family:${FONT};font-size:16px;line-height:1.7;color:${EMAIL_TEXT.body};">${html}</p>`;
@@ -5857,10 +5860,10 @@ function matchesAudience(audience, hasCompany) {
 async function resolveBroadcastRecipients(params) {
   const { context, audience, emails } = params;
   if (audience === "custom") {
-    const list103 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
+    const list110 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
     const seen2 = /* @__PURE__ */ new Set();
     const recipients2 = [];
-    for (const email of list103) {
+    for (const email of list110) {
       const key = email.toLowerCase();
       if (seen2.has(key)) continue;
       seen2.add(key);
@@ -6087,8 +6090,8 @@ function statusPlaceDateLabels(status, sex) {
     date: copy?.dateLabel?.(sex) ?? "Fecha"
   };
 }
-function capitalize(text89) {
-  return text89 ? text89[0].toUpperCase() + text89.slice(1) : text89;
+function capitalize(text96) {
+  return text96 ? text96[0].toUpperCase() + text96.slice(1) : text96;
 }
 function clean(value) {
   return (value ?? "").replace(/\s+/g, " ").trim();
@@ -6124,8 +6127,8 @@ function dateOf(value, now = /* @__PURE__ */ new Date()) {
   const sameYear = date.getFullYear() === now.getFullYear();
   return (sameYear ? DATE_FORMAT : DATE_FORMAT_YEAR).format(date).replace(",", "");
 }
-function hashtagOf(text89) {
-  const words = clean(text89).split(/[^\p{L}\p{N}]+/u).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
+function hashtagOf(text96) {
+  const words = clean(text96).split(/[^\p{L}\p{N}]+/u).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
   return words.join("");
 }
 function formatPesos(amount) {
@@ -6610,8 +6613,8 @@ async function reportAudienceWithTeam(context, animal) {
   if (!staff.length) return base;
   return [.../* @__PURE__ */ new Set([...Array.isArray(base) ? base : [], ...staff])];
 }
-function excerpt(text89) {
-  const clean5 = text89.replace(/\s+/g, " ").trim();
+function excerpt(text96) {
+  const clean5 = text96.replace(/\s+/g, " ").trim();
   return clean5.length > EXCERPT_MAX ? `${clean5.slice(0, EXCERPT_MAX - 1)}\u2026` : clean5;
 }
 function firstName(name) {
@@ -6640,19 +6643,19 @@ async function notifyAnimalComment(context, input) {
     const author = input.authorId ? await sudo.query.User.findOne({ where: { id: input.authorId }, query: "name" }) : null;
     const who = firstName(author?.name);
     const name = animalName(animal.name);
-    const text89 = excerpt(input.comment);
+    const text96 = excerpt(input.comment);
     const lost = (animal.logs?.[0]?.status ?? "") === "lost";
     let type = NOTIFICATION_TYPE.ANIMAL_COMMENTED;
     let title = name ? `${who} coment\xF3 en el reporte de ${name}` : `${who} coment\xF3 en tu reporte`;
-    let body = text89;
+    let body = text96;
     if (input.kind === "duplicate_report") {
       type = NOTIFICATION_TYPE.ANIMAL_DUPLICATE_REPORTED;
       title = name ? `Alguien m\xE1s report\xF3 a ${name}` : "Alguien m\xE1s report\xF3 al mismo animal";
-      body = `${who} iba a publicar el mismo reporte y dej\xF3 esto: \xAB${text89}\xBB`;
+      body = `${who} iba a publicar el mismo reporte y dej\xF3 esto: \xAB${text96}\xBB`;
     } else if (input.kind === "possible_match") {
       type = NOTIFICATION_TYPE.ANIMAL_POSSIBLE_MATCH;
       title = lost ? `Podr\xEDan haber encontrado a ${name ?? "tu mascota"}` : `Alguien podr\xEDa ser la familia de ${name ?? "el animal que reportaste"}`;
-      body = `${who} cree que es el mismo animal: \xAB${text89}\xBB`;
+      body = `${who} cree que es el mismo animal: \xAB${text96}\xBB`;
     }
     const url = reportUrl(animal, "#comentarios");
     await notify(context, {
@@ -6670,7 +6673,7 @@ async function notifyAnimalComment(context, input) {
       templateValues: {
         authorName: who,
         animalName: name ?? "tu mascota",
-        comment: text89,
+        comment: text96,
         summary: `${title}. ${who} cree que es el mismo animal`,
         url
       }
@@ -9119,9 +9122,9 @@ for (const state of MEXICO_STATES) {
 }
 var BY_CODE = new Map(MEXICO_STATES.map((state) => [state.code, state]));
 var BY_SLUG = new Map(MEXICO_STATES.map((state) => [state.slug, state]));
-function normalizeStateCode(text89) {
-  if (!text89?.trim()) return null;
-  const key = plain2(text89);
+function normalizeStateCode(text96) {
+  if (!text96?.trim()) return null;
+  const key = plain2(text96);
   if (BY_CODE.has(key.padStart(2, "0")) && /^\d{1,2}$/.test(key)) return key.padStart(2, "0");
   const direct = BY_KEY.get(key);
   if (direct) return direct.code;
@@ -9137,9 +9140,9 @@ function stateBySlug(slug) {
 function timeZoneForState(code) {
   return stateByCode(code)?.timeZone ?? DEFAULT_TIME_ZONE;
 }
-function cityKey(text89) {
-  if (!text89?.trim()) return null;
-  const key = plain2(text89).replace(/^municipio de\s+/, "").replace(/\s+/g, "-");
+function cityKey(text96) {
+  if (!text96?.trim()) return null;
+  const key = plain2(text96).replace(/^municipio de\s+/, "").replace(/\s+/g, "-");
   return key || null;
 }
 
@@ -10508,12 +10511,12 @@ function resolveRescuePetInput({ operation, resolvedData }) {
 }
 async function validateRescuePet({ operation, item, resolvedData, context, addValidationError }) {
   if (!resolvedData || isSudoContext(context) || isPlatformAdmin(context.session)) return;
-  const fail14 = (message) => addValidationError?.(message);
+  const fail15 = (message) => addValidationError?.(message);
   const userId = getSessionUserId(context.session);
   const organizationId = (operation === "create" ? resolvedData.organization?.connect?.id : item?.organizationId) ?? null;
   if (!organizationId) {
     if (resolvedData.stage || resolvedData.intakeDate || resolvedData.fosterMember?.connect) {
-      fail14("La etapa, la fecha de llegada y el hogar temporal son solo para fichas de un espacio de rescate.");
+      fail15("La etapa, la fecha de llegada y el hogar temporal son solo para fichas de un espacio de rescate.");
     }
     return;
   }
@@ -10525,16 +10528,16 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
       query: "status"
     });
     if (!isEditor) {
-      fail14("Solo admin, coordinaci\xF3n o voluntariado del espacio pueden crear fichas a su nombre.");
+      fail15("Solo admin, coordinaci\xF3n o voluntariado del espacio pueden crear fichas a su nombre.");
     } else if (!org?.status || !RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) {
-      fail14("Este espacio de rescate no est\xE1 activo.");
+      fail15("Este espacio de rescate no est\xE1 activo.");
     }
   } else if ((resolvedData.stage !== void 0 || resolvedData.intakeDate !== void 0) && !isEditor) {
-    fail14("La etapa y la fecha de llegada las cambia el equipo del espacio.");
+    fail15("La etapa y la fecha de llegada las cambia el equipo del espacio.");
   }
   if (resolvedData.fosterMember !== void 0) {
     if (!role || !RESCUE_ANIMAL_MANAGER_ROLES.includes(role)) {
-      fail14("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
+      fail15("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
       return;
     }
     const memberId = resolvedData.fosterMember?.connect?.id;
@@ -10543,7 +10546,7 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
         where: { id: memberId },
         query: "organization { id }"
       });
-      if (member?.organization?.id !== organizationId) fail14("Elige a alguien del equipo del espacio.");
+      if (member?.organization?.id !== organizationId) fail15("Elige a alguien del equipo del espacio.");
     }
   }
 }
@@ -10884,8 +10887,8 @@ var import_fields22 = require("@keystone-6/core/fields");
 function toYmd(value) {
   if (!value) return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
-  const text89 = String(value).trim();
-  return text89 ? text89.slice(0, 10) : null;
+  const text96 = String(value).trim();
+  return text96 ? text96.slice(0, 10) : null;
 }
 function resolveCreatedBy({ operation, resolvedData, context }) {
   const data = { ...resolvedData };
@@ -11903,9 +11906,9 @@ function sessionKey(session2) {
   return `${session2.startsAt.getTime()}-${session2.endsAt.getTime()}`;
 }
 function normalizeSessions(raw, { existing = [], now = /* @__PURE__ */ new Date() } = {}) {
-  const list103 = Array.isArray(raw) ? raw : [];
-  if (list103.length === 0) return { ok: false, message: "Agrega al menos una fecha." };
-  if (list103.length > PET_EVENT_LIMITS.MAX_SESSIONS) {
+  const list110 = Array.isArray(raw) ? raw : [];
+  if (list110.length === 0) return { ok: false, message: "Agrega al menos una fecha." };
+  if (list110.length > PET_EVENT_LIMITS.MAX_SESSIONS) {
     return { ok: false, message: `Un evento puede tener hasta ${PET_EVENT_LIMITS.MAX_SESSIONS} fechas.` };
   }
   const existingKeys = new Set(existing.map(sessionKey));
@@ -11913,7 +11916,7 @@ function normalizeSessions(raw, { existing = [], now = /* @__PURE__ */ new Date(
   maxStart.setMonth(maxStart.getMonth() + PET_EVENT_LIMITS.MAX_MONTHS_AHEAD);
   const sessions = [];
   const seen = /* @__PURE__ */ new Set();
-  for (const item of list103) {
+  for (const item of list110) {
     const startsAt = new Date(item?.startsAt);
     const endsAt = new Date(item?.endsAt);
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
@@ -11999,39 +12002,39 @@ async function normalizePetEventInput(context, input, {
   existingSessions = [],
   now = /* @__PURE__ */ new Date()
 }) {
-  const fail14 = (message) => ({ ok: false, message });
+  const fail15 = (message) => ({ ok: false, message });
   const title = clean3(input.title, PET_EVENT_LIMITS.TITLE_MAX);
-  if (title.length < PET_EVENT_LIMITS.TITLE_MIN) return fail14("Escribe un t\xEDtulo de al menos 5 letras.");
+  if (title.length < PET_EVENT_LIMITS.TITLE_MIN) return fail15("Escribe un t\xEDtulo de al menos 5 letras.");
   const category = (input.category ?? "").trim();
-  if (!CATEGORY_VALUES.has(category)) return fail14("Elige el tipo de evento.");
+  if (!CATEGORY_VALUES.has(category)) return fail15("Elige el tipo de evento.");
   const species = [...new Set((input.species ?? []).filter((value) => SPECIES_VALUES.has(value)))];
   const description = cleanMultiline(input.description, PET_EVENT_LIMITS.DESCRIPTION_MAX);
   if (description.length < PET_EVENT_LIMITS.DESCRIPTION_MIN) {
-    return fail14("Cuenta un poco m\xE1s del evento (al menos 20 letras).");
+    return fail15("Cuenta un poco m\xE1s del evento (al menos 20 letras).");
   }
   const requirements = cleanMultiline(input.requirements, PET_EVENT_LIMITS.REQUIREMENTS_MAX);
   const organizerName = clean3(input.organizerName, PET_EVENT_LIMITS.ORGANIZER_MAX);
   const contactPhone = optionalPhone2(input.contactPhone, "Tel\xE9fono de contacto");
-  if (!contactPhone.ok) return fail14(contactPhone.message);
+  if (!contactPhone.ok) return fail15(contactPhone.message);
   const registrationWhatsapp = optionalPhone2(input.registrationWhatsapp, "WhatsApp de registro");
-  if (!registrationWhatsapp.ok) return fail14(registrationWhatsapp.message);
+  if (!registrationWhatsapp.ok) return fail15(registrationWhatsapp.message);
   const registrationUrl = optionalUrl(input.registrationUrl);
-  if (!registrationUrl.ok) return fail14(registrationUrl.message);
+  if (!registrationUrl.ok) return fail15(registrationUrl.message);
   const social = {};
   for (const field of Object.keys(PET_EVENT_SOCIAL_NETWORKS)) {
     const result5 = normalizeSocialUrl(field, input[field]);
-    if (!result5.ok) return fail14(result5.message);
+    if (!result5.ok) return fail15(result5.message);
     social[field] = result5.url;
   }
   const websiteUrl = optionalUrl(input.websiteUrl, "El link del sitio web");
-  if (!websiteUrl.ok) return fail14(websiteUrl.message);
+  if (!websiteUrl.ok) return fail15(websiteUrl.message);
   const lat = Number(input.lat);
   const lng = Number(input.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 && lng === 0) {
-    return fail14("Marca en el mapa d\xF3nde ser\xE1 el evento.");
+    return fail15("Marca en el mapa d\xF3nde ser\xE1 el evento.");
   }
   if (lat < MX_BOUNDS.minLat || lat > MX_BOUNDS.maxLat || lng < MX_BOUNDS.minLng || lng > MX_BOUNDS.maxLng) {
-    return fail14("Por ahora solo publicamos eventos en M\xE9xico.");
+    return fail15("Por ahora solo publicamos eventos en M\xE9xico.");
   }
   let city = clean3(input.city, 120);
   let stateText = clean3(input.state, 120);
@@ -12048,16 +12051,16 @@ async function normalizePetEventInput(context, input, {
   }
   const stateCode = normalizeStateCode(stateText);
   if (!stateCode) {
-    return fail14("No pudimos reconocer el estado del lugar. Mueve un poco el pin o intenta de nuevo.");
+    return fail15("No pudimos reconocer el estado del lugar. Mueve un poco el pin o intenta de nuevo.");
   }
   const placeLabel = clean3(input.placeLabel, PET_EVENT_LIMITS.PLACE_LABEL_MAX);
   const scope = (input.scope ?? "").trim();
-  if (!SCOPE_VALUES.has(scope)) return fail14("Elige a qui\xE9n va dirigido el evento.");
+  if (!SCOPE_VALUES.has(scope)) return fail15("Elige a qui\xE9n va dirigido el evento.");
   if (scope === PET_EVENT_SCOPE.NATIONAL && !isAdmin) {
-    return fail14("El alcance nacional solo lo asigna el equipo de Kadesh. Elige estado, municipio o zona.");
+    return fail15("El alcance nacional solo lo asigna el equipo de Kadesh. Elige estado, municipio o zona.");
   }
   if (scope === PET_EVENT_SCOPE.CITY && !cityKey(city)) {
-    return fail14("No pudimos reconocer el municipio. Elige el alcance por estado o por zona.");
+    return fail15("No pudimos reconocer el municipio. Elige el alcance por estado o por zona.");
   }
   const reachInput = optionalInt(input.reachKm);
   const reachKm = scope === PET_EVENT_SCOPE.ZONE ? PET_EVENT_REACH_KM_OPTIONS.includes(reachInput ?? -1) ? reachInput : DEFAULT_PET_EVENT_REACH_KM : DEFAULT_PET_EVENT_REACH_KM;
@@ -12067,16 +12070,16 @@ async function normalizePetEventInput(context, input, {
   if (!isFree) {
     price = optionalInt(input.price);
     if (price !== null && (price < 1 || price > PET_EVENT_LIMITS.PRICE_MAX)) {
-      return fail14("Revisa el costo: debe ser un n\xFAmero de pesos v\xE1lido.");
+      return fail15("Revisa el costo: debe ser un n\xFAmero de pesos v\xE1lido.");
     }
-    if (price === null && !priceNote) return fail14("Escribe el costo o explica la cuota (p. ej. \xABdonativo voluntario\xBB).");
+    if (price === null && !priceNote) return fail15("Escribe el costo o explica la cuota (p. ej. \xABdonativo voluntario\xBB).");
   }
   const capacity = optionalInt(input.capacity);
   if (capacity !== null && (capacity < 1 || capacity > PET_EVENT_LIMITS.CAPACITY_MAX)) {
-    return fail14("El cupo debe ser de al menos 1 lugar.");
+    return fail15("El cupo debe ser de al menos 1 lugar.");
   }
   const sessions = normalizeSessions(input.sessions, { existing: existingSessions, now });
-  if (!sessions.ok) return fail14(sessions.message);
+  if (!sessions.ok) return fail15(sessions.message);
   let petPlace = null;
   const petPlaceId = (input.petPlaceId ?? "").trim();
   if (petPlaceId) {
@@ -12085,7 +12088,7 @@ async function normalizePetEventInput(context, input, {
       query: "id claimStatus user { id }"
     });
     const owns = place && place.user?.id === userId && place.claimStatus === PET_PLACE_CLAIM_STATUS.VERIFIED;
-    if (!place || !isAdmin && !owns) return fail14("Solo puedes ligar una veterinaria verificada que sea tuya.");
+    if (!place || !isAdmin && !owns) return fail15("Solo puedes ligar una veterinaria verificada que sea tuya.");
     petPlace = { connect: { id: place.id } };
   }
   const state = stateByCode(stateCode);
@@ -12224,8 +12227,8 @@ function normalizeRescueOrgProfile(data) {
   if (has("city")) next.city = cleanLine(next.city, RESCUE_ORG_LIMITS.CITY_MAX);
   if (has("state")) next.state = cleanLine(next.state, RESCUE_ORG_LIMITS.CITY_MAX);
   if (has("species") && next.species !== null) {
-    const list103 = Array.isArray(next.species) ? next.species : [];
-    next.species = [...new Set(list103.filter((value) => SPECIES_VALUES2.has(String(value))))];
+    const list110 = Array.isArray(next.species) ? next.species : [];
+    next.species = [...new Set(list110.filter((value) => SPECIES_VALUES2.has(String(value))))];
   }
   if (has("whatsapp") && next.whatsapp !== null) {
     const raw = String(next.whatsapp).trim();
@@ -14210,9 +14213,722 @@ var PaymentMethod_default = (0, import_core48.list)({
   }
 });
 
-// models/TokenNotification/TokenNotification.ts
-var import_fields49 = require("@keystone-6/core/fields");
+// models/Pet/Store/StoreCategory/StoreCategory.ts
 var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
+
+// utils/store/config.ts
+function storeEnabled() {
+  const value = (process.env.STORE_ENABLED ?? "").trim().toLowerCase();
+  return value === "true" || value === "on" || value === "1";
+}
+var catalogVersion = 0;
+function storeCatalogVersion() {
+  return catalogVersion;
+}
+function bumpStoreCatalogVersion() {
+  catalogVersion += 1;
+}
+
+// models/Pet/Store/constants.ts
+var STORE_PRODUCT_SOURCE = {
+  /** Kadesh's own product, shipped by Kadesh. */
+  OWN: "own",
+  /** Dropshipping: Kadesh charges, Dropi fulfills. Shown to shoppers as sold by Kadesh. */
+  DROPI: "dropi",
+  /** Affiliate link: the purchase happens on Mercado Libre. */
+  MERCADO_LIBRE: "mercado_libre"
+};
+var STORE_PRODUCT_SOURCE_OPTIONS = [
+  { label: "Propio", value: STORE_PRODUCT_SOURCE.OWN },
+  { label: "Dropi", value: STORE_PRODUCT_SOURCE.DROPI },
+  { label: "Mercado Libre (afiliado)", value: STORE_PRODUCT_SOURCE.MERCADO_LIBRE }
+];
+var STORE_SELLER = {
+  KADESH: "kadesh",
+  MERCADO_LIBRE: "mercado_libre"
+};
+function storeSellerFor(source) {
+  return source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE ? STORE_SELLER.MERCADO_LIBRE : STORE_SELLER.KADESH;
+}
+function storeSourcesForSeller(seller) {
+  if (seller === STORE_SELLER.KADESH) return [STORE_PRODUCT_SOURCE.OWN, STORE_PRODUCT_SOURCE.DROPI];
+  if (seller === STORE_SELLER.MERCADO_LIBRE) return [STORE_PRODUCT_SOURCE.MERCADO_LIBRE];
+  return null;
+}
+var STORE_PRODUCT_STATUS = {
+  DRAFT: "draft",
+  /** The only status shoppers can see. */
+  ACTIVE: "active",
+  PAUSED: "paused",
+  ARCHIVED: "archived"
+};
+var STORE_PRODUCT_STATUS_OPTIONS = [
+  { label: "Borrador", value: STORE_PRODUCT_STATUS.DRAFT },
+  { label: "Activo", value: STORE_PRODUCT_STATUS.ACTIVE },
+  { label: "Pausado", value: STORE_PRODUCT_STATUS.PAUSED },
+  { label: "Archivado", value: STORE_PRODUCT_STATUS.ARCHIVED }
+];
+var STORE_INVENTORY_POLICY = {
+  /** Stock is counted; at zero the product shows as sold out. */
+  TRACKED: "tracked",
+  /** Sold without stock (made or ordered on demand): always available. */
+  UNTRACKED: "untracked"
+};
+var STORE_INVENTORY_POLICY_OPTIONS = [
+  { label: "Con stock contado", value: STORE_INVENTORY_POLICY.TRACKED },
+  { label: "Sin stock (sobre pedido)", value: STORE_INVENTORY_POLICY.UNTRACKED }
+];
+var STORE_REVIEW_STATUS = {
+  PUBLISHED: "published",
+  /** Hidden by an admin: it stops counting toward the product's stars. */
+  HIDDEN: "hidden"
+};
+var STORE_REVIEW_STATUS_OPTIONS = [
+  { label: "Publicada", value: STORE_REVIEW_STATUS.PUBLISHED },
+  { label: "Oculta", value: STORE_REVIEW_STATUS.HIDDEN }
+];
+var STORE_CURRENCY = "MXN";
+var STORE_CATALOG_DEFAULT_TAKE = 24;
+var STORE_CATALOG_MAX_TAKE = 48;
+var STORE_RELATED_TAKE = 8;
+var STORE_REVIEWS_DEFAULT_TAKE = 10;
+var STORE_REVIEWS_MAX_TAKE = 20;
+var STORE_ADMIN_MAX_TAKE = 100;
+var STORE_WISHLIST_MAX = 500;
+var STORE_FACETS_CACHE_MS = 10 * 60 * 1e3;
+var STORE_LOW_STOCK = 5;
+var STORE_SEARCH_MIN_LENGTH = 2;
+var STORE_SEARCH_MAX_LENGTH = 80;
+var STORE_REVIEW_TITLE_MAX = 120;
+var STORE_REVIEW_BODY_MAX = 2e3;
+var STORE_RESERVED_SLUGS = /* @__PURE__ */ new Set([
+  "carrito",
+  "pagar",
+  "pedidos",
+  "deseos",
+  "categoria",
+  "marca",
+  "buscar",
+  "c",
+  "m"
+]);
+
+// utils/store/slug.ts
+var SLUG_MAX = 70;
+function slugifyStore(value) {
+  const cleaned = (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  return cleaned.slice(0, SLUG_MAX).replace(/-+$/g, "");
+}
+var FALLBACK = {
+  storeProduct: "producto",
+  storeCategory: "categoria",
+  storeBrand: "marca"
+};
+async function uniqueStoreSlug(context, model, value, exceptId) {
+  const prisma = context.sudo().prisma;
+  let base = slugifyStore(value) || FALLBACK[model];
+  if (model === "storeProduct" && STORE_RESERVED_SLUGS.has(base)) base = `${FALLBACK[model]}-${base}`;
+  for (let n = 1; n < 50; n += 1) {
+    const candidate = n === 1 ? base : `${base}-${n}`;
+    const found = await prisma[model].findFirst({ where: { slug: candidate }, select: { id: true } });
+    if (found instanceof Error) throw found;
+    if (!found || found.id === exceptId) return candidate;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+}
+async function resolveStoreSlug(context, model, args) {
+  const { operation, resolvedData, item } = args;
+  const given = typeof resolvedData.slug === "string" ? resolvedData.slug.trim() : "";
+  if (operation === "create") {
+    return uniqueStoreSlug(context, model, given || resolvedData.name);
+  }
+  if (!given) return void 0;
+  const slug = slugifyStore(given);
+  if (!slug || slug === item?.slug) return void 0;
+  return uniqueStoreSlug(context, model, slug, item?.id ? String(item.id) : void 0);
+}
+
+// models/Pet/Store/StoreCategory/StoreCategory.ts
+var StoreCategory_default = (0, import_core49.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200 },
+  ui: {
+    labelField: "name",
+    listView: { initialColumns: ["name", "slug", "parent", "order", "isActive"] }
+  },
+  hooks: {
+    resolveInput: async ({ resolvedData, item, operation, context }) => {
+      const data = { ...resolvedData };
+      const slug = await resolveStoreSlug(context, "storeCategory", { operation, resolvedData: data, item });
+      if (slug !== void 0) data.slug = slug;
+      else delete data.slug;
+      return data;
+    },
+    afterOperation: async () => {
+      bumpStoreCatalogVersion();
+    }
+  },
+  fields: {
+    name: (0, import_fields49.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields49.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: { description: "Se genera del nombre si se deja vac\xEDo." }
+    }),
+    parent: (0, import_fields49.relationship)({ ref: "StoreCategory.children", many: false }),
+    children: (0, import_fields49.relationship)({ ref: "StoreCategory.parent", many: true }),
+    image: (0, import_fields49.image)({ storage: "s3_store" }),
+    order: (0, import_fields49.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    isActive: (0, import_fields49.checkbox)({ defaultValue: true }),
+    products: (0, import_fields49.relationship)({ ref: "StoreProduct.category", many: true }),
+    createdAt: (0, import_fields49.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreBrand/StoreBrand.ts
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
+var StoreBrand_default = (0, import_core50.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200 },
+  ui: {
+    labelField: "name",
+    listView: { initialColumns: ["name", "slug", "isActive"] }
+  },
+  hooks: {
+    resolveInput: async ({ resolvedData, item, operation, context }) => {
+      const data = { ...resolvedData };
+      const slug = await resolveStoreSlug(context, "storeBrand", { operation, resolvedData: data, item });
+      if (slug !== void 0) data.slug = slug;
+      else delete data.slug;
+      return data;
+    },
+    afterOperation: async () => {
+      bumpStoreCatalogVersion();
+    }
+  },
+  fields: {
+    name: (0, import_fields50.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields50.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: { description: "Se genera del nombre si se deja vac\xEDo." }
+    }),
+    logo: (0, import_fields50.image)({ storage: "s3_store" }),
+    isActive: (0, import_fields50.checkbox)({ defaultValue: true }),
+    products: (0, import_fields50.relationship)({ ref: "StoreProduct.brand", many: true }),
+    createdAt: (0, import_fields50.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreProduct/StoreProduct.ts
+var import_core51 = require("@keystone-6/core");
+var import_fields51 = require("@keystone-6/core/fields");
+
+// utils/helpers/normalizeSearchText.ts
+function normalizeSearchText(value) {
+  return (value ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+}
+
+// utils/store/catalog.ts
+function storePrisma(context) {
+  return context.sudo().prisma;
+}
+function unwrap(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+async function recomputeStoreProductTotals(context, productId, options = {}) {
+  if (!productId) return;
+  try {
+    const prisma = storePrisma(context);
+    const variants = unwrap(
+      await prisma.storeProductVariant.findMany({
+        where: { productId, isActive: true },
+        select: { priceCents: true, compareAtPriceCents: true, stock: true }
+      })
+    );
+    let cheapest = null;
+    let stockTotal = 0;
+    for (const variant of variants) {
+      stockTotal += Math.max(0, Number(variant.stock) || 0);
+      const price = Number(variant.priceCents) || 0;
+      if (price > 0 && (!cheapest || price < Number(cheapest.priceCents))) cheapest = variant;
+    }
+    const priceCents = cheapest ? Number(cheapest.priceCents) : 0;
+    const compare = cheapest ? Number(cheapest.compareAtPriceCents) || 0 : 0;
+    const data = {
+      priceCents,
+      // Only kept when it is a real discount, so "on sale" is a plain `not null` filter.
+      compareAtPriceCents: compare > priceCents ? compare : null,
+      stockTotal
+    };
+    if (options.priceTouched) {
+      const product = unwrap(
+        await prisma.storeProduct.findUnique({ where: { id: productId }, select: { source: true } })
+      );
+      if (product?.source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE) data.externalSyncedAt = /* @__PURE__ */ new Date();
+    }
+    unwrap(await prisma.storeProduct.updateMany({ where: { id: productId }, data }));
+    bumpStoreCatalogVersion();
+  } catch (error) {
+    console.error("[store] could not recompute product totals:", productId, error);
+  }
+}
+async function recomputeStoreProductRating(context, productId) {
+  if (!productId) return null;
+  const prisma = storePrisma(context);
+  const rows2 = await prisma.$queryRaw`
+    UPDATE "StoreProduct" p
+    SET "ratingAverage" = s.average, "ratingCount" = s.total
+    FROM (
+      SELECT COALESCE(round(avg(r.rating)::numeric, 2), 0)::float8 AS average, count(*)::int AS total
+      FROM "StoreProductReview" r
+      WHERE r."product" = ${productId} AND r.status = ${STORE_REVIEW_STATUS.PUBLISHED}
+    ) s
+    WHERE p.id = ${productId}
+    RETURNING p."ratingAverage", p."ratingCount"
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  const row = rows2[0];
+  return row ? { ratingAverage: Number(row.ratingAverage), ratingCount: Number(row.ratingCount) } : null;
+}
+async function storeImageUrl(context, row) {
+  if (row.image_id) {
+    try {
+      const extension = row.image_extension || "jpg";
+      return await context.images("s3_store").getUrl(row.image_id, extension);
+    } catch (error) {
+      console.error("[store] could not sign image:", row.image_id, error);
+    }
+  }
+  return row.externalUrl || null;
+}
+async function loadStoreCovers(context, productIds) {
+  const covers = /* @__PURE__ */ new Map();
+  if (productIds.length === 0) return covers;
+  const rows2 = await storePrisma(context).$queryRaw`
+    SELECT DISTINCT ON (i."product")
+      i."product" AS "productId", i."image_id", i."image_extension", i."externalUrl", i."alt"
+    FROM "StoreProductImage" i
+    WHERE i."product" = ANY(${productIds}::text[])
+    ORDER BY i."product", i."order" ASC, i."createdAt" ASC
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  await Promise.all(
+    rows2.map(async (row) => {
+      covers.set(row.productId, { url: await storeImageUrl(context, row), alt: row.alt || null });
+    })
+  );
+  return covers;
+}
+var CATALOG_ITEM_SELECT = {
+  id: true,
+  slug: true,
+  name: true,
+  shortDescription: true,
+  source: true,
+  priceCents: true,
+  compareAtPriceCents: true,
+  inventoryPolicy: true,
+  stockTotal: true,
+  ratingAverage: true,
+  ratingCount: true,
+  isFeatured: true,
+  affiliateUrl: true,
+  externalSyncedAt: true,
+  category: { select: { slug: true, name: true } },
+  brand: { select: { slug: true, name: true } }
+};
+function isStoreItemInStock(row) {
+  if (row.source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE) return true;
+  if (row.inventoryPolicy === STORE_INVENTORY_POLICY.UNTRACKED) return true;
+  return (Number(row.stockTotal) || 0) > 0;
+}
+function storeStockLeft(inventoryPolicy, stock) {
+  if (inventoryPolicy !== STORE_INVENTORY_POLICY.TRACKED) return null;
+  const left = Math.max(0, Number(stock) || 0);
+  return left > 0 && left <= STORE_LOW_STOCK ? left : null;
+}
+function toCatalogItem(row, cover) {
+  const seller = storeSellerFor(row.source);
+  const isAffiliate = seller === STORE_SELLER.MERCADO_LIBRE;
+  return {
+    id: row.id,
+    slug: row.slug ?? row.id,
+    name: row.name,
+    shortDescription: row.shortDescription || null,
+    seller,
+    priceCents: Number(row.priceCents) || 0,
+    compareAtPriceCents: row.compareAtPriceCents ? Number(row.compareAtPriceCents) : null,
+    currency: STORE_CURRENCY,
+    inStock: isStoreItemInStock(row),
+    coverUrl: cover?.url ?? null,
+    coverAlt: cover?.alt ?? null,
+    ratingAverage: Number(row.ratingAverage) || 0,
+    ratingCount: Number(row.ratingCount) || 0,
+    isFeatured: Boolean(row.isFeatured),
+    category: row.category?.slug ? { slug: row.category.slug, name: row.category.name } : null,
+    brand: row.brand?.slug ? { slug: row.brand.slug, name: row.brand.name } : null,
+    // Only affiliate products carry an outbound link and the date their price was last checked.
+    affiliateUrl: isAffiliate ? row.affiliateUrl || null : null,
+    priceCheckedAt: isAffiliate && row.externalSyncedAt ? new Date(row.externalSyncedAt).toISOString() : null
+  };
+}
+async function loadCatalogItems(context, where, order) {
+  if (order.length === 0) return [];
+  const rows2 = unwrap(
+    await storePrisma(context).storeProduct.findMany({
+      where: { ...where, id: { in: order } },
+      select: CATALOG_ITEM_SELECT
+    })
+  );
+  const covers = await loadStoreCovers(
+    context,
+    rows2.map((row) => row.id)
+  );
+  const byId = new Map(rows2.map((row) => [row.id, row]));
+  return order.filter((id) => byId.has(id)).map((id) => toCatalogItem(byId.get(id), covers.get(id)));
+}
+function isHttpsUrl(value) {
+  if (!value) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// models/Pet/Store/StoreProduct/StoreProduct.hooks.ts
+var DERIVED_FIELDS = [
+  "nameSearch",
+  "priceCents",
+  "compareAtPriceCents",
+  "stockTotal",
+  "ratingAverage",
+  "ratingCount",
+  "salesCount"
+];
+var NULL_WHEN_EMPTY = ["externalId", "externalUrl", "affiliateUrl"];
+async function storeProductResolveInput({ resolvedData, item, operation, context }) {
+  const data = { ...resolvedData };
+  for (const field of DERIVED_FIELDS) delete data[field];
+  if (typeof data.name === "string") data.nameSearch = normalizeSearchText(data.name);
+  const slug = await resolveStoreSlug(context, "storeProduct", { operation, resolvedData: data, item });
+  if (slug !== void 0) data.slug = slug;
+  else delete data.slug;
+  for (const field of NULL_WHEN_EMPTY) {
+    if (typeof data[field] === "string") data[field] = data[field].trim() || null;
+  }
+  if (data.status === STORE_PRODUCT_STATUS.ACTIVE && !item?.publishedAt && !data.publishedAt) {
+    data.publishedAt = /* @__PURE__ */ new Date();
+  }
+  return data;
+}
+function storeProductValidateInput({ resolvedData, item, operation, addValidationError }) {
+  if (operation === "delete") return;
+  const pick = (field) => resolvedData[field] !== void 0 ? resolvedData[field] : item?.[field];
+  const source = pick("source");
+  const affiliateUrl = pick("affiliateUrl");
+  if (source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE && !isHttpsUrl(affiliateUrl)) {
+    addValidationError("Un producto de Mercado Libre necesita su enlace de afiliado (https://\u2026).");
+  }
+  if (source !== STORE_PRODUCT_SOURCE.MERCADO_LIBRE && affiliateUrl) {
+    addValidationError("El enlace de afiliado solo aplica a productos de Mercado Libre.");
+  }
+  const externalUrl = pick("externalUrl");
+  if (externalUrl && !isHttpsUrl(externalUrl)) {
+    addValidationError("El enlace externo debe empezar con https://.");
+  }
+  if (source === STORE_PRODUCT_SOURCE.DROPI && !pick("externalId")) {
+    addValidationError("Un producto de Dropi necesita su id de Dropi (externalId).");
+  }
+}
+async function storeProductValidateDelete({ item, context, addValidationError }) {
+  if (!item?.id) return;
+  const reviews = await storePrisma(context).storeProductReview.count({ where: { productId: item.id } });
+  if (reviews instanceof Error) throw reviews;
+  if (Number(reviews) > 0) {
+    addValidationError("Este producto tiene rese\xF1as: arch\xEDvalo en vez de borrarlo.");
+  }
+}
+async function storeProductBeforeOperation({ operation, item, context }) {
+  if (operation !== "delete" || !item?.id) return;
+  const sudo = context.sudo();
+  const prisma = storePrisma(context);
+  const images = await prisma.storeProductImage.findMany({ where: { productId: item.id }, select: { id: true } });
+  if (images instanceof Error) throw images;
+  if (images.length > 0) {
+    await sudo.db.StoreProductImage.deleteMany({
+      where: images.map((image14) => ({ id: image14.id }))
+    });
+  }
+  const variants = await prisma.storeProductVariant.deleteMany({ where: { productId: item.id } });
+  if (variants instanceof Error) throw variants;
+  const wishes = await prisma.storeWishlistItem.deleteMany({ where: { productId: item.id } });
+  if (wishes instanceof Error) throw wishes;
+}
+async function storeProductAfterOperation({ operation, item, inputData, context }) {
+  bumpStoreCatalogVersion();
+  if (operation === "delete" || !item?.id) return;
+  if (operation === "create" || inputData?.variants !== void 0) {
+    await recomputeStoreProductTotals(context, String(item.id), { priceTouched: true });
+  }
+}
+
+// models/Pet/Store/StoreProduct/StoreProduct.ts
+var readOnly = { ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } } };
+var StoreProduct_default = (0, import_core51.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100 },
+  db: {
+    extendPrismaSchema: (schema) => schema.replace(
+      /\n\}\s*$/,
+      "\n  @@unique([source, externalId])\n  @@index([status, categoryId])\n  @@index([status, publishedAt])\n}"
+    )
+  },
+  ui: {
+    labelField: "name",
+    listView: {
+      initialColumns: ["name", "source", "status", "priceCents", "stockTotal"],
+      initialSort: { field: "createdAt", direction: "DESC" }
+    }
+  },
+  hooks: {
+    resolveInput: storeProductResolveInput,
+    validateInput: storeProductValidateInput,
+    validateDelete: storeProductValidateDelete,
+    beforeOperation: storeProductBeforeOperation,
+    afterOperation: storeProductAfterOperation
+  },
+  fields: {
+    name: (0, import_fields51.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields51.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: { description: "Se genera del nombre si se deja vac\xEDo." }
+    }),
+    nameSearch: (0, import_fields51.text)({ isIndexed: true, ...readOnly }),
+    shortDescription: (0, import_fields51.text)(),
+    description: (0, import_fields51.text)({ ui: { displayMode: "textarea" } }),
+    source: (0, import_fields51.select)({
+      type: "string",
+      options: STORE_PRODUCT_SOURCE_OPTIONS,
+      defaultValue: STORE_PRODUCT_SOURCE.OWN,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Interno. Al p\xFAblico, propio y Dropi salen como vendidos por Kadesh." }
+    }),
+    status: (0, import_fields51.select)({
+      type: "string",
+      options: STORE_PRODUCT_STATUS_OPTIONS,
+      defaultValue: STORE_PRODUCT_STATUS.DRAFT,
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    isFeatured: (0, import_fields51.checkbox)({ defaultValue: false }),
+    publishedAt: (0, import_fields51.timestamp)({ ui: { itemView: { fieldMode: "read" } } }),
+    category: (0, import_fields51.relationship)({ ref: "StoreCategory.products", many: false }),
+    brand: (0, import_fields51.relationship)({ ref: "StoreBrand.products", many: false }),
+    animalTypes: (0, import_fields51.relationship)({ ref: "AnimalType", many: true }),
+    priceCents: (0, import_fields51.integer)({ defaultValue: 0, ...readOnly }),
+    compareAtPriceCents: (0, import_fields51.integer)({ ...readOnly }),
+    inventoryPolicy: (0, import_fields51.select)({
+      type: "string",
+      options: STORE_INVENTORY_POLICY_OPTIONS,
+      defaultValue: STORE_INVENTORY_POLICY.TRACKED,
+      validation: { isRequired: true }
+    }),
+    stockTotal: (0, import_fields51.integer)({ defaultValue: 0, ...readOnly }),
+    externalId: (0, import_fields51.text)({
+      db: { isNullable: true },
+      ui: { description: "Id del producto en Dropi, o el MLM\u2026 de Mercado Libre." }
+    }),
+    externalUrl: (0, import_fields51.text)({ db: { isNullable: true } }),
+    affiliateUrl: (0, import_fields51.text)({
+      db: { isNullable: true },
+      ui: { description: "Solo Mercado Libre: el enlace generado en el portal de afiliados." }
+    }),
+    dropiSupplierId: (0, import_fields51.integer)(),
+    suggestedPriceCents: (0, import_fields51.integer)({ ui: { description: "Precio sugerido por Dropi." } }),
+    externalSyncedAt: (0, import_fields51.timestamp)({
+      ui: { description: "Dropi: \xFAltima sincronizaci\xF3n. Mercado Libre: \xFAltima revisi\xF3n del precio." }
+    }),
+    ratingAverage: (0, import_fields51.float)({ defaultValue: 0, ...readOnly }),
+    ratingCount: (0, import_fields51.integer)({ defaultValue: 0, ...readOnly }),
+    salesCount: (0, import_fields51.integer)({ defaultValue: 0, ...readOnly }),
+    metaTitle: (0, import_fields51.text)(),
+    metaDescription: (0, import_fields51.text)(),
+    variants: (0, import_fields51.relationship)({ ref: "StoreProductVariant.product", many: true }),
+    images: (0, import_fields51.relationship)({ ref: "StoreProductImage.product", many: true }),
+    reviews: (0, import_fields51.relationship)({ ref: "StoreProductReview.product", many: true }),
+    createdAt: (0, import_fields51.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields51.timestamp)({ defaultValue: { kind: "now" }, db: { updatedAt: true } })
+  }
+});
+
+// models/Pet/Store/StoreProductVariant/StoreProductVariant.ts
+var import_core52 = require("@keystone-6/core");
+var import_fields52 = require("@keystone-6/core/fields");
+var StoreProductVariant_default = (0, import_core52.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200 },
+  ui: {
+    labelField: "title",
+    listView: { initialColumns: ["product", "title", "sku", "priceCents", "stock", "isActive"] }
+  },
+  hooks: {
+    validateInput: ({ operation, resolvedData, addValidationError }) => {
+      if (operation === "delete") return;
+      for (const field of ["priceCents", "compareAtPriceCents", "costCents", "stock", "weightGrams"]) {
+        const value = resolvedData[field];
+        if (typeof value === "number" && value < 0) addValidationError(`${field} no puede ser negativo.`);
+      }
+    },
+    // The product keeps a copy of its cheapest price and total stock.
+    afterOperation: async ({ operation, item, originalItem, inputData, context }) => {
+      const productId = item?.productId ?? originalItem?.productId ?? null;
+      const priceTouched = operation === "create" || inputData?.priceCents !== void 0;
+      await recomputeStoreProductTotals(context, productId, { priceTouched });
+      const previous = originalItem?.productId ?? null;
+      if (previous && previous !== productId) await recomputeStoreProductTotals(context, previous);
+    }
+  },
+  fields: {
+    product: (0, import_fields52.relationship)({ ref: "StoreProduct.variants", many: false }),
+    title: (0, import_fields52.text)({ ui: { description: "Por ejemplo \xABTalla M / Rojo\xBB. Vac\xEDo si el producto no tiene opciones." } }),
+    sku: (0, import_fields52.text)({ isIndexed: true, db: { isNullable: true } }),
+    options: (0, import_fields52.json)({ ui: { description: 'Opciones como objeto plano: { "Talla": "M", "Color": "Rojo" }' } }),
+    priceCents: (0, import_fields52.integer)({ validation: { isRequired: true }, defaultValue: 0 }),
+    compareAtPriceCents: (0, import_fields52.integer)({ ui: { description: "Precio anterior, para mostrarlo tachado." } }),
+    costCents: (0, import_fields52.integer)({ ui: { description: "Lo que paga Kadesh. Solo admin." } }),
+    stock: (0, import_fields52.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    dropiVariationId: (0, import_fields52.integer)(),
+    weightGrams: (0, import_fields52.integer)(),
+    order: (0, import_fields52.integer)({ defaultValue: 1, validation: { isRequired: true } }),
+    isActive: (0, import_fields52.checkbox)({ defaultValue: true }),
+    createdAt: (0, import_fields52.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreProductImage/StoreProductImage.ts
+var import_core53 = require("@keystone-6/core");
+var import_fields53 = require("@keystone-6/core/fields");
+var StoreProductImage_default = (0, import_core53.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200 },
+  ui: {
+    listView: { initialColumns: ["product", "image", "order"] }
+  },
+  hooks: {
+    validateInput: ({ operation, resolvedData, item, addValidationError }) => {
+      if (operation === "delete") return;
+      const externalUrl = resolvedData.externalUrl !== void 0 ? resolvedData.externalUrl : item?.externalUrl;
+      if (externalUrl && !isHttpsUrl(externalUrl)) {
+        addValidationError("La imagen externa debe ser un enlace https://.");
+      }
+      if (operation !== "create") return;
+      const uploaded = resolvedData.image?.id ?? resolvedData.image_id;
+      if (!uploaded && !externalUrl) addValidationError("Sube una imagen o pega su enlace.");
+    },
+    afterOperation: async () => {
+      bumpStoreCatalogVersion();
+    }
+  },
+  fields: {
+    product: (0, import_fields53.relationship)({ ref: "StoreProduct.images", many: false }),
+    image: (0, import_fields53.image)({ storage: "s3_store" }),
+    externalUrl: (0, import_fields53.text)({ db: { isNullable: true } }),
+    alt: (0, import_fields53.text)(),
+    order: (0, import_fields53.integer)({
+      defaultValue: 1,
+      validation: { isRequired: true },
+      ui: { description: "1 es la portada. 2, 3\u2026 el resto." }
+    }),
+    createdAt: (0, import_fields53.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreProductReview/StoreProductReview.ts
+var import_core54 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
+var StoreProductReview_default = (0, import_core54.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true } },
+  db: {
+    // Published reviews of one product, newest first.
+    extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@index([productId, status, createdAt])\n}")
+  },
+  ui: {
+    listView: {
+      initialColumns: ["product", "user", "rating", "status", "createdAt"],
+      initialSort: { field: "createdAt", direction: "DESC" }
+    }
+  },
+  hooks: {
+    afterOperation: async ({ item, originalItem, context }) => {
+      const productId = item?.productId ?? originalItem?.productId ?? null;
+      try {
+        await recomputeStoreProductRating(context, productId);
+        bumpStoreCatalogVersion();
+      } catch (error) {
+        console.error("[store] could not recompute rating:", productId, error);
+      }
+    }
+  },
+  fields: {
+    key: (0, import_fields54.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: { description: "<userId>:<productId>", itemView: { fieldMode: "read" } }
+    }),
+    product: (0, import_fields54.relationship)({ ref: "StoreProduct.reviews", many: false }),
+    user: (0, import_fields54.relationship)({ ref: "User", many: false }),
+    rating: (0, import_fields54.integer)({ validation: { isRequired: true, min: 1, max: 5 } }),
+    title: (0, import_fields54.text)(),
+    body: (0, import_fields54.text)({ ui: { displayMode: "textarea" } }),
+    status: (0, import_fields54.select)({
+      type: "string",
+      options: STORE_REVIEW_STATUS_OPTIONS,
+      defaultValue: STORE_REVIEW_STATUS.PUBLISHED,
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    verifiedPurchase: (0, import_fields54.checkbox)({
+      defaultValue: false,
+      ui: { description: "La persona compr\xF3 y recibi\xF3 este producto en Kadesh." }
+    }),
+    adminReply: (0, import_fields54.text)({ ui: { displayMode: "textarea", description: "Respuesta p\xFAblica de Kadesh." } }),
+    createdAt: (0, import_fields54.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields54.timestamp)({ defaultValue: { kind: "now" }, db: { updatedAt: true } })
+  }
+});
+
+// models/Pet/Store/StoreWishlistItem/StoreWishlistItem.ts
+var import_core55 = require("@keystone-6/core");
+var import_fields55 = require("@keystone-6/core/fields");
+var StoreWishlistItem_default = (0, import_core55.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true, update: true } },
+  ui: {
+    listView: { initialColumns: ["user", "product", "createdAt"] }
+  },
+  fields: {
+    key: (0, import_fields55.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: { description: "<userId>:<productId>", itemView: { fieldMode: "read" } }
+    }),
+    user: (0, import_fields55.relationship)({ ref: "User", many: false }),
+    product: (0, import_fields55.relationship)({ ref: "StoreProduct", many: false }),
+    createdAt: (0, import_fields55.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/TokenNotification/TokenNotification.ts
+var import_fields56 = require("@keystone-6/core/fields");
+var import_core56 = require("@keystone-6/core");
 
 // models/TokenNotification/constants.ts
 var PUSH_PLATFORM = {
@@ -14226,7 +14942,7 @@ var PUSH_PLATFORM_OPTIONS = [
 
 // models/TokenNotification/TokenNotification.ts
 var adminOnly8 = ({ session: session2 }) => isPlatformAdmin(session2);
-var TokenNotification_default = (0, import_core49.list)({
+var TokenNotification_default = (0, import_core56.list)({
   access: {
     operation: {
       query: adminOnly8,
@@ -14236,23 +14952,23 @@ var TokenNotification_default = (0, import_core49.list)({
     }
   },
   fields: {
-    token: (0, import_fields49.text)({
+    token: (0, import_fields56.text)({
       isIndexed: true,
       ui: {
         displayMode: "textarea"
       }
     }),
-    user: (0, import_fields49.relationship)({
+    user: (0, import_fields56.relationship)({
       ref: "User",
       many: false
     }),
-    platform: (0, import_fields49.select)({
+    platform: (0, import_fields56.select)({
       type: "string",
       options: PUSH_PLATFORM_OPTIONS,
       db: { isNullable: true }
     }),
-    deviceId: (0, import_fields49.text)({ db: { isNullable: true } }),
-    lastSeenAt: (0, import_fields49.timestamp)({
+    deviceId: (0, import_fields56.text)({ db: { isNullable: true } }),
+    lastSeenAt: (0, import_fields56.timestamp)({
       db: { isNullable: true },
       ui: { itemView: { fieldMode: "read" } }
     })
@@ -14260,8 +14976,8 @@ var TokenNotification_default = (0, import_core49.list)({
 });
 
 // models/Notification/Notification.ts
-var import_core50 = require("@keystone-6/core");
-var import_fields50 = require("@keystone-6/core/fields");
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
 
 // models/Notification/Notification.access.ts
 var signedIn6 = ({ session: session2 }) => isSignedIn(session2);
@@ -14295,7 +15011,7 @@ var deliveryField = {
 };
 
 // models/Notification/Notification.ts
-var Notification_default = (0, import_core50.list)({
+var Notification_default = (0, import_core57.list)({
   access: notificationAccess,
   ui: {
     listView: {
@@ -14304,63 +15020,63 @@ var Notification_default = (0, import_core50.list)({
     }
   },
   fields: {
-    recipient: (0, import_fields50.relationship)({
+    recipient: (0, import_fields57.relationship)({
       ref: "User",
       many: false,
       access: readOnlyField,
       ui: { description: "Qui\xE9n la recibe" }
     }),
-    product: (0, import_fields50.select)({
+    product: (0, import_fields57.select)({
       type: "string",
       options: NOTIFICATION_PRODUCT_OPTIONS,
       defaultValue: NOTIFICATION_PRODUCT.SAAS,
       isIndexed: true,
       access: readOnlyField
     }),
-    type: (0, import_fields50.text)({
+    type: (0, import_fields57.text)({
       isIndexed: true,
       access: readOnlyField,
       ui: { description: "animal.created, petplace.service_requested, \u2026" }
     }),
-    title: (0, import_fields50.text)({ validation: { isRequired: true }, access: readOnlyField }),
-    body: (0, import_fields50.text)({ access: readOnlyField, ui: { displayMode: "textarea" } }),
-    entityType: (0, import_fields50.text)({ access: readOnlyField }),
-    entityId: (0, import_fields50.text)({ access: readOnlyField }),
+    title: (0, import_fields57.text)({ validation: { isRequired: true }, access: readOnlyField }),
+    body: (0, import_fields57.text)({ access: readOnlyField, ui: { displayMode: "textarea" } }),
+    entityType: (0, import_fields57.text)({ access: readOnlyField }),
+    entityId: (0, import_fields57.text)({ access: readOnlyField }),
     /** Ruta o URL a la que lleva el clic (p. ej. la pestaña de Operaciones o la ficha pública). */
-    url: (0, import_fields50.text)({ access: readOnlyField }),
-    metadata: (0, import_fields50.json)({ access: readOnlyField }),
-    readAt: (0, import_fields50.timestamp)({ db: { isNullable: true } }),
+    url: (0, import_fields57.text)({ access: readOnlyField }),
+    metadata: (0, import_fields57.json)({ access: readOnlyField }),
+    readAt: (0, import_fields57.timestamp)({ db: { isNullable: true } }),
     // ── A dónde se fue (solo admin la lee; la escribe el servidor). Ver README.md "Entrega".
-    pushStatus: (0, import_fields50.select)({
+    pushStatus: (0, import_fields57.select)({
       type: "string",
       options: PUSH_DELIVERY_OPTIONS,
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "Push a la app. Vac\xEDo = no aplica (solo Kadesh Pet)." }
     }),
-    pushDevices: (0, import_fields50.integer)({
+    pushDevices: (0, import_fields57.integer)({
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "Dispositivos a los que se intent\xF3 mandar el push" }
     }),
-    whatsappStatus: (0, import_fields50.select)({
+    whatsappStatus: (0, import_fields57.select)({
       type: "string",
       options: WHATSAPP_DELIVERY_OPTIONS,
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "WhatsApp. Vac\xEDo = el tipo no tiene plantilla." }
     }),
-    whatsappDetail: (0, import_fields50.text)({
+    whatsappDetail: (0, import_fields57.text)({
       access: deliveryField,
       ui: { description: "Por qu\xE9 no se mand\xF3 (sin_optin, sin_telefono\u2026) o el error de Meta" }
     }),
-    whatsappMessageId: (0, import_fields50.text)({
+    whatsappMessageId: (0, import_fields57.text)({
       isIndexed: true,
       access: deliveryField,
       ui: { description: "wamid de Meta: con \xE9l el webhook actualiza entregado / le\xEDdo / fall\xF3" }
     }),
-    whatsappUpdatedAt: (0, import_fields50.timestamp)({ db: { isNullable: true }, access: deliveryField }),
-    createdAt: (0, import_fields50.timestamp)({
+    whatsappUpdatedAt: (0, import_fields57.timestamp)({ db: { isNullable: true }, access: deliveryField }),
+    createdAt: (0, import_fields57.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       access: readOnlyField
@@ -14369,43 +15085,43 @@ var Notification_default = (0, import_core50.list)({
 });
 
 // models/Pet/Ad/Ad.ts
-var import_core51 = require("@keystone-6/core");
-var import_fields51 = require("@keystone-6/core/fields");
-var Ad_default = (0, import_core51.list)({
+var import_core58 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
+var Ad_default = (0, import_core58.list)({
   access: adminOnlyAccess,
   fields: {
-    title: (0, import_fields51.text)(),
-    description: (0, import_fields51.text)({
+    title: (0, import_fields58.text)(),
+    description: (0, import_fields58.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    active: (0, import_fields51.checkbox)(),
-    start_date: (0, import_fields51.calendarDay)(),
-    end_date: (0, import_fields51.calendarDay)(),
-    price: (0, import_fields51.integer)(),
-    status: (0, import_fields51.select)({
+    active: (0, import_fields58.checkbox)(),
+    start_date: (0, import_fields58.calendarDay)(),
+    end_date: (0, import_fields58.calendarDay)(),
+    price: (0, import_fields58.integer)(),
+    status: (0, import_fields58.select)({
       options: STATUS_AD
     }),
-    type: (0, import_fields51.select)({
+    type: (0, import_fields58.select)({
       options: TYPES_AD
     }),
-    lat: (0, import_fields51.text)(),
-    lng: (0, import_fields51.text)(),
-    image: (0, import_fields51.image)({
+    lat: (0, import_fields58.text)(),
+    lng: (0, import_fields58.text)(),
+    image: (0, import_fields58.image)({
       storage: "s3_ads"
     }),
-    pet_place: (0, import_fields51.relationship)({
+    pet_place: (0, import_fields58.relationship)({
       ref: "PetPlace.pet_place_ads"
     }),
-    product: (0, import_fields51.relationship)({
+    product: (0, import_fields58.relationship)({
       ref: "Product.product_ads"
     }),
-    user: (0, import_fields51.relationship)({
+    user: (0, import_fields58.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields51.timestamp)({
+    createdAt: (0, import_fields58.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14418,8 +15134,8 @@ var Ad_default = (0, import_core51.list)({
 });
 
 // models/Blog/Post/Post.ts
-var import_core53 = require("@keystone-6/core");
-var import_fields53 = require("@keystone-6/core/fields");
+var import_core60 = require("@keystone-6/core");
+var import_fields60 = require("@keystone-6/core/fields");
 
 // models/Blog/Post/Post.access.ts
 var postAccess = {
@@ -14436,27 +15152,27 @@ var postAccess = {
 };
 
 // models/Blog/Post/Post.authorProfile.ts
-var import_core52 = require("@keystone-6/core");
-var import_fields52 = require("@keystone-6/core/fields");
-var PostAuthorImage = import_core52.graphql.object()({
+var import_core59 = require("@keystone-6/core");
+var import_fields59 = require("@keystone-6/core/fields");
+var PostAuthorImage = import_core59.graphql.object()({
   name: "PostAuthorImage",
   fields: {
-    url: import_core52.graphql.field({ type: import_core52.graphql.nonNull(import_core52.graphql.String) })
+    url: import_core59.graphql.field({ type: import_core59.graphql.nonNull(import_core59.graphql.String) })
   }
 });
-var PostAuthorProfile = import_core52.graphql.object()({
+var PostAuthorProfile = import_core59.graphql.object()({
   name: "PostAuthorProfile",
   fields: {
-    name: import_core52.graphql.field({ type: import_core52.graphql.String }),
-    lastName: import_core52.graphql.field({ type: import_core52.graphql.String }),
-    username: import_core52.graphql.field({ type: import_core52.graphql.String }),
-    verified: import_core52.graphql.field({ type: import_core52.graphql.Boolean }),
-    createdAt: import_core52.graphql.field({ type: import_core52.graphql.String }),
-    profileImage: import_core52.graphql.field({ type: PostAuthorImage })
+    name: import_core59.graphql.field({ type: import_core59.graphql.String }),
+    lastName: import_core59.graphql.field({ type: import_core59.graphql.String }),
+    username: import_core59.graphql.field({ type: import_core59.graphql.String }),
+    verified: import_core59.graphql.field({ type: import_core59.graphql.Boolean }),
+    createdAt: import_core59.graphql.field({ type: import_core59.graphql.String }),
+    profileImage: import_core59.graphql.field({ type: PostAuthorImage })
   }
 });
-var postAuthorProfileField = (0, import_fields52.virtual)({
-  field: import_core52.graphql.field({
+var postAuthorProfileField = (0, import_fields59.virtual)({
+  field: import_core59.graphql.field({
     type: PostAuthorProfile,
     async resolve(item, _args, context) {
       if (!item?.authorId) return null;
@@ -14709,7 +15425,7 @@ var postPublishSideEffectsHook = {
 
 // models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
-var Post_default = (0, import_core53.list)({
+var Post_default = (0, import_core60.list)({
   access: postAccess,
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
@@ -14722,7 +15438,7 @@ var Post_default = (0, import_core53.list)({
     }
   },
   fields: {
-    product: (0, import_fields53.select)({
+    product: (0, import_fields60.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -14732,8 +15448,8 @@ var Post_default = (0, import_core53.list)({
         description: "Pet, SaaS o ambas apps. Su categor\xEDa debe ser del mismo producto."
       }
     }),
-    title: (0, import_fields53.text)({ validation: { isRequired: true } }),
-    url: (0, import_fields53.text)({
+    title: (0, import_fields60.text)({ validation: { isRequired: true } }),
+    url: (0, import_fields60.text)({
       isIndexed: "unique",
       hooks: postUrlHook,
       ui: {
@@ -14746,21 +15462,21 @@ var Post_default = (0, import_core53.list)({
       dividers: true,
       links: true
     }),
-    excerpt: (0, import_fields53.text)({
+    excerpt: (0, import_fields60.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    image: (0, import_fields53.image)({
+    image: (0, import_fields60.image)({
       storage: "s3_posts"
     }),
-    published: (0, import_fields53.checkbox)({
+    published: (0, import_fields60.checkbox)({
       defaultValue: false,
       ui: {
         description: 'Marca esto y deja "Published at" vac\xEDo para publicar de inmediato, o ponle una fecha futura para programarlo.'
       }
     }),
-    publishedAt: (0, import_fields53.timestamp)({
+    publishedAt: (0, import_fields60.timestamp)({
       ui: {
         createView: { fieldMode: "edit" },
         itemView: { fieldMode: "edit" },
@@ -14768,14 +15484,14 @@ var Post_default = (0, import_core53.list)({
       }
     }),
     /** Cuándo se mandó el correo de "nuevo post". No editable: evita reenvíos en guardados posteriores. */
-    publishedNotifiedAt: (0, import_fields53.timestamp)({
+    publishedNotifiedAt: (0, import_fields60.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
     /** Cuándo se publicó en la Página de Facebook. Editable: vaciarlo fuerza un reintento. */
-    publishedToFacebookAt: (0, import_fields53.timestamp)({
+    publishedToFacebookAt: (0, import_fields60.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "edit" },
@@ -14786,7 +15502,7 @@ var Post_default = (0, import_core53.list)({
      * Tarea de ClickUp que originó el post. Único para no duplicar si el webhook reintenta.
      * Vacío cuando el post se creó en el Admin.
      */
-    clickupTaskId: (0, import_fields53.text)({
+    clickupTaskId: (0, import_fields60.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
@@ -14795,37 +15511,37 @@ var Post_default = (0, import_core53.list)({
         description: "Id de la tarea de ClickUp. Lo llena el webhook al aprobar una publicaci\xF3n."
       }
     }),
-    category: (0, import_fields53.relationship)({
+    category: (0, import_fields60.relationship)({
       ref: "Category.posts",
       many: false
     }),
-    tags: (0, import_fields53.relationship)({
+    tags: (0, import_fields60.relationship)({
       ref: "Tag.posts",
       many: true
     }),
-    author: (0, import_fields53.relationship)({
+    author: (0, import_fields60.relationship)({
       ref: "User",
       many: false
     }),
     /** Datos públicos del autor para el blog: a un visitante `author` le llega `null`. */
     authorProfile: postAuthorProfileField,
-    comments: (0, import_fields53.relationship)({
+    comments: (0, import_fields60.relationship)({
       ref: "PostComment.post",
       many: true
     }),
-    post_likes: (0, import_fields53.relationship)({
+    post_likes: (0, import_fields60.relationship)({
       ref: "PostLike.post",
       many: true
     }),
-    post_favorites: (0, import_fields53.relationship)({
+    post_favorites: (0, import_fields60.relationship)({
       ref: "PostFavorite.post",
       many: true
     }),
-    post_views: (0, import_fields53.relationship)({
+    post_views: (0, import_fields60.relationship)({
       ref: "PostView.post",
       many: true
     }),
-    createdAt: (0, import_fields53.timestamp)({
+    createdAt: (0, import_fields60.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14834,7 +15550,7 @@ var Post_default = (0, import_core53.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields53.timestamp)({
+    updatedAt: (0, import_fields60.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14850,28 +15566,28 @@ var Post_default = (0, import_core53.list)({
 });
 
 // models/Blog/Post/PostComment/PostComment.ts
-var import_core54 = require("@keystone-6/core");
-var import_fields54 = require("@keystone-6/core/fields");
-var PostComment_default = (0, import_core54.list)({
+var import_core61 = require("@keystone-6/core");
+var import_fields61 = require("@keystone-6/core/fields");
+var PostComment_default = (0, import_core61.list)({
   access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    comment: (0, import_fields54.text)({
+    comment: (0, import_fields61.text)({
       validation: { isRequired: true },
       ui: { displayMode: "textarea" }
     }),
-    post: (0, import_fields54.relationship)({
+    post: (0, import_fields61.relationship)({
       ref: "Post.comments",
       many: false
     }),
-    user: (0, import_fields54.relationship)({
+    user: (0, import_fields61.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields54.timestamp)({
+    createdAt: (0, import_fields61.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14880,7 +15596,7 @@ var PostComment_default = (0, import_core54.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields54.timestamp)({
+    updatedAt: (0, import_fields61.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14896,24 +15612,24 @@ var PostComment_default = (0, import_core54.list)({
 });
 
 // models/Blog/Post/PostLike/PostLike.ts
-var import_core55 = require("@keystone-6/core");
-var import_fields55 = require("@keystone-6/core/fields");
-var PostLike_default = (0, import_core55.list)({
+var import_core62 = require("@keystone-6/core");
+var import_fields62 = require("@keystone-6/core/fields");
+var PostLike_default = (0, import_core62.list)({
   access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    user: (0, import_fields55.relationship)({
+    user: (0, import_fields62.relationship)({
       ref: "User",
       many: false
     }),
-    post: (0, import_fields55.relationship)({
+    post: (0, import_fields62.relationship)({
       ref: "Post.post_likes",
       many: false
     }),
-    createdAt: (0, import_fields55.timestamp)({
+    createdAt: (0, import_fields62.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14926,24 +15642,24 @@ var PostLike_default = (0, import_core55.list)({
 });
 
 // models/Blog/Post/PostFavorite/PostFavorite.ts
-var import_core56 = require("@keystone-6/core");
-var import_fields56 = require("@keystone-6/core/fields");
-var PostFavorite_default = (0, import_core56.list)({
+var import_core63 = require("@keystone-6/core");
+var import_fields63 = require("@keystone-6/core/fields");
+var PostFavorite_default = (0, import_core63.list)({
   access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    user: (0, import_fields56.relationship)({
+    user: (0, import_fields63.relationship)({
       ref: "User",
       many: false
     }),
-    post: (0, import_fields56.relationship)({
+    post: (0, import_fields63.relationship)({
       ref: "Post.post_favorites",
       many: false
     }),
-    createdAt: (0, import_fields56.timestamp)({
+    createdAt: (0, import_fields63.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14956,24 +15672,24 @@ var PostFavorite_default = (0, import_core56.list)({
 });
 
 // models/Blog/Post/PostView/PostView.ts
-var import_core57 = require("@keystone-6/core");
-var import_fields57 = require("@keystone-6/core/fields");
-var PostView_default = (0, import_core57.list)({
+var import_core64 = require("@keystone-6/core");
+var import_fields64 = require("@keystone-6/core/fields");
+var PostView_default = (0, import_core64.list)({
   access: viewRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    user: (0, import_fields57.relationship)({
+    user: (0, import_fields64.relationship)({
       ref: "User",
       many: false
     }),
-    post: (0, import_fields57.relationship)({
+    post: (0, import_fields64.relationship)({
       ref: "Post.post_views",
       many: false
     }),
-    createdAt: (0, import_fields57.timestamp)({
+    createdAt: (0, import_fields64.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14986,20 +15702,20 @@ var PostView_default = (0, import_core57.list)({
 });
 
 // models/Blog/Tag/Tag.ts
-var import_core58 = require("@keystone-6/core");
-var import_fields58 = require("@keystone-6/core/fields");
-var Tag_default = (0, import_core58.list)({
+var import_core65 = require("@keystone-6/core");
+var import_fields65 = require("@keystone-6/core/fields");
+var Tag_default = (0, import_core65.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    name: (0, import_fields58.text)({
+    name: (0, import_fields65.text)({
       validation: { isRequired: true },
       isIndexed: "unique"
     }),
-    posts: (0, import_fields58.relationship)({
+    posts: (0, import_fields65.relationship)({
       ref: "Post.tags",
       many: true
     }),
-    createdAt: (0, import_fields58.timestamp)({
+    createdAt: (0, import_fields65.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15012,13 +15728,13 @@ var Tag_default = (0, import_core58.list)({
 });
 
 // models/Blog/Category/Category.ts
-var import_core59 = require("@keystone-6/core");
-var import_fields59 = require("@keystone-6/core/fields");
+var import_core66 = require("@keystone-6/core");
+var import_fields66 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text89) {
+function sanitizeUrl2(text96) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text89.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text96.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -15055,13 +15771,13 @@ async function checkCategoryUrl(name, currentCategoryId, context) {
 }
 
 // models/Blog/Category/Category.ts
-var Category_default = (0, import_core59.list)({
+var Category_default = (0, import_core66.list)({
   access: publicReadAdminWriteAccess,
   ui: {
     listView: { initialColumns: ["name", "product", "url"] }
   },
   fields: {
-    product: (0, import_fields59.select)({
+    product: (0, import_fields66.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -15071,13 +15787,13 @@ var Category_default = (0, import_core59.list)({
         description: "Pet, SaaS o ambas apps. Define d\xF3nde aparece la categor\xEDa."
       }
     }),
-    name: (0, import_fields59.text)({
+    name: (0, import_fields66.text)({
       isIndexed: "unique",
       ui: {
         description: "Nombre visible. La direcci\xF3n se arma sola y no conviene cambiarla si ya hay art\xEDculos."
       }
     }),
-    url: (0, import_fields59.text)({
+    url: (0, import_fields66.text)({
       isIndexed: "unique",
       hooks: categoryUrlHook,
       ui: {
@@ -15085,14 +15801,14 @@ var Category_default = (0, import_core59.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    image: (0, import_fields59.image)({
+    image: (0, import_fields66.image)({
       storage: "s3_categories"
     }),
-    posts: (0, import_fields59.relationship)({
+    posts: (0, import_fields66.relationship)({
       ref: "Post.category",
       many: true
     }),
-    createdAt: (0, import_fields59.timestamp)({
+    createdAt: (0, import_fields66.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15105,8 +15821,8 @@ var Category_default = (0, import_core59.list)({
 });
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var import_core60 = require("@keystone-6/core");
-var import_fields60 = require("@keystone-6/core/fields");
+var import_core67 = require("@keystone-6/core");
+var import_fields67 = require("@keystone-6/core/fields");
 
 // models/Blog/BlogSubscription/BlogSubscription.hooks.ts
 function normalizeEmail(email) {
@@ -15180,7 +15896,7 @@ var blogSubscriptionHooks = {
 };
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var BlogSubscription_default = (0, import_core60.list)({
+var BlogSubscription_default = (0, import_core67.list)({
   // Cualquiera se suscribe; solo el admin lee la lista. La baja va por `unsubscribeBlog` (sudo).
   access: anonymousCreateAccess,
   hooks: {
@@ -15189,14 +15905,14 @@ var BlogSubscription_default = (0, import_core60.list)({
     afterOperation: blogSubscriptionHooks.afterOperation
   },
   fields: {
-    email: (0, import_fields60.text)({
+    email: (0, import_fields67.text)({
       // No es único: la unicidad es (email, product), ver BlogSubscription.hooks.ts
       isIndexed: true,
       ui: {
         displayMode: "input"
       }
     }),
-    product: (0, import_fields60.select)({
+    product: (0, import_fields67.select)({
       options: SINGLE_PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -15206,20 +15922,20 @@ var BlogSubscription_default = (0, import_core60.list)({
         description: "Blog al que est\xE1 suscrito: Pet o SaaS"
       }
     }),
-    user: (0, import_fields60.relationship)({
+    user: (0, import_fields67.relationship)({
       ref: "User.blog_subscriptions",
       many: false,
       ui: {
         displayMode: "select"
       }
     }),
-    active: (0, import_fields60.checkbox)({
+    active: (0, import_fields67.checkbox)({
       defaultValue: true,
       ui: {
         description: "Si est\xE1 activo, recibir\xE1 notificaciones de nuevos posts"
       }
     }),
-    createdAt: (0, import_fields60.timestamp)({
+    createdAt: (0, import_fields67.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15238,8 +15954,8 @@ var BlogSubscription_default = (0, import_core60.list)({
 });
 
 // models/Role/Role.ts
-var import_core61 = require("@keystone-6/core");
-var import_fields61 = require("@keystone-6/core/fields");
+var import_core68 = require("@keystone-6/core");
+var import_fields68 = require("@keystone-6/core/fields");
 
 // models/Role/Role.access.ts
 var roleAccess = {
@@ -15262,19 +15978,19 @@ var roleUsersFieldAccess = {
 };
 
 // models/Role/Role.ts
-var Role_default = (0, import_core61.list)({
+var Role_default = (0, import_core68.list)({
   access: roleAccess,
   fields: {
-    name: (0, import_fields61.select)({
+    name: (0, import_fields68.select)({
       options: ROLES,
       isIndexed: "unique"
     }),
-    users: (0, import_fields61.relationship)({
+    users: (0, import_fields68.relationship)({
       ref: "User.roles",
       many: true,
       access: roleUsersFieldAccess
     }),
-    createdAt: (0, import_fields61.timestamp)({
+    createdAt: (0, import_fields68.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15287,8 +16003,8 @@ var Role_default = (0, import_core61.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceType/PetPlaceType.ts
-var import_core62 = require("@keystone-6/core");
-var import_fields62 = require("@keystone-6/core/fields");
+var import_core69 = require("@keystone-6/core");
+var import_fields69 = require("@keystone-6/core/fields");
 var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
   label: type.label,
   value: type.value
@@ -15311,22 +16027,22 @@ var pluralHook = {
     return resolvedData.plural || item?.plural;
   }
 };
-var PetPlaceType_default = (0, import_core62.list)({
+var PetPlaceType_default = (0, import_core69.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    value: (0, import_fields62.select)({
+    value: (0, import_fields69.select)({
       validation: { isRequired: true },
       isIndexed: "unique",
       options: PET_PLACE_TYPE_OPTIONS
     }),
-    label: (0, import_fields62.text)({
+    label: (0, import_fields69.text)({
       isIndexed: "unique",
       hooks: labelHook,
       ui: {
         itemView: { fieldMode: "read" }
       }
     }),
-    plural: (0, import_fields62.text)({
+    plural: (0, import_fields69.text)({
       hooks: pluralHook,
       ui: {
         itemView: { fieldMode: "read" }
@@ -15339,15 +16055,15 @@ var PetPlaceType_default = (0, import_core62.list)({
 });
 
 // models/ContactForm/ContactForm.ts
-var import_core63 = require("@keystone-6/core");
-var import_fields63 = require("@keystone-6/core/fields");
+var import_core70 = require("@keystone-6/core");
+var import_fields70 = require("@keystone-6/core/fields");
 var CONTACT_FORM_STATUS_OPTIONS = [
   { label: "Nuevo", value: "new" },
   { label: "Le\xEDdo", value: "read" },
   { label: "En proceso", value: "in_progress" },
   { label: "Resuelto", value: "resolved" }
 ];
-var ContactForm_default = (0, import_core63.list)({
+var ContactForm_default = (0, import_core70.list)({
   // Cualquiera escribe; solo el admin lee los mensajes (nombre, correo y teléfono de quien escribe).
   access: anonymousCreateAccess,
   hooks: {
@@ -15358,44 +16074,44 @@ var ContactForm_default = (0, import_core63.list)({
     }
   },
   fields: {
-    name: (0, import_fields63.text)({
+    name: (0, import_fields70.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    email: (0, import_fields63.text)({
+    email: (0, import_fields70.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    phone: (0, import_fields63.text)({
+    phone: (0, import_fields70.text)({
       validation: { isRequired: false },
       ui: {
         displayMode: "input"
       }
     }),
-    subject: (0, import_fields63.text)({
+    subject: (0, import_fields70.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    message: (0, import_fields63.text)({
+    message: (0, import_fields70.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea"
       }
     }),
-    status: (0, import_fields63.select)({
+    status: (0, import_fields70.select)({
       options: CONTACT_FORM_STATUS_OPTIONS,
       defaultValue: "new",
       ui: {
         displayMode: "select"
       }
     }),
-    createdAt: (0, import_fields63.timestamp)({
+    createdAt: (0, import_fields70.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15414,8 +16130,8 @@ var ContactForm_default = (0, import_core63.list)({
 });
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var import_core64 = require("@keystone-6/core");
-var import_fields64 = require("@keystone-6/core/fields");
+var import_core71 = require("@keystone-6/core");
+var import_fields71 = require("@keystone-6/core/fields");
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.access.ts
 var metaDataDeletionRequestAccess = {
@@ -15440,7 +16156,7 @@ var META_DATA_DELETION_STATUS_OPTIONS = [
 ];
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var MetaDataDeletionRequest_default = (0, import_core64.list)({
+var MetaDataDeletionRequest_default = (0, import_core71.list)({
   access: metaDataDeletionRequestAccess,
   ui: {
     label: "Eliminaci\xF3n de datos (Meta)",
@@ -15449,21 +16165,21 @@ var MetaDataDeletionRequest_default = (0, import_core64.list)({
     }
   },
   fields: {
-    metaUserId: (0, import_fields64.text)({
+    metaUserId: (0, import_fields71.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "App-scoped user id que Meta manda en el signed_request (user_id)."
       }
     }),
-    confirmationCode: (0, import_fields64.text)({
+    confirmationCode: (0, import_fields71.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "C\xF3digo p\xFAblico para consultar el estado. No es un dato de Meta."
       }
     }),
-    status: (0, import_fields64.select)({
+    status: (0, import_fields71.select)({
       type: "string",
       options: META_DATA_DELETION_STATUS_OPTIONS,
       defaultValue: "pending" /* PENDING */,
@@ -15471,16 +16187,16 @@ var MetaDataDeletionRequest_default = (0, import_core64.list)({
       isIndexed: true,
       ui: { displayMode: "select" }
     }),
-    requestedAt: (0, import_fields64.timestamp)({
+    requestedAt: (0, import_fields71.timestamp)({
       validation: { isRequired: true },
       defaultValue: { kind: "now" },
       ui: { description: "Cu\xE1ndo lleg\xF3 el callback de Meta." }
     }),
-    completedAt: (0, import_fields64.timestamp)({
+    completedAt: (0, import_fields71.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo se marc\xF3 completed. Vac\xEDo si sigue pending o failed." }
     }),
-    notes: (0, import_fields64.text)({
+    notes: (0, import_fields71.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
@@ -15491,8 +16207,8 @@ var MetaDataDeletionRequest_default = (0, import_core64.list)({
 });
 
 // models/Saas/Tech/BusinessLead/TechBusinessLead.ts
-var import_core65 = require("@keystone-6/core");
-var import_fields65 = require("@keystone-6/core/fields");
+var import_core72 = require("@keystone-6/core");
+var import_fields72 = require("@keystone-6/core/fields");
 
 // utils/access/leadScopedFilter.ts
 function leadInCompany(companyId) {
@@ -15579,11 +16295,6 @@ var businessLeadAccess = {
   }
 };
 
-// utils/helpers/normalizeSearchText.ts
-function normalizeSearchText(value) {
-  return (value ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
-}
-
 // models/Saas/Tech/BusinessLead/TechBusinessLead.hooks.ts
 function stripTenantFromClient(resolvedData, key) {
   const next = { ...resolvedData };
@@ -15592,8 +16303,8 @@ function stripTenantFromClient(resolvedData, key) {
 }
 function connectIds(connect) {
   if (!connect) return [];
-  const list103 = Array.isArray(connect) ? connect : [connect];
-  return list103.map((item) => {
+  const list110 = Array.isArray(connect) ? connect : [connect];
+  return list110.map((item) => {
     if (typeof item === "string") return item;
     if (item && typeof item === "object" && "id" in item) {
       return String(item.id);
@@ -15643,7 +16354,7 @@ var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechBusinessLead_default = (0, import_core65.list)({
+var TechBusinessLead_default = (0, import_core72.list)({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
@@ -15658,13 +16369,13 @@ var TechBusinessLead_default = (0, import_core65.list)({
     }
   },
   fields: {
-    businessName: (0, import_fields65.text)({
+    businessName: (0, import_fields72.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
     // businessName en minúsculas y sin acentos, para buscar con `contains`. Lo llena el hook
     // del list; nadie lo escribe por la API ni desde la Admin UI.
-    businessNameSearch: (0, import_fields65.text)({
+    businessNameSearch: (0, import_fields72.text)({
       graphql: { omit: { create: true, update: true } },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -15673,91 +16384,91 @@ var TechBusinessLead_default = (0, import_core65.list)({
         description: "Nombre normalizado para b\xFAsqueda (se calcula solo)"
       }
     }),
-    category: (0, import_fields65.text)({ isIndexed: true }),
-    phone: (0, import_fields65.text)(),
-    email: (0, import_fields65.text)(),
-    address: (0, import_fields65.text)(),
-    city: (0, import_fields65.text)({ isIndexed: true }),
-    state: (0, import_fields65.text)({ isIndexed: true }),
-    country: (0, import_fields65.text)({ isIndexed: true }),
-    rating: (0, import_fields65.float)(),
-    lat: (0, import_fields65.float)(),
-    lng: (0, import_fields65.float)(),
-    reviewCount: (0, import_fields65.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
-    hasWebsite: (0, import_fields65.checkbox)({
+    category: (0, import_fields72.text)({ isIndexed: true }),
+    phone: (0, import_fields72.text)(),
+    email: (0, import_fields72.text)(),
+    address: (0, import_fields72.text)(),
+    city: (0, import_fields72.text)({ isIndexed: true }),
+    state: (0, import_fields72.text)({ isIndexed: true }),
+    country: (0, import_fields72.text)({ isIndexed: true }),
+    rating: (0, import_fields72.float)(),
+    lat: (0, import_fields72.float)(),
+    lng: (0, import_fields72.float)(),
+    reviewCount: (0, import_fields72.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
+    hasWebsite: (0, import_fields72.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene sitio web" }
     }),
-    websiteUrl: (0, import_fields65.text)(),
-    source: (0, import_fields65.select)({
+    websiteUrl: (0, import_fields72.text)(),
+    source: (0, import_fields72.select)({
       type: "string",
       options: sourceOptions,
       defaultValue: "Google Maps",
       ui: { description: "Fuente del lead" }
     }),
-    status: (0, import_fields65.relationship)({
+    status: (0, import_fields72.relationship)({
       ref: "TechStatusBusinessLead.businessLead",
       many: true,
       ui: { description: "Estado y datos variables del lead" }
     }),
-    instagram: (0, import_fields65.text)({ ui: { description: "Usuario o URL de Instagram" } }),
-    facebook: (0, import_fields65.text)({ ui: { description: "URL de Facebook" } }),
-    xTwitter: (0, import_fields65.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
-    tiktok: (0, import_fields65.text)({ ui: { description: "Usuario o URL de TikTok" } }),
+    instagram: (0, import_fields72.text)({ ui: { description: "Usuario o URL de Instagram" } }),
+    facebook: (0, import_fields72.text)({ ui: { description: "URL de Facebook" } }),
+    xTwitter: (0, import_fields72.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
+    tiktok: (0, import_fields72.text)({ ui: { description: "Usuario o URL de TikTok" } }),
     // Reseñas de Google (máx. 5 positivas) para uso en prompt de IA
-    topReview1: (0, import_fields65.text)({
+    topReview1: (0, import_fields72.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 1 (Google)" }
     }),
-    topReview2: (0, import_fields65.text)({
+    topReview2: (0, import_fields72.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 2 (Google)" }
     }),
-    topReview3: (0, import_fields65.text)({
+    topReview3: (0, import_fields72.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 3 (Google)" }
     }),
-    topReview4: (0, import_fields65.text)({
+    topReview4: (0, import_fields72.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 4 (Google)" }
     }),
-    topReview5: (0, import_fields65.text)({
+    topReview5: (0, import_fields72.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 5 (Google)" }
     }),
     // Prompt listo para copiar y usar en vibe coding / IA (info del negocio + reseñas)
-    websitePromptContent: (0, import_fields65.text)({
+    websitePromptContent: (0, import_fields72.text)({
       ui: {
         displayMode: "textarea",
         description: "Prompt listo para IA: crear sitio web con la info del negocio y las 5 rese\xF1as positivas de Google. Copiar y pegar en tu herramienta de vibe coding."
       }
     }),
     // Relaciones inversas
-    activities: (0, import_fields65.relationship)({
+    activities: (0, import_fields72.relationship)({
       ref: "TechSalesActivity.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields65.relationship)({
+    tasks: (0, import_fields72.relationship)({
       ref: "TechTask.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace ligadas al lead" }
     }),
-    proposals: (0, import_fields65.relationship)({
+    proposals: (0, import_fields72.relationship)({
       ref: "TechProposal.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    projects: (0, import_fields65.relationship)({
+    projects: (0, import_fields72.relationship)({
       ref: "SaasProject.businessLead",
       many: true,
       ui: { description: "Proyectos creados tras venta cerrada (cliente)" }
     }),
-    followUpTasks: (0, import_fields65.relationship)({
+    followUpTasks: (0, import_fields72.relationship)({
       ref: "TechFollowUpTask.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    googleMapsUrl: (0, import_fields65.text)({
+    googleMapsUrl: (0, import_fields72.text)({
       ui: { description: "URL de Google Maps del negocio" }
     }),
     // Para importación desde Google (opcional)
-    googlePlaceId: (0, import_fields65.text)({
+    googlePlaceId: (0, import_fields72.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -15765,41 +16476,41 @@ var TechBusinessLead_default = (0, import_core65.list)({
         listView: { fieldMode: "hidden" }
       }
     }),
-    sourceEstablishment: (0, import_fields65.relationship)({
+    sourceEstablishment: (0, import_fields72.relationship)({
       ref: "TechInegiEstablishment.promotedLeads",
       many: false,
       ui: {
         description: "Establecimiento DENUE del que se promovi\xF3 este lead"
       }
     }),
-    salesPerson: (0, import_fields65.relationship)({
+    salesPerson: (0, import_fields72.relationship)({
       ref: "User.businessLeadsAssigned",
       many: true,
       ui: { description: "Vendedor asignado" }
     }),
-    saasCompany: (0, import_fields65.relationship)({
+    saasCompany: (0, import_fields72.relationship)({
       ref: "SaasCompany.leads",
       many: true,
       ui: { description: "Empresa a la que pertenece el lead" }
     }),
-    quotations: (0, import_fields65.relationship)({
+    quotations: (0, import_fields72.relationship)({
       ref: "SaasQuotation.lead",
       many: true,
       ui: { description: "Cotizaciones ligadas a este lead" }
     }),
-    whatsappMessages: (0, import_fields65.relationship)({
+    whatsappMessages: (0, import_fields72.relationship)({
       ref: "TechWhatsAppMessage.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Historial de WhatsApp con este lead" }
     }),
-    createdAt: (0, import_fields65.timestamp)({
+    createdAt: (0, import_fields72.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields65.timestamp)({
+    updatedAt: (0, import_fields72.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -15810,8 +16521,8 @@ var TechBusinessLead_default = (0, import_core65.list)({
 });
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
-var import_core66 = require("@keystone-6/core");
-var import_fields66 = require("@keystone-6/core/fields");
+var import_core73 = require("@keystone-6/core");
+var import_fields73 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
 var statusBusinessLeadAccess = {
@@ -15901,7 +16612,7 @@ var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechStatusBusinessLead_default = (0, import_core66.list)({
+var TechStatusBusinessLead_default = (0, import_core73.list)({
   access: statusBusinessLeadAccess,
   db: {
     extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@unique([businessLeadId, saasCompanyId])\n}")
@@ -15925,38 +16636,38 @@ var TechStatusBusinessLead_default = (0, import_core66.list)({
     }
   },
   fields: {
-    businessLead: (0, import_fields66.relationship)({
+    businessLead: (0, import_fields73.relationship)({
       ref: "TechBusinessLead.status",
       many: false,
       ui: { description: "Lead de negocio asociado" }
     }),
-    opportunityLevel: (0, import_fields66.select)({
+    opportunityLevel: (0, import_fields73.select)({
       type: "string",
       options: opportunityOptions,
       defaultValue: "Media",
       isIndexed: true,
       ui: { description: "Nivel de oportunidad" }
     }),
-    pipelineStatus: (0, import_fields66.select)({
+    pipelineStatus: (0, import_fields73.select)({
       type: "string",
       options: pipelineOptions2,
       defaultValue: PIPELINE_STATUS.DETECTADO,
       isIndexed: true,
       ui: { description: "Estado en el pipeline" }
     }),
-    estimatedValue: (0, import_fields66.float)({
+    estimatedValue: (0, import_fields73.float)({
       ui: { description: "Valor estimado del proyecto" }
     }),
-    productOffered: (0, import_fields66.text)({
+    productOffered: (0, import_fields73.text)({
       ui: { description: "Producto ofrecido (web, e-commerce, etc.)" }
     }),
-    firstContactDate: (0, import_fields66.calendarDay)({
+    firstContactDate: (0, import_fields73.calendarDay)({
       ui: { description: "Fecha primer contacto" }
     }),
     /** Virtual: next follow-up date from the latest FollowUpTask with status Pendiente or Pospuesto */
-    nextFollowUpDate: (0, import_fields66.virtual)({
-      field: import_core66.graphql.field({
-        type: import_core66.graphql.String,
+    nextFollowUpDate: (0, import_fields73.virtual)({
+      field: import_core73.graphql.field({
+        type: import_core73.graphql.String,
         async resolve(item, _args, context) {
           let businessLeadId = item.businessLeadId;
           if (businessLeadId == null) {
@@ -15984,7 +16695,7 @@ var TechStatusBusinessLead_default = (0, import_core66.list)({
       }),
       ui: { description: "Pr\xF3xima fecha de seguimiento (del \xFAltimo FollowUpTask Pendiente o Pospuesto)" }
     }),
-    saasCompany: (0, import_fields66.relationship)({
+    saasCompany: (0, import_fields73.relationship)({
       ref: "SaasCompany.techStatusBusinessLeads",
       many: false,
       ui: { description: "Empresa a la que pertenece el lead" }
@@ -15994,20 +16705,20 @@ var TechStatusBusinessLead_default = (0, import_core66.list)({
      * datos históricos; el hook la ignora en escrituras. El vendedor asignado es
      * `TechBusinessLead.salesPerson`.
      */
-    salesPerson: (0, import_fields66.relationship)({
+    salesPerson: (0, import_fields73.relationship)({
       ref: "User.techStatusBusinessLeads",
       many: false,
       ui: { description: "Deprecado: el vendedor asignado vive en el lead (TechBusinessLead.salesPerson)" }
     }),
-    notes: (0, import_fields66.text)({
+    notes: (0, import_fields73.text)({
       ui: { displayMode: "textarea", description: "Notas generales" }
     })
   }
 });
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
-var import_core67 = require("@keystone-6/core");
-var import_fields67 = require("@keystone-6/core/fields");
+var import_core74 = require("@keystone-6/core");
+var import_fields74 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.access.ts
 var techLeadStageChangeAccess = {
@@ -16026,7 +16737,7 @@ var techLeadStageChangeAccess = {
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
 var pipelineOptions3 = Object.values(PIPELINE_STATUS).map((value) => ({ label: value, value }));
-var TechLeadStageChange_default = (0, import_core67.list)({
+var TechLeadStageChange_default = (0, import_core74.list)({
   access: techLeadStageChangeAccess,
   ui: {
     hideCreate: true,
@@ -16036,32 +16747,32 @@ var TechLeadStageChange_default = (0, import_core67.list)({
     }
   },
   fields: {
-    company: (0, import_fields67.relationship)({ ref: "SaasCompany", many: false }),
-    businessLead: (0, import_fields67.relationship)({ ref: "TechBusinessLead", many: false }),
-    statusId: (0, import_fields67.text)({
+    company: (0, import_fields74.relationship)({ ref: "SaasCompany", many: false }),
+    businessLead: (0, import_fields74.relationship)({ ref: "TechBusinessLead", many: false }),
+    statusId: (0, import_fields74.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "TechStatusBusinessLead (estatus del lead en esa empresa)" }
     }),
-    fromStatus: (0, import_fields67.select)({
+    fromStatus: (0, import_fields74.select)({
       type: "string",
       options: pipelineOptions3,
       db: { isNullable: true },
       ui: { description: "Etapa anterior (vac\xEDa si es la primera)" }
     }),
-    toStatus: (0, import_fields67.select)({
+    toStatus: (0, import_fields74.select)({
       type: "string",
       options: pipelineOptions3,
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "Etapa nueva" }
     }),
-    changedBy: (0, import_fields67.relationship)({ ref: "User", many: false }),
-    source: (0, import_fields67.text)({
+    changedBy: (0, import_fields74.relationship)({ ref: "User", many: false }),
+    source: (0, import_fields74.text)({
       db: { isNullable: true },
       ui: { description: "web (una persona), system (servidor) o backfill (recuperado de ActivityEvent)" }
     }),
-    changedAt: (0, import_fields67.timestamp)({
+    changedAt: (0, import_fields74.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       validation: { isRequired: true }
@@ -16070,8 +16781,8 @@ var TechLeadStageChange_default = (0, import_core67.list)({
 });
 
 // models/Saas/Tech/FollowUpTask/TechFollowUpTask.ts
-var import_core68 = require("@keystone-6/core");
-var import_fields68 = require("@keystone-6/core/fields");
+var import_core75 = require("@keystone-6/core");
+var import_fields75 = require("@keystone-6/core/fields");
 
 // utils/access/crmWorkspaceScopedFilter.ts
 var getCompanyId = (session2) => session2?.data?.company?.id;
@@ -16425,7 +17136,7 @@ var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechFollowUpTask_default = (0, import_core68.list)({
+var TechFollowUpTask_default = (0, import_core75.list)({
   access: followUpTaskAccess,
   hooks: followUpTaskHooks,
   ui: {
@@ -16440,62 +17151,62 @@ var TechFollowUpTask_default = (0, import_core68.list)({
     }
   },
   fields: {
-    scheduledDate: (0, import_fields68.calendarDay)({
+    scheduledDate: (0, import_fields75.calendarDay)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Fecha programada" }
     }),
-    status: (0, import_fields68.select)({
+    status: (0, import_fields75.select)({
       type: "string",
       options: statusOptions,
       defaultValue: FOLLOW_UP_TASK_STATUS.PENDIENTE,
       isIndexed: true
     }),
-    priority: (0, import_fields68.select)({
+    priority: (0, import_fields75.select)({
       type: "string",
       options: priorityOptions,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    businessLead: (0, import_fields68.relationship)({
+    businessLead: (0, import_fields75.relationship)({
       ref: "TechBusinessLead.followUpTasks",
       many: false
     }),
-    assignedSeller: (0, import_fields68.relationship)({
+    assignedSeller: (0, import_fields75.relationship)({
       ref: "User.followUpTasks",
       many: false
     }),
-    createdBy: (0, import_fields68.relationship)({
+    createdBy: (0, import_fields75.relationship)({
       ref: "User.createdByFollowUpTasks",
       many: false
     }),
-    workspace: (0, import_fields68.relationship)({
+    workspace: (0, import_fields75.relationship)({
       ref: "SaasWorkspace.followUpTasks",
       many: false,
       ui: { description: "Workspace a la que pertenece la tarea" }
     }),
-    statusCrm: (0, import_fields68.relationship)({
+    statusCrm: (0, import_fields75.relationship)({
       ref: "SaasWorkspaceCrmStatus.followUpTasks",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo tarea)" }
     }),
-    calendarEvent: (0, import_fields68.relationship)({
+    calendarEvent: (0, import_fields75.relationship)({
       ref: "TechCalendarEvent.followUpTask",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    notes: (0, import_fields68.text)({ ui: { displayMode: "textarea" } }),
-    hiddenInWorkspace: (0, import_fields68.checkbox)({
+    notes: (0, import_fields75.text)({ ui: { displayMode: "textarea" } }),
+    hiddenInWorkspace: (0, import_fields75.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields68.timestamp)({
+    createdAt: (0, import_fields75.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields68.timestamp)({
+    updatedAt: (0, import_fields75.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16506,8 +17217,8 @@ var TechFollowUpTask_default = (0, import_core68.list)({
 });
 
 // models/Saas/Tech/Proposal/TechProposal.ts
-var import_core69 = require("@keystone-6/core");
-var import_fields69 = require("@keystone-6/core/fields");
+var import_core76 = require("@keystone-6/core");
+var import_fields76 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Proposal/TechProposal.access.ts
 var getCompanyId3 = (session2) => session2?.data?.company?.id;
@@ -16587,7 +17298,7 @@ var statusOptions2 = Object.entries(PROPOSAL_STATUS).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechProposal_default = (0, import_core69.list)({
+var TechProposal_default = (0, import_core76.list)({
   access: proposalAccess,
   hooks: proposalHooks,
   ui: {
@@ -16596,81 +17307,81 @@ var TechProposal_default = (0, import_core69.list)({
     }
   },
   fields: {
-    sentDate: (0, import_fields69.calendarDay)({
+    sentDate: (0, import_fields76.calendarDay)({
       validation: { isRequired: true },
       ui: { description: "Fecha env\xEDo" }
     }),
-    amount: (0, import_fields69.float)({ ui: { description: "Monto" } }),
-    status: (0, import_fields69.select)({
+    amount: (0, import_fields76.float)({ ui: { description: "Monto" } }),
+    status: (0, import_fields76.select)({
       type: "string",
       options: statusOptions2,
       defaultValue: PROPOSAL_STATUS.ENVIADA,
       isIndexed: true
     }),
-    fileOrUrl: (0, import_fields69.text)({
+    fileOrUrl: (0, import_fields76.text)({
       ui: { description: "URL o referencia al archivo de la propuesta" }
     }),
-    approved: (0, import_fields69.checkbox)({
+    approved: (0, import_fields76.checkbox)({
       defaultValue: false,
       ui: { description: "Aprobado por administrador" }
     }),
-    paid: (0, import_fields69.checkbox)({
+    paid: (0, import_fields76.checkbox)({
       defaultValue: false,
       ui: { description: "Pagado" }
     }),
-    product: (0, import_fields69.text)({
+    product: (0, import_fields76.text)({
       ui: { description: "Producto o servicio principal cotizado" }
     }),
-    notes: (0, import_fields69.text)({
+    notes: (0, import_fields76.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas adicionales o condiciones de la propuesta"
       }
     }),
-    businessLead: (0, import_fields69.relationship)({
+    businessLead: (0, import_fields76.relationship)({
       ref: "TechBusinessLead.proposals",
       many: false
     }),
-    assignedSeller: (0, import_fields69.relationship)({
+    assignedSeller: (0, import_fields76.relationship)({
       ref: "User.proposals",
       many: false
     }),
-    createdBy: (0, import_fields69.relationship)({
+    createdBy: (0, import_fields76.relationship)({
       ref: "User.createdByProposals",
       many: false
     }),
-    workspace: (0, import_fields69.relationship)({
+    workspace: (0, import_fields76.relationship)({
       ref: "SaasWorkspace.proposals",
       many: false,
       ui: { description: "Workspace a la que pertenece la propuesta" }
     }),
-    statusCrm: (0, import_fields69.relationship)({
+    statusCrm: (0, import_fields76.relationship)({
       ref: "SaasWorkspaceCrmStatus.proposals",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo propuesta)" }
     }),
-    calendarEvent: (0, import_fields69.relationship)({
+    calendarEvent: (0, import_fields76.relationship)({
       ref: "TechCalendarEvent.proposal",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo propuestas nuevas)" }
     }),
-    project: (0, import_fields69.relationship)({
+    project: (0, import_fields76.relationship)({
       ref: "SaasProject.proposal",
       many: false,
       ui: { description: "Proyecto creado a partir de esta propuesta" }
     }),
-    hiddenInWorkspace: (0, import_fields69.checkbox)({
+    hiddenInWorkspace: (0, import_fields76.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields69.timestamp)({
+    createdAt: (0, import_fields76.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields69.timestamp)({
+    updatedAt: (0, import_fields76.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16681,8 +17392,8 @@ var TechProposal_default = (0, import_core69.list)({
 });
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.ts
-var import_core70 = require("@keystone-6/core");
-var import_fields70 = require("@keystone-6/core/fields");
+var import_core77 = require("@keystone-6/core");
+var import_fields77 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.access.ts
 var getCompanyId4 = (session2) => session2?.data?.company?.id;
@@ -16730,7 +17441,7 @@ var priorityOptions2 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechSalesActivity_default = (0, import_core70.list)({
+var TechSalesActivity_default = (0, import_core77.list)({
   access: salesActivityAccess,
   hooks: salesActivityHooks,
   ui: {
@@ -16747,63 +17458,63 @@ var TechSalesActivity_default = (0, import_core70.list)({
     }
   },
   fields: {
-    title: (0, import_fields70.text)({
+    title: (0, import_fields77.text)({
       ui: { description: "T\xEDtulo de la actividad" }
     }),
-    type: (0, import_fields70.select)({
+    type: (0, import_fields77.select)({
       type: "string",
       options: activityTypeOptions,
       validation: { isRequired: true },
       isIndexed: true
     }),
-    activityDate: (0, import_fields70.timestamp)({
+    activityDate: (0, import_fields77.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    dueDate: (0, import_fields70.calendarDay)({
+    dueDate: (0, import_fields77.calendarDay)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Deadline for this activity" }
     }),
-    priority: (0, import_fields70.select)({
+    priority: (0, import_fields77.select)({
       type: "string",
       options: priorityOptions2,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields70.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
-    comments: (0, import_fields70.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields70.relationship)({
+    result: (0, import_fields77.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
+    comments: (0, import_fields77.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields77.relationship)({
       ref: "TechBusinessLead.activities",
       many: false
     }),
-    assignedSeller: (0, import_fields70.relationship)({
+    assignedSeller: (0, import_fields77.relationship)({
       ref: "User.salesActivities",
       many: false
     }),
-    createdBy: (0, import_fields70.relationship)({
+    createdBy: (0, import_fields77.relationship)({
       ref: "User.createdBySalesActivities",
       many: false
     }),
-    workspace: (0, import_fields70.relationship)({
+    workspace: (0, import_fields77.relationship)({
       ref: "SaasWorkspace.salesActivities",
       many: false,
       ui: { description: "Workspace a la que pertenece la actividad" }
     }),
-    statusCrm: (0, import_fields70.relationship)({
+    statusCrm: (0, import_fields77.relationship)({
       ref: "SaasWorkspaceCrmStatus.salesActivities",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo actividad)" }
     }),
-    calendarEvent: (0, import_fields70.relationship)({
+    calendarEvent: (0, import_fields77.relationship)({
       ref: "TechCalendarEvent.salesActivity",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo actividades nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields70.checkbox)({
+    hiddenInWorkspace: (0, import_fields77.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields70.timestamp)({
+    createdAt: (0, import_fields77.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16814,8 +17525,8 @@ var TechSalesActivity_default = (0, import_core70.list)({
 });
 
 // models/Saas/Tech/Task/TechTask.ts
-var import_core71 = require("@keystone-6/core");
-var import_fields71 = require("@keystone-6/core/fields");
+var import_core78 = require("@keystone-6/core");
+var import_fields78 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Task/TechTask.access.ts
 var getCompanyId5 = (session2) => session2?.data?.company?.id;
@@ -16857,7 +17568,7 @@ var priorityOptions3 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechTask_default = (0, import_core71.list)({
+var TechTask_default = (0, import_core78.list)({
   access: techTaskAccess,
   hooks: techTaskHooks,
   ui: {
@@ -16874,62 +17585,62 @@ var TechTask_default = (0, import_core71.list)({
     }
   },
   fields: {
-    title: (0, import_fields71.text)({
+    title: (0, import_fields78.text)({
       ui: { description: "T\xEDtulo de la tarea" }
     }),
-    startDate: (0, import_fields71.timestamp)({
+    startDate: (0, import_fields78.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true },
       ui: { description: "Fecha de la tarea (programada o realizada)" }
     }),
-    dueDate: (0, import_fields71.timestamp)({
+    dueDate: (0, import_fields78.timestamp)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Fecha l\xEDmite de la tarea" }
     }),
-    priority: (0, import_fields71.select)({
+    priority: (0, import_fields78.select)({
       type: "string",
       options: priorityOptions3,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields71.text)({
+    result: (0, import_fields78.text)({
       ui: { description: "Resultado o cierre de la tarea" }
     }),
-    comments: (0, import_fields71.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields71.relationship)({
+    comments: (0, import_fields78.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields78.relationship)({
       ref: "TechBusinessLead.tasks",
       many: false
     }),
-    responsible: (0, import_fields71.relationship)({
+    responsible: (0, import_fields78.relationship)({
       ref: "User.tasksResponsible",
       many: false
     }),
-    workspace: (0, import_fields71.relationship)({
+    workspace: (0, import_fields78.relationship)({
       ref: "SaasWorkspace.tasks",
       many: false,
       ui: { description: "Workspace al que pertenece esta tarea" }
     }),
-    statusCrm: (0, import_fields71.relationship)({
+    statusCrm: (0, import_fields78.relationship)({
       ref: "SaasWorkspaceCrmStatus.tasks",
       many: false,
       ui: {
         description: "Estado CRM din\xE1mico (workspace + tipo de tarea)"
       }
     }),
-    createdBy: (0, import_fields71.relationship)({
+    createdBy: (0, import_fields78.relationship)({
       ref: "User.createdByTasks",
       many: false
     }),
-    calendarEvent: (0, import_fields71.relationship)({
+    calendarEvent: (0, import_fields78.relationship)({
       ref: "TechCalendarEvent.task",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields71.checkbox)({
+    hiddenInWorkspace: (0, import_fields78.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields71.timestamp)({
+    createdAt: (0, import_fields78.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16940,8 +17651,8 @@ var TechTask_default = (0, import_core71.list)({
 });
 
 // models/Saas/Tech/TechFiles/TechFiles.ts
-var import_core72 = require("@keystone-6/core");
-var import_fields72 = require("@keystone-6/core/fields");
+var import_core79 = require("@keystone-6/core");
+var import_fields79 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/TechFiles/TechFiles.access.ts
 function canUploadFiles(session2) {
@@ -16997,7 +17708,7 @@ var CATEGORY_OPTIONS = [
   { label: "Speech / Guion", value: "speech_script" },
   { label: "Otro", value: "other" }
 ];
-var TechFiles_default = (0, import_core72.list)({
+var TechFiles_default = (0, import_core79.list)({
   access: techFilesAccess,
   hooks: {
     resolveInput: async ({ resolvedData, context, operation }) => {
@@ -17020,18 +17731,18 @@ var TechFiles_default = (0, import_core72.list)({
     }
   },
   fields: {
-    title: (0, import_fields72.text)({
+    title: (0, import_fields79.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del archivo o recurso" }
     }),
-    description: (0, import_fields72.text)({
+    description: (0, import_fields79.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n opcional del contenido"
       }
     }),
-    category: (0, import_fields72.select)({
+    category: (0, import_fields79.select)({
       type: "string",
       options: [...CATEGORY_OPTIONS],
       defaultValue: "otro",
@@ -17040,27 +17751,27 @@ var TechFiles_default = (0, import_core72.list)({
         description: "Tipo de material (proceso, t\xE9cnica, cierre, speech, etc.)"
       }
     }),
-    file: (0, import_fields72.file)({
+    file: (0, import_fields79.file)({
       storage: "s3_tech_files",
       ui: { description: "Archivo (PDF, DOC, etc.)" }
     }),
-    company: (0, import_fields72.relationship)({
+    company: (0, import_fields79.relationship)({
       ref: "SaasCompany.techFiles",
       many: false
     }),
-    aiInsights: (0, import_fields72.relationship)({
+    aiInsights: (0, import_fields79.relationship)({
       ref: "TechAiInsight.relatedFile",
       many: true,
       ui: { description: "An\xE1lisis de IA ligados a este archivo" }
     }),
-    createdAt: (0, import_fields72.timestamp)({
+    createdAt: (0, import_fields79.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields72.timestamp)({
+    updatedAt: (0, import_fields79.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17071,8 +17782,8 @@ var TechFiles_default = (0, import_core72.list)({
 });
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var import_core73 = require("@keystone-6/core");
-var import_fields73 = require("@keystone-6/core/fields");
+var import_core80 = require("@keystone-6/core");
+var import_fields80 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
 var getCompanyId6 = (session2) => session2?.data?.company?.id;
@@ -17098,7 +17809,7 @@ var techLeadSyncLogAccess = {
 };
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var TechLeadSyncLog_default = (0, import_core73.list)({
+var TechLeadSyncLog_default = (0, import_core80.list)({
   access: techLeadSyncLogAccess,
   ui: {
     listView: {
@@ -17115,63 +17826,63 @@ var TechLeadSyncLog_default = (0, import_core73.list)({
     }
   },
   fields: {
-    user: (0, import_fields73.relationship)({
+    user: (0, import_fields80.relationship)({
       ref: "User.leadSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 la sincronizaci\xF3n" }
     }),
-    company: (0, import_fields73.relationship)({
+    company: (0, import_fields80.relationship)({
       ref: "SaasCompany.leadSyncLogs",
       many: false,
       ui: { description: "Empresa" }
     }),
-    success: (0, import_fields73.checkbox)({
+    success: (0, import_fields80.checkbox)({
       defaultValue: false,
       ui: { description: "Si la operaci\xF3n fue exitosa" }
     }),
-    message: (0, import_fields73.text)({
+    message: (0, import_fields80.text)({
       ui: { description: "Mensaje de resultado" }
     }),
-    created: (0, import_fields73.integer)({
+    created: (0, import_fields80.integer)({
       defaultValue: 0,
       ui: { description: "Leads creados desde Google" }
     }),
-    alreadyInDb: (0, import_fields73.integer)({
+    alreadyInDb: (0, import_fields80.integer)({
       defaultValue: 0,
       ui: { description: "Leads ya en BD asignados a la company" }
     }),
-    skippedLowRating: (0, import_fields73.integer)({
+    skippedLowRating: (0, import_fields80.integer)({
       defaultValue: 0,
       ui: { description: "Leads omitidos por rating/rese\xF1as bajas" }
     }),
-    syncedLeadsCount: (0, import_fields73.integer)({
+    syncedLeadsCount: (0, import_fields80.integer)({
       defaultValue: 0,
       ui: { description: "Total de leads asignados en esta ejecuci\xF3n" }
     }),
-    syncedCount: (0, import_fields73.integer)({
+    syncedCount: (0, import_fields80.integer)({
       db: { isNullable: true },
       ui: { description: "Cuota usada este mes (total)" }
     }),
-    leadLimit: (0, import_fields73.integer)({
+    leadLimit: (0, import_fields80.integer)({
       db: { isNullable: true },
       ui: { description: "L\xEDmite de leads del plan" }
     }),
-    lat: (0, import_fields73.float)({
+    lat: (0, import_fields80.float)({
       db: { isNullable: true },
       ui: { description: "Latitud del centro de b\xFAsqueda" }
     }),
-    lng: (0, import_fields73.float)({
+    lng: (0, import_fields80.float)({
       db: { isNullable: true },
       ui: { description: "Longitud del centro de b\xFAsqueda" }
     }),
-    radius: (0, import_fields73.float)({
+    radius: (0, import_fields80.float)({
       db: { isNullable: true },
       ui: { description: "Radio de b\xFAsqueda (km)" }
     }),
-    category: (0, import_fields73.text)({
+    category: (0, import_fields80.text)({
       ui: { description: "Categor\xEDa buscada" }
     }),
-    createdAt: (0, import_fields73.timestamp)({
+    createdAt: (0, import_fields80.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Fecha y hora de la ejecuci\xF3n" }
     })
@@ -17179,8 +17890,8 @@ var TechLeadSyncLog_default = (0, import_core73.list)({
 });
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var import_core74 = require("@keystone-6/core");
-var import_fields74 = require("@keystone-6/core/fields");
+var import_core81 = require("@keystone-6/core");
+var import_fields81 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.access.ts
 var techAiCallLogAccess = {
@@ -17260,7 +17971,7 @@ var MANAGED_GEMINI_FALLBACK = [
 var AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var TechAiCallLog_default = (0, import_core74.list)({
+var TechAiCallLog_default = (0, import_core81.list)({
   access: techAiCallLogAccess,
   ui: {
     listView: {
@@ -17279,40 +17990,40 @@ var TechAiCallLog_default = (0, import_core74.list)({
     }
   },
   fields: {
-    user: (0, import_fields74.relationship)({
+    user: (0, import_fields81.relationship)({
       ref: "User.aiCallLogs",
       many: false,
       ui: { description: "Usuario que dispar\xF3 la llamada" }
     }),
-    company: (0, import_fields74.relationship)({
+    company: (0, import_fields81.relationship)({
       ref: "SaasCompany.aiCallLogs",
       many: false,
       ui: { description: "Empresa due\xF1a de Kadesh Urim AI" }
     }),
-    feature: (0, import_fields74.text)({
+    feature: (0, import_fields81.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: {
         description: "Origen de la llamada (connection_test, daily_digest, monthly_narrative, file_analysis)"
       }
     }),
-    billingMode: (0, import_fields74.select)({
+    billingMode: (0, import_fields81.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       db: { isNullable: true },
       ui: { description: "byok o managed al momento de la llamada" }
     }),
-    provider: (0, import_fields74.select)({
+    provider: (0, import_fields81.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
       ui: { description: "Proveedor usado" }
     }),
-    model: (0, import_fields74.text)({
+    model: (0, import_fields81.text)({
       db: { isNullable: true },
       ui: { description: "Modelo usado" }
     }),
-    featurePrompt: (0, import_fields74.text)({
+    featurePrompt: (0, import_fields81.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -17320,7 +18031,7 @@ var TechAiCallLog_default = (0, import_core74.list)({
         description: "Instrucci\xF3n de la feature (parte del system prompt)"
       }
     }),
-    systemPrompt: (0, import_fields74.text)({
+    systemPrompt: (0, import_fields81.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -17328,7 +18039,7 @@ var TechAiCallLog_default = (0, import_core74.list)({
         description: "System prompt completo enviado al proveedor (Cerebro + feature)"
       }
     }),
-    userPrompt: (0, import_fields74.text)({
+    userPrompt: (0, import_fields81.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -17336,7 +18047,7 @@ var TechAiCallLog_default = (0, import_core74.list)({
         description: "Prompt de usuario enviado al proveedor"
       }
     }),
-    response: (0, import_fields74.text)({
+    response: (0, import_fields81.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -17344,44 +18055,44 @@ var TechAiCallLog_default = (0, import_core74.list)({
         description: "Texto que devolvi\xF3 la IA"
       }
     }),
-    inputTokens: (0, import_fields74.integer)({
+    inputTokens: (0, import_fields81.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de entrada reportados por el proveedor" }
     }),
-    outputTokens: (0, import_fields74.integer)({
+    outputTokens: (0, import_fields81.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de salida reportados por el proveedor" }
     }),
-    billableTokens: (0, import_fields74.integer)({
+    billableTokens: (0, import_fields81.integer)({
       defaultValue: 0,
       ui: {
         description: "Tokens equivalentes: input + output \xD7 5"
       }
     }),
-    creditsCharged: (0, import_fields74.integer)({
+    creditsCharged: (0, import_fields81.integer)({
       defaultValue: 0,
       ui: { description: "Cr\xE9ditos debitados de la bolsa de la empresa" }
     }),
-    billed: (0, import_fields74.checkbox)({
+    billed: (0, import_fields81.checkbox)({
       defaultValue: false,
       ui: { description: "Si esta llamada deb\xEDa cobrar cr\xE9ditos (managed y no ping)" }
     }),
-    success: (0, import_fields74.checkbox)({
+    success: (0, import_fields81.checkbox)({
       defaultValue: false,
       ui: { description: "Si el proveedor respondi\xF3 y se devolvi\xF3 texto" }
     }),
-    errorMessage: (0, import_fields74.text)({
+    errorMessage: (0, import_fields81.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Error si la llamada fall\xF3 (sin API keys)"
       }
     }),
-    durationMs: (0, import_fields74.integer)({
+    durationMs: (0, import_fields81.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n total de callCompanyAi en ms" }
     }),
-    createdAt: (0, import_fields74.timestamp)({
+    createdAt: (0, import_fields81.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento de la llamada" }
     })
@@ -17389,8 +18100,8 @@ var TechAiCallLog_default = (0, import_core74.list)({
 });
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var import_core75 = require("@keystone-6/core");
-var import_fields75 = require("@keystone-6/core/fields");
+var import_core82 = require("@keystone-6/core");
+var import_fields82 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiInsight/TechAiInsight.access.ts
 var getCompanyId7 = (session2) => session2?.data?.company?.id;
@@ -17441,7 +18152,7 @@ var AI_INSIGHT_KIND_OPTIONS = [
 ];
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var TechAiInsight_default = (0, import_core75.list)({
+var TechAiInsight_default = (0, import_core82.list)({
   access: techAiInsightAccess,
   ui: {
     listView: {
@@ -17455,47 +18166,47 @@ var TechAiInsight_default = (0, import_core75.list)({
     }
   },
   fields: {
-    company: (0, import_fields75.relationship)({
+    company: (0, import_fields82.relationship)({
       ref: "SaasCompany.aiInsights",
       many: false,
       ui: { description: "Empresa due\xF1a del insight" }
     }),
-    salesPerson: (0, import_fields75.relationship)({
+    salesPerson: (0, import_fields82.relationship)({
       ref: "User.aiInsights",
       many: false,
       ui: {
         description: "Vendedor due\xF1o del insight. Vac\xEDo = insight de empresa (admin / alcance global)"
       }
     }),
-    kind: (0, import_fields75.select)({
+    kind: (0, import_fields82.select)({
       type: "string",
       options: [...AI_INSIGHT_KIND_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Tipo de insight (digest, narrativa, archivo)" }
     }),
-    referenceKey: (0, import_fields75.text)({
+    referenceKey: (0, import_fields82.text)({
       isIndexed: true,
       ui: {
         description: 'Clave de cach\xE9: "YYYY-MM-DD", "YYYY-MM" o id de archivo'
       }
     }),
-    content: (0, import_fields75.text)({
+    content: (0, import_fields82.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Texto legible del insight"
       }
     }),
-    structuredData: (0, import_fields75.json)({
+    structuredData: (0, import_fields82.json)({
       ui: { description: "JSON de acciones / estructura (p. ej. 3 pasos)" }
     }),
-    relatedFile: (0, import_fields75.relationship)({
+    relatedFile: (0, import_fields82.relationship)({
       ref: "TechFile.aiInsights",
       many: false,
       ui: { description: "Archivo analizado (Fase 4)" }
     }),
-    generatedAt: (0, import_fields75.timestamp)({
+    generatedAt: (0, import_fields82.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento en que se gener\xF3 o regener\xF3" }
     })
@@ -17503,8 +18214,8 @@ var TechAiInsight_default = (0, import_core75.list)({
 });
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var import_core76 = require("@keystone-6/core");
-var import_fields76 = require("@keystone-6/core/fields");
+var import_core83 = require("@keystone-6/core");
+var import_fields83 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/access.ts
 var inegiCatalogAccess = {
@@ -17525,7 +18236,7 @@ var inegiSyncLogAccess = {
 };
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var TechInegiEconomicActivity_default = (0, import_core76.list)({
+var TechInegiEconomicActivity_default = (0, import_core83.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -17534,17 +18245,17 @@ var TechInegiEconomicActivity_default = (0, import_core76.list)({
     }
   },
   fields: {
-    scianCode: (0, import_fields76.text)({
+    scianCode: (0, import_fields83.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "C\xF3digo SCIAN (o clave sint\xE9tica si la API no lo trae)" }
     }),
-    name: (0, import_fields76.text)({
+    name: (0, import_fields83.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre de la clase de actividad econ\xF3mica" }
     }),
-    establishments: (0, import_fields76.relationship)({
+    establishments: (0, import_fields83.relationship)({
       ref: "TechInegiEstablishment.economicActivity",
       many: true,
       ui: { hideCreate: true }
@@ -17553,9 +18264,9 @@ var TechInegiEconomicActivity_default = (0, import_core76.list)({
 });
 
 // models/Saas/Tech/Inegi/Establishment/TechInegiEstablishment.ts
-var import_core77 = require("@keystone-6/core");
-var import_fields77 = require("@keystone-6/core/fields");
-var TechInegiEstablishment_default = (0, import_core77.list)({
+var import_core84 = require("@keystone-6/core");
+var import_fields84 = require("@keystone-6/core/fields");
+var TechInegiEstablishment_default = (0, import_core84.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -17564,47 +18275,47 @@ var TechInegiEstablishment_default = (0, import_core77.list)({
     }
   },
   fields: {
-    clee: (0, import_fields77.text)({
+    clee: (0, import_fields84.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Clave \xFAnica INEGI (CLEE)" }
     }),
-    name: (0, import_fields77.text)({
+    name: (0, import_fields84.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    legalName: (0, import_fields77.text)({
+    legalName: (0, import_fields84.text)({
       ui: { description: "Raz\xF3n social" }
     }),
-    employeeStratum: (0, import_fields77.text)({
+    employeeStratum: (0, import_fields84.text)({
       ui: { description: "Estrato de personal ocupado (tal cual DENUE)" }
     }),
-    economicActivity: (0, import_fields77.relationship)({
+    economicActivity: (0, import_fields84.relationship)({
       ref: "TechInegiEconomicActivity.establishments",
       many: false,
       ui: { description: "Giro SCIAN" }
     }),
-    street: (0, import_fields77.text)(),
-    exteriorNumber: (0, import_fields77.text)(),
-    interiorNumber: (0, import_fields77.text)(),
-    neighborhood: (0, import_fields77.text)(),
-    postalCode: (0, import_fields77.text)(),
-    locality: (0, import_fields77.text)(),
-    municipality: (0, import_fields77.text)({ isIndexed: true }),
-    state: (0, import_fields77.text)({ isIndexed: true }),
-    phone: (0, import_fields77.text)(),
-    email: (0, import_fields77.text)(),
-    website: (0, import_fields77.text)(),
-    lat: (0, import_fields77.float)({ db: { isNullable: true } }),
-    lng: (0, import_fields77.float)({ db: { isNullable: true } }),
-    rawPayload: (0, import_fields77.json)({
+    street: (0, import_fields84.text)(),
+    exteriorNumber: (0, import_fields84.text)(),
+    interiorNumber: (0, import_fields84.text)(),
+    neighborhood: (0, import_fields84.text)(),
+    postalCode: (0, import_fields84.text)(),
+    locality: (0, import_fields84.text)(),
+    municipality: (0, import_fields84.text)({ isIndexed: true }),
+    state: (0, import_fields84.text)({ isIndexed: true }),
+    phone: (0, import_fields84.text)(),
+    email: (0, import_fields84.text)(),
+    website: (0, import_fields84.text)(),
+    lat: (0, import_fields84.float)({ db: { isNullable: true } }),
+    lng: (0, import_fields84.float)({ db: { isNullable: true } }),
+    rawPayload: (0, import_fields84.json)({
       ui: { description: "Respuesta cruda de INEGI (API o fila CSV)" }
     }),
-    lastSyncedAt: (0, import_fields77.timestamp)({
+    lastSyncedAt: (0, import_fields84.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima vez que se actualiz\xF3 desde INEGI" }
     }),
-    promotedLeads: (0, import_fields77.relationship)({
+    promotedLeads: (0, import_fields84.relationship)({
       ref: "TechBusinessLead.sourceEstablishment",
       many: true,
       ui: { hideCreate: true, description: "Leads CRM promovidos desde este establecimiento" }
@@ -17613,8 +18324,8 @@ var TechInegiEstablishment_default = (0, import_core77.list)({
 });
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var import_core78 = require("@keystone-6/core");
-var import_fields78 = require("@keystone-6/core/fields");
+var import_core85 = require("@keystone-6/core");
+var import_fields85 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/constants.ts
 var INEGI_SYNC_SOURCE = {
@@ -17648,7 +18359,7 @@ var INEGI_GEO_BOUNDARY_LEVEL_OPTIONS = [
 var INEGI_LIVE_SYNC_CAP = 250;
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var TechInegiGeoBoundary_default = (0, import_core78.list)({
+var TechInegiGeoBoundary_default = (0, import_core85.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -17657,38 +18368,38 @@ var TechInegiGeoBoundary_default = (0, import_core78.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields78.text)({
+    cacheKey: (0, import_fields85.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "level:geoCode" }
     }),
-    level: (0, import_fields78.select)({
+    level: (0, import_fields85.select)({
       type: "string",
       options: [...INEGI_GEO_BOUNDARY_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geoCode: (0, import_fields78.text)({
+    geoCode: (0, import_fields85.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    name: (0, import_fields78.text)({
+    name: (0, import_fields85.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    parentCode: (0, import_fields78.text)({
+    parentCode: (0, import_fields85.text)({
       db: { isNullable: true },
       ui: { description: "CVE_ENT para municipio; CVEGEO municipal para localidad" }
     }),
-    geometry: (0, import_fields78.json)({
+    geometry: (0, import_fields85.json)({
       ui: { description: "GeoJSON geometry (sin PostGIS)" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/Indicator/TechInegiIndicator.ts
-var import_core79 = require("@keystone-6/core");
-var import_fields79 = require("@keystone-6/core/fields");
-var TechInegiIndicator_default = (0, import_core79.list)({
+var import_core86 = require("@keystone-6/core");
+var import_fields86 = require("@keystone-6/core/fields");
+var TechInegiIndicator_default = (0, import_core86.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "indicatorName",
@@ -17703,46 +18414,46 @@ var TechInegiIndicator_default = (0, import_core79.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields79.text)({
+    cacheKey: (0, import_fields86.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "indicatorId:geographicCode:period"
       }
     }),
-    indicatorId: (0, import_fields79.text)({
+    indicatorId: (0, import_fields86.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    indicatorName: (0, import_fields79.text)({
+    indicatorName: (0, import_fields86.text)({
       validation: { isRequired: true }
     }),
-    geographicLevel: (0, import_fields79.select)({
+    geographicLevel: (0, import_fields86.select)({
       type: "string",
       options: [...INEGI_GEOGRAPHIC_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geographicCode: (0, import_fields79.text)({
+    geographicCode: (0, import_fields86.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "00 nacional, 2 d\xEDgitos estado, 5 d\xEDgitos municipio" }
     }),
-    period: (0, import_fields79.text)({
+    period: (0, import_fields86.text)({
       validation: { isRequired: true },
       ui: { description: "TIME_PERIOD de BIE (p. ej. 2020)" }
     }),
-    value: (0, import_fields79.float)({ db: { isNullable: true } }),
-    unit: (0, import_fields79.text)(),
-    fetchedAt: (0, import_fields79.timestamp)({
+    value: (0, import_fields86.float)({ db: { isNullable: true } }),
+    unit: (0, import_fields86.text)(),
+    fetchedAt: (0, import_fields86.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/SyncLog/TechInegiSyncLog.ts
-var import_core80 = require("@keystone-6/core");
-var import_fields80 = require("@keystone-6/core/fields");
-var TechInegiSyncLog_default = (0, import_core80.list)({
+var import_core87 = require("@keystone-6/core");
+var import_fields87 = require("@keystone-6/core/fields");
+var TechInegiSyncLog_default = (0, import_core87.list)({
   access: inegiSyncLogAccess,
   ui: {
     listView: {
@@ -17759,49 +18470,49 @@ var TechInegiSyncLog_default = (0, import_core80.list)({
     }
   },
   fields: {
-    user: (0, import_fields80.relationship)({
+    user: (0, import_fields87.relationship)({
       ref: "User.inegiSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 el sync (vac\xEDo en scripts)" }
     }),
-    success: (0, import_fields80.checkbox)({
+    success: (0, import_fields87.checkbox)({
       defaultValue: false
     }),
-    message: (0, import_fields80.text)(),
-    created: (0, import_fields80.integer)({
+    message: (0, import_fields87.text)(),
+    created: (0, import_fields87.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos nuevos" }
     }),
-    updated: (0, import_fields80.integer)({
+    updated: (0, import_fields87.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos actualizados" }
     }),
-    alreadyInDb: (0, import_fields80.integer)({
+    alreadyInDb: (0, import_fields87.integer)({
       defaultValue: 0,
       ui: { description: "Ya exist\xEDan y no cambiaron (o se reencontraron)" }
     }),
-    totalFetched: (0, import_fields80.integer)({
+    totalFetched: (0, import_fields87.integer)({
       defaultValue: 0,
       ui: { description: "Filas recibidas de INEGI en esta corrida" }
     }),
-    sourceMethod: (0, import_fields80.select)({
+    sourceMethod: (0, import_fields87.select)({
       type: "string",
       options: [...INEGI_SYNC_SOURCE_OPTIONS],
       validation: { isRequired: true },
       defaultValue: "api"
     }),
-    searchParams: (0, import_fields80.json)({
+    searchParams: (0, import_fields87.json)({
       ui: { description: "Par\xE1metros de b\xFAsqueda o ruta del archivo" }
     }),
-    createdAt: (0, import_fields80.timestamp)({
+    createdAt: (0, import_fields87.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var import_core81 = require("@keystone-6/core");
-var import_fields81 = require("@keystone-6/core/fields");
+var import_core88 = require("@keystone-6/core");
+var import_fields88 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
 var saasCompanyAccess = {
@@ -17975,7 +18686,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core81.list)({
+var SaasCompany_default = (0, import_core88.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -17994,147 +18705,147 @@ var SaasCompany_default = (0, import_core81.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields81.text)({
+    name: (0, import_fields88.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields81.relationship)({
+    users: (0, import_fields88.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    workspaces: (0, import_fields81.relationship)({
+    workspaces: (0, import_fields88.relationship)({
       ref: "SaasWorkspace.company",
       many: true,
       ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields81.json)({
+    allowedGooglePlaceCategories: (0, import_fields88.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields81.relationship)({
+    leads: (0, import_fields88.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields81.relationship)({
+    plan: (0, import_fields88.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields81.calendarDay)({
+    subscriptionStartedAt: (0, import_fields88.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields81.relationship)({
+    subscriptions: (0, import_fields88.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields81.relationship)({
+    techStatusBusinessLeads: (0, import_fields88.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields81.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields88.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (legacy quota tracking)" }
     }),
     /** Cumulative purchased bonus credits (permanent monthly top-up) */
-    purchasedBonusCredits: (0, import_fields81.integer)({
+    purchasedBonusCredits: (0, import_fields88.integer)({
       defaultValue: 0,
       ui: {
         description: "Total extra credits purchased; added to the monthly allowance each period"
       }
     }),
-    creditPeriods: (0, import_fields81.relationship)({
+    creditPeriods: (0, import_fields88.relationship)({
       ref: "SaasCompanyCreditPeriod.company",
       many: true,
       ui: { description: "Monthly credit periods for this company" }
     }),
-    creditLedgerEntries: (0, import_fields81.relationship)({
+    creditLedgerEntries: (0, import_fields88.relationship)({
       ref: "SaasCompanyCreditLedger.company",
       many: true,
       ui: { description: "Credit grant/consume ledger for this company" }
     }),
-    techFiles: (0, import_fields81.relationship)({
+    techFiles: (0, import_fields88.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields81.relationship)({
+    projects: (0, import_fields88.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    leadSyncLogs: (0, import_fields81.relationship)({
+    leadSyncLogs: (0, import_fields88.relationship)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
-    aiCallLogs: (0, import_fields81.relationship)({
+    aiCallLogs: (0, import_fields88.relationship)({
       ref: "TechAiCallLog.company",
       many: true,
       ui: { description: "Historial de llamadas a IA (prompts, tokens, cr\xE9ditos)" }
     }),
-    aiInsights: (0, import_fields81.relationship)({
+    aiInsights: (0, import_fields88.relationship)({
       ref: "TechAiInsight.company",
       many: true,
       ui: { description: "Insights de IA (digest diario, narrativa, archivos)" }
     }),
-    saasSubscriptionLogs: (0, import_fields81.relationship)({
+    saasSubscriptionLogs: (0, import_fields88.relationship)({
       ref: "SaasSubscriptionLog.company",
       many: true,
       ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
-    quotations: (0, import_fields81.relationship)({
+    quotations: (0, import_fields88.relationship)({
       ref: "SaasQuotation.company",
       many: true,
       ui: { description: "Cotizaciones de la empresa" }
     }),
-    logo: (0, import_fields81.file)({
+    logo: (0, import_fields88.file)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    onboardingMainOffer: (0, import_fields81.text)({
+    onboardingMainOffer: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    onboardingIdealCustomer: (0, import_fields81.text)({
+    onboardingIdealCustomer: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    onboardingAvgTicketValue: (0, import_fields81.text)({
+    onboardingAvgTicketValue: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    onboardingSalesPain: (0, import_fields81.text)({
+    onboardingSalesPain: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
       }
     }),
-    aiBillingMode: (0, import_fields81.select)({
+    aiBillingMode: (0, import_fields88.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       defaultValue: AI_BILLING_MODE.BYOK,
@@ -18142,7 +18853,7 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "C\xF3mo paga la empresa la IA: API key propia (BYOK) o cr\xE9ditos administrados por Kadesh"
       }
     }),
-    aiProvider: (0, import_fields81.select)({
+    aiProvider: (0, import_fields88.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
@@ -18150,13 +18861,13 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Proveedor de IA en modalidad BYOK (Claude, OpenAI o Gemini)"
       }
     }),
-    aiModel: (0, import_fields81.text)({
+    aiModel: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         description: "Override opcional del modelo. Vac\xEDo = default del proveedor."
       }
     }),
-    aiApiKeyEncrypted: (0, import_fields81.text)({
+    aiApiKeyEncrypted: (0, import_fields88.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -18170,42 +18881,42 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "API key cifrada (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    aiApiKeyPreview: (0, import_fields81.text)({
+    aiApiKeyPreview: (0, import_fields88.text)({
       db: { isNullable: true },
       access: aiApiKeyPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)"
       }
     }),
-    aiKeyUpdatedAt: (0, import_fields81.timestamp)({
+    aiKeyUpdatedAt: (0, import_fields88.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se guard\xF3 o borr\xF3 la API key de IA"
       }
     }),
-    whatsappPhoneNumberId: (0, import_fields81.text)({
+    whatsappPhoneNumberId: (0, import_fields88.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "Phone Number ID de WhatsApp Cloud API (Meta). \xDAnico por empresa: se usa para enrutar el webhook entrante."
       }
     }),
-    whatsappBusinessAccountId: (0, import_fields81.text)({
+    whatsappBusinessAccountId: (0, import_fields88.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "WhatsApp Business Account ID (WABA). \xDAnico por empresa: se usa para enrutar el webhook de estado de plantillas."
       }
     }),
-    whatsappDisplayPhoneNumber: (0, import_fields81.text)({
+    whatsappDisplayPhoneNumber: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "N\xFAmero mostrado por Meta (se llena al probar la conexi\xF3n)"
       }
     }),
-    whatsappAccessTokenEncrypted: (0, import_fields81.text)({
+    whatsappAccessTokenEncrypted: (0, import_fields88.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -18219,7 +18930,7 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Access token cifrado (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    whatsappAppSecretEncrypted: (0, import_fields81.text)({
+    whatsappAppSecretEncrypted: (0, import_fields88.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -18233,28 +18944,28 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "App Secret de la App de Meta de esta empresa, cifrado. Verifica la firma del webhook entrante."
       }
     }),
-    whatsappTokenPreview: (0, import_fields81.text)({
+    whatsappTokenPreview: (0, import_fields88.text)({
       db: { isNullable: true },
       access: whatsappTokenPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada del access token (ej. EAAxyz...wXyz)"
       }
     }),
-    whatsappConnectedAt: (0, import_fields81.timestamp)({
+    whatsappConnectedAt: (0, import_fields88.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se conect\xF3 o desconect\xF3 WhatsApp"
       }
     }),
-    whatsappAppId: (0, import_fields81.text)({
+    whatsappAppId: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "App ID de la App de Meta de esta empresa (para configurar su webhook por API)"
       }
     }),
-    whatsappWebhookConfiguredAt: (0, import_fields81.timestamp)({
+    whatsappWebhookConfiguredAt: (0, import_fields88.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18262,7 +18973,7 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Cu\xE1ndo Kadesh dej\xF3 configurado el webhook de su App por API (no implica que ya lleguen mensajes)"
       }
     }),
-    whatsappLastWebhookAt: (0, import_fields81.timestamp)({
+    whatsappLastWebhookAt: (0, import_fields88.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18270,22 +18981,22 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "\xDAltimo evento real de mensajes recibido con firma v\xE1lida. Vac\xEDo = nunca ha llegado uno (\xBFApp sin publicar en modo Live?)"
       }
     }),
-    googleCalendarAccounts: (0, import_fields81.relationship)({
+    googleCalendarAccounts: (0, import_fields88.relationship)({
       ref: "GoogleCalendarAccount.company",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar compartidas por la empresa" }
     }),
-    calendarEvents: (0, import_fields81.relationship)({
+    calendarEvents: (0, import_fields88.relationship)({
       ref: "TechCalendarEvent.company",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario de la empresa" }
     }),
-    whatsappMessages: (0, import_fields81.relationship)({
+    whatsappMessages: (0, import_fields88.relationship)({
       ref: "TechWhatsAppMessage.company",
       many: true,
       ui: { description: "Historial de mensajes de WhatsApp de esta empresa" }
     }),
-    whatsappTemplateName: (0, import_fields81.text)({
+    whatsappTemplateName: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18293,14 +19004,14 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Nombre de la plantilla creada autom\xE1ticamente para iniciar conversaciones"
       }
     }),
-    whatsappTemplateLanguage: (0, import_fields81.text)({
+    whatsappTemplateLanguage: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    whatsappTemplateStatus: (0, import_fields81.select)({
+    whatsappTemplateStatus: (0, import_fields88.select)({
       type: "string",
       options: [
         { label: "Ninguna", value: "none" },
@@ -18313,41 +19024,41 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexi\xF3n, y se actualiza v\xEDa webhook cuando Meta la revisa o reley\xE9ndolo de Meta en cada prueba de conexi\xF3n (por si el webhook no est\xE1 configurado)."
       }
     }),
-    termsQuotation: (0, import_fields81.text)({
+    termsQuotation: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
       }
     }),
-    colorPrimary: (0, import_fields81.text)({
+    colorPrimary: (0, import_fields88.text)({
       db: { isNullable: true },
       defaultValue: "#F7945E",
       ui: {
         description: "Color primario de la empresa"
       }
     }),
-    colorSecondary: (0, import_fields81.text)({
+    colorSecondary: (0, import_fields88.text)({
       db: { isNullable: true },
       defaultValue: "#E07C3A",
       ui: {
         description: "Color secundario de la empresa"
       }
     }),
-    contactEmail: (0, import_fields81.text)({
+    contactEmail: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de contacto de la empresa"
       }
     }),
-    contactPhone: (0, import_fields81.text)({
+    contactPhone: (0, import_fields88.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
     // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
-    suspendedAt: (0, import_fields81.timestamp)({
+    suspendedAt: (0, import_fields88.timestamp)({
       db: { isNullable: true },
       access: saasCompanyAccountControlFieldAccess,
       ui: {
@@ -18356,7 +19067,7 @@ var SaasCompany_default = (0, import_core81.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    suspendedReason: (0, import_fields81.text)({
+    suspendedReason: (0, import_fields88.text)({
       db: { isNullable: true },
       access: saasCompanyAccountControlFieldAccess,
       ui: {
@@ -18365,7 +19076,7 @@ var SaasCompany_default = (0, import_core81.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    accountManager: (0, import_fields81.relationship)({
+    accountManager: (0, import_fields88.relationship)({
       ref: "User",
       many: false,
       access: saasCompanyAccountControlFieldAccess,
@@ -18375,14 +19086,14 @@ var SaasCompany_default = (0, import_core81.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    createdAt: (0, import_fields81.timestamp)({
+    createdAt: (0, import_fields88.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields81.timestamp)({
+    updatedAt: (0, import_fields88.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18393,8 +19104,8 @@ var SaasCompany_default = (0, import_core81.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core82 = require("@keystone-6/core");
-var import_fields82 = require("@keystone-6/core/fields");
+var import_core89 = require("@keystone-6/core");
+var import_fields89 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -18424,7 +19135,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core82.list)({
+var SaasPlan_default = (0, import_core89.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -18442,42 +19153,42 @@ var SaasPlan_default = (0, import_core82.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields82.text)({
+    name: (0, import_fields89.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields82.float)({
+    cost: (0, import_fields89.float)({
       ui: { description: "Plan cost per billing period" }
     }),
-    costOld: (0, import_fields82.float)({
+    costOld: (0, import_fields89.float)({
       ui: { description: "Plan cost original" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
-    referralUpfrontCommissionPct: (0, import_fields82.float)({
+    referralUpfrontCommissionPct: (0, import_fields89.float)({
       ui: {
         description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
       }
     }),
     /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
-    referralRecurringCommissionPct: (0, import_fields82.float)({
+    referralRecurringCommissionPct: (0, import_fields89.float)({
       ui: {
         description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
       }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields82.select)({
+    frequency: (0, import_fields89.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields82.text)({
+    currency: (0, import_fields89.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields82.integer)({
+    leadLimit: (0, import_fields89.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -18488,28 +19199,28 @@ var SaasPlan_default = (0, import_core82.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields82.json)({
+    planFeatures: (0, import_fields89.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields82.relationship)({
+    saasPayments: (0, import_fields89.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields82.checkbox)({
+    active: (0, import_fields89.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields82.checkbox)({
+    bestSeller: (0, import_fields89.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields82.text)({
+    stripePriceId: (0, import_fields89.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -18517,36 +19228,36 @@ var SaasPlan_default = (0, import_core82.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields82.text)({
+    stripeProductId: (0, import_fields89.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
     /** Companies currently on this plan */
-    companies: (0, import_fields82.relationship)({
+    companies: (0, import_fields89.relationship)({
       ref: "SaasCompany.plan",
       many: true,
       ui: { description: "Companies on this plan" }
     }),
-    subscriptions: (0, import_fields82.relationship)({
+    subscriptions: (0, import_fields89.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
-    saasSubscriptionLogs: (0, import_fields82.relationship)({
+    saasSubscriptionLogs: (0, import_fields89.relationship)({
       ref: "SaasSubscriptionLog.plan",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
     }),
-    createdAt: (0, import_fields82.timestamp)({
+    createdAt: (0, import_fields89.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields82.timestamp)({
+    updatedAt: (0, import_fields89.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18557,8 +19268,8 @@ var SaasPlan_default = (0, import_core82.list)({
 });
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var import_core83 = require("@keystone-6/core");
-var import_fields83 = require("@keystone-6/core/fields");
+var import_core90 = require("@keystone-6/core");
+var import_fields90 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCredit/SaasCredit.access.ts
 var saasCreditAccess = {
@@ -18576,7 +19287,7 @@ var saasCreditAccess = {
 };
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var SaasCredit_default = (0, import_core83.list)({
+var SaasCredit_default = (0, import_core90.list)({
   access: saasCreditAccess,
   ui: {
     listView: {
@@ -18594,51 +19305,51 @@ var SaasCredit_default = (0, import_core83.list)({
   },
   fields: {
     /** Internal key for upsert/seed (e.g. "Recarga Básica") */
-    slug: (0, import_fields83.text)({
+    slug: (0, import_fields90.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
     }),
     /** Package display name shown in the app */
-    name: (0, import_fields83.text)({
+    name: (0, import_fields90.text)({
       validation: { isRequired: true },
       ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
     }),
     /** One-time price amount (in package currency) */
-    cost: (0, import_fields83.float)({
+    cost: (0, import_fields90.float)({
       ui: { description: "One-time package cost" }
     }),
-    costOld: (0, import_fields83.float)({
+    costOld: (0, import_fields90.float)({
       ui: { description: "Original price for strikethrough discount display" }
     }),
     /** Payment frequency (one-time for credit top-ups) */
-    frequency: (0, import_fields83.select)({
+    frequency: (0, import_fields90.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       defaultValue: "once",
       ui: { description: "Payment frequency (once for credit packages)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields83.text)({
+    currency: (0, import_fields90.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
     /** Number of extra credits added on purchase (leads sync or managed AI) */
-    creditsToAdd: (0, import_fields83.integer)({
+    creditsToAdd: (0, import_fields90.integer)({
       validation: { isRequired: true },
       ui: { description: "Credits added to the company on successful purchase" }
     }),
     /** Shown in app and available for purchase */
-    active: (0, import_fields83.checkbox)({
+    active: (0, import_fields90.checkbox)({
       defaultValue: true,
       ui: { description: "Package enabled in app (visible for purchase)" }
     }),
-    bestSeller: (0, import_fields83.checkbox)({
+    bestSeller: (0, import_fields90.checkbox)({
       defaultValue: false,
       ui: { description: "Highlight this package as best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
-    stripePriceId: (0, import_fields83.text)({
+    stripePriceId: (0, import_fields90.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -18646,20 +19357,20 @@ var SaasCredit_default = (0, import_core83.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields83.text)({
+    stripeProductId: (0, import_fields90.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
-    createdAt: (0, import_fields83.timestamp)({
+    createdAt: (0, import_fields90.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields83.timestamp)({
+    updatedAt: (0, import_fields90.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18670,8 +19381,8 @@ var SaasCredit_default = (0, import_core83.list)({
 });
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var import_core84 = require("@keystone-6/core");
-var import_fields84 = require("@keystone-6/core/fields");
+var import_core91 = require("@keystone-6/core");
+var import_fields91 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
 var getCompanyId8 = (session2) => session2?.data?.company?.id;
@@ -18697,7 +19408,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
 };
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core84.list)({
+var SaasCompanyMonthlyLeadSync_default = (0, import_core91.list)({
   access: saasCompanyMonthlyLeadSyncAccess,
   ui: {
     listView: {
@@ -18705,30 +19416,30 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core84.list)({
     }
   },
   fields: {
-    company: (0, import_fields84.relationship)({
+    company: (0, import_fields91.relationship)({
       ref: "SaasCompany.monthlyLeadSyncRecords",
       many: false
     }),
-    year: (0, import_fields84.integer)({
+    year: (0, import_fields91.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the sync period" }
     }),
-    month: (0, import_fields84.integer)({
+    month: (0, import_fields91.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the sync period (1-12)" }
     }),
     /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields84.integer)({
+    syncedCount: (0, import_fields91.integer)({
       defaultValue: 0,
       ui: { description: "Number of leads synced this month (for quota tracking)" }
     }),
-    createdAt: (0, import_fields84.timestamp)({
+    createdAt: (0, import_fields91.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields84.timestamp)({
+    updatedAt: (0, import_fields91.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -18736,8 +19447,8 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core84.list)({
 });
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var import_core85 = require("@keystone-6/core");
-var import_fields85 = require("@keystone-6/core/fields");
+var import_core92 = require("@keystone-6/core");
+var import_fields92 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
 var getCompanyId9 = (session2) => session2?.data?.company?.id;
@@ -18761,7 +19472,7 @@ var companyCreditPeriodAccess = {
 };
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var SaasCompanyCreditPeriod_default = (0, import_core85.list)({
+var SaasCompanyCreditPeriod_default = (0, import_core92.list)({
   access: companyCreditPeriodAccess,
   ui: {
     listView: {
@@ -18777,60 +19488,60 @@ var SaasCompanyCreditPeriod_default = (0, import_core85.list)({
     }
   },
   fields: {
-    company: (0, import_fields85.relationship)({
+    company: (0, import_fields92.relationship)({
       ref: "SaasCompany.creditPeriods",
       many: false,
       ui: { description: "Company that owns this credit period" }
     }),
-    subscription: (0, import_fields85.relationship)({
+    subscription: (0, import_fields92.relationship)({
       ref: "SaasCompanySubscription.creditPeriods",
       many: false,
       ui: { description: "Active subscription when this period was created" }
     }),
-    periodKey: (0, import_fields85.text)({
+    periodKey: (0, import_fields92.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: {
         description: "Unique key: companyId:year:month"
       }
     }),
-    year: (0, import_fields85.integer)({
+    year: (0, import_fields92.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the credit period" }
     }),
-    month: (0, import_fields85.integer)({
+    month: (0, import_fields92.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the credit period (1-12)" }
     }),
-    planAllowance: (0, import_fields85.integer)({
+    planAllowance: (0, import_fields92.integer)({
       defaultValue: 0,
       ui: { description: "Monthly lead allowance from the active plan" }
     }),
-    bonusAllowance: (0, import_fields85.integer)({
+    bonusAllowance: (0, import_fields92.integer)({
       defaultValue: 0,
       ui: {
         description: "Extra purchased credits added to the monthly allowance for this period"
       }
     }),
-    used: (0, import_fields85.integer)({
+    used: (0, import_fields92.integer)({
       defaultValue: 0,
       ui: { description: "Credits consumed in this period" }
     }),
-    ledgerEntries: (0, import_fields85.relationship)({
+    ledgerEntries: (0, import_fields92.relationship)({
       ref: "SaasCompanyCreditLedger.period",
       many: true,
       ui: { description: "Ledger movements for this period" }
     }),
-    createdAt: (0, import_fields85.timestamp)({
+    createdAt: (0, import_fields92.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields85.timestamp)({
+    updatedAt: (0, import_fields92.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18841,8 +19552,8 @@ var SaasCompanyCreditPeriod_default = (0, import_core85.list)({
 });
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var import_core86 = require("@keystone-6/core");
-var import_fields86 = require("@keystone-6/core/fields");
+var import_core93 = require("@keystone-6/core");
+var import_fields93 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
 var getCompanyId10 = (session2) => session2?.data?.company?.id;
@@ -18866,7 +19577,7 @@ var companyCreditLedgerAccess = {
 };
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var SaasCompanyCreditLedger_default = (0, import_core86.list)({
+var SaasCompanyCreditLedger_default = (0, import_core93.list)({
   access: companyCreditLedgerAccess,
   ui: {
     listView: {
@@ -18882,49 +19593,49 @@ var SaasCompanyCreditLedger_default = (0, import_core86.list)({
     }
   },
   fields: {
-    company: (0, import_fields86.relationship)({
+    company: (0, import_fields93.relationship)({
       ref: "SaasCompany.creditLedgerEntries",
       many: false,
       ui: { description: "Company this ledger entry belongs to" }
     }),
-    period: (0, import_fields86.relationship)({
+    period: (0, import_fields93.relationship)({
       ref: "SaasCompanyCreditPeriod.ledgerEntries",
       many: false,
       ui: { description: "Credit period this entry affects" }
     }),
-    type: (0, import_fields86.select)({
+    type: (0, import_fields93.select)({
       type: "string",
       options: [...COMPANY_CREDIT_LEDGER_TYPE_OPTIONS],
       validation: { isRequired: true },
       ui: { description: "Type of credit movement" }
     }),
-    amount: (0, import_fields86.integer)({
+    amount: (0, import_fields93.integer)({
       validation: { isRequired: true },
       ui: {
         description: "Signed amount: positive = grant, negative = consume"
       }
     }),
-    balanceAfter: (0, import_fields86.integer)({
+    balanceAfter: (0, import_fields93.integer)({
       ui: { description: "Remaining credits after this movement" }
     }),
-    referenceType: (0, import_fields86.text)({
+    referenceType: (0, import_fields93.text)({
       db: { isNullable: true },
       ui: {
         description: "Reference entity type (subscription, payment, admin, company, sync, ai)"
       }
     }),
-    referenceId: (0, import_fields86.text)({
+    referenceId: (0, import_fields93.text)({
       db: { isNullable: true },
       ui: { description: "Reference entity ID" }
     }),
-    notes: (0, import_fields86.text)({
+    notes: (0, import_fields93.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
-    metadata: (0, import_fields86.json)({
+    metadata: (0, import_fields93.json)({
       ui: { description: "Optional extra context for this movement" }
     }),
-    createdAt: (0, import_fields86.timestamp)({
+    createdAt: (0, import_fields93.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18935,8 +19646,8 @@ var SaasCompanyCreditLedger_default = (0, import_core86.list)({
 });
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.ts
-var import_core87 = require("@keystone-6/core");
-var import_fields87 = require("@keystone-6/core/fields");
+var import_core94 = require("@keystone-6/core");
+var import_fields94 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.access.ts
 var saasCompanyNoteAccess = {
@@ -18954,7 +19665,7 @@ var saasCompanyNoteAccess = {
 };
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.ts
-var SaasCompanyNote_default = (0, import_core87.list)({
+var SaasCompanyNote_default = (0, import_core94.list)({
   access: saasCompanyNoteAccess,
   hooks: {
     resolveInput: {
@@ -18971,32 +19682,32 @@ var SaasCompanyNote_default = (0, import_core87.list)({
     }
   },
   fields: {
-    company: (0, import_fields87.relationship)({
+    company: (0, import_fields94.relationship)({
       ref: "SaasCompany",
       many: false,
       ui: { description: "Empresa de la nota" }
     }),
-    author: (0, import_fields87.relationship)({
+    author: (0, import_fields94.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Qui\xE9n la escribi\xF3 (lo pone el servidor)", createView: { fieldMode: "hidden" } }
     }),
-    body: (0, import_fields87.text)({
+    body: (0, import_fields94.text)({
       validation: { isRequired: true, length: { max: 4e3 } },
       ui: { displayMode: "textarea" }
     }),
-    pinned: (0, import_fields87.checkbox)({
+    pinned: (0, import_fields94.checkbox)({
       defaultValue: false,
       ui: { description: "Fijada arriba en el 360" }
     }),
-    createdAt: (0, import_fields87.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
-    updatedAt: (0, import_fields87.timestamp)({ db: { updatedAt: true } })
+    createdAt: (0, import_fields94.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
+    updatedAt: (0, import_fields94.timestamp)({ db: { updatedAt: true } })
   }
 });
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
-var import_core88 = require("@keystone-6/core");
-var import_fields88 = require("@keystone-6/core/fields");
+var import_core95 = require("@keystone-6/core");
+var import_fields95 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.access.ts
 var saasCompanyDailyUsageAccess = {
@@ -19014,8 +19725,8 @@ var saasCompanyDailyUsageAccess = {
 };
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
-var count = (description) => (0, import_fields88.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
-var SaasCompanyDailyUsage_default = (0, import_core88.list)({
+var count = (description) => (0, import_fields95.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
+var SaasCompanyDailyUsage_default = (0, import_core95.list)({
   access: saasCompanyDailyUsageAccess,
   ui: {
     hideCreate: true,
@@ -19025,13 +19736,13 @@ var SaasCompanyDailyUsage_default = (0, import_core88.list)({
     }
   },
   fields: {
-    key: (0, import_fields88.text)({
+    key: (0, import_fields95.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "companyId:YYYY-MM-DD" }
     }),
-    company: (0, import_fields88.relationship)({ ref: "SaasCompany", many: false }),
-    day: (0, import_fields88.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
+    company: (0, import_fields95.relationship)({ ref: "SaasCompany", many: false }),
+    day: (0, import_fields95.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
     activeUsers: count("Personas con el panel abierto"),
     activeMinutes: count("Minutos con el panel abierto (todo el equipo)"),
     logins: count("Inicios de sesi\xF3n correctos"),
@@ -19048,13 +19759,13 @@ var SaasCompanyDailyUsage_default = (0, import_core88.list)({
     quotationsAccepted: count("Cotizaciones aceptadas"),
     whatsappSent: count("WhatsApp enviados"),
     whatsappReceived: count("WhatsApp recibidos"),
-    computedAt: (0, import_fields88.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
+    computedAt: (0, import_fields95.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
   }
 });
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var import_core89 = require("@keystone-6/core");
-var import_fields89 = require("@keystone-6/core/fields");
+var import_core96 = require("@keystone-6/core");
+var import_fields96 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
 var getCompanyId11 = (session2) => session2?.data?.company?.id;
@@ -19080,7 +19791,7 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core89.list)({
+var SaasCompanySubscription_default = (0, import_core96.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -19098,102 +19809,102 @@ var SaasCompanySubscription_default = (0, import_core89.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields89.relationship)({
+    company: (0, import_fields96.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields89.text)({
+    planName: (0, import_fields96.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields89.float)({
+    planCost: (0, import_fields96.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields89.text)({
+    planFrequency: (0, import_fields96.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields89.integer)({
+    planLeadLimit: (0, import_fields96.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
-    newCreditsAdded: (0, import_fields89.integer)({
+    newCreditsAdded: (0, import_fields96.integer)({
       defaultValue: 0,
       ui: { description: "Extra credits purchased and added to this subscription" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields89.text)({
+    planStripePriceId: (0, import_fields96.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields89.text)({
+    planCurrency: (0, import_fields96.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields89.json)({
+    planFeatures: (0, import_fields96.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields89.select)({
+    status: (0, import_fields96.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields89.calendarDay)({
+    activatedAt: (0, import_fields96.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields89.calendarDay)({
+    currentPeriodEnd: (0, import_fields96.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields89.text)({
+    stripeSubscriptionId: (0, import_fields96.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields89.text)({
+    stripeCustomerId: (0, import_fields96.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields89.relationship)({
+    saasPayments: (0, import_fields96.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
-    creditPeriods: (0, import_fields89.relationship)({
+    creditPeriods: (0, import_fields96.relationship)({
       ref: "SaasCompanyCreditPeriod.subscription",
       many: true,
       ui: { description: "Credit periods linked to this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields89.relationship)({
+    plan: (0, import_fields96.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    saasSubscriptionLogs: (0, import_fields89.relationship)({
+    saasSubscriptionLogs: (0, import_fields96.relationship)({
       ref: "SaasSubscriptionLog.createdSubscription",
       many: true,
       ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
     }),
-    createdAt: (0, import_fields89.timestamp)({
+    createdAt: (0, import_fields96.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields89.timestamp)({
+    updatedAt: (0, import_fields96.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19204,8 +19915,8 @@ var SaasCompanySubscription_default = (0, import_core89.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core90 = require("@keystone-6/core");
-var import_fields90 = require("@keystone-6/core/fields");
+var import_core97 = require("@keystone-6/core");
+var import_fields97 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
 function paymentMethodFilter(session2) {
@@ -19231,7 +19942,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core90.list)({
+var SaasPaymentMethod_default = (0, import_core97.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -19246,61 +19957,61 @@ var SaasPaymentMethod_default = (0, import_core90.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields90.relationship)({
+    user: (0, import_fields97.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields90.text)({
+    cardType: (0, import_fields97.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields90.text)({
+    lastFourDigits: (0, import_fields97.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields90.text)({
+    expMonth: (0, import_fields97.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields90.text)({
+    expYear: (0, import_fields97.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields90.text)({
+    stripeProcessorId: (0, import_fields97.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields90.text)({
+    stripePaymentMethodId: (0, import_fields97.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields90.text)({
+    address: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields90.text)({
+    postalCode: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields90.text)({
+    ownerName: (0, import_fields97.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields90.text)({
+    country: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields90.relationship)({
+    saasPayments: (0, import_fields97.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields90.timestamp)({
+    createdAt: (0, import_fields97.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields90.timestamp)({
+    updatedAt: (0, import_fields97.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -19308,8 +20019,8 @@ var SaasPaymentMethod_default = (0, import_core90.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core91 = require("@keystone-6/core");
-var import_fields91 = require("@keystone-6/core/fields");
+var import_core98 = require("@keystone-6/core");
+var import_fields98 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
 function paymentFilter(session2) {
@@ -19335,7 +20046,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core91.list)({
+var SaasPayment_default = (0, import_core98.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -19353,30 +20064,30 @@ var SaasPayment_default = (0, import_core91.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields91.relationship)({
+    user: (0, import_fields98.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields91.text)({
+    paymentMethodType: (0, import_fields98.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields91.relationship)({
+    paymentMethod: (0, import_fields98.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields91.decimal)({
+    amount: (0, import_fields98.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields91.select)({
+    status: (0, import_fields98.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -19389,38 +20100,38 @@ var SaasPayment_default = (0, import_core91.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields91.text)({
+    processorStripeChargeId: (0, import_fields98.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields91.text)({
+    stripeErrorMessage: (0, import_fields98.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields91.text)({
+    notes: (0, import_fields98.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields91.relationship)({
+    plan: (0, import_fields98.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields91.relationship)({
+    subscription: (0, import_fields98.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields91.timestamp)({
+    createdAt: (0, import_fields98.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields91.timestamp)({
+    updatedAt: (0, import_fields98.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -19428,8 +20139,8 @@ var SaasPayment_default = (0, import_core91.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core92 = require("@keystone-6/core");
-var import_fields92 = require("@keystone-6/core/fields");
+var import_core99 = require("@keystone-6/core");
+var import_fields99 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
 var getCompanyId12 = (session2) => session2?.data?.company?.id;
@@ -19473,7 +20184,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core92.list)({
+var SaasProject_default = (0, import_core99.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -19488,78 +20199,78 @@ var SaasProject_default = (0, import_core92.list)({
     }
   },
   fields: {
-    name: (0, import_fields92.text)({
+    name: (0, import_fields99.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields92.text)({
+    serviceType: (0, import_fields99.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields92.relationship)({
+    responsible: (0, import_fields99.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields92.calendarDay)({
+    startDate: (0, import_fields99.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields92.calendarDay)({
+    estimatedEndDate: (0, import_fields99.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields92.text)({
+    description: (0, import_fields99.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields92.select)({
+    status: (0, import_fields99.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields92.text)({
+    urlData: (0, import_fields99.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields92.relationship)({
+    company: (0, import_fields99.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields92.relationship)({
+    businessLead: (0, import_fields99.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields92.relationship)({
+    proposal: (0, import_fields99.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields92.relationship)({
+    quotations: (0, import_fields99.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields92.timestamp)({
+    createdAt: (0, import_fields99.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields92.timestamp)({
+    updatedAt: (0, import_fields99.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19570,8 +20281,8 @@ var SaasProject_default = (0, import_core92.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core93 = require("@keystone-6/core");
-var import_fields93 = require("@keystone-6/core/fields");
+var import_core100 = require("@keystone-6/core");
+var import_fields100 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
 var getCompanyId13 = (session2) => session2?.data?.company?.id;
@@ -19674,7 +20385,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core93.list)({
+var SaasQuotation_default = (0, import_core100.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -19692,117 +20403,117 @@ var SaasQuotation_default = (0, import_core93.list)({
     }
   },
   fields: {
-    company: (0, import_fields93.relationship)({
+    company: (0, import_fields100.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields93.relationship)({
+    lead: (0, import_fields100.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields93.relationship)({
+    project: (0, import_fields100.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields93.text)({
+    quotationNumber: (0, import_fields100.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields93.select)({
+    status: (0, import_fields100.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields93.text)({
+    currency: (0, import_fields100.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields93.float)({
+    exchangeRate: (0, import_fields100.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields93.float)({
+    subtotal: (0, import_fields100.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields93.float)({
+    discountTotal: (0, import_fields100.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields93.float)({
+    taxTotal: (0, import_fields100.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields93.float)({
+    total: (0, import_fields100.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields93.calendarDay)({
+    validUntil: (0, import_fields100.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields93.timestamp)({
+    sentAt: (0, import_fields100.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields93.timestamp)({
+    acceptedAt: (0, import_fields100.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields93.text)({
+    notes: (0, import_fields100.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields93.text)({
+    terms: (0, import_fields100.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields93.relationship)({
+    createdBy: (0, import_fields100.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields93.relationship)({
+    assignedSeller: (0, import_fields100.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields93.text)({
+    pdfFileOrUrl: (0, import_fields100.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields93.relationship)({
+    quotationProducts: (0, import_fields100.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields93.checkbox)({
+    showDiscount: (0, import_fields100.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields93.checkbox)({
+    showNotes: (0, import_fields100.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields93.timestamp)({
+    createdAt: (0, import_fields100.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields93.timestamp)({
+    updatedAt: (0, import_fields100.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19813,8 +20524,8 @@ var SaasQuotation_default = (0, import_core93.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core94 = require("@keystone-6/core");
-var import_fields94 = require("@keystone-6/core/fields");
+var import_core101 = require("@keystone-6/core");
+var import_fields101 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
 var getCompanyId14 = (session2) => session2?.data?.company?.id;
@@ -20004,7 +20715,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core94.list)({
+var SaasQuotationProduct_default = (0, import_core101.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -20013,60 +20724,60 @@ var SaasQuotationProduct_default = (0, import_core94.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields94.relationship)({
+    quotation: (0, import_fields101.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields94.text)({
+    description: (0, import_fields101.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields94.float)({
+    quantity: (0, import_fields101.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields94.float)({
+    unitPrice: (0, import_fields101.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields94.select)({
+    discountType: (0, import_fields101.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields94.float)({
+    discountValue: (0, import_fields101.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields94.float)({
+    taxRate: (0, import_fields101.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields94.float)({
+    lineSubtotal: (0, import_fields101.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields94.float)({
+    lineTotal: (0, import_fields101.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields94.timestamp)({
+    createdAt: (0, import_fields101.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields94.timestamp)({
+    updatedAt: (0, import_fields101.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -20077,8 +20788,8 @@ var SaasQuotationProduct_default = (0, import_core94.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core95 = require("@keystone-6/core");
-var import_fields95 = require("@keystone-6/core/fields");
+var import_core102 = require("@keystone-6/core");
+var import_fields102 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
 var getCompanyId15 = (session2) => session2?.data?.company?.id;
@@ -20120,7 +20831,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core95.list)({
+var SaasReferralCommission_default = (0, import_core102.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -20139,27 +20850,27 @@ var SaasReferralCommission_default = (0, import_core95.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields95.relationship)({
+    referrer: (0, import_fields102.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields95.relationship)({
+    referredUser: (0, import_fields102.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields95.relationship)({
+    company: (0, import_fields102.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields95.relationship)({
+    subscription: (0, import_fields102.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields95.relationship)({
+    plan: (0, import_fields102.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields95.select)({
+    type: (0, import_fields102.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -20167,30 +20878,30 @@ var SaasReferralCommission_default = (0, import_core95.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields95.float)({
+    percentage: (0, import_fields102.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields95.float)({
+    amount: (0, import_fields102.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields95.text)({
+    currency: (0, import_fields102.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields95.float)({
+    periodIndex: (0, import_fields102.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields95.calendarDay)({
+    periodStart: (0, import_fields102.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields95.calendarDay)({
+    periodEnd: (0, import_fields102.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields95.select)({
+    status: (0, import_fields102.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -20201,18 +20912,18 @@ var SaasReferralCommission_default = (0, import_core95.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields95.text)({
+    notes: (0, import_fields102.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields95.timestamp)({
+    createdAt: (0, import_fields102.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields95.timestamp)({
+    updatedAt: (0, import_fields102.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -20223,8 +20934,8 @@ var SaasReferralCommission_default = (0, import_core95.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core96 = require("@keystone-6/core");
-var import_fields96 = require("@keystone-6/core/fields");
+var import_core103 = require("@keystone-6/core");
+var import_fields103 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
 var getCompanyId16 = (session2) => session2?.data?.company?.id;
@@ -20250,7 +20961,7 @@ var saasSubscriptionLogAccess = {
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core96.list)({
+var SaasSubscriptionLog_default = (0, import_core103.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -20265,71 +20976,71 @@ var SaasSubscriptionLog_default = (0, import_core96.list)({
     }
   },
   fields: {
-    user: (0, import_fields96.relationship)({
+    user: (0, import_fields103.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields96.relationship)({
+    company: (0, import_fields103.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields96.relationship)({
+    plan: (0, import_fields103.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields96.relationship)({
+    createdSubscription: (0, import_fields103.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields96.checkbox)({
+    success: (0, import_fields103.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields96.text)({
+    step: (0, import_fields103.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields96.text)({
+    message: (0, import_fields103.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields96.json)({
+    responseSnapshot: (0, import_fields103.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields96.text)({
+    emailMasked: (0, import_fields103.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields96.text)({
+    planIdRequested: (0, import_fields103.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields96.text)({
+    totalSubmitted: (0, import_fields103.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields96.text)({
+    paymentMethodIdSubmitted: (0, import_fields103.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields96.text)({
+    paymentTypeSubmitted: (0, import_fields103.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields96.integer)({
+    durationMs: (0, import_fields103.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields96.text)({
+    stripeCustomerId: (0, import_fields103.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields96.text)({
+    stripeSubscriptionId: (0, import_fields103.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields96.timestamp)({
+    createdAt: (0, import_fields103.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
     })
@@ -20337,8 +21048,8 @@ var SaasSubscriptionLog_default = (0, import_core96.list)({
 });
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var import_core97 = require("@keystone-6/core");
-var import_fields97 = require("@keystone-6/core/fields");
+var import_core104 = require("@keystone-6/core");
+var import_fields104 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId17 = (session2) => session2?.data?.company?.id;
@@ -20446,7 +21157,7 @@ var saasWorkspaceSeedCrmStatusesHook = {
 };
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var SaasWorkspace_default = (0, import_core97.list)({
+var SaasWorkspace_default = (0, import_core104.list)({
   access: saasWorkspaceAccess,
   hooks: {
     afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
@@ -20457,63 +21168,63 @@ var SaasWorkspace_default = (0, import_core97.list)({
     }
   },
   fields: {
-    name: (0, import_fields97.text)({
+    name: (0, import_fields104.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
     }),
-    showActivities: (0, import_fields97.checkbox)({
+    showActivities: (0, import_fields104.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar actividades de CRM en este workspace" }
     }),
-    showProposals: (0, import_fields97.checkbox)({
+    showProposals: (0, import_fields104.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar propuestas de CRM en este workspace" }
     }),
-    showFollowUpTasks: (0, import_fields97.checkbox)({
+    showFollowUpTasks: (0, import_fields104.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
     }),
-    showTasks: (0, import_fields97.checkbox)({
+    showTasks: (0, import_fields104.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de workspace en este workspace" }
     }),
-    company: (0, import_fields97.relationship)({
+    company: (0, import_fields104.relationship)({
       ref: "SaasCompany.workspaces",
       many: false,
       ui: { description: "Empresa (tenant) a la que pertenece" }
     }),
-    members: (0, import_fields97.relationship)({
+    members: (0, import_fields104.relationship)({
       ref: "User.workspaces",
       many: true,
       ui: { description: "Usuarios con acceso a este workspace" }
     }),
-    salesActivities: (0, import_fields97.relationship)({
+    salesActivities: (0, import_fields104.relationship)({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" }
     }),
-    tasks: (0, import_fields97.relationship)({
+    tasks: (0, import_fields104.relationship)({
       ref: "TechTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
     }),
-    proposals: (0, import_fields97.relationship)({
+    proposals: (0, import_fields104.relationship)({
       ref: "TechProposal.workspace",
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
-    calendarEvents: (0, import_fields97.relationship)({
+    calendarEvents: (0, import_fields104.relationship)({
       ref: "TechCalendarEvent.workspace",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario del workspace" }
     }),
-    followUpTasks: (0, import_fields97.relationship)({
+    followUpTasks: (0, import_fields104.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
     }),
-    crmStatuses: (0, import_fields97.relationship)({
+    crmStatuses: (0, import_fields104.relationship)({
       ref: "SaasWorkspaceCrmStatus.workspace",
       many: true,
       ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
@@ -20522,8 +21233,8 @@ var SaasWorkspace_default = (0, import_core97.list)({
 });
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var import_core98 = require("@keystone-6/core");
-var import_fields98 = require("@keystone-6/core/fields");
+var import_core105 = require("@keystone-6/core");
+var import_fields105 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
 var getCompanyId18 = (session2) => session2?.data?.company?.id;
@@ -20768,7 +21479,7 @@ var saasWorkspaceCrmStatusHooks = {
 };
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var SaasWorkspaceCrmStatus_default = (0, import_core98.list)({
+var SaasWorkspaceCrmStatus_default = (0, import_core105.list)({
   access: saasWorkspaceCrmStatusAccess,
   hooks: saasWorkspaceCrmStatusHooks,
   ui: {
@@ -20777,58 +21488,58 @@ var SaasWorkspaceCrmStatus_default = (0, import_core98.list)({
     }
   },
   fields: {
-    workspace: (0, import_fields98.relationship)({
+    workspace: (0, import_fields105.relationship)({
       ref: "SaasWorkspace.crmStatuses",
       many: false,
       ui: { description: "Workspace al que pertenece este estado" }
     }),
-    name: (0, import_fields98.text)({
+    name: (0, import_fields105.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre visible (p. ej. Kanban)" }
     }),
-    color: (0, import_fields98.text)({
+    color: (0, import_fields105.text)({
       validation: { isRequired: true },
       ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
     }),
-    key: (0, import_fields98.text)({
+    key: (0, import_fields105.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
       }
     }),
-    order: (0, import_fields98.integer)({
+    order: (0, import_fields105.integer)({
       defaultValue: 0,
       isIndexed: true,
       ui: { description: "Orden en la UI (menor primero)" }
     }),
-    isDefault: (0, import_fields98.checkbox)({
+    isDefault: (0, import_fields105.checkbox)({
       defaultValue: false,
       ui: {
         description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
       }
     }),
-    isArchived: (0, import_fields98.checkbox)({
+    isArchived: (0, import_fields105.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en selectores sin borrar historial" }
     }),
-    followUpTasks: (0, import_fields98.relationship)({
+    followUpTasks: (0, import_fields105.relationship)({
       ref: "TechFollowUpTask.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields98.relationship)({
+    proposals: (0, import_fields105.relationship)({
       ref: "TechProposal.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    salesActivities: (0, import_fields98.relationship)({
+    salesActivities: (0, import_fields105.relationship)({
       ref: "TechSalesActivity.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields98.relationship)({
+    tasks: (0, import_fields105.relationship)({
       ref: "TechTask.statusCrm",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
@@ -20837,8 +21548,8 @@ var SaasWorkspaceCrmStatus_default = (0, import_core98.list)({
 });
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var import_core99 = require("@keystone-6/core");
-var import_fields99 = require("@keystone-6/core/fields");
+var import_core106 = require("@keystone-6/core");
+var import_fields106 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.access.ts
 var techWhatsAppMessageAccess = {
@@ -20855,7 +21566,7 @@ var techWhatsAppMessageAccess = {
 };
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var TechWhatsAppMessage_default = (0, import_core99.list)({
+var TechWhatsAppMessage_default = (0, import_core106.list)({
   access: techWhatsAppMessageAccess,
   ui: {
     listView: {
@@ -20870,12 +21581,12 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
     }
   },
   fields: {
-    company: (0, import_fields99.relationship)({
+    company: (0, import_fields106.relationship)({
       ref: "SaasCompany.whatsappMessages",
       many: false,
       ui: { description: "Empresa due\xF1a del n\xFAmero de WhatsApp" }
     }),
-    businessLead: (0, import_fields99.relationship)({
+    businessLead: (0, import_fields106.relationship)({
       ref: "TechBusinessLead.whatsappMessages",
       many: false,
       ui: { description: "Lead asociado (vac\xEDo si no matche\xF3 ning\xFAn tel\xE9fono conocido)" }
@@ -20883,7 +21594,7 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
     /** Conversación interna con alguien del equipo (vendedor) en vez de con un lead. Un
      * mensaje tiene `businessLead` O `teamMember`; si no tiene ninguno, no se pudo matchear
      * el teléfono y solo lo ven los admins de la empresa. */
-    teamMember: (0, import_fields99.relationship)({
+    teamMember: (0, import_fields106.relationship)({
       ref: "User.whatsappMessagesAsTeamMember",
       many: false,
       ui: {
@@ -20892,14 +21603,14 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
     }),
     /** Quién abrió el chat interno. Junto con `teamMember` define quién puede verlo
      * (ver whatsappMessageScopedWhere): solo esas dos personas, además de los admins. */
-    internalInitiator: (0, import_fields99.relationship)({
+    internalInitiator: (0, import_fields106.relationship)({
       ref: "User.whatsappInternalChatsStarted",
       many: false,
       ui: {
         description: "Qui\xE9n abri\xF3 la conversaci\xF3n interna. Con teamMember define qui\xE9n la puede ver."
       }
     }),
-    direction: (0, import_fields99.select)({
+    direction: (0, import_fields106.select)({
       type: "string",
       options: [
         { label: "Entrante", value: "inbound" },
@@ -20909,7 +21620,7 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    source: (0, import_fields99.select)({
+    source: (0, import_fields106.select)({
       type: "string",
       options: [
         { label: "Cloud API", value: "api" },
@@ -20919,21 +21630,21 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       isIndexed: true,
       ui: { description: "Si lleg\xF3 en vivo por la Cloud API o se import\xF3 de un .txt exportado" }
     }),
-    senderLabel: (0, import_fields99.text)({
+    senderLabel: (0, import_fields106.text)({
       db: { isNullable: true },
       ui: {
         description: "Nombre del remitente: en un .txt importado, tal cual ven\xEDa (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribi\xF3."
       }
     }),
-    waMessageId: (0, import_fields99.text)({
+    waMessageId: (0, import_fields106.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: { description: "ID de Meta. Usado para no duplicar reintentos del webhook." }
     }),
-    fromPhone: (0, import_fields99.text)({ db: { isNullable: true } }),
-    toPhone: (0, import_fields99.text)({ db: { isNullable: true } }),
-    body: (0, import_fields99.text)({ ui: { displayMode: "textarea" } }),
-    messageKind: (0, import_fields99.select)({
+    fromPhone: (0, import_fields106.text)({ db: { isNullable: true } }),
+    toPhone: (0, import_fields106.text)({ db: { isNullable: true } }),
+    body: (0, import_fields106.text)({ ui: { displayMode: "textarea" } }),
+    messageKind: (0, import_fields106.select)({
       type: "string",
       options: [
         { label: "Texto", value: "text" },
@@ -20941,7 +21652,7 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       ],
       defaultValue: "text"
     }),
-    mediaKey: (0, import_fields99.text)({
+    mediaKey: (0, import_fields106.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -20949,7 +21660,7 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
         description: "Key del archivo en R2 (no la URL \u2014 se firma al vuelo, ver mediaUrl)"
       }
     }),
-    mediaType: (0, import_fields99.select)({
+    mediaType: (0, import_fields106.select)({
       type: "string",
       options: [
         { label: "Imagen", value: "image" },
@@ -20957,8 +21668,8 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       ],
       db: { isNullable: true }
     }),
-    mediaFileName: (0, import_fields99.text)({ db: { isNullable: true } }),
-    status: (0, import_fields99.select)({
+    mediaFileName: (0, import_fields106.text)({ db: { isNullable: true } }),
+    status: (0, import_fields106.select)({
       type: "string",
       options: [
         { label: "Enviado", value: "sent" },
@@ -20967,16 +21678,16 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       ],
       defaultValue: "sent"
     }),
-    sentBy: (0, import_fields99.relationship)({
+    sentBy: (0, import_fields106.relationship)({
       ref: "User.whatsappMessagesSent",
       many: false,
       ui: { description: "Usuario que mand\xF3 el mensaje (solo salientes)" }
     }),
-    errorMessage: (0, import_fields99.text)({
+    errorMessage: (0, import_fields106.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si el env\xEDo fall\xF3" }
     }),
-    createdAt: (0, import_fields99.timestamp)({
+    createdAt: (0, import_fields106.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del mensaje" }
     })
@@ -20984,8 +21695,8 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.ts
-var import_core100 = require("@keystone-6/core");
-var import_fields100 = require("@keystone-6/core/fields");
+var import_core107 = require("@keystone-6/core");
+var import_fields107 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.access.ts
 function googleCalendarAccountVisibleWhere(session2) {
@@ -21038,7 +21749,7 @@ var hiddenTokenAccess = {
   create: () => false,
   update: () => false
 };
-var GoogleCalendarAccount_default = (0, import_core100.list)({
+var GoogleCalendarAccount_default = (0, import_core107.list)({
   access: googleCalendarAccountAccess,
   hooks: googleCalendarAccountHooks,
   ui: {
@@ -21055,7 +21766,7 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
     }
   },
   fields: {
-    scopeType: (0, import_fields100.select)({
+    scopeType: (0, import_fields107.select)({
       type: "string",
       options: [...GOOGLE_CALENDAR_SCOPE_TYPE_OPTIONS],
       defaultValue: "personal" /* PERSONAL */,
@@ -21063,27 +21774,27 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
       isIndexed: true,
       ui: { description: "Personal (de un usuario) o compartida por toda la empresa" }
     }),
-    user: (0, import_fields100.relationship)({
+    user: (0, import_fields107.relationship)({
       ref: "User.googleCalendarAccounts",
       many: false,
       ui: { description: "Due\xF1o de la cuenta (solo si es personal)" }
     }),
-    company: (0, import_fields100.relationship)({
+    company: (0, import_fields107.relationship)({
       ref: "SaasCompany.googleCalendarAccounts",
       many: false,
       ui: { description: "Empresa due\xF1a de la cuenta (solo si es compartida)" }
     }),
-    connectedByUser: (0, import_fields100.relationship)({
+    connectedByUser: (0, import_fields107.relationship)({
       ref: "User.connectedGoogleCalendarAccounts",
       many: false,
       ui: { description: "Qui\xE9n autoriz\xF3 la conexi\xF3n en Google (auditor\xEDa)" }
     }),
-    googleAccountEmail: (0, import_fields100.text)({
+    googleAccountEmail: (0, import_fields107.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Correo de la cuenta de Google conectada" }
     }),
-    accessTokenEncrypted: (0, import_fields100.text)({
+    accessTokenEncrypted: (0, import_fields107.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -21093,7 +21804,7 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    refreshTokenEncrypted: (0, import_fields100.text)({
+    refreshTokenEncrypted: (0, import_fields107.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -21103,39 +21814,39 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    tokenExpiresAt: (0, import_fields100.timestamp)({
+    tokenExpiresAt: (0, import_fields107.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo expira el access token actual" }
     }),
-    scope: (0, import_fields100.text)({
+    scope: (0, import_fields107.text)({
       db: { isNullable: true },
       ui: { description: "Scopes de Google otorgados" }
     }),
-    isActive: (0, import_fields100.checkbox)({
+    isActive: (0, import_fields107.checkbox)({
       defaultValue: true,
       ui: {
         description: "false si Google revoc\xF3 el acceso: el usuario debe reconectar la cuenta"
       }
     }),
-    lastSyncedAt: (0, import_fields100.timestamp)({
+    lastSyncedAt: (0, import_fields107.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima lectura exitosa desde Google" }
     }),
-    lastSyncError: (0, import_fields100.text)({
+    lastSyncError: (0, import_fields107.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "\xDAltimo error al hablar con Google" }
     }),
-    calendars: (0, import_fields100.relationship)({
+    calendars: (0, import_fields107.relationship)({
       ref: "GoogleCalendarSelection.account",
       many: true,
       ui: { hideCreate: true, description: "Calendarios de esta cuenta" }
     }),
-    syncLogs: (0, import_fields100.relationship)({
+    syncLogs: (0, import_fields107.relationship)({
       ref: "TechGoogleCalendarSyncLog.account",
       many: true,
       ui: { hideCreate: true, description: "Historial de llamadas a Google" }
     }),
-    createdAt: (0, import_fields100.timestamp)({
+    createdAt: (0, import_fields107.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -21146,8 +21857,8 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var import_core101 = require("@keystone-6/core");
-var import_fields101 = require("@keystone-6/core/fields");
+var import_core108 = require("@keystone-6/core");
+var import_fields108 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.access.ts
 var googleCalendarSelectionAccess = {
@@ -21167,7 +21878,7 @@ var googleCalendarSelectionAccess = {
 };
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var GoogleCalendarSelection_default = (0, import_core101.list)({
+var GoogleCalendarSelection_default = (0, import_core108.list)({
   access: googleCalendarSelectionAccess,
   ui: {
     labelField: "calendarName",
@@ -21176,52 +21887,52 @@ var GoogleCalendarSelection_default = (0, import_core101.list)({
     }
   },
   fields: {
-    account: (0, import_fields101.relationship)({
+    account: (0, import_fields108.relationship)({
       ref: "GoogleCalendarAccount.calendars",
       many: false,
       ui: { description: "Cuenta de Google a la que pertenece este calendario" }
     }),
-    googleCalendarId: (0, import_fields101.text)({
+    googleCalendarId: (0, import_fields108.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "calendarId en Google (el principal suele ser el correo)" }
     }),
-    calendarName: (0, import_fields101.text)({
+    calendarName: (0, import_fields108.text)({
       validation: { isRequired: true },
       ui: { description: "Nombre visible del calendario" }
     }),
-    isPrimary: (0, import_fields101.checkbox)({ defaultValue: false }),
-    isSelected: (0, import_fields101.checkbox)({
+    isPrimary: (0, import_fields108.checkbox)({ defaultValue: false }),
+    isSelected: (0, import_fields108.checkbox)({
       defaultValue: false,
       ui: {
         description: "Si est\xE1 marcado, se ve en el calendario unificado y recibe los eventos creados en Kadesh"
       }
     }),
-    colorHex: (0, import_fields101.text)({ db: { isNullable: true } }),
+    colorHex: (0, import_fields108.text)({ db: { isNullable: true } }),
     // Qué registros del CRM se envían a este calendario (los eventos creados a mano eligen
     // sus calendarios destino uno a uno en `TechCalendarEvent.googleTargets`).
-    pushActivities: (0, import_fields101.checkbox)({
+    pushActivities: (0, import_fields108.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar actividades de venta nuevas a este calendario" }
     }),
-    pushProposals: (0, import_fields101.checkbox)({
+    pushProposals: (0, import_fields108.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar propuestas nuevas a este calendario" }
     }),
-    pushFollowUps: (0, import_fields101.checkbox)({
+    pushFollowUps: (0, import_fields108.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas de seguimiento nuevas a este calendario" }
     }),
-    pushTasks: (0, import_fields101.checkbox)({
+    pushTasks: (0, import_fields108.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas nuevas a este calendario" }
     }),
-    targetedEvents: (0, import_fields101.relationship)({
+    targetedEvents: (0, import_fields108.relationship)({
       ref: "TechCalendarEvent.googleTargets",
       many: true,
       ui: { hideCreate: true, description: "Eventos creados a mano que eligieron este calendario" }
     }),
-    eventLinks: (0, import_fields101.relationship)({
+    eventLinks: (0, import_fields108.relationship)({
       ref: "TechCalendarEventGoogleLink.calendarSelection",
       many: true,
       ui: { hideCreate: true, description: "Eventos de Kadesh enviados a este calendario" }
@@ -21230,8 +21941,8 @@ var GoogleCalendarSelection_default = (0, import_core101.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var import_core102 = require("@keystone-6/core");
-var import_fields102 = require("@keystone-6/core/fields");
+var import_core109 = require("@keystone-6/core");
+var import_fields109 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.access.ts
 function calendarEventScopedWhere(session2) {
@@ -21973,7 +22684,7 @@ var techCalendarEventHooks = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var TechCalendarEvent_default = (0, import_core102.list)({
+var TechCalendarEvent_default = (0, import_core109.list)({
   access: techCalendarEventAccess,
   hooks: techCalendarEventHooks,
   ui: {
@@ -21983,27 +22694,27 @@ var TechCalendarEvent_default = (0, import_core102.list)({
     }
   },
   fields: {
-    title: (0, import_fields102.text)({ validation: { isRequired: true } }),
-    description: (0, import_fields102.text)({
+    title: (0, import_fields109.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields109.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     }),
-    startAt: (0, import_fields102.timestamp)({
+    startAt: (0, import_fields109.timestamp)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Inicio. En eventos de d\xEDa completo se usa la fecha en UTC (00:00Z)"
       }
     }),
-    endAt: (0, import_fields102.timestamp)({
+    endAt: (0, import_fields109.timestamp)({
       db: { isNullable: true },
       ui: {
         description: "Fin (opcional). Sin fin, el evento dura 60 min; en d\xEDa completo, es el \xFAltimo d\xEDa incluido"
       }
     }),
-    allDay: (0, import_fields102.checkbox)({ defaultValue: false }),
-    location: (0, import_fields102.text)({ db: { isNullable: true } }),
-    sourceType: (0, import_fields102.select)({
+    allDay: (0, import_fields109.checkbox)({ defaultValue: false }),
+    location: (0, import_fields109.text)({ db: { isNullable: true } }),
+    sourceType: (0, import_fields109.select)({
       type: "string",
       options: [...CALENDAR_EVENT_SOURCE_OPTIONS],
       defaultValue: "native" /* NATIVE */,
@@ -22011,46 +22722,46 @@ var TechCalendarEvent_default = (0, import_core102.list)({
       isIndexed: true,
       ui: { description: "Creado a mano o generado desde un registro del CRM" }
     }),
-    salesActivity: (0, import_fields102.relationship)({
+    salesActivity: (0, import_fields109.relationship)({
       ref: "TechSalesActivity.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    followUpTask: (0, import_fields102.relationship)({
+    followUpTask: (0, import_fields109.relationship)({
       ref: "TechFollowUpTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    task: (0, import_fields102.relationship)({
+    task: (0, import_fields109.relationship)({
       ref: "TechTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    proposal: (0, import_fields102.relationship)({
+    proposal: (0, import_fields109.relationship)({
       ref: "TechProposal.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    createdBy: (0, import_fields102.relationship)({
+    createdBy: (0, import_fields109.relationship)({
       ref: "User.createdCalendarEvents",
       many: false,
       ui: { description: "Usuario due\xF1o del evento (su cuenta personal recibe el push)" }
     }),
-    company: (0, import_fields102.relationship)({
+    company: (0, import_fields109.relationship)({
       ref: "SaasCompany.calendarEvents",
       many: false,
       ui: { description: "Empresa (su cuenta compartida recibe el push)" }
     }),
-    workspace: (0, import_fields102.relationship)({
+    workspace: (0, import_fields109.relationship)({
       ref: "SaasWorkspace.calendarEvents",
       many: false,
       ui: { description: "Workspace del CRM, si aplica" }
     }),
-    googleTargets: (0, import_fields102.relationship)({
+    googleTargets: (0, import_fields109.relationship)({
       ref: "GoogleCalendarSelection.targetedEvents",
       many: true,
       ui: {
@@ -22058,19 +22769,19 @@ var TechCalendarEvent_default = (0, import_core102.list)({
         description: "Calendarios de Google elegidos al crear el evento (solo eventos nativos; los del CRM siguen la configuraci\xF3n de cada calendario)"
       }
     }),
-    googleLinks: (0, import_fields102.relationship)({
+    googleLinks: (0, import_fields109.relationship)({
       ref: "TechCalendarEventGoogleLink.event",
       many: true,
       ui: { hideCreate: true, description: "Copias de este evento en Google Calendar" }
     }),
-    createdAt: (0, import_fields102.timestamp)({
+    createdAt: (0, import_fields109.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields102.timestamp)({
+    updatedAt: (0, import_fields109.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -22081,8 +22792,8 @@ var TechCalendarEvent_default = (0, import_core102.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var import_core103 = require("@keystone-6/core");
-var import_fields103 = require("@keystone-6/core/fields");
+var import_core110 = require("@keystone-6/core");
+var import_fields110 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.access.ts
 var techCalendarEventGoogleLinkAccess = {
@@ -22102,7 +22813,7 @@ var techCalendarEventGoogleLinkAccess = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var TechCalendarEventGoogleLink_default = (0, import_core103.list)({
+var TechCalendarEventGoogleLink_default = (0, import_core110.list)({
   access: techCalendarEventGoogleLinkAccess,
   ui: {
     listView: {
@@ -22115,26 +22826,26 @@ var TechCalendarEventGoogleLink_default = (0, import_core103.list)({
     }
   },
   fields: {
-    event: (0, import_fields103.relationship)({
+    event: (0, import_fields110.relationship)({
       ref: "TechCalendarEvent.googleLinks",
       many: false
     }),
-    calendarSelection: (0, import_fields103.relationship)({
+    calendarSelection: (0, import_fields110.relationship)({
       ref: "GoogleCalendarSelection.eventLinks",
       many: false
     }),
-    googleEventId: (0, import_fields103.text)({
+    googleEventId: (0, import_fields110.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "id del evento en Google (se llena tras el push exitoso)" }
     }),
-    lastPushedAt: (0, import_fields103.timestamp)({ db: { isNullable: true } }),
-    lastPushStatus: (0, import_fields103.select)({
+    lastPushedAt: (0, import_fields110.timestamp)({ db: { isNullable: true } }),
+    lastPushStatus: (0, import_fields110.select)({
       type: "string",
       options: [...GOOGLE_LINK_STATUS_OPTIONS],
       defaultValue: "pending" /* PENDING */
     }),
-    lastPushError: (0, import_fields103.text)({
+    lastPushError: (0, import_fields110.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     })
@@ -22142,8 +22853,8 @@ var TechCalendarEventGoogleLink_default = (0, import_core103.list)({
 });
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var import_core104 = require("@keystone-6/core");
-var import_fields104 = require("@keystone-6/core/fields");
+var import_core111 = require("@keystone-6/core");
+var import_fields111 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.access.ts
 var techGoogleCalendarSyncLogAccess = {
@@ -22165,7 +22876,7 @@ var techGoogleCalendarSyncLogAccess = {
 };
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var TechGoogleCalendarSyncLog_default = (0, import_core104.list)({
+var TechGoogleCalendarSyncLog_default = (0, import_core111.list)({
   access: techGoogleCalendarSyncLogAccess,
   ui: {
     listView: {
@@ -22180,29 +22891,29 @@ var TechGoogleCalendarSyncLog_default = (0, import_core104.list)({
     }
   },
   fields: {
-    account: (0, import_fields104.relationship)({
+    account: (0, import_fields111.relationship)({
       ref: "GoogleCalendarAccount.syncLogs",
       many: false
     }),
-    direction: (0, import_fields104.select)({
+    direction: (0, import_fields111.select)({
       type: "string",
       options: [...GOOGLE_SYNC_DIRECTION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    operation: (0, import_fields104.select)({
+    operation: (0, import_fields111.select)({
       type: "string",
       options: [...GOOGLE_SYNC_OPERATION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    success: (0, import_fields104.checkbox)({ defaultValue: false }),
-    errorMessage: (0, import_fields104.text)({
+    success: (0, import_fields111.checkbox)({ defaultValue: false }),
+    errorMessage: (0, import_fields111.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si la llamada fall\xF3 (sin tokens)" }
     }),
-    durationMs: (0, import_fields104.integer)({ db: { isNullable: true } }),
-    createdAt: (0, import_fields104.timestamp)({ defaultValue: { kind: "now" } })
+    durationMs: (0, import_fields111.integer)({ db: { isNullable: true } }),
+    createdAt: (0, import_fields111.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
@@ -22281,6 +22992,13 @@ var schema_default = withActivityHooks({
   SaasWorkspaceCrmStatus: SaasWorkspaceCrmStatus_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
+  StoreBrand: StoreBrand_default,
+  StoreCategory: StoreCategory_default,
+  StoreProduct: StoreProduct_default,
+  StoreProductImage: StoreProductImage_default,
+  StoreProductReview: StoreProductReview_default,
+  StoreProductVariant: StoreProductVariant_default,
+  StoreWishlistItem: StoreWishlistItem_default,
   SystemRelease: SystemRelease_default,
   Tag: Tag_default,
   TechBusinessLead: TechBusinessLead_default,
@@ -22313,7 +23031,7 @@ var schema_default = withActivityHooks({
 });
 
 // keystone.ts
-var import_core105 = require("@keystone-6/core");
+var import_core112 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto5 = require("crypto");
@@ -22761,6 +23479,22 @@ var RATE_LIMIT_RULES = [
     windowMs: DAY
   },
   {
+    key: "store_review_user",
+    label: "Rese\xF1as de productos por persona",
+    fields: ["submitStoreProductReview", "deleteMyStoreProductReview"],
+    scope: "user",
+    limit: 20,
+    windowMs: DAY
+  },
+  {
+    key: "store_wishlist_user",
+    label: "Cambios en la lista de deseos por persona",
+    fields: ["setStoreWishlist"],
+    scope: "user",
+    limit: 120,
+    windowMs: HOUR
+  },
+  {
     key: "contact_ip",
     label: "Mensajes de contacto por IP",
     fields: ["createContactForm", "createContactForms"],
@@ -23051,13 +23785,13 @@ async function provisionSignupCompany(context, userId, companyName) {
 var UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
 var MAX_TEXT = 200;
 var MAX_PATH2 = 300;
-function text86(value, max = MAX_TEXT) {
+function text93(value, max = MAX_TEXT) {
   if (typeof value !== "string") return void 0;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : void 0;
 }
 function hostOf(value) {
-  const raw = text86(value, 500);
+  const raw = text93(value, 500);
   if (!raw) return void 0;
   try {
     return new URL(raw.includes("://") ? raw : `https://${raw}`).hostname.toLowerCase() || void 0;
@@ -23066,7 +23800,7 @@ function hostOf(value) {
   }
 }
 function pathOf(value) {
-  const raw = text86(value, MAX_PATH2);
+  const raw = text93(value, MAX_PATH2);
   if (!raw || !raw.startsWith("/")) return void 0;
   return raw.split(/[?#]/)[0] || void 0;
 }
@@ -23075,14 +23809,14 @@ function cleanAttribution(input) {
   const source = input;
   const out = {};
   for (const key of UTM_KEYS) {
-    const value = text86(source[key]);
+    const value = text93(source[key]);
     if (value) out[key] = value.toLowerCase();
   }
   const referrer = hostOf(source.referrer);
   if (referrer) out.referrer = referrer;
   const landingPath = pathOf(source.landingPath);
   if (landingPath) out.landingPath = landingPath;
-  const firstSeen = text86(source.firstSeenAt, 40);
+  const firstSeen = text93(source.firstSeenAt, 40);
   if (firstSeen && !Number.isNaN(new Date(firstSeen).getTime())) out.firstSeenAt = firstSeen;
   return Object.keys(out).length ? out : null;
 }
@@ -23156,7 +23890,7 @@ var resolver = {
   }, context) => {
     const startedAt = Date.now();
     const isSaas = product === PRODUCT.SAAS;
-    const fail14 = async (message, email, userId) => {
+    const fail15 = async (message, email, userId) => {
       await writeUserAuthLog(context, {
         startedAt,
         source: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
@@ -23174,7 +23908,7 @@ var resolver = {
     };
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
-      return fail14("Token de Google inv\xE1lido o expirado", "");
+      return fail15("Token de Google inv\xE1lido o expirado", "");
     }
     let user = await context.sudo().query.User.findOne({
       where: { email: payload.email },
@@ -23199,7 +23933,7 @@ var resolver = {
         if (isSaas) {
           const signupRoleIds = await findSignupRoleIds(context);
           if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
-            return fail14(
+            return fail15(
               "No se pudieron asignar los roles de empresa. Contacta a soporte.",
               payload.email
             );
@@ -23224,14 +23958,14 @@ var resolver = {
           await provisionSignupCompany(context, user.id, baseName);
         }
       } catch (err) {
-        return fail14(
+        return fail15(
           err instanceof Error ? err.message : "Error al crear usuario",
           payload.email
         );
       }
     }
     if (await loginBlockedReason(context, user.id)) {
-      return fail14(SUSPENDED_MESSAGE, payload.email, user.id);
+      return fail15(SUSPENDED_MESSAGE, payload.email, user.id);
     }
     user = await context.sudo().query.User.updateOne({
       where: { id: user.id },
@@ -23239,14 +23973,14 @@ var resolver = {
       query: USER_QUERY
     });
     if (!context.sessionStrategy) {
-      return fail14("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail15("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     const sessionToken = await context.sessionStrategy.start({
       data: { listKey: "User", itemId: user.id },
       context
     });
     if (typeof sessionToken !== "string" || sessionToken.length === 0) {
-      return fail14("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail15("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     await writeUserAuthLog(context, {
       startedAt,
@@ -23819,8 +24553,8 @@ var importPetPlace_default = {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text89 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text89}`;
+  const text96 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text96}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -24976,8 +25710,8 @@ async function getPlaceDetails3(placeId, apiKey2) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text89 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text89}`;
+  const text96 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text96}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -26758,14 +27492,14 @@ function trimOrEmpty(value, max) {
   return (value ?? "").trim().slice(0, max);
 }
 function parseCustomEmails(raw) {
-  const list103 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
-  if (list103.length === 0) {
+  const list110 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
+  if (list110.length === 0) {
     return {
       emails: [],
       error: "Agrega al menos un correo para el env\xEDo a usuarios espec\xEDficos."
     };
   }
-  if (list103.length > MAX_CUSTOM_RECIPIENTS) {
+  if (list110.length > MAX_CUSTOM_RECIPIENTS) {
     return {
       emails: [],
       error: `M\xE1ximo ${MAX_CUSTOM_RECIPIENTS} correos por env\xEDo a usuarios espec\xEDficos.`
@@ -26773,7 +27507,7 @@ function parseCustomEmails(raw) {
   }
   const seen = /* @__PURE__ */ new Set();
   const emails = [];
-  for (const email of list103) {
+  for (const email of list110) {
     if (!EMAIL_REGEX2.test(email)) {
       return { emails: [], error: `Correo inv\xE1lido: ${email}` };
     }
@@ -26958,11 +27692,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text89) {
-  return text89.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text96) {
+  return text96.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text89) {
-  const cleaned = stripSpoofedDelimiters(text89 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text96) {
+  const cleaned = stripSpoofedDelimiters(text96 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -27002,9 +27736,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text89) {
-  if (!text89) return 0;
-  return Math.max(1, Math.ceil(text89.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text96) {
+  if (!text96) return 0;
+  return Math.max(1, Math.ceil(text96.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -27038,15 +27772,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text89 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text89) {
+  const text96 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text96) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text89,
+    text: text96,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text89)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text96)
     }
   };
 }
@@ -27091,15 +27825,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text89 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text89) {
+  const text96 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text96) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text89,
+    text: text96,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text89)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text96)
     }
   };
 }
@@ -27136,15 +27870,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text89 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text89) {
+  const text96 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text96) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text89,
+    text: text96,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text89)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text96)
     }
   };
 }
@@ -27822,8 +28556,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text89) {
-  const stripped = text89.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text96) {
+  const stripped = text96.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -28343,11 +29077,11 @@ async function saveMarketInsight(context, params) {
     query: INSIGHT_QUERY2
   });
 }
-function parseMarketInsight(text89) {
-  const match = text89.match(/\{[\s\S]*\}/);
+function parseMarketInsight(text96) {
+  const match = text96.match(/\{[\s\S]*\}/);
   if (!match) {
     return {
-      summary: text89.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      summary: text96.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
       actions: []
     };
   }
@@ -28358,12 +29092,12 @@ function parseMarketInsight(text89) {
       detail: String(item.detail ?? "").trim()
     })).filter((item) => item.title && item.detail).slice(0, 3);
     return {
-      summary: String(parsed.summary ?? "").trim() || text89.trim().slice(0, 800),
+      summary: String(parsed.summary ?? "").trim() || text96.trim().slice(0, 800),
       actions
     };
   } catch {
     return {
-      summary: text89.trim().slice(0, 800),
+      summary: text96.trim().slice(0, 800),
       actions: []
     };
   }
@@ -28903,8 +29637,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text89) {
-  const stripped = text89.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text96) {
+  const stripped = text96.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -28914,8 +29648,8 @@ function parseJsonObject(text89) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text89, company) {
-  const parsed = parseJsonObject(text89);
+function parseCompanyBriefPillars(text96, company) {
+  const parsed = parseJsonObject(text96);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -29235,33 +29969,33 @@ function encodeDenueCondition(value, fallback) {
   const words = parts.length ? parts : [fallback];
   return words.map((word) => encodeURIComponent(word)).join(",");
 }
-function isDenueEmptyBody(text89) {
-  const trimmed = text89.trim().toLowerCase();
+function isDenueEmptyBody(text96) {
+  const trimmed = text96.trim().toLowerCase();
   if (!trimmed) return true;
   return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
 }
 async function parseDenueList(res) {
-  const text89 = await res.text();
-  if (isDenueEmptyBody(text89)) {
+  const text96 = await res.text();
+  if (isDenueEmptyBody(text96)) {
     console.log("[INEGI DENUE] empty body treated as no results", {
       status: res.status,
-      preview: text89.slice(0, 120)
+      preview: text96.slice(0, 120)
     });
     return [];
   }
   if (!res.ok) {
     console.error("[INEGI DENUE] HTTP error body", {
       status: res.status,
-      preview: text89.slice(0, 200)
+      preview: text96.slice(0, 200)
     });
-    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text89.slice(0, 200)}`);
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text96.slice(0, 200)}`);
   }
   let data;
   try {
-    data = JSON.parse(text89);
+    data = JSON.parse(text96);
   } catch {
     throw new Error(
-      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text89.slice(0, 200)}`
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text96.slice(0, 200)}`
     );
   }
   if (!Array.isArray(data)) {
@@ -29360,17 +30094,17 @@ async function getIndicator(indicatorId, geographicArea, recent = true, source =
   const area = geographicArea.trim() || "00";
   const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
   const res = await inegiFetch(url);
-  const text89 = await res.text();
+  const text96 = await res.text();
   if (!res.ok) {
     throw new Error(
-      `INEGI Indicadores HTTP ${res.status}: ${text89.slice(0, 200)}`
+      `INEGI Indicadores HTTP ${res.status}: ${text96.slice(0, 200)}`
     );
   }
   try {
-    return JSON.parse(text89);
+    return JSON.parse(text96);
   } catch {
     throw new Error(
-      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text89.slice(0, 200)}`
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text96.slice(0, 200)}`
     );
   }
 }
@@ -33308,10 +34042,209 @@ var resolver31 = {
 };
 var paws_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
+// graphql/customs/mutations/store/setStoreWishlist.ts
+var typeDefs35 = `
+  type StoreWishlistResult {
+    success: Boolean!
+    message: String!
+    "Whether the product is saved after this call."
+    saved: Boolean!
+  }
+`;
+var definition32 = `
+  setStoreWishlist(productId: ID!, saved: Boolean!): StoreWishlistResult!
+`;
+var resolver32 = {
+  /** Saves a product to the wishlist or takes it out. One row per person and product. */
+  setStoreWishlist: async (_root, { productId, saved }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para guardar productos.", saved: false };
+    if (!storeEnabled() && !isPlatformAdmin(context.session)) {
+      return { success: false, message: "La tienda a\xFAn no est\xE1 disponible.", saved: false };
+    }
+    try {
+      const prisma = storePrisma(context);
+      const key = `${userId}:${productId}`;
+      if (!saved) {
+        const removed = await prisma.storeWishlistItem.deleteMany({ where: { key } });
+        if (removed instanceof Error) throw removed;
+        return { success: true, message: "Listo.", saved: false };
+      }
+      const [product, count2] = await Promise.all([
+        prisma.storeProduct.findUnique({ where: { id: productId }, select: { status: true } }),
+        prisma.storeWishlistItem.count({ where: { userId } })
+      ]);
+      if (product instanceof Error) throw product;
+      if (count2 instanceof Error) throw count2;
+      if (!product || product.status !== STORE_PRODUCT_STATUS.ACTIVE) {
+        return { success: false, message: "Este producto ya no est\xE1 disponible.", saved: false };
+      }
+      if (Number(count2) >= STORE_WISHLIST_MAX) {
+        return { success: false, message: "Tu lista de deseos est\xE1 llena.", saved: false };
+      }
+      const row = await prisma.storeWishlistItem.upsert({
+        where: { key },
+        create: { key, user: { connect: { id: userId } }, product: { connect: { id: productId } } },
+        update: {}
+      });
+      if (row instanceof Error) throw row;
+      return { success: true, message: "Guardado en tu lista de deseos.", saved: true };
+    } catch (error) {
+      console.error("[setStoreWishlist]", error);
+      return { success: false, message: "No pudimos guardar el producto. Intenta de nuevo.", saved: false };
+    }
+  }
+};
+var setStoreWishlist_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+
+// graphql/customs/mutations/store/storeProductReviews.ts
+var typeDefs36 = `
+  input StoreProductReviewInput {
+    productId: ID!
+    "1 to 5"
+    rating: Int!
+    title: String
+    body: String
+  }
+
+  type StoreProductReviewResult {
+    success: Boolean!
+    message: String!
+    reviewId: ID
+    "Stars of the product after this change."
+    ratingAverage: Float
+    ratingCount: Int
+  }
+`;
+var definition33 = `
+  submitStoreProductReview(input: StoreProductReviewInput!): StoreProductReviewResult!
+  deleteMyStoreProductReview(productId: ID!): StoreProductReviewResult!
+`;
+var EMPTY2 = { reviewId: null, ratingAverage: null, ratingCount: null };
+function fail7(message) {
+  return { success: false, message, ...EMPTY2 };
+}
+var resolver33 = {
+  /** Writes or edits the caller's review of a product. */
+  submitStoreProductReview: async (_root, { input }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return fail7("Inicia sesi\xF3n para dejar tu rese\xF1a.");
+    if (!storeEnabled() && !isPlatformAdmin(context.session)) return fail7("La tienda a\xFAn no est\xE1 disponible.");
+    const rating = Number(input.rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return fail7("La calificaci\xF3n debe ser de 1 a 5 estrellas.");
+    }
+    const title = (input.title ?? "").trim();
+    const body = (input.body ?? "").trim();
+    if (title.length > STORE_REVIEW_TITLE_MAX) return fail7("El t\xEDtulo es demasiado largo.");
+    if (body.length > STORE_REVIEW_BODY_MAX) return fail7("La rese\xF1a es demasiado larga.");
+    try {
+      const prisma = storePrisma(context);
+      const key = `${userId}:${input.productId}`;
+      const [product, existing] = await Promise.all([
+        prisma.storeProduct.findUnique({
+          where: { id: input.productId },
+          select: { id: true, name: true, status: true }
+        }),
+        prisma.storeProductReview.findUnique({ where: { key }, select: { id: true, status: true } })
+      ]);
+      if (product instanceof Error) throw product;
+      if (existing instanceof Error) throw existing;
+      if (!product || product.status !== STORE_PRODUCT_STATUS.ACTIVE) {
+        return fail7("Este producto ya no est\xE1 disponible.");
+      }
+      if (existing?.status === STORE_REVIEW_STATUS.HIDDEN) {
+        return fail7("Tu rese\xF1a de este producto fue retirada por el equipo de Kadesh.");
+      }
+      const saved = await prisma.storeProductReview.upsert({
+        where: { key },
+        create: {
+          key,
+          rating,
+          title,
+          body,
+          status: STORE_REVIEW_STATUS.PUBLISHED,
+          product: { connect: { id: input.productId } },
+          user: { connect: { id: userId } }
+        },
+        update: { rating, title, body },
+        select: { id: true }
+      });
+      if (saved instanceof Error) throw saved;
+      const stars = await recomputeStoreProductRating(context, input.productId);
+      bumpStoreCatalogVersion();
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_STORE_REVIEW_ADDED,
+        summary: `${existing ? "Edit\xF3 su rese\xF1a de" : "Calific\xF3"} "${String(product.name).slice(0, 80)}" con ${rating} estrellas`,
+        entityType: "StoreProduct",
+        entityId: input.productId,
+        metadata: { rating, count: body.length, edited: Boolean(existing) }
+      });
+      return {
+        success: true,
+        message: existing ? "Actualizamos tu rese\xF1a." : "\xA1Gracias por tu rese\xF1a!",
+        reviewId: saved.id,
+        ratingAverage: stars?.ratingAverage ?? null,
+        ratingCount: stars?.ratingCount ?? null
+      };
+    } catch (error) {
+      console.error("[submitStoreProductReview]", error);
+      return fail7("No pudimos guardar tu rese\xF1a. Intenta de nuevo.");
+    }
+  },
+  /** Deletes the caller's own review of a product. */
+  deleteMyStoreProductReview: async (_root, { productId }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return fail7("Inicia sesi\xF3n para borrar tu rese\xF1a.");
+    try {
+      const prisma = storePrisma(context);
+      const removed = await prisma.storeProductReview.deleteMany({ where: { key: `${userId}:${productId}` } });
+      if (removed instanceof Error) throw removed;
+      if (Number(removed.count) === 0) return fail7("No encontramos tu rese\xF1a de este producto.");
+      const stars = await recomputeStoreProductRating(context, productId);
+      bumpStoreCatalogVersion();
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_STORE_REVIEW_DELETED,
+        summary: "Borr\xF3 su rese\xF1a de un producto",
+        entityType: "StoreProduct",
+        entityId: productId
+      });
+      return {
+        success: true,
+        message: "Borramos tu rese\xF1a.",
+        reviewId: null,
+        ratingAverage: stars?.ratingAverage ?? null,
+        ratingCount: stars?.ratingCount ?? null
+      };
+    } catch (error) {
+      console.error("[deleteMyStoreProductReview]", error);
+      return fail7("No pudimos borrar tu rese\xF1a. Intenta de nuevo.");
+    }
+  }
+};
+var storeProductReviews_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+
+// graphql/customs/mutations/store/index.ts
+var storeMutations = {
+  typeDefs: `
+    ${setStoreWishlist_default.typeDefs}
+    ${storeProductReviews_default.typeDefs}
+  `,
+  definition: `
+    ${setStoreWishlist_default.definition}
+    ${storeProductReviews_default.definition}
+  `,
+  resolver: {
+    ...setStoreWishlist_default.resolver,
+    ...storeProductReviews_default.resolver
+  }
+};
+var store_default = storeMutations;
+
 // graphql/customs/mutations/pet/sendAnimalFollowUps.ts
 var MAX_REMINDERS_PER_RUN = 200;
 var MAX_INACTIVE_PER_RUN = 500;
-var typeDefs35 = `
+var typeDefs37 = `
   type SendAnimalFollowUpsResult {
     success: Boolean!
     message: String!
@@ -33320,11 +34253,11 @@ var typeDefs35 = `
     failed: Int!
   }
 `;
-var definition32 = `
+var definition34 = `
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
 `;
 var empty2 = { reminded: 0, inactivated: 0, failed: 0 };
-function unwrap(value) {
+function unwrap2(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -33358,7 +34291,7 @@ async function findReminderCandidates(prisma, automation) {
     ORDER BY a."lastActivityAt" ASC
     LIMIT ${MAX_REMINDERS_PER_RUN}::int
   `;
-  return unwrap(rows2);
+  return unwrap2(rows2);
 }
 async function findInactiveCandidates(prisma, automation) {
   const now = Date.now();
@@ -33389,12 +34322,12 @@ async function findInactiveCandidates(prisma, automation) {
       )
     LIMIT ${MAX_INACTIVE_PER_RUN}::int
   `;
-  return unwrap(rows2).map((row) => row.id);
+  return unwrap2(rows2).map((row) => row.id);
 }
 async function remind(context, animal) {
   const nextStage = animal.stage + 1;
   const prisma = context.sudo().prisma;
-  const claimed = unwrap(
+  const claimed = unwrap2(
     await prisma.animal.updateMany({
       where: { id: animal.id, followUpStage: animal.stage, outcome: null },
       data: { followUpStage: nextStage, followUpSentAt: /* @__PURE__ */ new Date() }
@@ -33436,7 +34369,7 @@ async function remind(context, animal) {
   }
   return true;
 }
-var resolver32 = {
+var resolver34 = {
   sendAnimalFollowUps: async (_root, { secret }, context) => {
     const expected = process.env.CRON_SECRET?.trim();
     if (!expected || secret !== expected) {
@@ -33456,7 +34389,7 @@ var resolver32 = {
         }
       }
       const inactiveIds = await findInactiveCandidates(prisma, automation);
-      const inactivated = inactiveIds.length ? unwrap(
+      const inactivated = inactiveIds.length ? unwrap2(
         await prisma.animal.updateMany({
           where: { id: { in: inactiveIds }, inactiveAt: null },
           data: { inactiveAt: /* @__PURE__ */ new Date() }
@@ -33475,7 +34408,7 @@ var resolver32 = {
     }
   }
 };
-var sendAnimalFollowUps_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var sendAnimalFollowUps_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
 var import_graphql6 = require("graphql");
@@ -33758,7 +34691,7 @@ async function transferPetToOwner(context, pet, newOwnerId, { reportNote } = {})
 }
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
-var typeDefs36 = `
+var typeDefs38 = `
   input AdoptionApplicationInput {
     phone: String!
     "Por qu\xE9 quiere adoptarlo (20 a 1000 caracteres)"
@@ -33791,7 +34724,7 @@ var typeDefs36 = `
     petId: ID
   }
 `;
-var definition33 = `
+var definition35 = `
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
   "Solo quien la envi\xF3 y solo mientras siga \xABEnviada\xBB (submitted)."
   editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
@@ -33859,8 +34792,8 @@ function validateInput(input) {
   if (!Number.isInteger(hours) || hours < 0 || hours > ADOPTION_APPLICATION_LIMITS.HOURS_ALONE_MAX) {
     return { ok: false, message: "Escribe cu\xE1ntas horas al d\xEDa estar\xEDa solo (0 a 24)." };
   }
-  for (const text89 of [input.otherPets, input.experience]) {
-    if ((text89 ?? "").trim().length > ADOPTION_APPLICATION_LIMITS.TEXT_MAX) {
+  for (const text96 of [input.otherPets, input.experience]) {
+    if ((text96 ?? "").trim().length > ADOPTION_APPLICATION_LIMITS.TEXT_MAX) {
       return { ok: false, message: `Cada respuesta puede tener hasta ${ADOPTION_APPLICATION_LIMITS.TEXT_MAX} caracteres.` };
     }
   }
@@ -33897,19 +34830,19 @@ var REVIEW_COPY = {
     body: note || "Gracias por querer adoptar. Hay m\xE1s animales esperando un hogar en KADESH."
   })
 };
-var resolver33 = {
+var resolver35 = {
   submitAdoptionApplication: async (_root, { animalId, input }, context) => {
-    const fail14 = (message) => ({ success: false, message, application: null });
+    const fail15 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para enviar tu solicitud.");
+      if (!userId) return fail15("Inicia sesi\xF3n para enviar tu solicitud.");
       const sudo = context.sudo();
       const animal = await sudo.query.Animal.findOne({ where: { id: animalId }, query: ANIMAL_FIELDS });
-      if (!animal) return fail14("No encontramos ese animal.");
-      if (animal.duplicateOf) return fail14("Este reporte se uni\xF3 a otro: solicita desde el reporte principal.");
+      if (!animal) return fail15("No encontramos ese animal.");
+      if (animal.duplicateOf) return fail15("Este reporte se uni\xF3 a otro: solicita desde el reporte principal.");
       const last = await lastReportLog(context, animal.id);
-      if (last?.status !== "in_adoption") return fail14(`${animalLabel(animal)} ya no est\xE1 en adopci\xF3n.`);
-      if (await canReview(context, animal, userId)) return fail14("Es un animal que t\xFA (o tu equipo) publicaste.");
+      if (last?.status !== "in_adoption") return fail15(`${animalLabel(animal)} ya no est\xE1 en adopci\xF3n.`);
+      if (await canReview(context, animal, userId)) return fail15("Es un animal que t\xFA (o tu equipo) publicaste.");
       const open = await sudo.query.AdoptionApplication.count({
         where: {
           animal: { id: { equals: animal.id } },
@@ -33917,9 +34850,9 @@ var resolver33 = {
           status: { in: ADOPTION_APPLICATION_ACTIVE_STATUSES }
         }
       });
-      if (open > 0) return fail14(`Ya enviaste una solicitud para ${animalLabel(animal)}. Te avisaremos cuando respondan.`);
+      if (open > 0) return fail15(`Ya enviaste una solicitud para ${animalLabel(animal)}. Te avisaremos cuando respondan.`);
       const checked = validateInput(input);
-      if (!checked.ok) return fail14(checked.message);
+      if (!checked.ok) return fail15(checked.message);
       const applicant = await sudo.query.User.findOne({
         where: { id: userId },
         query: "name lastName email"
@@ -33964,23 +34897,23 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[submitAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos enviar tu solicitud. Intenta de nuevo."));
+      return fail15(errorMessage(error, "No pudimos enviar tu solicitud. Intenta de nuevo."));
     }
   },
   reviewAdoptionApplication: async (_root, { applicationId, status, note }, context) => {
-    const fail14 = (message) => ({ success: false, message, application: null });
+    const fail15 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
-      if (!ADOPTION_APPLICATION_REVIEW_STATUSES.includes(status)) return fail14("Elige qu\xE9 hacer con la solicitud.");
+      if (!userId) return fail15("Inicia sesi\xF3n para continuar.");
+      if (!ADOPTION_APPLICATION_REVIEW_STATUSES.includes(status)) return fail15("Elige qu\xE9 hacer con la solicitud.");
       const application = await loadApplication(context, applicationId);
       const animal = application.animal;
-      if (!await canReview(context, animal, userId)) return fail14("Solo quien atiende a este animal revisa sus solicitudes.");
-      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail14("Esta solicitud ya est\xE1 cerrada.");
-      if (application.status === status) return fail14("La solicitud ya est\xE1 as\xED.");
+      if (!await canReview(context, animal, userId)) return fail15("Solo quien atiende a este animal revisa sus solicitudes.");
+      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail15("Esta solicitud ya est\xE1 cerrada.");
+      if (application.status === status) return fail15("La solicitud ya est\xE1 as\xED.");
       const clean5 = (note ?? "").trim();
       if (clean5.length > ADOPTION_APPLICATION_LIMITS.NOTE_MAX) {
-        return fail14(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
+        return fail15(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
       }
       const updated = await prismaOf8(context).adoptionApplication.update({
         where: { id: application.id },
@@ -34022,24 +34955,24 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[reviewAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
+      return fail15(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
     }
   },
   editAdoptionApplication: async (_root, { applicationId, input }, context) => {
-    const fail14 = (message) => ({ success: false, message, application: null });
+    const fail15 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
       const application = await loadApplication(context, applicationId);
-      if (!userId || application.applicant?.id !== userId) return fail14("Solo quien envi\xF3 la solicitud puede editarla.");
+      if (!userId || application.applicant?.id !== userId) return fail15("Solo quien envi\xF3 la solicitud puede editarla.");
       const animal = application.animal;
       const name = animalLabel(animal);
       if (application.status !== ADOPTION_APPLICATION_STATUS.SUBMITTED) {
-        return fail14(
+        return fail15(
           ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status) ? `Quien cuida a ${name} ya la est\xE1 revisando, as\xED que ya no se puede editar. Si algo cambi\xF3, cu\xE9ntaselo cuando te contacte.` : "Esta solicitud ya est\xE1 cerrada."
         );
       }
       const checked = validateInput(input);
-      if (!checked.ok) return fail14(checked.message);
+      if (!checked.ok) return fail15(checked.message);
       const updated = await prismaOf8(context).adoptionApplication.update({
         where: { id: application.id },
         data: { phone: checked.phone, message: input.message.trim(), answers: answersFrom(input) }
@@ -34070,16 +35003,16 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[editAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
+      return fail15(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
     }
   },
   withdrawAdoptionApplication: async (_root, { applicationId }, context) => {
-    const fail14 = (message) => ({ success: false, message, application: null });
+    const fail15 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
       const application = await loadApplication(context, applicationId);
-      if (!userId || application.applicant?.id !== userId) return fail14("Solo quien envi\xF3 la solicitud puede retirarla.");
-      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail14("Esta solicitud ya est\xE1 cerrada.");
+      if (!userId || application.applicant?.id !== userId) return fail15("Solo quien envi\xF3 la solicitud puede retirarla.");
+      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail15("Esta solicitud ya est\xE1 cerrada.");
       const updated = await prismaOf8(context).adoptionApplication.update({
         where: { id: application.id },
         data: { status: ADOPTION_APPLICATION_STATUS.WITHDRAWN, decidedAt: /* @__PURE__ */ new Date() }
@@ -34098,40 +35031,40 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[withdrawAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos retirar la solicitud. Intenta de nuevo."));
+      return fail15(errorMessage(error, "No pudimos retirar la solicitud. Intenta de nuevo."));
     }
   },
   completeAdoptionApplication: async (_root, { applicationId }, context) => {
-    const fail14 = (message) => ({ success: false, message, petId: null });
+    const fail15 = (message) => ({ success: false, message, petId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
+      if (!userId) return fail15("Inicia sesi\xF3n para continuar.");
       const application = await loadApplication(context, applicationId);
       const animalRow = application.animal;
-      if (application.status !== ADOPTION_APPLICATION_STATUS.APPROVED) return fail14("Primero aprueba la solicitud.");
+      if (application.status !== ADOPTION_APPLICATION_STATUS.APPROVED) return fail15("Primero aprueba la solicitud.");
       if (!await canComplete(context, animalRow, userId)) {
-        return fail14(
+        return fail15(
           animalRow.organization ? "La adopci\xF3n la completan admin y coordinaci\xF3n del espacio." : "La adopci\xF3n la completa quien public\xF3 al animal."
         );
       }
       const adopterId = application.applicant?.id;
-      if (!adopterId) return fail14("La cuenta de quien pidi\xF3 adoptarlo ya no existe.");
+      if (!adopterId) return fail15("La cuenta de quien pidi\xF3 adoptarlo ya no existe.");
       const report = await context.sudo().query.Animal.findOne({
         where: { id: animalRow.id },
         query: REPORT_FOR_PET_QUERY
       });
-      if (!report) return fail14("No encontramos ese animal.");
+      if (!report) return fail15("No encontramos ese animal.");
       const name = animalLabel(report);
       const giverName = report.organization?.name ?? null;
       const reportNote = giverName ? `Adoptado con ${giverName} en KADESH.` : "Adoptado con KADESH.";
       let petId;
       if (report.pet) {
         const pet = await loadTransferablePet(context, report.pet.id);
-        if (!pet) return fail14("No encontramos su cartilla.");
+        if (!pet) return fail15("No encontramos su cartilla.");
         if (pet.organizationId) {
-          if (pet.organizationId !== report.organization?.id) return fail14("Su ficha es de otro espacio de rescate.");
+          if (pet.organizationId !== report.organization?.id) return fail15("Su ficha es de otro espacio de rescate.");
         } else if (!report.user?.id || await findPetOwnerRole(context, pet.id, report.user.id) !== PET_OWNER_ROLE.PRINCIPAL) {
-          return fail14("Este animal tiene la cartilla de otra persona: p\xEDdele que te la pase con un c\xF3digo.");
+          return fail15("Este animal tiene la cartilla de otra persona: p\xEDdele que te la pase con un c\xF3digo.");
         }
         await transferPetToOwner(context, pet, adopterId);
         await cancelPendingTransfers(context, pet.id);
@@ -34167,15 +35100,15 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[completeAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
+      return fail15(errorMessage(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
     }
   }
 };
-var adoptionApplications_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var adoptionApplications_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/mutations/pet/card/markPetAsLost.ts
 var import_graphql7 = require("graphql");
-var typeDefs37 = `
+var typeDefs39 = `
   input PetLastSeenLocationInput {
     lat: String!
     lng: String!
@@ -34189,10 +35122,10 @@ var typeDefs37 = `
     url: String!
   }
 `;
-var definition34 = `
+var definition36 = `
   markPetAsLost(petId: ID!, lastSeenLocation: PetLastSeenLocationInput!, lastSeenDate: String!, notes: String, contactPhone: String): MarkPetAsLostResult!
 `;
-var resolver34 = {
+var resolver36 = {
   /**
    * Crea el reporte de perdida con los datos y fotos de la mascota, la marca `lost` y liga los dos.
    * El reporte sale por `createAnimalReport` (mismo slug, ciudad, validaciones, alerta de zona y
@@ -34272,21 +35205,21 @@ var resolver34 = {
     }
   }
 };
-var markPetAsLost_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var markPetAsLost_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/mutations/pet/card/markPetAsFound.ts
 var import_graphql8 = require("graphql");
 var BACK_HOME_STATUS = "in_family";
-var typeDefs38 = `
+var typeDefs40 = `
   type MarkPetAsFoundResult {
     petId: ID!
     reportId: ID
   }
 `;
-var definition35 = `
+var definition37 = `
   markPetAsFound(petId: ID!): MarkPetAsFoundResult!
 `;
-var resolver35 = {
+var resolver37 = {
   /** La mascota vuelve a `active` y su reporte se cierra con una bitácora "En familia". */
   markPetAsFound: async (_root, { petId }, context) => {
     try {
@@ -34343,22 +35276,22 @@ var resolver35 = {
     }
   }
 };
-var markPetAsFound_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var markPetAsFound_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // graphql/customs/mutations/pet/card/addPetFamilyMember.ts
 var import_graphql9 = require("graphql");
 var PET_FAMILY_USER_NOT_FOUND = "PET_FAMILY_USER_NOT_FOUND";
-var typeDefs39 = `
+var typeDefs41 = `
   type PetFamilyMemberResult {
     id: ID!
     role: String!
     userName: String!
   }
 `;
-var definition36 = `
+var definition38 = `
   addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
 `;
-var resolver36 = {
+var resolver38 = {
   /**
    * El dueño principal agrega a un familiar por correo: nadie puede leer el `id` de otro `User`,
    * así que la búsqueda va con sudo y solo devuelve el nombre.
@@ -34399,13 +35332,13 @@ var resolver36 = {
     }
   }
 };
-var addPetFamilyMember_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var addPetFamilyMember_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // graphql/customs/mutations/pet/card/registerPetFamilyMember.ts
 var import_graphql10 = require("graphql");
 var EMAIL_PATTERN3 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 var MIN_PASSWORD_LENGTH = 8;
-var typeDefs40 = `
+var typeDefs42 = `
   input RegisterPetFamilyMemberInput {
     name: String!
     lastName: String
@@ -34421,13 +35354,13 @@ var typeDefs40 = `
     createdAccount: Boolean!
   }
 `;
-var definition37 = `
+var definition39 = `
   registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
 `;
 function displayName(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver37 = {
+var resolver39 = {
   /**
    * El dueño principal registra a un familiar que aún no tiene cuenta: crea la cuenta con la
    * contraseña que él elige, lo agrega como `family` y le manda un correo que le dice que esa
@@ -34508,7 +35441,7 @@ var resolver37 = {
     }
   }
 };
-var registerPetFamilyMember_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var registerPetFamilyMember_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // utils/pet/petReminders.ts
 function reminderUrl(reminder) {
@@ -34668,7 +35601,7 @@ async function sendReminderNotification(context, reminder) {
 
 // graphql/customs/mutations/pet/card/sendDuePetReminders.ts
 var MAX_PER_RUN = 500;
-var typeDefs41 = `
+var typeDefs43 = `
   type SendDuePetRemindersResult {
     success: Boolean!
     message: String!
@@ -34677,11 +35610,11 @@ var typeDefs41 = `
     failed: Int!
   }
 `;
-var definition38 = `
+var definition40 = `
   sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
 `;
 var empty3 = { processed: 0, sent: 0, failed: 0 };
-var resolver38 = {
+var resolver40 = {
   /**
    * Manda los `PetReminder` pendientes cuya fecha de aviso (`dueDate - notifyDaysBefore`) ya llegó
    * (hoy en CDMX o antes). La llama un cron diario (.github/workflows/send-pet-reminders.yml) con
@@ -34747,12 +35680,12 @@ var resolver38 = {
     }
   }
 };
-var sendDuePetReminders_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var sendDuePetReminders_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/mutations/pet/card/petTransfer.ts
 var import_crypto6 = require("crypto");
 var import_graphql11 = require("graphql");
-var typeDefs42 = `
+var typeDefs44 = `
   type PetTransferCodeResult {
     success: Boolean!
     message: String!
@@ -34780,7 +35713,7 @@ var typeDefs42 = `
     petId: ID
   }
 `;
-var definition39 = `
+var definition41 = `
   createPetTransferCode(petId: ID!, message: String): PetTransferCodeResult!
   cancelPetTransferCode(transferId: ID!): PetTransferCodeResult!
   previewPetTransferCode(code: String!): PetTransferPreview!
@@ -34860,19 +35793,19 @@ async function loadRedeemable(context, rawCode, userId) {
 function displayName2(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver39 = {
+var resolver41 = {
   createPetTransferCode: async (_root, { petId, message }, context) => {
-    const fail14 = (text89) => ({ success: false, message: text89, transfer: null });
+    const fail15 = (text96) => ({ success: false, message: text96, transfer: null });
     try {
       const { userId, pet, organization } = await requireGiver(context, petId);
       if (pet.status !== PET_STATUS.ACTIVE) {
-        return fail14(
+        return fail15(
           pet.status === PET_STATUS.LOST ? "Primero cierra su reporte de perdida con \xABYa regres\xF3 a casa\xBB." : "Solo se traspasa una mascota activa."
         );
       }
       const note = (message ?? "").trim();
       if (note.length > PET_TRANSFER_MESSAGE_MAX) {
-        return fail14(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
+        return fail15(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
       }
       await cancelPendingTransfers(context, pet.id);
       const prisma = prismaOf9(context);
@@ -34882,7 +35815,7 @@ var resolver39 = {
         const taken = await prisma.petTransfer.findUnique({ where: { code: candidate }, select: { id: true } });
         if (!taken) code = candidate;
       }
-      if (!code) return fail14("No pudimos generar el c\xF3digo. Intenta de nuevo.");
+      if (!code) return fail15("No pudimos generar el c\xF3digo. Intenta de nuevo.");
       const created = await prisma.petTransfer.create({
         data: {
           petId: pet.id,
@@ -34910,18 +35843,18 @@ var resolver39 = {
       };
     } catch (error) {
       console.error("[createPetTransferCode]", error);
-      return fail14(errorMessage2(error, "No pudimos generar el c\xF3digo. Intenta de nuevo."));
+      return fail15(errorMessage2(error, "No pudimos generar el c\xF3digo. Intenta de nuevo."));
     }
   },
   cancelPetTransferCode: async (_root, { transferId }, context) => {
-    const fail14 = (text89) => ({ success: false, message: text89, transfer: null });
+    const fail15 = (text96) => ({ success: false, message: text96, transfer: null });
     try {
       const prisma = prismaOf9(context);
       const transfer = await prisma.petTransfer.findUnique({ where: { id: transferId } });
-      if (!transfer?.petId) return fail14("No encontramos ese c\xF3digo.");
+      if (!transfer?.petId) return fail15("No encontramos ese c\xF3digo.");
       const userId = getSessionUserId(context.session);
       if (transfer.createdById !== userId) await requireGiver(context, transfer.petId);
-      if (transfer.status !== PET_TRANSFER_STATUS.PENDING) return fail14("Ese c\xF3digo ya no est\xE1 activo.");
+      if (transfer.status !== PET_TRANSFER_STATUS.PENDING) return fail15("Ese c\xF3digo ya no est\xE1 activo.");
       const updated = await prisma.petTransfer.update({
         where: { id: transfer.id },
         data: { status: PET_TRANSFER_STATUS.CANCELLED }
@@ -34941,7 +35874,7 @@ var resolver39 = {
       };
     } catch (error) {
       console.error("[cancelPetTransferCode]", error);
-      return fail14(errorMessage2(error, "No pudimos cancelar el c\xF3digo. Intenta de nuevo."));
+      return fail15(errorMessage2(error, "No pudimos cancelar el c\xF3digo. Intenta de nuevo."));
     }
   },
   previewPetTransferCode: async (_root, { code }, context) => {
@@ -34990,12 +35923,12 @@ var resolver39 = {
     }
   },
   redeemPetTransferCode: async (_root, { code }, context) => {
-    const fail14 = (text89) => ({ success: false, message: text89, petId: null });
+    const fail15 = (text96) => ({ success: false, message: text96, petId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para recibir a la mascota.");
+      if (!userId) return fail15("Inicia sesi\xF3n para recibir a la mascota.");
       const found = await loadRedeemable(context, code, userId);
-      if (!found.ok) return fail14(found.message);
+      if (!found.ok) return fail15(found.message);
       const { transfer } = found;
       const prisma = prismaOf9(context);
       const claimed = await prisma.petTransfer.updateMany({
@@ -35003,7 +35936,7 @@ var resolver39 = {
         data: { status: PET_TRANSFER_STATUS.REDEEMED, redeemedById: userId, redeemedAt: /* @__PURE__ */ new Date() }
       });
       if (claimed instanceof Error) throw claimed;
-      if (claimed.count !== 1) return fail14("Ese c\xF3digo ya se us\xF3.");
+      if (claimed.count !== 1) return fail15("Ese c\xF3digo ya se us\xF3.");
       const pet = await loadTransferablePet(context, transfer.petId);
       const organization = transfer.fromOrganizationId ? await context.sudo().query.RescueOrganization.findOne({
         where: { id: transfer.fromOrganizationId },
@@ -35059,11 +35992,11 @@ var resolver39 = {
       return { success: true, message: `${pet.name} ya est\xE1 en tu cartilla.`, petId: pet.id };
     } catch (error) {
       console.error("[redeemPetTransferCode]", error);
-      return fail14(errorMessage2(error, "No pudimos recibir a la mascota. Intenta de nuevo."));
+      return fail15(errorMessage2(error, "No pudimos recibir a la mascota. Intenta de nuevo."));
     }
   }
 };
-var petTransfer_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var petTransfer_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/mutations/pet/card/index.ts
 var petCardMutations = {
@@ -35435,11 +36368,11 @@ async function sendZoneAlertsIfDue(context, eventId, now = /* @__PURE__ */ new D
 }
 
 // graphql/customs/mutations/pet/events/submitPetEvent.ts
-var typeDefs43 = ``;
-var definition40 = `
+var typeDefs45 = ``;
+var definition42 = `
   submitPetEvent(input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver40 = {
+var resolver42 = {
   /**
    * Publica un evento con sus fechas. Si no lo manda un admin queda «En revisión» y se avisa a los
    * admins; un admin lo publica directo (y avisa a la zona si la fecha está cerca). Las fotos se
@@ -35497,7 +36430,7 @@ var resolver40 = {
     }
   }
 };
-var submitPetEvent_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var submitPetEvent_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // utils/seo/indexNow.ts
 var DEFAULT_KEY = "6973631b0c498ed8f41a79e2d4c9211f";
@@ -35552,11 +36485,11 @@ async function submitPetEventToIndexNow(context, eventId) {
 }
 
 // graphql/customs/mutations/pet/events/updateMyPetEvent.ts
-var typeDefs44 = ``;
-var definition41 = `
+var typeDefs46 = ``;
+var definition43 = `
   updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver41 = {
+var resolver43 = {
   /**
    * Edita un evento propio (el formulario completo, con todas sus fechas). Si quien edita no es
    * admin y el evento estaba publicado o rechazado, vuelve a «En revisión». Si cambiaron las fechas
@@ -35665,14 +36598,14 @@ var resolver41 = {
     }
   }
 };
-var updateMyPetEvent_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var updateMyPetEvent_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/pet/events/cancelPetEvent.ts
-var typeDefs45 = ``;
-var definition42 = `
+var typeDefs47 = ``;
+var definition44 = `
   cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
 `;
-var resolver42 = {
+var resolver44 = {
   /**
    * Cancela un evento (quien lo publicó o un admin). Si llegó a publicarse, la ficha sigue visible
    * con el aviso de cancelado y se avisa a quienes marcaron «Me interesa» o «Asistiré».
@@ -35720,10 +36653,10 @@ var resolver42 = {
     }
   }
 };
-var cancelPetEvent_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var cancelPetEvent_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/mutations/pet/events/setPetEventInterest.ts
-var typeDefs46 = `
+var typeDefs48 = `
   type PetEventInterestResult {
     success: Boolean!
     message: String!
@@ -35734,7 +36667,7 @@ var typeDefs46 = `
     isFull: Boolean!
   }
 `;
-var definition43 = `
+var definition45 = `
   setPetEventInterest(eventId: ID!, kind: String): PetEventInterestResult!
 `;
 var KINDS = new Set(Object.values(PET_EVENT_INTEREST_KIND));
@@ -35750,7 +36683,7 @@ async function counts(prisma, eventId, capacity) {
     isFull: capacity ? goingCount >= capacity : false
   };
 }
-var resolver43 = {
+var resolver45 = {
   /**
    * «Me interesa» (`interested`), «Asistiré» (`going`) o quitarlo (`kind: null`). Con cupo,
    * «Asistiré» se cierra cuando ya hay tantas personas como lugares; «Me interesa» siempre se puede.
@@ -35814,7 +36747,7 @@ var resolver43 = {
     }
   }
 };
-var setPetEventInterest_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var setPetEventInterest_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // utils/security/knownCrawlers.ts
 var import_net = require("net");
@@ -35880,14 +36813,14 @@ function isKnownCrawlerRequest(req) {
 }
 
 // graphql/customs/mutations/pet/events/recordPetEventView.ts
-var typeDefs47 = `
+var typeDefs49 = `
   type PetEventViewResult {
     "Si esta visita sum\xF3. No suman quien lo public\xF3, los admins, los bots ni repetir en 30 min."
     counted: Boolean!
     viewsCount: Int!
   }
 `;
-var definition44 = `
+var definition46 = `
   recordPetEventView(eventId: ID!): PetEventViewResult!
 `;
 var firstVisit = createDeduper(PET_EVENT_VIEW_DEDUPE_MS);
@@ -35900,7 +36833,7 @@ function isPublic(event) {
   if (event.status === PET_EVENT_STATUS.APPROVED) return true;
   return event.status === PET_EVENT_STATUS.CANCELLED && Boolean(event.approvedAt);
 }
-var resolver44 = {
+var resolver46 = {
   /**
    * La web la llama una vez al abrir la ficha y muestra el total que devuelve. Nunca falla hacia
    * afuera: si algo sale mal responde `counted: false` y la ficha se queda con el número que tenía.
@@ -35931,14 +36864,14 @@ var resolver44 = {
     }
   }
 };
-var recordPetEventView_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var recordPetEventView_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
 
 // graphql/customs/mutations/pet/events/reviewPetEvent.ts
-var typeDefs48 = ``;
-var definition45 = `
+var typeDefs50 = ``;
+var definition47 = `
   reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
 `;
-var resolver45 = {
+var resolver47 = {
   /**
    * Operaciones → Kadesh Pet → Eventos. Aprobar publica el evento, avisa a quien lo publicó y, si
    * su próxima fecha está a 14 días o menos, a la zona (si no, el cron avisa cuando falten 14).
@@ -36036,14 +36969,14 @@ var resolver45 = {
     }
   }
 };
-var reviewPetEvent_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var reviewPetEvent_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // graphql/customs/mutations/pet/events/sendPetEventNotifications.ts
 var MAX_REMINDERS_PER_RUN2 = 500;
 var MAX_ZONE_EVENTS_PER_RUN = 50;
 var HOUR_MS2 = 60 * 60 * 1e3;
 var DAY_MS8 = 24 * HOUR_MS2;
-var typeDefs49 = `
+var typeDefs51 = `
   type SendPetEventNotificationsResult {
     success: Boolean!
     message: String!
@@ -36055,7 +36988,7 @@ var typeDefs49 = `
     zoneRecipients: Int!
   }
 `;
-var definition46 = `
+var definition48 = `
   sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
 `;
 async function sendReminders(context, now) {
@@ -36143,7 +37076,7 @@ async function sendDueZoneAlerts(context, now) {
   }
   return { events, recipients };
 }
-var resolver46 = {
+var resolver48 = {
   /**
    * La llama cada hora .github/workflows/send-pet-event-notifications.yml con `CRON_SECRET`:
    * (a) recordatorios de fechas que empiezan en las próximas 24 h, una vez por fecha y persona;
@@ -36174,13 +37107,13 @@ var resolver46 = {
     }
   }
 };
-var sendPetEventNotifications_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var sendPetEventNotifications_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/mutations/pet/events/backfillAlertRegions.ts
 var NOMINATIM_GAP_MS = 1100;
 var DEFAULT_LIMIT = 40;
 var MAX_LIMIT = 100;
-var typeDefs50 = `
+var typeDefs52 = `
   type BackfillAlertRegionsResult {
     success: Boolean!
     message: String!
@@ -36189,11 +37122,11 @@ var typeDefs50 = `
     remaining: Int!
   }
 `;
-var definition47 = `
+var definition49 = `
   backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
 `;
 var sleep2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-var resolver47 = {
+var resolver49 = {
   /**
    * Una vez, después de desplegar los eventos: llena `alertCity` / `alertStateCode` de quienes ya
    * tenían zona de alertas (desde ahora se llenan solos al guardar la zona). Solo admins. Se corre
@@ -36242,7 +37175,7 @@ var resolver47 = {
     }
   }
 };
-var backfillAlertRegions_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var backfillAlertRegions_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/mutations/pet/events/index.ts
 var petEventMutations = {
@@ -36281,15 +37214,15 @@ var petEventMutations = {
 var events_default = petEventMutations;
 
 // graphql/customs/mutations/pet/rescue/activateRescueOrganization.ts
-var typeDefs51 = ``;
-var definition48 = `
+var typeDefs53 = ``;
+var definition50 = `
   activateRescueOrganization(input: RescueOrganizationCreateInput!): RescueOrganizationResult!
 `;
 var TYPE_LABEL2 = Object.fromEntries(RESCUE_ORG_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 function failure2(message) {
   return { success: false, message, organization: null };
 }
-var resolver48 = {
+var resolver50 = {
   /**
    * Activa un espacio de rescate: crea la organización «En revisión» con quien llama como admin y
    * avisa a los admins de Kadesh para validarla por WhatsApp. El logo y la portada se suben
@@ -36367,7 +37300,7 @@ var resolver48 = {
     }
   }
 };
-var activateRescueOrganization_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var activateRescueOrganization_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
 var import_graphql12 = require("graphql");
@@ -36427,8 +37360,8 @@ async function countRescueAdmins(context, organizationId) {
 }
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
-var typeDefs52 = ``;
-var definition49 = `
+var typeDefs54 = ``;
+var definition51 = `
   addRescueOrganizationMember(organizationId: ID!, email: String!, role: String!): RescueMemberResult!
   setRescueOrganizationMemberRole(memberId: ID!, role: String!): RescueMemberResult!
   removeRescueOrganizationMember(memberId: ID!): RescueMemberResult!
@@ -36447,7 +37380,7 @@ async function loadMember(context, memberId) {
     query: "id role user { id } organization { id name }"
   });
 }
-var resolver49 = {
+var resolver51 = {
   addRescueOrganizationMember: async (_root, { organizationId, email, role }, context) => {
     try {
       const { organization } = await requireRescueRole(context, organizationId, [RESCUE_MEMBER_ROLE.ADMIN]);
@@ -36583,7 +37516,7 @@ var resolver49 = {
     }
   }
 };
-var rescueMembers_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var rescueMembers_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // graphql/customs/mutations/pet/rescue/rescuePets.ts
 var import_graphql13 = require("graphql");
@@ -36593,7 +37526,7 @@ var STATUS_LABEL2 = {
   rescued: "Rescatado"
 };
 var RESCUE_ADOPTER_NOT_FOUND = "RESCUE_ADOPTER_NOT_FOUND";
-var typeDefs53 = `
+var typeDefs55 = `
   type RescuePetResult {
     success: Boolean!
     message: String!
@@ -36621,7 +37554,7 @@ var typeDefs53 = `
     adopterName: String
   }
 `;
-var definition50 = `
+var definition52 = `
   convertAnimalToPet(animalId: ID!, organizationId: ID): RescuePetResult!
   "status: in_adoption | rescued. location es obligatoria si la ficha a\xFAn no tiene reporte."
   publishRescuePet(petId: ID!, status: String!, location: PetLastSeenLocationInput, notes: String): PublishRescuePetResult!
@@ -36643,35 +37576,35 @@ async function loadRescuePet(context, petId) {
   if (!pet.organization) throw new import_graphql13.GraphQLError("Esta mascota no es ficha de un espacio de rescate.");
   return pet;
 }
-var resolver50 = {
+var resolver52 = {
   convertAnimalToPet: async (_root, { animalId, organizationId }, context) => {
-    const fail14 = (message) => ({ success: false, message, petId: null, organizationId: null });
+    const fail15 = (message) => ({ success: false, message, petId: null, organizationId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
+      if (!userId) return fail15("Inicia sesi\xF3n para continuar.");
       const animal = await context.sudo().query.Animal.findOne({
         where: { id: animalId },
         query: REPORT_FOR_PET_QUERY
       });
-      if (!animal) return fail14("No encontramos ese reporte.");
-      if (animal.duplicateOf) return fail14("Este reporte est\xE1 unido a otro: hazlo desde el reporte principal.");
-      if (animal.pet) return fail14("Este animal ya tiene cartilla.");
+      if (!animal) return fail15("No encontramos ese reporte.");
+      if (animal.duplicateOf) return fail15("Este reporte est\xE1 unido a otro: hazlo desde el reporte principal.");
+      if (animal.pet) return fail15("Este animal ya tiene cartilla.");
       const canEdit = isPlatformAdmin(context.session) || await canEditAnimalAs(
         context,
         { userId: animal.user?.id ?? null, organizationId: animal.organization?.id ?? null },
         userId
       );
-      if (!canEdit) return fail14("Solo quien public\xF3 el reporte (o el equipo de su espacio) puede hacer esto.");
+      if (!canEdit) return fail15("Solo quien public\xF3 el reporte (o el equipo de su espacio) puede hacer esto.");
       let organization = null;
       if (organizationId) {
         const { organization: org } = await requireRescueRole(context, organizationId, RESCUE_ANIMAL_EDITOR_ROLES);
-        if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail14("Este espacio de rescate no est\xE1 activo.");
+        if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail15("Este espacio de rescate no est\xE1 activo.");
         if (animal.organization && animal.organization.id !== org.id) {
-          return fail14("Este reporte es de otro espacio de rescate.");
+          return fail15("Este reporte es de otro espacio de rescate.");
         }
         organization = org;
       } else if (animal.organization) {
-        return fail14("Este reporte es de un espacio de rescate: crea su ficha desde el panel del espacio.");
+        return fail15("Este reporte es de un espacio de rescate: crea su ficha desde el panel del espacio.");
       }
       const last = await lastReportLog(context, animal.id);
       const petId = organization ? await createPetFromReport(context, animal, {
@@ -36707,11 +37640,11 @@ var resolver50 = {
       return { success: true, message: `${name} ya est\xE1 en tu cartilla.`, petId, organizationId: null };
     } catch (error) {
       console.error("[convertAnimalToPet]", error);
-      return fail14(errorMessage4(error, "No pudimos crear la cartilla. Intenta de nuevo."));
+      return fail15(errorMessage4(error, "No pudimos crear la cartilla. Intenta de nuevo."));
     }
   },
   publishRescuePet: async (_root, args, context) => {
-    const fail14 = (message) => ({
+    const fail15 = (message) => ({
       success: false,
       message,
       reportId: null,
@@ -36721,14 +37654,14 @@ var resolver50 = {
     });
     try {
       if (!PUBLISHABLE_STATUSES.includes(args.status)) {
-        return fail14("Elige si lo publicas en adopci\xF3n o como rescatado.");
+        return fail15("Elige si lo publicas en adopci\xF3n o como rescatado.");
       }
       const status = args.status;
       const pet = await loadRescuePet(context, args.petId);
       const org = pet.organization;
       const { userId } = await requireRescueRole(context, org.id, RESCUE_ANIMAL_EDITOR_ROLES);
-      if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail14("Este espacio de rescate no est\xE1 activo.");
-      if (pet.status !== PET_STATUS.ACTIVE) return fail14("Solo se publica una ficha activa.");
+      if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail15("Este espacio de rescate no est\xE1 activo.");
+      if (pet.status !== PET_STATUS.ACTIVE) return fail15("Solo se publica una ficha activa.");
       const notes = args.notes?.trim() ?? "";
       const prisma = prismaOf12(context);
       let reportId;
@@ -36738,11 +37671,11 @@ var resolver50 = {
         reportId = pet.publicReport.id;
         slug = pet.publicReport.slug || pet.publicReport.id;
         const last = await lastReportLog(context, reportId);
-        if (last?.status === status) return fail14(`Ya est\xE1 publicado como \xAB${STATUS_LABEL2[status]}\xBB.`);
+        if (last?.status === status) return fail15(`Ya est\xE1 publicado como \xAB${STATUS_LABEL2[status]}\xBB.`);
         await addReportLog(context, reportId, status, notes, last, args.location);
       } else {
-        if (!args.location?.lat || !args.location?.lng) return fail14("Marca en el mapa d\xF3nde est\xE1 el animal.");
-        if (!pet.animal_type?.id) return fail14("Elige la especie en la ficha antes de publicarla.");
+        if (!args.location?.lat || !args.location?.lng) return fail15("Marca en el mapa d\xF3nde est\xE1 el animal.");
+        if (!pet.animal_type?.id) return fail15("Elige la especie en la ficha antes de publicarla.");
         let phone = org.whatsapp?.trim() || "";
         if (!phone) {
           const user = await context.sudo().query.User.findOne({
@@ -36751,7 +37684,7 @@ var resolver50 = {
           });
           phone = user?.phone?.trim() || "";
         }
-        if (!phone) return fail14("Agrega el WhatsApp del espacio en su perfil p\xFAblico para publicar.");
+        if (!phone) return fail15("Agrega el WhatsApp del espacio en su perfil p\xFAblico para publicar.");
         const report = await createAnimalReport_default.resolver.createAnimalReport(
           null,
           {
@@ -36812,11 +37745,11 @@ var resolver50 = {
       };
     } catch (error) {
       console.error("[publishRescuePet]", error);
-      return fail14(errorMessage4(error, "No pudimos publicar la ficha. Intenta de nuevo."));
+      return fail15(errorMessage4(error, "No pudimos publicar la ficha. Intenta de nuevo."));
     }
   },
   completeRescueAdoption: async (_root, { petId, email }, context) => {
-    const fail14 = (message, code = null) => ({
+    const fail15 = (message, code = null) => ({
       success: false,
       message,
       code,
@@ -36827,22 +37760,22 @@ var resolver50 = {
       const pet = await loadRescuePet(context, petId);
       const org = pet.organization;
       await requireRescueRole(context, org.id, RESCUE_ANIMAL_MANAGER_ROLES);
-      if (pet.status !== PET_STATUS.ACTIVE) return fail14("Solo se adopta una ficha activa.");
+      if (pet.status !== PET_STATUS.ACTIVE) return fail15("Solo se adopta una ficha activa.");
       const clean5 = (email ?? "").trim().toLowerCase();
-      if (!clean5) return fail14("Escribe el correo de quien adopta.");
+      if (!clean5) return fail15("Escribe el correo de quien adopta.");
       const [adopter] = await context.sudo().query.User.findMany({
         where: { email: { equals: clean5, mode: "insensitive" } },
         query: "id name lastName",
         take: 1
       });
       if (!adopter) {
-        return fail14(
+        return fail15(
           "No encontramos una cuenta de KADESH con ese correo. P\xEDdele que se registre (es gratis) y vuelve a intentarlo.",
           RESCUE_ADOPTER_NOT_FOUND
         );
       }
       const transferable = await loadTransferablePet(context, pet.id);
-      if (!transferable) return fail14("No encontramos esta ficha.");
+      if (!transferable) return fail15("No encontramos esta ficha.");
       await transferPetToOwner(context, transferable, adopter.id, {
         reportNote: `Adoptado con ${org.name} en KADESH.`
       });
@@ -36887,11 +37820,11 @@ var resolver50 = {
       };
     } catch (error) {
       console.error("[completeRescueAdoption]", error);
-      return fail14(errorMessage4(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
+      return fail15(errorMessage4(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
     }
   }
 };
-var rescuePets_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var rescuePets_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/mutations/pet/rescue/index.ts
 var rescueMutations = {
@@ -36915,7 +37848,7 @@ var rescueMutations = {
 var rescue_default = rescueMutations;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs54 = `
+var typeDefs56 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -36925,10 +37858,10 @@ var typeDefs54 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition51 = `
+var definition53 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver51 = {
+var resolver53 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -36979,10 +37912,10 @@ var resolver51 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var unsubscribeBlog_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs55 = `
+var typeDefs57 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -36993,10 +37926,10 @@ var typeDefs55 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition52 = `
+var definition54 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver52 = {
+var resolver54 = {
   /**
    * Pensada para un cron externo, no para un usuario logueado: se autoriza con `CRON_SECRET`, no
    * con sesión/rol. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -37045,10 +37978,10 @@ var resolver52 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var publishScheduledPosts_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs56 = `
+var typeDefs58 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -37059,7 +37992,7 @@ var typeDefs56 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition53 = `
+var definition55 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -37068,7 +38001,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver53 = {
+var resolver55 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -37136,7 +38069,7 @@ var resolver53 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -37231,7 +38164,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs57 = `
+var typeDefs59 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -37255,7 +38188,7 @@ var typeDefs57 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition54 = `
+var definition56 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -37271,7 +38204,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver54 = {
+var resolver56 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -37375,7 +38308,7 @@ var resolver54 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // utils/whatsapp/templateStatus.ts
 var TEMPLATE_STATUS_MAP = {
@@ -37509,7 +38442,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs58 = `
+var typeDefs60 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -37523,10 +38456,10 @@ var typeDefs58 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition55 = `
+var definition57 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver55 = {
+var resolver57 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -37571,7 +38504,7 @@ var resolver55 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -37709,7 +38642,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs59 = `
+var typeDefs61 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -37720,10 +38653,10 @@ var typeDefs59 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition56 = `
+var definition58 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver56 = {
+var resolver58 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -37784,7 +38717,7 @@ var resolver56 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -37825,8 +38758,8 @@ function detectDateOrder(lines, now = Date.now()) {
   if (lines.some((l) => l.d2 > 12)) return "mdy";
   return orderPenalty(lines, "mdy", now) < orderPenalty(lines, "dmy", now) ? "mdy" : "dmy";
 }
-function parseWhatsAppChatExport(text89) {
-  const lines = text89.split(/\r?\n/);
+function parseWhatsAppChatExport(text96) {
+  const lines = text96.split(/\r?\n/);
   const raw = [];
   for (const rawLine of lines) {
     const line = rawLine.replace(/^‎/, "");
@@ -37873,7 +38806,7 @@ function distinctSenders(messages) {
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs60 = `
+var typeDefs62 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -37890,7 +38823,7 @@ var typeDefs60 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition57 = `
+var definition59 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -37901,7 +38834,7 @@ var definition57 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver57 = {
+var resolver59 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -37987,10 +38920,10 @@ var resolver57 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs61 = `
+var typeDefs63 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -38000,7 +38933,7 @@ var typeDefs61 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition58 = `
+var definition60 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -38012,7 +38945,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver58 = {
+var resolver60 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -38118,7 +39051,7 @@ var resolver58 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
 var import_crypto7 = __toESM(require("crypto"));
@@ -38167,7 +39100,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs62 = `
+var typeDefs64 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -38178,7 +39111,7 @@ var typeDefs62 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition59 = `
+var definition61 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -38191,7 +39124,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver59 = {
+var resolver61 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -38275,10 +39208,10 @@ var resolver59 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs63 = `
+var typeDefs65 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -38288,13 +39221,13 @@ var typeDefs63 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition60 = `
+var definition62 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver60 = {
+var resolver62 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -38351,10 +39284,10 @@ var resolver60 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs64 = `
+var typeDefs66 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -38365,13 +39298,13 @@ var typeDefs64 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition61 = `
+var definition63 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver61 = {
+var resolver63 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -38408,7 +39341,7 @@ var resolver61 = {
     return toResult10(true, "Conversaci\xF3n enlazada al cliente", count2);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -38421,7 +39354,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs65 = `
+var typeDefs67 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -38457,10 +39390,10 @@ var typeDefs65 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition62 = `
+var definition64 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
-function fail7(message, detail = null) {
+function fail8(message, detail = null) {
   return {
     success: false,
     message,
@@ -38474,7 +39407,7 @@ function fail7(message, detail = null) {
     templateError: null
   };
 }
-var resolver62 = {
+var resolver64 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -38484,53 +39417,53 @@ var resolver62 = {
   discoverWhatsappAccount: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
-      return fail7(denyCompanyWhatsappAccessMessage(session2));
+      return fail8(denyCompanyWhatsappAccessMessage(session2));
     }
     const appId = input.appId.trim();
     const appSecret = input.appSecret.trim();
     const accessToken = input.accessToken.trim();
     if (!appId || !appSecret || !accessToken) {
-      return fail7("Faltan datos: pega el App ID, el App Secret y el token.");
+      return fail8("Faltan datos: pega el App ID, el App Secret y el token.");
     }
     const existing = await context.sudo().query.SaasCompany.findOne({
       where: { id: input.companyId },
       query: "id whatsappBusinessAccountId whatsappPhoneNumberId"
     });
-    if (!existing) return fail7("No se encontr\xF3 la empresa");
+    if (!existing) return fail8("No se encontr\xF3 la empresa");
     let wabaIds;
     try {
       const info = await debugWhatsAppToken({ appId, appSecret, accessToken });
       if (!info.isValid) {
-        return fail7(
+        return fail8(
           "El token no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema.",
           info.invalidReason
         );
       }
       if (info.appId && info.appId !== appId) {
-        return fail7(
+        return fail8(
           `Ese token es de otra App de Meta (ID ${info.appId}), no de la App con ID ${appId}. Genera el token desde la misma App.`
         );
       }
       if (info.expiresAt !== 0 && info.expiresAt * 1e3 - Date.now() < MIN_TOKEN_LIFETIME_MS) {
-        return fail7(
+        return fail8(
           "Ese token es temporal y va a dejar de funcionar pronto. Genera uno permanente (sin fecha de expiraci\xF3n) con un usuario del sistema."
         );
       }
       const missing = REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
       if (missing.length > 0) {
-        return fail7(
+        return fail8(
           `Al token le falta el permiso: ${missing.join(" y ")}. Genera uno nuevo con los dos permisos (whatsapp_business_messaging y whatsapp_business_management).`
         );
       }
       if (info.wabaIds.length === 0) {
-        return fail7(
+        return fail8(
           "El token no da acceso a ninguna cuenta de WhatsApp Business. Al generarlo, asigna la cuenta de WhatsApp Business al usuario del sistema."
         );
       }
       wabaIds = info.wabaIds;
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail7(f.message, f.detail);
+      return fail8(f.message, f.detail);
     }
     const options = [];
     let firstListError = null;
@@ -38545,9 +39478,9 @@ var resolver62 = {
     if (options.length === 0) {
       if (firstListError) {
         const f = friendlyWhatsappError(firstListError);
-        return fail7(f.message, f.detail);
+        return fail8(f.message, f.detail);
       }
-      return fail7(
+      return fail8(
         "Encontramos tu cuenta de WhatsApp Business pero no tiene ning\xFAn n\xFAmero. Agrega uno en WhatsApp \u2192 Configuraci\xF3n de la API y vuelve a intentar."
       );
     }
@@ -38555,12 +39488,12 @@ var resolver62 = {
     let chosen;
     if (wantedId) {
       chosen = options.find((o) => o.id === wantedId);
-      if (!chosen) return fail7("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
+      if (!chosen) return fail8("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
     } else if (options.length === 1) {
       chosen = options[0];
     } else {
       return {
-        ...fail7("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
+        ...fail8("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
         success: true,
         needsSelection: true,
         phoneOptions: options
@@ -38578,7 +39511,7 @@ var resolver62 = {
       take: 1
     });
     if (clash.length > 0) {
-      return fail7("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
+      return fail8("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
     }
     const changedAccount = existing.whatsappBusinessAccountId !== chosen.wabaId || existing.whatsappPhoneNumberId !== chosen.id;
     try {
@@ -38603,7 +39536,7 @@ var resolver62 = {
       });
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail7(f.message, f.detail);
+      return fail8(f.message, f.detail);
     }
     let webhookConfigured = false;
     let webhookError = null;
@@ -38648,7 +39581,7 @@ var resolver62 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
 
 // utils/googleCalendar/state.ts
 var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
@@ -38715,7 +39648,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs66 = `
+var typeDefs68 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -38726,27 +39659,27 @@ var typeDefs66 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition63 = `
+var definition65 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
-var fail8 = (message) => ({ success: false, message, url: null });
-var resolver63 = {
+var fail9 = (message) => ({ success: false, message, url: null });
+var resolver65 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail8(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail9(denyGoogleCalendarAccessMessage(session2));
     if (scopeType !== "personal" /* PERSONAL */ && scopeType !== "company" /* COMPANY */) {
-      return fail8("Tipo de cuenta inv\xE1lido (personal o company)");
+      return fail9("Tipo de cuenta inv\xE1lido (personal o company)");
     }
     const targetCompanyId = isPlatformAdmin(session2) && companyId || getSessionCompanyId(session2);
-    if (!targetCompanyId) return fail8("Tu usuario no tiene una empresa asignada");
+    if (!targetCompanyId) return fail9("Tu usuario no tiene una empresa asignada");
     if (!canConnectGoogleCalendar(session2, scopeType, targetCompanyId)) {
-      return fail8(
+      return fail9(
         scopeType === "company" /* COMPANY */ ? "Solo el administrador de la empresa puede conectar la cuenta compartida" : denyGoogleCalendarAccessMessage(session2)
       );
     }
     if (!await companyHasCalendarFeature(context, targetCompanyId)) {
-      return fail8(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail9(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const state = signGoogleCalendarState({
@@ -38756,11 +39689,11 @@ var resolver63 = {
       });
       return { success: true, message: null, url: buildGoogleAuthUrl(state) };
     } catch (err) {
-      return fail8(friendlyGoogleCalendarError(err));
+      return fail9(friendlyGoogleCalendarError(err));
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -38815,7 +39748,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs67 = `
+var typeDefs69 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -38828,37 +39761,37 @@ var typeDefs67 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition64 = `
+var definition66 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
-var fail9 = (message) => ({
+var fail10 = (message) => ({
   success: false,
   message,
   accountId: null,
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver64 = {
+var resolver66 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail9(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail10(denyGoogleCalendarAccessMessage(session2));
     const payload = verifyGoogleCalendarState(state);
     if (!payload || payload.uid !== userId) {
-      return fail9("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
+      return fail10("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
     }
     const { cid: companyId, st: scopeType } = payload;
     if (!canConnectGoogleCalendar(session2, scopeType, companyId)) {
-      return fail9(denyGoogleCalendarAccessMessage(session2));
+      return fail10(denyGoogleCalendarAccessMessage(session2));
     }
     if (!await companyHasCalendarFeature(context, companyId)) {
-      return fail9(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail10(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const tokens = await exchangeCodeForTokens(code);
       const calendars = await listCalendarList(tokens.accessToken);
       const email = calendars.find((c) => c.primary)?.id;
-      if (!email) return fail9("No se pudo identificar la cuenta de Google conectada");
+      if (!email) return fail10("No se pudo identificar la cuenta de Google conectada");
       const sudo = context.sudo();
       const ownerWhere = scopeType === "personal" /* PERSONAL */ ? { user: { id: { equals: userId } } } : { company: { id: { equals: companyId } } };
       const [existing] = await sudo.query.GoogleCalendarAccount.findMany({
@@ -38872,7 +39805,7 @@ var resolver64 = {
       });
       const refreshToken = tokens.refreshToken ?? (existing?.refreshTokenEncrypted ? decrypt(existing.refreshTokenEncrypted) : null);
       if (!refreshToken) {
-        return fail9(
+        return fail10(
           "Google no entreg\xF3 acceso permanente. Revoca el acceso de Kadesh en tu cuenta de Google y vuelve a conectar."
         );
       }
@@ -38923,14 +39856,14 @@ var resolver64 = {
       };
     } catch (err) {
       console.error("connectGoogleCalendarAccount:", err);
-      return fail9(friendlyGoogleCalendarError(err));
+      return fail10(friendlyGoogleCalendarError(err));
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs68 = `
+var typeDefs70 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -38940,10 +39873,10 @@ var typeDefs68 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition65 = `
+var definition67 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver65 = {
+var resolver67 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -38979,10 +39912,10 @@ var resolver65 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs69 = `
+var typeDefs71 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -38993,10 +39926,10 @@ var typeDefs69 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition66 = `
+var definition68 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver66 = {
+var resolver68 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -39042,10 +39975,10 @@ var resolver66 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs70 = `
+var typeDefs72 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -39057,10 +39990,10 @@ var typeDefs70 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition67 = `
+var definition69 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver67 = {
+var resolver69 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -39094,10 +40027,10 @@ var resolver67 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs71 = `
+var typeDefs73 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -39119,11 +40052,11 @@ var typeDefs71 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition68 = `
+var definition70 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
-var fail10 = (message) => ({
+var fail11 = (message) => ({
   success: false,
   message,
   selectionId: null,
@@ -39132,19 +40065,19 @@ var fail10 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver68 = {
+var resolver70 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
       query: `id account { ${ACCOUNT_SCOPE_QUERY} }`
     });
-    if (!selection?.account) return fail10("Calendario no encontrado");
+    if (!selection?.account) return fail11("Calendario no encontrado");
     if (!canManageGoogleCalendarAccount(context.session, selection.account)) {
-      return fail10(denyGoogleCalendarAccessMessage(context.session));
+      return fail11(denyGoogleCalendarAccessMessage(context.session));
     }
     const companyId = accountCompanyId(selection.account);
     if (companyId && !await companyHasCalendarFeature(context, companyId)) {
-      return fail10(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail11(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     const data = {};
     for (const flag of FLAGS) {
@@ -39167,10 +40100,10 @@ var resolver68 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
 
 // graphql/customs/mutations/activity/trackEvents.ts
-var typeDefs72 = `
+var typeDefs74 = `
   input TrackEventInput {
     """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, app.client_error (tambi\xE9n sin sesi\xF3n), admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
     type: String!
@@ -39193,7 +40126,7 @@ var typeDefs72 = `
     trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
   }
 `;
-var definition69 = `
+var definition71 = `
   trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
 `;
 var MAX_EVENTS = 50;
@@ -39212,7 +40145,7 @@ var MX_DAY2 = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit"
 });
-function text87(value, max = MAX_TEXT2) {
+function text94(value, max = MAX_TEXT2) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : null;
@@ -39236,9 +40169,9 @@ function clientTime(value) {
   return at;
 }
 function summaryFor(type, meta, label) {
-  const section = text87(meta.section) ?? text87(meta.tab) ?? "una secci\xF3n";
-  const feature = text87(meta.feature) ?? text87(meta.featureKey) ?? "un m\xF3dulo";
-  const tour = text87(meta.tour) ?? text87(meta.tourId) ?? "";
+  const section = text94(meta.section) ?? text94(meta.tab) ?? "una secci\xF3n";
+  const feature = text94(meta.feature) ?? text94(meta.featureKey) ?? "un m\xF3dulo";
+  const tour = text94(meta.tour) ?? text94(meta.tourId) ?? "";
   switch (type) {
     case ACTIVITY_EVENT.UI_SECTION_VIEWED:
       return `Abri\xF3 ${section}`;
@@ -39283,9 +40216,9 @@ function clientErrorSummary(kind, operation, page) {
 async function logClientError(context, input, userId) {
   if (isKnownCrawlerRequest(context.req)) return;
   const metadata = flatMetadata(input.metadata);
-  const message = text87(metadata.message) ?? "Error desconocido";
-  const kind = text87(metadata.kind, 20) ?? "network";
-  const operation = text87(metadata.operation, 80);
+  const message = text94(metadata.message) ?? "Error desconocido";
+  const kind = text94(metadata.kind, 20) ?? "network";
+  const operation = text94(metadata.operation, 80);
   const page = cleanPage(metadata.page) ?? requestPage(context.req);
   const who = userId ?? `ip:${requestIp(context.req) ?? "?"}`;
   if (!clientErrorIsNew(`${who}|${kind}|${operation ?? ""}|${message}`)) return;
@@ -39302,11 +40235,11 @@ async function logClientError(context, input, userId) {
     occurredAt: clientTime(input.occurredAt)
   });
 }
-async function trackAnonymous(context, list103) {
+async function trackAnonymous(context, list110) {
   const ip = requestIp(context.req) ?? "?";
   let accepted = 0;
-  for (const input of list103.slice(0, ANONYMOUS_MAX_EVENTS)) {
-    const type = text87(input?.type, 60);
+  for (const input of list110.slice(0, ANONYMOUS_MAX_EVENTS)) {
+    const type = text94(input?.type, 60);
     if (!type || !ANONYMOUS_CLIENT_EVENT_TYPES.has(type)) continue;
     if (!anonymousErrorsPerIp.hit(ip).ok) break;
     try {
@@ -39319,7 +40252,7 @@ async function trackAnonymous(context, list103) {
       );
     }
   }
-  return { accepted, rejected: list103.length - accepted };
+  return { accepted, rejected: list110.length - accepted };
 }
 async function recordHeartbeat(context, userId, companyId) {
   const prisma = context.sudo().prisma;
@@ -39401,20 +40334,20 @@ async function recentlyViewed(context, actorId, type, companyId, entityId) {
   });
   return Boolean(found);
 }
-var resolver69 = {
+var resolver71 = {
   trackEvents: async (_root, { events }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    const list103 = Array.isArray(events) ? events : [];
-    if (getImpersonation(context.session)) return { accepted: 0, rejected: list103.length };
-    if (!userId) return trackAnonymous(context, list103);
+    const list110 = Array.isArray(events) ? events : [];
+    if (getImpersonation(context.session)) return { accepted: 0, rejected: list110.length };
+    if (!userId) return trackAnonymous(context, list110);
     const companyId = getSessionCompanyId(session2);
     const admin = isPlatformAdmin(session2);
-    const batch = list103.slice(0, MAX_EVENTS);
+    const batch = list110.slice(0, MAX_EVENTS);
     let accepted = 0;
     let heartbeatDone = false;
     for (const input of batch) {
-      const type = text87(input?.type, 60);
+      const type = text94(input?.type, 60);
       if (!type) continue;
       try {
         if (type === HEARTBEAT_EVENT) {
@@ -39435,8 +40368,8 @@ var resolver69 = {
           await logActivity(context, {
             type,
             summary: summaryFor(type, metadata, null),
-            entityType: text87(input.entityType, 60),
-            entityId: text87(input.entityId, 60),
+            entityType: text94(input.entityType, 60),
+            entityId: text94(input.entityId, 60),
             metadata,
             source: ACTIVITY_SOURCE.WEB,
             occurredAt
@@ -39445,7 +40378,7 @@ var resolver69 = {
           continue;
         }
         if (CLIENT_ADMIN_EVENT_TYPES.has(type) && admin) {
-          const entityId = text87(input.entityId, 60);
+          const entityId = text94(input.entityId, 60);
           const target = await adminViewLabel(context, type, input);
           if (await recentlyViewed(context, userId, type, target.companyId, entityId)) {
             accepted += 1;
@@ -39455,7 +40388,7 @@ var resolver69 = {
             type,
             summary: summaryFor(type, metadata, target.label),
             companyId: target.companyId,
-            entityType: text87(input.entityType, 60),
+            entityType: text94(input.entityType, 60),
             entityId,
             metadata,
             source: ACTIVITY_SOURCE.ADMIN,
@@ -39470,13 +40403,13 @@ var resolver69 = {
         );
       }
     }
-    return { accepted, rejected: list103.length - accepted };
+    return { accepted, rejected: list110.length - accepted };
   }
 };
-var trackEvents_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+var trackEvents_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
 
 // graphql/customs/mutations/admin/companyOps.ts
-var typeDefs73 = `
+var typeDefs75 = `
   type AdminOpsActionResult {
     success: Boolean!
     message: String!
@@ -39487,7 +40420,7 @@ var typeDefs73 = `
     adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
   }
 `;
-var definition70 = `
+var definition72 = `
   adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
   adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
 `;
@@ -39521,7 +40454,7 @@ var REVIVABLE_STATUSES = /* @__PURE__ */ new Set([
   SUBSCRIPTION_STATUS.UNPAID,
   SUBSCRIPTION_STATUS.CANCELLED
 ]);
-var resolver70 = {
+var resolver72 = {
   /**
    * Mueve el fin de la prueba gratuita (`currentPeriodEnd` de la suscripción vigente).
    * `days` suma desde hoy o desde el fin actual (lo que sea más tarde); `until` fija la fecha.
@@ -39631,7 +40564,7 @@ var resolver70 = {
     return result(true, to ? `Ahora la cuenta es de ${to}.` : "La cuenta qued\xF3 sin due\xF1o.");
   }
 };
-var companyOps_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+var companyOps_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
 // graphql/customs/queries/admin/shared.ts
 var adminSharedTypeDefs = `
@@ -39872,7 +40805,7 @@ function latestDate(...dates) {
 }
 
 // graphql/customs/mutations/admin/accountControl.ts
-var typeDefs74 = `
+var typeDefs76 = `
   type AdminControlResult {
     success: Boolean!
     message: String!
@@ -39899,7 +40832,7 @@ var typeDefs74 = `
     adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
   }
 `;
-var definition71 = `
+var definition73 = `
   adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
@@ -39932,8 +40865,8 @@ function fullName2(person) {
   return [person.name, person.lastName].filter(Boolean).join(" ").trim() || person.email || "una persona";
 }
 function cleanReason(reason) {
-  const text89 = reason?.trim() ?? "";
-  return text89.length >= MIN_REASON ? text89.slice(0, MAX_REASON) : null;
+  const text96 = reason?.trim() ?? "";
+  return text96.length >= MIN_REASON ? text96.slice(0, MAX_REASON) : null;
 }
 function maskTail(value) {
   if (!value) return null;
@@ -39946,7 +40879,7 @@ function adminIdOf(context) {
 }
 var NOT_ADMIN = result2(false, "Solo un administrador de Kadesh puede hacer esto.");
 var REASON_REQUIRED = result2(false, `Escribe el motivo (m\xEDnimo ${MIN_REASON} letras).`);
-var resolver71 = {
+var resolver73 = {
   /** Nadie del equipo puede entrar mientras la empresa esté suspendida; al suspender se cierran sus sesiones. */
   adminSetCompanySuspension: async (_root, { companyId, suspended, reason }, context) => {
     if (!adminIdOf(context)) return NOT_ADMIN;
@@ -40407,7 +41340,7 @@ var resolver71 = {
     }
     const short = userId.slice(-8);
     const name = [user.name, user.lastName, user.secondLastName].filter(Boolean).join(" ").trim();
-    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text89) => Boolean(text89 && text89.length >= 4));
+    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text96) => Boolean(text96 && text96.length >= 4));
     await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
@@ -40488,23 +41421,23 @@ var resolver71 = {
     return result2(true, "Cuenta anonimizada: se borraron sus datos personales y ya no puede entrar.");
   }
 };
-var accountControl_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+var accountControl_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
 
 // graphql/customs/mutations/admin/animals.ts
-var typeDefs75 = `
+var typeDefs77 = `
   type Mutation {
     adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
     adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   }
 `;
-var definition72 = `
+var definition74 = `
   adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
 `;
 function deny() {
   return { success: false, message: "Solo un administrador de Kadesh puede hacer esto." };
 }
-var resolver72 = {
+var resolver74 = {
   /**
    * Publica el animal en la Página de Facebook de Pet. Si ya se publicó, no lo repite salvo
    * `force` (volver a publicar a propósito). Sirve para los que subieron usuarios (no se
@@ -40548,16 +41481,16 @@ var resolver72 = {
     };
   }
 };
-var animals_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
+var animals_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/mutations/admin/paws.ts
 var REASON_MIN = 5;
 var REASON_MAX = 300;
-var typeDefs76 = ``;
-var definition73 = `
+var typeDefs78 = ``;
+var definition75 = `
   adminAdjustPaws(userId: ID!, amount: Int!, reason: String!): AdminOpsActionResult!
 `;
-var resolver73 = {
+var resolver75 = {
   adminAdjustPaws: async (_root, { userId, amount, reason }, context) => {
     const adminId = getSessionUserId(context.session);
     if (!adminId || !isPlatformAdmin(context.session)) {
@@ -40591,10 +41524,10 @@ var resolver73 = {
     }
   }
 };
-var paws_default2 = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+var paws_default2 = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
 
 // graphql/customs/mutations/admin/zoneAlerts.ts
-var typeDefs77 = `
+var typeDefs79 = `
   type Mutation {
     adminUpdateZoneAlerts(
       userId: ID!
@@ -40606,7 +41539,7 @@ var typeDefs77 = `
     ): AdminOpsActionResult!
   }
 `;
-var definition74 = `
+var definition76 = `
   adminUpdateZoneAlerts(
     userId: ID!
     enabled: Boolean
@@ -40619,7 +41552,7 @@ var definition74 = `
 function result3(success, message) {
   return { success, message };
 }
-var resolver74 = {
+var resolver76 = {
   adminUpdateZoneAlerts: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) return result3(false, "Solo un administrador de Kadesh puede hacer esto.");
     const prisma = context.sudo().prisma;
@@ -40689,17 +41622,17 @@ var resolver74 = {
     return result3(true, changes.length ? `Listo: ${changes.join(", ")}.` : "Guardado.");
   }
 };
-var adminZoneAlerts = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
+var adminZoneAlerts = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
 var zoneAlerts_default = adminZoneAlerts;
 
 // graphql/customs/mutations/admin/errorIssues.ts
-var typeDefs78 = `
+var typeDefs80 = `
   type Mutation {
     """status: open | resolved | ignored"""
     adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
   }
 `;
-var definition75 = `
+var definition77 = `
   adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
 `;
 var STATUS_LABELS2 = {
@@ -40711,7 +41644,7 @@ var MAX_NOTE = 2e3;
 function result4(success, message) {
   return { success, message };
 }
-var resolver75 = {
+var resolver77 = {
   adminSetErrorIssueStatus: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return result4(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -40755,10 +41688,10 @@ var resolver75 = {
     return result4(true, "Listo.");
   }
 };
-var errorIssues_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
+var errorIssues_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
 
 // graphql/customs/mutations/admin/security.ts
-var typeDefs79 = `
+var typeDefs81 = `
   type AdminBlockIpResult {
     success: Boolean!
     message: String!
@@ -40772,7 +41705,7 @@ var typeDefs79 = `
     adminUnblockIp(ip: String!): AdminOpsActionResult!
   }
 `;
-var definition76 = `
+var definition78 = `
   adminBlockIp(ip: String!, reason: String, days: Int, force: Boolean): AdminBlockIpResult!
   adminUnblockIp(ip: String!): AdminOpsActionResult!
 `;
@@ -40803,7 +41736,7 @@ async function usedByAdmin(prisma, ip) {
   ]);
   return Boolean(event || auth);
 }
-var resolver76 = {
+var resolver78 = {
   adminBlockIp: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return blockResult(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -40865,10 +41798,10 @@ var resolver76 = {
     return { success: true, message: "IP desbloqueada." };
   }
 };
-var security_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
+var security_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
 
 // graphql/customs/mutations/rollupDailyUsage.ts
-var typeDefs80 = `
+var typeDefs82 = `
   type RollupDailyUsageDay {
     day: String!
     companies: Int!
@@ -40884,11 +41817,11 @@ var typeDefs80 = `
     rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   }
 `;
-var definition77 = `
+var definition79 = `
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
 `;
 var MAX_DAYS2 = 62;
-var resolver77 = {
+var resolver79 = {
   /**
    * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). Se autoriza con
    * `CRON_SECRET`. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -40922,18 +41855,18 @@ var resolver77 = {
     }
   }
 };
-var rollupDailyUsage_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
+var rollupDailyUsage_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
 
 // graphql/customs/mutations/notifications/markAllNotificationsRead.ts
-var typeDefs81 = `
+var typeDefs83 = `
   type Mutation {
     markAllNotificationsRead(product: String): Int!
   }
 `;
-var definition78 = `
+var definition80 = `
   markAllNotificationsRead(product: String): Int!
 `;
-var resolver78 = {
+var resolver80 = {
   /**
    * Marca como leídas todas las notificaciones no leídas de quien tiene la sesión (opcionalmente
    * solo las de un producto: "pet" | "saas"). Devuelve cuántas cambió. Marcar una sola se hace
@@ -40955,16 +41888,16 @@ var resolver78 = {
     return result5?.count ?? 0;
   }
 };
-var markAllNotificationsRead_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
+var markAllNotificationsRead_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
 
 // graphql/customs/mutations/notifications/pushTokens.ts
-var typeDefs82 = `
+var typeDefs84 = `
   type Mutation {
     registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
     unregisterPushToken(token: String!): Boolean!
   }
 `;
-var definition79 = `
+var definition81 = `
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
   unregisterPushToken(token: String!): Boolean!
 `;
@@ -40973,11 +41906,11 @@ var PLATFORMS = new Set(Object.values(PUSH_PLATFORM));
 function prismaOf14(context) {
   return context.sudo().prisma;
 }
-function unwrap2(value) {
+function unwrap3(value) {
   if (value instanceof Error) throw value;
   return value;
 }
-var resolver79 = {
+var resolver81 = {
   /**
    * Guarda (o actualiza) el token push de este dispositivo para quien tiene la sesión. Un token es
    * de un solo dispositivo: si estaba con otra cuenta (cambio de sesión en el mismo teléfono), pasa
@@ -40991,7 +41924,7 @@ var resolver79 = {
     if (!PLATFORMS.has(platform)) throw new Error("Plataforma no v\xE1lida.");
     const cleanDevice = deviceId?.trim().slice(0, 200) || null;
     const prisma = prismaOf14(context);
-    const existing = unwrap2(
+    const existing = unwrap3(
       await prisma.tokenNotification.findMany({ where: { token: cleanToken }, select: { id: true } })
     );
     const data = {
@@ -41003,15 +41936,15 @@ var resolver79 = {
     };
     const [keep, ...duplicates] = existing;
     if (keep) {
-      unwrap2(await prisma.tokenNotification.update({ where: { id: keep.id }, data }));
+      unwrap3(await prisma.tokenNotification.update({ where: { id: keep.id }, data }));
       if (duplicates.length) {
-        unwrap2(await prisma.tokenNotification.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } }));
+        unwrap3(await prisma.tokenNotification.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } }));
       }
     } else {
-      unwrap2(await prisma.tokenNotification.create({ data }));
+      unwrap3(await prisma.tokenNotification.create({ data }));
     }
     if (cleanDevice) {
-      unwrap2(
+      unwrap3(
         await prisma.tokenNotification.deleteMany({
           where: { userId, deviceId: cleanDevice, token: { not: cleanToken } }
         })
@@ -41023,13 +41956,13 @@ var resolver79 = {
   unregisterPushToken: async (_root, { token }, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return false;
-    const result5 = unwrap2(
+    const result5 = unwrap3(
       await prismaOf14(context).tokenNotification.deleteMany({ where: { token: token.trim(), userId } })
     );
     return result5.count > 0;
   }
 };
-var pushTokens_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
+var pushTokens_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -41062,6 +41995,7 @@ var customMutation = {
     ${closeAnimalReport_default.typeDefs}
     ${animalSightings_default.typeDefs}
     ${paws_default.typeDefs}
+    ${store_default.typeDefs}
     ${sendAnimalFollowUps_default.typeDefs}
     ${adoptionApplications_default.typeDefs}
     ${card_default.typeDefs}
@@ -41126,6 +42060,7 @@ var customMutation = {
     ${closeAnimalReport_default.definition}
     ${animalSightings_default.definition}
     ${paws_default.definition}
+    ${store_default.definition}
     ${sendAnimalFollowUps_default.definition}
     ${adoptionApplications_default.definition}
     ${card_default.definition}
@@ -41190,6 +42125,7 @@ var customMutation = {
     ...closeAnimalReport_default.resolver,
     ...animalSightings_default.resolver,
     ...paws_default.resolver,
+    ...store_default.resolver,
     ...sendAnimalFollowUps_default.resolver,
     ...adoptionApplications_default.resolver,
     ...card_default.resolver,
@@ -41241,8 +42177,8 @@ var COORD_PATTERN = "^-?[0-9]+([.][0-9]+)?$";
 function hasPoint(filters) {
   return typeof filters.lat === "number" && typeof filters.lng === "number" && Number.isFinite(filters.lat) && Number.isFinite(filters.lng);
 }
-function escapeLike(text89) {
-  return text89.replace(/[\\%_]/g, (char) => `\\${char}`);
+function escapeLike(text96) {
+  return text96.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 async function queryNearbyAnimals(prisma, filters, page) {
   const point = hasPoint(filters) ? filters : null;
@@ -41312,13 +42248,13 @@ async function queryNearbyAnimals(prisma, filters, page) {
     LIMIT ${page.limit}::int OFFSET ${page.skip}::int
   `;
   if (rows2 instanceof Error) throw rows2;
-  const list103 = rows2;
-  let total = list103[0]?.total ?? 0;
-  if (list103.length === 0 && page.skip > 0) {
+  const list110 = rows2;
+  let total = list110[0]?.total ?? 0;
+  if (list110.length === 0 && page.skip > 0) {
     total = (await queryNearbyAnimals(prisma, filters, { limit: 1, skip: 0 })).total;
   }
   return {
-    rows: list103.map(({ total: _total, ...row }) => ({
+    rows: list110.map(({ total: _total, ...row }) => ({
       ...row,
       distance: row.distance == null ? null : Math.round(Number(row.distance) * 100) / 100
     })),
@@ -41356,7 +42292,7 @@ async function getAnimalCoverUrls(ids, context) {
 // graphql/customs/queries/nearbyAnimals.ts
 var MAX_LIST_LIMIT = 500;
 var MAX_PINS = 1e3;
-var typeDefs83 = `
+var typeDefs85 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -41456,7 +42392,7 @@ var typeDefs83 = `
     getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
   }
 `;
-var definition80 = `
+var definition82 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
 `;
@@ -41505,9 +42441,9 @@ async function getRecentSightings(rows2, context) {
     return byAnimal;
   }
   for (const row of sightings) {
-    const list103 = byAnimal.get(row.animalId) ?? [];
-    if (list103.length >= MAP_SIGHTINGS_PER_ANIMAL) continue;
-    list103.push({
+    const list110 = byAnimal.get(row.animalId) ?? [];
+    if (list110.length >= MAP_SIGHTINGS_PER_ANIMAL) continue;
+    list110.push({
       id: row.id,
       lat: row.lat,
       lng: row.lng,
@@ -41515,7 +42451,7 @@ async function getRecentSightings(rows2, context) {
       placeLabel: row.placeLabel || null,
       city: row.city || null
     });
-    byAnimal.set(row.animalId, list103);
+    byAnimal.set(row.animalId, list110);
   }
   return byAnimal;
 }
@@ -41530,11 +42466,11 @@ async function getMultimedia(ids, context) {
   for (const item of media) {
     const animalId = item.animal?.id;
     if (!animalId) continue;
-    const list103 = byAnimal.get(animalId) ?? [];
-    list103.push({ id: item.id, url: item.image?.url ?? null, order: item.order ?? 1e4 });
-    byAnimal.set(animalId, list103);
+    const list110 = byAnimal.get(animalId) ?? [];
+    list110.push({ id: item.id, url: item.image?.url ?? null, order: item.order ?? 1e4 });
+    byAnimal.set(animalId, list110);
   }
-  for (const list103 of byAnimal.values()) list103.sort((a, b) => a.order - b.order);
+  for (const list110 of byAnimal.values()) list110.sort((a, b) => a.order - b.order);
   return byAnimal;
 }
 async function getAuthors(ids, context) {
@@ -41558,7 +42494,7 @@ function clampInt2(value, fallback, max) {
   if (!Number.isFinite(num) || num < 0) return fallback;
   return Math.min(num, max);
 }
-var resolver80 = {
+var resolver82 = {
   getNearbyAnimals: async (_root, { input }, context) => {
     const limit = clampInt2(input.limit, 10, MAX_LIST_LIMIT);
     const skip = clampInt2(input.skip, 0, Number.MAX_SAFE_INTEGER);
@@ -41629,10 +42565,10 @@ var resolver80 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
+var nearbyAnimals_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs84 = `
+var typeDefs86 = `
   type AnimalReportDuplicate {
     id: ID!
     """Nombre real; vac\xEDo si no se sabe."""
@@ -41656,7 +42592,7 @@ var typeDefs84 = `
     isMine: Boolean!
   }
 `;
-var definition81 = `
+var definition83 = `
   findAnimalReportDuplicates(
     phone: String
     phone2: String
@@ -41680,7 +42616,7 @@ function cleanPhone(raw) {
   const normalized = normalizeMxPhone(value);
   return normalized.ok ? normalized.digits : value;
 }
-var resolver81 = {
+var resolver83 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     const sessionUserId = getSessionUserId(context.session);
     if (!isSignedIn(context.session) && !sessionUserId) {
@@ -41708,7 +42644,7 @@ var resolver81 = {
     }));
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -42090,7 +43026,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs85 = `
+var typeDefs87 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -42150,10 +43086,10 @@ var typeDefs85 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition82 = `
+var definition84 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver82 = {
+var resolver84 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -42233,10 +43169,10 @@ var resolver82 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs86 = `
+var typeDefs88 = `
   type StripeCard {
     brand: String
     country: String
@@ -42270,10 +43206,10 @@ var typeDefs86 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition83 = `
+var definition85 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver83 = {
+var resolver85 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -42309,10 +43245,10 @@ var resolver83 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
+var stripePaymentMethods_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs87 = `
+var typeDefs89 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -42350,7 +43286,7 @@ var typeDefs87 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition84 = `
+var definition86 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -42359,7 +43295,7 @@ var INTERVAL_BY_FREQUENCY = {
   [PLAN_FREQUENCY.ANNUAL]: "year",
   [PLAN_FREQUENCY.ONCE]: null
 };
-function fail11(message) {
+function fail12(message) {
   return { success: false, message, allMatch: false, fields: [] };
 }
 function toMinorUnits(amount) {
@@ -42370,19 +43306,19 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver84 = {
+var resolver86 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
-      return fail11("Solo operaciones puede verificar planes con Stripe.");
+      return fail12("Solo operaciones puede verificar planes con Stripe.");
     }
     const plan = await context.sudo().query.SaasPlan.findOne({
       where: { id: input.planId },
       query: "id name cost currency frequency stripePriceId stripeProductId active"
     });
-    if (!plan) return fail11("No encontramos ese plan.");
+    if (!plan) return fail12("No encontramos ese plan.");
     const priceId = (input.stripePriceId ?? plan.stripePriceId ?? "").trim();
     if (!priceId) {
-      return fail11(
+      return fail12(
         "Este plan no tiene un precio de Stripe ligado. Pega el ID del precio para poder verificarlo."
       );
     }
@@ -42395,7 +43331,7 @@ var resolver84 = {
       price = await stripe_default.prices.retrieve(priceId, { expand: ["product"] });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      return fail11(`Stripe no reconoci\xF3 ese precio: ${message}`);
+      return fail12(`Stripe no reconoci\xF3 ese precio: ${message}`);
     }
     const product = price.product && typeof price.product === "object" ? price.product : null;
     const stripeProductId = product?.id ?? (typeof price.product === "string" ? price.product : null);
@@ -42471,7 +43407,7 @@ var resolver84 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+var stripePlanCheck_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -42609,7 +43545,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs88 = `
+var typeDefs90 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -42637,10 +43573,10 @@ var typeDefs88 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition85 = `
+var definition87 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver85 = {
+var resolver87 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -42758,11 +43694,11 @@ var resolver85 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+var subscriptionStatus_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs89 = `
+var typeDefs91 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -42774,10 +43710,10 @@ var typeDefs89 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition86 = `
+var definition88 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver86 = {
+var resolver88 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -42810,10 +43746,10 @@ var resolver86 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs90 = `
+var typeDefs92 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -42825,10 +43761,10 @@ var typeDefs90 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition87 = `
+var definition89 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver87 = {
+var resolver89 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -42850,11 +43786,11 @@ var resolver87 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs91 = `
+var typeDefs93 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -42883,14 +43819,14 @@ var typeDefs91 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition88 = `
+var definition90 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver88 = {
+var resolver90 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -42946,11 +43882,11 @@ var resolver88 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
+var whatsappConversations_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs92 = `
+var typeDefs94 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -42962,10 +43898,10 @@ var typeDefs92 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition89 = `
+var definition91 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver89 = {
+var resolver91 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -43006,10 +43942,10 @@ var resolver89 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs93 = `
+var typeDefs95 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -43027,10 +43963,10 @@ var typeDefs93 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition90 = `
+var definition92 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver90 = {
+var resolver92 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -43056,10 +43992,10 @@ var resolver90 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs94 = `
+var typeDefs96 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -43085,13 +44021,13 @@ var typeDefs94 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition91 = `
+var definition93 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
-function fail12(message) {
+function fail13(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver91 = {
+var resolver93 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -43106,23 +44042,23 @@ var resolver91 = {
         context
       );
       if (!target && !resolvedCompanyId) {
-        return fail12(error ?? "No se pudo resolver la conversaci\xF3n");
+        return fail13(error ?? "No se pudo resolver la conversaci\xF3n");
       }
       if (target) {
         resolvedCompanyId = resolvedCompanyId ?? target.companyId;
         recipientName = target.displayName;
       }
     }
-    if (!resolvedCompanyId) return fail12("Falta indicar la empresa o la conversaci\xF3n");
+    if (!resolvedCompanyId) return fail13("Falta indicar la empresa o la conversaci\xF3n");
     if (!canUseCompanyWhatsapp(context.session, resolvedCompanyId)) {
-      return fail12("No tienes acceso al WhatsApp de esta empresa");
+      return fail13("No tienes acceso al WhatsApp de esta empresa");
     }
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: resolvedCompanyId },
       query: "id name whatsappBusinessAccountId whatsappAccessTokenEncrypted"
     });
     if (!company?.whatsappBusinessAccountId || !company?.whatsappAccessTokenEncrypted) {
-      return fail12("WhatsApp no est\xE1 conectado para esta empresa");
+      return fail13("WhatsApp no est\xE1 conectado para esta empresa");
     }
     try {
       const templates = await listWhatsAppTemplates({
@@ -43142,17 +44078,17 @@ var resolver91 = {
         `[whatsapp] No se pudieron listar las plantillas de la empresa ${resolvedCompanyId}:`,
         err
       );
-      return fail12(
+      return fail13(
         err instanceof Error ? err.message.replace(/^\[whatsapp\] Graph API error[^:]*:\s*/, "") : "No se pudieron leer las plantillas de Meta"
       );
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs95 = `
+var typeDefs97 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -43180,25 +44116,25 @@ var typeDefs95 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition92 = `
+var definition94 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver92 = {
+var resolver94 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
     timeMax
   }, context) => {
-    const fail14 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail14(denyGoogleCalendarAccessMessage(context.session));
+    const fail15 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail15(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail14(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail15(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail14("Rango de fechas inv\xE1lido");
+      return fail15("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -43215,7 +44151,7 @@ var resolver92 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail14(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail15(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -43235,7 +44171,7 @@ var resolver92 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
 
 // utils/analytics/health.ts
 var HEALTH_WINDOW_DAYS = 28;
@@ -43535,7 +44471,7 @@ var LIVE_STATUSES = [
   SUBSCRIPTION_STATUS.UNPAID
 ];
 var SORTS = ["risk", "best", "drop", "name"];
-var typeDefs96 = `
+var typeDefs98 = `
   input AdminHealthInput {
     search: String
     """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
@@ -43617,7 +44553,7 @@ var typeDefs96 = `
     adminHealth(input: AdminHealthInput): AdminHealthResult!
   }
 `;
-var definition93 = `
+var definition95 = `
   adminHealth(input: AdminHealthInput): AdminHealthResult!
 `;
 function healthBrief(health) {
@@ -43636,7 +44572,7 @@ function matchesStatus(status, filter) {
   if (filter === "none") return !status;
   return status === filter;
 }
-var resolver93 = {
+var resolver95 = {
   adminHealth: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -43737,12 +44673,12 @@ var resolver93 = {
     };
   }
 };
-var adminHealth_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
+var adminHealth_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
 
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
 var SORTS2 = ["recent", "name", "activity", "health"];
-var typeDefs97 = `
+var typeDefs99 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
@@ -43797,7 +44733,7 @@ var typeDefs97 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition94 = `
+var definition96 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
 function pickOwner(users) {
@@ -43806,7 +44742,7 @@ function pickOwner(users) {
   );
   return admin ?? users[0] ?? null;
 }
-var resolver94 = {
+var resolver96 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -43943,14 +44879,14 @@ var resolver94 = {
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
+var adminCompanies_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
 var APP_ERRORS_THRESHOLD = 3;
-var typeDefs98 = `
+var typeDefs100 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -43993,7 +44929,7 @@ var typeDefs98 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition95 = `
+var definition97 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -44004,7 +44940,7 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver95 = {
+var resolver97 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44311,14 +45247,14 @@ var resolver95 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
+var adminOpsSummary_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs99 = `
+var typeDefs101 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -44425,7 +45361,7 @@ var typeDefs99 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition96 = `
+var definition98 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows2, key) {
@@ -44563,7 +45499,7 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver96 = {
+var resolver98 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44894,10 +45830,10 @@ var resolver96 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
+var adminCompanyInsights_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
 
 // graphql/customs/queries/admin/adminCompanyTrends.ts
-var typeDefs100 = `
+var typeDefs102 = `
   type AdminUsageWeek {
     """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
     weekStart: String!
@@ -44938,7 +45874,7 @@ var typeDefs100 = `
     adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   }
 `;
-var definition97 = `
+var definition99 = `
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
 `;
 var WEEK_FIELDS = [
@@ -44969,12 +45905,12 @@ function median(values2) {
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
-var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
-var resolver97 = {
+var EMPTY3 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
+var resolver99 = {
   adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
-    if (!prisma.saasCompanyDailyUsage) return EMPTY2;
+    if (!prisma.saasCompanyDailyUsage) return EMPTY3;
     const weekCount = clampInt(weeks, 4, 26, 12);
     const lastDay = shiftDay(mxToday(), -1);
     const firstDay = shiftDay(lastDay, -(weekCount * 7 - 1));
@@ -45047,10 +45983,10 @@ var resolver97 = {
           median: median(others.map((total) => total[key]))
         }))
       };
-    }, EMPTY2);
+    }, EMPTY3);
   }
 };
-var adminCompanyTrends_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
+var adminCompanyTrends_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -45070,7 +46006,7 @@ var FEED_TYPES = [
   "security"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs101 = `
+var typeDefs103 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -45122,7 +46058,7 @@ var typeDefs101 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition98 = `
+var definition100 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -45191,8 +46127,8 @@ function money2(amount, currency) {
   }
 }
 function joinDetail(parts) {
-  const text89 = parts.filter(Boolean).join(" \xB7 ");
-  return text89 || null;
+  const text96 = parts.filter(Boolean).join(" \xB7 ");
+  return text96 || null;
 }
 function personSearch(q) {
   return {
@@ -45986,7 +46922,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver98 = {
+var resolver100 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -46030,10 +46966,10 @@ var resolver98 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
+var adminActivityFeed_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
 
 // graphql/customs/queries/admin/adminErrorIssues.ts
-var typeDefs102 = `
+var typeDefs104 = `
   input AdminErrorIssuesInput {
     """pet-web | business-web | pet-mobile"""
     app: String
@@ -46093,13 +47029,13 @@ var typeDefs102 = `
     adminOpenErrorIssuesCount: Int!
   }
 `;
-var definition99 = `
+var definition101 = `
   adminErrorIssues(input: AdminErrorIssuesInput): AdminErrorIssuesResult!
   adminOpenErrorIssuesCount: Int!
 `;
 var MAX_GROUPS = 300;
 var TOP_USER_AGENTS = 5;
-function text88(value) {
+function text95(value) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 function effectiveStatus(issue, lastSeen) {
@@ -46156,7 +47092,7 @@ async function countOpenErrorIssues(prisma, since) {
     (group) => effectiveStatus(issues.get(group.fingerprint), group.lastSeen).status === ERROR_ISSUE_STATUS.OPEN
   ).length;
 }
-var resolver99 = {
+var resolver101 = {
   adminErrorIssues: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46205,26 +47141,26 @@ var resolver99 = {
     const userAgents = /* @__PURE__ */ new Map();
     for (const row of uaGroups) {
       if (!row.userAgent) continue;
-      const list103 = userAgents.get(row.fingerprint) ?? [];
-      list103.push({ key: row.userAgent, count: row._count._all });
-      userAgents.set(row.fingerprint, list103);
+      const list110 = userAgents.get(row.fingerprint) ?? [];
+      list110.push({ key: row.userAgent, count: row._count._all });
+      userAgents.set(row.fingerprint, list110);
     }
     const all = groups.map((group) => {
       const sample = sampleBy.get(group.fingerprint) ?? {};
       const metadata = sample.metadata && typeof sample.metadata === "object" ? sample.metadata : {};
       const issue = issues.get(group.fingerprint);
       const { status, reopened } = effectiveStatus(issue, group.lastSeen);
-      const legacyKind = text88(metadata.kind);
-      const opType = text88(metadata.opType) ?? (legacyKind === "query" || legacyKind === "mutation" ? legacyKind : null);
+      const legacyKind = text95(metadata.kind);
+      const opType = text95(metadata.opType) ?? (legacyKind === "query" || legacyKind === "mutation" ? legacyKind : null);
       return {
         fingerprint: group.fingerprint,
         type: sample.type ?? "app.error",
         title: sample.summary || "Error",
         message: sample.errorMessage ?? null,
-        operation: text88(metadata.operation),
+        operation: text95(metadata.operation),
         kind: legacyKind && legacyKind !== opType ? legacyKind : null,
         opType,
-        code: text88(metadata.code),
+        code: text95(metadata.code),
         app: sample.app ?? null,
         apps: apps.get(group.fingerprint) ?? [],
         page: sample.page ?? null,
@@ -46255,10 +47191,10 @@ var resolver99 = {
     return countOpenErrorIssues(adminPrisma(context), daysAgo2(1));
   }
 };
-var adminErrorIssues_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
+var adminErrorIssues_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
 
 // graphql/customs/queries/admin/adminPersonDevices.ts
-var typeDefs103 = `
+var typeDefs105 = `
   type AdminPersonDevice {
     ip: String
     userAgent: String
@@ -46297,7 +47233,7 @@ var typeDefs103 = `
     adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
   }
 `;
-var definition100 = `
+var definition102 = `
   adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
 `;
 var CROWDED_IP_ACCOUNTS = 15;
@@ -46327,7 +47263,7 @@ function mergeDevices(target, rows2, source) {
     current.sources.add(source);
   }
 }
-var resolver100 = {
+var resolver102 = {
   adminPersonDevices: async (_root, { userId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46418,10 +47354,10 @@ function toDeviceOutput(device) {
     sources: [...device.sources]
   };
 }
-var adminPersonDevices_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
+var adminPersonDevices_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
 
 // graphql/customs/queries/admin/adminSecurity.ts
-var typeDefs104 = `
+var typeDefs106 = `
   type AdminRateLimitHit {
     ip: String
     rule: String!
@@ -46463,7 +47399,7 @@ var typeDefs104 = `
     adminBlockedIps: [AdminBlockedIp!]!
   }
 `;
-var definition101 = `
+var definition103 = `
   adminSecuritySummary(days: Int): AdminSecuritySummary!
   adminBlockedIps: [AdminBlockedIp!]!
 `;
@@ -46474,7 +47410,7 @@ var SIGNUP_STEPS = [
   USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP,
   USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP
 ];
-var resolver101 = {
+var resolver103 = {
   adminSecuritySummary: async (_root, { days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46569,7 +47505,7 @@ var resolver101 = {
     }));
   }
 };
-var adminSecurity_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
+var adminSecurity_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
 
 // graphql/customs/queries/admin/milestones.ts
 function earliest(map, companyId, at) {
@@ -46675,7 +47611,7 @@ async function loadCompanyMilestones(prisma, companyIds) {
 }
 
 // graphql/customs/queries/admin/adminActivationFunnel.ts
-var typeDefs105 = `
+var typeDefs107 = `
   input AdminActivationInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -46714,7 +47650,7 @@ var typeDefs105 = `
     adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
   }
 `;
-var definition102 = `
+var definition104 = `
   adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
 `;
 var STEPS = [
@@ -46732,7 +47668,7 @@ function median2(values2) {
   return Math.round(value * 10) / 10;
 }
 var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
-var resolver102 = {
+var resolver104 = {
   adminActivationFunnel: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46804,10 +47740,10 @@ var resolver102 = {
     };
   }
 };
-var adminActivationFunnel_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
+var adminActivationFunnel_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
 
 // graphql/customs/queries/admin/adminCohorts.ts
-var typeDefs106 = `
+var typeDefs108 = `
   input AdminCohortsInput {
     """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
     months: Int
@@ -46829,7 +47765,7 @@ var typeDefs106 = `
     adminCohorts(input: AdminCohortsInput): AdminCohorts!
   }
 `;
-var definition103 = `
+var definition105 = `
   adminCohorts(input: AdminCohortsInput): AdminCohorts!
 `;
 function shiftMonth(month, offset) {
@@ -46842,7 +47778,7 @@ function monthsBetween(from, to) {
   const [ty, tm] = to.split("-").map(Number);
   return (ty - fy) * 12 + (tm - fm);
 }
-var resolver103 = {
+var resolver105 = {
   adminCohorts: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46912,7 +47848,7 @@ var resolver103 = {
     return { rows: rows2 };
   }
 };
-var adminCohorts_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
+var adminCohorts_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
 
 // graphql/customs/queries/admin/adminEngagement.ts
 var MAU_DAYS = 30;
@@ -46925,7 +47861,7 @@ var MODULES = [
   { key: "whatsapp", field: "whatsappSent" },
   { key: "ai", field: "aiCalls" }
 ];
-var typeDefs107 = `
+var typeDefs109 = `
   input AdminEngagementInput {
     """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
     days: Int
@@ -46979,11 +47915,11 @@ var typeDefs107 = `
     adminEngagement(input: AdminEngagementInput): AdminEngagement!
   }
 `;
-var definition104 = `
+var definition106 = `
   adminEngagement(input: AdminEngagementInput): AdminEngagement!
 `;
 var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
-var resolver104 = {
+var resolver106 = {
   adminEngagement: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47114,12 +48050,12 @@ var resolver104 = {
     };
   }
 };
-var adminEngagement_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
+var adminEngagement_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
 
 // graphql/customs/queries/admin/adminDemandGaps.ts
 var ZONE_STEP = 0.1;
 var LIST_LIMIT = 25;
-var typeDefs108 = `
+var typeDefs110 = `
   input AdminDemandGapsInput {
     """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -47174,7 +48110,7 @@ var typeDefs108 = `
     adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   }
 `;
-var definition105 = `
+var definition107 = `
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
 `;
 function emptyBucket() {
@@ -47191,7 +48127,7 @@ var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
 var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
 var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
 var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
-var resolver105 = {
+var resolver107 = {
   adminDemandGaps: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47275,12 +48211,12 @@ var resolver105 = {
     };
   }
 };
-var adminDemandGaps_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
+var adminDemandGaps_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
 
 // graphql/customs/queries/admin/adminAcquisition.ts
 var LIST_LIMIT2 = 10;
 var REFERRAL = "Referido";
-var typeDefs109 = `
+var typeDefs111 = `
   input AdminAcquisitionInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -47311,7 +48247,7 @@ var typeDefs109 = `
     adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   }
 `;
-var definition106 = `
+var definition108 = `
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
 `;
 function bump2(map, key, activated, paid) {
@@ -47325,7 +48261,7 @@ var sortRows = (map, limit) => {
   const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
   return limit ? rows2.slice(0, limit) : rows2;
 };
-var resolver106 = {
+var resolver108 = {
   adminAcquisition: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47372,7 +48308,7 @@ var resolver106 = {
     };
   }
 };
-var adminAcquisition_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
+var adminAcquisition_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
 
 // utils/analytics/salesVelocity.ts
 var DAY_MS10 = 24 * 60 * 60 * 1e3;
@@ -47509,16 +48445,16 @@ async function computeSalesVelocity(prisma, options) {
   const messages = ownLeadIds ? allMessages.filter((m) => ownLeadIds.has(m.businessLeadId)) : allMessages;
   const byStatus = /* @__PURE__ */ new Map();
   for (const change of changes) {
-    const list103 = byStatus.get(change.statusId) ?? [];
-    list103.push(change);
-    byStatus.set(change.statusId, list103);
+    const list110 = byStatus.get(change.statusId) ?? [];
+    list110.push(change);
+    byStatus.set(change.statusId, list110);
   }
   const contactKey = (company, lead) => `${company}|${lead}`;
   const contactTimes = /* @__PURE__ */ new Map();
   const addContact = (key, at) => {
-    const list103 = contactTimes.get(key) ?? [];
-    list103.push(new Date(at).getTime());
-    contactTimes.set(key, list103);
+    const list110 = contactTimes.get(key) ?? [];
+    list110.push(new Date(at).getTime());
+    contactTimes.set(key, list110);
   };
   for (const activity of activities) {
     const company = activity.workspace?.companyId ?? activity.createdBy?.companyId ?? null;
@@ -47537,19 +48473,19 @@ async function computeSalesVelocity(prisma, options) {
   const companies = /* @__PURE__ */ new Map();
   const sellers = /* @__PURE__ */ new Map();
   const groupsFor = (companyId, statusId) => {
-    const list103 = [total];
+    const list110 = [total];
     if (companyId) {
       const group = companies.get(companyId) ?? emptyGroup();
       companies.set(companyId, group);
-      list103.push(group);
+      list110.push(group);
     }
     if (needStatuses) {
       const seller = sellerOf.get(statusId) ?? "";
       const group = sellers.get(seller) ?? emptyGroup();
       sellers.set(seller, group);
-      list103.push(group);
+      list110.push(group);
     }
-    return list103;
+    return list110;
   };
   const wonStatusIds = [];
   const stalledDeals = [];
@@ -47621,9 +48557,9 @@ async function computeSalesVelocity(prisma, options) {
   const conversations = /* @__PURE__ */ new Map();
   for (const message of messages) {
     const key = contactKey(message.companyId, message.businessLeadId);
-    const list103 = conversations.get(key) ?? [];
-    list103.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
-    conversations.set(key, list103);
+    const list110 = conversations.get(key) ?? [];
+    list110.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
+    conversations.set(key, list110);
   }
   let whatsappInbound = 0;
   let whatsappAnswered = 0;
@@ -47631,22 +48567,22 @@ async function computeSalesVelocity(prisma, options) {
   let whatsappConversations = 0;
   let whatsappReplied = 0;
   const responseMinutes = [];
-  for (const list103 of conversations.values()) {
-    list103.forEach((message, index) => {
-      if (message.direction !== "in" || list103[index - 1]?.direction === "in") return;
+  for (const list110 of conversations.values()) {
+    list110.forEach((message, index) => {
+      if (message.direction !== "in" || list110[index - 1]?.direction === "in") return;
       whatsappInbound += 1;
-      const reply = list103.slice(index + 1).find((m) => m.direction === "out");
+      const reply = list110.slice(index + 1).find((m) => m.direction === "out");
       if (!reply) return;
       whatsappAnswered += 1;
       const minutes = (reply.at - message.at) / 6e4;
       responseMinutes.push(minutes);
       if (minutes <= 60) whatsappAnsweredWithin1h += 1;
     });
-    const firstOut = list103.findIndex((m) => m.direction === "out");
-    if (firstOut >= 0 && (firstOut === 0 || list103[firstOut - 1].direction === "out")) {
+    const firstOut = list110.findIndex((m) => m.direction === "out");
+    if (firstOut >= 0 && (firstOut === 0 || list110[firstOut - 1].direction === "out")) {
       whatsappConversations += 1;
-      const start = list103[firstOut].at;
-      if (list103.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
+      const start = list110[firstOut].at;
+      if (list110.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
         whatsappReplied += 1;
       }
     }
@@ -47700,7 +48636,7 @@ async function computeSalesVelocity(prisma, options) {
 
 // graphql/customs/queries/admin/adminSalesVelocity.ts
 var COMPANY_LIMIT = 25;
-var typeDefs110 = `
+var typeDefs112 = `
   input AdminSalesVelocityInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -47772,10 +48708,10 @@ var typeDefs110 = `
     adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   }
 `;
-var definition107 = `
+var definition109 = `
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
 `;
-var resolver107 = {
+var resolver109 = {
   adminSalesVelocity: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47799,10 +48735,10 @@ var resolver107 = {
     return { ...totals, dataSince: toIso(dataSince), companies };
   }
 };
-var adminSalesVelocity_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
+var adminSalesVelocity_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
 
 // graphql/customs/queries/admin/adminAnimals.ts
-var typeDefs111 = `
+var typeDefs113 = `
   type AdminAnimalRow {
     id: ID!
     name: String!
@@ -47885,7 +48821,7 @@ var typeDefs111 = `
     facebookPublishedBy: AdminPersonRef
   }
 `;
-var definition108 = `
+var definition110 = `
   adminAnimals(
     search: String
     animalTypeId: ID
@@ -47992,7 +48928,7 @@ function toRow(raw, counts2) {
     facebookPublishedAt: toIso(raw.facebookPublishedAt)
   };
 }
-var resolver108 = {
+var resolver110 = {
   adminAnimals: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
@@ -48094,10 +49030,10 @@ var resolver108 = {
     };
   }
 };
-var adminAnimals_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
+var adminAnimals_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
 
 // graphql/customs/queries/admin/adminAnimalChannelPost.ts
-var typeDefs112 = `
+var typeDefs114 = `
   type AdminAnimalChannelPost {
     text: String!
     shortUrl: String!
@@ -48105,8 +49041,8 @@ var typeDefs112 = `
     channelUrl: String!
   }
 `;
-var definition109 = `adminAnimalChannelPost(id: ID!): AdminAnimalChannelPost`;
-var resolver109 = {
+var definition111 = `adminAnimalChannelPost(id: ID!): AdminAnimalChannelPost`;
+var resolver111 = {
   adminAnimalChannelPost: async (_root, { id }, context) => {
     assertPlatformAdmin(context);
     const animal = await context.sudo().query.Animal.findOne({
@@ -48124,10 +49060,10 @@ var resolver109 = {
     };
   }
 };
-var adminAnimalChannelPost_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
+var adminAnimalChannelPost_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
 
 // graphql/customs/queries/admin/adminPet.ts
-var typeDefs113 = `
+var typeDefs115 = `
   type AdminPetTopAnimal {
     id: ID!
     name: String!
@@ -48225,7 +49161,7 @@ var typeDefs113 = `
     points: [AdminPetSeriesPoint!]!
   }
 `;
-var definition110 = `
+var definition112 = `
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
 `;
@@ -48534,7 +49470,7 @@ async function topViewedAnimals(context, prisma, since) {
     ];
   });
 }
-var resolver110 = {
+var resolver112 = {
   adminPetSummary: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -48705,10 +49641,10 @@ var resolver110 = {
     return { metric, granularity, breakdown, from, to: lastBucket, total, points };
   }
 };
-var adminPet_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
+var adminPet_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
 
 // graphql/customs/queries/admin/adminNotifications.ts
-var typeDefs114 = `
+var typeDefs116 = `
   type AdminNotificationRow {
     id: ID!
     createdAt: String
@@ -48801,7 +49737,7 @@ var typeDefs114 = `
     maxPerDay: Int!
   }
 `;
-var definition111 = `
+var definition113 = `
   adminNotificationLog(
     product: String
     type: String
@@ -48884,7 +49820,7 @@ var USER_SELECT = {
   whatsappNotifications: true,
   whatsappMutedTypes: true
 };
-var resolver111 = {
+var resolver113 = {
   adminNotificationLog: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -49065,13 +50001,13 @@ var resolver111 = {
     };
   }
 };
-var adminNotifications = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
+var adminNotifications = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
 var adminNotifications_default = adminNotifications;
 
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql14 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs115 = `
+var typeDefs117 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -49147,24 +50083,24 @@ var typeDefs115 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition112 = `
+var definition114 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
-var fail13 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
+var fail14 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver112 = {
+var resolver114 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
     const companyId = getSessionCompanyId(session2);
-    if (!userId) throw fail13("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
-    if (!companyId) throw fail13("Tu cuenta no tiene empresa.", "NO_COMPANY");
+    if (!userId) throw fail14("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
+    if (!companyId) throw fail14("Tu cuenta no tiene empresa.", "NO_COMPANY");
     if (!hasPermission(session2, PERMISSION_KEYS.ANALITICA_VER, () => true)) {
-      throw fail13("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
+      throw fail14("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
     }
     if (!isPlatformAdmin(session2) && !await companyHasPlanFeature(context, companyId, PLAN_FEATURE.ANALYTICS)) {
-      throw fail13("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
+      throw fail14("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
     }
     const seesTeam = hasPermission(
       session2,
@@ -49236,12 +50172,12 @@ var resolver112 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
+var companyAnalytics_default = { typeDefs: typeDefs117, definition: definition114, resolver: resolver114 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache2 = null;
-var typeDefs116 = `
+var typeDefs118 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -49251,8 +50187,8 @@ var typeDefs116 = `
     updatedAt: String!
   }
 `;
-var definition113 = `landingStats: LandingStats!`;
-function unwrap3(value) {
+var definition115 = `landingStats: LandingStats!`;
+function unwrap4(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -49268,16 +50204,16 @@ async function computeLandingStats(context) {
     analyticsExcludedCompanyIds(prisma)
   ]);
   return {
-    leadsTotal: unwrap3(leadsTotal),
-    leadsWithPhone: unwrap3(leadsWithPhone),
-    categories: unwrap3(categoryGroups).length,
-    cities: unwrap3(cityGroups).length,
+    leadsTotal: unwrap4(leadsTotal),
+    leadsWithPhone: unwrap4(leadsWithPhone),
+    categories: unwrap4(categoryGroups).length,
+    cities: unwrap4(cityGroups).length,
     // Sin cuentas de prueba ni empresas del equipo de Kadesh (misma regla que la Analítica).
-    companies: Math.max(0, unwrap3(companiesTotal) - excluded.size),
+    companies: Math.max(0, unwrap4(companiesTotal) - excluded.size),
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver113 = {
+var resolver115 = {
   landingStats: async (_root, _args, context) => {
     if (cache2 && Date.now() - cache2.at < CACHE_MS) return cache2.value;
     const value = await computeLandingStats(context);
@@ -49285,13 +50221,13 @@ var resolver113 = {
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
+var landingStats_default = { typeDefs: typeDefs118, definition: definition115, resolver: resolver115 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES2 = ["in_family", "adopted"];
 var cache3 = null;
-var typeDefs117 = `
+var typeDefs119 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
@@ -49307,8 +50243,8 @@ var typeDefs117 = `
     updatedAt: String!
   }
 `;
-var definition114 = `petLandingStats: PetLandingStats!`;
-function unwrap4(value) {
+var definition116 = `petLandingStats: PetLandingStats!`;
+function unwrap5(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -49349,32 +50285,32 @@ async function computePetLandingStats(context) {
       GROUP BY outcome, "helpedByKadesh"
     `
   ]);
-  const outcomes = unwrap4(outcomeRows);
+  const outcomes = unwrap5(outcomeRows);
   const countOutcome = (outcome) => outcomes.filter((row) => row.outcome === outcome).reduce((total, row) => total + row.n, 0);
   const helpedByKadesh = outcomes.filter((row) => row.helped === "yes" && HOME_OUTCOMES.includes(row.outcome)).reduce((total, row) => total + row.n, 0);
   const byStatus = new Map(
-    unwrap4(statusRows).map((row) => [
+    unwrap5(statusRows).map((row) => [
       row.status ?? "",
       row.n
     ])
   );
   const count2 = (statuses) => statuses.reduce((total, status) => total + (byStatus.get(status) ?? 0), 0);
   return {
-    animals: unwrap4(animals),
+    animals: unwrap5(animals),
     animalsLost: count2(["lost"]),
     animalsHome: count2(HOME_STATUSES2),
     animalsInAdoption: count2(["in_adoption"]),
     reunions: countOutcome(ANIMAL_OUTCOME.REUNITED),
     adoptions: countOutcome(ANIMAL_OUTCOME.ADOPTED),
     helpedByKadesh,
-    veterinaries: unwrap4(veterinaries),
-    veterinariesVerified: unwrap4(veterinariesVerified),
-    rescueOrganizations: unwrap4(rescueOrganizations),
-    cities: unwrap4(cityRows)[0]?.n ?? 0,
+    veterinaries: unwrap5(veterinaries),
+    veterinariesVerified: unwrap5(veterinariesVerified),
+    rescueOrganizations: unwrap5(rescueOrganizations),
+    cities: unwrap5(cityRows)[0]?.n ?? 0,
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver114 = {
+var resolver116 = {
   petLandingStats: async (_root, _args, context) => {
     if (cache3 && Date.now() - cache3.at < CACHE_MS2) return cache3.value;
     const value = await computePetLandingStats(context);
@@ -49382,14 +50318,14 @@ var resolver114 = {
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs117, definition: definition114, resolver: resolver114 };
+var petLandingStats_default = { typeDefs: typeDefs119, definition: definition116, resolver: resolver116 };
 
 // graphql/customs/queries/petReunionStories.ts
 var CACHE_MS3 = 10 * 60 * 1e3;
 var DEFAULT_TAKE = 6;
 var MAX_TAKE = 12;
 var STORY_MAX = 280;
-var typeDefs118 = `
+var typeDefs120 = `
   type PetReunionStory {
     id: ID!
     slug: String
@@ -49405,7 +50341,7 @@ var typeDefs118 = `
     coverUrl: String
   }
 `;
-var definition115 = `petReunionStories(take: Int): [PetReunionStory!]!`;
+var definition117 = `petReunionStories(take: Int): [PetReunionStory!]!`;
 var cache4 = null;
 function publicStoryText(raw) {
   const clean5 = raw.replace(/https?:\/\/\S+|www\.\S+/gi, "").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "").replace(/\+?\(?\d[\d\s().-]{6,}\d/g, "").replace(/\s+/g, " ").trim();
@@ -49435,9 +50371,9 @@ async function loadStories(context, take) {
     LIMIT ${take}::int
   `;
   if (rows2 instanceof Error) throw rows2;
-  const list103 = rows2.map((row) => ({ row, story: publicStoryText(row.story ?? "") })).filter(({ story }) => story.length >= 10);
-  const covers = await getAnimalCoverUrls(list103.map(({ row }) => row.id), context);
-  return list103.map(({ row, story }) => ({
+  const list110 = rows2.map((row) => ({ row, story: publicStoryText(row.story ?? "") })).filter(({ story }) => story.length >= 10);
+  const covers = await getAnimalCoverUrls(list110.map(({ row }) => row.id), context);
+  return list110.map(({ row, story }) => ({
     id: row.id,
     slug: row.slug,
     displayName: animalDisplayName({ name: row.name, typeName: row.typeName, sex: row.sex, color: row.color }),
@@ -49449,7 +50385,7 @@ async function loadStories(context, take) {
     coverUrl: covers.get(row.id) ?? null
   }));
 }
-var resolver115 = {
+var resolver117 = {
   petReunionStories: async (_root, args, context) => {
     const take = Math.min(Math.max(1, Math.floor(args.take ?? DEFAULT_TAKE)), MAX_TAKE);
     const now = Date.now();
@@ -49464,13 +50400,13 @@ var resolver115 = {
     }
   }
 };
-var petReunionStories_default = { typeDefs: typeDefs118, definition: definition115, resolver: resolver115 };
+var petReunionStories_default = { typeDefs: typeDefs120, definition: definition117, resolver: resolver117 };
 
 // graphql/customs/queries/petEvents.ts
 var MAX_TAKE2 = 48;
 var DAY_MS11 = 24 * 60 * 60 * 1e3;
 var MAX_DATE = /* @__PURE__ */ new Date("9999-12-31T00:00:00.000Z");
-var typeDefs119 = `
+var typeDefs121 = `
   input PetEventsFeedInput {
     "Clave INEGI (16) o slug (michoacan)"
     state: String
@@ -49531,7 +50467,7 @@ var typeDefs119 = `
     sendAt: String
   }
 `;
-var definition116 = `
+var definition118 = `
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
@@ -49544,7 +50480,7 @@ function validDate(value, fallback) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
-var resolver116 = {
+var resolver118 = {
   /**
    * Eventos publicados para la sección /eventos, la portada y la app: los próximos (por su próxima
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
@@ -49611,17 +50547,17 @@ var resolver116 = {
           LIMIT ${take}::int OFFSET ${skip}::int
         `;
     if (rows2 instanceof Error) throw rows2;
-    const list103 = rows2;
-    if (list103.length === 0) return { total: 0, items: [] };
-    const events = await context.db.PetEvent.findMany({ where: { id: { in: list103.map((row) => row.id) } } });
+    const list110 = rows2;
+    if (list110.length === 0) return { total: 0, items: [] };
+    const events = await context.db.PetEvent.findMany({ where: { id: { in: list110.map((row) => row.id) } } });
     const byId = new Map(events.map((event) => [event.id, event]));
-    const items = list103.filter((row) => byId.has(row.id)).map((row) => ({
+    const items = list110.filter((row) => byId.has(row.id)).map((row) => ({
       event: byId.get(row.id),
       nextStartsAt: row.nextStartsAt ? new Date(row.nextStartsAt).toISOString() : null,
       nextEndsAt: row.nextEndsAt ? new Date(row.nextEndsAt).toISOString() : null,
       distanceKm: row.km === null || row.km === void 0 ? null : Math.round(Number(row.km) * 10) / 10
     }));
-    return { total: Number(list103[0].total) || items.length, items };
+    return { total: Number(list110[0].total) || items.length, items };
   },
   /** Estados y municipios con eventos próximos publicados (para los filtros de /eventos). */
   petEventFacets: async (_root, _args, context) => {
@@ -49669,11 +50605,11 @@ var resolver116 = {
     };
   }
 };
-var petEvents_default = { typeDefs: typeDefs119, definition: definition116, resolver: resolver116 };
+var petEvents_default = { typeDefs: typeDefs121, definition: definition118, resolver: resolver118 };
 
 // graphql/customs/queries/rescueAllies.ts
 var MAX_TAKE3 = 300;
-var typeDefs120 = `
+var typeDefs122 = `
   type RescueAlly {
     id: ID!
     name: String!
@@ -49692,8 +50628,8 @@ var typeDefs120 = `
     allies: [RescueAlly!]!
   }
 `;
-var definition117 = `rescueAllies(take: Int): RescueAlliesResult!`;
-var resolver117 = {
+var definition119 = `rescueAllies(take: Int): RescueAlliesResult!`;
+var resolver119 = {
   rescueAllies: async (_root, { take }, context) => {
     const limit = Math.min(Math.max(Number(take) || MAX_TAKE3, 1), MAX_TAKE3);
     const rows2 = await context.sudo().query.RescueOrganization.findMany({
@@ -49731,11 +50667,11 @@ var resolver117 = {
     return { total: allies.length, allies: allies.slice(0, limit) };
   }
 };
-var rescueAllies_default = { typeDefs: typeDefs120, definition: definition117, resolver: resolver117 };
+var rescueAllies_default = { typeDefs: typeDefs122, definition: definition119, resolver: resolver119 };
 
 // graphql/customs/queries/myPaws.ts
 var HISTORY_MAX_TAKE = 50;
-var typeDefs121 = `
+var typeDefs123 = `
   type PawHistoryEntry {
     id: ID!
     "report_published | sighting | case_closed | reunion_helped | adoption_completed | event_approved | comment | review | first_pet | first_health_record | rescue_verified | place_verified | referral | streak_bonus | admin_adjust"
@@ -49769,7 +50705,7 @@ var typeDefs121 = `
     history: [PawHistoryEntry!]!
   }
 `;
-var definition118 = `
+var definition120 = `
   myPaws: MyPaws
   myPawHistory(take: Int, skip: Int): [PawHistoryEntry!]!
 `;
@@ -49806,7 +50742,7 @@ function emptyPaws(enabled) {
     history: []
   };
 }
-var resolver118 = {
+var resolver120 = {
   myPaws: async (_root, _args, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return null;
@@ -49857,13 +50793,13 @@ var resolver118 = {
     }
   }
 };
-var myPaws_default = { typeDefs: typeDefs121, definition: definition118, resolver: resolver118 };
+var myPaws_default = { typeDefs: typeDefs123, definition: definition120, resolver: resolver120 };
 
 // graphql/customs/queries/publicProfile.ts
 var PROFILE_REPORTS_TAKE = 12;
 var PROFILE_EVENTS_TAKE = 6;
 var REPORTS_MAX_TAKE = 24;
-var typeDefs122 = `
+var typeDefs124 = `
   type PublicUserCard {
     "For the /u/<username> link; null when the person turned their public profile off."
     username: String
@@ -49938,7 +50874,7 @@ var typeDefs122 = `
     clinics: [PublicUserClinic!]!
   }
 `;
-var definition119 = `
+var definition121 = `
   animalAuthor(animalId: ID!): PublicUserCard
   publicUserProfile(username: String!): PublicUserProfile
   publicUserReports(username: String!, take: Int, skip: Int): [PublicUserReport!]!
@@ -49946,7 +50882,7 @@ var definition119 = `
 function prismaOf18(context) {
   return context.sudo().prisma;
 }
-function unwrap5(value) {
+function unwrap6(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -49968,7 +50904,7 @@ async function loadProfileUser(context, username) {
   return row;
 }
 async function loadReports(context, userId, take, skip) {
-  const rows2 = unwrap5(
+  const rows2 = unwrap6(
     await prismaOf18(context).$queryRaw`
       SELECT a.id, a.slug, a.name, a.sex, a.color, t.name AS "typeName", a.outcome, a."createdAt",
              last.status, last.city
@@ -49998,7 +50934,7 @@ async function loadReports(context, userId, take, skip) {
   }));
 }
 async function countReports(context, userId) {
-  const rows2 = unwrap5(
+  const rows2 = unwrap6(
     await prismaOf18(context).$queryRaw`
       SELECT count(*)::int AS n FROM "Animal" a
       WHERE a."user" = ${userId} AND a."duplicateOf" IS NULL
@@ -50019,9 +50955,9 @@ async function loadEvents(context, userId) {
     }),
     prisma.petEvent.count({ where })
   ]);
-  const events = unwrap5(rows2);
+  const events = unwrap6(rows2);
   return {
-    count: unwrap5(count2),
+    count: unwrap6(count2),
     events: events.map((event) => ({
       ...event,
       city: event.city || null,
@@ -50051,7 +50987,7 @@ async function loadRescueOrgs(context, userId) {
   }));
 }
 async function loadClinics(context, userId) {
-  const rows2 = unwrap5(
+  const rows2 = unwrap6(
     await prismaOf18(context).petPlace.findMany({
       where: { userId, verified: true },
       orderBy: [{ name: "asc" }],
@@ -50061,10 +50997,10 @@ async function loadClinics(context, userId) {
   );
   return rows2.map((row) => ({ ...row, municipality: row.municipality || null, state: row.state || null }));
 }
-var resolver119 = {
+var resolver121 = {
   animalAuthor: async (_root, { animalId }, context) => {
     try {
-      const animal = unwrap5(
+      const animal = unwrap6(
         await prismaOf18(context).animal.findUnique({ where: { id: animalId }, select: { userId: true } })
       );
       const userId = animal?.userId;
@@ -50092,7 +51028,7 @@ var resolver119 = {
       loadRescueOrgs(context, user.id),
       loadClinics(context, user.id)
     ]);
-    const paws = unwrap5(account);
+    const paws = unwrap6(account);
     return {
       username: user.username,
       displayName: publicDisplayName(user.name, user.lastName),
@@ -50121,7 +51057,710 @@ var resolver119 = {
     return loadReports(context, user.id, take, skip);
   }
 };
-var publicProfile_default = { typeDefs: typeDefs122, definition: definition119, resolver: resolver119 };
+var publicProfile_default = { typeDefs: typeDefs124, definition: definition121, resolver: resolver121 };
+
+// graphql/customs/queries/store/storeCatalog.ts
+var typeDefs125 = `
+  input StoreCatalogInput {
+    search: String
+    categorySlug: String
+    brandSlug: String
+    "AnimalType.name: dog, cat\u2026"
+    animalType: String
+    "kadesh | mercado_libre"
+    seller: String
+    minPriceCents: Int
+    maxPriceCents: Int
+    onSale: Boolean
+    featured: Boolean
+    inStock: Boolean
+    "featured (default) | newest | price_asc | price_desc | rating | best_selling"
+    sort: String
+    take: Int = 24
+    skip: Int = 0
+  }
+
+  type StoreCatalogRef {
+    slug: String!
+    name: String!
+  }
+
+  type StoreCatalogItem {
+    id: ID!
+    slug: String!
+    name: String!
+    shortDescription: String
+    "kadesh | mercado_libre. Own and dropshipped products are both sold by Kadesh."
+    seller: String!
+    "MXN cents. From the cheapest variant."
+    priceCents: Int!
+    "Previous price, only when it is higher than priceCents."
+    compareAtPriceCents: Int
+    currency: String!
+    inStock: Boolean!
+    "Signed for 1 h: cache pages that show it for less than that."
+    coverUrl: String
+    coverAlt: String
+    ratingAverage: Float!
+    ratingCount: Int!
+    isFeatured: Boolean!
+    category: StoreCatalogRef
+    brand: StoreCatalogRef
+    "Only for seller mercado_libre: the outbound affiliate link."
+    affiliateUrl: String
+    "Only for seller mercado_libre: when the price was last checked (ISO 8601)."
+    priceCheckedAt: String
+  }
+
+  type StoreCatalogResult {
+    total: Int!
+    items: [StoreCatalogItem!]!
+  }
+
+  type StoreCatalogImage {
+    url: String!
+    alt: String
+  }
+
+  type StoreCatalogVariant {
+    id: ID!
+    title: String
+    sku: String
+    "Flat object: { Talla: M, Color: Rojo }"
+    options: JSON
+    priceCents: Int!
+    compareAtPriceCents: Int
+    inStock: Boolean!
+    "Units left, only when stock is counted and running low."
+    stockLeft: Int
+  }
+
+  type StoreCatalogProduct {
+    item: StoreCatalogItem!
+    description: String
+    metaTitle: String
+    metaDescription: String
+    images: [StoreCatalogImage!]!
+    variants: [StoreCatalogVariant!]!
+    "AnimalType.name of each one"
+    animalTypes: [String!]!
+    "Published reviews with 1, 2, 3, 4 and 5 stars, in that order."
+    ratingBreakdown: [Int!]!
+    related: [StoreCatalogItem!]!
+  }
+
+  type StoreCatalogFacetCategory {
+    id: ID!
+    slug: String!
+    name: String!
+    parentSlug: String
+    imageUrl: String
+    "Active products directly in this category."
+    count: Int!
+  }
+
+  type StoreCatalogFacetBrand {
+    id: ID!
+    slug: String!
+    name: String!
+    logoUrl: String
+    count: Int!
+  }
+
+  type StoreCatalogFacets {
+    enabled: Boolean!
+    total: Int!
+    categories: [StoreCatalogFacetCategory!]!
+    brands: [StoreCatalogFacetBrand!]!
+    minPriceCents: Int!
+    maxPriceCents: Int!
+  }
+
+  type StoreCatalogReviewAuthor {
+    "First name and initial of the last name."
+    name: String!
+    username: String
+    avatarUrl: String
+    level: PawLevelInfo
+  }
+
+  type StoreCatalogReview {
+    id: ID!
+    rating: Int!
+    title: String
+    body: String
+    verifiedPurchase: Boolean!
+    adminReply: String
+    "published | hidden (hidden only ever reaches its author, in mine)"
+    status: String!
+    createdAt: String
+    author: StoreCatalogReviewAuthor
+  }
+
+  type StoreCatalogReviewsResult {
+    total: Int!
+    items: [StoreCatalogReview!]!
+    "The signed-in person's own review of this product, if any."
+    mine: StoreCatalogReview
+  }
+`;
+var definition122 = `
+  storeCatalog(input: StoreCatalogInput): StoreCatalogResult!
+  storeCatalogProduct(slug: String!): StoreCatalogProduct
+  storeCatalogFacets: StoreCatalogFacets!
+  storeCatalogReviews(productId: ID!, take: Int, skip: Int): StoreCatalogReviewsResult!
+`;
+function unwrap7(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+function clamp(value, min, max, fallback) {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+function canBrowse(context) {
+  return storeEnabled() || isPlatformAdmin(context.session);
+}
+var VISIBLE = { status: STORE_PRODUCT_STATUS.ACTIVE, priceCents: { gt: 0 } };
+var IN_STOCK = {
+  OR: [
+    { source: STORE_PRODUCT_SOURCE.MERCADO_LIBRE },
+    { inventoryPolicy: STORE_INVENTORY_POLICY.UNTRACKED },
+    { stockTotal: { gt: 0 } }
+  ]
+};
+var ORDER_BY = {
+  featured: [{ isFeatured: "desc" }, { publishedAt: "desc" }, { id: "asc" }],
+  newest: [{ publishedAt: "desc" }, { id: "asc" }],
+  price_asc: [{ priceCents: "asc" }, { id: "asc" }],
+  price_desc: [{ priceCents: "desc" }, { id: "asc" }],
+  rating: [{ ratingAverage: "desc" }, { ratingCount: "desc" }, { id: "asc" }],
+  best_selling: [{ salesCount: "desc" }, { id: "asc" }]
+};
+async function buildWhere(prisma, input) {
+  const and = [VISIBLE];
+  const search = normalizeSearchText(input.search).slice(0, STORE_SEARCH_MAX_LENGTH);
+  if (search.length >= STORE_SEARCH_MIN_LENGTH) and.push({ nameSearch: { contains: search } });
+  const categorySlug = (input.categorySlug ?? "").trim();
+  if (categorySlug) {
+    const categories = unwrap7(
+      await prisma.storeCategory.findMany({
+        where: { isActive: true, OR: [{ slug: categorySlug }, { parent: { slug: categorySlug } }] },
+        select: { id: true }
+      })
+    );
+    if (categories.length === 0) return null;
+    and.push({ categoryId: { in: categories.map((category) => category.id) } });
+  }
+  const brandSlug = (input.brandSlug ?? "").trim();
+  if (brandSlug) and.push({ brand: { slug: brandSlug } });
+  const animalType = (input.animalType ?? "").trim();
+  if (animalType) and.push({ animalTypes: { some: { name: animalType } } });
+  const sources = storeSourcesForSeller(input.seller);
+  if (sources) and.push({ source: { in: sources } });
+  const min = Number(input.minPriceCents);
+  const max = Number(input.maxPriceCents);
+  if (Number.isFinite(min) && min > 0) and.push({ priceCents: { gte: Math.floor(min) } });
+  if (Number.isFinite(max) && max > 0) and.push({ priceCents: { lte: Math.floor(max) } });
+  if (input.onSale) and.push({ compareAtPriceCents: { not: null } });
+  if (input.featured) and.push({ isFeatured: true });
+  if (input.inStock) and.push(IN_STOCK);
+  return { AND: and };
+}
+var facetsCache = null;
+var EMPTY_FACETS = {
+  enabled: false,
+  total: 0,
+  categories: [],
+  brands: [],
+  minPriceCents: 0,
+  maxPriceCents: 0
+};
+async function computeFacets(context) {
+  const prisma = storePrisma(context);
+  const [categories, brands] = await Promise.all([
+    prisma.storeCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
+      take: 200,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        image_id: true,
+        image_extension: true,
+        parent: { select: { slug: true } }
+      }
+    }),
+    prisma.storeBrand.findMany({
+      where: { isActive: true },
+      orderBy: [{ name: "asc" }],
+      take: 200,
+      select: { id: true, slug: true, name: true, logo_id: true, logo_extension: true }
+    })
+  ]);
+  const [byCategory, byBrand, prices] = await Promise.all([
+    prisma.storeProduct.groupBy({ by: ["categoryId"], where: VISIBLE, _count: { _all: true } }),
+    prisma.storeProduct.groupBy({ by: ["brandId"], where: VISIBLE, _count: { _all: true } }),
+    prisma.storeProduct.aggregate({
+      where: VISIBLE,
+      _min: { priceCents: true },
+      _max: { priceCents: true },
+      _count: { _all: true }
+    })
+  ]);
+  const categoryCounts = /* @__PURE__ */ new Map();
+  for (const row of unwrap7(byCategory)) {
+    if (row.categoryId) categoryCounts.set(row.categoryId, Number(row._count._all));
+  }
+  const brandCounts = /* @__PURE__ */ new Map();
+  for (const row of unwrap7(byBrand)) {
+    if (row.brandId) brandCounts.set(row.brandId, Number(row._count._all));
+  }
+  const totals = unwrap7(prices);
+  const categoryList = await Promise.all(
+    unwrap7(categories).filter((row) => row.slug).map(async (row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      parentSlug: row.parent?.slug ?? null,
+      imageUrl: await storeImageUrl(context, {
+        image_id: row.image_id,
+        image_extension: row.image_extension,
+        externalUrl: null
+      }),
+      count: categoryCounts.get(row.id) ?? 0
+    }))
+  );
+  const brandList = await Promise.all(
+    unwrap7(brands).filter((row) => row.slug && brandCounts.has(row.id)).map(async (row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      logoUrl: await storeImageUrl(context, {
+        image_id: row.logo_id,
+        image_extension: row.logo_extension,
+        externalUrl: null
+      }),
+      count: brandCounts.get(row.id) ?? 0
+    }))
+  );
+  return {
+    enabled: true,
+    total: Number(totals._count._all) || 0,
+    categories: categoryList,
+    brands: brandList,
+    minPriceCents: Number(totals._min.priceCents) || 0,
+    maxPriceCents: Number(totals._max.priceCents) || 0
+  };
+}
+var REVIEW_SELECT = {
+  id: true,
+  rating: true,
+  title: true,
+  body: true,
+  verifiedPurchase: true,
+  adminReply: true,
+  status: true,
+  createdAt: true,
+  userId: true
+};
+var resolver122 = {
+  /** Product list for /tienda and the app. Three queries however many products come back. */
+  storeCatalog: async (_root, { input }, context) => {
+    if (!canBrowse(context)) return { total: 0, items: [] };
+    const filters = input ?? {};
+    const prisma = storePrisma(context);
+    const take = clamp(filters.take, 1, STORE_CATALOG_MAX_TAKE, STORE_CATALOG_DEFAULT_TAKE);
+    const skip = clamp(filters.skip, 0, 1e5, 0);
+    const where = await buildWhere(prisma, filters);
+    if (!where) return { total: 0, items: [] };
+    const orderBy = ORDER_BY[filters.sort ?? ""] ?? ORDER_BY.featured;
+    const [rows2, total] = await Promise.all([
+      prisma.storeProduct.findMany({ where, orderBy, take, skip, select: CATALOG_ITEM_SELECT }),
+      prisma.storeProduct.count({ where })
+    ]);
+    const products = unwrap7(rows2);
+    const covers = await loadStoreCovers(
+      context,
+      products.map((product) => product.id)
+    );
+    return {
+      total: Number(unwrap7(total)) || 0,
+      items: products.map((product) => toCatalogItem(product, covers.get(product.id)))
+    };
+  },
+  /** One product by slug, with its photos, variants, star breakdown and related products. */
+  storeCatalogProduct: async (_root, { slug }, context) => {
+    if (!canBrowse(context)) return null;
+    const cleanSlug = (slug ?? "").trim();
+    if (!cleanSlug) return null;
+    const prisma = storePrisma(context);
+    const visibility = isPlatformAdmin(context.session) ? {} : VISIBLE;
+    const product = unwrap7(
+      await prisma.storeProduct.findFirst({
+        where: { slug: cleanSlug, ...visibility },
+        select: {
+          ...CATALOG_ITEM_SELECT,
+          description: true,
+          metaTitle: true,
+          metaDescription: true,
+          categoryId: true,
+          animalTypes: { select: { name: true } }
+        }
+      })
+    );
+    if (!product) return null;
+    const [variants, images, breakdown, related] = await Promise.all([
+      prisma.storeProductVariant.findMany({
+        where: { productId: product.id, isActive: true },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        take: 100,
+        select: {
+          id: true,
+          title: true,
+          sku: true,
+          options: true,
+          priceCents: true,
+          compareAtPriceCents: true,
+          stock: true
+        }
+      }),
+      prisma.storeProductImage.findMany({
+        where: { productId: product.id },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        take: 24,
+        select: { image_id: true, image_extension: true, externalUrl: true, alt: true }
+      }),
+      prisma.storeProductReview.groupBy({
+        by: ["rating"],
+        where: { productId: product.id, status: STORE_REVIEW_STATUS.PUBLISHED },
+        _count: { _all: true }
+      }),
+      product.categoryId ? prisma.storeProduct.findMany({
+        where: { ...VISIBLE, categoryId: product.categoryId, id: { not: product.id } },
+        orderBy: [{ salesCount: "desc" }, { ratingCount: "desc" }, { id: "asc" }],
+        take: STORE_RELATED_TAKE,
+        select: CATALOG_ITEM_SELECT
+      }) : Promise.resolve([])
+    ]);
+    const relatedRows = unwrap7(related);
+    const covers = await loadStoreCovers(context, [product.id, ...relatedRows.map((row) => row.id)]);
+    const imageList = (await Promise.all(
+      unwrap7(images).map(async (image14) => ({ url: await storeImageUrl(context, image14), alt: image14.alt || null }))
+    )).filter((image14) => Boolean(image14.url));
+    const ratingBreakdown = [0, 0, 0, 0, 0];
+    for (const row of unwrap7(breakdown)) {
+      const stars = Number(row.rating);
+      if (stars >= 1 && stars <= 5) ratingBreakdown[stars - 1] = Number(row._count._all);
+    }
+    const tracked = product.inventoryPolicy === STORE_INVENTORY_POLICY.TRACKED;
+    const affiliate = product.source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE;
+    return {
+      item: toCatalogItem(product, covers.get(product.id)),
+      description: product.description || null,
+      metaTitle: product.metaTitle || null,
+      metaDescription: product.metaDescription || null,
+      images: imageList,
+      variants: unwrap7(variants).map((variant) => {
+        const price = Number(variant.priceCents) || 0;
+        const compare = Number(variant.compareAtPriceCents) || 0;
+        return {
+          id: variant.id,
+          title: variant.title || null,
+          sku: variant.sku || null,
+          options: variant.options ?? null,
+          priceCents: price,
+          compareAtPriceCents: compare > price ? compare : null,
+          inStock: affiliate || !tracked || (Number(variant.stock) || 0) > 0,
+          stockLeft: affiliate ? null : storeStockLeft(product.inventoryPolicy, variant.stock)
+        };
+      }),
+      animalTypes: product.animalTypes.map((type) => type.name),
+      ratingBreakdown,
+      related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id)))
+    };
+  },
+  /** Categories, brands and price range for the filters. Cached in memory for 10 minutes. */
+  storeCatalogFacets: async (_root, _args, context) => {
+    if (!canBrowse(context)) return EMPTY_FACETS;
+    const version = storeCatalogVersion();
+    if (facetsCache && facetsCache.version === version && Date.now() - facetsCache.at < STORE_FACETS_CACHE_MS) {
+      return facetsCache.value;
+    }
+    const value = await computeFacets(context);
+    facetsCache = { value, at: Date.now(), version };
+    return value;
+  },
+  /** Published reviews of a product, newest first, plus the caller's own review. */
+  storeCatalogReviews: async (_root, args, context) => {
+    const empty4 = { total: 0, items: [], mine: null };
+    if (!canBrowse(context) || !args.productId) return empty4;
+    const prisma = storePrisma(context);
+    const take = clamp(args.take, 1, STORE_REVIEWS_MAX_TAKE, STORE_REVIEWS_DEFAULT_TAKE);
+    const skip = clamp(args.skip, 0, 1e5, 0);
+    const where = { productId: args.productId, status: STORE_REVIEW_STATUS.PUBLISHED };
+    const userId = getSessionUserId(context.session);
+    const [rows2, total, own] = await Promise.all([
+      prisma.storeProductReview.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        take,
+        skip,
+        select: REVIEW_SELECT
+      }),
+      prisma.storeProductReview.count({ where }),
+      userId ? prisma.storeProductReview.findUnique({
+        where: { key: `${userId}:${args.productId}` },
+        select: REVIEW_SELECT
+      }) : Promise.resolve(null)
+    ]);
+    const reviews = unwrap7(rows2);
+    const mine = unwrap7(own);
+    const cards = await getPublicUserCards(context, [...reviews.map((review) => review.userId), mine?.userId]);
+    const toReview = (review) => {
+      const card = review.userId ? cards.get(review.userId) : void 0;
+      return {
+        id: review.id,
+        rating: Number(review.rating),
+        title: review.title || null,
+        body: review.body || null,
+        verifiedPurchase: Boolean(review.verifiedPurchase),
+        adminReply: review.adminReply || null,
+        status: review.status,
+        createdAt: review.createdAt ? new Date(review.createdAt).toISOString() : null,
+        author: card ? { name: card.displayName, username: card.username, avatarUrl: card.avatarUrl, level: card.level } : null
+      };
+    };
+    return {
+      total: Number(unwrap7(total)) || 0,
+      items: reviews.map(toReview),
+      mine: mine ? toReview(mine) : null
+    };
+  }
+};
+var storeCatalog_default = { typeDefs: typeDefs125, definition: definition122, resolver: resolver122 };
+
+// graphql/customs/queries/store/myStoreWishlist.ts
+var definition123 = `
+  myStoreWishlist(take: Int, skip: Int): StoreCatalogResult!
+  myStoreWishlistIds: [ID!]!
+`;
+function clamp2(value, min, max, fallback) {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+function canBrowse2(context) {
+  return storeEnabled() || isPlatformAdmin(context.session);
+}
+var resolver123 = {
+  /** Saved products, newest first. Products no longer for sale are left out. */
+  myStoreWishlist: async (_root, args, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId || !canBrowse2(context)) return { total: 0, items: [] };
+    const prisma = storePrisma(context);
+    const take = clamp2(args.take, 1, STORE_CATALOG_MAX_TAKE, STORE_CATALOG_DEFAULT_TAKE);
+    const skip = clamp2(args.skip, 0, STORE_WISHLIST_MAX, 0);
+    const where = { userId, product: { status: STORE_PRODUCT_STATUS.ACTIVE } };
+    const [rows2, total] = await Promise.all([
+      prisma.storeWishlistItem.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        take,
+        skip,
+        select: { productId: true }
+      }),
+      prisma.storeWishlistItem.count({ where })
+    ]);
+    if (rows2 instanceof Error) throw rows2;
+    if (total instanceof Error) throw total;
+    const ids = rows2.map((row) => row.productId).filter((id) => Boolean(id));
+    const items = await loadCatalogItems(context, { status: STORE_PRODUCT_STATUS.ACTIVE }, ids);
+    return { total: Number(total) || 0, items };
+  },
+  /** Ids of every saved product (one query). */
+  myStoreWishlistIds: async (_root, _args, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId || !canBrowse2(context)) return [];
+    const rows2 = await storePrisma(context).storeWishlistItem.findMany({
+      where: { userId },
+      orderBy: [{ createdAt: "desc" }],
+      take: STORE_WISHLIST_MAX,
+      select: { productId: true }
+    });
+    if (rows2 instanceof Error) throw rows2;
+    return rows2.map((row) => row.productId).filter((id) => Boolean(id));
+  }
+};
+var myStoreWishlist_default = { typeDefs: "", definition: definition123, resolver: resolver123 };
+
+// graphql/customs/queries/store/index.ts
+var storeQueries = {
+  typeDefs: `
+    ${storeCatalog_default.typeDefs}
+    ${myStoreWishlist_default.typeDefs}
+  `,
+  definition: `
+    ${storeCatalog_default.definition}
+    ${myStoreWishlist_default.definition}
+  `,
+  resolver: {
+    ...storeCatalog_default.resolver,
+    ...myStoreWishlist_default.resolver
+  }
+};
+var store_default2 = storeQueries;
+
+// graphql/customs/queries/admin/adminStore.ts
+var typeDefs126 = `
+  type AdminStoreProductRow {
+    id: ID!
+    name: String!
+    slug: String
+    "own | dropi | mercado_libre"
+    source: String!
+    "draft | active | paused | archived"
+    status: String!
+    priceCents: Int!
+    compareAtPriceCents: Int
+    "tracked | untracked"
+    inventoryPolicy: String!
+    stockTotal: Int!
+    variantsCount: Int!
+    ratingAverage: Float!
+    ratingCount: Int!
+    salesCount: Int!
+    isFeatured: Boolean!
+    externalId: String
+    category: String
+    brand: String
+    coverUrl: String
+    createdAt: String
+    updatedAt: String
+  }
+
+  type AdminStoreProductsResult {
+    total: Int!
+    items: [AdminStoreProductRow!]!
+    "Products per status, ignoring the status filter (for the filter chips)."
+    statusCounts: [AdminCount!]!
+  }
+`;
+var definition124 = `
+  adminStoreProducts(
+    search: String
+    source: String
+    status: String
+    categoryId: ID
+    brandId: ID
+    "true = tracked products with no stock left"
+    outOfStock: Boolean
+    take: Int
+    skip: Int
+  ): AdminStoreProductsResult!
+`;
+var resolver124 = {
+  adminStoreProducts: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const take = clampInt(args.take, 1, STORE_ADMIN_MAX_TAKE, 25);
+    const skip = clampInt(args.skip, 0, 1e6, 0);
+    const base = [];
+    const search = normalizeSearchText(args.search);
+    if (search) {
+      base.push({
+        OR: [
+          { nameSearch: { contains: search } },
+          { externalId: { equals: (args.search ?? "").trim() } },
+          { variants: { some: { sku: { equals: (args.search ?? "").trim() } } } }
+        ]
+      });
+    }
+    if (args.source) base.push({ source: args.source });
+    if (args.categoryId) base.push({ categoryId: args.categoryId });
+    if (args.brandId) base.push({ brandId: args.brandId });
+    if (args.outOfStock) base.push({ inventoryPolicy: STORE_INVENTORY_POLICY.TRACKED, stockTotal: { lte: 0 } });
+    const where = { AND: args.status ? [...base, { status: args.status }] : base };
+    const [rows2, total, byStatus] = await Promise.all([
+      prisma.storeProduct.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+        take,
+        skip,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          source: true,
+          status: true,
+          priceCents: true,
+          compareAtPriceCents: true,
+          inventoryPolicy: true,
+          stockTotal: true,
+          ratingAverage: true,
+          ratingCount: true,
+          salesCount: true,
+          isFeatured: true,
+          externalId: true,
+          createdAt: true,
+          updatedAt: true,
+          category: { select: { name: true } },
+          brand: { select: { name: true } }
+        }
+      }),
+      prisma.storeProduct.count({ where }),
+      prisma.storeProduct.groupBy({ by: ["status"], where: { AND: base }, _count: { _all: true } })
+    ]);
+    const products = unwrapPrisma(rows2);
+    const ids = products.map((product) => product.id);
+    const [covers, variantGroups] = await Promise.all([
+      loadStoreCovers(context, ids),
+      ids.length > 0 ? prisma.storeProductVariant.groupBy({
+        by: ["productId"],
+        where: { productId: { in: ids } },
+        _count: { _all: true }
+      }) : Promise.resolve([])
+    ]);
+    const variantCounts = /* @__PURE__ */ new Map();
+    for (const group of unwrapPrisma(variantGroups)) {
+      if (group.productId) variantCounts.set(group.productId, Number(group._count._all));
+    }
+    return {
+      total: Number(unwrapPrisma(total)) || 0,
+      items: products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        source: product.source,
+        status: product.status,
+        priceCents: Number(product.priceCents) || 0,
+        compareAtPriceCents: product.compareAtPriceCents ? Number(product.compareAtPriceCents) : null,
+        inventoryPolicy: product.inventoryPolicy,
+        stockTotal: Number(product.stockTotal) || 0,
+        variantsCount: variantCounts.get(product.id) ?? 0,
+        ratingAverage: Number(product.ratingAverage) || 0,
+        ratingCount: Number(product.ratingCount) || 0,
+        salesCount: Number(product.salesCount) || 0,
+        isFeatured: Boolean(product.isFeatured),
+        externalId: product.externalId,
+        category: product.category?.name ?? null,
+        brand: product.brand?.name ?? null,
+        coverUrl: covers.get(product.id)?.url ?? null,
+        createdAt: toIso(product.createdAt),
+        updatedAt: toIso(product.updatedAt)
+      })),
+      statusCounts: countsToList(
+        unwrapPrisma(byStatus).map((group) => ({
+          key: group.status,
+          count: Number(group._count._all)
+        }))
+      )
+    };
+  }
+};
+var adminStore_default = { typeDefs: typeDefs126, definition: definition124, resolver: resolver124 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -50168,6 +51807,8 @@ var customQuery = {
     ${pawLeaderboard_default.typeDefs}
     ${myPaws_default.typeDefs}
     ${publicProfile_default.typeDefs}
+    ${store_default2.typeDefs}
+    ${adminStore_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -50214,6 +51855,8 @@ var customQuery = {
     ${pawLeaderboard_default.definition}
     ${myPaws_default.definition}
     ${publicProfile_default.definition}
+    ${store_default2.definition}
+    ${adminStore_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -50259,7 +51902,9 @@ var customQuery = {
     ...rescueAllies_default.resolver,
     ...pawLeaderboard_default.resolver,
     ...myPaws_default.resolver,
-    ...publicProfile_default.resolver
+    ...publicProfile_default.resolver,
+    ...store_default2.resolver,
+    ...adminStore_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -50722,8 +52367,8 @@ function apiToken() {
   const value = process.env.CLICKUP_API_TOKEN?.trim();
   return value || void 0;
 }
-function clip(text89, max = 300) {
-  const trimmed = text89.replace(/\s+/g, " ").trim();
+function clip(text96, max = 300) {
+  const trimmed = text96.replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -50786,10 +52431,10 @@ async function getTaskComments(taskId) {
   if (!Array.isArray(comments)) return [];
   return comments.filter(isComment);
 }
-async function commentTask(taskId, text89) {
+async function commentTask(taskId, text96) {
   await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
     method: "POST",
-    body: { comment_text: text89, notify_all: false }
+    body: { comment_text: text96, notify_all: false }
   });
 }
 async function downloadClickUpFile(url, maxBytes) {
@@ -50841,11 +52486,11 @@ function apiKey() {
   const value = process.env.PIXABAY_API_KEY?.trim();
   return value || void 0;
 }
-function redact(text89) {
-  return text89.replace(/key=[^&\s]+/gi, "key=***");
+function redact(text96) {
+  return text96.replace(/key=[^&\s]+/gi, "key=***");
 }
-function clip2(text89, max = 200) {
-  const trimmed = redact(text89).replace(/\s+/g, " ").trim();
+function clip2(text96, max = 200) {
+  const trimmed = redact(text96).replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -51091,20 +52736,20 @@ async function resolvePostImage(task, context) {
     pixabayCredit: photo.credit
   };
 }
-async function attachImageToPost(context, postId, image11) {
+async function attachImageToPost(context, postId, image14) {
   await context.sudo().prisma.post.update({
     where: { id: postId },
     data: {
-      image_id: image11.id,
-      image_extension: image11.extension,
-      image_filesize: image11.filesize,
-      image_width: image11.width,
-      image_height: image11.height
+      image_id: image14.id,
+      image_extension: image14.extension,
+      image_filesize: image14.filesize,
+      image_width: image14.width,
+      image_height: image14.height
     }
   });
 }
-async function deleteStoredPostImage(context, image11) {
-  await context.images("s3_posts").deleteAtSource(image11.id, image11.extension);
+async function deleteStoredPostImage(context, image14) {
+  await context.images("s3_posts").deleteAtSource(image14.id, image14.extension);
 }
 
 // utils/helpers/markdownToDocument.ts
@@ -51134,8 +52779,8 @@ function readLink(input, start, bold) {
   const label = input.slice(start + 1, labelEnd);
   const href = input.slice(labelEnd + 2, hrefEnd).trim();
   if (!label || !href || label.includes("[") || label.includes("]")) return null;
-  const text89 = bold ? { text: label, bold: true } : { text: label };
-  return { node: { type: "link", href, children: [text89] }, next: hrefEnd + 1 };
+  const text96 = bold ? { text: label, bold: true } : { text: label };
+  return { node: { type: "link", href, children: [text96] }, next: hrefEnd + 1 };
 }
 function parseInlines(input, bold = false) {
   const nodes = [];
@@ -51180,33 +52825,33 @@ function boldOnlyInner(line) {
   if (!inner.trim() || inner.includes("**")) return null;
   return inner.trim();
 }
-function listItem(text89) {
+function listItem(text96) {
   return {
     type: "list-item",
-    children: [{ type: "list-item-content", children: padInlines(parseInlines(text89.trim())) }]
+    children: [{ type: "list-item-content", children: padInlines(parseInlines(text96.trim())) }]
   };
 }
 function markdownToDocument(markdown) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks = [];
   let paragraphLines = [];
-  let list103 = null;
+  let list110 = null;
   const flushParagraph = () => {
-    const text89 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
+    const text96 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
     paragraphLines = [];
-    if (!text89) return;
-    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text89)) });
+    if (!text96) return;
+    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text96)) });
   };
   const flushList = () => {
-    if (!list103 || list103.items.length === 0) {
-      list103 = null;
+    if (!list110 || list110.items.length === 0) {
+      list110 = null;
       return;
     }
     blocks.push({
-      type: list103.ordered ? "ordered-list" : "unordered-list",
-      children: list103.items
+      type: list110.ordered ? "ordered-list" : "unordered-list",
+      children: list110.items
     });
-    list103 = null;
+    list110 = null;
   };
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -51220,11 +52865,11 @@ function markdownToDocument(markdown) {
     if (unordered || ordered) {
       flushParagraph();
       const orderedItem = Boolean(ordered);
-      if (!list103 || list103.ordered !== orderedItem) {
+      if (!list110 || list110.ordered !== orderedItem) {
         flushList();
-        list103 = { ordered: orderedItem, items: [] };
+        list110 = { ordered: orderedItem, items: [] };
       }
-      list103.items.push(listItem((unordered ?? ordered)[1]));
+      list110.items.push(listItem((unordered ?? ordered)[1]));
       continue;
     }
     const heading = boldOnlyInner(line);
@@ -51247,10 +52892,10 @@ function inlineToText(nodes) {
 function excerptFromDocument(nodes, max = EXCERPT_MAX2) {
   for (const node of nodes) {
     if (node.type !== "paragraph") continue;
-    const text89 = inlineToText(node.children).replace(/\s+/g, " ").trim();
-    if (!text89) continue;
-    if (text89.length <= max) return text89;
-    const slice = text89.slice(0, max);
+    const text96 = inlineToText(node.children).replace(/\s+/g, " ").trim();
+    if (!text96) continue;
+    if (text96.length <= max) return text96;
+    const slice = text96.slice(0, max);
     const lastSpace = slice.lastIndexOf(" ");
     if (lastSpace <= 0) return slice.trimEnd();
     return slice.slice(0, lastSpace).trimEnd();
@@ -51356,7 +53001,7 @@ async function scheduleApprovedClickUpTask(taskId, context) {
     return;
   }
   const resolved = await resolvePostImage(task, context);
-  const image11 = resolved.image;
+  const image14 = resolved.image;
   let createdId = null;
   try {
     const created = await context.sudo().query.Post.createOne({
@@ -51372,7 +53017,7 @@ async function scheduleApprovedClickUpTask(taskId, context) {
       query: "id url product"
     });
     createdId = created.id;
-    await attachImageToPost(context, created.id, image11);
+    await attachImageToPost(context, created.id, image14);
     await setTaskStatus(taskId, "programado");
     const url = postPublicUrl(created.product || product, created.url, created.id);
     const when = formatInMexicoCity(draft.publishedAt);
@@ -51384,7 +53029,7 @@ Foto: ${resolved.pixabayCredit.user} en Pixabay \u2014 ${resolved.pixabayCredit.
       console.error("[clickup] el post qued\xF3 programado pero no se pudo comentar", err);
     }
   } catch (err) {
-    await rollbackCreatedPost(context, createdId, image11);
+    await rollbackCreatedPost(context, createdId, image14);
     if (isClickUpTaskConflict(err)) {
       const raced = await findPostByClickUpTask(context, taskId);
       if (raced) {
@@ -51395,13 +53040,13 @@ Foto: ${resolved.pixabayCredit.user} en Pixabay \u2014 ${resolved.pixabayCredit.
     throw err;
   }
 }
-async function rollbackCreatedPost(context, postId, image11) {
+async function rollbackCreatedPost(context, postId, image14) {
   if (postId) {
     await context.sudo().prisma.post.delete({ where: { id: postId } }).catch((deleteErr) => {
       console.error("[clickup] no se pudo borrar el post a medias", deleteErr);
     });
   }
-  await deleteStoredPostImage(context, image11).catch((deleteErr) => {
+  await deleteStoredPostImage(context, image14).catch((deleteErr) => {
     console.error("[clickup] no se pudo borrar la imagen del post a medias", deleteErr);
   });
 }
@@ -51432,10 +53077,10 @@ function isApprovedStatusUpdate(payload) {
 }
 function commentForError(err) {
   const message = err instanceof Error ? err.message : "";
-  const text89 = message.replace(/^\[clickup\]\s*/, "").trim();
-  if (!text89) return "No se pudo programar el post.";
-  if (text89.length <= 500) return text89;
-  return `${text89.slice(0, 500)}\u2026`;
+  const text96 = message.replace(/^\[clickup\]\s*/, "").trim();
+  if (!text96) return "No se pudo programar el post.";
+  if (text96.length <= 500) return text96;
+  return `${text96.slice(0, 500)}\u2026`;
 }
 async function handleClickUpWebhook(req, res, context) {
   try {
@@ -51817,11 +53462,11 @@ async function handleSubscriptionChange(context, event) {
 async function invoiceIdForPaymentIntent(paymentIntentId) {
   if (!paymentIntentId) return null;
   try {
-    const list103 = await stripe_default.invoicePayments.list({
+    const list110 = await stripe_default.invoicePayments.list({
       payment: { type: "payment_intent", payment_intent: paymentIntentId },
       limit: 1
     });
-    return str(list103?.data?.[0]?.invoice);
+    return str(list110?.data?.[0]?.invoice);
   } catch {
     return null;
   }
@@ -52000,6 +53645,11 @@ var storage = {
       type: "image",
       pathPrefix: prefix("rescue/")
     },
+    s3_store: {
+      ...s3Common,
+      type: "image",
+      pathPrefix: prefix("store/")
+    },
     s3_tech_files: {
       ...s3Common,
       type: "file",
@@ -52065,6 +53715,12 @@ var storage = {
       serverRoute: { path: "/images" },
       storagePath: "public/images"
     },
+    s3_store: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
     s3_tech_files: {
       kind: "local",
       type: "file",
@@ -52080,7 +53736,7 @@ var storage = {
   }
 };
 var keystone_default = withSessionGuards(withAuth(
-  (0, import_core105.config)({
+  (0, import_core112.config)({
     db: {
       provider: "postgresql",
       // Sin connection_limit, Prisma abre núcleos × 2 + 1 conexiones y en Railway cuenta los

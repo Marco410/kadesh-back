@@ -178,6 +178,9 @@ export const ACTIVITY_EVENT = {
   PET_PLACE_VERIFIED: "pet.place_verified",
   PET_REVIEW_ADDED: "pet.review_added",
   PET_REVIEW_DELETED: "pet.review_deleted",
+  // Store: a shopper reviewed a product (never the text: ids, length and rating only).
+  PET_STORE_REVIEW_ADDED: "pet.store_review_added",
+  PET_STORE_REVIEW_DELETED: "pet.store_review_deleted",
   // Eventos (campañas, jornadas): publicar, editar, revisar (admin) y cancelar.
   PET_EVENT_SUBMITTED: "pet.event_submitted",
   PET_EVENT_UPDATED: "pet.event_updated",
