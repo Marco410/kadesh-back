@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import {
   STORE_INVENTORY_POLICY,
   STORE_PAYMENT_STATUS,
+  STORE_PRODUCT_SOURCE,
   STORE_PRODUCT_STATUS,
   STORE_SUMMARY_CACHE_MS,
   STORE_SUMMARY_DAYS,
@@ -156,6 +157,7 @@ async function computeSummary(context: KeystoneContext, days: number): Promise<S
              AND o."cancelledAt" >= ${start}::timestamp AND o."cancelledAt" < ${end}::timestamp) AS "refundedCents",
         (SELECT count(*)::int FROM "StoreProduct" p
            WHERE p.status = ${STORE_PRODUCT_STATUS.ACTIVE} AND p."inventoryPolicy" = ${STORE_INVENTORY_POLICY.TRACKED}
+             AND p.source <> ${STORE_PRODUCT_SOURCE.MERCADO_LIBRE}
              AND COALESCE(p."stockTotal", 0) <= 0) AS "outOfStock"
     `,
     prisma.$queryRaw`
@@ -191,6 +193,8 @@ async function computeSummary(context: KeystoneContext, days: number): Promise<S
       where: {
         status: STORE_PRODUCT_STATUS.ACTIVE,
         inventoryPolicy: STORE_INVENTORY_POLICY.TRACKED,
+        // Affiliate products are sold on Mercado Libre: Kadesh keeps no stock of them.
+        source: { not: STORE_PRODUCT_SOURCE.MERCADO_LIBRE },
         stockTotal: { gt: 0, lte: STORE_SUMMARY_LOW_STOCK },
       },
       orderBy: [{ stockTotal: "asc" }, { name: "asc" }],

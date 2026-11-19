@@ -2,6 +2,16 @@
 
 Datos iniciales al correr `yarn db:seed` (`seed.ts` → `index.ts`). Cada helper es idempotente: no duplica filas que ya existen.
 
+## Tienda de Kadesh Pet (`store.ts`)
+
+Datos de prueba para ver la tienda funcionando en local. Todo es falso: fotos de picsum.photos, cuenta bancaria y personas inventadas (correos `@tienda-seed.kadesh.local`, sin contraseña: no inician sesión).
+
+- **Ajustes**: envío de $99, gratis desde $799, tarjeta y transferencia con datos bancarios de prueba. Solo si no hay ajustes.
+- **Catálogo** (solo si no hay ninguna categoría): 10 categorías en dos niveles, 3 marcas y 12 productos: propios con stock, con poco stock, agotados y sobre pedido; 3 de Dropi; 2 de Mercado Libre; 1 en borrador.
+- **Cupones** (se agregan los que falten): `BIENVENIDA10`, `ENVIOGRATIS`, `FIJO50`, `JUGUETES20` y `VENCIDO`.
+- **Reseñas y pedidos**: 7 reseñas y 13 pedidos de los últimos 30 días en todos los estatus (entregados, en camino, por surtir, comprobante por revisar, esperando transferencia, cancelado y reembolsado), para Pedidos y Resumen en Operaciones. Son historia: no mueven stock, cupones ni huellitas, ni mandan correos.
+- La tienda se ve con `STORE_ENABLED=true` en el back y `NEXT_PUBLIC_STORE_ENABLED=true` en el landing.
+
 ## Invariantes
 
 - El admin se busca **por email** (`marco_pascual410@hotmail.com`). Si no está, se crea. Otros usuarios en la DB no saltan este seed.
