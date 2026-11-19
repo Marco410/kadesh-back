@@ -317,3 +317,15 @@ export const STORE_MIN_ORDER_TOTAL_CENTS = 1000;
 
 /** Coupon codes one IP may try on the cart in ten minutes (against guessing codes). */
 export const STORE_COUPON_ATTEMPTS = { limit: 20, windowMs: 10 * 60 * 1000 } as const;
+
+// ─── Sales report ───────────────────────────────────────────────────────────────────────────
+
+/** Periods `adminStoreSummary` answers for, in days. Over 92 days the series is by month. */
+export const STORE_SUMMARY_DAYS = [7, 30, 90, 365] as const;
+export const STORE_SUMMARY_DEFAULT_DAYS = 30;
+/** The report is kept in memory this long per period. */
+export const STORE_SUMMARY_CACHE_MS = 5 * 60 * 1000;
+/** Rows of each top list (products, coupons, low stock). */
+export const STORE_SUMMARY_TOP = 10;
+/** A product with counted stock at or under this is "about to run out". */
+export const STORE_SUMMARY_LOW_STOCK = 5;

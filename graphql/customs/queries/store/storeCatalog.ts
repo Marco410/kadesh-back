@@ -156,6 +156,8 @@ const typeDefs = `
   }
 
   type StoreCatalogReviewAuthor {
+    "For the apps: lets a person hide the reviews of someone they blocked, and report or block the author."
+    id: ID!
     "First name and initial of the last name."
     name: String!
     username: String
@@ -655,7 +657,7 @@ const resolver = {
         status: review.status,
         createdAt: review.createdAt ? new Date(review.createdAt).toISOString() : null,
         author: card
-          ? { name: card.displayName, username: card.username, avatarUrl: card.avatarUrl, level: card.level }
+          ? { id: review.userId, name: card.displayName, username: card.username, avatarUrl: card.avatarUrl, level: card.level }
           : null,
       };
     };

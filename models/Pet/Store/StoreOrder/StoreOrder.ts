@@ -30,7 +30,7 @@ export default list({
     extendPrismaSchema: (schema) =>
       schema.replace(
         /\n\}\s*$/,
-        "\n  @@index([userId, createdAt])\n  @@index([paymentStatus, createdAt])\n  @@index([fulfillmentStatus, createdAt])\n  @@index([status, expiresAt])\n}",
+        "\n  @@index([userId, createdAt])\n  @@index([paymentStatus, createdAt])\n  @@index([fulfillmentStatus, createdAt])\n  @@index([status, expiresAt])\n  @@index([paidAt])\n}",
       ),
   },
   ui: {

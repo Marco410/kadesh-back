@@ -37,6 +37,7 @@ Las lists viejas de esta carpeta (`Product`, `Cart`, `Order`, `Payment`, `Paymen
 | Comprar | `placeStoreOrder` (`mutations/store/placeStoreOrder.ts`) |
 | Después de comprar | `uploadStoreTransferProof`, `resumeStoreOrderPayment`, `cancelMyStoreOrder`, `saveMyStoreAddress`, `deleteMyStoreAddress` (`mutations/store/storeOrderActions.ts`) |
 | Pedidos en Operaciones | `adminStoreOrders`, `adminStoreOrder` (`queries/admin/adminStoreOrders.ts`) y `adminReviewStoreTransfer`, `adminUpdateStoreShipment`, `adminCancelStoreOrder`, `adminRefundStoreOrder`, `adminSetStoreOrderNote` (`mutations/admin/storeOrders.ts`) |
+| Reporte de ventas | `adminStoreSummary` (`queries/admin/adminStoreSummary.ts`): ventas, margen, por día, por origen, más vendidos, cupones e inventario |
 | Stripe | `webhooks/stripeStore.ts` (lo llama `webhooks/stripe.ts`) |
 | Cupones | lists `StoreCoupon` y `StoreCouponRedemption`; `evaluateCoupon`, `reserveCoupon`, `releaseStoreOrderCoupon` en `utils/store/coupons.ts`. El admin los crea con la API generada |
 | Huellitas de la tienda | `pawsOnStoreShipmentDelivered`, `pawsOnStorePurchaseUndone`, `pawsOnStoreProductReview` en `utils/pet/pawsTriggers.ts`; reglas en `models/Pet/Paws/constants.ts` |
@@ -56,6 +57,7 @@ Apagada hasta poner `STORE_ENABLED=true`. Apagada, el catálogo público respond
 - **Sin estrellas externas.** Todo producto empieza en 0; solo cuentan las reseñas hechas en Kadesh. No se importan calificaciones de Dropi ni de Mercado Libre.
 - **Una reseña y un deseo por persona y producto** (`key` único `<userId>:<productId>`).
 - **Una reseña oculta por un admin no vuelve**: su autor no puede editarla para republicarla.
+- **Cada reseña pública lleva el `id` de su autor** (`author.id`): la app lo usa para ocultar las reseñas de quien la persona bloqueó y para reportar o bloquear al autor (requisito de las tiendas de apps).
 - **Un producto con reseñas se archiva, no se borra.** Borrar uno sin reseñas se lleva sus variantes, sus fotos (con el archivo en R2) y los deseos.
 - **`(source, externalId)` es único.** `externalId` vacío se guarda como `null`.
 
@@ -122,6 +124,19 @@ Decisión de Marco (2026-11-19): comprar y reseñar dan huellitas; todavía no s
 
 Stripe: el endpoint de webhooks necesita además `payment_intent.succeeded` y `payment_intent.payment_failed` (ya tenía `charge.refunded`). Los pagos de la tienda llevan `metadata.kind = "store_order"`.
 
+## Reporte de ventas
+
+`adminStoreSummary(days)` responde para 7, 30, 90 o 365 días (otro valor = 30).
+
+- **Una venta es un pedido con `paymentStatus: paid`**, contado el día de `paidAt` en hora de CDMX. Un pedido reembolsado deja de ser venta y sale en «Reembolsos» el día de `cancelledAt`.
+- **No cuentan los pedidos de cuentas de prueba** (`User.userTest`).
+- **Ventas** = lo que pagó la gente (productos − cupones + envío cobrado). **Margen** = ventas − costo de productos (`StoreOrder.costCents`) − costo real de los envíos (`StoreShipment.shippingCostCents`). No descuenta la comisión de Stripe.
+- **Por origen** usa las líneas: lo que dejó cada una ya con su parte del cupón (`totalCents − discountCents`).
+- **Todo se agrega en la base**: el número de sentencias no crece con los pedidos. La serie es por día hasta 90 días y por mes en 365.
+- **Los montos van como `Float`** en GraphQL: una suma en centavos puede pasar del tope de `Int` (unos 21 millones de pesos).
+- **Inventario** (agotados y por agotarse) es el de ahora, no el del periodo.
+- Se guarda 5 min en memoria por periodo (cuatro entradas como mucho).
+
 ## Nombres que chocan con Keystone
 
 Keystone genera `storeProducts`, `storeProduct`, `storeProductReviews`, `createStoreProduct`… para estas lists. Una consulta o mutación propia con ese nombre la pisa.
@@ -146,6 +161,7 @@ Medido con 12 y con 48 productos: el número no cambia.
 | `storeCartQuote` | 2 a 3 (variantes con su producto, portadas; los ajustes salen de memoria); con cupón, de 1 a 3 más |
 | `myStoreOrders` | 4 |
 | `adminStoreOrders` | 5 (en dos rondas) |
+| `adminStoreSummary` | 8 (en dos rondas de 4), una vez cada 5 min por periodo; devuelve como mucho 90 puntos de serie y 10 filas por lista |
 
 Las URLs de las fotos van firmadas por 1 h: los fronts deben cachear estas páginas menos de eso.
 

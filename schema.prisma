@@ -1779,6 +1779,7 @@ model StoreOrder {
   @@index([paymentStatus, createdAt])
   @@index([fulfillmentStatus, createdAt])
   @@index([status, expiresAt])
+  @@index([paidAt])
 }
 
 model StoreOrderEvent {
