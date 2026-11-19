@@ -47,6 +47,8 @@ import Order from "./Pet/Store/Order/Order";
 import Payment from "./Pet/Store/Payment/Payment";
 import PaymentMethod from "./Pet/Store/PaymentMethod/PaymentMethod";
 import StoreCategory from "./Pet/Store/StoreCategory/StoreCategory";
+import StoreCoupon from "./Pet/Store/StoreCoupon/StoreCoupon";
+import StoreCouponRedemption from "./Pet/Store/StoreCouponRedemption/StoreCouponRedemption";
 import StoreBrand from "./Pet/Store/StoreBrand/StoreBrand";
 import StoreProduct from "./Pet/Store/StoreProduct/StoreProduct";
 import StoreProductVariant from "./Pet/Store/StoreProductVariant/StoreProductVariant";
@@ -194,6 +196,8 @@ export default withActivityHooks({
   StoreAddress,
   StoreBrand,
   StoreCategory,
+  StoreCoupon,
+  StoreCouponRedemption,
   StoreOrder,
   StoreOrderEvent,
   StoreOrderItem,

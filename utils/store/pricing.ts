@@ -9,11 +9,12 @@ import {
   STORE_PRODUCT_STATUS,
 } from "../../models/Pet/Store/constants";
 import { loadStoreCovers, storePrisma } from "./catalog";
+import { evaluateCoupon } from "./coupons";
 import { getStoreSettings, isCardAvailable, isTransferAvailable, type StoreSettingsValue } from "./settings";
 
 /**
- * What a cart costs, computed on the server. The browser only sends variants and quantities:
- * prices, stock, shipping and totals come from here, both for the cart preview (`storeCartQuote`)
+ * What a cart costs, computed on the server. The browser only sends variants, quantities and a
+ * coupon code: prices, stock, the discount, shipping and totals come from here, both for the cart preview (`storeCartQuote`)
  * and for placing the order (`placeStoreOrder`), so the two can never disagree.
  */
 
@@ -52,16 +53,30 @@ export type CartLine = {
   externalId: string | null;
   dropiVariationId: number | null;
   dropiSupplierId: number | null;
+  categoryId: string | null;
+  parentCategoryId: string | null;
+  /** Part of the coupon discount that falls on this line. */
+  discountCents: number;
 };
 
 export type CartQuote = {
   lines: CartLine[];
   itemsCount: number;
   subtotalCents: number;
+  /** After a free-shipping coupon. */
   shippingCents: number;
+  /** Subtotal − coupon discount + shipping. */
   totalCents: number;
   costCents: number;
   currency: string;
+  /** The code the person typed (normalized), applied or not. `null` when none was sent. */
+  couponCode: string | null;
+  couponApplied: boolean;
+  couponDiscountCents: number;
+  /** Why it applied or why it did not, ready to show. */
+  couponMessage: string | null;
+  // Internal: never returned to the shopper.
+  couponId: string | null;
   /** 0 = shipping is never free. */
   freeShippingMinCents: number;
   /** How much more to add for free shipping; 0 when already free or never free. */
@@ -93,6 +108,8 @@ type VariantRow = {
     inventoryPolicy: string | null;
     externalId: string | null;
     dropiSupplierId: number | null;
+    categoryId: string | null;
+    category: { parentId: string | null } | null;
   } | null;
 };
 
@@ -114,8 +131,21 @@ export function shippingFor(subtotalCents: number, settings: StoreSettingsValue)
   return settings.shippingFlatCents;
 }
 
-/** Quote of a cart: three queries (variants with their product, covers, settings from memory). */
-export async function quoteCart(context: KeystoneContext, rawItems: CartItemInput[] | null | undefined): Promise<CartQuote> {
+export type QuoteOptions = {
+  couponCode?: string | null;
+  /** The buyer, when known: the per-person rules of a coupon need it. */
+  userId?: string | null;
+};
+
+/**
+ * Quote of a cart: two queries (variants with their product, covers; settings come from memory),
+ * plus up to three more when a coupon code is sent.
+ */
+export async function quoteCart(
+  context: KeystoneContext,
+  rawItems: CartItemInput[] | null | undefined,
+  options: QuoteOptions = {},
+): Promise<CartQuote> {
   const settings = await getStoreSettings(context);
   const items = normalizeCartItems(rawItems);
   const prisma = storePrisma(context);
@@ -143,6 +173,8 @@ export async function quoteCart(context: KeystoneContext, rawItems: CartItemInpu
               inventoryPolicy: true,
               externalId: true,
               dropiSupplierId: true,
+              categoryId: true,
+              category: { select: { parentId: true } },
             },
           },
         },
@@ -210,11 +242,32 @@ export async function quoteCart(context: KeystoneContext, rawItems: CartItemInpu
       externalId: product?.externalId ?? null,
       dropiVariationId: variant?.dropiVariationId ?? null,
       dropiSupplierId: product?.dropiSupplierId ?? null,
+      categoryId: product?.categoryId ?? null,
+      parentCategoryId: product?.category?.parentId ?? null,
+      discountCents: 0,
     };
   });
 
   const subtotalCents = lines.reduce((sum, line) => sum + line.lineTotalCents, 0);
-  const shippingCents = shippingFor(subtotalCents, settings);
+  let shippingCents = shippingFor(subtotalCents, settings);
+
+  // The coupon is checked against what can actually be bought.
+  const coupon =
+    subtotalCents > 0
+      ? await evaluateCoupon(context, {
+          code: options.couponCode,
+          lines,
+          subtotalCents,
+          shippingCents,
+          userId: options.userId ?? null,
+        })
+      : null;
+  let couponDiscountCents = 0;
+  if (coupon?.applied) {
+    couponDiscountCents = coupon.discountCents;
+    if (coupon.freeShipping) shippingCents = 0;
+    for (const line of lines) line.discountCents = coupon.perLine.get(line.variantId) ?? 0;
+  }
   const paymentMethods = [
     ...(isCardAvailable(settings) ? [STORE_PAYMENT_METHOD.CARD] : []),
     ...(isTransferAvailable(settings) ? [STORE_PAYMENT_METHOD.TRANSFER] : []),
@@ -226,11 +279,18 @@ export async function quoteCart(context: KeystoneContext, rawItems: CartItemInpu
     itemsCount: lines.reduce((sum, line) => sum + line.quantity, 0),
     subtotalCents,
     shippingCents,
-    totalCents: subtotalCents + shippingCents,
+    totalCents: subtotalCents - couponDiscountCents + shippingCents,
+    couponCode: coupon?.code ?? null,
+    couponApplied: Boolean(coupon?.applied),
+    couponDiscountCents,
+    couponMessage: coupon?.message ?? null,
+    couponId: coupon?.applied ? coupon.couponId : null,
     costCents: lines.reduce((sum, line) => sum + (Number(line.unitCostCents) || 0) * line.quantity, 0),
     currency: STORE_CURRENCY,
     freeShippingMinCents: free,
-    missingForFreeShippingCents: free > 0 && subtotalCents > 0 && subtotalCents < free ? free - subtotalCents : 0,
+    // Nothing is missing when a coupon already made the shipping free.
+    missingForFreeShippingCents:
+      shippingCents > 0 && free > 0 && subtotalCents > 0 && subtotalCents < free ? free - subtotalCents : 0,
     canCheckout: lines.length > 0 && lines.every((line) => !line.issue) && subtotalCents > 0,
     messages,
     paymentMethods,
@@ -261,6 +321,10 @@ export function publicQuote(quote: CartQuote) {
     subtotalCents: quote.subtotalCents,
     shippingCents: quote.shippingCents,
     totalCents: quote.totalCents,
+    couponCode: quote.couponCode,
+    couponApplied: quote.couponApplied,
+    couponDiscountCents: quote.couponDiscountCents,
+    couponMessage: quote.couponMessage,
     currency: quote.currency,
     freeShippingMinCents: quote.freeShippingMinCents,
     missingForFreeShippingCents: quote.missingForFreeShippingCents,
@@ -300,8 +364,16 @@ export const CART_QUOTE_TYPEDEFS = `
     lines: [StoreCartLine!]!
     itemsCount: Int!
     subtotalCents: Int!
+    "After a free-shipping coupon."
     shippingCents: Int!
+    "Subtotal − couponDiscountCents + shippingCents."
     totalCents: Int!
+    "The code that was sent (normalized), applied or not."
+    couponCode: String
+    couponApplied: Boolean!
+    couponDiscountCents: Int!
+    "Why the coupon applied or why it did not, ready to show."
+    couponMessage: String
     currency: String!
     "0 = shipping is never free."
     freeShippingMinCents: Int!

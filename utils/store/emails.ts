@@ -56,11 +56,19 @@ type OrderRow = {
   email: string | null;
   customerName: string | null;
   subtotalCents: number;
+  couponCode: string | null;
+  couponDiscountCents: number | null;
   shippingCents: number;
   totalCents: number;
   expiresAt: Date | null;
   cancelReason: string | null;
-  items: Array<{ name: string; variantTitle: string | null; quantity: number; totalCents: number }>;
+  items: Array<{
+    name: string;
+    variantTitle: string | null;
+    quantity: number;
+    totalCents: number;
+    product: { slug: string | null; status: string } | null;
+  }>;
 };
 
 export async function sendStoreOrderEmail(
@@ -78,11 +86,22 @@ export async function sendStoreOrderEmail(
         email: true,
         customerName: true,
         subtotalCents: true,
+        couponCode: true,
+        couponDiscountCents: true,
         shippingCents: true,
         totalCents: true,
         expiresAt: true,
         cancelReason: true,
-        items: { select: { name: true, variantTitle: true, quantity: true, totalCents: true }, take: 50 },
+        items: {
+          select: {
+            name: true,
+            variantTitle: true,
+            quantity: true,
+            totalCents: true,
+            product: { select: { slug: true, status: true } },
+          },
+          take: 50,
+        },
       },
     })) as OrderRow | Error | null;
     if (order instanceof Error) throw order;
@@ -96,6 +115,9 @@ export async function sendStoreOrderEmail(
         `${escapeHtml(item.name)}${item.variantTitle ? ` (${escapeHtml(item.variantTitle)})` : ""} × ${item.quantity}`,
         escapeHtml(formatStoreMoney(item.totalCents)),
       ]),
+      ...(Number(order.couponDiscountCents) > 0
+        ? [[`Cupón ${escapeHtml(order.couponCode ?? "")}`, `−${escapeHtml(formatStoreMoney(order.couponDiscountCents))}`] as [string, string]]
+        : []),
       ["Envío", order.shippingCents > 0 ? escapeHtml(formatStoreMoney(order.shippingCents)) : "Gratis"],
       ["Total", `<strong>${escapeHtml(formatStoreMoney(order.totalCents))}</strong>`],
     ]);
@@ -146,8 +168,18 @@ export async function sendStoreOrderEmail(
       subject = `Entregamos tu pedido ${order.number}`;
       title = "Tu pedido llegó";
       preheader = "Cuéntanos qué te pareció.";
+      // One button per product still for sale (up to five): the invitation to review.
+      const reviewable = order.items
+        .filter((item) => item.product?.slug && item.product.status === "active")
+        .slice(0, 5);
       body = `
         ${emailParagraph(`Tu pedido <strong>${escapeHtml(order.number)}</strong> aparece como entregado. Si algo no llegó bien, responde a este correo y lo resolvemos.`)}
+        ${
+          reviewable.length > 0
+            ? `${emailParagraph("¿Qué te parecieron? Tu reseña le ayuda a otras personas a elegir, y ganas huellitas por cada producto que reseñes.")}
+        ${reviewable.map((item) => emailButton("pet", `Reseñar ${item.name.slice(0, 40)}`, petSiteUrl(`/tienda/${item.product!.slug}#resenas`))).join("")}`
+            : ""
+        }
         ${emailButton("pet", "Ver mi pedido", url)}`;
     } else if (kind === "transfer_rejected") {
       subject = `No pudimos confirmar tu transferencia: pedido ${order.number}`;

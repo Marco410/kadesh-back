@@ -10,7 +10,7 @@ Tienda de `pet.kadesh.com.mx`. Un solo catálogo con tres orígenes de producto:
 
 Se administra en kadesh-business → Operaciones → Kadesh Pet → Tienda.
 
-Lo que hay: catálogo, lista de deseos y reseñas (fase 1); carrito, pedidos, pago con tarjeta o transferencia, compra como invitado y envíos a mano (fase 2). Faltan Dropi automático, cupones y huellitas por compra (plan en `~/.claude/plans/ayudame-con-un-plan-gleaming-codd.md`).
+Lo que hay: catálogo, lista de deseos y reseñas (fase 1); carrito, pedidos, pago con tarjeta o transferencia, compra como invitado y envíos a mano (fase 2); cupones, huellitas por comprar y por reseñar lo comprado, e invitación a reseñar al entregarse (fase 4). Falta Dropi automático (fase 3, en espera de que Dropi dé acceso a su API).
 
 Las lists viejas de esta carpeta (`Product`, `Cart`, `Order`, `Payment`, `PaymentMethod`, `WishList`) no se usan y se retiran en la fase 6. No construir nada sobre ellas.
 
@@ -38,6 +38,8 @@ Las lists viejas de esta carpeta (`Product`, `Cart`, `Order`, `Payment`, `Paymen
 | Después de comprar | `uploadStoreTransferProof`, `resumeStoreOrderPayment`, `cancelMyStoreOrder`, `saveMyStoreAddress`, `deleteMyStoreAddress` (`mutations/store/storeOrderActions.ts`) |
 | Pedidos en Operaciones | `adminStoreOrders`, `adminStoreOrder` (`queries/admin/adminStoreOrders.ts`) y `adminReviewStoreTransfer`, `adminUpdateStoreShipment`, `adminCancelStoreOrder`, `adminRefundStoreOrder`, `adminSetStoreOrderNote` (`mutations/admin/storeOrders.ts`) |
 | Stripe | `webhooks/stripeStore.ts` (lo llama `webhooks/stripe.ts`) |
+| Cupones | lists `StoreCoupon` y `StoreCouponRedemption`; `evaluateCoupon`, `reserveCoupon`, `releaseStoreOrderCoupon` en `utils/store/coupons.ts`. El admin los crea con la API generada |
+| Huellitas de la tienda | `pawsOnStoreShipmentDelivered`, `pawsOnStorePurchaseUndone`, `pawsOnStoreProductReview` en `utils/pet/pawsTriggers.ts`; reglas en `models/Pet/Paws/constants.ts` |
 | Vencimiento de pedidos sin pagar | `expireStoreOrders` + `.github/workflows/expire-store-orders.yml` (cada hora) |
 
 Apagada hasta poner `STORE_ENABLED=true`. Apagada, el catálogo público responde vacío y las mutaciones de la persona se niegan; un admin de plataforma ve todo (vista previa antes de abrir).
@@ -87,8 +89,36 @@ Invariantes de pedidos:
 - **Nada del pedido que ve la persona nombra a Dropi**: los envíos salen como `preparing`, `in_transit`, `delivered`… con paquetería y guía.
 - **La línea de tiempo (`StoreOrderEvent`) guarda quién hizo cada paso.** Sin actor = el sistema (Stripe o el cron). Solo las filas `isPublic` las ve quien compró.
 - **Compra como invitado**: el formulario pide correo y contraseña, y la cuenta se crea con el pedido, ya con sesión. La cuenta solo se crea cuando el carrito ya se validó. Si el correo ya existe, se pide iniciar sesión.
-- **«Compra verificada»** en una reseña: la persona recibió ese producto en un envío entregado.
+- **«Compra verificada»** en una reseña: la persona recibió ese producto en un envío entregado de un pedido que no se reembolsó.
 - **Un producto que está en pedidos o tiene reseñas se archiva, no se borra.**
+
+## Cupones
+
+Un código (`StoreCoupon.code`, en mayúsculas y sin espacios: `normalizeCouponCode`) de tres tipos: `percent`, `fixed` (centavos) o `free_shipping`. Puede pedir un subtotal mínimo, tener tope de descuento, fechas, límite de usos en total y por persona, ser solo para la primera compra, y aplicar solo a ciertas categorías (incluye sus subcategorías) o productos. Sin categorías ni productos aplica a todo el carrito.
+
+- **Una sola revisión para la vista previa y la compra**: `quoteCart(items, { couponCode, userId })` llama a `evaluateCoupon`. Un código que no aplica no rompe la cotización: sale `couponApplied: false` con el motivo en `couponMessage`.
+- **El descuento es sobre los productos, nunca sobre el envío.** `totalCents = subtotalCents − couponDiscountCents + shippingCents`. Un cupón de envío gratis deja `shippingCents` en 0 y `couponDiscountCents` en 0.
+- **El total nunca baja de `STORE_MIN_ORDER_TOTAL_CENTS`** ($10): Stripe no cobra menos.
+- **Un uso se toma con un incremento condicional** (`usedCount < usageLimit`) al crear el pedido. Si alguien más se llevó el último, el pedido recién creado se cancela (regresa su stock) y la compra responde `COUPON_INVALID`.
+- **El uso se devuelve** cuando el pedido se cancela sin pagar, vence o se reembolsa (`releaseStoreOrderCoupon`, una sentencia que borra la fila de `StoreCouponRedemption` y descuenta `usedCount`; llamarla dos veces no descuenta dos).
+- **`usedCount` lo lleva el servidor**: lo que mande la API se descarta.
+- **Sin sesión no se revisan las reglas por persona** (usos por persona, primera compra): se revisan al comprar, donde siempre hay cuenta.
+- **En el pedido queda copia**: `StoreOrder.couponCode` y `couponDiscountCents`, y en cada línea su parte (`StoreOrderItem.discountCents`).
+- **Probar códigos tiene tope**: 20 códigos que no aplicaron cada 10 min por IP en `storeCartQuote`. Un cupón que sí aplica no cuenta: el carrito se cotiza con él en cada cambio.
+
+## Huellitas
+
+Decisión de Marco (2026-11-19): comprar y reseñar dan huellitas; todavía no se paga con ellas.
+
+| Acción | Huellitas | Cuándo | Llave |
+|---|---|---|---|
+| `purchase` | 10 por línea del pedido (no por pieza) | Al marcarse entregado el envío que la lleva | `purchase:<orderItemId>` |
+| `product_review` | 5, con cualquier calificación | Al publicar la reseña de algo comprado y recibido | `product_review:<userId>:<productId>` |
+
+- Solo cuentan líneas de $100 o más ya con el descuento del cupón (`PURCHASE_MIN_LINE_CENTS`). Tope de 3 al día por acción. No cuentan para la racha ni para el tope global de 60.
+- Se quitan si el envío se marca devuelto o el pedido se reembolsa (compra), y si la persona borra su reseña o un admin la oculta (reseña).
+- Una reseña sin compra verificada (incluye todo lo de Mercado Libre) no da nada.
+- La invitación a reseñar sale una sola vez, cuando el pedido completo se entrega: la notificación `store.order_delivered` y el correo de entrega, con un botón por producto (hasta 5) hacia `/tienda/<slug>#resenas`.
 
 Stripe: el endpoint de webhooks necesita además `payment_intent.succeeded` y `payment_intent.payment_failed` (ya tenía `charge.refunded`). Los pagos de la tienda llevan `metadata.kind = "store_order"`.
 
@@ -113,7 +143,7 @@ Medido con 12 y con 48 productos: el número no cambia.
 | `storeCatalogProduct` | 9 |
 | `adminStoreProducts` | 6 |
 | `storeCatalogFacets` | 5, una vez cada 10 min |
-| `storeCartQuote` | 2 a 3 (variantes con su producto, portadas; los ajustes salen de memoria) |
+| `storeCartQuote` | 2 a 3 (variantes con su producto, portadas; los ajustes salen de memoria); con cupón, de 1 a 3 más |
 | `myStoreOrders` | 4 |
 | `adminStoreOrders` | 5 (en dos rondas) |
 
@@ -160,10 +190,28 @@ Qué no hacer:
 - No tocar `stock` a mano al cancelar: `restoreStoreOrderStock`.
 - No devolver `source`, costo, proveedor ni `provider` del envío en consultas del comprador.
 
+### 2026-11-19 — cupones y huellitas de la tienda
+
+Qué: lists `StoreCoupon` y `StoreCouponRedemption`, el cupón dentro de `quoteCart`, y tres disparadores de huellitas.
+
+Por qué:
+- **El cupón vive en la cotización**: así la vista previa y la compra no pueden dar totales distintos, y `expectedTotalCents` ya cubre el caso de un cupón que cambió.
+- **Fila de uso por pedido además del contador**: el contador permite el incremento condicional; la fila dice quién lo usó, sirve para el límite por persona y hace que devolver el uso sea idempotente.
+- **Huellitas al entregar y no al pagar**: un pedido que se cancela o no llega no debe haber dado nada, y así no hay que deshacer en el caso común.
+- **Por línea y con mínimo de $100**: suben nivel y ranking igual que ayudar, así que comprar cosas baratas para subir no debe convenir.
+- **La invitación a reseñar va en el aviso de entrega y no en uno aparte**: un solo aviso por pedido, sin cron ni recordatorios.
+
+Qué no hacer:
+- No calcular un descuento fuera de `evaluateCoupon`, ni aceptar un monto de descuento del navegador.
+- No escribir `usedCount` ni `StoreCouponRedemption` fuera de `utils/store/coupons.ts`.
+- No dar huellitas al pagar ni por pieza.
+- No premiar una reseña sin compra verificada.
+
 ## Pendientes
 
 - No hay «olvidé mi contraseña» en ningún front: una cuenta creada al comprar depende de la contraseña que eligió la persona (o de entrar con Google con ese correo).
 - Reembolsos parciales: hoy solo el total. Uno parcial hecho en Stripe queda anotado en el pedido.
 - Fase 3: cliente de Dropi (`https://api.dropi.mx/integrations/`, cabecera `dropi-integration-key`), importador, aprobar el envío y mandarlo a Dropi, crons de seguimiento y de stock. Hoy un envío de Dropi se pide a mano en Dropi y se captura su guía aquí.
-- Fase 4: cupones; huellitas por compra (10 por producto distinto, al entregarse) y por reseñar lo comprado (5); invitación a reseñar.
+- El tope diario de huellitas cuenta premios dados, aunque luego se hayan revertido: quien borra y reescribe reseñas el mismo día se topa antes.
+- Una reseña escrita antes de un reembolso conserva sus 5 huellitas (el reembolso solo quita las de la compra).
 - Fase 6: retirar las lists viejas, `Review.product` y `Ad.product`.

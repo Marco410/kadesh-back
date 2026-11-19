@@ -292,3 +292,28 @@ export const STORE_SETTINGS_DEFAULTS = {
   transferExpiryHours: 48,
   cardExpiryMinutes: 60,
 } as const;
+
+// ─── Coupons (phase 4) ──────────────────────────────────────────────────────────────────────
+
+export const STORE_COUPON_TYPE = {
+  /** `value` is a whole percent (10 = 10 %) of the lines the coupon applies to. */
+  PERCENT: "percent",
+  /** `value` is MXN cents off. */
+  FIXED: "fixed",
+  /** Shipping is free; `value` is ignored. */
+  FREE_SHIPPING: "free_shipping",
+} as const;
+
+export const STORE_COUPON_TYPE_OPTIONS = [
+  { label: "Porcentaje", value: STORE_COUPON_TYPE.PERCENT },
+  { label: "Monto fijo", value: STORE_COUPON_TYPE.FIXED },
+  { label: "Envío gratis", value: STORE_COUPON_TYPE.FREE_SHIPPING },
+];
+
+export const STORE_COUPON_CODE_MAX = 40;
+
+/** A coupon never takes an order below this: card processors do not charge less ($10 MXN). */
+export const STORE_MIN_ORDER_TOTAL_CENTS = 1000;
+
+/** Coupon codes one IP may try on the cart in ten minutes (against guessing codes). */
+export const STORE_COUPON_ATTEMPTS = { limit: 20, windowMs: 10 * 60 * 1000 } as const;

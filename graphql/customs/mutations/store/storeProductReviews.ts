@@ -1,6 +1,7 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { ACTIVITY_EVENT } from "../../../../models/ActivityEvent/constants";
 import {
+  STORE_PAYMENT_STATUS,
   STORE_PRODUCT_STATUS,
   STORE_REVIEW_BODY_MAX,
   STORE_REVIEW_STATUS,
@@ -9,6 +10,7 @@ import {
 } from "../../../../models/Pet/Store/constants";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { logActivity } from "../../../../utils/activity/logActivity";
+import { pawsOnStoreProductReview } from "../../../../utils/pet/pawsTriggers";
 import { recomputeStoreProductRating, storePrisma } from "../../../../utils/store/catalog";
 import { bumpStoreCatalogVersion, storeEnabled } from "../../../../utils/store/config";
 
@@ -92,11 +94,12 @@ const resolver = {
         return fail("Tu reseña de este producto fue retirada por el equipo de Kadesh.");
       }
 
-      // Verified purchase: the person received this product in a delivered package.
+      // Verified purchase: the person received this product in a delivered package of an order
+      // that was not refunded.
       const delivered = await prisma.storeOrderItem.findFirst({
         where: {
           productId: input.productId,
-          order: { userId },
+          order: { userId, paymentStatus: STORE_PAYMENT_STATUS.PAID },
           shipment: { status: STORE_SHIPMENT_STATUS.DELIVERED },
         },
         select: { id: true },
@@ -123,6 +126,8 @@ const resolver = {
 
       const stars = await recomputeStoreProductRating(context, input.productId);
       bumpStoreCatalogVersion();
+      // Paws for reviewing something bought and received, whatever the stars.
+      void pawsOnStoreProductReview(context, { userId, productId: input.productId, shouldHave: verifiedPurchase });
 
       // Never the text of the review: only ids, length and rating.
       void logActivity(context, {
@@ -163,6 +168,7 @@ const resolver = {
 
       const stars = await recomputeStoreProductRating(context, productId);
       bumpStoreCatalogVersion();
+      void pawsOnStoreProductReview(context, { userId, productId, shouldHave: false });
 
       void logActivity(context, {
         type: ACTIVITY_EVENT.PET_STORE_REVIEW_DELETED,

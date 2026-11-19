@@ -1,6 +1,11 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { canEditAnimalAs } from "../../models/Pet/Animal/Animal.access";
-import { CASE_MIN_AGE_HOURS, COMMENT_MIN_LENGTH, PAW_ACTION } from "../../models/Pet/Paws/constants";
+import {
+  CASE_MIN_AGE_HOURS,
+  COMMENT_MIN_LENGTH,
+  PAW_ACTION,
+  PURCHASE_MIN_LINE_CENTS,
+} from "../../models/Pet/Paws/constants";
 import { RESCUE_ORG_STATUS } from "../../models/Pet/RescueOrganization/constants";
 import { isSudoContext } from "../activity/listActivityHooks";
 import { awardPaws, pawsEnabled, reversePaws, setPawAward } from "./paws";
@@ -328,4 +333,89 @@ export async function pawsOnPlaceVerification(
     referenceType: "PetPlace",
     referenceId: input.placeId,
   });
+}
+
+// ─── Store ──────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A store package was delivered: each of its order lines earns the buyer paws. Per line, not per
+ * unit (five bags of the same food are one line), and only lines worth `PURCHASE_MIN_LINE_CENTS`
+ * or more after discounts. Paid on delivery, not on payment, so a cancelled order never earned.
+ */
+export async function pawsOnStoreShipmentDelivered(context: KeystoneContext, shipmentId: string): Promise<void> {
+  if (!pawsEnabled()) return;
+  try {
+    const items = await prismaOf(context).storeOrderItem.findMany({
+      where: { shipmentId },
+      take: 50,
+      select: {
+        id: true,
+        totalCents: true,
+        discountCents: true,
+        order: { select: { userId: true, paymentStatus: true } },
+      },
+    });
+    if (items instanceof Error) throw items;
+    for (const item of items as Array<{
+      id: string;
+      totalCents: number;
+      discountCents: number | null;
+      order: { userId: string | null; paymentStatus: string } | null;
+    }>) {
+      const userId = item.order?.userId;
+      if (!userId || item.order?.paymentStatus !== "paid") continue;
+      if (item.totalCents - (Number(item.discountCents) || 0) < PURCHASE_MIN_LINE_CENTS) continue;
+      await awardPaws(context, {
+        userId,
+        action: PAW_ACTION.PURCHASE,
+        sourceKey: `purchase:${item.id}`,
+        referenceType: "StoreOrderItem",
+        referenceId: item.id,
+      });
+    }
+  } catch (error) {
+    warn("store purchase", error);
+  }
+}
+
+/**
+ * The purchase did not stand: the order was refunded (`orderId`) or one of its packages came back
+ * (`shipmentId`). What those lines earned is taken back.
+ */
+export async function pawsOnStorePurchaseUndone(
+  context: KeystoneContext,
+  where: { orderId: string } | { shipmentId: string },
+): Promise<void> {
+  if (!pawsEnabled()) return;
+  try {
+    const items = await prismaOf(context).storeOrderItem.findMany({ where, take: 200, select: { id: true } });
+    if (items instanceof Error) throw items;
+    for (const item of items as Array<{ id: string }>) await reversePaws(context, `purchase:${item.id}`);
+  } catch (error) {
+    warn("store purchase undone", error);
+  }
+}
+
+/**
+ * Review of a store product. It earns only while it is a published review of something the person
+ * bought and received (`shouldHave`), whatever the stars: deleting it, or an admin hiding it,
+ * takes the paws back. One award per person and product.
+ */
+export async function pawsOnStoreProductReview(
+  context: KeystoneContext,
+  input: { userId: string | null | undefined; productId: string | null | undefined; shouldHave: boolean },
+): Promise<void> {
+  if (!pawsEnabled() || !input.userId || !input.productId) return;
+  try {
+    await setPawAward(context, {
+      userId: input.userId,
+      action: PAW_ACTION.PRODUCT_REVIEW,
+      sourceKey: `product_review:${input.userId}:${input.productId}`,
+      referenceType: "StoreProduct",
+      referenceId: input.productId,
+      shouldHave: input.shouldHave,
+    });
+  } catch (error) {
+    warn("store product review", error);
+  }
 }

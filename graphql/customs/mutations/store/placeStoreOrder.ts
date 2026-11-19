@@ -19,6 +19,7 @@ import { verifyTurnstile } from "../../../../utils/security/turnstile";
 import { STORE_ADDRESS_TYPEDEFS, validateStoreAddress, type StoreAddressData, type StoreAddressInput } from "../../../../utils/store/address";
 import { storePrisma } from "../../../../utils/store/catalog";
 import { storeEnabled } from "../../../../utils/store/config";
+import { reserveCoupon } from "../../../../utils/store/coupons";
 import { sendStoreOrderEmail } from "../../../../utils/store/emails";
 import {
   addStoreOrderEvent,
@@ -68,6 +69,8 @@ const typeDefs = `
     "Keep the address in the account for next time."
     saveAddress: Boolean
     customerNote: String
+    "Discount code typed in the cart. The order is not placed if it no longer applies."
+    couponCode: String
     "The total the person saw (MXN cents). The order is not placed if it changed."
     expectedTotalCents: Int!
     "web (default) | app"
@@ -91,7 +94,7 @@ const typeDefs = `
   type StorePlaceOrderResult {
     success: Boolean!
     message: String!
-    "null | STORE_CLOSED | LOGIN_REQUIRED | EMAIL_EXISTS | INVALID | CART_CHANGED | PRICE_CHANGED | PAYMENT_UNAVAILABLE | PAYMENT_ERROR"
+    "null | STORE_CLOSED | LOGIN_REQUIRED | EMAIL_EXISTS | INVALID | CART_CHANGED | PRICE_CHANGED | COUPON_INVALID | PAYMENT_UNAVAILABLE | PAYMENT_ERROR"
     code: String
     orderNumber: String
     totalCents: Int
@@ -124,6 +127,7 @@ type PlaceOrderInput = {
   address: StoreAddressInput;
   saveAddress?: boolean | null;
   customerNote?: string | null;
+  couponCode?: string | null;
   expectedTotalCents: number;
   channel?: string | null;
   guest?: GuestInput | null;
@@ -246,6 +250,8 @@ async function createOrderRow(
         guestCheckout: params.guestCheckout,
         unitsCount: quote.itemsCount,
         subtotalCents: quote.subtotalCents,
+        couponCode: quote.couponApplied ? quote.couponCode : null,
+        couponDiscountCents: quote.couponDiscountCents,
         shippingCents: quote.shippingCents,
         totalCents: quote.totalCents,
         costCents: quote.costCents,
@@ -278,6 +284,7 @@ async function createOrderRow(
             dropiSupplierId: line.dropiSupplierId,
             unitPriceCents: line.unitPriceCents,
             unitCostCents: line.unitCostCents,
+            discountCents: line.discountCents,
             quantity: line.quantity,
             totalCents: line.lineTotalCents,
             reservedQuantity: line.tracked ? line.quantity : 0,
@@ -311,9 +318,13 @@ const resolver = {
       const guest = sessionUserId ? null : await checkGuest(context, input.guest);
       if (guest && !("ok" in guest)) return guest;
 
-      const quote = await quoteCart(context, input.items);
+      const couponCode = (input.couponCode ?? "").trim() || null;
+      const quote = await quoteCart(context, input.items, { couponCode, userId: sessionUserId });
       if (!quote.canCheckout) {
         return fail("CART_CHANGED", quote.messages[0] ?? "Tu carrito cambió. Revísalo antes de pagar.", { quote: publicQuote(quote) });
+      }
+      if (couponCode && !quote.couponApplied) {
+        return fail("COUPON_INVALID", quote.couponMessage ?? "Ese cupón ya no aplica.", { quote: publicQuote(quote) });
       }
       if (Math.floor(Number(input.expectedTotalCents)) !== quote.totalCents) {
         return fail("PRICE_CHANGED", "El total de tu carrito cambió. Revísalo antes de pagar.", { quote: publicQuote(quote) });
@@ -350,7 +361,7 @@ const resolver = {
 
       const reserved = await reserveStoreStock(context, quote.lines);
       if (!reserved) {
-        const fresh = await quoteCart(context, input.items);
+        const fresh = await quoteCart(context, input.items, { couponCode, userId: buyer.id });
         return fail("CART_CHANGED", fresh.messages[0] ?? "Un producto de tu carrito se agotó.", {
           quote: publicQuote(fresh),
           sessionToken,
@@ -377,6 +388,22 @@ const resolver = {
       } catch (error) {
         await releaseStoreStock(context, reserved);
         throw error;
+      }
+
+      // One use of the coupon, taken atomically: if someone else just took the last one, the order
+      // does not go on with a discount it should not have.
+      if (quote.couponId) {
+        const reservedCoupon = await reserveCoupon(context, {
+          couponId: quote.couponId,
+          orderId: order.id,
+          userId: buyer.id,
+          discountCents: quote.couponDiscountCents,
+        });
+        if (!reservedCoupon) {
+          await cancelUnpaidStoreOrder(context, order.id, { reason: "El cupón se agotó antes de terminar la compra." });
+          const fresh = await quoteCart(context, input.items, { userId: buyer.id });
+          return fail("COUPON_INVALID", "Ese cupón se acaba de agotar.", { quote: publicQuote(fresh), sessionToken });
+        }
       }
 
       await addStoreOrderEvent(context, {
@@ -447,7 +474,7 @@ const resolver = {
         summary: `Hizo el pedido ${order.number}`,
         entityType: "StoreOrder",
         entityId: order.id,
-        metadata: { totalCents: quote.totalCents, items: quote.itemsCount, paymentMethod, guest: !sessionUserId },
+        metadata: { totalCents: quote.totalCents, items: quote.itemsCount, paymentMethod, guest: !sessionUserId, coupon: quote.couponApplied },
       });
 
       return {

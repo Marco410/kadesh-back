@@ -1,6 +1,7 @@
 import { list } from "@keystone-6/core";
 import { checkbox, integer, relationship, select, text, timestamp } from "@keystone-6/core/fields";
 import { adminOnlyAccess } from "../../../../utils/access/presets";
+import { pawsOnStoreProductReview } from "../../../../utils/pet/pawsTriggers";
 import { recomputeStoreProductRating } from "../../../../utils/store/catalog";
 import { bumpStoreCatalogVersion } from "../../../../utils/store/config";
 import { STORE_REVIEW_STATUS, STORE_REVIEW_STATUS_OPTIONS } from "../constants";
@@ -28,7 +29,7 @@ export default list({
     },
   },
   hooks: {
-    afterOperation: async ({ item, originalItem, context }: any) => {
+    afterOperation: async ({ operation, item, originalItem, context }: any) => {
       const productId = item?.productId ?? originalItem?.productId ?? null;
       try {
         await recomputeStoreProductRating(context, productId);
@@ -36,6 +37,13 @@ export default list({
       } catch (error) {
         console.error("[store] could not recompute rating:", productId, error);
       }
+      // An admin hid, republished or deleted it: its paws follow.
+      void pawsOnStoreProductReview(context, {
+        userId: item?.userId ?? originalItem?.userId ?? null,
+        productId,
+        shouldHave:
+          operation !== "delete" && item?.status === STORE_REVIEW_STATUS.PUBLISHED && Boolean(item?.verifiedPurchase),
+      });
     },
   },
   fields: {

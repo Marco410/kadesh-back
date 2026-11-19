@@ -114,6 +114,8 @@ const typeDefs = `
     phone: String
     subtotalCents: Int!
     shippingCents: Int!
+    couponCode: String
+    couponDiscountCents: Int!
     costCents: Int!
     "What Kadesh paid to ship it, added up from its shipments."
     shippingCostCents: Int!
@@ -246,6 +248,8 @@ const resolver = {
           phone: true,
           subtotalCents: true,
           shippingCents: true,
+          couponCode: true,
+          couponDiscountCents: true,
           costCents: true,
           stripePaymentIntentId: true,
           paidAt: true,
@@ -382,6 +386,8 @@ const resolver = {
       phone: order.phone || null,
       subtotalCents: order.subtotalCents,
       shippingCents: order.shippingCents,
+      couponCode: order.couponCode || null,
+      couponDiscountCents: Number(order.couponDiscountCents) || 0,
       costCents: Number(order.costCents) || 0,
       shippingCostCents: shipmentRows.reduce((sum, shipment) => sum + (Number(shipment.shippingCostCents) || 0), 0),
       stripePaymentIntentId: order.stripePaymentIntentId,

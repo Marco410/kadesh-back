@@ -16,7 +16,9 @@ import {
 } from "../../models/Pet/Store/constants";
 import Stripe from "../intregrations/stripe";
 import { notify } from "../notifications/notify";
+import { pawsOnStorePurchaseUndone, pawsOnStoreShipmentDelivered } from "../pet/pawsTriggers";
 import { recomputeStoreProductTotals, storePrisma } from "./catalog";
+import { releaseStoreOrderCoupon } from "./coupons";
 import { formatStoreMoney, sendStoreOrderEmail, storeOrderUrl } from "./emails";
 import type { CartLine } from "./pricing";
 
@@ -402,6 +404,7 @@ export async function cancelUnpaidStoreOrder(context: KeystoneContext, orderId: 
   if (claimed.count !== 1) return false;
 
   await restoreStoreOrderStock(context, orderId);
+  await releaseStoreOrderCoupon(context, orderId);
 
   const order = unwrap(
     await prisma.storeOrder.findUnique({
@@ -523,6 +526,9 @@ export async function refundStoreOrder(context: KeystoneContext, orderId: string
 
   if (input.restock) await restoreStoreOrderStock(context, orderId);
   await bumpSalesCount(context, orderId, -1);
+  await releaseStoreOrderCoupon(context, orderId);
+  // The paws earned by this purchase go back with the money.
+  void pawsOnStorePurchaseUndone(context, { orderId });
 
   await addStoreOrderEvent(context, {
     orderId,
@@ -598,7 +604,14 @@ export async function recomputeStoreFulfillment(context: KeystoneContext, orderI
       });
       const order = await orderBrief(context, orderId);
       if (order) {
-        notifyBuyer(context, order, NOTIFICATION_TYPE.STORE_ORDER_DELIVERED, "Tu pedido llegó", `Entregamos tu pedido ${order.number}.`);
+        // The one invitation to review: sent once, when the whole order has arrived.
+        notifyBuyer(
+          context,
+          order,
+          NOTIFICATION_TYPE.STORE_ORDER_DELIVERED,
+          "Tu pedido llegó",
+          `Entregamos tu pedido ${order.number}. Cuéntanos qué te parecieron tus productos.`,
+        );
       }
       void sendStoreOrderEmail(context, orderId, "delivered");
     }
@@ -724,6 +737,14 @@ export async function updateStoreShipment(
       );
     }
     void sendStoreOrderEmail(context, shipment.orderId, "shipped", { carrier, trackingCode, trackingUrl });
+  }
+
+  // The package was delivered: its products earn paws for the buyer (once per order line, however
+  // many times it is marked). It came back: they are taken away.
+  if (statusChanged && input.status === STORE_SHIPMENT_STATUS.DELIVERED) {
+    void pawsOnStoreShipmentDelivered(context, shipmentId);
+  } else if (statusChanged && input.status === STORE_SHIPMENT_STATUS.RETURNED) {
+    void pawsOnStorePurchaseUndone(context, { shipmentId });
   }
 
   await recomputeStoreFulfillment(context, shipment.orderId);

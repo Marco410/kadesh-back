@@ -1,6 +1,6 @@
 # Paws (huellitas)
 
-Puntos que gana una persona por ayudar en Kadesh Pet: publicar un reporte, avisar que vio a un animal, cerrar su caso, adoptar. Con ellos sube de nivel, mantiene una racha semanal y aparece en el ranking público. No son los créditos del SaaS (`models/Saas/SaasCompanyCreditLedger`): son por persona, no por empresa, y no se compran.
+Puntos que gana una persona por ayudar en Kadesh Pet: publicar un reporte, avisar que vio a un animal, cerrar su caso, adoptar. También por comprar en la tienda y reseñar lo comprado. Con ellos sube de nivel, mantiene una racha semanal y aparece en el ranking público. No son los créditos del SaaS (`models/Saas/SaasCompanyCreditLedger`): son por persona, no por empresa, y no se compran.
 
 Fase 1 (lo que hay): ganar, niveles, racha, ranking, backfill. El canje por promociones o descuentos es la fase 2; el libro ya acepta movimientos `spend`, pero nada los escribe todavía.
 
@@ -39,6 +39,7 @@ Apagado hasta poner `PAWS_ENABLED=true`. Apagado, nada premia ni revierte, `myPa
 - Un caso debe llevar 6 h abierto para que cerrarlo dé huellitas.
 - Tres avistamientos revertidos en 30 días apagan ese premio para la cuenta.
 - Likes, favoritos, «me interesa» y vistas no dan nada: no tienen límite de uno por persona.
+- Comprar en la tienda da 10 por línea de pedido de $100 o más, al entregarse, y reseñar lo comprado da 5 (decisión de Marco, 2026-11-19). Tope de 3 al día cada una, fuera de la racha y del tope global. Se quitan con el reembolso, la devolución o al borrar u ocultar la reseña. Detalle en `models/Pet/Store/README.md`.
 
 Queda sin cubrir: dos cuentas coludidas en un reclamo o una adopción. Está limitado a 1 al día y se corrige con `adminAdjustPaws`.
 

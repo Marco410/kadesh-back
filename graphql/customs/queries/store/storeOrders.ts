@@ -1,5 +1,6 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import {
+  STORE_COUPON_ATTEMPTS,
   STORE_ORDERS_DEFAULT_TAKE,
   STORE_ORDERS_MAX_TAKE,
   STORE_ORDER_STATUS,
@@ -10,6 +11,8 @@ import {
   type StoreShipmentStatus,
 } from "../../../../models/Pet/Store/constants";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
+import { requestIp } from "../../../../utils/activity/requestMeta";
+import { createRateLimiter } from "../../../../utils/security/rateLimit";
 import { toStoreAddress } from "../../../../utils/store/address";
 import { loadStoreCovers, storePrisma } from "../../../../utils/store/catalog";
 import { storeEnabled } from "../../../../utils/store/config";
@@ -85,6 +88,8 @@ const typeDefs = `
     summary: StoreOrderSummary!
     subtotalCents: Int!
     shippingCents: Int!
+    couponCode: String
+    couponDiscountCents: Int!
     customerNote: String
     cancelReason: String
     address: StoreShippingAddress!
@@ -106,8 +111,10 @@ const typeDefs = `
   }
 `;
 
+const couponAttempts = createRateLimiter(STORE_COUPON_ATTEMPTS);
+
 const definition = `
-  storeCartQuote(items: [StoreCartItemInput!]!): StoreCartQuote!
+  storeCartQuote(items: [StoreCartItemInput!]!, couponCode: String): StoreCartQuote!
   myStoreOrders(take: Int, skip: Int): StoreOrdersResult!
   myStoreOrder(number: String!): StoreOrderDetail
   myStoreAddresses: [StoreShippingAddress!]!
@@ -185,11 +192,28 @@ function toSummary(row: SummaryRow, first: { name: string; coverUrl: string | nu
 
 const resolver = {
   /** What the cart costs right now. Called when the cart opens or changes, never on a timer. */
-  storeCartQuote: async (_root: unknown, { items }: { items: CartItemInput[] }, context: KeystoneContext) => {
+  storeCartQuote: async (
+    _root: unknown,
+    { items, couponCode }: { items: CartItemInput[]; couponCode?: string | null },
+    context: KeystoneContext,
+  ) => {
     if (!storeEnabled() && !isPlatformAdmin(context.session)) {
       return publicQuote(await quoteCart(context, []));
     }
-    return publicQuote(await quoteCart(context, items));
+    const userId = getSessionUserId(context.session);
+    const code = (couponCode ?? "").trim();
+    if (!code) return publicQuote(await quoteCart(context, items, { userId }));
+
+    // Against guessing codes: only a code that did not apply counts as an attempt (a cart that
+    // keeps its coupon is quoted on every change), and past the cap the code is not even looked up.
+    const ip = requestIp(context.req) ?? "unknown";
+    if (!couponAttempts.peek(ip).ok) {
+      const quote = publicQuote(await quoteCart(context, items, { userId }));
+      return { ...quote, couponCode: code, couponMessage: "Probaste demasiados cupones. Intenta de nuevo en unos minutos." };
+    }
+    const quote = await quoteCart(context, items, { couponCode: code, userId });
+    if (!quote.couponApplied) couponAttempts.hit(ip);
+    return publicQuote(quote);
   },
 
   /** The buyer's orders, newest first. Four queries whatever the page size. */
@@ -248,6 +272,8 @@ const resolver = {
           ...SUMMARY_SELECT,
           subtotalCents: true,
           shippingCents: true,
+          couponCode: true,
+          couponDiscountCents: true,
           customerNote: true,
           cancelReason: true,
           shipRecipientName: true,
@@ -326,6 +352,8 @@ const resolver = {
       summary: toSummary(order, lines[0] ? { name: lines[0].name, coverUrl: lines[0].productId ? covers.get(lines[0].productId)?.url ?? null : null } : undefined),
       subtotalCents: order.subtotalCents,
       shippingCents: order.shippingCents,
+      couponCode: order.couponCode || null,
+      couponDiscountCents: Number(order.couponDiscountCents) || 0,
       customerNote: order.customerNote || null,
       cancelReason: order.cancelReason || null,
       address: toStoreAddress(order, "ship"),
