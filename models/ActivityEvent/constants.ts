@@ -181,6 +181,14 @@ export const ACTIVITY_EVENT = {
   // Store: a shopper reviewed a product (never the text: ids, length and rating only).
   PET_STORE_REVIEW_ADDED: "pet.store_review_added",
   PET_STORE_REVIEW_DELETED: "pet.store_review_deleted",
+  // Store orders: placed and cancelled by the shopper; reviewed, shipped, cancelled and refunded by an admin.
+  PET_STORE_ORDER_PLACED: "pet.store_order_placed",
+  PET_STORE_ORDER_CANCELLED: "pet.store_order_cancelled",
+  PET_STORE_TRANSFER_PROOF_UPLOADED: "pet.store_transfer_proof_uploaded",
+  ADMIN_STORE_TRANSFER_REVIEWED: "admin.store_transfer_reviewed",
+  ADMIN_STORE_SHIPMENT_UPDATED: "admin.store_shipment_updated",
+  ADMIN_STORE_ORDER_CANCELLED: "admin.store_order_cancelled",
+  ADMIN_STORE_ORDER_REFUNDED: "admin.store_order_refunded",
   // Eventos (campañas, jornadas): publicar, editar, revisar (admin) y cancelar.
   PET_EVENT_SUBMITTED: "pet.event_submitted",
   PET_EVENT_UPDATED: "pet.event_updated",

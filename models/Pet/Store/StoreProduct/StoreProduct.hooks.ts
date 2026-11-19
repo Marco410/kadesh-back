@@ -74,13 +74,19 @@ export function storeProductValidateInput({ resolvedData, item, operation, addVa
   }
 }
 
-/** A product with reviews is archived, not deleted: its reviews would be lost. */
+/** A product with reviews or orders is archived, not deleted: they would lose what they point at. */
 export async function storeProductValidateDelete({ item, context, addValidationError }: HookArgs) {
   if (!item?.id) return;
   const reviews = await storePrisma(context).storeProductReview.count({ where: { productId: item.id } });
   if (reviews instanceof Error) throw reviews;
   if (Number(reviews) > 0) {
     addValidationError("Este producto tiene reseñas: archívalo en vez de borrarlo.");
+    return;
+  }
+  const ordered = await storePrisma(context).storeOrderItem.count({ where: { productId: item.id } });
+  if (ordered instanceof Error) throw ordered;
+  if (Number(ordered) > 0) {
+    addValidationError("Este producto está en pedidos: archívalo en vez de borrarlo.");
   }
 }
 

@@ -45,6 +45,7 @@ import myPaws from "./myPaws";
 import publicProfile from "./publicProfile";
 import storeQueries from "./store";
 import adminStore from "./admin/adminStore";
+import adminStoreOrders from "./admin/adminStoreOrders";
 
 const customQuery = {
   typeDefs: `
@@ -92,6 +93,7 @@ const customQuery = {
     ${publicProfile.typeDefs}
     ${storeQueries.typeDefs}
     ${adminStore.typeDefs}
+    ${adminStoreOrders.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -140,6 +142,7 @@ const customQuery = {
     ${publicProfile.definition}
     ${storeQueries.definition}
     ${adminStore.definition}
+    ${adminStoreOrders.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -188,6 +191,7 @@ const customQuery = {
     ...publicProfile.resolver,
     ...storeQueries.resolver,
     ...adminStore.resolver,
+    ...adminStoreOrders.resolver,
   },
 };
 

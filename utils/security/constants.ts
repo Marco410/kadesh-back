@@ -180,6 +180,31 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     windowMs: DAY,
   },
   {
+    // Each attempt reserves stock and may open a Stripe PaymentIntent.
+    key: "store_order_ip",
+    label: "Pedidos de la tienda por IP",
+    fields: ["placeStoreOrder"],
+    scope: "ip",
+    limit: 15,
+    windowMs: HOUR,
+  },
+  {
+    key: "store_order_actions_user",
+    label: "Comprobantes, pagos y cancelaciones de pedidos por persona",
+    fields: ["uploadStoreTransferProof", "resumeStoreOrderPayment", "cancelMyStoreOrder"],
+    scope: "user",
+    limit: 30,
+    windowMs: HOUR,
+  },
+  {
+    key: "store_address_user",
+    label: "Direcciones de envío guardadas por persona",
+    fields: ["saveMyStoreAddress", "deleteMyStoreAddress"],
+    scope: "user",
+    limit: 30,
+    windowMs: HOUR,
+  },
+  {
     key: "store_wishlist_user",
     label: "Cambios en la lista de deseos por persona",
     fields: ["setStoreWishlist"],

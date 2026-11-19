@@ -116,3 +116,179 @@ export const STORE_RESERVED_SLUGS = new Set([
   "c",
   "m",
 ]);
+
+// ─── Orders (phase 2) ───────────────────────────────────────────────────────────────────────
+
+/** Life of the order as a whole. */
+export const STORE_ORDER_STATUS = {
+  OPEN: "open",
+  /** Paid and every shipment delivered. */
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+} as const;
+
+export const STORE_ORDER_STATUS_OPTIONS = [
+  { label: "Abierto", value: STORE_ORDER_STATUS.OPEN },
+  { label: "Completado", value: STORE_ORDER_STATUS.COMPLETED },
+  { label: "Cancelado", value: STORE_ORDER_STATUS.CANCELLED },
+];
+
+export const STORE_PAYMENT_STATUS = {
+  PENDING: "pending",
+  /** Bank transfer with a proof uploaded, waiting for an admin. */
+  IN_REVIEW: "in_review",
+  PAID: "paid",
+  FAILED: "failed",
+  REFUNDED: "refunded",
+} as const;
+
+export const STORE_PAYMENT_STATUS_OPTIONS = [
+  { label: "Pendiente", value: STORE_PAYMENT_STATUS.PENDING },
+  { label: "Comprobante en revisión", value: STORE_PAYMENT_STATUS.IN_REVIEW },
+  { label: "Pagado", value: STORE_PAYMENT_STATUS.PAID },
+  { label: "Falló", value: STORE_PAYMENT_STATUS.FAILED },
+  { label: "Reembolsado", value: STORE_PAYMENT_STATUS.REFUNDED },
+];
+
+export const STORE_FULFILLMENT_STATUS = {
+  UNFULFILLED: "unfulfilled",
+  /** Some shipments are on their way or delivered, not all. */
+  PARTIAL: "partial",
+  SHIPPED: "shipped",
+  DELIVERED: "delivered",
+  RETURNED: "returned",
+} as const;
+
+export const STORE_FULFILLMENT_STATUS_OPTIONS = [
+  { label: "Por surtir", value: STORE_FULFILLMENT_STATUS.UNFULFILLED },
+  { label: "Parcial", value: STORE_FULFILLMENT_STATUS.PARTIAL },
+  { label: "Enviado", value: STORE_FULFILLMENT_STATUS.SHIPPED },
+  { label: "Entregado", value: STORE_FULFILLMENT_STATUS.DELIVERED },
+  { label: "Devuelto", value: STORE_FULFILLMENT_STATUS.RETURNED },
+];
+
+export const STORE_PAYMENT_METHOD = {
+  CARD: "stripe_card",
+  TRANSFER: "bank_transfer",
+} as const;
+
+export type StorePaymentMethod = (typeof STORE_PAYMENT_METHOD)[keyof typeof STORE_PAYMENT_METHOD];
+
+export const STORE_PAYMENT_METHOD_OPTIONS = [
+  { label: "Tarjeta (Stripe)", value: STORE_PAYMENT_METHOD.CARD },
+  { label: "Transferencia", value: STORE_PAYMENT_METHOD.TRANSFER },
+];
+
+/** One attempt to pay an order (`StorePayment.status`). */
+export const STORE_PAYMENT_ATTEMPT_STATUS = {
+  PENDING: "pending",
+  IN_REVIEW: "in_review",
+  SUCCEEDED: "succeeded",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+  REFUNDED: "refunded",
+} as const;
+
+export const STORE_PAYMENT_ATTEMPT_STATUS_OPTIONS = Object.values(STORE_PAYMENT_ATTEMPT_STATUS).map((value) => ({
+  label: value,
+  value,
+}));
+
+export const STORE_SHIPMENT_PROVIDER = {
+  /** Shipped by Kadesh. */
+  OWN: "own",
+  /** Fulfilled by Dropi. Never shown to shoppers. */
+  DROPI: "dropi",
+} as const;
+
+export const STORE_SHIPMENT_PROVIDER_OPTIONS = [
+  { label: "Kadesh", value: STORE_SHIPMENT_PROVIDER.OWN },
+  { label: "Dropi", value: STORE_SHIPMENT_PROVIDER.DROPI },
+];
+
+export const STORE_SHIPMENT_STATUS = {
+  /** Paid, nothing done yet (own products). */
+  PENDING: "pending",
+  /** Paid, waiting for an admin to send the order to Dropi. */
+  PENDING_APPROVAL: "pending_approval",
+  /** Sent to Dropi, no label yet. */
+  REQUESTED: "requested",
+  LABEL_CREATED: "label_created",
+  IN_TRANSIT: "in_transit",
+  DELIVERED: "delivered",
+  /** Something went wrong on the way (address, lost, refused). */
+  EXCEPTION: "exception",
+  RETURNED: "returned",
+  CANCELLED: "cancelled",
+} as const;
+
+export type StoreShipmentStatus = (typeof STORE_SHIPMENT_STATUS)[keyof typeof STORE_SHIPMENT_STATUS];
+
+export const STORE_SHIPMENT_STATUS_OPTIONS = [
+  { label: "Por preparar", value: STORE_SHIPMENT_STATUS.PENDING },
+  { label: "Por aprobar", value: STORE_SHIPMENT_STATUS.PENDING_APPROVAL },
+  { label: "Solicitado", value: STORE_SHIPMENT_STATUS.REQUESTED },
+  { label: "Guía generada", value: STORE_SHIPMENT_STATUS.LABEL_CREATED },
+  { label: "En camino", value: STORE_SHIPMENT_STATUS.IN_TRANSIT },
+  { label: "Entregado", value: STORE_SHIPMENT_STATUS.DELIVERED },
+  { label: "Incidencia", value: STORE_SHIPMENT_STATUS.EXCEPTION },
+  { label: "Devuelto", value: STORE_SHIPMENT_STATUS.RETURNED },
+  { label: "Cancelado", value: STORE_SHIPMENT_STATUS.CANCELLED },
+];
+
+/** Shipment statuses that mean the package already left. */
+export const STORE_SHIPMENT_ON_THE_WAY: readonly string[] = [
+  STORE_SHIPMENT_STATUS.LABEL_CREATED,
+  STORE_SHIPMENT_STATUS.IN_TRANSIT,
+];
+
+/** What happened to an order (`StoreOrderEvent.type`): its timeline. */
+export const STORE_ORDER_EVENT = {
+  PLACED: "placed",
+  PAYMENT_FAILED: "payment_failed",
+  TRANSFER_PROOF_UPLOADED: "transfer_proof_uploaded",
+  TRANSFER_REJECTED: "transfer_rejected",
+  PAID: "paid",
+  PAID_AFTER_CANCEL: "paid_after_cancel",
+  SHIPMENT_UPDATED: "shipment_updated",
+  SHIPPED: "shipped",
+  DELIVERED: "delivered",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+  EXPIRED: "expired",
+  REFUNDED: "refunded",
+  NOTE: "note",
+} as const;
+
+export const STORE_ORDER_CHANNEL = { WEB: "web", APP: "app" } as const;
+
+export const STORE_ORDERS_DEFAULT_TAKE = 10;
+export const STORE_ORDERS_MAX_TAKE = 20;
+
+/** Lines and units a cart may carry. */
+export const STORE_CART_MAX_LINES = 50;
+export const STORE_CART_MAX_QUANTITY = 20;
+
+export const STORE_ADDRESS_MAX = 10;
+export const STORE_GUEST_MIN_PASSWORD = 8;
+
+/** Proof of a bank transfer: an image of up to this size. */
+export const STORE_TRANSFER_PROOF_MAX_BYTES = 8 * 1024 * 1024;
+
+/** After a rejected proof the person has this long to upload another before the order expires. */
+export const STORE_TRANSFER_RETRY_HOURS = 24;
+
+/** Orders checked per run of `expireStoreOrders`. */
+export const STORE_EXPIRE_MAX_PER_RUN = 200;
+
+/** `StoreSettings` is read from memory for this long (and re-read right after an admin edits it). */
+export const STORE_SETTINGS_CACHE_MS = 60 * 1000;
+
+export const STORE_SETTINGS_DEFAULTS = {
+  shippingFlatCents: 9900,
+  freeShippingMinCents: 79900,
+  cardEnabled: true,
+  transferEnabled: true,
+  transferExpiryHours: 48,
+  cardExpiryMinutes: 60,
+} as const;

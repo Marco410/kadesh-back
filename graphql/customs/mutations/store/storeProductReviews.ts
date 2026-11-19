@@ -5,6 +5,7 @@ import {
   STORE_REVIEW_BODY_MAX,
   STORE_REVIEW_STATUS,
   STORE_REVIEW_TITLE_MAX,
+  STORE_SHIPMENT_STATUS,
 } from "../../../../models/Pet/Store/constants";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { logActivity } from "../../../../utils/activity/logActivity";
@@ -91,6 +92,18 @@ const resolver = {
         return fail("Tu reseña de este producto fue retirada por el equipo de Kadesh.");
       }
 
+      // Verified purchase: the person received this product in a delivered package.
+      const delivered = await prisma.storeOrderItem.findFirst({
+        where: {
+          productId: input.productId,
+          order: { userId },
+          shipment: { status: STORE_SHIPMENT_STATUS.DELIVERED },
+        },
+        select: { id: true },
+      });
+      if (delivered instanceof Error) throw delivered;
+      const verifiedPurchase = Boolean(delivered);
+
       const saved = await prisma.storeProductReview.upsert({
         where: { key },
         create: {
@@ -98,11 +111,12 @@ const resolver = {
           rating,
           title,
           body,
+          verifiedPurchase,
           status: STORE_REVIEW_STATUS.PUBLISHED,
           product: { connect: { id: input.productId } },
           user: { connect: { id: userId } },
         },
-        update: { rating, title, body },
+        update: { rating, title, body, verifiedPurchase },
         select: { id: true },
       });
       if (saved instanceof Error) throw saved;

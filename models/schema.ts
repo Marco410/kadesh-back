@@ -53,6 +53,13 @@ import StoreProductVariant from "./Pet/Store/StoreProductVariant/StoreProductVar
 import StoreProductImage from "./Pet/Store/StoreProductImage/StoreProductImage";
 import StoreProductReview from "./Pet/Store/StoreProductReview/StoreProductReview";
 import StoreWishlistItem from "./Pet/Store/StoreWishlistItem/StoreWishlistItem";
+import StoreAddress from "./Pet/Store/StoreAddress/StoreAddress";
+import StoreOrder from "./Pet/Store/StoreOrder/StoreOrder";
+import StoreOrderItem from "./Pet/Store/StoreOrderItem/StoreOrderItem";
+import StoreOrderEvent from "./Pet/Store/StoreOrderEvent/StoreOrderEvent";
+import StorePayment from "./Pet/Store/StorePayment/StorePayment";
+import StoreShipment from "./Pet/Store/StoreShipment/StoreShipment";
+import StoreSettings from "./Pet/Store/StoreSettings/StoreSettings";
 import TokenNotification from "./TokenNotification/TokenNotification";
 import Notification from "./Notification/Notification";
 import Ad from "./Pet/Ad/Ad";
@@ -184,12 +191,19 @@ export default withActivityHooks({
   SaasWorkspaceCrmStatus,
   Schedule,
   SocialMedia,
+  StoreAddress,
   StoreBrand,
   StoreCategory,
+  StoreOrder,
+  StoreOrderEvent,
+  StoreOrderItem,
+  StorePayment,
   StoreProduct,
   StoreProductImage,
   StoreProductReview,
   StoreProductVariant,
+  StoreSettings,
+  StoreShipment,
   StoreWishlistItem,
   SystemRelease,
   Tag,
