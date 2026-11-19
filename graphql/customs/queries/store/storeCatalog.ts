@@ -24,6 +24,7 @@ import {
   storeImageUrl,
   storePrisma,
   storeStockLeft,
+  loadStoreSaleVariants,
   toCatalogItem,
 } from "../../../../utils/store/catalog";
 import { storeCatalogVersion, storeEnabled } from "../../../../utils/store/config";
@@ -83,6 +84,10 @@ const typeDefs = `
     ratingAverage: Float!
     ratingCount: Int!
     isFeatured: Boolean!
+    "Variants on sale. 0 for Mercado Libre products."
+    variantsCount: Int!
+    "Set when the product can go straight to the cart: sold by Kadesh, in stock and with a single variant."
+    singleVariantId: ID
     category: StoreCatalogRef
     brand: StoreCatalogRef
     "Only for seller mercado_libre: the outbound affiliate link."
@@ -455,13 +460,11 @@ const resolver = {
       prisma.storeProduct.count({ where }),
     ]);
     const products = unwrap(rows) as CatalogItemRow[];
-    const covers = await loadStoreCovers(
-      context,
-      products.map((product) => product.id),
-    );
+    const ids = products.map((product) => product.id);
+    const [covers, saleVariants] = await Promise.all([loadStoreCovers(context, ids), loadStoreSaleVariants(context, ids)]);
     return {
       total: Number(unwrap(total)) || 0,
-      items: products.map((product) => toCatalogItem(product, covers.get(product.id))),
+      items: products.map((product) => toCatalogItem(product, covers.get(product.id), saleVariants.get(product.id))),
     };
   },
 
@@ -534,7 +537,10 @@ const resolver = {
     ]);
 
     const relatedRows = unwrap(related) as CatalogItemRow[];
-    const covers = await loadStoreCovers(context, [product.id, ...relatedRows.map((row) => row.id)]);
+    const [covers, saleVariants] = await Promise.all([
+      loadStoreCovers(context, [product.id, ...relatedRows.map((row) => row.id)]),
+      loadStoreSaleVariants(context, [product.id, ...relatedRows.map((row) => row.id)]),
+    ]);
 
     const imageList = (
       await Promise.all(
@@ -559,7 +565,7 @@ const resolver = {
     const affiliate = product.source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE;
 
     return {
-      item: toCatalogItem(product, covers.get(product.id)),
+      item: toCatalogItem(product, covers.get(product.id), saleVariants.get(product.id)),
       description: product.description || null,
       metaTitle: product.metaTitle || null,
       metaDescription: product.metaDescription || null,
@@ -590,7 +596,7 @@ const resolver = {
       }),
       animalTypes: product.animalTypes.map((type) => type.name),
       ratingBreakdown,
-      related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id))),
+      related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id), saleVariants.get(row.id))),
     };
   },
 

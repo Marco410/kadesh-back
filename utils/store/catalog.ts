@@ -150,6 +150,34 @@ export async function loadStoreCovers(
   return covers;
 }
 
+/** Variants on sale (active, with a price) of a product: how many, and the id when there is only one. */
+export type StoreSaleVariants = { count: number; singleId: string | null };
+
+/**
+ * Variants on sale of many products in ONE query, so a card can offer "Agregar al carrito" when
+ * there is nothing to choose. Never ask for it per row.
+ */
+export async function loadStoreSaleVariants(
+  context: KeystoneContext,
+  productIds: string[],
+): Promise<Map<string, StoreSaleVariants>> {
+  const result = new Map<string, StoreSaleVariants>();
+  if (productIds.length === 0) return result;
+  const rows = await storePrisma(context).storeProductVariant.groupBy({
+    by: ["productId"],
+    where: { productId: { in: productIds }, isActive: true, priceCents: { gt: 0 } },
+    _count: { _all: true },
+    _min: { id: true },
+  });
+  if (rows instanceof Error) throw rows;
+  for (const row of rows as Array<{ productId: string | null; _count: { _all: number }; _min: { id: string | null } }>) {
+    if (!row.productId) continue;
+    const count = Number(row._count._all) || 0;
+    result.set(row.productId, { count, singleId: count === 1 ? row._min.id : null });
+  }
+  return result;
+}
+
 /** Prisma `select` of everything `toCatalogItem` needs. Nothing internal beyond `source`. */
 export const CATALOG_ITEM_SELECT = {
   id: true,
@@ -207,9 +235,10 @@ export function storeStockLeft(inventoryPolicy: string | null, stock: number | n
 }
 
 /** The public shape of a product. Own and Dropi products both come out as sold by Kadesh. */
-export function toCatalogItem(row: CatalogItemRow, cover: StoreCover | undefined) {
+export function toCatalogItem(row: CatalogItemRow, cover: StoreCover | undefined, variants?: StoreSaleVariants) {
   const seller = storeSellerFor(row.source);
   const isAffiliate = seller === STORE_SELLER.MERCADO_LIBRE;
+  const inStock = isStoreItemInStock(row);
   return {
     id: row.id,
     slug: row.slug ?? row.id,
@@ -219,7 +248,10 @@ export function toCatalogItem(row: CatalogItemRow, cover: StoreCover | undefined
     priceCents: Number(row.priceCents) || 0,
     compareAtPriceCents: row.compareAtPriceCents ? Number(row.compareAtPriceCents) : null,
     currency: STORE_CURRENCY,
-    inStock: isStoreItemInStock(row),
+    inStock,
+    variantsCount: isAffiliate ? 0 : variants?.count ?? 0,
+    // Straight to the cart from a card: sold by Kadesh, in stock and nothing to choose.
+    singleVariantId: !isAffiliate && inStock ? variants?.singleId ?? null : null,
     coverUrl: cover?.url ?? null,
     coverAlt: cover?.alt ?? null,
     ratingAverage: Number(row.ratingAverage) || 0,
@@ -233,7 +265,7 @@ export function toCatalogItem(row: CatalogItemRow, cover: StoreCover | undefined
   };
 }
 
-/** Catalog items for these ids, keeping the given order. Two queries (products + covers). */
+/** Catalog items for these ids, keeping the given order. Three queries (products, then covers and variants). */
 export async function loadCatalogItems(
   context: KeystoneContext,
   where: Record<string, unknown>,
@@ -246,14 +278,12 @@ export async function loadCatalogItems(
       select: CATALOG_ITEM_SELECT,
     }),
   ) as CatalogItemRow[];
-  const covers = await loadStoreCovers(
-    context,
-    rows.map((row) => row.id),
-  );
+  const ids = rows.map((row) => row.id);
+  const [covers, variants] = await Promise.all([loadStoreCovers(context, ids), loadStoreSaleVariants(context, ids)]);
   const byId = new Map(rows.map((row) => [row.id, row]));
   return order
     .filter((id) => byId.has(id))
-    .map((id) => toCatalogItem(byId.get(id)!, covers.get(id)));
+    .map((id) => toCatalogItem(byId.get(id)!, covers.get(id), variants.get(id)));
 }
 
 export function isHttpsUrl(value: string | null | undefined): boolean {

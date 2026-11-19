@@ -14869,6 +14869,23 @@ async function loadStoreCovers(context, productIds) {
   );
   return covers;
 }
+async function loadStoreSaleVariants(context, productIds) {
+  const result5 = /* @__PURE__ */ new Map();
+  if (productIds.length === 0) return result5;
+  const rows2 = await storePrisma(context).storeProductVariant.groupBy({
+    by: ["productId"],
+    where: { productId: { in: productIds }, isActive: true, priceCents: { gt: 0 } },
+    _count: { _all: true },
+    _min: { id: true }
+  });
+  if (rows2 instanceof Error) throw rows2;
+  for (const row of rows2) {
+    if (!row.productId) continue;
+    const count2 = Number(row._count._all) || 0;
+    result5.set(row.productId, { count: count2, singleId: count2 === 1 ? row._min.id : null });
+  }
+  return result5;
+}
 var CATALOG_ITEM_SELECT = {
   id: true,
   slug: true,
@@ -14897,9 +14914,10 @@ function storeStockLeft(inventoryPolicy, stock) {
   const left = Math.max(0, Number(stock) || 0);
   return left > 0 && left <= STORE_LOW_STOCK ? left : null;
 }
-function toCatalogItem(row, cover) {
+function toCatalogItem(row, cover, variants) {
   const seller = storeSellerFor(row.source);
   const isAffiliate = seller === STORE_SELLER.MERCADO_LIBRE;
+  const inStock = isStoreItemInStock(row);
   return {
     id: row.id,
     slug: row.slug ?? row.id,
@@ -14909,7 +14927,10 @@ function toCatalogItem(row, cover) {
     priceCents: Number(row.priceCents) || 0,
     compareAtPriceCents: row.compareAtPriceCents ? Number(row.compareAtPriceCents) : null,
     currency: STORE_CURRENCY,
-    inStock: isStoreItemInStock(row),
+    inStock,
+    variantsCount: isAffiliate ? 0 : variants?.count ?? 0,
+    // Straight to the cart from a card: sold by Kadesh, in stock and nothing to choose.
+    singleVariantId: !isAffiliate && inStock ? variants?.singleId ?? null : null,
     coverUrl: cover?.url ?? null,
     coverAlt: cover?.alt ?? null,
     ratingAverage: Number(row.ratingAverage) || 0,
@@ -14930,12 +14951,10 @@ async function loadCatalogItems(context, where, order) {
       select: CATALOG_ITEM_SELECT
     })
   );
-  const covers = await loadStoreCovers(
-    context,
-    rows2.map((row) => row.id)
-  );
+  const ids = rows2.map((row) => row.id);
+  const [covers, variants] = await Promise.all([loadStoreCovers(context, ids), loadStoreSaleVariants(context, ids)]);
   const byId = new Map(rows2.map((row) => [row.id, row]));
-  return order.filter((id) => byId.has(id)).map((id) => toCatalogItem(byId.get(id), covers.get(id)));
+  return order.filter((id) => byId.has(id)).map((id) => toCatalogItem(byId.get(id), covers.get(id), variants.get(id)));
 }
 function isHttpsUrl(value) {
   if (!value) return false;
@@ -53932,6 +53951,10 @@ var typeDefs128 = `
     ratingAverage: Float!
     ratingCount: Int!
     isFeatured: Boolean!
+    "Variants on sale. 0 for Mercado Libre products."
+    variantsCount: Int!
+    "Set when the product can go straight to the cart: sold by Kadesh, in stock and with a single variant."
+    singleVariantId: ID
     category: StoreCatalogRef
     brand: StoreCatalogRef
     "Only for seller mercado_libre: the outbound affiliate link."
@@ -54212,13 +54235,11 @@ var resolver125 = {
       prisma.storeProduct.count({ where })
     ]);
     const products = unwrap8(rows2);
-    const covers = await loadStoreCovers(
-      context,
-      products.map((product) => product.id)
-    );
+    const ids = products.map((product) => product.id);
+    const [covers, saleVariants] = await Promise.all([loadStoreCovers(context, ids), loadStoreSaleVariants(context, ids)]);
     return {
       total: Number(unwrap8(total)) || 0,
-      items: products.map((product) => toCatalogItem(product, covers.get(product.id)))
+      items: products.map((product) => toCatalogItem(product, covers.get(product.id), saleVariants.get(product.id)))
     };
   },
   /** One product by slug, with its photos, variants, star breakdown and related products. */
@@ -54276,7 +54297,10 @@ var resolver125 = {
       }) : Promise.resolve([])
     ]);
     const relatedRows = unwrap8(related);
-    const covers = await loadStoreCovers(context, [product.id, ...relatedRows.map((row) => row.id)]);
+    const [covers, saleVariants] = await Promise.all([
+      loadStoreCovers(context, [product.id, ...relatedRows.map((row) => row.id)]),
+      loadStoreSaleVariants(context, [product.id, ...relatedRows.map((row) => row.id)])
+    ]);
     const imageList = (await Promise.all(
       unwrap8(images).map(async (image15) => ({ url: await storeImageUrl(context, image15), alt: image15.alt || null }))
     )).filter((image15) => Boolean(image15.url));
@@ -54288,7 +54312,7 @@ var resolver125 = {
     const tracked = product.inventoryPolicy === STORE_INVENTORY_POLICY.TRACKED;
     const affiliate = product.source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE;
     return {
-      item: toCatalogItem(product, covers.get(product.id)),
+      item: toCatalogItem(product, covers.get(product.id), saleVariants.get(product.id)),
       description: product.description || null,
       metaTitle: product.metaTitle || null,
       metaDescription: product.metaDescription || null,
@@ -54309,7 +54333,7 @@ var resolver125 = {
       }),
       animalTypes: product.animalTypes.map((type) => type.name),
       ratingBreakdown,
-      related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id)))
+      related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id), saleVariants.get(row.id)))
     };
   },
   /** Categories, brands and price range for the filters. Cached in memory for 10 minutes. */

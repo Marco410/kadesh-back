@@ -17288,6 +17288,14 @@ type StoreCatalogItem {
   ratingAverage: Float!
   ratingCount: Int!
   isFeatured: Boolean!
+
+  """Variants on sale. 0 for Mercado Libre products."""
+  variantsCount: Int!
+
+  """
+  Set when the product can go straight to the cart: sold by Kadesh, in stock and with a single variant.
+  """
+  singleVariantId: ID
   category: StoreCatalogRef
   brand: StoreCatalogRef
 

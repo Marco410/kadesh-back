@@ -55,6 +55,7 @@ Apagada hasta poner `STORE_ENABLED=true`. Apagada, el catálogo público respond
 - **Copias guardadas, no campos virtuales**: `priceCents`, `compareAtPriceCents`, `stockTotal` (de las variantes activas), `ratingAverage`, `ratingCount` (de las reseñas publicadas) y `nameSearch`. Las escribe el servidor; un valor mandado por la API se descarta.
 - **`compareAtPriceCents` del producto solo existe si es mayor que el precio**, para que "en oferta" sea un filtro `not null`.
 - **Sin estrellas externas.** Todo producto empieza en 0; solo cuentan las reseñas hechas en Kadesh. No se importan calificaciones de Dropi ni de Mercado Libre.
+- **Agregar al carrito desde la tarjeta**: `singleVariantId` viene solo si el producto lo vende Kadesh, hay stock y tiene una sola variante a la venta; con varias (`variantsCount` > 1) hay que elegir en la ficha. Sale de `loadStoreSaleVariants`, una consulta para toda la página.
 - **Una reseña y un deseo por persona y producto** (`key` único `<userId>:<productId>`).
 - **Una reseña oculta por un admin no vuelve**: su autor no puede editarla para republicarla.
 - **Cada reseña pública lleva el `id` de su autor** (`author.id`): la app lo usa para ocultar las reseñas de quien la persona bloqueó y para reportar o bloquear al autor (requisito de las tiendas de apps).
@@ -154,8 +155,8 @@ Medido con 12 y con 48 productos: el número no cambia.
 
 | Consulta | Sentencias SQL |
 |---|---|
-| `storeCatalog` (con filtro de categoría) | 5 |
-| `storeCatalogProduct` | 9 |
+| `storeCatalog` (con filtro de categoría) | 6 (las variantes a la venta de toda la página en una) |
+| `storeCatalogProduct` | 10 |
 | `adminStoreProducts` | 6 |
 | `storeCatalogFacets` | 5, una vez cada 10 min |
 | `storeCartQuote` | 2 a 3 (variantes con su producto, portadas; los ajustes salen de memoria); con cupón, de 1 a 3 más |
