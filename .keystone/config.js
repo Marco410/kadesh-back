@@ -35950,6 +35950,17 @@ async function updateStoreShipment(context, shipmentId, input) {
   await recomputeStoreFulfillment(context, shipment.orderId);
   return { success: true, message: "Env\xEDo actualizado." };
 }
+async function settleStoreCardPayment(context, order) {
+  if (!order.stripePaymentIntentId) return false;
+  const intent = await stripe_default.paymentIntents.retrieve(order.stripePaymentIntentId);
+  if (intent.status !== "succeeded") return false;
+  const result5 = await markStoreOrderPaid(context, order.id, {
+    provider: STORE_PAYMENT_METHOD.CARD,
+    stripePaymentIntentId: intent.id,
+    stripeChargeId: typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null
+  });
+  return result5 === "paid" || result5 === "already_paid";
+}
 
 // utils/store/pricing.ts
 var CART_ISSUE = {
@@ -36737,15 +36748,10 @@ var resolver35 = {
       if (order.status !== STORE_ORDER_STATUS.OPEN || !unpaid || order.paymentMethod !== STORE_PAYMENT_METHOD.CARD || !order.stripePaymentIntentId) {
         return { success: false, message: "Este pedido ya no se puede pagar con tarjeta.", ...empty4 };
       }
-      const intent = await stripe_default.paymentIntents.retrieve(order.stripePaymentIntentId);
-      if (intent.status === "succeeded") {
-        await markStoreOrderPaid(context, order.id, {
-          provider: STORE_PAYMENT_METHOD.CARD,
-          stripePaymentIntentId: intent.id,
-          stripeChargeId: typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null
-        });
-        return { success: false, message: "Tu pago ya se hab\xEDa recibido. Tu pedido est\xE1 pagado.", ...empty4 };
+      if (await settleStoreCardPayment(context, { id: order.id, stripePaymentIntentId: order.stripePaymentIntentId })) {
+        return { success: true, message: "Tu pago ya se hab\xEDa recibido. Tu pedido est\xE1 pagado.", ...empty4 };
       }
+      const intent = await stripe_default.paymentIntents.retrieve(order.stripePaymentIntentId);
       if (intent.status === "canceled" || !intent.client_secret) {
         return { success: false, message: "Este cobro ya venci\xF3. Haz el pedido de nuevo.", ...empty4 };
       }
@@ -54536,6 +54542,7 @@ var typeDefs129 = `
   }
 `;
 var couponAttempts = createRateLimiter(STORE_COUPON_ATTEMPTS);
+var stripeCheck = createDeduper(5e3);
 var definition127 = `
   storeCartQuote(items: [StoreCartItemInput!]!, couponCode: String): StoreCartQuote!
   myStoreOrders(take: Int, skip: Int): StoreOrdersResult!
@@ -54644,6 +54651,7 @@ var resolver127 = {
     };
   },
   /** One order of the buyer, with its packages and what has happened to it. */
+  // Typed `unknown`: it calls itself once after settling a payment.
   myStoreOrder: async (_root, { number }, context) => {
     const userId = getSessionUserId(context.session);
     const orderNumber = (number ?? "").trim().toUpperCase();
@@ -54669,11 +54677,21 @@ var resolver127 = {
           shipCity: true,
           shipStateCode: true,
           shipPostalCode: true,
-          shipReferences: true
+          shipReferences: true,
+          stripePaymentIntentId: true
         }
       })
     );
     if (!order) return null;
+    if (order.status === STORE_ORDER_STATUS.OPEN && order.paymentMethod === STORE_PAYMENT_METHOD.CARD && (order.paymentStatus === STORE_PAYMENT_STATUS.PENDING || order.paymentStatus === STORE_PAYMENT_STATUS.FAILED) && order.stripePaymentIntentId && stripeCheck(order.id)) {
+      try {
+        if (await settleStoreCardPayment(context, { id: order.id, stripePaymentIntentId: order.stripePaymentIntentId })) {
+          return resolver127.myStoreOrder(_root, { number }, context);
+        }
+      } catch (error) {
+        console.error("[myStoreOrder] could not check the payment with Stripe:", order.number, error);
+      }
+    }
     const [items, shipments, events, payments] = await Promise.all([
       prisma.storeOrderItem.findMany({
         where: { orderId: order.id },

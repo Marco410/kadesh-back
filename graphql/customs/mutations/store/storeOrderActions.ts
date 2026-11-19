@@ -19,7 +19,7 @@ import Stripe from "../../../../utils/intregrations/stripe";
 import { notify } from "../../../../utils/notifications/notify";
 import { toStoreAddress, validateStoreAddress, type StoreAddressInput } from "../../../../utils/store/address";
 import { storePrisma } from "../../../../utils/store/catalog";
-import { addStoreOrderEvent, cancelUnpaidStoreOrder, markStoreOrderPaid } from "../../../../utils/store/orders";
+import { addStoreOrderEvent, cancelUnpaidStoreOrder, markStoreOrderPaid, settleStoreCardPayment } from "../../../../utils/store/orders";
 
 /**
  * What a buyer does with an order after placing it (upload the transfer proof, resume a card
@@ -219,16 +219,11 @@ const resolver = {
       if (order.status !== STORE_ORDER_STATUS.OPEN || !unpaid || order.paymentMethod !== STORE_PAYMENT_METHOD.CARD || !order.stripePaymentIntentId) {
         return { success: false, message: "Este pedido ya no se puede pagar con tarjeta.", ...empty };
       }
-      const intent = await Stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
-      if (intent.status === "succeeded") {
-        // The webhook is late: settle it now.
-        await markStoreOrderPaid(context, order.id, {
-          provider: STORE_PAYMENT_METHOD.CARD,
-          stripePaymentIntentId: intent.id,
-          stripeChargeId: typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null,
-        });
-        return { success: false, message: "Tu pago ya se había recibido. Tu pedido está pagado.", ...empty };
+      // The webhook may be late: if Stripe already charged it, the order is paid now.
+      if (await settleStoreCardPayment(context, { id: order.id, stripePaymentIntentId: order.stripePaymentIntentId })) {
+        return { success: true, message: "Tu pago ya se había recibido. Tu pedido está pagado.", ...empty };
       }
+      const intent = await Stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
       if (intent.status === "canceled" || !intent.client_secret) {
         return { success: false, message: "Este cobro ya venció. Haz el pedido de nuevo.", ...empty };
       }

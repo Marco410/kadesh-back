@@ -123,6 +123,8 @@ Decisión de Marco (2026-11-19): comprar y reseñar dan huellitas; todavía no s
 - Una reseña sin compra verificada (incluye todo lo de Mercado Libre) no da nada.
 - La invitación a reseñar sale una sola vez, cuando el pedido completo se entrega: la notificación `store.order_delivered` y el correo de entrega, con un botón por producto (hasta 5) hacia `/tienda/<slug>#resenas`.
 
+**El pago con tarjeta no depende del webhook para verse**: si un pedido con tarjeta sigue sin pagar, `myStoreOrder` y `resumeStoreOrderPayment` le preguntan a Stripe (`settleStoreCardPayment`, una vez cada 5 s por pedido como mucho) y lo marcan pagado si ya se cobró. El webhook sigue siendo el camino normal; esto cubre que llegue tarde o, en local, que no llegue (sin `stripe listen` / `STRIPE_WEBHOOK_SECRET`).
+
 Stripe: el endpoint de webhooks necesita además `payment_intent.succeeded` y `payment_intent.payment_failed` (ya tenía `charge.refunded`). Los pagos de la tienda llevan `metadata.kind = "store_order"`.
 
 ## Reporte de ventas

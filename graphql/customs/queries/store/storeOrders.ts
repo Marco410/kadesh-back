@@ -12,11 +12,11 @@ import {
 } from "../../../../models/Pet/Store/constants";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { requestIp } from "../../../../utils/activity/requestMeta";
-import { createRateLimiter } from "../../../../utils/security/rateLimit";
+import { createDeduper, createRateLimiter } from "../../../../utils/security/rateLimit";
 import { toStoreAddress } from "../../../../utils/store/address";
 import { loadStoreCovers, storePrisma } from "../../../../utils/store/catalog";
 import { storeEnabled } from "../../../../utils/store/config";
-import { SHIPMENT_PUBLIC_LABEL } from "../../../../utils/store/orders";
+import { SHIPMENT_PUBLIC_LABEL, settleStoreCardPayment } from "../../../../utils/store/orders";
 import { publicQuote, quoteCart, type CartItemInput } from "../../../../utils/store/pricing";
 import { getStoreSettings, transferInstructions } from "../../../../utils/store/settings";
 
@@ -112,6 +112,8 @@ const typeDefs = `
 `;
 
 const couponAttempts = createRateLimiter(STORE_COUPON_ATTEMPTS);
+// Asking Stripe about one order at most once every few seconds, however often the page reloads.
+const stripeCheck = createDeduper(5000);
 
 const definition = `
   storeCartQuote(items: [StoreCartItemInput!]!, couponCode: String): StoreCartQuote!
@@ -259,7 +261,8 @@ const resolver = {
   },
 
   /** One order of the buyer, with its packages and what has happened to it. */
-  myStoreOrder: async (_root: unknown, { number }: { number: string }, context: KeystoneContext) => {
+  // Typed `unknown`: it calls itself once after settling a payment.
+  myStoreOrder: async (_root: unknown, { number }: { number: string }, context: KeystoneContext): Promise<unknown> => {
     const userId = getSessionUserId(context.session);
     const orderNumber = (number ?? "").trim().toUpperCase();
     if (!userId || !orderNumber) return null;
@@ -286,10 +289,29 @@ const resolver = {
           shipStateCode: true,
           shipPostalCode: true,
           shipReferences: true,
+          stripePaymentIntentId: true,
         },
       }),
     ) as (SummaryRow & Record<string, any>) | null;
     if (!order) return null;
+
+    // Card order still unpaid: Stripe may have charged it before its webhook arrived. Settle it
+    // now, so the buyer sees it paid as soon as the payment form says so.
+    if (
+      order.status === STORE_ORDER_STATUS.OPEN &&
+      order.paymentMethod === STORE_PAYMENT_METHOD.CARD &&
+      (order.paymentStatus === STORE_PAYMENT_STATUS.PENDING || order.paymentStatus === STORE_PAYMENT_STATUS.FAILED) &&
+      order.stripePaymentIntentId &&
+      stripeCheck(order.id)
+    ) {
+      try {
+        if (await settleStoreCardPayment(context, { id: order.id, stripePaymentIntentId: order.stripePaymentIntentId })) {
+          return resolver.myStoreOrder(_root, { number }, context);
+        }
+      } catch (error) {
+        console.error("[myStoreOrder] could not check the payment with Stripe:", order.number, error);
+      }
+    }
 
     const [items, shipments, events, payments] = await Promise.all([
       prisma.storeOrderItem.findMany({

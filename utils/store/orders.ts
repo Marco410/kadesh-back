@@ -750,3 +750,24 @@ export async function updateStoreShipment(
   await recomputeStoreFulfillment(context, shipment.orderId);
   return { success: true, message: "Envío actualizado." };
 }
+
+/**
+ * Asks Stripe whether the card payment of an unpaid order already went through and, if so, marks
+ * the order paid right away. The webhook normally does it, but it can arrive seconds later (or
+ * never, locally without `stripe listen`): the buyer must not see "sin pagar" after paying.
+ * `true` when the order is paid now.
+ */
+export async function settleStoreCardPayment(
+  context: KeystoneContext,
+  order: { id: string; stripePaymentIntentId: string | null },
+): Promise<boolean> {
+  if (!order.stripePaymentIntentId) return false;
+  const intent = await Stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
+  if (intent.status !== "succeeded") return false;
+  const result = await markStoreOrderPaid(context, order.id, {
+    provider: STORE_PAYMENT_METHOD.CARD,
+    stripePaymentIntentId: intent.id,
+    stripeChargeId: typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null,
+  });
+  return result === "paid" || result === "already_paid";
+}
