@@ -17262,6 +17262,11 @@ input StoreCatalogInput {
   inStock: Boolean
 
   """
+  Only products sold at least once (the «Los más vendidos» box). Kadesh sales only.
+  """
+  soldOnly: Boolean
+
+  """
   featured (default) | newest | price_asc | price_desc | rating | best_selling
   """
   sort: String

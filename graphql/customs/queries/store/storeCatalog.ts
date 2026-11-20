@@ -55,6 +55,8 @@ const typeDefs = `
     onSale: Boolean
     featured: Boolean
     inStock: Boolean
+    "Only products sold at least once (the «Los más vendidos» box). Kadesh sales only."
+    soldOnly: Boolean
     "featured (default) | newest | price_asc | price_desc | rating | best_selling"
     sort: String
     take: Int = 24
@@ -215,6 +217,7 @@ type CatalogInput = {
   onSale?: boolean | null;
   featured?: boolean | null;
   inStock?: boolean | null;
+  soldOnly?: boolean | null;
   sort?: string | null;
   take?: number | null;
   skip?: number | null;
@@ -303,6 +306,7 @@ async function buildWhere(prisma: any, input: CatalogInput): Promise<Record<stri
   if (Number.isFinite(max) && max > 0) and.push({ priceCents: { lte: Math.floor(max) } });
 
   if (input.onSale) and.push({ compareAtPriceCents: { not: null } });
+  if (input.soldOnly) and.push({ salesCount: { gt: 0 } });
   if (input.featured) and.push({ isFeatured: true });
   if (input.inStock) and.push(IN_STOCK);
 

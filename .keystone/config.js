@@ -35210,11 +35210,21 @@ async function evaluateCoupon(context, input) {
       if (Number(used) >= coupon.usageLimitPerUser) return no(code, "Ya usaste ese cup\xF3n.");
     }
     if (coupon.firstOrderOnly) {
-      const paid = await prisma.storeOrder.count({
-        where: { userId: input.userId, paymentStatus: { in: [STORE_PAYMENT_STATUS.PAID, STORE_PAYMENT_STATUS.REFUNDED] } }
+      const earlier = await prisma.storeOrder.count({
+        where: {
+          userId: input.userId,
+          OR: [
+            { paymentStatus: { in: [STORE_PAYMENT_STATUS.PAID, STORE_PAYMENT_STATUS.REFUNDED] } },
+            {
+              couponCode: coupon.code,
+              status: STORE_ORDER_STATUS.OPEN,
+              paymentStatus: { in: [STORE_PAYMENT_STATUS.PENDING, STORE_PAYMENT_STATUS.IN_REVIEW] }
+            }
+          ]
+        }
       });
-      if (paid instanceof Error) throw paid;
-      if (Number(paid) > 0) return no(code, "Ese cup\xF3n es solo para tu primera compra.");
+      if (earlier instanceof Error) throw earlier;
+      if (Number(earlier) > 0) return no(code, "Ese cup\xF3n es solo para tu primera compra.");
     }
   }
   const categoryIds = new Set(coupon.categories.map((category) => category.id));
@@ -54127,6 +54137,8 @@ var typeDefs128 = `
     onSale: Boolean
     featured: Boolean
     inStock: Boolean
+    "Only products sold at least once (the \xABLos m\xE1s vendidos\xBB box). Kadesh sales only."
+    soldOnly: Boolean
     "featured (default) | newest | price_asc | price_desc | rating | best_selling"
     sort: String
     take: Int = 24
@@ -54339,6 +54351,7 @@ async function buildWhere(prisma, input) {
   if (Number.isFinite(min) && min > 0) and.push({ priceCents: { gte: Math.floor(min) } });
   if (Number.isFinite(max) && max > 0) and.push({ priceCents: { lte: Math.floor(max) } });
   if (input.onSale) and.push({ compareAtPriceCents: { not: null } });
+  if (input.soldOnly) and.push({ salesCount: { gt: 0 } });
   if (input.featured) and.push({ isFeatured: true });
   if (input.inStock) and.push(IN_STOCK);
   return { AND: and };
