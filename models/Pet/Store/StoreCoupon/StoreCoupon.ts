@@ -58,6 +58,10 @@ export default list({
       if (startsAt && endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
         addValidationError("La fecha de fin debe ser posterior a la de inicio.");
       }
+      // Only when the end date is being set: an old coupon that already ended can still be edited.
+      if (resolvedData.endsAt && new Date(resolvedData.endsAt).getTime() <= Date.now()) {
+        addValidationError("La fecha de fin ya pasó. Elige una fecha futura.");
+      }
     },
   },
   fields: {

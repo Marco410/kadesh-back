@@ -12,6 +12,8 @@ import {
   STORE_SHIPMENT_ON_THE_WAY,
   STORE_SHIPMENT_PROVIDER,
   STORE_SHIPMENT_STATUS,
+  STORE_SHIPMENT_STATUS_OPTIONS,
+  storeShipmentNextStatuses,
   type StoreShipmentStatus,
 } from "../../models/Pet/Store/constants";
 import Stripe from "../intregrations/stripe";
@@ -660,6 +662,7 @@ export async function updateStoreShipment(
       select: {
         id: true,
         status: true,
+        provider: true,
         orderId: true,
         shippedAt: true,
         deliveredAt: true,
@@ -672,6 +675,7 @@ export async function updateStoreShipment(
   ) as {
     id: string;
     status: string;
+    provider: string;
     orderId: string | null;
     shippedAt: Date | null;
     deliveredAt: Date | null;
@@ -683,6 +687,11 @@ export async function updateStoreShipment(
   if (!shipment?.orderId || !shipment.order) return { success: false, message: "No encontramos el envío." };
   if (shipment.order.paymentStatus !== STORE_PAYMENT_STATUS.PAID) {
     return { success: false, message: "El pedido de este envío no está pagado." };
+  }
+  if (!storeShipmentNextStatuses(shipment.provider, shipment.status).includes(input.status as StoreShipmentStatus)) {
+    const from = STORE_SHIPMENT_STATUS_OPTIONS.find((option) => option.value === shipment.status)?.label ?? shipment.status;
+    const to = STORE_SHIPMENT_STATUS_OPTIONS.find((option) => option.value === input.status)?.label ?? input.status;
+    return { success: false, message: `Un envío no puede pasar de "${from}" a "${to}".` };
   }
 
   const trackingUrl = (input.trackingUrl ?? shipment.trackingUrl ?? "").trim();

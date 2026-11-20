@@ -3,6 +3,7 @@ import { STORE_ADMIN_MAX_TAKE, STORE_INVENTORY_POLICY } from "../../../../models
 import { normalizeSearchText } from "../../../../utils/helpers/normalizeSearchText";
 import { loadStoreCovers } from "../../../../utils/store/catalog";
 import { adminPrisma, assertPlatformAdmin, clampInt, countsToList, toIso, unwrapPrisma } from "./shared";
+import { escapeLike } from "../../../../utils/helpers/escapeLike";
 
 /**
  * Store products in Operaciones (Kadesh Pet → Tienda). Platform admin only. Unlike the public
@@ -108,7 +109,7 @@ const resolver = {
     if (search) {
       base.push({
         OR: [
-          { nameSearch: { contains: search } },
+          { nameSearch: { contains: escapeLike(search) } },
           { externalId: { equals: (args.search ?? "").trim() } },
           { variants: { some: { sku: { equals: (args.search ?? "").trim() } } } },
         ],

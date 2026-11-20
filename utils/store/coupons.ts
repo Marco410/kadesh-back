@@ -57,7 +57,11 @@ type CouponRow = {
   products: Array<{ id: string }>;
 };
 
-const MONEY = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+const MONEY_WHOLE = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+const MONEY_CENTS = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2 });
+
+/** "$50" for whole pesos, "$8.90" otherwise: the amount the person sees is the one they get. */
+const MONEY = { format: (pesos: number) => (Number.isInteger(pesos) ? MONEY_WHOLE : MONEY_CENTS).format(pesos) };
 
 function no(code: string, message: string): CouponOutcome {
   return { applied: false, code, message };
@@ -120,7 +124,8 @@ export async function evaluateCoupon(
   if (coupon instanceof Error) throw coupon;
 
   const now = Date.now();
-  if (!coupon || coupon.isActive === false) return no(code, "Ese cupón no existe.");
+  if (!coupon) return no(code, "Ese cupón no existe.");
+  if (coupon.isActive === false) return no(code, "Ese cupón ya no está activo.");
   if (coupon.startsAt && new Date(coupon.startsAt).getTime() > now) return no(code, "Ese cupón todavía no empieza.");
   if (coupon.endsAt && new Date(coupon.endsAt).getTime() <= now) return no(code, "Ese cupón ya venció.");
   if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) return no(code, "Ese cupón ya se agotó.");

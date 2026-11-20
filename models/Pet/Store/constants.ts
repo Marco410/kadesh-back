@@ -189,10 +189,14 @@ export const STORE_PAYMENT_ATTEMPT_STATUS = {
   REFUNDED: "refunded",
 } as const;
 
-export const STORE_PAYMENT_ATTEMPT_STATUS_OPTIONS = Object.values(STORE_PAYMENT_ATTEMPT_STATUS).map((value) => ({
-  label: value,
-  value,
-}));
+export const STORE_PAYMENT_ATTEMPT_STATUS_OPTIONS = [
+  { label: "Pendiente", value: STORE_PAYMENT_ATTEMPT_STATUS.PENDING },
+  { label: "En revisión", value: STORE_PAYMENT_ATTEMPT_STATUS.IN_REVIEW },
+  { label: "Pagado", value: STORE_PAYMENT_ATTEMPT_STATUS.SUCCEEDED },
+  { label: "Falló", value: STORE_PAYMENT_ATTEMPT_STATUS.FAILED },
+  { label: "Cancelado", value: STORE_PAYMENT_ATTEMPT_STATUS.CANCELLED },
+  { label: "Reembolsado", value: STORE_PAYMENT_ATTEMPT_STATUS.REFUNDED },
+];
 
 export const STORE_SHIPMENT_PROVIDER = {
   /** Shipped by Kadesh. */
@@ -235,6 +239,33 @@ export const STORE_SHIPMENT_STATUS_OPTIONS = [
   { label: "Devuelto", value: STORE_SHIPMENT_STATUS.RETURNED },
   { label: "Cancelado", value: STORE_SHIPMENT_STATUS.CANCELLED },
 ];
+
+const SHIPMENT_FLOW: Record<StoreShipmentStatus, readonly StoreShipmentStatus[]> = {
+  pending: ["label_created", "in_transit", "delivered", "exception", "cancelled"],
+  // Until the Dropi integration is live an admin moves these by hand, like own shipments.
+  pending_approval: ["requested", "label_created", "in_transit", "delivered", "exception", "cancelled"],
+  requested: ["label_created", "in_transit", "exception", "cancelled"],
+  label_created: ["in_transit", "delivered", "exception", "cancelled"],
+  in_transit: ["delivered", "exception", "returned"],
+  exception: ["in_transit", "delivered", "returned", "cancelled"],
+  delivered: ["returned"],
+  returned: [],
+  cancelled: [],
+};
+
+/** Dropi-only steps: a shipment of own products never goes through them. */
+const DROPI_ONLY_STATUSES: readonly string[] = ["pending_approval", "requested"];
+
+/**
+ * Statuses a shipment may move to from `status` (its own status is always allowed, to edit the
+ * tracking). A package that never left cannot come back as returned, and own shipments never see
+ * the Dropi steps.
+ */
+export function storeShipmentNextStatuses(provider: string, status: string): StoreShipmentStatus[] {
+  const next = SHIPMENT_FLOW[status as StoreShipmentStatus] ?? [];
+  const allowed = provider === "dropi" ? next : next.filter((value) => !DROPI_ONLY_STATUSES.includes(value));
+  return [status as StoreShipmentStatus, ...allowed];
+}
 
 /** Shipment statuses that mean the package already left. */
 export const STORE_SHIPMENT_ON_THE_WAY: readonly string[] = [

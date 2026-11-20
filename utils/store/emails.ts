@@ -71,6 +71,26 @@ type OrderRow = {
   }>;
 };
 
+/**
+ * WhatsApp chat with the store, already written with the order, so the buyer only attaches the
+ * proof of the transfer. Same text as the button of the order page in the landing.
+ */
+export function storeProofWhatsappUrl(phone: string, order: Pick<OrderRow, "number" | "totalCents" | "customerName" | "items">): string {
+  const text = [
+    `Hola, te mando el comprobante de mi transferencia del pedido ${order.number}.`,
+    "",
+    `Total: ${formatStoreMoney(order.totalCents)}`,
+    `Concepto: ${order.number}`,
+    ...(order.customerName ? [`A nombre de: ${order.customerName}`] : []),
+    "",
+    "Productos:",
+    ...order.items.map((item) => `• ${item.quantity} × ${item.name}${item.variantTitle ? ` (${item.variantTitle})` : ""}`),
+    "",
+    "Adjunto la foto del comprobante.",
+  ].join("\n");
+  return `https://wa.me/52${phone.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(text)}`;
+}
+
 export async function sendStoreOrderEmail(
   context: KeystoneContext,
   orderId: string,
@@ -131,9 +151,10 @@ export async function sendStoreOrderEmail(
       const settings = await getStoreSettings(context);
       subject = `Tu pedido ${order.number}: datos para la transferencia`;
       title = "Falta tu transferencia";
-      preheader = `Transfiere ${formatStoreMoney(order.totalCents)} y sube tu comprobante.`;
+      const whatsapp = settings.supportWhatsapp;
+      preheader = `Transfiere ${formatStoreMoney(order.totalCents)} y ${whatsapp ? "mándanos tu comprobante por WhatsApp" : "sube tu comprobante"}.`;
       body = `
-        ${emailParagraph(`Apartamos tu pedido <strong>${escapeHtml(order.number)}</strong>. Para confirmarlo, transfiere el total y sube tu comprobante.`)}
+        ${emailParagraph(`Apartamos tu pedido <strong>${escapeHtml(order.number)}</strong>. Para confirmarlo, transfiere el total y ${whatsapp ? "mándanos la foto de tu comprobante por WhatsApp" : "sube tu comprobante"}.`)}
         ${emailInfoTable([
           ["Monto", `<strong>${escapeHtml(formatStoreMoney(order.totalCents))}</strong>`],
           ["Banco", escapeHtml(settings.bankName || "—")],
@@ -143,7 +164,7 @@ export async function sendStoreOrderEmail(
         ])}
         ${settings.bankNote ? emailParagraph(escapeHtml(settings.bankNote)) : ""}
         ${order.expiresAt ? emailCallout("pet", `Tienes hasta el <strong>${escapeHtml(formatDeadline(order.expiresAt))}</strong>. Después el pedido se cancela solo.`) : ""}
-        ${emailButton("pet", "Subir mi comprobante", url)}
+        ${whatsapp ? emailButton("pet", "Mandar comprobante por WhatsApp", storeProofWhatsappUrl(whatsapp, order)) : emailButton("pet", "Subir mi comprobante", url)}
         ${itemsTable}`;
     } else if (kind === "paid") {
       subject = `Recibimos tu pago: pedido ${order.number}`;
@@ -184,12 +205,13 @@ export async function sendStoreOrderEmail(
     } else if (kind === "transfer_rejected") {
       subject = `No pudimos confirmar tu transferencia: pedido ${order.number}`;
       title = "No pudimos confirmar tu transferencia";
-      preheader = "Sube de nuevo tu comprobante.";
+      const whatsapp = (await getStoreSettings(context)).supportWhatsapp;
+      preheader = whatsapp ? "Mándanos de nuevo tu comprobante." : "Sube de nuevo tu comprobante.";
       body = `
         ${emailParagraph(`Revisamos el comprobante de tu pedido <strong>${escapeHtml(order.number)}</strong> y no pudimos confirmar el pago.`)}
         ${extra.note ? emailCallout("pet", escapeHtml(extra.note)) : ""}
-        ${order.expiresAt ? emailParagraph(`Puedes subir otro hasta el <strong>${escapeHtml(formatDeadline(order.expiresAt))}</strong>.`) : ""}
-        ${emailButton("pet", "Subir otro comprobante", url)}`;
+        ${order.expiresAt ? emailParagraph(`Puedes mandar otro hasta el <strong>${escapeHtml(formatDeadline(order.expiresAt))}</strong>.`) : ""}
+        ${whatsapp ? emailButton("pet", "Mandar comprobante por WhatsApp", storeProofWhatsappUrl(whatsapp, order)) : emailButton("pet", "Subir otro comprobante", url)}`;
     } else if (kind === "refunded") {
       subject = `Reembolsamos tu pedido ${order.number}`;
       title = "Reembolsamos tu pedido";

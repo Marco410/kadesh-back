@@ -1729,6 +1729,7 @@ model StoreCouponRedemption {
 model StoreOrder {
   id                               String                  @id @default(cuid())
   number                           String                  @unique @default("")
+  checkoutKey                      String?                 @unique
   user                             User?                   @relation("StoreOrder_user", fields: [userId], references: [id])
   userId                           String?                 @map("user")
   customerName                     String                  @default("")

@@ -8297,6 +8297,7 @@ input StoreCouponRedemptionOrderByInput {
 type StoreOrder {
   id: ID!
   number: String
+  checkoutKey: String
   user: User
   customerName: String
   email: String
@@ -8347,6 +8348,7 @@ type StoreOrder {
 input StoreOrderWhereUniqueInput {
   id: ID
   number: String
+  checkoutKey: String
   stripePaymentIntentId: String
 }
 
@@ -8356,6 +8358,7 @@ input StoreOrderWhereInput {
   NOT: [StoreOrderWhereInput!]
   id: IDFilter
   number: StringFilter
+  checkoutKey: StringNullableFilter
   user: UserWhereInput
   customerName: StringFilter
   email: StringFilter
@@ -8426,6 +8429,7 @@ input StoreOrderEventManyRelationFilter {
 input StoreOrderOrderByInput {
   id: OrderDirection
   number: OrderDirection
+  checkoutKey: OrderDirection
   customerName: OrderDirection
   email: OrderDirection
   phone: OrderDirection
@@ -14704,6 +14708,13 @@ input StorePlaceOrderInput {
 
   """Only without a session."""
   guest: StoreGuestInput
+
+  """
+  Random key (16 to 64 letters, digits, - or _) made once per attempt to pay and sent again on
+  every retry of that attempt. The same key twice answers the order already placed instead of
+  placing another one. Make a new one after an answer with success false.
+  """
+  checkoutKey: String
 }
 
 type StoreTransferInstructions {
@@ -17296,6 +17307,11 @@ type StoreCatalogItem {
   Set when the product can go straight to the cart: sold by Kadesh, in stock and with a single variant.
   """
   singleVariantId: ID
+
+  """
+  With singleVariantId: the most of it one cart may carry (its stock, up to 20).
+  """
+  singleVariantMaxQuantity: Int
   category: StoreCatalogRef
   brand: StoreCatalogRef
 
@@ -17410,6 +17426,12 @@ type StoreCatalogReviewsResult {
 
   """The signed-in person's own review of this product, if any."""
   mine: StoreCatalogReview
+
+  """
+  Current stars of the product (the product page may be cached for a minute).
+  """
+  ratingAverage: Float!
+  ratingCount: Int!
 }
 
 type StoreOrderSummary {
@@ -17620,6 +17642,11 @@ type AdminStoreShipment {
   """own | dropi"""
   provider: String!
   status: String!
+
+  """
+  Statuses an admin may set next (the current one first): never a Dropi step on own shipments.
+  """
+  nextStatuses: [String!]!
   carrier: String
   trackingCode: String
   trackingUrl: String

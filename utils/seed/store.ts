@@ -92,7 +92,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "croquetas",
     name: "Croquetas premium sabor pollo",
     shortDescription: "Alimento completo para perro adulto, con pollo como primer ingrediente.",
-    description: "Croquetas para perros adultos de todas las razas. Pollo como primer ingrediente, arroz integral y omega 3 para piel y pelo.\n\nProducto de prueba del seed.",
+    description: "Croquetas para perros adultos de todas las razas. Pollo como primer ingrediente, arroz integral y omega 3 para piel y pelo.",
     source: "own",
     inventoryPolicy: "tracked",
     category: "dogFood",
@@ -110,7 +110,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "arena",
     name: "Arena aglomerante sin aroma 10 kg",
     shortDescription: "Forma grumos firmes y no deja polvo.",
-    description: "Arena de bentonita para gato. Grumos firmes, fácil de limpiar y sin aroma.\n\nProducto de prueba del seed.",
+    description: "Arena de bentonita para gato. Grumos firmes, fácil de limpiar y sin aroma.",
     source: "own",
     inventoryPolicy: "tracked",
     category: "litter",
@@ -123,7 +123,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "collar",
     name: "Collar bordado con el nombre de tu mascota",
     shortDescription: "Hecho a mano sobre pedido, en tres tallas.",
-    description: "Collar de nylon con el nombre bordado. Se hace sobre pedido y sale en 3 a 5 días hábiles.\n\nProducto de prueba del seed.",
+    description: "Collar de nylon con el nombre bordado. Se hace sobre pedido y sale en 3 a 5 días hábiles.",
     source: "own",
     inventoryPolicy: "untracked",
     category: "walk",
@@ -141,7 +141,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "pelota",
     name: "Pelota de hule resistente",
     shortDescription: "Rebota, flota y aguanta mordidas fuertes.",
-    description: "Pelota de hule natural para perros que muerden mucho.\n\nProducto de prueba del seed: quedan pocas piezas.",
+    description: "Pelota de hule natural para perros que muerden mucho.",
     source: "own",
     inventoryPolicy: "tracked",
     category: "dogToys",
@@ -154,7 +154,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "rascador",
     name: "Rascador torre de tres niveles",
     shortDescription: "Con casita, hamaca y postes de sisal.",
-    description: "Torre para gato de 120 cm con tres niveles.\n\nProducto de prueba del seed: agotado.",
+    description: "Torre para gato de 120 cm con tres niveles.",
     source: "own",
     inventoryPolicy: "tracked",
     category: "scratchers",
@@ -167,7 +167,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "shampoo",
     name: "Shampoo de avena para piel sensible",
     shortDescription: "Para perros y gatos, sin parabenos.",
-    description: "Shampoo suave de avena coloidal. 500 ml.\n\nProducto de prueba del seed.",
+    description: "Shampoo suave de avena coloidal. 500 ml.",
     source: "own",
     inventoryPolicy: "tracked",
     category: "hygiene",
@@ -180,7 +180,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "cama",
     name: "Cama ortopédica de espuma viscoelástica",
     shortDescription: "Alivia articulaciones; funda lavable.",
-    description: "Cama con espuma viscoelástica y funda desmontable.\n\nProducto de prueba del seed (dropshipping: en la tienda sale vendido por Kadesh).",
+    description: "Cama con espuma viscoelástica y funda desmontable.",
     source: "dropi",
     inventoryPolicy: "untracked",
     category: "beds",
@@ -199,7 +199,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "fuente",
     name: "Fuente de agua para gato 2 L",
     shortDescription: "Agua en movimiento y filtrada para que tome más.",
-    description: "Fuente silenciosa con filtro de carbón.\n\nProducto de prueba del seed (dropshipping).",
+    description: "Fuente silenciosa con filtro de carbón.",
     source: "dropi",
     inventoryPolicy: "untracked",
     category: "catFood",
@@ -213,7 +213,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "correa",
     name: "Correa retráctil 5 m",
     shortDescription: "Freno de un botón, para perros de hasta 25 kg.",
-    description: "Correa retráctil con cinta de 5 m.\n\nProducto de prueba del seed (dropshipping).",
+    description: "Correa retráctil con cinta de 5 m.",
     source: "dropi",
     inventoryPolicy: "untracked",
     category: "walk",
@@ -227,11 +227,11 @@ const PRODUCTS: ProductSeed[] = [
     key: "transportadora",
     name: "Transportadora mediana para viaje",
     shortDescription: "Aprobada para cabina en varias aerolíneas.",
-    description: "Transportadora rígida con puerta metálica.\n\nProducto de prueba del seed (enlace de afiliado de Mercado Libre).",
+    description: "Transportadora rígida con puerta metálica.",
     source: "mercado_libre",
     category: "walk",
     animals: [AnimalTypes.DOG, AnimalTypes.CAT],
-    affiliateUrl: "https://www.mercadolibre.com.mx/",
+    affiliateUrl: "https://listado.mercadolibre.com.mx/transportadora-rigida-perro",
     externalId: "MLM-SEED-1",
     photos: 1,
     variants: [{ priceCents: 79900 }],
@@ -240,11 +240,11 @@ const PRODUCTS: ProductSeed[] = [
     key: "comedero",
     name: "Comedero automático con temporizador",
     shortDescription: "Hasta 4 comidas al día.",
-    description: "Comedero programable de 4 L.\n\nProducto de prueba del seed (enlace de afiliado de Mercado Libre).",
+    description: "Comedero programable de 4 L.",
     source: "mercado_libre",
     category: "catFood",
     animals: [AnimalTypes.CAT, AnimalTypes.DOG],
-    affiliateUrl: "https://www.mercadolibre.com.mx/",
+    affiliateUrl: "https://listado.mercadolibre.com.mx/comedero-automatico-mascotas",
     externalId: "MLM-SEED-2",
     photos: 1,
     variants: [{ priceCents: 114900 }],
@@ -253,7 +253,7 @@ const PRODUCTS: ProductSeed[] = [
     key: "sueter",
     name: "Suéter navideño (borrador)",
     shortDescription: "No sale en la tienda: está en borrador.",
-    description: "Producto de prueba del seed en borrador.",
+    description: "Juguete en preparación: todavía no sale en la tienda.",
     source: "own",
     status: "draft",
     inventoryPolicy: "tracked",
@@ -365,7 +365,16 @@ async function createCoupons(context: KeystoneContext, categories: Ids | null) {
   for (const coupon of coupons) {
     const existing = await sudo.db.StoreCoupon.findOne({ where: { code: coupon.code } });
     if (existing) continue;
-    await sudo.db.StoreCoupon.createOne({ data: coupon });
+    // The API refuses an end date in the past; an expired test coupon gets its dates afterwards.
+    const { startsAt, endsAt, ...data } = coupon as typeof coupon & { startsAt?: string; endsAt?: string };
+    const created = await sudo.db.StoreCoupon.createOne({ data });
+    if (startsAt || endsAt) {
+      const dated = await storePrisma(context).storeCoupon.update({
+        where: { id: String(created.id) },
+        data: { startsAt: startsAt ? new Date(startsAt) : null, endsAt: endsAt ? new Date(endsAt) : null },
+      });
+      if (dated instanceof Error) throw dated;
+    }
     added += 1;
   }
   console.log(added ? `🌱 Tienda: ${added} cupones (BIENVENIDA10, ENVIOGRATIS, FIJO50, JUGUETES20, VENCIDO).` : "♻️  Tienda: los cupones ya existían.");
@@ -589,7 +598,7 @@ async function createOrders(
         payments: {
           create: [
             {
-              provider: method === "stripe_card" ? "stripe" : "transfer",
+              provider: method,
               amountCents: subtotal - discount + shipping,
               status: seed.stage === "refunded" ? "refunded" : paid ? "succeeded" : seed.stage === "cancelled" ? "failed" : "pending",
               transferReference: method === "bank_transfer" ? number : "",
@@ -601,6 +610,27 @@ async function createOrders(
       select: { id: true, items: { select: { id: true, source: true } } },
     });
     if (order instanceof Error) throw order;
+
+    // A coupon used by an order that was not cancelled counts as used, as it does in a real checkout.
+    if (seed.coupon && status !== "cancelled") {
+      const coupon = await prisma.storeCoupon.findUnique({ where: { code: seed.coupon }, select: { id: true } });
+      if (coupon instanceof Error) throw coupon;
+      if (coupon) {
+        const redemption = await prisma.storeCouponRedemption.create({
+          data: {
+            key: `${coupon.id}:${order.id}`,
+            coupon: { connect: { id: coupon.id } },
+            order: { connect: { id: order.id } },
+            user: { connect: { id: buyer.id } },
+            discountCents: discount,
+            createdAt: placedAt,
+          },
+        });
+        if (redemption instanceof Error) throw redemption;
+        const counted = await prisma.storeCoupon.update({ where: { id: coupon.id }, data: { usedCount: { increment: 1 } } });
+        if (counted instanceof Error) throw counted;
+      }
+    }
 
     // Packages: one for Kadesh's own products and one for the dropshipped ones.
     if (paid) {

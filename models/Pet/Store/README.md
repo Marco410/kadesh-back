@@ -77,7 +77,7 @@ Cómo se compra:
 1. El navegador guarda el carrito y pide `storeCartQuote` (variantes y cantidades). El servidor pone precios, envío y total.
 2. `placeStoreOrder` vuelve a cotizar. Si el total ya no es el que la persona vio (`expectedTotalCents`), no crea nada y devuelve la cotización nueva.
 3. Aparta el stock contado, crea el pedido con copia de precios, costo y dirección, y abre el pago: un PaymentIntent de Stripe (tarjeta) o los datos bancarios (transferencia).
-4. Tarjeta: el front confirma con Stripe Elements y el webhook `payment_intent.succeeded` lo marca pagado. Transferencia: la persona sube el comprobante (`in_review`) y un admin lo confirma o lo rechaza con un motivo.
+4. Tarjeta: el front confirma con Stripe Elements y el webhook `payment_intent.succeeded` lo marca pagado. Transferencia: la persona manda el comprobante por WhatsApp al número de `StoreSettings.supportWhatsapp` (botón «Mandar comprobante», mensaje con el pedido ya escrito, `storeProofWhatsappUrl` en `utils/store/emails.ts`) y un admin confirma el pago desde el pedido aunque siga `pending`. Si no hay número, o si la persona lo prefiere, lo sube en la página (`in_review`) y el admin lo confirma o lo rechaza con un motivo.
 5. Al pagarse se crean los envíos: uno para lo que manda Kadesh (`pending`) y uno por proveedor de Dropi (`pending_approval`). Un admin captura paquetería y guía y los va moviendo.
 6. Sin pago a tiempo (60 min con tarjeta, 48 h con transferencia), el cron lo cancela y el stock regresa.
 
@@ -94,6 +94,8 @@ Invariantes de pedidos:
 - **Compra como invitado**: el formulario pide correo y contraseña, y la cuenta se crea con el pedido, ya con sesión. La cuenta solo se crea cuando el carrito ya se validó. Si el correo ya existe, se pide iniciar sesión.
 - **«Compra verificada»** en una reseña: la persona recibió ese producto en un envío entregado de un pedido que no se reembolsó.
 - **Un producto que está en pedidos o tiene reseñas se archiva, no se borra.**
+- **Un intento de pago, un pedido.** El checkout manda `checkoutKey` (aleatoria, una por intento, la misma en cada reintento). `StoreOrder.checkoutKey` es única: si llegan tres clics a la vez, uno crea el pedido y los otros devuelven el stock y responden ese mismo pedido con el mismo PaymentIntent (misma llave de idempotencia de Stripe). Solo lo recupera quien lo hizo (la sesión, o el correo del invitado en los primeros 15 min). Tras una respuesta con `success: false` el front hace una llave nueva.
+- **Los envíos solo avanzan por pasos válidos** (`storeShipmentNextStatuses` en `constants.ts`): un paquete que no salió no puede quedar «Devuelto», y los de Kadesh nunca pasan por los pasos de Dropi. El panel pide `nextStatuses` y solo ofrece esos.
 
 ## Cupones
 

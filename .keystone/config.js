@@ -14458,10 +14458,14 @@ var STORE_PAYMENT_ATTEMPT_STATUS = {
   CANCELLED: "cancelled",
   REFUNDED: "refunded"
 };
-var STORE_PAYMENT_ATTEMPT_STATUS_OPTIONS = Object.values(STORE_PAYMENT_ATTEMPT_STATUS).map((value) => ({
-  label: value,
-  value
-}));
+var STORE_PAYMENT_ATTEMPT_STATUS_OPTIONS = [
+  { label: "Pendiente", value: STORE_PAYMENT_ATTEMPT_STATUS.PENDING },
+  { label: "En revisi\xF3n", value: STORE_PAYMENT_ATTEMPT_STATUS.IN_REVIEW },
+  { label: "Pagado", value: STORE_PAYMENT_ATTEMPT_STATUS.SUCCEEDED },
+  { label: "Fall\xF3", value: STORE_PAYMENT_ATTEMPT_STATUS.FAILED },
+  { label: "Cancelado", value: STORE_PAYMENT_ATTEMPT_STATUS.CANCELLED },
+  { label: "Reembolsado", value: STORE_PAYMENT_ATTEMPT_STATUS.REFUNDED }
+];
 var STORE_SHIPMENT_PROVIDER = {
   /** Shipped by Kadesh. */
   OWN: "own",
@@ -14498,6 +14502,24 @@ var STORE_SHIPMENT_STATUS_OPTIONS = [
   { label: "Devuelto", value: STORE_SHIPMENT_STATUS.RETURNED },
   { label: "Cancelado", value: STORE_SHIPMENT_STATUS.CANCELLED }
 ];
+var SHIPMENT_FLOW = {
+  pending: ["label_created", "in_transit", "delivered", "exception", "cancelled"],
+  // Until the Dropi integration is live an admin moves these by hand, like own shipments.
+  pending_approval: ["requested", "label_created", "in_transit", "delivered", "exception", "cancelled"],
+  requested: ["label_created", "in_transit", "exception", "cancelled"],
+  label_created: ["in_transit", "delivered", "exception", "cancelled"],
+  in_transit: ["delivered", "exception", "returned"],
+  exception: ["in_transit", "delivered", "returned", "cancelled"],
+  delivered: ["returned"],
+  returned: [],
+  cancelled: []
+};
+var DROPI_ONLY_STATUSES = ["pending_approval", "requested"];
+function storeShipmentNextStatuses(provider, status) {
+  const next = SHIPMENT_FLOW[status] ?? [];
+  const allowed = provider === "dropi" ? next : next.filter((value) => !DROPI_ONLY_STATUSES.includes(value));
+  return [status, ...allowed];
+}
 var STORE_SHIPMENT_ON_THE_WAY = [
   STORE_SHIPMENT_STATUS.LABEL_CREATED,
   STORE_SHIPMENT_STATUS.IN_TRANSIT
@@ -14672,6 +14694,9 @@ var StoreCoupon_default = (0, import_core50.list)({
       const endsAt = pick("endsAt");
       if (startsAt && endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
         addValidationError("La fecha de fin debe ser posterior a la de inicio.");
+      }
+      if (resolvedData.endsAt && new Date(resolvedData.endsAt).getTime() <= Date.now()) {
+        addValidationError("La fecha de fin ya pas\xF3. Elige una fecha futura.");
       }
     }
   },
@@ -14931,6 +14956,8 @@ function toCatalogItem(row, cover, variants) {
     variantsCount: isAffiliate ? 0 : variants?.count ?? 0,
     // Straight to the cart from a card: sold by Kadesh, in stock and nothing to choose.
     singleVariantId: !isAffiliate && inStock ? variants?.singleId ?? null : null,
+    // How many of that variant a card may put in the cart: its stock, up to the per-line cap.
+    singleVariantMaxQuantity: !isAffiliate && inStock && variants?.singleId ? row.inventoryPolicy === STORE_INVENTORY_POLICY.TRACKED ? Math.min(Math.max(0, Number(row.stockTotal) || 0), STORE_CART_MAX_QUANTITY) : STORE_CART_MAX_QUANTITY : null,
     coverUrl: cover?.url ?? null,
     coverAlt: cover?.alt ?? null,
     ratingAverage: Number(row.ratingAverage) || 0,
@@ -14991,6 +15018,18 @@ async function storeProductResolveInput({ resolvedData, item, operation, context
   }
   return data;
 }
+var MERCADO_LIBRE_HOSTS = ["mercadolibre.com.mx", "mercadolibre.com", "meli.la"];
+function isMercadoLibreUrl(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.toLowerCase();
+    return MERCADO_LIBRE_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+  } catch {
+    return false;
+  }
+}
 function storeProductValidateInput({ resolvedData, item, operation, addValidationError }) {
   if (operation === "delete") return;
   const pick = (field) => resolvedData[field] !== void 0 ? resolvedData[field] : item?.[field];
@@ -14998,6 +15037,8 @@ function storeProductValidateInput({ resolvedData, item, operation, addValidatio
   const affiliateUrl = pick("affiliateUrl");
   if (source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE && !isHttpsUrl(affiliateUrl)) {
     addValidationError("Un producto de Mercado Libre necesita su enlace de afiliado (https://\u2026).");
+  } else if (source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE && !isMercadoLibreUrl(affiliateUrl)) {
+    addValidationError("El enlace de afiliado debe ser de Mercado Libre (mercadolibre.com.mx o meli.la).");
   }
   if (source !== STORE_PRODUCT_SOURCE.MERCADO_LIBRE && affiliateUrl) {
     addValidationError("El enlace de afiliado solo aplica a productos de Mercado Libre.");
@@ -15351,6 +15392,11 @@ var StoreOrder_default = (0, import_core59.list)({
   },
   fields: {
     number: (0, import_fields59.text)({ isIndexed: "unique", validation: { isRequired: true }, ui: { description: "Folio: KP-XXXXXXXX" } }),
+    /**
+     * Random key the checkout sends with each attempt to pay. The same key twice (double click,
+     * retry, two taps at once) gets the same order back instead of a second one.
+     */
+    checkoutKey: (0, import_fields59.text)({ isIndexed: "unique", db: { isNullable: true }, ui: { itemView: { fieldMode: "read" } } }),
     user: (0, import_fields59.relationship)({ ref: "User", many: false }),
     customerName: (0, import_fields59.text)(),
     email: (0, import_fields59.text)(),
@@ -28733,21 +28779,21 @@ async function oldestInWindow(context, where) {
   return rows2[0]?.createdAt ?? null;
 }
 function quotaError(quota, label, kind, retryAfterSec) {
-  const wait = `Espera ${retryAfterSec} s y vuelve a intentar.`;
+  const wait2 = `Espera ${retryAfterSec} s y vuelve a intentar.`;
   if (kind === "rpm") {
     return new AiRateLimitError(
-      `${quota.model} lleg\xF3 a ${quota.rpm} solicitudes por minuto (${label}). ${wait}`,
+      `${quota.model} lleg\xF3 a ${quota.rpm} solicitudes por minuto (${label}). ${wait2}`,
       retryAfterSec
     );
   }
   if (kind === "tpm") {
     return new AiRateLimitError(
-      `${quota.model} super\xF3 ${quota.tpmInput.toLocaleString("es-MX")} tokens de entrada por minuto (${label}). ${wait}`,
+      `${quota.model} super\xF3 ${quota.tpmInput.toLocaleString("es-MX")} tokens de entrada por minuto (${label}). ${wait2}`,
       retryAfterSec
     );
   }
   return new AiRateLimitError(
-    `${quota.model} lleg\xF3 a ${quota.rpd} solicitudes por d\xEDa (${label}). ${wait}`,
+    `${quota.model} lleg\xF3 a ${quota.rpd} solicitudes por d\xEDa (${label}). ${wait2}`,
     retryAfterSec
   );
 }
@@ -35105,7 +35151,9 @@ var STORE_ADDRESS_TYPEDEFS = `
 `;
 
 // utils/store/coupons.ts
-var MONEY = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+var MONEY_WHOLE = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+var MONEY_CENTS = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2 });
+var MONEY = { format: (pesos) => (Number.isInteger(pesos) ? MONEY_WHOLE : MONEY_CENTS).format(pesos) };
 function no(code, message) {
   return { applied: false, code, message };
 }
@@ -35147,7 +35195,8 @@ async function evaluateCoupon(context, input) {
   });
   if (coupon instanceof Error) throw coupon;
   const now = Date.now();
-  if (!coupon || coupon.isActive === false) return no(code, "Ese cup\xF3n no existe.");
+  if (!coupon) return no(code, "Ese cup\xF3n no existe.");
+  if (coupon.isActive === false) return no(code, "Ese cup\xF3n ya no est\xE1 activo.");
   if (coupon.startsAt && new Date(coupon.startsAt).getTime() > now) return no(code, "Ese cup\xF3n todav\xEDa no empieza.");
   if (coupon.endsAt && new Date(coupon.endsAt).getTime() <= now) return no(code, "Ese cup\xF3n ya venci\xF3.");
   if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) return no(code, "Ese cup\xF3n ya se agot\xF3.");
@@ -35275,6 +35324,21 @@ function formatDeadline(date) {
     timeZone: "America/Mexico_City"
   });
 }
+function storeProofWhatsappUrl(phone, order) {
+  const text106 = [
+    `Hola, te mando el comprobante de mi transferencia del pedido ${order.number}.`,
+    "",
+    `Total: ${formatStoreMoney(order.totalCents)}`,
+    `Concepto: ${order.number}`,
+    ...order.customerName ? [`A nombre de: ${order.customerName}`] : [],
+    "",
+    "Productos:",
+    ...order.items.map((item) => `\u2022 ${item.quantity} \xD7 ${item.name}${item.variantTitle ? ` (${item.variantTitle})` : ""}`),
+    "",
+    "Adjunto la foto del comprobante."
+  ].join("\n");
+  return `https://wa.me/52${phone.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(text106)}`;
+}
 async function sendStoreOrderEmail(context, orderId, kind, extra = {}) {
   try {
     const order = await storePrisma(context).storeOrder.findUnique({
@@ -35325,9 +35389,10 @@ async function sendStoreOrderEmail(context, orderId, kind, extra = {}) {
       const settings = await getStoreSettings(context);
       subject = `Tu pedido ${order.number}: datos para la transferencia`;
       title = "Falta tu transferencia";
-      preheader = `Transfiere ${formatStoreMoney(order.totalCents)} y sube tu comprobante.`;
+      const whatsapp = settings.supportWhatsapp;
+      preheader = `Transfiere ${formatStoreMoney(order.totalCents)} y ${whatsapp ? "m\xE1ndanos tu comprobante por WhatsApp" : "sube tu comprobante"}.`;
       body = `
-        ${emailParagraph(`Apartamos tu pedido <strong>${escapeHtml(order.number)}</strong>. Para confirmarlo, transfiere el total y sube tu comprobante.`)}
+        ${emailParagraph(`Apartamos tu pedido <strong>${escapeHtml(order.number)}</strong>. Para confirmarlo, transfiere el total y ${whatsapp ? "m\xE1ndanos la foto de tu comprobante por WhatsApp" : "sube tu comprobante"}.`)}
         ${emailInfoTable([
         ["Monto", `<strong>${escapeHtml(formatStoreMoney(order.totalCents))}</strong>`],
         ["Banco", escapeHtml(settings.bankName || "\u2014")],
@@ -35337,7 +35402,7 @@ async function sendStoreOrderEmail(context, orderId, kind, extra = {}) {
       ])}
         ${settings.bankNote ? emailParagraph(escapeHtml(settings.bankNote)) : ""}
         ${order.expiresAt ? emailCallout("pet", `Tienes hasta el <strong>${escapeHtml(formatDeadline(order.expiresAt))}</strong>. Despu\xE9s el pedido se cancela solo.`) : ""}
-        ${emailButton("pet", "Subir mi comprobante", url)}
+        ${whatsapp ? emailButton("pet", "Mandar comprobante por WhatsApp", storeProofWhatsappUrl(whatsapp, order)) : emailButton("pet", "Subir mi comprobante", url)}
         ${itemsTable}`;
     } else if (kind === "paid") {
       subject = `Recibimos tu pago: pedido ${order.number}`;
@@ -35371,12 +35436,13 @@ async function sendStoreOrderEmail(context, orderId, kind, extra = {}) {
     } else if (kind === "transfer_rejected") {
       subject = `No pudimos confirmar tu transferencia: pedido ${order.number}`;
       title = "No pudimos confirmar tu transferencia";
-      preheader = "Sube de nuevo tu comprobante.";
+      const whatsapp = (await getStoreSettings(context)).supportWhatsapp;
+      preheader = whatsapp ? "M\xE1ndanos de nuevo tu comprobante." : "Sube de nuevo tu comprobante.";
       body = `
         ${emailParagraph(`Revisamos el comprobante de tu pedido <strong>${escapeHtml(order.number)}</strong> y no pudimos confirmar el pago.`)}
         ${extra.note ? emailCallout("pet", escapeHtml(extra.note)) : ""}
-        ${order.expiresAt ? emailParagraph(`Puedes subir otro hasta el <strong>${escapeHtml(formatDeadline(order.expiresAt))}</strong>.`) : ""}
-        ${emailButton("pet", "Subir otro comprobante", url)}`;
+        ${order.expiresAt ? emailParagraph(`Puedes mandar otro hasta el <strong>${escapeHtml(formatDeadline(order.expiresAt))}</strong>.`) : ""}
+        ${whatsapp ? emailButton("pet", "Mandar comprobante por WhatsApp", storeProofWhatsappUrl(whatsapp, order)) : emailButton("pet", "Subir otro comprobante", url)}`;
     } else if (kind === "refunded") {
       subject = `Reembolsamos tu pedido ${order.number}`;
       title = "Reembolsamos tu pedido";
@@ -35880,6 +35946,7 @@ async function updateStoreShipment(context, shipmentId, input) {
       select: {
         id: true,
         status: true,
+        provider: true,
         orderId: true,
         shippedAt: true,
         deliveredAt: true,
@@ -35893,6 +35960,11 @@ async function updateStoreShipment(context, shipmentId, input) {
   if (!shipment?.orderId || !shipment.order) return { success: false, message: "No encontramos el env\xEDo." };
   if (shipment.order.paymentStatus !== STORE_PAYMENT_STATUS.PAID) {
     return { success: false, message: "El pedido de este env\xEDo no est\xE1 pagado." };
+  }
+  if (!storeShipmentNextStatuses(shipment.provider, shipment.status).includes(input.status)) {
+    const from = STORE_SHIPMENT_STATUS_OPTIONS.find((option) => option.value === shipment.status)?.label ?? shipment.status;
+    const to = STORE_SHIPMENT_STATUS_OPTIONS.find((option) => option.value === input.status)?.label ?? input.status;
+    return { success: false, message: `Un env\xEDo no puede pasar de "${from}" a "${to}".` };
   }
   const trackingUrl = (input.trackingUrl ?? shipment.trackingUrl ?? "").trim();
   if (trackingUrl && !/^https:\/\//i.test(trackingUrl)) {
@@ -36206,6 +36278,8 @@ var CART_QUOTE_TYPEDEFS = `
 
 // graphql/customs/mutations/store/placeStoreOrder.ts
 var EMAIL_PATTERN3 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+var CHECKOUT_KEY_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
+var GUEST_REPLAY_MS = 15 * 60 * 1e3;
 var typeDefs37 = `
   ${CART_QUOTE_TYPEDEFS}
   ${STORE_ADDRESS_TYPEDEFS}
@@ -36237,6 +36311,12 @@ var typeDefs37 = `
     channel: String
     "Only without a session."
     guest: StoreGuestInput
+    """
+    Random key (16 to 64 letters, digits, - or _) made once per attempt to pay and sent again on
+    every retry of that attempt. The same key twice answers the order already placed instead of
+    placing another one. Make a new one after an answer with success false.
+    """
+    checkoutKey: String
   }
 
   type StoreTransferInstructions {
@@ -36349,6 +36429,7 @@ async function createOrderRow(context, params) {
     const created = await prisma.storeOrder.create({
       data: {
         number,
+        checkoutKey: params.checkoutKey,
         user: { connect: { id: buyer.id } },
         customerName: buyer.name || address.recipientName,
         email: buyer.email,
@@ -36401,6 +36482,9 @@ async function createOrderRow(context, params) {
       select: { id: true, number: true }
     });
     if (created instanceof Error) {
+      if (isUniqueViolation(created) && params.checkoutKey && await findOrderByCheckoutKey(context, params.checkoutKey)) {
+        return "duplicate";
+      }
       if (isUniqueViolation(created) && attempt < 4) continue;
       throw created;
     }
@@ -36408,13 +36492,112 @@ async function createOrderRow(context, params) {
   }
   throw new Error("Could not generate an order number");
 }
+async function findOrderByCheckoutKey(context, checkoutKey) {
+  const order = await storePrisma(context).storeOrder.findUnique({
+    where: { checkoutKey },
+    select: {
+      id: true,
+      number: true,
+      userId: true,
+      email: true,
+      guestCheckout: true,
+      status: true,
+      paymentStatus: true,
+      paymentMethod: true,
+      totalCents: true,
+      stripePaymentIntentId: true,
+      expiresAt: true,
+      createdAt: true,
+      checkoutKey: true
+    }
+  });
+  if (order instanceof Error) throw order;
+  return order ?? null;
+}
+function createOrderIntent(order, buyer) {
+  return stripe_default.paymentIntents.create(
+    {
+      amount: order.totalCents,
+      currency: "mxn",
+      payment_method_types: ["card"],
+      ...buyer.stripeCustomerId ? { customer: buyer.stripeCustomerId } : {},
+      receipt_email: buyer.email || void 0,
+      description: `Pedido ${order.number} en la tienda de Kadesh Pet`,
+      metadata: { kind: "store_order", orderId: order.id, orderNumber: order.number }
+    },
+    { idempotencyKey: `store-order-${order.id}` }
+  );
+}
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+async function replayPlacedOrder(context, order, who) {
+  const mine = who.sessionUserId ? order.userId === who.sessionUserId : Boolean(
+    who.guestEmail && order.guestCheckout && order.email === who.guestEmail && Date.now() - new Date(order.createdAt).getTime() < GUEST_REPLAY_MS
+  );
+  const userId = order.userId;
+  if (!mine || !userId) return fail8("INVALID", "No pudimos crear tu pedido. Recarga la p\xE1gina e intenta de nuevo.");
+  if (order.status !== STORE_ORDER_STATUS.OPEN) {
+    return fail8("INVALID", "Ese intento de compra ya no est\xE1 activo. Revisa tu carrito e intenta de nuevo.");
+  }
+  let sessionToken = null;
+  if (!who.sessionUserId && context.sessionStrategy) {
+    const token = await context.sessionStrategy.start({ data: { listKey: "User", itemId: userId }, context });
+    sessionToken = typeof token === "string" && token ? token : null;
+  }
+  const base = { ...EMPTY3, success: true, orderNumber: order.number, totalCents: order.totalCents, sessionToken };
+  if (order.paymentMethod !== STORE_PAYMENT_METHOD.CARD) {
+    const settings = await getStoreSettings(context);
+    return {
+      ...base,
+      message: "Pedido apartado. Falta tu transferencia.",
+      transfer: transferInstructions(settings, { number: order.number, totalCents: order.totalCents, expiresAt: order.expiresAt ?? /* @__PURE__ */ new Date() })
+    };
+  }
+  if (order.paymentStatus === STORE_PAYMENT_STATUS.PAID) {
+    return { ...base, message: "Tu pago ya se hab\xEDa recibido. Tu pedido est\xE1 pagado." };
+  }
+  let clientSecret = null;
+  for (let attempt = 0; attempt < 3 && !clientSecret; attempt += 1) {
+    try {
+      if (order.stripePaymentIntentId) {
+        clientSecret = (await stripe_default.paymentIntents.retrieve(order.stripePaymentIntentId)).client_secret ?? null;
+      } else {
+        const buyer = await loadBuyer(context, userId);
+        if (!buyer) break;
+        clientSecret = (await createOrderIntent(order, buyer)).client_secret ?? null;
+      }
+    } catch (error) {
+      if (attempt === 2) console.error("[placeStoreOrder] replay could not read the intent:", order.number, error);
+      await wait(800);
+      const fresh = order.checkoutKey ? await findOrderByCheckoutKey(context, order.checkoutKey) : null;
+      if (fresh?.stripePaymentIntentId) order = { ...order, stripePaymentIntentId: fresh.stripePaymentIntentId };
+    }
+  }
+  if (!clientSecret) {
+    return fail8("PAYMENT_ERROR", "Tu pedido qued\xF3 creado. \xC1brelo en Mis pedidos para pagarlo.", {
+      orderNumber: order.number,
+      totalCents: order.totalCents,
+      sessionToken
+    });
+  }
+  return { ...base, message: "Pedido creado. Falta confirmar el pago.", stripeClientSecret: clientSecret };
+}
 var resolver34 = {
   placeStoreOrder: async (_root, { input }, context) => {
     if (!storeEnabled() && !isPlatformAdmin(context.session)) {
       return fail8("STORE_CLOSED", "La tienda a\xFAn no est\xE1 disponible.");
     }
     const sessionUserId = getSessionUserId(context.session);
+    const rawKey = (input.checkoutKey ?? "").trim();
+    if (rawKey && !CHECKOUT_KEY_PATTERN.test(rawKey)) return fail8("INVALID", "Recarga la p\xE1gina e intenta de nuevo.");
+    const checkoutKey = rawKey || null;
+    const guestEmail = sessionUserId ? null : (input.guest?.email ?? "").trim().toLowerCase() || null;
     try {
+      if (checkoutKey) {
+        const placed = await findOrderByCheckoutKey(context, checkoutKey);
+        if (placed) return await replayPlacedOrder(context, placed, { sessionUserId, guestEmail });
+      }
       const paymentMethod = (input.paymentMethod ?? "").trim();
       const address = validateStoreAddress(input.address);
       if (!address.ok) return fail8("INVALID", address.message);
@@ -36440,17 +36623,28 @@ var resolver34 = {
         buyer = await loadBuyer(context, sessionUserId);
       } else {
         const form = guest;
-        const created = await context.sudo().query.User.createOne({
-          data: {
-            name: form.name,
-            lastName: form.lastName,
-            email: form.email,
-            phone: form.phone,
-            password: form.password,
-            product: PRODUCT.PET
-          },
-          query: "id"
-        });
+        let created;
+        try {
+          created = await context.sudo().query.User.createOne({
+            data: {
+              name: form.name,
+              lastName: form.lastName,
+              email: form.email,
+              phone: form.phone,
+              password: form.password,
+              product: PRODUCT.PET
+            },
+            query: "id"
+          });
+        } catch (error) {
+          if (!checkoutKey) throw error;
+          for (let attempt = 0; attempt < 4; attempt += 1) {
+            await wait(700);
+            const placed = await findOrderByCheckoutKey(context, checkoutKey);
+            if (placed) return await replayPlacedOrder(context, placed, { sessionUserId, guestEmail });
+          }
+          throw error;
+        }
         buyer = await loadBuyer(context, created.id);
         if (context.sessionStrategy) {
           const token = await context.sessionStrategy.start({ data: { listKey: "User", itemId: created.id }, context });
@@ -36472,7 +36666,7 @@ var resolver34 = {
       );
       let order;
       try {
-        order = await createOrderRow(context, {
+        const placed = await createOrderRow(context, {
           buyer,
           quote,
           address: address.data,
@@ -36480,8 +36674,20 @@ var resolver34 = {
           customerNote: (input.customerNote ?? "").trim().slice(0, 500),
           channel: input.channel === STORE_ORDER_CHANNEL.APP ? STORE_ORDER_CHANNEL.APP : STORE_ORDER_CHANNEL.WEB,
           guestCheckout: !sessionUserId,
-          expiresAt
+          expiresAt,
+          checkoutKey
         });
+        if (placed === "duplicate") {
+          await releaseStoreStock(context, reserved);
+          const existing = await findOrderByCheckoutKey(context, checkoutKey);
+          if (!existing) return fail8("INVALID", "No pudimos crear tu pedido. Intenta de nuevo.", { sessionToken });
+          const replay = await replayPlacedOrder(context, existing, {
+            sessionUserId: buyer.id,
+            guestEmail: null
+          });
+          return { ...replay, sessionToken: replay.sessionToken ?? sessionToken };
+        }
+        order = placed;
       } catch (error) {
         await releaseStoreStock(context, reserved);
         throw error;
@@ -36510,18 +36716,7 @@ var resolver34 = {
       let stripeClientSecret = null;
       if (card) {
         try {
-          const intent = await stripe_default.paymentIntents.create(
-            {
-              amount: quote.totalCents,
-              currency: "mxn",
-              payment_method_types: ["card"],
-              ...buyer.stripeCustomerId ? { customer: buyer.stripeCustomerId } : {},
-              receipt_email: buyer.email || void 0,
-              description: `Pedido ${order.number} en la tienda de Kadesh Pet`,
-              metadata: { kind: "store_order", orderId: order.id, orderNumber: order.number }
-            },
-            { idempotencyKey: `store-order-${order.id}` }
-          );
+          const intent = await createOrderIntent({ ...order, totalCents: quote.totalCents }, buyer);
           stripeClientSecret = intent.client_secret ?? null;
           const linked = await prisma.storeOrder.update({
             where: { id: order.id },
@@ -53912,6 +54107,11 @@ var resolver124 = {
 };
 var publicProfile_default = { typeDefs: typeDefs127, definition: definition124, resolver: resolver124 };
 
+// utils/helpers/escapeLike.ts
+function escapeLike2(value) {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
 // graphql/customs/queries/store/storeCatalog.ts
 var typeDefs128 = `
   input StoreCatalogInput {
@@ -53961,6 +54161,8 @@ var typeDefs128 = `
     variantsCount: Int!
     "Set when the product can go straight to the cart: sold by Kadesh, in stock and with a single variant."
     singleVariantId: ID
+    "With singleVariantId: the most of it one cart may carry (its stock, up to 20)."
+    singleVariantMaxQuantity: Int
     category: StoreCatalogRef
     brand: StoreCatalogRef
     "Only for seller mercado_libre: the outbound affiliate link."
@@ -54061,6 +54263,9 @@ var typeDefs128 = `
     items: [StoreCatalogReview!]!
     "The signed-in person's own review of this product, if any."
     mine: StoreCatalogReview
+    "Current stars of the product (the product page may be cached for a minute)."
+    ratingAverage: Float!
+    ratingCount: Int!
   }
 `;
 var definition125 = `
@@ -54100,7 +54305,18 @@ var ORDER_BY = {
 async function buildWhere(prisma, input) {
   const and = [VISIBLE];
   const search = normalizeSearchText(input.search).slice(0, STORE_SEARCH_MAX_LENGTH);
-  if (search.length >= STORE_SEARCH_MIN_LENGTH) and.push({ nameSearch: { contains: search } });
+  if (search.length >= STORE_SEARCH_MIN_LENGTH) {
+    const term = escapeLike2(search);
+    const slugTerm = escapeLike2(search.replace(/ /g, "-"));
+    and.push({
+      OR: [
+        { nameSearch: { contains: term } },
+        { category: { slug: { contains: slugTerm } } },
+        { category: { parent: { slug: { contains: slugTerm } } } },
+        { brand: { slug: { contains: slugTerm } } }
+      ]
+    });
+  }
   const categorySlug = (input.categorySlug ?? "").trim();
   if (categorySlug) {
     const categories = unwrap8(
@@ -54355,14 +54571,14 @@ var resolver125 = {
   },
   /** Published reviews of a product, newest first, plus the caller's own review. */
   storeCatalogReviews: async (_root, args, context) => {
-    const empty4 = { total: 0, items: [], mine: null };
+    const empty4 = { total: 0, items: [], mine: null, ratingAverage: 0, ratingCount: 0 };
     if (!canBrowse(context) || !args.productId) return empty4;
     const prisma = storePrisma(context);
     const take = clamp(args.take, 1, STORE_REVIEWS_MAX_TAKE, STORE_REVIEWS_DEFAULT_TAKE);
     const skip = clamp(args.skip, 0, 1e5, 0);
     const where = { productId: args.productId, status: STORE_REVIEW_STATUS.PUBLISHED };
     const userId = getSessionUserId(context.session);
-    const [rows2, total, own] = await Promise.all([
+    const [rows2, total, own, stars] = await Promise.all([
       prisma.storeProductReview.findMany({
         where,
         orderBy: [{ createdAt: "desc" }, { id: "asc" }],
@@ -54374,8 +54590,10 @@ var resolver125 = {
       userId ? prisma.storeProductReview.findUnique({
         where: { key: `${userId}:${args.productId}` },
         select: REVIEW_SELECT
-      }) : Promise.resolve(null)
+      }) : Promise.resolve(null),
+      prisma.storeProduct.findUnique({ where: { id: args.productId }, select: { ratingAverage: true, ratingCount: true } })
     ]);
+    const product = unwrap8(stars);
     const reviews = unwrap8(rows2);
     const mine = unwrap8(own);
     const cards = await getPublicUserCards(context, [...reviews.map((review) => review.userId), mine?.userId]);
@@ -54396,7 +54614,9 @@ var resolver125 = {
     return {
       total: Number(unwrap8(total)) || 0,
       items: reviews.map(toReview),
-      mine: mine ? toReview(mine) : null
+      mine: mine ? toReview(mine) : null,
+      ratingAverage: Number(product?.ratingAverage) || 0,
+      ratingCount: Number(product?.ratingCount) || 0
     };
   }
 };
@@ -54874,7 +55094,7 @@ var resolver128 = {
     if (search) {
       base.push({
         OR: [
-          { nameSearch: { contains: search } },
+          { nameSearch: { contains: escapeLike2(search) } },
           { externalId: { equals: (args.search ?? "").trim() } },
           { variants: { some: { sku: { equals: (args.search ?? "").trim() } } } }
         ]
@@ -55031,6 +55251,8 @@ var typeDefs131 = `
     "own | dropi"
     provider: String!
     status: String!
+    "Statuses an admin may set next (the current one first): never a Dropi step on own shipments."
+    nextStatuses: [String!]!
     carrier: String
     trackingCode: String
     trackingUrl: String
@@ -55149,7 +55371,7 @@ var resolver129 = {
     const skip = clampInt(args.skip, 0, 1e6, 0);
     const and = [];
     const search = normalizeSearchText(args.search);
-    if (search) and.push({ searchText: { contains: search } });
+    if (search) and.push({ searchText: { contains: escapeLike2(search) } });
     if (args.queue && STORE_ORDER_QUEUES[args.queue]) and.push(STORE_ORDER_QUEUES[args.queue]);
     if (args.paymentMethod) and.push({ paymentMethod: args.paymentMethod });
     const where = { AND: and };
@@ -55345,6 +55567,7 @@ var resolver129 = {
       payments: paymentRows,
       shipments: shipmentRows.map((shipment) => ({
         ...shipment,
+        nextStatuses: storeShipmentNextStatuses(shipment.provider, shipment.status),
         carrier: shipment.carrier || null,
         trackingCode: shipment.trackingCode || null,
         trackingUrl: shipment.trackingUrl || null,

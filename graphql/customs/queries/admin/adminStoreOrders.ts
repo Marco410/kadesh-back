@@ -4,11 +4,13 @@ import {
   STORE_FULFILLMENT_STATUS,
   STORE_ORDER_STATUS,
   STORE_PAYMENT_STATUS,
+  storeShipmentNextStatuses,
 } from "../../../../models/Pet/Store/constants";
 import { normalizeSearchText } from "../../../../utils/helpers/normalizeSearchText";
 import { storeStateName } from "../../../../utils/store/address";
 import { loadStoreCovers, storeImageUrl } from "../../../../utils/store/catalog";
 import { PERSON_SELECT, adminPrisma, assertPlatformAdmin, clampInt, personRef, toIso, unwrapPrisma } from "./shared";
+import { escapeLike } from "../../../../utils/helpers/escapeLike";
 
 /**
  * Store orders in Operaciones (Kadesh Pet → Tienda → Pedidos). Platform admin only. Unlike the
@@ -82,6 +84,8 @@ const typeDefs = `
     "own | dropi"
     provider: String!
     status: String!
+    "Statuses an admin may set next (the current one first): never a Dropi step on own shipments."
+    nextStatuses: [String!]!
     carrier: String
     trackingCode: String
     trackingUrl: String
@@ -216,7 +220,7 @@ const resolver = {
 
     const and: Array<Record<string, unknown>> = [];
     const search = normalizeSearchText(args.search);
-    if (search) and.push({ searchText: { contains: search } });
+    if (search) and.push({ searchText: { contains: escapeLike(search) } });
     if (args.queue && STORE_ORDER_QUEUES[args.queue]) and.push(STORE_ORDER_QUEUES[args.queue]);
     if (args.paymentMethod) and.push({ paymentMethod: args.paymentMethod });
     const where = { AND: and };
@@ -421,6 +425,7 @@ const resolver = {
       payments: paymentRows,
       shipments: shipmentRows.map((shipment) => ({
         ...shipment,
+        nextStatuses: storeShipmentNextStatuses(shipment.provider, shipment.status),
         carrier: shipment.carrier || null,
         trackingCode: shipment.trackingCode || null,
         trackingUrl: shipment.trackingUrl || null,

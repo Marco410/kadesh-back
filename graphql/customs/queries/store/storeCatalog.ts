@@ -28,6 +28,7 @@ import {
   toCatalogItem,
 } from "../../../../utils/store/catalog";
 import { storeCatalogVersion, storeEnabled } from "../../../../utils/store/config";
+import { escapeLike } from "../../../../utils/helpers/escapeLike";
 
 /**
  * Public catalog of the Kadesh Pet store (no session needed). The lists are admin only through the
@@ -88,6 +89,8 @@ const typeDefs = `
     variantsCount: Int!
     "Set when the product can go straight to the cart: sold by Kadesh, in stock and with a single variant."
     singleVariantId: ID
+    "With singleVariantId: the most of it one cart may carry (its stock, up to 20)."
+    singleVariantMaxQuantity: Int
     category: StoreCatalogRef
     brand: StoreCatalogRef
     "Only for seller mercado_libre: the outbound affiliate link."
@@ -188,6 +191,9 @@ const typeDefs = `
     items: [StoreCatalogReview!]!
     "The signed-in person's own review of this product, if any."
     mine: StoreCatalogReview
+    "Current stars of the product (the product page may be cached for a minute)."
+    ratingAverage: Float!
+    ratingCount: Int!
   }
 `;
 
@@ -254,7 +260,20 @@ async function buildWhere(prisma: any, input: CatalogInput): Promise<Record<stri
   const and: Array<Record<string, unknown>> = [VISIBLE];
 
   const search = normalizeSearchText(input.search).slice(0, STORE_SEARCH_MAX_LENGTH);
-  if (search.length >= STORE_SEARCH_MIN_LENGTH) and.push({ nameSearch: { contains: search } });
+  if (search.length >= STORE_SEARCH_MIN_LENGTH) {
+    // The name, or the category (and its parent) or brand by slug: "perro" finds the products of
+    // "Perros". Slugs are already lowercase without accents.
+    const term = escapeLike(search);
+    const slugTerm = escapeLike(search.replace(/ /g, "-"));
+    and.push({
+      OR: [
+        { nameSearch: { contains: term } },
+        { category: { slug: { contains: slugTerm } } },
+        { category: { parent: { slug: { contains: slugTerm } } } },
+        { brand: { slug: { contains: slugTerm } } },
+      ],
+    });
+  }
 
   const categorySlug = (input.categorySlug ?? "").trim();
   if (categorySlug) {
@@ -622,7 +641,7 @@ const resolver = {
     args: { productId: string; take?: number | null; skip?: number | null },
     context: KeystoneContext,
   ) => {
-    const empty = { total: 0, items: [], mine: null };
+    const empty = { total: 0, items: [], mine: null, ratingAverage: 0, ratingCount: 0 };
     if (!canBrowse(context) || !args.productId) return empty;
     const prisma = storePrisma(context);
     const take = clamp(args.take, 1, STORE_REVIEWS_MAX_TAKE, STORE_REVIEWS_DEFAULT_TAKE);
@@ -630,7 +649,7 @@ const resolver = {
     const where = { productId: args.productId, status: STORE_REVIEW_STATUS.PUBLISHED };
     const userId = getSessionUserId(context.session);
 
-    const [rows, total, own] = await Promise.all([
+    const [rows, total, own, stars] = await Promise.all([
       prisma.storeProductReview.findMany({
         where,
         orderBy: [{ createdAt: "desc" }, { id: "asc" }],
@@ -645,7 +664,9 @@ const resolver = {
             select: REVIEW_SELECT,
           })
         : Promise.resolve(null),
+      prisma.storeProduct.findUnique({ where: { id: args.productId }, select: { ratingAverage: true, ratingCount: true } }),
     ]);
+    const product = unwrap(stars) as { ratingAverage: number | null; ratingCount: number | null } | null;
     const reviews = unwrap(rows) as ReviewRow[];
     const mine = unwrap(own) as ReviewRow | null;
 
@@ -672,6 +693,8 @@ const resolver = {
       total: Number(unwrap(total)) || 0,
       items: reviews.map(toReview),
       mine: mine ? toReview(mine) : null,
+      ratingAverage: Number(product?.ratingAverage) || 0,
+      ratingCount: Number(product?.ratingCount) || 0,
     };
   },
 };

@@ -53,6 +53,21 @@ export async function storeProductResolveInput({ resolvedData, item, operation, 
   return data;
 }
 
+/** Hosts an affiliate link may point to: Mercado Libre and its short links, nothing else. */
+const MERCADO_LIBRE_HOSTS = ["mercadolibre.com.mx", "mercadolibre.com", "meli.la"];
+
+export function isMercadoLibreUrl(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.toLowerCase();
+    return MERCADO_LIBRE_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+  } catch {
+    return false;
+  }
+}
+
 export function storeProductValidateInput({ resolvedData, item, operation, addValidationError }: HookArgs) {
   if (operation === "delete") return;
   const pick = (field: string) => (resolvedData[field] !== undefined ? resolvedData[field] : item?.[field]);
@@ -61,6 +76,8 @@ export function storeProductValidateInput({ resolvedData, item, operation, addVa
   const affiliateUrl = pick("affiliateUrl");
   if (source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE && !isHttpsUrl(affiliateUrl)) {
     addValidationError("Un producto de Mercado Libre necesita su enlace de afiliado (https://…).");
+  } else if (source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE && !isMercadoLibreUrl(affiliateUrl)) {
+    addValidationError("El enlace de afiliado debe ser de Mercado Libre (mercadolibre.com.mx o meli.la).");
   }
   if (source !== STORE_PRODUCT_SOURCE.MERCADO_LIBRE && affiliateUrl) {
     addValidationError("El enlace de afiliado solo aplica a productos de Mercado Libre.");

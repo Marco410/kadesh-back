@@ -42,6 +42,11 @@ export default list({
   },
   fields: {
     number: text({ isIndexed: "unique", validation: { isRequired: true }, ui: { description: "Folio: KP-XXXXXXXX" } }),
+    /**
+     * Random key the checkout sends with each attempt to pay. The same key twice (double click,
+     * retry, two taps at once) gets the same order back instead of a second one.
+     */
+    checkoutKey: text({ isIndexed: "unique", db: { isNullable: true }, ui: { itemView: { fieldMode: "read" } } }),
     user: relationship({ ref: "User", many: false }),
     customerName: text(),
     email: text(),

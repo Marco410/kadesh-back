@@ -1,5 +1,6 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
 import {
+  STORE_CART_MAX_QUANTITY,
   STORE_CURRENCY,
   STORE_INVENTORY_POLICY,
   STORE_LOW_STOCK,
@@ -252,6 +253,13 @@ export function toCatalogItem(row: CatalogItemRow, cover: StoreCover | undefined
     variantsCount: isAffiliate ? 0 : variants?.count ?? 0,
     // Straight to the cart from a card: sold by Kadesh, in stock and nothing to choose.
     singleVariantId: !isAffiliate && inStock ? variants?.singleId ?? null : null,
+    // How many of that variant a card may put in the cart: its stock, up to the per-line cap.
+    singleVariantMaxQuantity:
+      !isAffiliate && inStock && variants?.singleId
+        ? row.inventoryPolicy === STORE_INVENTORY_POLICY.TRACKED
+          ? Math.min(Math.max(0, Number(row.stockTotal) || 0), STORE_CART_MAX_QUANTITY)
+          : STORE_CART_MAX_QUANTITY
+        : null,
     coverUrl: cover?.url ?? null,
     coverAlt: cover?.alt ?? null,
     ratingAverage: Number(row.ratingAverage) || 0,
