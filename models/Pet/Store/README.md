@@ -108,6 +108,7 @@ Un código (`StoreCoupon.code`, en mayúsculas y sin espacios: `normalizeCouponC
 - **El uso se devuelve** cuando el pedido se cancela sin pagar, vence o se reembolsa (`releaseStoreOrderCoupon`, una sentencia que borra la fila de `StoreCouponRedemption` y descuenta `usedCount`; llamarla dos veces no descuenta dos).
 - **`usedCount` lo lleva el servidor**: lo que mande la API se descarta.
 - **Sin sesión no se revisan las reglas por persona** (usos por persona, primera compra): se revisan al comprar, donde siempre hay cuenta.
+- **Primera compra**: no aplica si la persona ya tiene un pedido pagado (o reembolsado), ni si tiene otro pedido abierto sin pagar con ese mismo cupón. Si ese pedido se cancela o vence, el cupón vuelve a aplicar.
 - **En el pedido queda copia**: `StoreOrder.couponCode` y `couponDiscountCents`, y en cada línea su parte (`StoreOrderItem.discountCents`).
 - **Probar códigos tiene tope**: 20 códigos que no aplicaron cada 10 min por IP en `storeCartQuote`. Un cupón que sí aplica no cuenta: el carrito se cotiza con él en cada cambio.
 

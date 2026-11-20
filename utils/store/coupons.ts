@@ -2,6 +2,7 @@ import type { KeystoneContext } from "@keystone-6/core/types";
 import {
   STORE_COUPON_TYPE,
   STORE_MIN_ORDER_TOTAL_CENTS,
+  STORE_ORDER_STATUS,
   STORE_PAYMENT_STATUS,
 } from "../../models/Pet/Store/constants";
 import { normalizeCouponCode } from "../../models/Pet/Store/StoreCoupon/StoreCoupon";
@@ -140,11 +141,24 @@ export async function evaluateCoupon(
       if (Number(used) >= coupon.usageLimitPerUser) return no(code, "Ya usaste ese cupón.");
     }
     if (coupon.firstOrderOnly) {
-      const paid = await prisma.storeOrder.count({
-        where: { userId: input.userId, paymentStatus: { in: [STORE_PAYMENT_STATUS.PAID, STORE_PAYMENT_STATUS.REFUNDED] } },
+      // A paid order, or another unpaid one already holding this coupon: otherwise someone could
+      // leave several transfers waiting, each with the first-purchase discount, and pay them all.
+      // Cancelling or letting the unpaid one expire frees the coupon again.
+      const earlier = await prisma.storeOrder.count({
+        where: {
+          userId: input.userId,
+          OR: [
+            { paymentStatus: { in: [STORE_PAYMENT_STATUS.PAID, STORE_PAYMENT_STATUS.REFUNDED] } },
+            {
+              couponCode: coupon.code,
+              status: STORE_ORDER_STATUS.OPEN,
+              paymentStatus: { in: [STORE_PAYMENT_STATUS.PENDING, STORE_PAYMENT_STATUS.IN_REVIEW] },
+            },
+          ],
+        },
       });
-      if (paid instanceof Error) throw paid;
-      if (Number(paid) > 0) return no(code, "Ese cupón es solo para tu primera compra.");
+      if (earlier instanceof Error) throw earlier;
+      if (Number(earlier) > 0) return no(code, "Ese cupón es solo para tu primera compra.");
     }
   }
 
