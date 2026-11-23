@@ -342,7 +342,8 @@ async function createSettings(context: KeystoneContext) {
       bankNote: "Datos de prueba del seed: no transfieras a esta cuenta.",
       transferExpiryHours: 48,
       cardExpiryMinutes: 60,
-      returnPolicy: "Cambios y devoluciones dentro de 30 días con el producto sin usar. (Texto de prueba del seed.)",
+      // Empty: the default rule (STORE_DEFAULT_RETURN_POLICY, 5 days, defective only) is shown.
+      returnPolicy: "",
       supportWhatsapp: "4430000000",
     },
   });
