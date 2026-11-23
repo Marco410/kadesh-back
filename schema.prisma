@@ -360,12 +360,13 @@ model AnimalSighting {
 }
 
 model AnimalType {
-  id                      String        @id @default(cuid())
-  name                    String        @unique @default("dog")
-  animal_breed            AnimalBreed[] @relation("AnimalBreed_animal_type")
-  order                   Int?
-  from_Animal_animal_type Animal[]      @relation("Animal_animal_type")
-  from_Pet_animal_type    Pet[]         @relation("Pet_animal_type")
+  id                            String         @id @default(cuid())
+  name                          String         @unique @default("dog")
+  animal_breed                  AnimalBreed[]  @relation("AnimalBreed_animal_type")
+  order                         Int?
+  from_Animal_animal_type       Animal[]       @relation("Animal_animal_type")
+  from_Pet_animal_type          Pet[]          @relation("Pet_animal_type")
+  from_StoreProduct_animalTypes StoreProduct[] @relation("StoreProduct_animalTypes")
 }
 
 model AnimalView {
@@ -1631,6 +1632,407 @@ model SocialMedia {
   @@index([pet_placeId])
 }
 
+model StoreAddress {
+  id             String    @id @default(cuid())
+  user           User?     @relation("StoreAddress_user", fields: [userId], references: [id])
+  userId         String?   @map("user")
+  label          String    @default("")
+  recipientName  String    @default("")
+  phone          String    @default("")
+  street         String    @default("")
+  exteriorNumber String    @default("")
+  interiorNumber String    @default("")
+  neighborhood   String    @default("")
+  city           String    @default("")
+  stateCode      String    @default("")
+  postalCode     String    @default("")
+  references     String    @default("")
+  isDefault      Boolean   @default(false)
+  createdAt      DateTime? @default(now())
+
+  @@index([userId])
+}
+
+model StoreBrand {
+  id             String         @id @default(cuid())
+  name           String         @default("")
+  slug           String?        @unique
+  logo_id        String?
+  logo_filesize  Int?
+  logo_width     Int?
+  logo_height    Int?
+  logo_extension String?
+  isActive       Boolean        @default(true)
+  products       StoreProduct[] @relation("StoreProduct_brand")
+  createdAt      DateTime?      @default(now())
+}
+
+model StoreCategory {
+  id                          String          @id @default(cuid())
+  name                        String          @default("")
+  slug                        String?         @unique
+  parent                      StoreCategory?  @relation("StoreCategory_parent", fields: [parentId], references: [id])
+  parentId                    String?         @map("parent")
+  children                    StoreCategory[] @relation("StoreCategory_parent")
+  image_id                    String?
+  image_filesize              Int?
+  image_width                 Int?
+  image_height                Int?
+  image_extension             String?
+  order                       Int             @default(0)
+  isActive                    Boolean         @default(true)
+  products                    StoreProduct[]  @relation("StoreProduct_category")
+  createdAt                   DateTime?       @default(now())
+  from_StoreCoupon_categories StoreCoupon[]   @relation("StoreCoupon_categories")
+
+  @@index([parentId])
+}
+
+model StoreCoupon {
+  id                String                  @id @default(cuid())
+  code              String                  @unique @default("")
+  description       String                  @default("")
+  type              String                  @default("percent")
+  value             Int                     @default(0)
+  minSubtotalCents  Int?
+  maxDiscountCents  Int?
+  startsAt          DateTime?
+  endsAt            DateTime?
+  usageLimit        Int?
+  usageLimitPerUser Int?
+  usedCount         Int                     @default(0)
+  firstOrderOnly    Boolean                 @default(false)
+  isActive          Boolean                 @default(true)
+  categories        StoreCategory[]         @relation("StoreCoupon_categories")
+  products          StoreProduct[]          @relation("StoreCoupon_products")
+  redemptions       StoreCouponRedemption[] @relation("StoreCouponRedemption_coupon")
+  createdAt         DateTime?               @default(now())
+}
+
+model StoreCouponRedemption {
+  id            String       @id @default(cuid())
+  key           String       @unique @default("")
+  coupon        StoreCoupon? @relation("StoreCouponRedemption_coupon", fields: [couponId], references: [id])
+  couponId      String?      @map("coupon")
+  order         StoreOrder?  @relation("StoreCouponRedemption_order", fields: [orderId], references: [id])
+  orderId       String?      @map("order")
+  user          User?        @relation("StoreCouponRedemption_user", fields: [userId], references: [id])
+  userId        String?      @map("user")
+  discountCents Int          @default(0)
+  createdAt     DateTime?    @default(now())
+
+  @@index([couponId])
+  @@index([orderId])
+  @@index([userId])
+}
+
+model StoreOrder {
+  id                               String                  @id @default(cuid())
+  number                           String                  @unique @default("")
+  checkoutKey                      String?                 @unique
+  user                             User?                   @relation("StoreOrder_user", fields: [userId], references: [id])
+  userId                           String?                 @map("user")
+  customerName                     String                  @default("")
+  email                            String                  @default("")
+  phone                            String                  @default("")
+  channel                          String?                 @default("web")
+  guestCheckout                    Boolean                 @default(false)
+  status                           String                  @default("open")
+  paymentStatus                    String                  @default("pending")
+  fulfillmentStatus                String                  @default("unfulfilled")
+  unitsCount                       Int?                    @default(0)
+  subtotalCents                    Int                     @default(0)
+  couponCode                       String?
+  couponDiscountCents              Int                     @default(0)
+  shippingCents                    Int                     @default(0)
+  totalCents                       Int                     @default(0)
+  costCents                        Int?                    @default(0)
+  paymentMethod                    String
+  stripePaymentIntentId            String?                 @unique
+  paidAt                           DateTime?
+  expiresAt                        DateTime?
+  cancelledAt                      DateTime?
+  cancelReason                     String                  @default("")
+  shipRecipientName                String                  @default("")
+  shipPhone                        String                  @default("")
+  shipStreet                       String                  @default("")
+  shipExteriorNumber               String                  @default("")
+  shipInteriorNumber               String                  @default("")
+  shipNeighborhood                 String                  @default("")
+  shipCity                         String                  @default("")
+  shipStateCode                    String                  @default("")
+  shipPostalCode                   String                  @default("")
+  shipReferences                   String                  @default("")
+  customerNote                     String                  @default("")
+  adminNote                        String                  @default("")
+  searchText                       String                  @default("")
+  items                            StoreOrderItem[]        @relation("StoreOrderItem_order")
+  payments                         StorePayment[]          @relation("StorePayment_order")
+  shipments                        StoreShipment[]         @relation("StoreShipment_order")
+  events                           StoreOrderEvent[]       @relation("StoreOrderEvent_order")
+  createdAt                        DateTime?               @default(now())
+  updatedAt                        DateTime?               @default(now()) @updatedAt
+  from_StoreCouponRedemption_order StoreCouponRedemption[] @relation("StoreCouponRedemption_order")
+
+  @@index([userId])
+  @@index([searchText])
+  @@index([userId, createdAt])
+  @@index([paymentStatus, createdAt])
+  @@index([fulfillmentStatus, createdAt])
+  @@index([status, expiresAt])
+  @@index([paidAt])
+}
+
+model StoreOrderEvent {
+  id         String      @id @default(cuid())
+  order      StoreOrder? @relation("StoreOrderEvent_order", fields: [orderId], references: [id])
+  orderId    String?     @map("order")
+  type       String      @default("")
+  fromStatus String      @default("")
+  toStatus   String      @default("")
+  actor      User?       @relation("StoreOrderEvent_actor", fields: [actorId], references: [id])
+  actorId    String?     @map("actor")
+  message    String      @default("")
+  isPublic   Boolean     @default(false)
+  metadata   Json?
+  createdAt  DateTime?   @default(now())
+
+  @@index([orderId])
+  @@index([actorId])
+  @@index([orderId, createdAt])
+}
+
+model StoreOrderItem {
+  id               String               @id @default(cuid())
+  order            StoreOrder?          @relation("StoreOrderItem_order", fields: [orderId], references: [id])
+  orderId          String?              @map("order")
+  product          StoreProduct?        @relation("StoreOrderItem_product", fields: [productId], references: [id])
+  productId        String?              @map("product")
+  variant          StoreProductVariant? @relation("StoreOrderItem_variant", fields: [variantId], references: [id])
+  variantId        String?              @map("variant")
+  shipment         StoreShipment?       @relation("StoreOrderItem_shipment", fields: [shipmentId], references: [id])
+  shipmentId       String?              @map("shipment")
+  name             String               @default("")
+  variantTitle     String               @default("")
+  sku              String               @default("")
+  source           String               @default("")
+  externalId       String?
+  dropiVariationId Int?
+  dropiSupplierId  Int?
+  unitPriceCents   Int
+  unitCostCents    Int?
+  quantity         Int
+  discountCents    Int                  @default(0)
+  totalCents       Int
+  reservedQuantity Int                  @default(0)
+  createdAt        DateTime?            @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([shipmentId])
+}
+
+model StorePayment {
+  id                      String      @id @default(cuid())
+  order                   StoreOrder? @relation("StorePayment_order", fields: [orderId], references: [id])
+  orderId                 String?     @map("order")
+  provider                String
+  amountCents             Int
+  status                  String      @default("pending")
+  stripePaymentIntentId   String?
+  stripeChargeId          String?     @unique
+  stripeRefundId          String?
+  refundedCents           Int?        @default(0)
+  transferProof_id        String?
+  transferProof_filesize  Int?
+  transferProof_width     Int?
+  transferProof_height    Int?
+  transferProof_extension String?
+  transferReference       String      @default("")
+  reviewedBy              User?       @relation("StorePayment_reviewedBy", fields: [reviewedById], references: [id])
+  reviewedById            String?     @map("reviewedBy")
+  reviewedAt              DateTime?
+  errorMessage            String      @default("")
+  createdAt               DateTime?   @default(now())
+  updatedAt               DateTime?   @default(now()) @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@index([stripePaymentIntentId])
+  @@index([reviewedById])
+}
+
+model StoreProduct {
+  id                             String                @id @default(cuid())
+  name                           String                @default("")
+  slug                           String?               @unique
+  nameSearch                     String                @default("")
+  shortDescription               String                @default("")
+  description                    String                @default("")
+  source                         String                @default("own")
+  status                         String                @default("draft")
+  isFeatured                     Boolean               @default(false)
+  publishedAt                    DateTime?
+  category                       StoreCategory?        @relation("StoreProduct_category", fields: [categoryId], references: [id])
+  categoryId                     String?               @map("category")
+  brand                          StoreBrand?           @relation("StoreProduct_brand", fields: [brandId], references: [id])
+  brandId                        String?               @map("brand")
+  animalTypes                    AnimalType[]          @relation("StoreProduct_animalTypes")
+  priceCents                     Int?                  @default(0)
+  compareAtPriceCents            Int?
+  inventoryPolicy                String                @default("tracked")
+  stockTotal                     Int?                  @default(0)
+  externalId                     String?
+  externalUrl                    String?
+  affiliateUrl                   String?
+  dropiSupplierId                Int?
+  suggestedPriceCents            Int?
+  externalSyncedAt               DateTime?
+  ratingAverage                  Float?                @default(0)
+  ratingCount                    Int?                  @default(0)
+  salesCount                     Int?                  @default(0)
+  metaTitle                      String                @default("")
+  metaDescription                String                @default("")
+  variants                       StoreProductVariant[] @relation("StoreProductVariant_product")
+  images                         StoreProductImage[]   @relation("StoreProductImage_product")
+  reviews                        StoreProductReview[]  @relation("StoreProductReview_product")
+  createdAt                      DateTime?             @default(now())
+  updatedAt                      DateTime?             @default(now()) @updatedAt
+  from_StoreCoupon_products      StoreCoupon[]         @relation("StoreCoupon_products")
+  from_StoreOrderItem_product    StoreOrderItem[]      @relation("StoreOrderItem_product")
+  from_StoreWishlistItem_product StoreWishlistItem[]   @relation("StoreWishlistItem_product")
+
+  @@unique([source, externalId])
+  @@index([nameSearch])
+  @@index([source])
+  @@index([status])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([status, categoryId])
+  @@index([status, publishedAt])
+}
+
+model StoreProductImage {
+  id              String        @id @default(cuid())
+  product         StoreProduct? @relation("StoreProductImage_product", fields: [productId], references: [id])
+  productId       String?       @map("product")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  externalUrl     String?
+  alt             String        @default("")
+  order           Int           @default(1)
+  createdAt       DateTime?     @default(now())
+
+  @@index([productId])
+}
+
+model StoreProductReview {
+  id               String        @id @default(cuid())
+  key              String        @unique @default("")
+  product          StoreProduct? @relation("StoreProductReview_product", fields: [productId], references: [id])
+  productId        String?       @map("product")
+  user             User?         @relation("StoreProductReview_user", fields: [userId], references: [id])
+  userId           String?       @map("user")
+  rating           Int
+  title            String        @default("")
+  body             String        @default("")
+  status           String        @default("published")
+  verifiedPurchase Boolean       @default(false)
+  adminReply       String        @default("")
+  createdAt        DateTime?     @default(now())
+  updatedAt        DateTime?     @default(now()) @updatedAt
+
+  @@index([productId])
+  @@index([userId])
+  @@index([status])
+  @@index([productId, status, createdAt])
+}
+
+model StoreProductVariant {
+  id                          String           @id @default(cuid())
+  product                     StoreProduct?    @relation("StoreProductVariant_product", fields: [productId], references: [id])
+  productId                   String?          @map("product")
+  title                       String           @default("")
+  sku                         String?
+  options                     Json?
+  priceCents                  Int              @default(0)
+  compareAtPriceCents         Int?
+  costCents                   Int?
+  stock                       Int              @default(0)
+  dropiVariationId            Int?
+  weightGrams                 Int?
+  order                       Int              @default(1)
+  isActive                    Boolean          @default(true)
+  createdAt                   DateTime?        @default(now())
+  from_StoreOrderItem_variant StoreOrderItem[] @relation("StoreOrderItem_variant")
+
+  @@index([productId])
+  @@index([sku])
+}
+
+model StoreSettings {
+  id                   Int       @id
+  shippingFlatCents    Int       @default(9900)
+  freeShippingMinCents Int?      @default(79900)
+  cardEnabled          Boolean   @default(true)
+  transferEnabled      Boolean   @default(true)
+  bankName             String    @default("")
+  bankBeneficiary      String    @default("")
+  bankClabe            String    @default("")
+  bankNote             String    @default("")
+  transferExpiryHours  Int       @default(48)
+  cardExpiryMinutes    Int       @default(60)
+  returnPolicy         String    @default("")
+  supportWhatsapp      String    @default("")
+  updatedAt            DateTime? @default(now()) @updatedAt
+}
+
+model StoreShipment {
+  id                String           @id @default(cuid())
+  order             StoreOrder?      @relation("StoreShipment_order", fields: [orderId], references: [id])
+  orderId           String?          @map("order")
+  items             StoreOrderItem[] @relation("StoreOrderItem_shipment")
+  provider          String
+  status            String           @default("pending")
+  carrier           String           @default("")
+  trackingCode      String           @default("")
+  trackingUrl       String           @default("")
+  shippingCostCents Int?
+  dropiOrderId      String?          @unique
+  dropiStatus       String           @default("")
+  dropiSupplierId   Int?
+  approvedBy        User?            @relation("StoreShipment_approvedBy", fields: [approvedById], references: [id])
+  approvedById      String?          @map("approvedBy")
+  approvedAt        DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  lastSyncedAt      DateTime?
+  lastError         String           @default("")
+  createdAt         DateTime?        @default(now())
+  updatedAt         DateTime?        @default(now()) @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@index([approvedById])
+}
+
+model StoreWishlistItem {
+  id        String        @id @default(cuid())
+  key       String        @unique @default("")
+  user      User?         @relation("StoreWishlistItem_user", fields: [userId], references: [id])
+  userId    String?       @map("user")
+  product   StoreProduct? @relation("StoreWishlistItem_product", fields: [productId], references: [id])
+  productId String?       @map("product")
+  createdAt DateTime?     @default(now())
+
+  @@index([userId])
+  @@index([productId])
+}
+
 model SystemRelease {
   id            String    @id @default(cuid())
   version       String    @default("")
@@ -2351,6 +2753,14 @@ model User {
   from_SaasCompanyNote_author              SaasCompanyNote[]          @relation("SaasCompanyNote_author")
   from_SaasReferralCommission_referrer     SaasReferralCommission[]   @relation("SaasReferralCommission_referrer")
   from_SaasReferralCommission_referredUser SaasReferralCommission[]   @relation("SaasReferralCommission_referredUser")
+  from_StoreAddress_user                   StoreAddress[]             @relation("StoreAddress_user")
+  from_StoreCouponRedemption_user          StoreCouponRedemption[]    @relation("StoreCouponRedemption_user")
+  from_StoreOrder_user                     StoreOrder[]               @relation("StoreOrder_user")
+  from_StoreOrderEvent_actor               StoreOrderEvent[]          @relation("StoreOrderEvent_actor")
+  from_StorePayment_reviewedBy             StorePayment[]             @relation("StorePayment_reviewedBy")
+  from_StoreProductReview_user             StoreProductReview[]       @relation("StoreProductReview_user")
+  from_StoreShipment_approvedBy            StoreShipment[]            @relation("StoreShipment_approvedBy")
+  from_StoreWishlistItem_user              StoreWishlistItem[]        @relation("StoreWishlistItem_user")
   from_TechLeadStageChange_changedBy       TechLeadStageChange[]      @relation("TechLeadStageChange_changedBy")
   from_TokenNotification_user              TokenNotification[]        @relation("TokenNotification_user")
   from_UserActivityDay_user                UserActivityDay[]          @relation("UserActivityDay_user")

@@ -19,6 +19,10 @@ export const PAW_ACTION = {
   RESCUE_VERIFIED: "rescue_verified",
   PLACE_VERIFIED: "place_verified",
   REFERRAL: "referral",
+  /** Store: a product bought on Kadesh was delivered. */
+  PURCHASE: "purchase",
+  /** Store: review of a product the person bought and received. */
+  PRODUCT_REVIEW: "product_review",
   STREAK_BONUS: "streak_bonus",
   ADMIN_ADJUST: "admin_adjust",
 } as const;
@@ -63,6 +67,10 @@ export const PAW_RULES: Record<Exclude<PawAction, "streak_bonus" | "admin_adjust
   [PAW_ACTION.RESCUE_VERIFIED]: { points: 50, dailyCap: null, globalCap: false, streak: false },
   [PAW_ACTION.PLACE_VERIFIED]: { points: 30, dailyCap: null, globalCap: false, streak: false },
   [PAW_ACTION.REFERRAL]: { points: 20, dailyCap: 1, globalCap: false, streak: false },
+  // Store. Per order line, not per unit, and only once it is delivered. Outside the global cap and
+  // the streak: both are about helping, and buying must not eat into them.
+  [PAW_ACTION.PURCHASE]: { points: 10, dailyCap: 3, globalCap: false, streak: false },
+  [PAW_ACTION.PRODUCT_REVIEW]: { points: 5, dailyCap: 3, globalCap: false, streak: false },
 };
 
 /** Actions whose points add up toward the global daily cap. */
@@ -86,6 +94,9 @@ export const SIGHTING_STRIKE_LIMIT = 3;
 export const SIGHTING_STRIKE_DAYS = 30;
 
 export const ADMIN_ADJUST_MAX = 5000;
+
+/** A store order line earns paws only from this amount (after discounts), so cheap items are not bought to climb the ranking. */
+export const PURCHASE_MIN_LINE_CENTS = 100 * 100;
 
 export const LEADERBOARD_MAX_TAKE = 50;
 export const LEADERBOARD_DEFAULT_TAKE = 20;

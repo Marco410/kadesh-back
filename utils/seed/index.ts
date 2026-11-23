@@ -8,6 +8,7 @@ import { createPetPlaceService } from "./veterinary_services";
 import { createSaasCompany } from "./saas_company";
 import { createSaasPlan } from "./saas_plan";
 import { createSaasCreditPackages } from "./saas_credits";
+import { createStoreSeed } from "./store";
 
 async function createRoles(context: KeystoneContext) {
   const sudo = context.sudo();
@@ -37,4 +38,5 @@ export default async function seed(context: KeystoneContext) {
 
   await createVeterinary(context, userID, services);
   await createSaasCompany(context, planId);
+  await createStoreSeed(context);
 }

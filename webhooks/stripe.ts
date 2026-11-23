@@ -12,6 +12,11 @@ import {
   unixToDay,
   type LocalSubscription,
 } from "../utils/saas/stripeSubscriptionSync";
+import {
+  handleStoreChargeRefunded,
+  handleStorePaymentIntentFailed,
+  handleStorePaymentIntentSucceeded,
+} from "./stripeStore";
 
 /**
  * Webhook de Stripe: lo que pasa con el cobro después del checkout.
@@ -19,6 +24,8 @@ import {
  * - `invoice.payment_failed` → `SaasPayment` fallido + `billing.payment_failed`.
  * - `customer.subscription.updated` / `.deleted` → estado local (+ `billing.status_changed` / `billing.cancelled`).
  * - `charge.refunded` → el `SaasPayment` queda `refunded` + `billing.refunded`.
+ * - `payment_intent.succeeded` / `.payment_failed` y los `charge.refunded` de la tienda de Kadesh Pet
+ *   (PaymentIntent con `metadata.kind = "store_order"`) → `webhooks/stripeStore.ts`.
  *
  * Firma obligatoria con `STRIPE_WEBHOOK_SECRET`; sin esa variable no procesa nada.
  * Idempotente por estado: Stripe reintenta y a veces repite eventos, así que cada handler revisa
@@ -291,6 +298,8 @@ async function findPaymentByRefs(context: KeystoneContext, refs: string[]) {
 async function handleChargeRefunded(context: KeystoneContext, event: AnyObject) {
   const charge = event.data?.object as AnyObject;
   if (!charge?.id) return;
+  // Un cargo de la tienda de Kadesh Pet no es un SaasPayment.
+  if (await handleStoreChargeRefunded(context, charge)) return;
   const refs = [charge.id, str(charge.payment_intent), str(charge.invoice)].filter(
     (ref): ref is string => Boolean(ref),
   );
@@ -327,6 +336,8 @@ const HANDLERS: Record<string, (context: KeystoneContext, event: AnyObject) => P
   "customer.subscription.updated": handleSubscriptionChange,
   "customer.subscription.deleted": handleSubscriptionChange,
   "charge.refunded": handleChargeRefunded,
+  "payment_intent.succeeded": handleStorePaymentIntentSucceeded,
+  "payment_intent.payment_failed": handleStorePaymentIntentFailed,
 };
 
 /** Aplica un evento ya verificado. Exportado para pruebas y para reprocesar eventos a mano. */
