@@ -7,6 +7,7 @@ import {
   STORE_PRODUCT_SOURCE,
   STORE_PRODUCT_STATUS,
   STORE_RELATED_TAKE,
+  STORE_RETURN_DAYS,
   STORE_REVIEW_STATUS,
   STORE_REVIEWS_DEFAULT_TAKE,
   STORE_REVIEWS_MAX_TAKE,
@@ -28,6 +29,7 @@ import {
   toCatalogItem,
 } from "../../../../utils/store/catalog";
 import { storeCatalogVersion, storeEnabled } from "../../../../utils/store/config";
+import { getStoreSettings } from "../../../../utils/store/settings";
 import { escapeLike } from "../../../../utils/helpers/escapeLike";
 
 /**
@@ -136,6 +138,12 @@ const typeDefs = `
     "Published reviews with 1, 2, 3, 4 and 5 stars, in that order."
     ratingBreakdown: [Int!]!
     related: [StoreCatalogItem!]!
+    "Flat shipping of an order (StoreSettings)."
+    shippingFlatCents: Int!
+    "Orders from this subtotal ship free; 0 = never."
+    freeShippingMinCents: Int!
+    "Days after delivery to report a defective product."
+    returnDays: Int!
   }
 
   type StoreCatalogFacetCategory {
@@ -560,9 +568,10 @@ const resolver = {
     ]);
 
     const relatedRows = unwrap(related) as CatalogItemRow[];
-    const [covers, saleVariants] = await Promise.all([
+    const [covers, saleVariants, settings] = await Promise.all([
       loadStoreCovers(context, [product.id, ...relatedRows.map((row) => row.id)]),
       loadStoreSaleVariants(context, [product.id, ...relatedRows.map((row) => row.id)]),
+      getStoreSettings(context),
     ]);
 
     const imageList = (
@@ -620,6 +629,9 @@ const resolver = {
       animalTypes: product.animalTypes.map((type) => type.name),
       ratingBreakdown,
       related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id), saleVariants.get(row.id))),
+      shippingFlatCents: settings.shippingFlatCents,
+      freeShippingMinCents: settings.freeShippingMinCents,
+      returnDays: STORE_RETURN_DAYS,
     };
   },
 

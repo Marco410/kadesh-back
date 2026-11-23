@@ -1,5 +1,9 @@
 import type { KeystoneContext } from "@keystone-6/core/types";
-import { STORE_SETTINGS_CACHE_MS, STORE_SETTINGS_DEFAULTS } from "../../models/Pet/Store/constants";
+import {
+  STORE_DEFAULT_RETURN_POLICY,
+  STORE_SETTINGS_CACHE_MS,
+  STORE_SETTINGS_DEFAULTS,
+} from "../../models/Pet/Store/constants";
 
 /**
  * `StoreSettings` (one row) read from memory: every quote and every order needs it. Re-read after
@@ -58,7 +62,7 @@ export async function getStoreSettings(context: KeystoneContext): Promise<StoreS
     bankNote: text(row?.bankNote),
     transferExpiryHours: int(row?.transferExpiryHours, STORE_SETTINGS_DEFAULTS.transferExpiryHours) || STORE_SETTINGS_DEFAULTS.transferExpiryHours,
     cardExpiryMinutes: int(row?.cardExpiryMinutes, STORE_SETTINGS_DEFAULTS.cardExpiryMinutes) || STORE_SETTINGS_DEFAULTS.cardExpiryMinutes,
-    returnPolicy: text(row?.returnPolicy),
+    returnPolicy: text(row?.returnPolicy) || STORE_DEFAULT_RETURN_POLICY,
     supportWhatsapp: text(row?.supportWhatsapp),
   };
   cache = { value, at: Date.now() };

@@ -17368,6 +17368,15 @@ type StoreCatalogProduct {
   """Published reviews with 1, 2, 3, 4 and 5 stars, in that order."""
   ratingBreakdown: [Int!]!
   related: [StoreCatalogItem!]!
+
+  """Flat shipping of an order (StoreSettings)."""
+  shippingFlatCents: Int!
+
+  """Orders from this subtotal ship free; 0 = never."""
+  freeShippingMinCents: Int!
+
+  """Days after delivery to report a defective product."""
+  returnDays: Int!
 }
 
 type StoreCatalogFacetCategory {

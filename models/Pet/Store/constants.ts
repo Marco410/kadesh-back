@@ -312,6 +312,21 @@ export const STORE_TRANSFER_RETRY_HOURS = 24;
 /** Orders checked per run of `expireStoreOrders`. */
 export const STORE_EXPIRE_MAX_PER_RUN = 200;
 
+/**
+ * Returns: only a defective, damaged or wrong product, reported within these days of delivery,
+ * and the buyer pays the shipping back. Kadesh sends a new one or refunds once it arrives and is
+ * checked. The landing puts the same rule in each product's JSON-LD.
+ */
+export const STORE_RETURN_DAYS = 5;
+
+/** Used while `StoreSettings.returnPolicy` is empty. */
+export const STORE_DEFAULT_RETURN_POLICY = [
+  `Solo aceptamos devoluciones si el producto llega defectuoso, dañado o no es el que pediste.`,
+  `Avísanos por WhatsApp en los ${STORE_RETURN_DAYS} días siguientes a recibirlo, con fotos o video del paquete y del producto.`,
+  "El producto debe regresar completo y en su empaque, y el envío de regreso lo pagas tú.",
+  "Cuando lo recibimos y lo revisamos, te enviamos uno nuevo o te devolvemos tu dinero.",
+].join(" ");
+
 /** `StoreSettings` is read from memory for this long (and re-read right after an admin edits it). */
 export const STORE_SETTINGS_CACHE_MS = 60 * 1000;
 
