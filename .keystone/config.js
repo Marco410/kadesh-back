@@ -14377,6 +14377,7 @@ var STORE_REVIEW_STATUS_OPTIONS = [
   { label: "Oculta", value: STORE_REVIEW_STATUS.HIDDEN }
 ];
 var STORE_CURRENCY = "MXN";
+var STORE_STATEMENT_DESCRIPTOR_SUFFIX = "TIENDA";
 var STORE_CATALOG_DEFAULT_TAKE = 24;
 var STORE_CATALOG_MAX_TAKE = 48;
 var STORE_RELATED_TAKE = 8;
@@ -14550,6 +14551,13 @@ var STORE_GUEST_MIN_PASSWORD = 8;
 var STORE_TRANSFER_PROOF_MAX_BYTES = 8 * 1024 * 1024;
 var STORE_TRANSFER_RETRY_HOURS = 24;
 var STORE_EXPIRE_MAX_PER_RUN = 200;
+var STORE_RETURN_DAYS = 5;
+var STORE_DEFAULT_RETURN_POLICY = [
+  `Solo aceptamos devoluciones si el producto llega defectuoso, da\xF1ado o no es el que pediste.`,
+  `Av\xEDsanos por WhatsApp en los ${STORE_RETURN_DAYS} d\xEDas siguientes a recibirlo, con fotos o video del paquete y del producto.`,
+  "El producto debe regresar completo y en su empaque, y el env\xEDo de regreso lo pagas t\xFA.",
+  "Cuando lo recibimos y lo revisamos, te enviamos uno nuevo o te devolvemos tu dinero."
+].join(" ");
 var STORE_SETTINGS_CACHE_MS = 60 * 1e3;
 var STORE_SETTINGS_DEFAULTS = {
   shippingFlatCents: 9900,
@@ -15636,7 +15644,7 @@ async function getStoreSettings(context) {
     bankNote: text51(row?.bankNote),
     transferExpiryHours: int(row?.transferExpiryHours, STORE_SETTINGS_DEFAULTS.transferExpiryHours) || STORE_SETTINGS_DEFAULTS.transferExpiryHours,
     cardExpiryMinutes: int(row?.cardExpiryMinutes, STORE_SETTINGS_DEFAULTS.cardExpiryMinutes) || STORE_SETTINGS_DEFAULTS.cardExpiryMinutes,
-    returnPolicy: text51(row?.returnPolicy),
+    returnPolicy: text51(row?.returnPolicy) || STORE_DEFAULT_RETURN_POLICY,
     supportWhatsapp: text51(row?.supportWhatsapp)
   };
   cache = { value, at: Date.now() };
@@ -36533,6 +36541,7 @@ function createOrderIntent(order, buyer) {
       ...buyer.stripeCustomerId ? { customer: buyer.stripeCustomerId } : {},
       receipt_email: buyer.email || void 0,
       description: `Pedido ${order.number} en la tienda de Kadesh Pet`,
+      statement_descriptor_suffix: STORE_STATEMENT_DESCRIPTOR_SUFFIX,
       metadata: { kind: "store_order", orderId: order.id, orderNumber: order.number }
     },
     { idempotencyKey: `store-order-${order.id}` }
@@ -54218,6 +54227,12 @@ var typeDefs128 = `
     "Published reviews with 1, 2, 3, 4 and 5 stars, in that order."
     ratingBreakdown: [Int!]!
     related: [StoreCatalogItem!]!
+    "Flat shipping of an order (StoreSettings)."
+    shippingFlatCents: Int!
+    "Orders from this subtotal ship free; 0 = never."
+    freeShippingMinCents: Int!
+    "Days after delivery to report a defective product."
+    returnDays: Int!
   }
 
   type StoreCatalogFacetCategory {
@@ -54532,9 +54547,10 @@ var resolver125 = {
       }) : Promise.resolve([])
     ]);
     const relatedRows = unwrap8(related);
-    const [covers, saleVariants] = await Promise.all([
+    const [covers, saleVariants, settings] = await Promise.all([
       loadStoreCovers(context, [product.id, ...relatedRows.map((row) => row.id)]),
-      loadStoreSaleVariants(context, [product.id, ...relatedRows.map((row) => row.id)])
+      loadStoreSaleVariants(context, [product.id, ...relatedRows.map((row) => row.id)]),
+      getStoreSettings(context)
     ]);
     const imageList = (await Promise.all(
       unwrap8(images).map(async (image15) => ({ url: await storeImageUrl(context, image15), alt: image15.alt || null }))
@@ -54568,7 +54584,10 @@ var resolver125 = {
       }),
       animalTypes: product.animalTypes.map((type) => type.name),
       ratingBreakdown,
-      related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id), saleVariants.get(row.id)))
+      related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id), saleVariants.get(row.id))),
+      shippingFlatCents: settings.shippingFlatCents,
+      freeShippingMinCents: settings.freeShippingMinCents,
+      returnDays: STORE_RETURN_DAYS
     };
   },
   /** Categories, brands and price range for the filters. Cached in memory for 10 minutes. */
